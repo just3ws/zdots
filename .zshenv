@@ -21,7 +21,7 @@ HOMEBREW_NO_INSECURE_REDIRECT=1
 # /usr/libexec/java_home
 JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home"
 
-PYENV_VIRTUALENV_DISABLE_PROMPT=1
+export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 PYENV_ROOT="$HOME/.pyenv"
 pyenv () {
   unset pyenv
