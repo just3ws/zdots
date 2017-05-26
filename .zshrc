@@ -2,7 +2,9 @@ zstyle ":completion:*" use-cache on
 zstyle ":completion:*" cache-path "$ZSH_CACHE_DIR"
 zstyle :compinstall filename "$ZDOTDIR/.zshrc"
 
+# http://zsh.sourceforge.net/Doc/Release/Options.html
 
+#
 # PROMPT
 #
 # If set, parameter expansion, command substitution and arithmetic expansion
@@ -11,8 +13,7 @@ setopt prompt_subst
 # Remove any right prompt from display when accepting a command line.
 setopt transient_rprompt
 
-# http://zsh.sourceforge.net/Doc/Release/Options.html
-
+#
 # HISTORY
 #
 setopt bang_hist # Enable "!" history expansion
@@ -55,20 +56,16 @@ setopt hist_no_functions
 # line directly; instead, perform history expansion and reload the line into
 # the editing buffer.
 setopt hist_verify
-unsetopt hist_beep
+# (Do not) Beep in ZLE when a widget attempts to access a history entry which isn’t
+# there.
+setopt no_hist_beep
 
-# SAFETY GUARDS
-# If querying the user before executing `rm *" or `rm path/*", first wait ten
-# seconds and ignore anything typed in that time. This avoids the problem of
-# reflexively answering `yes" to the query when one didn"t really mean it.
-setopt rm_star_wait
-# Query the user before executing `rm *` or `rm path/*`
-unsetopt rm_star_silent
-
-# CHDIR
+#
+# CHANGING DIRECTORIES
+#
 # If a directoryname is entered like a command, and there is no command of that
 # name; the "cd" command is executed for that directory
-setopt autocd
+setopt auto_cd
 # If cd would fail, because the arg is not a dir, try to expand the argument as
 # if it was called the ~expression way
 setopt cdable_vars
@@ -86,7 +83,9 @@ setopt pushd_silent
 # Resolve symbolic links to their true values when changing directory.
 setopt chase_links
 
+#
 # COMPLETION
+#
 # don't expand aliases _before_ completion has finished
 setopt complete_aliases
 # if unset the cursor is set to the end of the word if completion is started
@@ -111,22 +110,23 @@ setopt bad_pattern
 setopt extendedglob
 # Do not require a leading ‘.’ in a filename to be matched explicitly.
 setopt glob_dots
-# Make globbing (filename generation) sensitive to case. Note that other uses
+# (Do not) Make globbing (filename generation) sensitive to case. Note that other uses
 # of patterns are always sensitive to case. If the option is unset, the
 # presence of any character which is special to filename generation will cause
 # case-insensitive matching.
-unsetopt CASE_GLOB
+setopt no_case_glob
 # If a pattern for filename generation has no matches, print an error, instead
 # of leaving it unchanged in the argument list. This also applies to file
 # expansion of an initial ‘~’ or ‘=’.
 setopt nomatch
 
-
-# SCRIPTING
+#
+# SCRIPTS AND FUNCTIONS
 #
 # enable multiple redirections: uptime > uptime0.txt > uptime1.txt
 setopt multios
 
+#
 # I/O
 #
 # Allow ">" to truncate, and "»" to create files
@@ -135,7 +135,14 @@ setopt clobber
 setopt correct
 # Allow short form loops: `for file in *.pdf; lp ${file}`
 setopt short_loops
+# If querying the user before executing `rm *" or `rm path/*", first wait ten
+# seconds and ignore anything typed in that time. This avoids the problem of
+# reflexively answering `yes" to the query when one didn"t really mean it.
+setopt rm_star_wait
+# Do query the user before executing ‘rm *’ or ‘rm path/*’.
+setopt no_rm_star_silent
 
+#
 # JOB CONTROL
 #
 # if you"ve got a simple command suspened, say "mutt", and you forgot that you
@@ -152,8 +159,8 @@ setopt check_jobs
 # just before printing a prompt.
 setopt notify
 
-# Be quiet, seriously. I'm usually wearing headphones.
-unsetopt beep
+# (Do not) Beep on error in ZLE.
+setopt no_beep
 
 # Vi all the things!
 bindkey -v
@@ -187,30 +194,30 @@ bindkey -M viins "^S" history-incremental-search-forward
 bindkey -M viins "^T" transpose-chars
 bindkey -M viins "^Y" yank
 
-# hash -d vim=~/dotfiles/vim
-# hash -d zsh=~/dotfiles/zsh
-hash -d api="~/wmx/bp/v2"
-hash -d assets="~/wmx/bp/assets"
-hash -d bp="~/wmx/bp"
-hash -d course_publisher="~/wmx/bp/course-publisher"
-hash -d dotfiles="~/dotfiles"
-hash -d instructor_dashboard="~/wmx/bp/instructor-dashboard"
-hash -d marketing_admin="~/wmx/bp/marketing-admin"
-hash -d marketing="~/wmx/bp/marketing"
-hash -d reporting_api="~/wmx/bp/reporting-api"
-hash -d s3="~/wmx/s3"
-hash -d src="~/src"
-hash -d sso="~/wmx/bp/sso"
-hash -d teachers="~/wmx/bp/teachers"
-hash -d tenant_dashboard="~/wmx/bp/tenant-dashboard"
-hash -d user_manager="~/wmx/bp/user-manager"
-hash -d web="~/wmx/bp/webapp"
-hash -d wikis="~/wmx/wikis"
-hash -d wmx="~/wmx"
-hash -d download="~/Downloads"
-hash -d pictures="~/Pictures"
-hash -d documents="~/Documents"
-hash -d dbx="~/Dropbox/mike"
+# hash -d vim=$HOME/dotfiles/vim
+# hash -d zsh=$HOME/dotfiles/zsh
+hash -d api="$HOME/wmx/bp/v2"
+hash -d assets="$HOME/wmx/bp/assets"
+hash -d bp="$HOME/wmx/bp"
+hash -d course_publisher="$HOME/wmx/bp/course-publisher"
+hash -d dotfiles="$HOME/dotfiles"
+hash -d instructor_dashboard="$HOME/wmx/bp/instructor-dashboard"
+hash -d marketing_admin="$HOME/wmx/bp/marketing-admin"
+hash -d marketing="$HOME/wmx/bp/marketing"
+hash -d reporting_api="$HOME/wmx/bp/reporting-api"
+hash -d s3="$HOME/wmx/s3"
+hash -d src="$HOME/src"
+hash -d sso="$HOME/wmx/bp/sso"
+hash -d teachers="$HOME/wmx/bp/teachers"
+hash -d tenant_dashboard="$HOME/wmx/bp/tenant-dashboard"
+hash -d user_manager="$HOME/wmx/bp/user-manager"
+hash -d web="$HOME/wmx/bp/webapp"
+hash -d wikis="$HOME/wmx/wikis"
+hash -d wmx="$HOME/wmx"
+hash -d download="$HOME/Downloads"
+hash -d pictures="$HOME/Pictures"
+hash -d documents="$HOME/Documents"
+hash -d dbx="$HOME/Dropbox/mike"
 hash -d zdots="$ZDOTDIR"
 
 fpath=(
