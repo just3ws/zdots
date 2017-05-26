@@ -247,4 +247,6 @@ source "$HOME/.rvm/scripts/rvm"
 
 source $ZDOTDIR/.aliasesrc
 
+source "$ZDOTDIR/plugins/.iterm2_shell_integration.zsh"
+
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
