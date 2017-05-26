@@ -63,7 +63,8 @@ WORDCHARS='*?[]~&;!$%^<>'
 
 typeset -U path
 
-[[ ! ("$path" =~ "/opt/nginx/sbin") ]] && path=(/opt/nginx/sbin $path)
+nginx_path="/opt/nginx/sbin"
+[ -d "$nginx_path" ] && [[ ! ("$path" =~ "$nginx_path") ]] && path=(/opt/nginx/sbin $path)
 
 path=(
   /usr/local/bin
