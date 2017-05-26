@@ -51,18 +51,16 @@ gvim () {
 
   $VIM "$@"
 }
-alias mvim=gvim
 
-EDITOR="vim"
+EDITOR=vim
 VISUAL="$EDITOR"
-ALTERNATE_EDITOR=""
+ALTERNATE_EDITOR="$EDITOR"
 
 # By default, zsh considers many characters part of a word (e.g., _ and -).
 # Narrow that down to allow easier skipping through words via M-f and M-b.
 WORDCHARS='*?[]~&;!$%^<>'
 
 typeset -U path
-
 nginx_path="/opt/nginx/sbin"
 [ -d "$nginx_path" ] && [[ ! ("$path" =~ "$nginx_path") ]] && path=(/opt/nginx/sbin $path)
 

@@ -1,5 +1,11 @@
 # vim:set filetype=zsh expandtab shiftwidth=2:
 
+alias v="$EDITOR"
+alias e="$EDITOR"
+alias ved=" vim ~/.config/nvim/init.vim"
+alias zed=" vim -O $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv"
+alias mvim=gvim
+
 # alias -s js=vim
 alias -s coffee=vim
 alias -s css=vim
@@ -16,8 +22,7 @@ alias -s vim=vim
 alias be=" nocorrect bundle exec"
 alias bundle=" bundle"
 alias cd=" cd"
-alias clear=" clear"
-alias e="$EDITOR"
+# alias clear=" clear"
 
 # git
 alias g=" git"
@@ -54,9 +59,6 @@ alias rm=" rm"
 alias rspec="nocorrect rspec"
 alias rvm=" rvm"
 alias source=" source"
-alias v="$EDITOR"
-alias ved=" vim ~/.config/nvim/init.vim"
-alias zed=" vim -O $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv"
 # exit
 alias exit=" exit"
 alias xxx=" exit"
