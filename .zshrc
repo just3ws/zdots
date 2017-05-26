@@ -243,6 +243,8 @@ source "/usr/local/share/zsh-history-substring-search/zsh-history-substring-sear
 source "/usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh"
 source "/usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 
+source "$HOME/.rvm/scripts/rvm"
+
 source $ZDOTDIR/.aliasesrc
 
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
