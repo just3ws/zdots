@@ -1,12 +1,18 @@
+ZDOTDIR="$HOME/.config/zsh"
+
 ZSH_CACHE_DIR="$HOME/.local/share/zsh/cache"
 [ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"
+
+DIRSTACKSIZE=9
+DIRSTACKFILE="$ZSH_CACHE_DIR/.zdirs"
+[ -f "$DIRSTACKFILE" ] || touch "$DIRSTACKFILE"
 
 LC_ALL="en_US.UTF-8"
 LANG="en_US.UTF-8"
 
 SAVEHIST=10000
 HISTSIZE=13300 # allows room for `hist_expire_dupes_first` processing duplicated events
-HISTFILE="$ZSH_CACHE_DIR/.history"
+HISTFILE="$ZSH_CACHE_DIR/.zhistory"
 
 HOMEBREW_CASK_OPTS="$HOMEBREW_CASK_OPTS --caskroom=/opt/homebrew-cask/Caskroom"
 HOMEBREW_NO_ANALYTICS=1
@@ -51,13 +57,14 @@ EDITOR="vim"
 VISUAL="$EDITOR"
 ALTERNATE_EDITOR=""
 
-ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR="/usr/local/share/zsh-syntax-highlighting/highlighters"
-
 # By default, zsh considers many characters part of a word (e.g., _ and -).
 # Narrow that down to allow easier skipping through words via M-f and M-b.
 WORDCHARS='*?[]~&;!$%^<>'
 
 typeset -U path
+
+[[ ! ("$path" =~ "/opt/nginx/sbin") ]] && path=(/opt/nginx/sbin $path)
+
 path=(
   /usr/local/bin
   /usr/local/sbin
@@ -73,5 +80,7 @@ path=(
   $path
   $HOME/.rvm/bin
 )
+
+ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR="/usr/local/share/zsh-syntax-highlighting/highlighters"
 
 PS1="%0~  "
