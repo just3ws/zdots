@@ -43,6 +43,14 @@ vim () {
   $VIM "$@"
 }
 
+rvm () {
+  unfunction rvm
+
+  source "$HOME/.rvm/scripts/rvm"
+
+  rvm "$@"
+}
+
 gvim () {
   unset gvim
 

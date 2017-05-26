@@ -4,15 +4,17 @@ zstyle :compinstall filename "$ZDOTDIR/.zshrc"
 
 
 # PROMPT
+#
 # If set, parameter expansion, command substitution and arithmetic expansion
 # are performed in prompts.
 setopt prompt_subst
 # Remove any right prompt from display when accepting a command line.
 setopt transient_rprompt
 
-# [ -d ./.git ] && git rev-parse --abbrev-ref HEAD
+# http://zsh.sourceforge.net/Doc/Release/Options.html
 
 # HISTORY
+#
 setopt bang_hist # Enable "!" history expansion
 # When exiting, append history entries to $HISTFILE, rather than replacing the
 # old file; this is the default
@@ -101,26 +103,41 @@ setopt always_to_end
 setopt auto_menu
 
 # EXPANSION & GLOBBING
-# if a pattern or glob is badly formed, print out an error
+# If a pattern for filename generation is badly formed, print an error message.
 setopt bad_pattern
-# globbing++
+# Treat the ‘#’, ‘~’ and ‘^’ characters as part of patterns for filename
+# generation, etc. (An initial unquoted ‘~’ always produces named directory
+# expansion.)
 setopt extendedglob
-# don't require a leading dot for matching "hidden" files
+# Do not require a leading ‘.’ in a filename to be matched explicitly.
 setopt glob_dots
+# Make globbing (filename generation) sensitive to case. Note that other uses
+# of patterns are always sensitive to case. If the option is unset, the
+# presence of any character which is special to filename generation will cause
+# case-insensitive matching.
+unsetopt CASE_GLOB
+# If a pattern for filename generation has no matches, print an error, instead
+# of leaving it unchanged in the argument list. This also applies to file
+# expansion of an initial ‘~’ or ‘=’.
+setopt nomatch
 
-# scripting
+
+# SCRIPTING
+#
 # enable multiple redirections: uptime > uptime0.txt > uptime1.txt
 setopt multios
 
 # I/O
-# allow ">" to truncate, and "»" to create files
+#
+# Allow ">" to truncate, and "»" to create files
 setopt clobber
-# try to correct the spelling of commands.
+# Try to correct the spelling of commands.
 setopt correct
-# allow short form loops: `for file in *.pdf; lp ${file}`
+# Allow short form loops: `for file in *.pdf; lp ${file}`
 setopt short_loops
 
 # JOB CONTROL
+#
 # if you"ve got a simple command suspened, say "mutt", and you forgot that you
 # have already got a mutt running and try to start another mutt, the old
 # running mutt is resumed, rather than starting a new process
@@ -131,8 +148,8 @@ setopt bg_nice
 setopt hup
 # report status of bg-jobs if exiting a shell with job control enabled
 setopt check_jobs
-
-setopt nomatch
+# Report the status of background jobs immediately, rather than waiting until
+# just before printing a prompt.
 setopt notify
 
 # Be quiet, seriously. I'm usually wearing headphones.
