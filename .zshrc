@@ -2,10 +2,6 @@ zstyle ":completion:*" use-cache on
 zstyle ":completion:*" cache-path "$ZSH_CACHE_DIR"
 zstyle :compinstall filename "$ZDOTDIR/.zshrc"
 
-autoload -U +X compinit && compinit
-autoload -U +X promptinit && promptinit
-
-autoload -U regexp-replace
 
 # PROMPT
 # If set, parameter expansion, command substitution and arithmetic expansion
@@ -147,11 +143,11 @@ bindkey -v
 set -o vi
 
 # Use C-x C-e to edit the current command line
-autoload -U edit-command-line
+autoload -Uz edit-command-line
 zle -N edit-command-line
 bindkey "\C-x\C-e" edit-command-line
 
-# # Emacs style
+# Emacs style
 zle -N edit-command-line
 bindkey "^xe" edit-command-line
 bindkey "^x^e" edit-command-line
@@ -173,11 +169,6 @@ bindkey -M viins "^R" history-incremental-search-backward
 bindkey -M viins "^S" history-incremental-search-forward
 bindkey -M viins "^T" transpose-chars
 bindkey -M viins "^Y" yank
-
-source "/usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
-source "/usr/local/share/zsh-history-substring-search/zsh-history-substring-search.zsh"
-source "/usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh"
-source "/usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 
 # hash -d vim=~/dotfiles/vim
 # hash -d zsh=~/dotfiles/zsh
@@ -203,39 +194,31 @@ hash -d download="~/Downloads"
 hash -d pictures="~/Pictures"
 hash -d documents="~/Documents"
 hash -d dbx="~/Dropbox/mike"
-
-archive-wmx () rsync --archive --progress /Users/mike/wmx/ /Users/mike/Dropbox/.archives/wmx
-archive-just3ws () rsync --archive --progress /Users/mike/just3ws/ /Users/mike/Dropbox/.archives/just3ws
-archive-src () rsync --archive --progress /Users/mike/src/ /Users/mike/Dropbox/.archives/src
-archive-dotfiles () rsync --archive --progress /Users/mike/dotfiles/ /Users/mike/Dropbox/.archives/dotfiles
-
-reload! ()
-{
-  local cache=$ZSH_CACHE_DIR
-  autoload -U compinit zrecompile
-  compinit -d "$cache/zcomp-$HOST"
-
-  for f in "$ZDOTDIR/.zshrc" "$cache/zcomp-$HOST"
-  do
-    zrecompile -p $f && command rm -f $f.zwc.old
-  done
-
-  source "$ZDOTDIR/.zshrc"
-}
-
-clear! () { printf "\33c\e[3J" }
-
-zman () {
- PAGER="less -g -s \"+/^ \"$1\"\"" man zshall
-}
-
-profile_vim () { rm -f ~/.vim-trace ; vim --startuptime ~/.vim-trace }
+hash -d zdots="$ZDOTDIR"
 
 fpath=(
-  $ZDOTDIR/Completion
+  /Users/mike/.config/zsh/fns
+  /Users/mike/.config/zsh/Completion
   /usr/local/share/zsh-completions
   /usr/local/share/zsh/site-functions
+
   $fpath
 )
 
+autoload -Uz compinit && compinit
+autoload -Uz promptinit && promptinit
+autoload -Uz regexp-replace
+
+for fn in /Users/mike/.config/zsh/fns/*(x)
+do
+  autoload -Uz "$(basename $fn)"
+done
+
+source "/usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+source "/usr/local/share/zsh-history-substring-search/zsh-history-substring-search.zsh"
+source "/usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh"
+source "/usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+
 source $ZDOTDIR/.aliasesrc
+
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
