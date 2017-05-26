@@ -1,3 +1,4 @@
 #!/usr/bin/env zsh
 
-rsync --archive --progress ~/wmx/ /Users/mike/Dropbox/mike/Bucket/.archives/wmx
+mkdir -p ~/Dropbox/$(whoami)/Bucket/.archives/wmx
+rsync --archive --progress ~/wmx/ ~/Dropbox/$(whoami)/Bucket/.archives/wmx
