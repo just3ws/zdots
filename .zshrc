@@ -197,8 +197,8 @@ hash -d dbx="~/Dropbox/mike"
 hash -d zdots="$ZDOTDIR"
 
 fpath=(
-  /Users/mike/.config/zsh/fns
-  /Users/mike/.config/zsh/Completion
+  $ZDOTDIR/fns
+  $ZDOTDIR/Completion
   /usr/local/share/zsh-completions
   /usr/local/share/zsh/site-functions
 
@@ -209,7 +209,7 @@ autoload -Uz compinit && compinit
 autoload -Uz promptinit && promptinit
 autoload -Uz regexp-replace
 
-for fn in /Users/mike/.config/zsh/fns/*(x)
+for fn in $ZDOTDIR/fns/*(x)
 do
   autoload -Uz "$(basename $fn)"
 done
