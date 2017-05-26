@@ -5,7 +5,7 @@ ZSH_CACHE_DIR="$HOME/.local/share/zsh/cache"
 
 DIRSTACKSIZE=9
 DIRSTACKFILE="$ZSH_CACHE_DIR/.zdirs"
-[ -f "$DIRSTACKFILE" ] || touch "$DIRSTACKFILE"
+
 
 LC_ALL="en_US.UTF-8"
 LANG="en_US.UTF-8"
@@ -43,13 +43,14 @@ vim () {
   $VIM "$@"
 }
 
-rvm () {
-  unfunction rvm
-
-  source "$HOME/.rvm/scripts/rvm"
-
-  rvm "$@"
-}
+# TODO: Safely lazy-load RVM while not breaking Bundler, etc.
+# rvm () {
+#   unfunction rvm
+#
+#   source "$HOME/.rvm/scripts/rvm"
+#
+#   rvm "$@"
+# }
 
 gvim () {
   unset gvim

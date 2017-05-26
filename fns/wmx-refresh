@@ -1,0 +1,11 @@
+#!/usr/bin/env zsh
+
+for project in course-publisher instructor-dashboard marketing-admin marketing reporting-api sso teachers tenant-dashboard user-manager v2 webapp
+do
+  echo "Refreshing: $project"
+  cd "$HOME/wmx/bp/$project/"
+  pwd
+  git fetch --all --prune
+  git pull --rebase --autostash
+  echo
+done
