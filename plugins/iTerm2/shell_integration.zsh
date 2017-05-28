@@ -1,5 +1,7 @@
 if [[ -o interactive ]]; then
   if [ "$TERM" != "screen" -a "$ITERM_SHELL_INTEGRATION_INSTALLED" = "" ]; then
+    PS1="%{$fg_bold[yellow]%}   %{$reset_color%}$PS1"
+
     ITERM_SHELL_INTEGRATION_INSTALLED=Yes
     ITERM2_SHOULD_DECORATE_PROMPT="1"
     # Indicates start of command output. Runs just before command executes.
@@ -89,12 +91,12 @@ if [[ -o interactive ]]; then
       ITERM2_SHOULD_DECORATE_PROMPT=""
 
       # Add our escape sequences just before the prompt is shown.
-      if [[ $PS1 == *'$(iterm2_prompt_mark)'* ]]
-      then
-        PS1="$PS1%{$(iterm2_prompt_end)%}"
-      else
-        PS1="%{$(iterm2_prompt_mark)%}$PS1%{$(iterm2_prompt_end)%}"
-      fi
+      # if [[ "$PS1" =~ "$(iterm2_prompt_mark)" ]]
+      # then
+      #   PS1=" X $PS1%{$(iterm2_prompt_end)%}"
+      # else
+         PS1="%{$(iterm2_prompt_mark)%}$PS1%{$(iterm2_prompt_end)%}"
+      # fi
     }
 
     iterm2_precmd() {
@@ -132,14 +134,16 @@ if [[ -o interactive ]]; then
     printf "\033]1337;ShellIntegrationVersion=5;shell=zsh\007"
   fi
 fi
-alias imgcat=~/.iterm2/imgcat
-alias imgls=~/.iterm2/imgls
-alias it2attention=~/.iterm2/it2attention
-alias it2check=~/.iterm2/it2check
-alias it2copy=~/.iterm2/it2copy
-alias it2dl=~/.iterm2/it2dl
-alias it2getvar=~/.iterm2/it2getvar
-alias it2setcolor=~/.iterm2/it2setcolor
-alias it2setkeylabel=~/.iterm2/it2setkeylabel
-alias it2ul=~/.iterm2/it2ul
-alias it2universion=~/.iterm2/it2universion
+
+# alias imgcat=~/.iterm2/imgcat
+# alias imgls=~/.iterm2/imgls
+
+alias it2attention=$ZDOTDIR/bin/iTerm2/it2attention
+alias it2check=$ZDOTDIR/bin/iTerm2/it2check
+alias it2copy=$ZDOTDIR/bin/iTerm2/it2copy
+alias it2dl=$ZDOTDIR/bin/iTerm2/it2dl
+alias it2getvar=$ZDOTDIR/bin/iTerm2/it2getvar
+alias it2setcolor=$ZDOTDIR/bin/iTerm2/it2setcolor
+alias it2setkeylabel=$ZDOTDIR/bin/iTerm2/it2setkeylabel
+alias it2ul=$ZDOTDIR/bin/iTerm2/it2ul
+alias it2universion=$ZDOTDIR/bin/iTerm2/it2universion

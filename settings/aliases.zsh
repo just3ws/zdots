@@ -1,9 +1,7 @@
 # vim:set filetype=zsh expandtab shiftwidth=2:
 
-alias v="$EDITOR"
-alias e="$EDITOR"
-alias ved=" vim ~/.config/nvim/init.vim"
-alias zed=" vim -O $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv"
+alias vvv=" vim ~/.config/nvim/init.vim"
+alias zzz=" vim -O $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv"
 alias mvim=gvim
 
 # alias -s js=vim
