@@ -1,4 +1,5 @@
 *.zwc
-.zcompdump*
+*.zwc.old
+.zcomp*
 .zdirs
 .zsh_history

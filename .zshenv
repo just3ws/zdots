@@ -1,3 +1,5 @@
+# vim:set filetype=zsh expandtab shiftwidth=2 textwidth=64:
+
 ZDOTDIR="$HOME/.config/zsh"
 
 ZSH_CACHE_DIR="$HOME/.local/share/zsh/cache"
@@ -5,7 +7,6 @@ ZSH_CACHE_DIR="$HOME/.local/share/zsh/cache"
 
 DIRSTACKSIZE=9
 DIRSTACKFILE="$ZSH_CACHE_DIR/.zdirs"
-
 
 LC_ALL="en_US.UTF-8"
 LANG="en_US.UTF-8"
@@ -90,5 +91,3 @@ path=(
 )
 
 ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR="/usr/local/share/zsh-syntax-highlighting/highlighters"
-
-PS1="%0~  "

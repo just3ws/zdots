@@ -1,0 +1,15 @@
+#!/usr/bin/env zsh
+
+autoload -U compinit zrecompile
+compinit -d "$ZSH_CACHE_DIR/.zcomp-$HOST"
+
+for z in $ZDOTDIR/.zsh* ; zrecompile -p $z
+for z in $ZDOTDIR/**/*.zsh ; zrecompile -p $z
+for z in $ZDOTDIR/Completion/**/_* ; zrecompile -p $z
+for z in /usr/local/share/zsh/site-functions/_* ; zrecompile -p $z
+
+rm -f $HOME/*.zwc.old(N)
+rm -f $ZDOTDIR/**/*.zwc.old(N)
+rm -f /usr/local/share/zsh/site-functions/*.zwc.old(N)
+
+source "$ZDOTDIR/.zshrc"
