@@ -1,7 +1,6 @@
 #!/usr/bin/env zsh
 
-echo "alias $1=\"${@:2}\"" >> $ZDOTDIR/aliases.zsh
-echo "made alias:";
+echo "alias $1=\"${@:2}\"" >> $ZDOTDIR/.zsh_aliases
 echo "alias $1=\"${@:2}\"";
 
 exec "$SHELL"
