@@ -11,6 +11,10 @@ set -o vi
 
 for z in $ZDOTDIR/*.zsh ; source "$z"
 
+# Colorful autocompletion for `cd` command
+zmodload -i zsh/complist
+
+
 fpath=(
   $ZDOTDIR/functions
   $ZDOTDIR/Completion
@@ -21,10 +25,10 @@ fpath=(
 
 for fn in $ZDOTDIR/functions/*(x) ; autoload -Uz "$( basename $fn )"
 
-source "/usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
-source "/usr/local/share/zsh-history-substring-search/zsh-history-substring-search.zsh"
-source "/usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh"
-source "/usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+# source "/usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+# source "/usr/local/share/zsh-history-substring-search/zsh-history-substring-search.zsh"
+# source "/usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh"
+# source "/usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 
 source "$HOME/.rvm/scripts/rvm"
 
