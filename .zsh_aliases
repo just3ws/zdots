@@ -127,6 +127,7 @@ alias clear!="klear"
 
 alias -- -="cd -"
 alias -g ...='../..'
+alias api=" ~api"
 alias ext="exit"
 alias rereload="clobber && reload!"
 alias xx="atool -x"
