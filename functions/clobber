@@ -1,5 +1,6 @@
 #!/usr/bin/env zsh
 
+rm -f $HOME/*.zwc(N)
 rm -f $ZDOTDIR/.zcompdump(N)
-rm -rf $ZDOTDIR/**/*.zwc(N)
 rm -f $ZSH_CACHE_DIR/.zcomp*(N)
+rm -f $ZDOTDIR/**/*.zwc(N)
