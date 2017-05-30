@@ -90,8 +90,6 @@ path=(
   $HOME/.rvm/bin
 )
 
-ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR="/usr/local/share/zsh-syntax-highlighting/highlighters"
-
 TRAPUSR1 () {
   # https://superuser.com/questions/852912/reload-all-running-zsh-instances
   if [[ -o INTERACTIVE ]]; then
