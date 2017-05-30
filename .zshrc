@@ -302,12 +302,24 @@ setopt NOTIFY
 
 # }}}2
 
+# Zle {{{2
+
 # (Do not) Beep on error in ZLE.
-unsetopt BEEP
+unsetopt beep
+
+# Assume that the terminal displays combining characters
+# correctly.
+setopt combining_chars
+
+# If ZLE is loaded, turning on this option has the equivalent
+# effect of ‘bindkey -v’.
+setopt vi
+
+# }}}2
 
 # }}}
 
-# Zsh Line Editing {{{
+# Zle {{{
 
 zle -N beep
 zle -N edit-command-line
