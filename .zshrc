@@ -1,23 +1,481 @@
 # vim:set filetype=zsh expandtab shiftwidth=2 textwidth=64:
 
+# Profiling start block {{{
+
+PROFILE_STARTUP=false
+
+if [[ "$PROFILE_STARTUP" == true ]]; then
+
+  # http://zsh.sourceforge.net/Doc/Release/Prompt-Expansion.html
+
+  PS4=$'%D{%M%S%.} %N:%i> '
+
+  exec 3>&2 2>$HOME/tmp/startlog.$$
+
+  setopt xtrace prompt_subst
+fi
+
+# }}}
+
+# Autoloads {{{
+
+autoload -Uz compinit
+compinit
+
+autoload -Uz colors && colors
+autoload -Uz promptinit && promptinit
+autoload -Uz regexp-replace
+autoload -Uz edit-command-line
+
+for fn in $ZDOTDIR/functions/*(x)
+do
+  autoload -Uz "$( basename $fn )"
+done
+
+# zmv "programmable rename"
+autoload -Uz zmv
+
+# }}}
+
+# Editing Mode {{{
+
 # Vi all the things!
 set -o vi
 
-for z in $ZDOTDIR/*.zsh ; source "$z"
+# }}}
+
+# Hashes {{{
+
+# hash -d vim=$HOME/dotfiles/vim
+# hash -d zsh=$HOME/dotfiles/zsh
+hash -d api="$HOME/wmx/bp/v2"
+hash -d assets="$HOME/wmx/bp/assets"
+hash -d bp="$HOME/wmx/bp"
+hash -d course_publisher="$HOME/wmx/bp/course-publisher"
+hash -d dotfiles="$HOME/dotfiles"
+hash -d instructor_dashboard="$HOME/wmx/bp/instructor-dashboard"
+hash -d marketing_admin="$HOME/wmx/bp/marketing-admin"
+hash -d marketing="$HOME/wmx/bp/marketing"
+hash -d reporting_api="$HOME/wmx/bp/reporting-api"
+hash -d s3="$HOME/wmx/s3"
+hash -d src="$HOME/src"
+hash -d sso="$HOME/wmx/bp/sso"
+hash -d teachers="$HOME/wmx/bp/teachers"
+hash -d tenant_dashboard="$HOME/wmx/bp/tenant-dashboard"
+hash -d user_manager="$HOME/wmx/bp/user-manager"
+hash -d web="$HOME/wmx/bp/webapp"
+hash -d wikis="$HOME/wmx/wikis"
+hash -d wmx="$HOME/wmx"
+hash -d download="$HOME/Downloads"
+hash -d pictures="$HOME/Pictures"
+hash -d documents="$HOME/Documents"
+hash -d dbx="$HOME/Dropbox/mike"
+hash -d zdots="$ZDOTDIR"
+
+# }}}
+
+# Aliases {{{
+
+alias vi="vim"
+alias vv=" vim ~/.config/nvim/init.vim"
+alias zz=" vim -O $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv"
+alias mvim=gvim
+
+# alias -s js=vim
+alias -s coffee=vim
+alias -s css=vim
+alias -s erb=vim
+alias -s haml=vim
+alias -s html=vim
+alias -s markdown=vim
+alias -s md=vim
+# alias -s rb=vim
+alias -s ru=vim
+alias -s txt=mvim
+alias -s vim=vim
+
+alias be=" nocorrect bundle exec"
+alias bundle=" bundle"
+alias cd=" cd"
+# alias clear=" clear"
+
+# git
+alias g=" git"
+# git pull
+alias gpr="git pull --rebase --autostash"
+# git commit
+alias gc=" git commit --verbose"
+alias gca=" git commit --verbose --amend"
+# git add
+alias ga=" git add"
+alias gaa=" git add --all"
+alias gapa=" git add --patch"
+# git branch
+alias gb=" git branch"
+# --all List both remote-tracking branches and local branches.
+alias gba=" git branch --all"
+# git clone
+alias gcl=" git clone"
+# git fetch
+alias gfa=" git fetch --all --prune"
+# git status
+alias gss=" git status --short"
+# git diff
+alias gwd=" git diff --word-diff"
+# git checkout
+alias gco=" git checkout"
+# -b create and checkout a new branch
+alias gcb=" git checkout -b"
+alias branch\?="git rev-parse --abbrev-ref HEAD"
+
+alias mkdir=" mkdir"
+alias mv="nocorrect mv"
+alias rm=" rm"
+alias rspec="nocorrect rspec"
+alias rvm=" rvm"
+alias source=" source"
+# exit
+alias exit=" exit"
+alias xxx=" exit"
+alias ext="exit"
+
+# ls
+# -A List all entries except for . and ...
+# -G Enable colorized output. This option is equivalent to defining CLICOLOR in the environment.
+# -p Write a slash (`/') after each filename if that file is a directory.
+# -B Force printing of non-printable characters (as defined by ctype(3) and current locale settings) in file names as \xxx, where xxx is the numeric value of the character in octal.
+alias ls=" ls -G -p"
+alias l="ls"
+# -C Force multi-column output; this is the default when output is to a terminal.
+alias la=" ls -A -C"
+# -o List in long format, but omit the group id.
+alias ll=" ls -A -o -h"
+
+# dirs
+# -v number the directories in the stack when printing.
+# -l print directory names in full instead of using of using ~ expressions
+alias dh='dirs -v -l'
+
+alias bls=" brew services list"
+alias bstart=" brew services start"
+alias bstop=" brew services stop"
+
+alias -g ...='../..'
+
+alias RELOAD!="killall -USR1 zsh"
+
+alias reload!="reload"
+alias clear!="klear"
+
+alias -- -="cd -"
+
+alias xx="atool -x"
+
+alias zerologs="sudo gtruncate -s 0 log/**/*"
+alias vali="vim $ZDOTDIR/aliases.zsh"
+
+alias zdots=" nocorrect ~zdots"
+
+# }}}
+
+# Dircolors {{{
+
+LS_COLORS='rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:';
+
+# }}}
+
+# Setopts {{{
+
+# http://zsh.sourceforge.net/Doc/Release/Options.html
+
+# PROMPT {{{
+
+# If set, parameter expansion, command substitution and
+# arithmetic expansion are performed in prompts.
+setopt PROMPT_SUBST
+# Remove any right prompt from display when accepting a command
+# line.
+setopt TRANSIENT_RPROMPT
+
+# }}}2
+
+# HISTORY {{{2
+
+# Enable "!" history expansion
+setopt BANG_HIST
+# When exiting, append history entries to $HISTFILE, rather than
+# replacing the old file; this is the default
+setopt APPENDHISTORY
+# Save additional info to $HISTFILE
+setopt EXTENDED_HISTORY
+# If the commandline starts with a whitespace, don't add it to
+# history
+setopt HIST_IGNORE_SPACE
+# Append every single command to $HISTFILE immediately after
+# hitting ENTER.
+setopt INC_APPEND_HISTORY
+# Always import new commands from $HISTFILE (see
+# "inc_append_history" above)
+setopt SHARE_HISTORY
+# If a new command line being added to the history list
+# duplicates an older one, the older command is removed from the
+# list (even if it is not the previous event).
+setopt HIST_IGNORE_ALL_DUPS
+# When searching for history entries in the line editor, do not
+# display duplicates of a line previously found, even if the
+# duplicates are not contiguous.
+setopt HIST_FIND_NO_DUPS
+# Remove superfluous blanks from each command line being added
+# to the history list.
+setopt HIST_REDUCE_BLANKS
+# When writing out the history file, older commands that
+# duplicate newer ones are omitted.
+setopt HIST_SAVE_NO_DUPS
+# If the internal history needs to be trimmed to add the current
+# command line, setting this option will cause the oldest
+# history event that has a duplicate to be lost before losing a
+# unique event from the list.
+setopt HIST_EXPIRE_DUPS_FIRST
+# Remove function definitions from the history list. Note that
+# the function lingers in the internal history until the next
+# command is entered before it vanishes, allowing you to briefly
+# reuse or edit the definition.
+setopt HIST_NO_FUNCTIONS
+# Whenever the user enters a line with history expansion, don't
+# execute the line directly; instead, perform history expansion
+# and reload the line into the editing buffer.
+setopt HIST_VERIFY
+# (Do not) Beep in ZLE when a widget attempts to access a
+# history entry which isn’t there.
+unsetopt HIST_BEEP
+
+# }}}2
+
+# CHANGING DIRECTORIES {{{2
+
+# If a directoryname is entered like a command, and there is no
+# command of that name; the "cd" command is executed for that
+# directory
+setopt AUTO_CD
+# If cd would fail, because the arg is not a dir, try to expand
+# the argument as if it was called the ~expression way
+setopt CDABLE_VARS
+# Make cd push the old directory to the dirstack
+setopt AUTO_PUSHD
+# Don't push multiple copies of the same directory onto the
+# directory stack.
+setopt PUSHD_IGNORE_DUPS
+# make "pushd" with no argument, act like pushd ${HOME}
+setopt PUSHD_TO_HOME
+# Exchanges the meanings of `+" and `-" when used with a number
+# to specify a directory in the stack.
+setopt PUSHD_MINUS
+# Do not print the directory stack after pushd or popd.
+setopt PUSHD_SILENT
+# Resolve symbolic links to their true values when changing
+# directory.
+setopt CHASE_LINKS
+
+ # }}}2
+
+# COMPLETION {{{2
+
+# don't expand aliases _before_ completion has finished
+setopt COMPLETE_ALIASES
+# if unset the cursor is set to the end of the word if
+# completion is started
+setopt COMPLETE_IN_WORD
+# cycle through globbing matches like menu_complete
+setopt GLOB_COMPLETE
+# If a completion is performed with the cursor within a word, and a full
+# completion is inserted, the cursor is moved to the end of the word. That is,
+# the cursor is moved to the end of the word if either a single match is
+# inserted or menu completion is performed.
+setopt ALWAYS_TO_END
+# Automatically use menu completion after the second consecutive request for
+# completion, for example by pressing the tab key repeatedly.
+setopt AUTO_MENU
+
+# }}}2
+
+# EXPANSION & GLOBBING {{{2
+
+# If a pattern for filename generation is badly formed, print an error message.
+# setopt BAD_PATTERN
+# Treat the ‘#’, ‘~’ and ‘^’ characters as part of patterns for filename
+# generation, etc. (An initial unquoted ‘~’ always produces named directory
+# expansion.)
+setopt EXTENDEDGLOB
+# Do not require a leading ‘.’ in a filename to be matched explicitly.
+setopt GLOB_DOTS
+# (Do not) Make globbing (filename generation) sensitive to case. Note that other uses
+# of patterns are always sensitive to case. If the option is unset, the
+# presence of any character which is special to filename generation will cause
+# case-insensitive matching.
+unsetopt CASE_GLOB
+# If a pattern for filename generation has no matches, print an error, instead
+# of leaving it unchanged in the argument list. This also applies to file
+# expansion of an initial ‘~’ or ‘=’.
+setopt NOMATCH
+
+# }}}2
+
+# SCRIPTS AND FUNCTIONS {{{2
+
+# enable multiple redirections: uptime > uptime0.txt > uptime1.txt
+setopt MULTIOS
+
+# }}}2
+
+# I/O {{{2
+
+# Allow ">" to truncate, and "»" to create files
+setopt CLOBBER
+# Try to correct the spelling of commands.
+setopt CORRECT
+# Allow short form loops: `for file in *.pdf; lp ${file}`
+setopt SHORT_LOOPS
+# # If querying the user before executing `rm *" or `rm path/*", first wait ten
+# # seconds and ignore anything typed in that time. This avoids the problem of
+# # reflexively answering `yes" to the query when one didn"t really mean it.
+# setopt RM_STAR_WAIT
+# # Do query the user before executing ‘rm *’ or ‘rm path/*’.
+# unsetopt RM_STAR_SILENT
+
+# }}}2
+
+# JOB CONTROL {{{2
+
+# If you"ve got a simple command suspened, say "mutt", and you
+# forgot that you have already got a mutt running and try to
+# start another mutt, the old running mutt is resumed, rather
+# than starting a new process
+setopt AUTO_RESUME
+# run background jobs at lower priority
+setopt BG_NICE
+# Send SIGHUP to background processes on exit.
+setopt HUP
+# report status of bg-jobs if exiting a shell with job control enabled
+setopt CHECK_JOBS
+# Report the status of background jobs immediately, rather than waiting until
+# just before printing a prompt.
+setopt NOTIFY
+
+# }}}2
+
+# (Do not) Beep on error in ZLE.
+unsetopt BEEP
+
+
+# }}}
+
+# Zsh Line Editing {{{
+
+zle -N beep
+zle -N edit-command-line
+
+# }}}
+
+# Zmodloads {{{
+
+# Colorful autocompletion for `cd` command
+zmodload -i zsh/complist
+
+# }}}
+
+# Bindkeys {{{
+
+# Use Vi
+bindkey -v
+
+# ZLE Emacs style
+bindkey "\C-x\C-e" edit-command-line
+
+# ZLE Vi style
+bindkey -M vicmd v edit-command-line
+
+# Emacs key chords in Vi style
+bindkey -M viins "^A" beginning-of-line
+bindkey -M viins "^B" backward-char
+bindkey -M viins "^D" delete-char-or-list
+bindkey -M viins "^E" end-of-line
+bindkey -M viins "^F" forward-char
+bindkey -M viins "^K" kill-line
+bindkey -M viins "^N" down-line-or-history
+bindkey -M viins "^P" up-line-or-history
+bindkey -M viins "^R" history-incremental-search-backward
+bindkey -M viins "^S" history-incremental-search-forward
+bindkey -M viins "^T" transpose-chars
+bindkey -M viins "^Y" yank
+
+# }}}
+
+# Zstyles {{{
+
+zstyle :compinstall filename "$ZDOTDIR/.zshrc"
+
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path $ZSH_CACHE_DIR
+
+# Colorful cd completion
+zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
+
+# Case-insensitive completion for `cd` etc *N*
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+
+# Fuzzy matching of completions for when you mistype them:
+zstyle ':completion:*' completer _complete _match _approximate
+zstyle ':completion:*:match:*' original only
+zstyle ':completion:*:approximate:*' max-errors 1 numeric
+
+# Ignore completion functions for commands you don’t have:
+zstyle ':completion:*:functions' ignored-patterns '_*'
+
+# Fuzzy matching of completions for when you mistype them:
+zstyle ':completion:*' completer _complete _match _approximate
+zstyle ':completion:*:match:*' original only
+zstyle ':completion:*:approximate:*' max-errors 1 numeric
+
+# Completing process IDs with menu selection:
+zstyle ':completion:*:*:kill:*' menu yes select
+zstyle ':completion:*:kill:*'   force-list always
+
+# cd will never select the parent directory (e.g.: cd ../<TAB>):
+zstyle ':completion:*:cd:*' ignore-parents parent pwd
+
+
+# }}}
+
+# Function pathes {{{
 
 fpath=(
   $ZDOTDIR/functions
-  $ZDOTDIR/Completion
+  $ZDOTDIR/completions
   /usr/local/share/zsh-completions
   /usr/local/share/zsh/site-functions
   $fpath
 )
 
-source "$HOME/.rvm/scripts/rvm"
+# }}}
+
+# Prompt {{{
+
+#     
+PROMPT="%0~  "
+source "$ZDOTDIR/plugins/iTerm2/shell_integration.zsh"
+
+# }}}
 
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
+# Profiling end block {{{
+
 if [[ "$PROFILE_STARTUP" == true ]]; then
+
   unsetopt xtrace
+
   exec 2>&3 3>&-
+
 fi
+
+# }}}
