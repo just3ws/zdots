@@ -45,7 +45,7 @@ done
 
 # Prefix these commands with `nocorrect` to silence annoying
 # warnings from the correct option.
-for cmd in "rspec" "mv" "~zdots" "be" "~api"
+for cmd in "rspec" "mv" "~zdots" "~api"
 do
   alias $cmd="nocorrect $cmd"
 done
@@ -133,3 +133,7 @@ alias rereload="clobber && reload!"
 alias xx="atool -x"
 alias zdots=" ~zdots"
 alias zerologs="sudo gtruncate -s 0 log/**/*"
+alias be=" bundle exec"
+alias prstart=" bundle exec primer start"
+alias prstop=" bundle exec primer stop"
+alias prls=" bundle exec primer status"
