@@ -44,15 +44,6 @@ vim () {
   $VIM "$@"
 }
 
-# TODO: Safely lazy-load RVM while not breaking Bundler, etc.
-# rvm () {
-#   unfunction rvm
-#
-#   source "$HOME/.rvm/scripts/rvm"
-#
-#   rvm "$@"
-# }
-
 gvim () {
   unset gvim
 
