@@ -1,7 +1,8 @@
 # vim:set filetype=zsh expandtab shiftwidth=2:
 
-alias vvv=" vim ~/.config/nvim/init.vim"
-alias zzz=" vim -O $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv"
+alias vi="vim"
+alias vv=" vim ~/.config/nvim/init.vim"
+alias zz=" vim -O $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv"
 alias mvim=gvim
 
 # alias -s js=vim
@@ -84,3 +85,15 @@ alias bstart=" brew services start"
 alias bstop=" brew services stop"
 
 alias -g ...='../..'
+
+alias RELOAD!="killall -USR1 zsh"
+
+alias reload!="reload"
+alias clear!="klear"
+
+alias -- -="cd -"
+
+alias xx="atool -x"
+
+alias zerologs="sudo gtruncate -s 0 log/**/*"
+alias vali="vim $ZDOTDIR/aliases.zsh"

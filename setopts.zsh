@@ -2,9 +2,8 @@
 
 # http://zsh.sourceforge.net/Doc/Release/Options.html
 
-#
-# PROMPT
-#
+# PROMPT {{{
+
 # If set, parameter expansion, command substitution and
 # arithmetic expansion are performed in prompts.
 setopt PROMPT_SUBST
@@ -12,9 +11,10 @@ setopt PROMPT_SUBST
 # line.
 setopt TRANSIENT_RPROMPT
 
-#
-# HISTORY
-#
+# }}}
+
+# HISTORY {{{
+
 # Enable "!" history expansion
 setopt BANG_HIST
 # When exiting, append history entries to $HISTFILE, rather than
@@ -63,9 +63,10 @@ setopt HIST_VERIFY
 # history entry which isn’t there.
 unsetopt HIST_BEEP
 
-#
-# CHANGING DIRECTORIES
-#
+# }}}
+
+# CHANGING DIRECTORIES {{{
+
 # If a directoryname is entered like a command, and there is no
 # command of that name; the "cd" command is executed for that
 # directory
@@ -89,9 +90,10 @@ setopt PUSHD_SILENT
 # directory.
 setopt CHASE_LINKS
 
-#
-# COMPLETION
-#
+ # }}}
+
+# COMPLETION {{{
+
 # don't expand aliases _before_ completion has finished
 setopt COMPLETE_ALIASES
 # if unset the cursor is set to the end of the word if
@@ -108,7 +110,10 @@ setopt ALWAYS_TO_END
 # completion, for example by pressing the tab key repeatedly.
 setopt AUTO_MENU
 
-# EXPANSION & GLOBBING
+# }}}
+
+# EXPANSION & GLOBBING {{{
+
 # If a pattern for filename generation is badly formed, print an error message.
 # setopt BAD_PATTERN
 # Treat the ‘#’, ‘~’ and ‘^’ characters as part of patterns for filename
@@ -127,31 +132,34 @@ unsetopt CASE_GLOB
 # expansion of an initial ‘~’ or ‘=’.
 setopt NOMATCH
 
-#
-# SCRIPTS AND FUNCTIONS
-#
+# }}}
+
+# SCRIPTS AND FUNCTIONS {{{
+
 # enable multiple redirections: uptime > uptime0.txt > uptime1.txt
 setopt MULTIOS
 
-#
-# I/O
-#
+# }}}
+
+# I/O {{{
+
 # Allow ">" to truncate, and "»" to create files
 setopt CLOBBER
 # Try to correct the spelling of commands.
 setopt CORRECT
 # Allow short form loops: `for file in *.pdf; lp ${file}`
 setopt SHORT_LOOPS
-# If querying the user before executing `rm *" or `rm path/*", first wait ten
-# seconds and ignore anything typed in that time. This avoids the problem of
-# reflexively answering `yes" to the query when one didn"t really mean it.
-setopt RM_STAR_WAIT
-# Do query the user before executing ‘rm *’ or ‘rm path/*’.
-unsetopt RM_STAR_SILENT
+# # If querying the user before executing `rm *" or `rm path/*", first wait ten
+# # seconds and ignore anything typed in that time. This avoids the problem of
+# # reflexively answering `yes" to the query when one didn"t really mean it.
+# setopt RM_STAR_WAIT
+# # Do query the user before executing ‘rm *’ or ‘rm path/*’.
+# unsetopt RM_STAR_SILENT
 
-#
-# JOB CONTROL
-#
+# }}}
+
+# JOB CONTROL {{{
+
 # If you"ve got a simple command suspened, say "mutt", and you
 # forgot that you have already got a mutt running and try to
 # start another mutt, the old running mutt is resumed, rather
@@ -166,6 +174,8 @@ setopt CHECK_JOBS
 # Report the status of background jobs immediately, rather than waiting until
 # just before printing a prompt.
 setopt NOTIFY
+
+# }}}
 
 # (Do not) Beep on error in ZLE.
 unsetopt BEEP

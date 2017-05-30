@@ -98,4 +98,3 @@ TRAPUSR1 () {
      exec "${SHELL}"
   fi
 }
-alias RELOAD!="killall -USR1 zsh"
