@@ -1,22 +1,59 @@
 # vim:set filetype=zsh expandtab shiftwidth=2 textwidth=64:
 
-alias vi="vim"
-alias vv=" vim ~/.config/nvim/init.vim"
-alias zz=" vim -p $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv $ZDOTDIR/.zsh_aliases"
+# NOTE: Prefix aliased commands with a single space so they are
+# automatically excluded from the command history.
 
+# Shell and OTE configuration editing {{{
+
+alias vv=" vim $HOME/.config/nvim/init.vim"
+alias zz=" vim -p $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv $ZDOTDIR/.zsh_aliases"
+alias vali="vim $ZDOTDIR/.zsh_aliases"
+
+# }}}
+
+# OTE {{{
+
+for ote in "ote" "vi" "e" "emacs"
+do
+  alias $ote="vim"
+done
 alias mvim=gvim
 
+# }}}
+
+# Ignore from history {{{
+
+for cmd in "bundle" "cd" "exit" "mkdir" "rm" "rvm" "source"
+do
+  alias $cmd=" $cmd"
+done
+
+# }}}
+
+# Default action aliases {{{
+
+# Associate these filetypes with Vim as their
+# default action.
 for ftype in coffee css erb haml html markdown md ru lock txt vim
 do
   alias -s $ftype=vim
 done
 
-alias be=" nocorrect bundle exec"
-alias bundle=" bundle"
-alias cd=" cd"
-# alias clear=" clear"
+# }}}
 
-# git
+# Exclude for auto-correction {{{
+
+# Prefix these commands with `nocorrect` to silence annoying
+# warnings from the correct option.
+for cmd in "rspec" "mv" "~zdots" "be"
+do
+  alias $cmd="nocorrect $cmd"
+done
+
+# }}}
+
+# Git {{{
+
 alias g=" git"
 # git pull
 alias gpr="git pull --rebase --autostash"
@@ -45,18 +82,10 @@ alias gco=" git checkout"
 alias gcb=" git checkout -b"
 alias branch\?="git rev-parse --abbrev-ref HEAD"
 
-alias mkdir=" mkdir"
-alias mv="nocorrect mv"
-alias rm=" rm"
-alias rspec="nocorrect rspec"
-alias rvm=" rvm"
-alias source=" source"
-# exit
-alias exit=" exit"
-alias xxx=" exit"
-alias ext="exit"
+# }}}
 
-# ls
+# ls {{{
+
 # -A List all entries except for . and ...
 # -G Enable colorized output. This option is equivalent to defining CLICOLOR in the environment.
 # -p Write a slash (`/') after each filename if that file is a directory.
@@ -68,27 +97,36 @@ alias la=" ls -A -C"
 # -o List in long format, but omit the group id.
 alias ll=" ls -A -o -h"
 
-# dirs
+# }}}
+
+# dirs {{{
+
 # -v number the directories in the stack when printing.
 # -l print directory names in full instead of using of using ~ expressions
 alias dh='dirs -v -l'
+
+# }}}
+
+# Homebrew {{{
 
 alias bls=" brew services list"
 alias bstart=" brew services start"
 alias bstop=" brew services stop"
 
-alias -g ...='../..'
+# }}}
+
+# ! aliases {{{
 
 alias RELOAD!="killall -USR1 zsh"
-
 alias reload!="reload"
 alias clear!="klear"
 
+# }}}
+
+# Uncategorized
+
 alias -- -="cd -"
-
+alias -g ...='../..'
+alias ext="exit"
 alias xx="atool -x"
-
 alias zerologs="sudo gtruncate -s 0 log/**/*"
-alias vali="vim $ZDOTDIR/aliases.zsh"
-
-alias zdots=" nocorrect ~zdots"
