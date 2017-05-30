@@ -2,7 +2,7 @@
 
 My Zsh dotfiles.
 
-# Usage
+## Installation
 
 ```shell
 mv -f .zshenv .zshenv.bak
