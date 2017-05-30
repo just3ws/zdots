@@ -14,6 +14,8 @@ for z in $ZDOTDIR/*.zsh ; source "$z"
 # Colorful autocompletion for `cd` command
 zmodload -i zsh/complist
 
+# zmv "programmable rename"
+autoload -Uz zmv
 
 fpath=(
   $ZDOTDIR/functions
