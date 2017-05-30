@@ -35,3 +35,10 @@ for fn in $ZDOTDIR/functions/*(x) ; autoload -Uz "$( basename $fn )"
 source "$HOME/.rvm/scripts/rvm"
 
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
+
+# Entirety of my startup file... then
+if [[ "$PROFILE_STARTUP" == true ]]; then
+    unsetopt xtrace
+    exec 2>&3 3>&-
+  fi
+

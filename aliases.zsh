@@ -97,3 +97,5 @@ alias xx="atool -x"
 
 alias zerologs="sudo gtruncate -s 0 log/**/*"
 alias vali="vim $ZDOTDIR/aliases.zsh"
+
+alias zdots=" nocorrect ~zdots"
