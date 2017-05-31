@@ -383,8 +383,6 @@ zstyle ':completion:*:cd:*' ignore-parents parent pwd
 fpath=(
   $ZDOTDIR/functions
   $ZDOTDIR/completions
-  /usr/local/share/zsh-completions
-  /usr/local/share/zsh/site-functions
   $fpath
 )
 
