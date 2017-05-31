@@ -23,7 +23,7 @@ alias mvim=gvim
 
 # Ignore from history {{{
 
-for cmd in "bundle" "cd" "exit" "mkdir" "rm" "rvm" "source"
+for cmd in "cd" "exit" "mkdir" "rm" "rvm" "source"
 do
   alias $cmd=" $cmd"
 done
@@ -127,13 +127,18 @@ alias clear!="klear"
 
 alias -- -="cd -"
 alias -g ...='../..'
+alias alg="alias | grep -i"
 alias api=" ~api"
+alias be="bundle exec"
+alias dbx=" ~dbx"
 alias ext="exit"
+alias prls=" bundle exec primer status"
+alias prre=" bundle exec primer restart"
+alias prstart=" bundle exec primer start"
+alias prstop=" bundle exec primer stop"
 alias rereload="clobber && reload!"
+alias rmed="rm -d ./**/*(/^F)"
+alias ttr="bundle exec passenger-config restart-app $(pwd) --ignore-app-not-running"
 alias xx="atool -x"
 alias zdots=" ~zdots"
 alias zerologs="sudo gtruncate -s 0 log/**/*"
-alias be=" bundle exec"
-alias prstart=" bundle exec primer start"
-alias prstop=" bundle exec primer stop"
-alias prls=" bundle exec primer status"
