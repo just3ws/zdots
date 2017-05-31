@@ -10,3 +10,4 @@ rm -f $HOME/*.zwc.old(N)
 rm -f $ZDOTDIR/**/*.zwc.old(N)
 
  exec "${SHELL}"
+
