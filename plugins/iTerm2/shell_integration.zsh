@@ -1,6 +1,6 @@
 if [[ -o interactive ]]; then
   if [ "$TERM" != "screen" -a "$ITERM_SHELL_INTEGRATION_INSTALLED" = "" ]; then
-    PS1="%{$fg_bold[yellow]%}   %{$reset_color%}$PS1"
+    PS1="%{$fg_bold[green]%}   %{$reset_color%}$PS1"
 
     ITERM_SHELL_INTEGRATION_INSTALLED=Yes
     ITERM2_SHOULD_DECORATE_PROMPT="1"
