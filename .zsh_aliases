@@ -7,7 +7,13 @@
 
 alias vv=" vim $HOME/.config/nvim/init.vim"
 alias zz=" vim -p $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv $ZDOTDIR/.zsh_aliases"
+
+alias zshrc="vim /Users/mike/.config/zsh/.zshrc"
+alias zshenv="vim /Users/mike/.config/zsh/.zshenv"
+
 alias vali="vim $ZDOTDIR/.zsh_aliases"
+
+alias alg="alias | grep -i"
 
 # }}}
 
@@ -123,11 +129,16 @@ alias clear!="klear"
 
 # }}}
 
+# Global Aliases {{{
+
+alias -g gi=" | grep -i "
+
+# }}}
+
 # Uncategorized
 
 alias -- -="cd -"
 alias -g ...='../..'
-alias alg="alias | grep -i"
 alias api=" ~api"
 alias be="bundle exec"
 alias dbx=" ~dbx"
