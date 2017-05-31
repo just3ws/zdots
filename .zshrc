@@ -52,6 +52,7 @@ hash -d download="$HOME/Downloads"
 hash -d pictures="$HOME/Pictures"
 hash -d src="$HOME/src"
 hash -d zdots="$ZDOTDIR"
+hash -d vdots="$HOME/.config/nvim"
 
 # }}}
 
@@ -143,9 +144,9 @@ setopt HIST_NO_FUNCTIONS
 # and reload the line into the editing buffer.
 setopt HIST_VERIFY
 
-# (Do not) Beep in ZLE when a widget attempts to access a
-# history entry which isn’t there.
-unsetopt HIST_BEEP
+# # (Do not) Beep in ZLE when a widget attempts to access a
+# # history entry which isn’t there.
+# unsetopt HIST_BEEP
 
 # }}}2
 
@@ -286,8 +287,8 @@ setopt NOTIFY
 
 # Zle {{{2
 
-# (Do not) Beep on error in ZLE.
-unsetopt beep
+# # (Do not) Beep on error in ZLE.
+# unsetopt beep
 
 # Assume that the terminal displays combining characters
 # correctly.
@@ -303,7 +304,7 @@ setopt vi
 
 # Zle {{{
 
-zle -N beep
+# zle -N beep
 zle -N edit-command-line
 
 # }}}
@@ -415,20 +416,34 @@ zstyle ':vcs_info:*' actionformats '%F{5}(%f%s%F{5})%F{3}-%F{5}[%F{2}%b%F{3}|%F{
 zstyle ':vcs_info:*' formats '%F{5}[%F{2}%b%F{5}]%f'
 zstyle ':vcs_info:*' enable git
 
+interactive="%{$fg_bold[green]%}%{$reset_color%}"
+normal="%{$fg_bold[red]%}%{$reset_color%}"
+prompt_decoration="%{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%}"
+
+zle -N zle-line-init
+zle -N zle-keymap-select
+
+function zle-line-init zle-keymap-select {
+  local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
+
+  PS1="$mode %0~ $prompt_decoration "
+  PS2="$PS1"
+
+  zle reset-prompt
+}
+
 # or use pre_cmd, see man zshcontrib
 vcs_info_wrapper () {
   vcs_info
-  if [ -n "$vcs_info_msg_0_" ]; then
+
+  if [ -n "$vcs_info_msg_0_" ]
+  then
     echo "%{$fg[grey]%}${vcs_info_msg_0_}%{$reset_color%}$del"
   fi
 }
 
-RPROMPT=$'$(vcs_info_wrapper)'
-
-#   
-PROMPT="%0~ %{$fg_bold[yellow]%}%{$reset_color%} "
-
-source "$ZDOTDIR/plugins/iTerm2/shell_integration.zsh"
+RPS1="$(vcs_info_wrapper)"
+RPS2="$RPS1"
 
 # }}}
 

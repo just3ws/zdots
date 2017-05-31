@@ -153,3 +153,4 @@ alias ttr="bundle exec passenger-config restart-app $(pwd) --ignore-app-not-runn
 alias xx="atool -x"
 alias zdots=" ~zdots"
 alias zerologs="sudo gtruncate -s 0 log/**/*"
+alias vdots=" ~vdots"
