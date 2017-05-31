@@ -15,6 +15,13 @@ exec "$SHELL"
 
 ## Zsh Bookmarks
 
+### Official
+
+- [THE ZSH FAQ](http://www.zsh.org/FAQ/)
+- [THE ZSH WEB PAGE](http://www.zsh.org/)
+- [THE ZSH USERGUIDE](http://zsh.sourceforge.net/Guide/)
+- [THE ZSH WIKI](http://www.zshwiki.org/)
+
 ### Homepage
 
 - [Zsh](http://www.zsh.org/)
@@ -136,4 +143,5 @@ Ugly, pick a spelling already.
 - Z-Shell
 - Z Shell
 - Z SHELL
+
 
