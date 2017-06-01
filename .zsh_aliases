@@ -123,8 +123,7 @@ alias bstop=" brew services stop"
 
 # ! aliases {{{
 
-alias RELOAD!="killall -USR1 zsh"
-alias reload!="reload"
+alias reload!="clobber ; recompile ; bounce"
 alias clear!="klear"
 
 # }}}
@@ -147,7 +146,6 @@ alias prls=" bundle exec primer status"
 alias prre=" bundle exec primer restart"
 alias prstart=" bundle exec primer start"
 alias prstop=" bundle exec primer stop"
-alias rereload="clobber && reload!"
 alias rmed="rm -d ./**/*(/^F)"
 alias ttr="bundle exec passenger-config restart-app $(pwd) --ignore-app-not-running"
 alias xx="atool -x"
