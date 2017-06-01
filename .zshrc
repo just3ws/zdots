@@ -15,6 +15,21 @@ fi
 
 # }}}
 
+# Function pathes {{{
+
+fpath=(
+  $ZDOTDIR/functions/
+  $ZDOTDIR/completions/
+  /usr/local/share/zsh/site-functions/_git
+  /usr/local/share/zsh/site-functions/_brew
+  /usr/local/share/zsh/site-functions/_brew_cask
+  /usr/local/share/zsh/site-functions/_brew_services
+  /usr/local/share/zsh/site-functions/git-completion.bash
+  $fpath
+)
+
+# }}}
+
 # Autoloads {{{
 
 autoload -Uz compinit
@@ -27,11 +42,11 @@ autoload -Uz edit-command-line
 
 for fn in $ZDOTDIR/functions/*(x)
 do
-  autoload -Uz "$( basename $fn )"
+  autoload -Uz "$(basename $fn)"
 done
 
-# zmv "programmable rename"
-autoload -Uz zmv
+# # zmv "programmable rename"
+# autoload -Uz zmv
 
 # }}}
 
@@ -305,7 +320,6 @@ setopt vi
 
 # Zle {{{
 
-# zle -N beep
 zle -N edit-command-line
 
 # }}}
@@ -392,20 +406,6 @@ zstyle ':completion:*:cd:*' ignore-parents parent pwd
 
 # }}}
 
-# Function pathes {{{
-
-fpath=(
-  $ZDOTDIR/functions
-  $ZDOTDIR/completions
-  /usr/local/share/zsh/site-functions/_git
-  /usr/local/share/zsh/site-functions/_brew
-  /usr/local/share/zsh/site-functions/_brew_cask
-  /usr/local/share/zsh/site-functions/_brew_services
-  $fpath
-)
-
-# }}}
-
 # Sources {{{
 
 source "$HOME/.rvm/scripts/rvm"
@@ -461,7 +461,7 @@ zstyle ':vcs_info:git:*:-all-' command /usr/local/bin/git
 precmd () vcs_info
 
 RPROMPT='${vcs_info_msg_0_}'
-RPROMPT2="2 $RPROMPT1"
+RPROMPT2="$RPROMPT1"
 
 # }}}2
 

@@ -8,6 +8,7 @@ for z in $ZDOTDIR/completions/**/_* ; zrecompile -p $z
 for z in /usr/local/share/zsh/site-functions/_brew* ; zrecompile -p $z
 
 zrecompile -p /usr/local/share/zsh/site-functions/_git
+zrecompile -p /usr/local/share/zsh/site-functions/git-completion.bash
 
 rm -f $HOME/*.zwc.old(N)
 rm -f $ZDOTDIR/**.zwc.old(N)

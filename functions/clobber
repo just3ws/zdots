@@ -1,8 +1,8 @@
 #!/usr/bin/env zsh
 
+rm -f $HOME/*.zwc.old(N)
+rm -f $ZDOTDIR/**/*.zwc(N)
+rm -f $ZDOTDIR/**/*.zwc.old(N)
 rm -f $ZDOTDIR/.zcompdump
 rm -f $ZSH_CACHE_DIR/.zcomp*(N)
-rm -f $ZDOTDIR/**/*.zwc(N)
-rm -f $HOME/*.zwc.old(N)
-rm -f $ZDOTDIR/**/*.zwc.old(N)
 rm -f /usr/local/share/zsh/site-functions/**.zwc(N)
