@@ -6,8 +6,6 @@ PROFILE_STARTUP=false
 
 if [[ "$PROFILE_STARTUP" == true ]]; then
 
-  # http://zsh.sourceforge.net/Doc/Release/Prompt-Expansion.html
-
   PS4=$'%D{%M%S%.} %N:%i> '
 
   exec 3>&2 2>$HOME/tmp/startlog.$$
@@ -81,7 +79,7 @@ setopt PROMPT_SUBST
 
 # Remove any right prompt from display when accepting a command
 # line.
-setopt TRANSIENT_RPROMPT
+unsetopt TRANSIENT_RPROMPT
 
 # }}}2
 
@@ -230,6 +228,9 @@ unsetopt CASE_GLOB
 # of leaving it unchanged in the argument list. This also applies to file
 # expansion of an initial ‘~’ or ‘=’.
 setopt NOMATCH
+
+# Treat **word as **/word
+setopt GLOBSTARSHORT
 
 # }}}2
 
@@ -396,6 +397,8 @@ zstyle ':completion:*:cd:*' ignore-parents parent pwd
 fpath=(
   $ZDOTDIR/functions
   $ZDOTDIR/completions
+  /usr/local/share/zsh/site-functions/_brew*
+  /usr/local/share/zsh/site-functions/_git
   $fpath
 )
 
@@ -412,10 +415,37 @@ source "$ZDOTDIR/functions/colored-man-pages"
 
 autoload -Uz vcs_info
 
-zstyle ':vcs_info:*' actionformats '%F{5}(%f%s%F{5})%F{3}-%F{5}[%F{2}%b%F{3}|%F{1}%a%F{5}]%f '
-zstyle ':vcs_info:*' formats '%F{5}[%F{2}%b%F{5}]%f'
+zstyle ':vcs_info:*' disable bzr cdv cvs darcs fossil hg mtn p4 svk svn tla
 zstyle ':vcs_info:*' enable git
+zstyle ':vcs_info:git:*' check-for-changes true
+zstyle ':vcs_info:*' actionformats '%F{5}(%f%s%F{5})%F{3}-%F{5}[%F{2}%b%F{3}|%F{1}%a%F{5}]%f '
+# zstyle ':vcs_info:*' formats '%F{5}[%F{2}%b%F{5}]%f'
 
+# %r The name of the root directory of the repository
+# %b Branch information, like master
+# %m In case of Git, show information about stashes
+# %c Show staged changes in the repository
+# %u Show unstaged changes in the repository
+# %S The current path relative to the repository root directory
+# %s The current version control system, like git or svn.
+
+zstyle ':vcs_info:*' formats ' %F{1}[%r:%S %b %c %u]%f'
+zstyle ':vcs_info:git:*:-all-' command /usr/local/bin/git
+precmd () vcs_info
+
+# vcs_info_wrapper () {
+#   vcs_info
+#
+#   if [ -n "$vcs_info_msg_0_" ]
+#   then
+#     echo "%s%{$fg[grey]%}${vcs_info_msg_0_}%{$reset_color%}$del"
+#   fi
+# }
+
+RPS1='${vcs_info_msg_0_}'
+RPS2="$RPS1"
+
+# 
 interactive="%{$fg_bold[green]%}%{$reset_color%}"
 normal="%{$fg_bold[red]%}%{$reset_color%}"
 prompt_decoration="%{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%}"
@@ -426,24 +456,11 @@ zle -N zle-keymap-select
 function zle-line-init zle-keymap-select {
   local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
 
-  PS1="$mode %0~ $prompt_decoration "
+  PS1="$mode %2~ $prompt_decoration "
   PS2="$PS1"
 
   zle reset-prompt
 }
-
-# or use pre_cmd, see man zshcontrib
-vcs_info_wrapper () {
-  vcs_info
-
-  if [ -n "$vcs_info_msg_0_" ]
-  then
-    echo "%{$fg[grey]%}${vcs_info_msg_0_}%{$reset_color%}$del"
-  fi
-}
-
-RPS1="$(vcs_info_wrapper)"
-RPS2="$RPS1"
 
 # }}}
 
@@ -451,12 +468,11 @@ RPS2="$RPS1"
 
 # Profiling end block {{{
 
-if [[ "$PROFILE_STARTUP" == true ]]; then
-
+if [[ "$PROFILE_STARTUP" == true ]]
+then
   unsetopt xtrace
 
   exec 2>&3 3>&-
-
 fi
 
 # }}}
