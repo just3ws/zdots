@@ -413,6 +413,29 @@ source "$ZDOTDIR/functions/colored-man-pages"
 
 # Prompt {{{
 
+# PROMPT {{{2
+# 
+
+zle -N zle-line-init
+zle -N zle-keymap-select
+
+interactive="%{$fg_bold[green]%}%{$reset_color%}"
+normal="%{$fg_bold[red]%}%{$reset_color%}"
+
+function zle-line-init zle-keymap-select {
+  local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
+
+  PROMPT="$mode %2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
+  # PROMPT2="$PROMPT"
+
+  zle reset-prompt
+}
+
+# }}}2
+
+
+# RPROMPT {{{2
+
 autoload -Uz vcs_info
 
 zstyle ':vcs_info:*' disable bzr cdv cvs darcs fossil hg mtn p4 svk svn tla
@@ -433,34 +456,13 @@ zstyle ':vcs_info:*' formats ' %F{1}[%r:%S %b %c %u]%f'
 zstyle ':vcs_info:git:*:-all-' command /usr/local/bin/git
 precmd () vcs_info
 
-# vcs_info_wrapper () {
-#   vcs_info
-#
-#   if [ -n "$vcs_info_msg_0_" ]
-#   then
-#     echo "%s%{$fg[grey]%}${vcs_info_msg_0_}%{$reset_color%}$del"
-#   fi
-# }
+RPROMPT='${vcs_info_msg_0_}'
+# RPROMPT2="$RPROMPT1"
 
-RPS1='${vcs_info_msg_0_}'
-RPS2='$RPS1'
+# }}}2
 
-# 
 
-zle -N zle-line-init
-zle -N zle-keymap-select
 
-local interactive='%{$fg_bold[green]%}%{$reset_color%}'
-local normal='%{$fg_bold[red]%}%{$reset_color%}'
-
-function zle-line-init zle-keymap-select {
-  local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
-
-  PS1="$mode %2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
-  PS2="$PS1"
-
-  zle reset-prompt
-}
 
 # }}}
 
