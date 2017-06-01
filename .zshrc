@@ -397,8 +397,10 @@ zstyle ':completion:*:cd:*' ignore-parents parent pwd
 fpath=(
   $ZDOTDIR/functions
   $ZDOTDIR/completions
-  /usr/local/share/zsh/site-functions/_brew*
   /usr/local/share/zsh/site-functions/_git
+  /usr/local/share/zsh/site-functions/_brew
+  /usr/local/share/zsh/site-functions/_brew_cask
+  /usr/local/share/zsh/site-functions/_brew_services
   $fpath
 )
 
@@ -426,7 +428,7 @@ function zle-line-init zle-keymap-select {
   local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
 
   PROMPT="$mode %2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
-  # PROMPT2="$PROMPT"
+  PROMPT2="2 $PROMPT"
 
   zle reset-prompt
 }
@@ -457,7 +459,7 @@ zstyle ':vcs_info:git:*:-all-' command /usr/local/bin/git
 precmd () vcs_info
 
 RPROMPT='${vcs_info_msg_0_}'
-# RPROMPT2="$RPROMPT1"
+RPROMPT2="2 $RPROMPT1"
 
 # }}}2
 
