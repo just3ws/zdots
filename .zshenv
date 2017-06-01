@@ -41,7 +41,14 @@ vim () {
   VIM="/usr/local/bin/nvim"
   VIMRUNTIME="/usr/local/share/nvim/runtime"
 
-  $VIM "$@"
+  if [[ "$@" =~ ':' ]]
+  then
+      file_path="$(print $@ | cut -d: -f1)"
+      line_number="$(print $@ | cut -d: -f2)"
+      $VIM "+$line_number|norm! zz" "$file_path"
+  else
+    $VIM "$@"
+  fi
 }
 
 gvim () {
