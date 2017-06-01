@@ -132,6 +132,8 @@ exec "$SHELL"
 
 - [arialdomartini/oh-my-git: An opinionated git prompt for bash and zsh](https://github.com/arialdomartini/oh-my-git)
 - [sindresorhus/pure: Pretty, minimal and fast ZSH prompt](https://github.com/sindresorhus/pure)
+- [Prompt Expansion](http://zsh.sourceforge.net/Doc/Release/Prompt-Expansion.html)
+
 
 ## Ugh
 
