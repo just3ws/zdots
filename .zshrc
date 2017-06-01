@@ -18,13 +18,9 @@ fi
 # Function pathes {{{
 
 fpath=(
-  $ZDOTDIR/functions/
-  $ZDOTDIR/completions/
-  /usr/local/share/zsh/site-functions/_git
-  /usr/local/share/zsh/site-functions/_brew
-  /usr/local/share/zsh/site-functions/_brew_cask
-  /usr/local/share/zsh/site-functions/_brew_services
-  /usr/local/share/zsh/site-functions/git-completion.bash
+  $ZDOTDIR/functions
+  $ZDOTDIR/completions
+  /usr/local/share/zsh/site-functions
   $fpath
 )
 
@@ -59,13 +55,18 @@ set -o vi
 
 # Hashes {{{
 
-hash -d documents="$HOME/Documents"
-hash -d dotfiles="$HOME/dotfiles"
-hash -d download="$HOME/Downloads"
-hash -d pictures="$HOME/Pictures"
-hash -d src="$HOME/src"
 hash -d zdots="$ZDOTDIR"
 hash -d vdots="$HOME/.config/nvim"
+
+# Apple
+hash -d applications="/Applications"
+# ~
+hash -d desktop="$HOME/Desktop"
+hash -d documents="$HOME/Documents"
+hash -d downloads="$HOME/Downloads"
+hash -d movies="$HOME/Movies"
+hash -d music="$HOME/Music"
+hash -d pictures="$HOME/Pictures"
 
 # }}}
 
@@ -424,14 +425,17 @@ zle -N zle-keymap-select
 interactive="%{$fg_bold[green]%}%{$reset_color%}"
 normal="%{$fg_bold[red]%}%{$reset_color%}"
 
-PROMPT="%2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
-PROMPT2="$PROMPT"
+arrows='%{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%}'
+PROMPT="%2~ $arrows "
+# for loops
+PROMPT2=" $arrows " # '{%_}  '
+# for selections
+PROMPT3=" $arrows " # '{ … }  '
 
 function zle-line-init zle-keymap-select {
   local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
 
   PROMPT="$mode %2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
-  PROMPT2="$PROMPT"
 
   zle reset-prompt
 }
@@ -442,31 +446,66 @@ function zle-line-init zle-keymap-select {
 
 autoload -Uz vcs_info
 
+# branch 
+# branch 
+# branch 
+# branch 
+# commit 
+# commit 
+# compare 
+# compare 
+# diff ?
+# diff-added ?
+# diff-ignored ?
+# diff-modified ?
+# diff-removed ?
+# diff-renamed ?
+# merge 
+# merge 
+# pull-request 
+# pull-request 
+# repo 
+# repo-clone 
+# repo-force-push 
+# repo-forked 
+# repo-pull 
+# repo-push 
+# Δ delta
+#   
+#  
+#   
+#        
+#  
+
+zstyle ':vcs_info:*+*:*' debug false
+
 zstyle ':vcs_info:*' disable bzr cdv cvs darcs fossil hg mtn p4 svk svn tla
 zstyle ':vcs_info:*' enable git
-zstyle ':vcs_info:git:*' check-for-changes true
-zstyle ':vcs_info:*' actionformats '%F{5}(%f%s%F{5})%F{3}-%F{5}[%F{2}%b%F{3}|%F{1}%a%F{5}]%f '
-# zstyle ':vcs_info:*' formats '%F{5}[%F{2}%b%F{5}]%f'
 
-# %r The name of the root directory of the repository
-# %b Branch information, like master
-# %m In case of Git, show information about stashes
-# %c Show staged changes in the repository
-# %u Show unstaged changes in the repository
-# %S The current path relative to the repository root directory
-# %s The current version control system, like git or svn.
+zstyle ':vcs_info:git:*:-all-' command /usr/local/bin/git
+
+zstyle ':vcs_info:git*:*' get-revision true
+zstyle ':vcs_info:git:*' check-for-changes true
+
+zstyle ':vcs_info:*' stagedstr '%F{green}●%f'
+zstyle ':vcs_info:*' unstagedstr '%F{yellow}●%f'
+
+zstyle ':vcs_info:*' actionformats '%F{5}(%f%s%F{5})%F{3}-%F{5}[%F{2}%b%F{3}|%F{1}%a%F{5}]%f '
+# zstyle ':vcs_info:*:prompt:*' formats '%F{5}[%F{2}%b%F{5}]%f'
+# zstyle ':vcs_info:*:prompt:*' unstagedstr   "${ xxx }"
+# zstyle ':vcs_info:*:prompt:*' stagedstr     "${ xxx }"
+# zstyle ':vcs_info:*:prompt:*' actionformats "${ xxx }"
+# zstyle ':vcs_info:*:prompt:*' formats       "${ xxx }"
+# zstyle ':vcs_info:*:prompt:*' nvcsformats   "${ xxx }"
 
 zstyle ':vcs_info:*' formats ' %F{1}[%r:%S %b %c %u]%f'
-zstyle ':vcs_info:git:*:-all-' command /usr/local/bin/git
+
 precmd () vcs_info
 
 RPROMPT='${vcs_info_msg_0_}'
 RPROMPT2="$RPROMPT1"
 
 # }}}2
-
-
-
 
 # }}}
 
