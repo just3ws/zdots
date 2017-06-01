@@ -456,7 +456,7 @@ zle -N zle-keymap-select
 function zle-line-init zle-keymap-select {
   local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
 
-  PS1="$mode %2~ $prompt_decoration "
+  PS1='$mode %2~ $prompt_decoration '
   PS2="$PS1"
 
   zle reset-prompt
