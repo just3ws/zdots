@@ -443,20 +443,20 @@ precmd () vcs_info
 # }
 
 RPS1='${vcs_info_msg_0_}'
-RPS2="$RPS1"
+RPS2='$RPS1'
 
 # 
-interactive="%{$fg_bold[green]%}%{$reset_color%}"
-normal="%{$fg_bold[red]%}%{$reset_color%}"
-prompt_decoration="%{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%}"
 
 zle -N zle-line-init
 zle -N zle-keymap-select
 
+local interactive='%{$fg_bold[green]%}%{$reset_color%}'
+local normal='%{$fg_bold[red]%}%{$reset_color%}'
+
 function zle-line-init zle-keymap-select {
   local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
 
-  PS1='$mode %2~ $prompt_decoration '
+  PS1="$mode %2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
   PS2="$PS1"
 
   zle reset-prompt
@@ -464,7 +464,7 @@ function zle-line-init zle-keymap-select {
 
 # }}}
 
-[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
+[ -f '$HOME/.zshrc.local' ] && source '$HOME/.zshrc.local'
 
 # Profiling end block {{{
 
