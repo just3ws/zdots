@@ -26,11 +26,6 @@ exec "$SHELL"
 
 - [Zsh](http://www.zsh.org/)
 
-### vcs_info
-
-- [Customize your ZSH prompt with vcs_info](http://arjanvandergaag.nl/blog/customize-zsh-prompt-with-vcs-info.html)
-- [vcs_info-examples](https://github.com/zsh-users/zsh/blob/master/Misc/vcs_info-examples)
-
 ### Documentation
 
 - [A User's Guide to the Z-Shell](http://zsh.sourceforge.net/Guide/zshguide.html)
@@ -130,20 +125,18 @@ exec "$SHELL"
 
 ### Prompts
 
-- [arialdomartini/oh-my-git: An opinionated git prompt for bash and zsh](https://github.com/arialdomartini/oh-my-git)
-- [sindresorhus/pure: Pretty, minimal and fast ZSH prompt](https://github.com/sindresorhus/pure)
+- [Customize your zsh prompt](http://richard-zhao.com/blog/2015/08/26/zsh-prompt/)
+- [How to Customize Your Command Prompt](https://code.tutsplus.com/tutorials/how-to-customize-your-command-prompt--net-24083)
+- [My Extravagant Zsh Prompt](http://stevelosh.com/blog/2010/02/my-extravagant-zsh-prompt/)
 - [Prompt Expansion](http://zsh.sourceforge.net/Doc/Release/Prompt-Expansion.html)
 - [Prompting](http://zsh.sourceforge.net/Intro/intro_14.html)
+- [arialdomartini/oh-my-git: An opinionated git prompt for bash and zsh](https://github.com/arialdomartini/oh-my-git)
+- [sindresorhus/pure: Pretty, minimal and fast ZSH prompt](https://github.com/sindresorhus/pure)
 
-## Ugh
+### vcs_info
 
-Ugly, pick a spelling already.
-
-- Zsh
-- ZSH
-- zsh
-- Z-Shell
-- Z Shell
-- Z SHELL
-
-
+- [Customize your ZSH prompt with vcs_info](http://arjanvandergaag.nl/blog/customize-zsh-prompt-with-vcs-info.html)
+- [GIT INFO IN YOUR ZSH PROMPT](http://eseth.org/2010/git-in-zsh.html)
+- [Git info in your ZSH Prompt](http://briancarper.net/blog/570.html)
+- [My very own Zsh prompt](http://matija.suklje.name/my-very-own-zsh-prompt)
+- [vcs_info-examples](https://github.com/zsh-users/zsh/blob/master/Misc/vcs_info-examples)

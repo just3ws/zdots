@@ -5,10 +5,11 @@ compinit -d "$ZSH_CACHE_DIR/.zcomp-$HOST"
 
 for z in $ZDOTDIR/functions/*(x) ; zrecompile -p $z
 for z in $ZDOTDIR/completions/**/_* ; zrecompile -p $z
-for z in /usr/local/share/zsh/site-functions/_brew* ; zrecompile -p $z
 
-zrecompile -p /usr/local/share/zsh/site-functions/_git
-zrecompile -p /usr/local/share/zsh/site-functions/git-completion.bash
+for z in _brew _brew_cask _brew_services _rg _git git-completion.bash _the_silver_searcher _youtube-dl _aws
+do
+  zrecompile -p /usr/local/share/zsh/site-functions/$z
+done
 
 rm -f $HOME/*.zwc.old(N)
 rm -f $ZDOTDIR/**.zwc.old(N)
