@@ -424,17 +424,19 @@ zle -N zle-keymap-select
 interactive="%{$fg_bold[green]%}%{$reset_color%}"
 normal="%{$fg_bold[red]%}%{$reset_color%}"
 
+PROMPT="%2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
+PROMPT2="$PROMPT"
+
 function zle-line-init zle-keymap-select {
   local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
 
   PROMPT="$mode %2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
-  PROMPT2="2 $PROMPT"
+  PROMPT2="$PROMPT"
 
   zle reset-prompt
 }
 
 # }}}2
-
 
 # RPROMPT {{{2
 
@@ -468,7 +470,7 @@ RPROMPT2="2 $RPROMPT1"
 
 # }}}
 
-[ -f '$HOME/.zshrc.local' ] && source '$HOME/.zshrc.local'
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
 # Profiling end block {{{
 
