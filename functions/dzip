@@ -1,0 +1,4 @@
+#!/usr/bin/env zsh
+# vim:ft=zsh:
+
+zip -r -X "$(basename %0).zip" "$0"
