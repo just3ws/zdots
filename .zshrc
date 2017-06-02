@@ -1,7 +1,6 @@
 # vim:ft=zsh:
 
 # Profiling start block {{{
-
 PROFILE_STARTUP=false
 
 if [[ "$PROFILE_STARTUP" == true ]]
@@ -10,16 +9,15 @@ then
 	exec 3>&2 2>$HOME/tmp/startlog.$$
 	setopt xtrace
 fi
-
 # }}}
 
 # Function pathes {{{
 
 fpath=(
-$ZDOTDIR/functions
-$ZDOTDIR/completions
-/usr/local/share/zsh/site-functions
-$fpath
+	$ZDOTDIR/functions
+	$ZDOTDIR/completions
+	/usr/local/share/zsh/site-functions
+	$fpath
 )
 
 # }}}
@@ -38,9 +36,6 @@ for fn in $ZDOTDIR/functions/*(x)
 do
 	autoload -Uz "$(basename $fn)"
 done
-
-# # zmv "programmable rename"
-# autoload -Uz zmv
 
 # }}}
 
@@ -483,16 +478,49 @@ RPROMPT2="$RPROMPT1"
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
 # Profiling end block {{{
-
 if [[ "$PROFILE_STARTUP" == true ]]
 then
 	unsetopt xtrace
-
 	exec 2>&3 3>&-
 fi
-
 # }}}
 
+#
+# ()MODIFIED ()ADDED ()REMOVED
+# (S)taged/(U)nstaged
+# () S(T)ashed
+# () (U)ntracked
+#
+# Count (L)ocal commits not pushed to Remote
+# Count (R)emote commits not present in Local
+# (D)iverged branch state
+#
+# (SU SU SU U T) L ⊄ R
+#
+# no modified, one staged addition, two staged deletions, no untracked files,
+# no stashed, no pending commits, no remote commits detected
+# (00 10 20 0 0) 0  0
+#
+# three unstaged modified, zero additions/deletions, two untracked files, one
+# stashed, two pending commits, zero remote commits detected
+# (03 00 00 2 1) 2 ⊄ 0
+#
+# = branches =
+# == behind remote ==
+# ⊂ L is a subset of R, but L is not equal to R
+#
+# == ahead of remote ==
+# ⊃ L is a superset of R, but R is not equal to L
+#
+# == diverged ==
+# ⊄ L is not a subset of R
+# ⊅ L is not a superset of R
+#
+# == clean ==
+#  L is equal to R
+#
+# = status =
+#
 # 
 # BRANCH    
 # COMMIT  
@@ -533,51 +561,3 @@ fi
 #    
 #  
 #
-# local and remote have identical commits
-# local commits match remote but there are more remote commits
-# local commits match remote but there are more local commits
-# local has commits not on remote and remote has commits not on local
-
-# = branches =
-# == behind remote ==
-# ⊂ L is a subset of R, but L is not equal to R
-#
-# == ahead of remote ==
-# ⊃ L is a superset of R, but R is not equal to L
-#
-# == diverged ==
-# ⊄ L is not a subset of R
-# ⊅ L is not a superset of R
-#
-# == clean ==
-#  L is equal to R
-#
-# = status =
-#
-# ()MODIFIED ()ADDED ()REMOVED
-# (S)taged/(U)nstaged
-# () S(T)ashed
-# () (U)ntracked
-#
-# Count (L)ocal commits not pushed to Remote
-# Count (R)emote commits not present in Local
-# (D)iverged branch state
-#
-# (SU SU SU U T) L ⊄ R
-#
-# no modified, one staged addition, two staged deletions, no untracked files, no stashed, no pending commits, no remote commits detected
-# (00 10 20 0 0) 0  0
-# three unstaged modified, zero additions/deletions, two untracked files, one stashed, two pending commits, zero remote commits detected
-# (03 00 00 2 1) 2 ⊄ 0
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# ? Time since last commit?
