@@ -424,12 +424,17 @@ zle -N zle-keymap-select
 interactive="%{$fg_bold[green]%}%{$reset_color%}"
 normal="%{$fg_bold[red]%}%{$reset_color%}"
 
-arrows='%{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%}'
-PROMPT="%2~ $arrows "
+prompt_default='%{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%}'
+# ↪
+# ↳
+# ⇲
+prompt_for_loops='%{$fg_bold[yellow]%}↳%{$reset_color%}%{$fg_bold[blue]%}↳%{$reset_color%}%{$fg_bold[red]%}↳%{$reset_color%}'
+
+PROMPT="%2~ $prompt_default"
 # for loops
-PROMPT2=" $arrows " # '{%_}  '
+PROMPT2=" $prompt_for_loops " # '{%_}  '
 # for selections
-PROMPT3=" $arrows " # '{ … }  '
+PROMPT3=" $prompt_default " # '{ … }  '
 
 function zle-line-init zle-keymap-select {
   local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
