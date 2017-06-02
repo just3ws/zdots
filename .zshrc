@@ -1,16 +1,14 @@
-# vim:set filetype=zsh expandtab shiftwidth=2 textwidth=64:
+# vim:filetype=zsh noexpandtab tabstop=8 shiftwidth=8 softtabstop=8:
 
 # Profiling start block {{{
 
 PROFILE_STARTUP=false
 
-if [[ "$PROFILE_STARTUP" == true ]]; then
-
-  PS4=$'%D{%M%S%.} %N:%i> '
-
-  exec 3>&2 2>$HOME/tmp/startlog.$$
-
-  setopt xtrace
+if [[ "$PROFILE_STARTUP" == true ]]
+then
+	PS4=$'%D{%M%S%.} %N:%i> '
+	exec 3>&2 2>$HOME/tmp/startlog.$$
+	setopt xtrace
 fi
 
 # }}}
@@ -18,10 +16,10 @@ fi
 # Function pathes {{{
 
 fpath=(
-  $ZDOTDIR/functions
-  $ZDOTDIR/completions
-  /usr/local/share/zsh/site-functions
-  $fpath
+$ZDOTDIR/functions
+$ZDOTDIR/completions
+/usr/local/share/zsh/site-functions
+$fpath
 )
 
 # }}}
@@ -38,7 +36,7 @@ autoload -Uz edit-command-line
 
 for fn in $ZDOTDIR/functions/*(x)
 do
-  autoload -Uz "$(basename $fn)"
+	autoload -Uz "$(basename $fn)"
 done
 
 # # zmv "programmable rename"
@@ -196,7 +194,7 @@ setopt PUSHD_SILENT
 # directory.
 setopt CHASE_LINKS
 
- # }}}2
+# }}}2
 
 # Setopts: COMPLETION {{{2
 
@@ -437,11 +435,11 @@ PROMPT2=" $prompt_for_loops " # '{%_}  '
 PROMPT3=" $prompt_default " # '{ … }  '
 
 function zle-line-init zle-keymap-select {
-  local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
+local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
 
-  PROMPT="$mode %2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
+PROMPT="$mode %2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
 
-  zle reset-prompt
+zle reset-prompt
 }
 
 # }}}2
@@ -488,9 +486,9 @@ RPROMPT2="$RPROMPT1"
 
 if [[ "$PROFILE_STARTUP" == true ]]
 then
-  unsetopt xtrace
+	unsetopt xtrace
 
-  exec 2>&3 3>&-
+	exec 2>&3 3>&-
 fi
 
 # }}}

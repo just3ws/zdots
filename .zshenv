@@ -1,4 +1,4 @@
-# vim:set filetype=zsh expandtab shiftwidth=2 textwidth=64:
+# vim:filetype=zsh noexpandtab tabstop=8 shiftwidth=8 softtabstop=8:
 
 ZDOTDIR="$HOME/.config/zsh"
 
