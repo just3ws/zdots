@@ -417,7 +417,6 @@ source "$ZDOTDIR/functions/colored-man-pages"
 # Prompt {{{
 
 # PROMPT {{{2
-# 
 
 zle -N zle-line-init
 zle -N zle-keymap-select
@@ -445,37 +444,6 @@ function zle-line-init zle-keymap-select {
 # RPROMPT {{{2
 
 autoload -Uz vcs_info
-
-# branch 
-# branch 
-# branch 
-# branch 
-# commit 
-# commit 
-# compare 
-# compare 
-# diff ?
-# diff-added ?
-# diff-ignored ?
-# diff-modified ?
-# diff-removed ?
-# diff-renamed ?
-# merge 
-# merge 
-# pull-request 
-# pull-request 
-# repo 
-# repo-clone 
-# repo-force-push 
-# repo-forked 
-# repo-pull 
-# repo-push 
-# Δ delta
-#   
-#  
-#   
-#        
-#  
 
 zstyle ':vcs_info:*+*:*' debug false
 
@@ -521,3 +489,92 @@ then
 fi
 
 # }}}
+
+# 
+# BRANCH    
+# COMMIT  
+# COMPARE  
+# DELTA Δ
+# DIFF 
+# DIFF-ADDED 
+# DIFF-IGNORED 
+# DIFF-MODIFIED 
+# DIFF-REMOVED 
+# DIFF-RENAMED 
+# DOT • ∙ ∘ ⌾
+# DOWNLOAD  
+# HOME 
+# LOGO BITBUCKET   
+# LOGO GIT    
+# LOGO GITHUB          
+# LOGO GITLAB 
+# LOGO HEROKU  
+# MERGE  
+# PULL-REQUEST  
+# REPO 
+# REPO-CLONE 
+# REPO-FORCE-PUSH 
+# REPO-FORKED 
+# REPO-PULL 
+# REPO-PUSH 
+# UPLOAD  
+# ⇄ ⇋ ⇔
+# ⋢ ⋣ ⊏ ⊐ ⌀
+# 
+# 
+#     
+# 
+# 
+# 
+#  
+#    
+#  
+#
+# local and remote have identical commits
+# local commits match remote but there are more remote commits
+# local commits match remote but there are more local commits
+# local has commits not on remote and remote has commits not on local
+
+# = branches =
+# == behind remote ==
+# ⊂ L is a subset of R, but L is not equal to R
+#
+# == ahead of remote ==
+# ⊃ L is a superset of R, but R is not equal to L
+#
+# == diverged ==
+# ⊄ L is not a subset of R
+# ⊅ L is not a superset of R
+#
+# == clean ==
+#  L is equal to R
+#
+# = status =
+#
+# ()MODIFIED ()ADDED ()REMOVED
+# (S)taged/(U)nstaged
+# () S(T)ashed
+# () (U)ntracked
+#
+# Count (L)ocal commits not pushed to Remote
+# Count (R)emote commits not present in Local
+# (D)iverged branch state
+#
+# (SU SU SU U T) L ⊄ R
+#
+# no modified, one staged addition, two staged deletions, no untracked files, no stashed, no pending commits, no remote commits detected
+# (00 10 20 0 0) 0  0
+# three unstaged modified, zero additions/deletions, two untracked files, one stashed, two pending commits, zero remote commits detected
+# (03 00 00 2 1) 2 ⊄ 0
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# ? Time since last commit?
