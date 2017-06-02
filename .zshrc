@@ -1,4 +1,4 @@
-# vim:filetype=zsh noexpandtab tabstop=8 shiftwidth=8 softtabstop=8:
+# vim:ft=zsh:
 
 # Profiling start block {{{
 
