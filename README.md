@@ -71,7 +71,9 @@ exec "$SHELL"
 - [Speeding up my ZSH load | Carlos Alexandro Becker](https://carlosbecker.com/posts/speeding-up-zsh/)
 - [Updating Your Shell with Homebrew | John D. Jameson](https://johndjameson.com/blog/updating-your-shell-with-homebrew/)
 - [Use Homebrew zsh Instead of the OS X Default : Rick Cogley Central](https://rick.cogley.info/post/use-homebrew-zsh-instead-of-the-osx-default/)
+- [What does `zstyle` do?](https://unix.stackexchange.com/questions/214657/what-does-zstyle-do)
 - [Why Zsh is Cooler than Your Shell](https://www.slideshare.net/jaguardesignstudio/why-zsh-is-cooler-than-your-shell-16194692)
+- [Writing own completion functions](https://askql.wordpress.com/2011/01/11/zsh-writing-own-completion/)
 - [Z shell - Wikipedia](https://en.wikipedia.org/wiki/Z_shell)
 - [Z shell made easy | TuxRadar Linux](http://www.tuxradar.com/content/z-shell-made-easy)
 - [ZSH-LOVERS(1)](https://grml.org/zsh/zsh-lovers.html)
@@ -83,8 +85,8 @@ exec "$SHELL"
 - [molovo/zlint: A linter and code style checker for ZSH](https://github.com/molovo/zlint)
 - [per directory zsh config (Example)](https://coderwall.com/p/a3xreg/per-directory-zsh-config)
 - [reload all running zsh instances - Super User](https://superuser.com/questions/852912/reload-all-running-zsh-instances)
-- [zsh-syntax-highlighting/INSTALL.md at master · zsh-users/zsh-syntax-highlighting · GitHub](https://github.com/zsh-users/zsh-syntax-highlighting/blob/master/INSTALL.md)
 - [the8/terminal-app.zsh: OSX 10.11(El Capitan) Terminal.app and Zsh integration using new status escape codes and a dash of Emoji to make your terminal shine.](https://github.com/the8/terminal-app.zsh)
+- [zsh-syntax-highlighting/INSTALL.md at master · zsh-users/zsh-syntax-highlighting · GitHub](https://github.com/zsh-users/zsh-syntax-highlighting/blob/master/INSTALL.md)
 
 ### StackExchange
 
@@ -140,3 +142,5 @@ exec "$SHELL"
 - [Git info in your ZSH Prompt](http://briancarper.net/blog/570.html)
 - [My very own Zsh prompt](http://matija.suklje.name/my-very-own-zsh-prompt)
 - [vcs_info-examples](https://github.com/zsh-users/zsh/blob/master/Misc/vcs_info-examples)
+
+
