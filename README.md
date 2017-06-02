@@ -17,6 +17,7 @@ exec "$SHELL"
 
 ### Official
 
+- [Mirror of the Z shell source code repository](https://github.com/zsh-users/zsh)
 - [THE ZSH FAQ](http://www.zsh.org/FAQ/)
 - [THE ZSH WEB PAGE](http://www.zsh.org/)
 - [THE ZSH USERGUIDE](http://zsh.sourceforge.net/Guide/)
@@ -143,4 +144,8 @@ exec "$SHELL"
 - [My very own Zsh prompt](http://matija.suklje.name/my-very-own-zsh-prompt)
 - [vcs_info-examples](https://github.com/zsh-users/zsh/blob/master/Misc/vcs_info-examples)
 
+### Async
 
+- [zsh-async](https://github.com/mafredri/zsh-async)
+- [Asynchronous RPROMPT?](https://unix.stackexchange.com/questions/91087/asynchronous-rprompt)
+- [An Asynchronous Shell Prompt](http://www.anishathalye.com/2015/02/07/an-asynchronous-shell-prompt/)

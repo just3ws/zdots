@@ -1,4 +1,4 @@
-# vim:set filetype=zsh expandtab shiftwidth=2 textwidth=64:
+# vim:filetype=zsh noexpandtab tabstop=8 shiftwidth=8 softtabstop=8:
 
 # NOTE: Prefix aliased commands with a single space so they are
 # automatically excluded from the command history.
@@ -21,7 +21,7 @@ alias alg="alias | grep -i"
 
 for ote in "ote" "vi" "e" "emacs"
 do
-  alias $ote="vim"
+	alias $ote="vim"
 done
 alias mvim=gvim
 
@@ -31,7 +31,7 @@ alias mvim=gvim
 
 for cmd in "cd" "exit" "mkdir" "rm" "rvm" "source"
 do
-  alias $cmd=" $cmd"
+	alias $cmd=" $cmd"
 done
 
 # }}}
@@ -42,7 +42,7 @@ done
 # default action.
 for ftype in coffee css erb haml html markdown md ru lock txt vim
 do
-  alias -s $ftype=vim
+	alias -s $ftype=vim
 done
 
 # }}}
@@ -53,7 +53,7 @@ done
 # warnings from the correct option.
 for cmd in "rspec" "mv" "~zdots" "~api"
 do
-  alias $cmd="nocorrect $cmd"
+	alias $cmd="nocorrect $cmd"
 done
 
 # }}}

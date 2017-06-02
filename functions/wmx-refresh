@@ -1,14 +1,15 @@
 #!/usr/bin/env zsh
+# vim:filetype=zsh noexpandtab tabstop=8 shiftwidth=8 softtabstop=8:
 
 cd ~wmx
 for project in course-publisher instructor-dashboard marketing-admin marketing reporting-api sso teachers tenant-dashboard user-manager v2 webapp
 do
-  echo "Refreshing: $project"
-  cd "~wmx/$project/"
-  pwd
-  git fetch --all --prune
-  git pull --rebase --autostash
-  bundle install
-  echo
+	echo "Refreshing: $project"
+	cd "~wmx/$project/"
+	pwd
+	git fetch --all --prune
+	git pull --rebase --autostash
+	bundle install
+	echo
 done
 cd ~wmx

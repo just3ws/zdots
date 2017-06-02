@@ -1,4 +1,5 @@
 #!/usr/bin/env zsh
+# vim:filetype=zsh noexpandtab tabstop=8 shiftwidth=8 softtabstop=8:
 
 rm -f $HOME/*.zwc.old(N)
 rm -f $ZDOTDIR/**/*.zwc(N)
