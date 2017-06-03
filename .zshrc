@@ -6,7 +6,8 @@ PROFILE_STARTUP=false
 if [[ "$PROFILE_STARTUP" == true ]]
 then
 	PS4=$'%D{%M%S%.} %N:%i> '
-	exec 3>&2 2>$HOME/tmp/startlog.$$
+	mkdir -p $ZSH_CACHE_DIR/tmp
+	exec 3>&2 2> $ZSH_CACHE_DIR/tmp/xtrace.$$
 	setopt xtrace
 fi
 # }}}
@@ -25,12 +26,9 @@ fpath=(
 # Autoloads {{{
 
 autoload -Uz compinit
-compinit
-
-autoload -Uz colors && colors
-autoload -Uz promptinit && promptinit
-autoload -Uz regexp-replace
+autoload -Uz colors
 autoload -Uz edit-command-line
+autoload -Uz vcs_info
 
 for fn in $ZDOTDIR/functions/*(x)
 do
@@ -88,7 +86,7 @@ setopt PROMPT_SUBST
 
 # Remove any right prompt from display when accepting a command
 # line.
-unsetopt TRANSIENT_RPROMPT
+setopt TRANSIENT_RPROMPT
 
 # }}}2
 
@@ -315,6 +313,8 @@ setopt vi
 # Zle {{{
 
 zle -N edit-command-line
+zle -N zle-keymap-select
+zle -N zle-line-init
 
 # }}}
 
@@ -329,15 +329,9 @@ zmodload -i zsh/complist
 
 # vi-mode
 bindkey -v
-
-# ZLE emacs-mode
-bindkey "\C-x\C-e" edit-command-line
-
-# ZLE vi-mode
 bindkey -M vicmd v edit-command-line
 
-# Add missing Vim key chords to vi-mode
-# fixes backspace deletion issues
+# Add missing Vim key chords to vi-mode fixes backspace deletion issues
 # http://zshwiki.org/home/zle/vi-mode
 bindkey -a u undo
 bindkey -a '^r' redo
@@ -351,6 +345,7 @@ bindkey -M viins "^s" history-incremental-search-forward
 bindkey -M vicmd "^s" history-incremental-search-forward
 
 # Emacs key chords in vi-mode
+bindkey "\C-x\C-e" edit-command-line
 bindkey -M viins "^a" beginning-of-line
 bindkey -M viins "^b" backward-char
 bindkey -M viins "^d" delete-char-or-list
@@ -397,7 +392,6 @@ zstyle ':completion:*:kill:*'   force-list always
 # cd will never select the parent directory (e.g.: cd ../<TAB>):
 zstyle ':completion:*:cd:*' ignore-parents parent pwd
 
-
 # }}}
 
 # Sources {{{
@@ -411,17 +405,13 @@ source "$ZDOTDIR/functions/colored-man-pages"
 
 # PROMPT {{{2
 
-zle -N zle-line-init
-zle -N zle-keymap-select
+colors
 
 interactive="%{$fg_bold[green]%}%{$reset_color%}"
 normal="%{$fg_bold[red]%}%{$reset_color%}"
 
-prompt_default='%{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%}'
-# ↪
-# ↳
-# ⇲
-prompt_for_loops='%{$fg_bold[yellow]%}↳%{$reset_color%}%{$fg_bold[blue]%}↳%{$reset_color%}%{$fg_bold[red]%}↳%{$reset_color%}'
+prompt_default='%{$fg_bold[red]%}❱%{$reset_color%}%{$fg_bold[green]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}'
+prompt_for_loops='%{$fg_bold[red]%}↳%{$reset_color%}%{$fg_bold[green]%}↳%{$reset_color%}%{$fg_bold[blue]%}↳%{$reset_color%}'
 
 PROMPT="%2~ $prompt_default"
 # for loops
@@ -430,18 +420,17 @@ PROMPT2=" $prompt_for_loops " # '{%_}  '
 PROMPT3=" $prompt_default " # '{ … }  '
 
 function zle-line-init zle-keymap-select {
-local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
+	local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
 
-PROMPT="$mode %2~ %{$fg_bold[yellow]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}%{$fg_bold[red]%}❱%{$reset_color%} "
+	# PROMPT="$mode %2~ %{$fg_bold[red]%}❱%{$reset_color%}%{$fg_bold[green]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%} "
+	PROMPT="$mode %2~ $prompt_default "
 
-zle reset-prompt
+	zle reset-prompt
 }
 
 # }}}2
 
 # RPROMPT {{{2
-
-autoload -Uz vcs_info
 
 zstyle ':vcs_info:*+*:*' debug false
 
@@ -520,8 +509,9 @@ fi
 #  L is equal to R
 #
 # = status =
+
+# Glyphs {{{
 #
-# 
 # BRANCH    
 # COMMIT  
 # COMPARE  
@@ -549,15 +539,18 @@ fi
 # REPO-PULL 
 # REPO-PUSH 
 # UPLOAD  
+# ↪ ↳ ⇲
 # ⇄ ⇋ ⇔
 # ⋢ ⋣ ⊏ ⊐ ⌀
 # 
 # 
 #     
+# 
 # 
 # 
 # 
 #  
 #    
 #  
-#
+
+# }}}
