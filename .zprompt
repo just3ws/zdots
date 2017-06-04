@@ -1,0 +1,39 @@
+# vim:ft=zsh:
+
+colors
+
+precmd () vcs_info
+
+zstyle ':vcs_info:*' enable git
+zstyle ':vcs_info:git:*' debug false
+zstyle ':vcs_info:git:*:-all-' command /usr/local/bin/git
+
+zstyle ':vcs_info:git:*' get-revision true
+zstyle ':vcs_info:git:*' check-for-changes true
+
+zstyle ':vcs_info:*' nvcsformats "%{$fg_bold[magenta]%}%{$reset_color%}"
+
+zstyle ':vcs_info:git:*:*' actionformats '(%s)-[ %b | %a ]'
+zstyle ':vcs_info:git:*:*' formats       '( %r:%S %b %c %u )'
+zstyle ':vcs_info:git:*:*' stagedstr     'S'
+zstyle ':vcs_info:git:*:*' unstagedstr   'T'
+
+interactive="%{$fg_bold[green]%}%{$reset_color%}"
+normal="%{$fg_bold[red]%}%{$reset_color%}"
+
+_prompt1='%{$fg_bold[red]%}❱%{$reset_color%}%{$fg_bold[green]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}'
+_prompt2='%{$fg_bold[red]%}↳%{$reset_color%}%{$fg_bold[green]%}↳%{$reset_color%}%{$fg_bold[blue]%}↳%{$reset_color%}'
+_prompt3='%{$fg_bold[red]%}X%{$reset_color%}%{$fg_bold[green]%}X%{$reset_color%}%{$fg_bold[blue]%}X%{$reset_color%}'
+
+PS1="%2~ $_prompt1"
+PS2=" $_prompt2 "
+PS3=" $_prompt3 "
+
+RPS1='${vcs_info_msg_0_}'
+RPS2="$RPS1"
+
+function zle-line-init zle-keymap-select {
+	local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
+	PS1="$mode %2~ $_prompt1 "
+	zle reset-prompt
+}
