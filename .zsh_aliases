@@ -157,3 +157,4 @@ alias chrome="open -a \"Google Chrome\""
 alias safari="open -a \"Safari\""
 alias firefox="open -a \"FirefoxDeveloperEdition\""
 alias marked="open -a \"Marked 2\""
+alias vcsi='vcs_info command; vcs_info_lastmsg'
