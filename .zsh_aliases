@@ -65,7 +65,9 @@ alias g=" git"
 alias gpr="git pull --rebase --autostash"
 # git commit
 alias gc=" git commit --verbose"
-alias gca=" git commit --verbose --amend"
+alias gcm" git commit -m"
+alias gcA=" git add -A"
+alias gcam=" git commit --verbose --amend"
 # git add
 alias ga=" git add"
 alias gaa=" git add --all"
@@ -158,3 +160,5 @@ alias safari="open -a \"Safari\""
 alias firefox="open -a \"FirefoxDeveloperEdition\""
 alias marked="open -a \"Marked 2\""
 alias vcsi='vcs_info command; vcs_info_lastmsg'
+alias vup="vim +PlugUpdate"
+alias fl="functions | grep -i \"^\w\+\s\+()\""
