@@ -1,6 +1,6 @@
 # vim:ft=zsh:
 
-# Profiling start block {{{
+# PROFILING START BLOCK {{{
 PROFILE_STARTUP=false
 
 if [[ "$PROFILE_STARTUP" == true ]]
@@ -12,7 +12,7 @@ then
 fi
 # }}}
 
-# Function pathes {{{
+# FUNCTION PATHES {{{
 
 fpath=(
 	$ZDOTDIR/functions
@@ -23,7 +23,7 @@ fpath=(
 
 # }}}
 
-# Autoloads {{{
+# AUTOLOADS {{{
 
 autoload -Uz compinit
 autoload -Uz colors
@@ -37,14 +37,14 @@ done
 
 # }}}
 
-# Editing Mode {{{
+# EDITING MODE {{{
 
 # Vi all the things!
 set -o vi
 
 # }}}
 
-# Hashes {{{
+# HASHES {{{
 
 hash -d zdots="$ZDOTDIR"
 hash -d vdots="$HOME/.config/nvim"
@@ -61,13 +61,13 @@ hash -d pictures="$HOME/Pictures"
 
 # }}}
 
-# Aliases {{{
+# ALIASES {{{
 
 [ -f "$ZDOTDIR/.zsh_aliases" ] && source "$ZDOTDIR/.zsh_aliases"
 
 # }}}
 
-# Dircolors {{{
+# DIRCOLORS {{{
 
 export CLICOLOR=1
 export LS_COLORS='rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:';
@@ -77,80 +77,80 @@ export LS_COLORS='rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;
 
 # }}}
 
-# Setopts {{{
+# SETOPTS {{{
 
 # http://zsh.sourceforge.net/Doc/Release/Options.html
 
-# Setopts: PROMPT {{{
+# SETOPTS: PROMPT {{{
 
 # If set, parameter expansion, command substitution and
 # arithmetic expansion are performed in prompts.
-setopt PROMPT_SUBST
+setopt prompt_subst
 
 # Remove any right prompt from display when accepting a command
 # line.
-setopt TRANSIENT_RPROMPT
+setopt transient_rprompt
 
 # }}}2
 
-# Setopts: HISTORY {{{2
+# SETOPTS: HISTORY {{{2
 
 # Enable "!" history expansion
-setopt BANG_HIST
+setopt bang_hist
 
 # When exiting, append history entries to $HISTFILE, rather than
 # replacing the old file; this is the default
-setopt APPENDHISTORY
+setopt appendhistory
 
 # Save additional info to $HISTFILE
-setopt EXTENDED_HISTORY
+setopt extended_history
 
 # If the commandline starts with a whitespace, don't add it to
 # history
-setopt HIST_IGNORE_SPACE
+setopt hist_ignore_space
 
 # Append every single command to $HISTFILE immediately after
 # hitting ENTER.
-setopt INC_APPEND_HISTORY
+setopt inc_append_history
 
 # Always import new commands from $HISTFILE (see
 # "inc_append_history" above)
-setopt SHARE_HISTORY
+setopt share_history
 
 # If a new command line being added to the history list
 # duplicates an older one, the older command is removed from the
 # list (even if it is not the previous event).
-setopt HIST_IGNORE_ALL_DUPS
+setopt hist_ignore_all_dups
 
 # When searching for history entries in the line editor, do not
 # display duplicates of a line previously found, even if the
 # duplicates are not contiguous.
-setopt HIST_FIND_NO_DUPS
+setopt hist_find_no_dups
 
 # Remove superfluous blanks from each command line being added
 # to the history list.
-setopt HIST_REDUCE_BLANKS
+setopt hist_reduce_blanks
 
 # When writing out the history file, older commands that
 # duplicate newer ones are omitted.
-setopt HIST_SAVE_NO_DUPS
+setopt hist_save_no_dups
 
 # If the internal history needs to be trimmed to add the current
 # command line, setting this option will cause the oldest
 # history event that has a duplicate to be lost before losing a
 # unique event from the list.
-setopt HIST_EXPIRE_DUPS_FIRST
+setopt hist_expire_dups_first
 
 # Remove function definitions from the history list. Note that
 # the function lingers in the internal history until the next
 # command is entered before it vanishes, allowing you to briefly
 # reuse or edit the definition.
-setopt HIST_NO_FUNCTIONS
+setopt hist_no_functions
 
 # Whenever the user enters a line with history expansion, don't
 # execute the line directly; instead, perform history expansion
 # and reload the line into the editing buffer.
-setopt HIST_VERIFY
+setopt hist_verify
 
 # # (Do not) Beep in ZLE when a widget attempts to access a
 # # history entry which isn’t there.
@@ -158,75 +158,75 @@ setopt HIST_VERIFY
 
 # }}}2
 
-# Setopts: CHANGING DIRECTORIES {{{2
+# SETOPTS: CHANGING DIRECTORIES {{{2
 
-# If a directoryname is entered like a command, and there is no
+# if a directoryname is entered like a command, and there is no
 # command of that name; the "cd" command is executed for that
 # directory
-setopt AUTO_CD
+setopt auto_cd
 
-# If cd would fail, because the arg is not a dir, try to expand
+# if cd would fail, because the arg is not a dir, try to expand
 # the argument as if it was called the ~expression way
-setopt CDABLE_VARS
+setopt cdable_vars
 
-# Make cd push the old directory to the dirstack
-setopt AUTO_PUSHD
+# make cd push the old directory to the dirstack
+setopt auto_pushd
 
-# Don't push multiple copies of the same directory onto the
+# don't push multiple copies of the same directory onto the
 # directory stack.
-setopt PUSHD_IGNORE_DUPS
+setopt pushd_ignore_dups
 
-# make "pushd" with no argument, act like pushd ${HOME}
-setopt PUSHD_TO_HOME
+# make "pushd" with no argument, act like pushd ${home}
+setopt pushd_to_home
 
-# Exchanges the meanings of `+" and `-" when used with a number
+# exchanges the meanings of `+" and `-" when used with a number
 # to specify a directory in the stack.
-setopt PUSHD_MINUS
+setopt pushd_minus
 
-# Do not print the directory stack after pushd or popd.
-setopt PUSHD_SILENT
+# do not print the directory stack after pushd or popd.
+setopt pushd_silent
 
-# Resolve symbolic links to their true values when changing
+# resolve symbolic links to their true values when changing
 # directory.
-setopt CHASE_LINKS
+setopt chase_links
 
 # }}}2
 
-# Setopts: COMPLETION {{{2
+# SETOPTS: COMPLETION {{{2
 
 # don't expand aliases _before_ completion has finished
-setopt COMPLETE_ALIASES
+setopt complete_aliases
 
 # if unset the cursor is set to the end of the word if
 # completion is started
-setopt COMPLETE_IN_WORD
+setopt complete_in_word
 
 # cycle through globbing matches like menu_complete
-setopt GLOB_COMPLETE
+setopt glob_complete
 
 # If a completion is performed with the cursor within a word, and a full
 # completion is inserted, the cursor is moved to the end of the word. That is,
 # the cursor is moved to the end of the word if either a single match is
 # inserted or menu completion is performed.
-setopt ALWAYS_TO_END
+setopt always_to_end
 
 # Automatically use menu completion after the second consecutive request for
 # completion, for example by pressing the tab key repeatedly.
-setopt AUTO_MENU
+setopt auto_menu
 
 # }}}2
 
-# Setopts: EXPANSION & GLOBBING {{{2
+# SETOPTS: EXPANSION & GLOBBING {{{2
 
 # If a pattern for filename generation is badly formed, print an error message.
 # setopt BAD_PATTERN
 # Treat the ‘#’, ‘~’ and ‘^’ characters as part of patterns for filename
 # generation, etc. (An initial unquoted ‘~’ always produces named directory
 # expansion.)
-setopt EXTENDEDGLOB
+setopt extendedglob
 
 # Do not require a leading ‘.’ in a filename to be matched explicitly.
-setopt GLOB_DOTS
+setopt glob_dots
 
 # (Do not) Make globbing (filename generation) sensitive to case. Note that other uses
 # of patterns are always sensitive to case. If the option is unset, the
@@ -237,75 +237,75 @@ unsetopt CASE_GLOB
 # If a pattern for filename generation has no matches, print an error, instead
 # of leaving it unchanged in the argument list. This also applies to file
 # expansion of an initial ‘~’ or ‘=’.
-setopt NOMATCH
+setopt nomatch
 
 # Treat **word as **/word
-setopt GLOBSTARSHORT
+setopt globstarshort
 
 # }}}2
 
-# Setopts: SCRIPTS AND FUNCTIONS {{{2
+# SETOPTS: SCRIPTS & FUNCTIONS {{{2
 
 # enable multiple redirections: uptime > uptime0.txt > uptime1.txt
-setopt MULTIOS
+setopt multios
 
 # }}}2
 
-# Setopts: I/O {{{2
+# SETOPTS: I/O {{{2
 
-# Allow ">" to truncate, and "»" to create files
-setopt CLOBBER
+# allow ">" to truncate, and "»" to create files
+setopt clobber
 
-# Try to correct the spelling of commands.
-setopt CORRECT
+# try to correct the spelling of commands.
+setopt correct
 
-# Allow short form loops: `for file in *.pdf; lp ${file}`
-setopt SHORT_LOOPS
+# allow short form loops: `for file in *.pdf; lp ${file}`
+setopt short_loops
 
-# # If querying the user before executing `rm *" or `rm path/*", first wait ten
-# # seconds and ignore anything typed in that time. This avoids the problem of
+# # if querying the user before executing `rm *" or `rm path/*", first wait ten
+# # seconds and ignore anything typed in that time. this avoids the problem of
 # # reflexively answering `yes" to the query when one didn"t really mean it.
-# setopt RM_STAR_WAIT
+# setopt rm_star_wait
 
-# # Do query the user before executing ‘rm *’ or ‘rm path/*’.
-# unsetopt RM_STAR_SILENT
+# # do query the user before executing ‘rm *’ or ‘rm path/*’.
+# unsetopt rm_star_silent
 
 # }}}2
 
-# Setopts: JOB CONTROL {{{2
+# SETOPTS: JOB CONTROL {{{2
 
-# If you've got a simple command suspened, say "mutt", and you
+# if you've got a simple command suspened, say "mutt", and you
 # forgot that you have already got a mutt running and try to
 # start another mutt, the old running mutt is resumed, rather
 # than starting a new process
-setopt AUTO_RESUME
+setopt auto_resume
 
 # run background jobs at lower priority
-setopt BG_NICE
+setopt bg_nice
 
-# Send SIGHUP to background processes on exit.
-setopt HUP
+# send sighup to background processes on exit.
+setopt hup
 
 # report status of bg-jobs if exiting a shell with job control
 # enabled
-setopt CHECK_JOBS
+setopt check_jobs
 
-# Report the status of background jobs immediately, rather than
+# report the status of background jobs immediately, rather than
 # waiting until just before printing a prompt.
-setopt NOTIFY
+setopt notify
 
 # }}}2
 
-# Zle {{{2
+# ZLE {{{2
 
-# # (Do not) Beep on error in ZLE.
+# # (do not) beep on error in zle.
 # unsetopt beep
 
-# Assume that the terminal displays combining characters
+# assume that the terminal displays combining characters
 # correctly.
 setopt combining_chars
 
-# If ZLE is loaded, turning on this option has the equivalent
+# if zle is loaded, turning on this option has the equivalent
 # effect of ‘bindkey -v’.
 setopt vi
 
@@ -313,7 +313,7 @@ setopt vi
 
 # }}}
 
-# Zle {{{
+# ZLE {{{
 
 zle -N edit-command-line
 zle -N zle-keymap-select
@@ -321,14 +321,14 @@ zle -N zle-line-init
 
 # }}}
 
-# Zmodloads {{{
+# ZMODLOADS {{{
 
 # Colorful autocompletion for `cd` command
 zmodload -i zsh/complist
 
 # }}}
 
-# Bindkeys {{{
+# BINDKEYS {{{
 
 # vi-mode
 bindkey -v
@@ -362,7 +362,7 @@ bindkey -M viins "^y" yank
 
 # }}}
 
-# Zstyles {{{
+# ZSTYLES {{{
 
 zstyle :compinstall filename "$ZDOTDIR/.zshrc"
 
@@ -397,7 +397,7 @@ zstyle ':completion:*:cd:*' ignore-parents parent pwd
 
 # }}}
 
-# Sources {{{
+# SOURCES {{{
 
 source "$HOME/.rvm/scripts/rvm"
 source "$ZDOTDIR/functions/colored-man-pages"
@@ -408,7 +408,7 @@ source "$ZDOTDIR/.zprompt"
 
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
-# Profiling end block {{{
+# PROFILING END BLOCK {{{
 if [[ "$PROFILE_STARTUP" == true ]]
 then
 	unsetopt xtrace
@@ -451,47 +451,3 @@ fi
 #  L is equal to R
 #
 # = status =
-
-# Glyphs {{{
-#
-# BRANCH    
-# COMMIT  
-# COMPARE  
-# DELTA Δ
-# DIFF 
-# DIFF-ADDED 
-# DIFF-IGNORED 
-# DIFF-MODIFIED 
-# DIFF-REMOVED 
-# DIFF-RENAMED 
-# DOT • ∙ ∘ ⌾
-# DOWNLOAD  
-# HOME 
-# LOGO BITBUCKET   
-# LOGO GIT    
-# LOGO GITHUB          
-# LOGO GITLAB 
-# LOGO HEROKU  
-# MERGE  
-# PULL-REQUEST  
-# REPO 
-# REPO-CLONE 
-# REPO-FORCE-PUSH 
-# REPO-FORKED 
-# REPO-PULL 
-# REPO-PUSH 
-# UPLOAD  
-# ↪ ↳ ⇲
-# ⇄ ⇋ ⇔
-# ⋢ ⋣ ⊏ ⊐ ⌀
-# 
-# 
-#     
-# 
-# 
-# 
-#  
-#    
-#  
-
-# }}}
