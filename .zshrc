@@ -253,13 +253,14 @@ setopt multios
 
 # SETOPTS: I/O {{{2
 
-# allow ">" to truncate, and "»" to create files
+# Allows ‘>’ redirection to truncate existing files. Otherwise ‘>!’ or ‘>|’
+# must be used to truncate a file.
 setopt clobber
 
-# try to correct the spelling of commands.
+# Try to correct the spelling of commands.
 setopt correct
 
-# allow short form loops: `for file in *.pdf; lp ${file}`
+# Allow the short forms of for, repeat, select, if, and function constructs.
 setopt short_loops
 
 # # if querying the user before executing `rm *" or `rm path/*", first wait ten
@@ -274,24 +275,22 @@ setopt short_loops
 
 # SETOPTS: JOB CONTROL {{{2
 
-# if you've got a simple command suspened, say "mutt", and you
-# forgot that you have already got a mutt running and try to
-# start another mutt, the old running mutt is resumed, rather
-# than starting a new process
+# Treat single word simple commands without redirection as candidates for
+# resumption of an existing job.
 setopt auto_resume
 
-# run background jobs at lower priority
+# Run all background jobs at a lower priority.
 setopt bg_nice
 
-# send sighup to background processes on exit.
+# Send the HUP signal to running jobs when the shell exits.
 setopt hup
 
-# report status of bg-jobs if exiting a shell with job control
-# enabled
+# Report the status of background and suspended jobs before exiting a shell
+# with job control; a second attempt to exit the shell will succeed.
 setopt check_jobs
 
-# report the status of background jobs immediately, rather than
-# waiting until just before printing a prompt.
+# Report the status of background jobs immediately, rather than waiting until
+# just before printing a prompt.
 setopt notify
 
 # }}}2
