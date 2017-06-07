@@ -1,19 +1,33 @@
 # vim:ft=zsh:
 
-ZDOTDIR="$HOME/.config/zsh"
+# https://specifications.freedesktop.org/basedir-spec/latest/ar01s03.html
+XDG_CONFIG_HOME="$HOME/.config"
+[[ -d "$XDG_CONFIG_HOME" ]] || mkdir -p "$XDG_CONFIG_HOME"
 
-ZSH_CACHE_DIR="$HOME/.local/share/zsh/cache"
-[ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"
+XDG_DATA_HOME="$HOME/.local/share"
+[[ -d "$XDG_DATA_HOME" ]] || mkdir -p "$XDG_DATA_HOME"
+
+XDG_CACHE_HOME="$HOME/.cache"
+[[ -d "$XDG_CACHE_HOME" ]] || mkdir -p "$XDG_CACHE_HOME"
+
+# XDG_CONFIG_DIRS="/etc/xdg"
+# XDG_DATA_DIRS="/usr/local/share/:/usr/share/"
+# XDG_RUNTIME_DIR
+
+ZDOTDIR="$XDG_CONFIG_HOME/zsh"
+
+ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh/cache"
+[[ -d "$ZSH_CACHE_DIR" ]] || mkdir -p "$ZSH_CACHE_DIR"
 
 DIRSTACKSIZE=9
-DIRSTACKFILE="$ZSH_CACHE_DIR/.zdirs"
+DIRSTACKFILE="$ZSH_CACHE_DIR/dirstack"
 
 LC_ALL="en_US.UTF-8"
 LANG="en_US.UTF-8"
 
 SAVEHIST=10000
 HISTSIZE=13300 # allows room for `hist_expire_dupes_first` processing duplicated events
-HISTFILE="$ZSH_CACHE_DIR/.zhistory"
+HISTFILE="$ZSH_CACHE_DIR/history"
 
 HOMEBREW_CASK_OPTS="$HOMEBREW_CASK_OPTS --caskroom=/opt/homebrew-cask/Caskroom"
 HOMEBREW_NO_ANALYTICS=1
@@ -63,10 +77,11 @@ gvim () {
 EDITOR=vim
 VISUAL="$EDITOR"
 ALTERNATE_EDITOR="$EDITOR"
+GEM_EDITOR="$EDITOR"
 
 # By default, zsh considers many characters part of a word (e.g., _ and -).
 # Narrow that down to allow easier skipping through words via M-f and M-b.
-WORDCHARS='*?[]~&;!$%^<>'
+WORDCHARS='!$%&*-;<>?@[]^_~'
 
 typeset -U path
 nginx_path="/opt/nginx/sbin"

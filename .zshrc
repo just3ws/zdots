@@ -14,21 +14,23 @@ fi
 
 # FUNCTION PATHES {{{
 
+typeset -U fpath
 fpath=(
-	$ZDOTDIR/functions
-	$ZDOTDIR/completions
-	/usr/local/share/zsh/site-functions
-	$fpath
+  $ZDOTDIR/functions
+  $ZDOTDIR/completions
+  /usr/local/share/zsh/site-functions
+  $fpath
 )
 
 # }}}
 
 # AUTOLOADS {{{
 
-autoload -Uz compinit
-autoload -Uz colors
+autoload -Uz compinstall && compinstall
+autoload -Uz compinit && compinit
 autoload -Uz edit-command-line
 autoload -Uz vcs_info
+autoload -Uz colors && colors
 
 for fn in $ZDOTDIR/functions/*(x)
 do
@@ -48,6 +50,7 @@ set -o vi
 
 hash -d zdots="$ZDOTDIR"
 hash -d vdots="$HOME/.config/nvim"
+hash -d xdots="$HOME/.config"
 
 # Apple
 hash -d applications="/Applications"
@@ -232,7 +235,7 @@ setopt glob_dots
 # of patterns are always sensitive to case. If the option is unset, the
 # presence of any character which is special to filename generation will cause
 # case-insensitive matching.
-unsetopt CASE_GLOB
+unsetopt case_glob
 
 # If a pattern for filename generation has no matches, print an error, instead
 # of leaving it unchanged in the argument list. This also applies to file
@@ -315,8 +318,8 @@ setopt vi
 # ZLE {{{
 
 zle -N edit-command-line
-zle -N zle-keymap-select
-zle -N zle-line-init
+# zle -N zle-keymap-select
+# zle -N zle-line-init
 
 # }}}
 
@@ -332,6 +335,9 @@ zmodload -i zsh/complist
 # vi-mode
 bindkey -v
 bindkey -M vicmd v edit-command-line
+
+# !$
+bindkey '\e.' insert-last-word
 
 # Add missing Vim key chords to vi-mode fixes backspace deletion issues
 # http://zshwiki.org/home/zle/vi-mode
