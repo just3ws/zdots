@@ -1,0 +1,6 @@
+#!/usr/bin/env zsh
+
+for i in {0..255}                                                                                                                                                                                                                                      
+do
+  print -P "%F{$i}color $i%f"
+done

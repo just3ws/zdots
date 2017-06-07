@@ -1,6 +1,0 @@
-!_TAG_FILE_SORTED	2	/0=unsorted, 1=sorted, 2=foldcase/
-ctrl_c	/Users/mike/.config/zsh/fns/is_iTerm2	/^function ctrl_c() {$/;"	f	language:Sh
-read_bytes	/Users/mike/.config/zsh/fns/is_iTerm2	/^function read_bytes()$/;"	f	language:Sh
-read_dsr	/Users/mike/.config/zsh/fns/is_iTerm2	/^function read_dsr() {$/;"	f	language:Sh
-terminal	/Users/mike/.config/zsh/fns/is_iTerm2	/^function terminal {$/;"	f	language:Sh
-version	/Users/mike/.config/zsh/fns/is_iTerm2	/^function version {$/;"	f	language:Sh
