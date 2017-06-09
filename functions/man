@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+
+unset man
+
+source "$ZDOTDIR/functions/colored-man-pages"
+
+man "$@"
