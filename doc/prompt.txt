@@ -1,0 +1,36 @@
+#
+# ()MODIFIED ()ADDED ()REMOVED
+# (S)taged/(U)nstaged
+# () S(T)ashed
+# () (U)ntracked
+#
+# Count (L)ocal commits not pushed to Remote
+# Count (R)emote commits not present in Local
+# (D)iverged branch state
+#
+# (SU SU SU U T) L ⊄ R
+#
+# no modified, one staged addition, two staged deletions, no untracked files,
+# no stashed, no pending commits, no remote commits detected
+# (00 10 20 0 0) 0  0
+#
+# three unstaged modified, zero additions/deletions, two untracked files, one
+# stashed, two pending commits, zero remote commits detected
+# (03 00 00 2 1) 2 ⊄ 0
+#
+# = branches =
+# == behind remote ==
+# ⊂ L is a subset of R, but L is not equal to R
+#
+# == ahead of remote ==
+# ⊃ L is a superset of R, but R is not equal to L
+#
+# == diverged ==
+# ⊄ L is not a subset of R
+# ⊅ L is not a superset of R
+#
+# == clean ==
+#  L is equal to R
+#
+# = status =
+
