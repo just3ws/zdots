@@ -2,7 +2,7 @@
 # vim:ft=zsh:
 
 autoload -Uz zrecompile
-compinit -d "$ZSH_CACHE_DIR/.zcomp-$HOST"
+compinit -d "$ZSH_CACHE_DIR/.zcompdump"
 
 for z in .zshenv .zshrc .zsh_aliases
 do

@@ -45,6 +45,15 @@ pyenv () {
   pyenv "$@"
 }
 
+typeset -U manpath
+manpath=(
+  /usr/local/opt/coreutils/libexec/gnuman
+  /usr/local/opt/gnu-tar/libexec/gnuman
+  /usr/local/opt/findutils/libexec/gnuman
+  /usr/local/opt/gnu-sed/libexec/gnuman
+  $manpath
+)
+
 # Default Vim environment variables
 VIM="/usr/local/bin/nvim"
 VIMRUNTIME="/usr/local/share/nvim/runtime"
@@ -85,9 +94,13 @@ WORDCHARS='!$%&*-;<>?@[]^_~'
 
 typeset -U path
 nginx_path="/opt/nginx/sbin"
-[ -d "$nginx_path" ] && [[ ! ("$path" =~ "$nginx_path") ]] && path=(/opt/nginx/sbin $path)
+[[ -d "$nginx_path" ]] && [[ ! ("$path" =~ "$nginx_path") ]] && path=(/opt/nginx/sbin $path)
 
 path=(
+  /usr/local/opt/coreutils/libexec/gnubin
+  /usr/local/opt/gnu-tar/libexec/gnubin
+  /usr/local/opt/findutils/libexec/gnubin
+  /usr/local/opt/gnu-sed/libexec/gnubin
   /usr/local/bin
   /usr/local/sbin
   /usr/bin
