@@ -2,7 +2,10 @@
 
 local script
 script=$1
+
 shift 1
-for cmd in "$@"; do
+
+for cmd in "$@"
+do
     alias $cmd="lazy_load \"$*\" $script $cmd"
 done

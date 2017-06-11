@@ -1,0 +1,23 @@
+#!/usr/bin/env zsh
+
+local fname="$1"
+
+if [[ ! -n "$fname" ]]
+then
+  echo "no name"
+  return 0
+fi
+
+local ffile="$ZDOTDIR/functions/$fname"
+
+if [[ -f "$ffile" ]]
+then
+  echo "function exists"
+  return 0
+fi
+
+echo "#!/usr/bin/env zsh" > "$ffile"
+echo >> "$ffile"
+chmod a+x "$ffile"
+
+$EDITOR "$ffile"
