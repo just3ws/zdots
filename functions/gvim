@@ -1,0 +1,8 @@
+#!/usr/bin/env zsh
+
+unset gvim
+
+VIM="/usr/local/bin/mvim"
+VIMRUNTIME="/usr/local/Cellar/macvim/$(brew info macvim 2> /dev/null | grep -m 1 -o "\d.\d\+-\d\+")/MacVim.app/Contents/Resources/vim/runtime"
+
+$VIM "$@"
