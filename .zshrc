@@ -299,6 +299,9 @@ zle -N zle-line-init
 
 # BINDKEYS {{{
 
+# copy current command line to history bind to control-b (see previous tweet)
+bindkey "^B" commit-to-history
+
 # vi-mode
 bindkey -v
 bindkey -M vicmd v edit-command-line
