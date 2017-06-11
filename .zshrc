@@ -1,25 +1,35 @@
 # vim:ft=zsh:
 
-# PROFILING START BLOCK {{{
-PROFILE_STARTUP=false
-
-if [[ "$PROFILE_STARTUP" == true ]]
+# ZSHRC PROFILING START BLOCK {{{
+ZSHRC_PROFILE_STARTUP=false
+if [[ "$ZSHRC_PROFILE_STARTUP" == true ]]
 then
 	PS4=$'%D{%M%S%.} %N:%i> '
 	mkdir -p $ZSH_CACHE_DIR/tmp
-	exec 3>&2 2> $ZSH_CACHE_DIR/tmp/xtrace.$$
+	exec 3>&2 2> $ZSH_CACHE_DIR/tmp/xtrace.zshrc.$$
 	setopt xtrace
 fi
 # }}}
 
 # FUNCTION PATHES {{{
 
-typeset -U fpath
+# typeset -U fpath
 fpath=(
   $ZDOTDIR/functions
-  $ZDOTDIR/completions
-  /usr/local/share/zsh/site-functions
   $fpath
+)
+# $ZDOTDIR/completions
+
+# }}}
+
+# MAN PATHES {{{
+
+manpath=(
+  /usr/local/opt/coreutils/libexec/gnuman
+  /usr/local/opt/gnu-tar/libexec/gnuman
+  /usr/local/opt/findutils/libexec/gnuman
+  /usr/local/opt/gnu-sed/libexec/gnuman
+  $manpath
 )
 
 # }}}
@@ -183,30 +193,6 @@ setopt chase_links
 
 # }}}2
 
-# SETOPTS: COMPLETION {{{2
-
-# don't expand aliases _before_ completion has finished
-setopt complete_aliases
-
-# if unset the cursor is set to the end of the word if
-# completion is started
-setopt complete_in_word
-
-# cycle through globbing matches like menu_complete
-setopt glob_complete
-
-# If a completion is performed with the cursor within a word, and a full
-# completion is inserted, the cursor is moved to the end of the word. That is,
-# the cursor is moved to the end of the word if either a single match is
-# inserted or menu completion is performed.
-setopt always_to_end
-
-# Automatically use menu completion after the second consecutive request for
-# completion, for example by pressing the tab key repeatedly.
-setopt auto_menu
-
-# }}}2
-
 # SETOPTS: EXPANSION & GLOBBING {{{2
 
 # If a pattern for filename generation is badly formed, print an error message.
@@ -311,13 +297,6 @@ zle -N zle-line-init
 
 # }}}
 
-# ZMODLOADS {{{
-
-# Colorful autocompletion for `cd` command
-zmodload -i zsh/complist
-
-# }}}
-
 # BINDKEYS {{{
 
 # vi-mode
@@ -360,6 +339,17 @@ bindkey -M viins "^y" yank
 
 # COMPLETION {{{
 
+# setopt complete_aliases
+# setopt complete_in_word
+# setopt glob_complete
+# setopt always_to_end
+# setopt auto_menu
+
+autoload -Uz compinit && compinit -d "$ZSH_CACHE_DIR/.zcompdump"
+
+# Colorful autocompletion for `cd` command
+# zmodload -i zsh/complist
+
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path $ZSH_CACHE_DIR
 
@@ -367,58 +357,52 @@ zstyle ':completion:*' cache-path $ZSH_CACHE_DIR
 # export CLICOLOR=1
 LS_COLORS='rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:';
 
-zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
+# zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
+#
+# # Case-insensitive completion for `cd` etc *N*
+# zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+#
+# # Fuzzy matching of completions for when you mistype them:
+# zstyle ':completion:*' completer _complete _match _approximate
+# zstyle ':completion:*:match:*' original only
+# zstyle ':completion:*:approximate:*' max-errors 1 numeric
+#
+# # Ignore completion functions for commands you don’t have:
+# zstyle ':completion:*:functions' ignored-patterns '_*'
+#
+# # Fuzzy matching of completions for when you mistype them:
+# zstyle ':completion:*' completer _expand _complete _ignored _correct _approximate
+# zstyle ':completion:*:match:*' original only
+# zstyle ':completion:*:approximate:*' max-errors 1 numeric
+#
+# # Completing process IDs with menu selection:
+# zstyle ':completion:*:*:kill:*' menu yes select
+# zstyle ':completion:*:kill:*'   force-list always
+#
+# # cd will never select the parent directory (e.g.: cd ../<TAB>):
+# zstyle ':completion:*:cd:*' ignore-parents parent pwd
 
-# Case-insensitive completion for `cd` etc *N*
-zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+# zstyle ':completion:*' file-sort name
+# zstyle ':completion:*' list-prompt %SAt %p: Hit TAB for more, or the character to insert%s
+# zstyle ':completion:*' matcher-list '' 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}' 'r:|[._-]=** r:|=**' 'l:|=* r:|=*'
+# zstyle ':completion:*' menu select=1
+# zstyle ':completion:*' original true
+# zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p%s
+# zstyle ':completion:*' verbose true
 
-# Fuzzy matching of completions for when you mistype them:
-zstyle ':completion:*' completer _complete _match _approximate
-zstyle ':completion:*:match:*' original only
-zstyle ':completion:*:approximate:*' max-errors 1 numeric
-
-# Ignore completion functions for commands you don’t have:
-zstyle ':completion:*:functions' ignored-patterns '_*'
-
-# Fuzzy matching of completions for when you mistype them:
-zstyle ':completion:*' completer _expand _complete _ignored _correct _approximate
-zstyle ':completion:*:match:*' original only
-zstyle ':completion:*:approximate:*' max-errors 1 numeric
-
-# Completing process IDs with menu selection:
-zstyle ':completion:*:*:kill:*' menu yes select
-zstyle ':completion:*:kill:*'   force-list always
-
-# cd will never select the parent directory (e.g.: cd ../<TAB>):
-zstyle ':completion:*:cd:*' ignore-parents parent pwd
-
-zstyle ':completion:*' file-sort name
-zstyle ':completion:*' list-prompt %SAt %p: Hit TAB for more, or the character to insert%s
-zstyle ':completion:*' matcher-list '' 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}' 'r:|[._-]=** r:|=**' 'l:|=* r:|=*'
-zstyle ':completion:*' menu select=1
-zstyle ':completion:*' original true
-zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p%s
-zstyle ':completion:*' verbose true
-
-zstyle :compinstall filename "$ZDOTDIR/.zshrc"
-
-autoload -Uz compinstall
-autoload -Uz compinit && compinit -d "$ZSH_CACHE_DIR/.zcompdump"
-
-# }}}
-
-# SOURCES {{{
-
-source "$HOME/.rvm/scripts/rvm"
+# zstyle :compinstall filename "$ZDOTDIR/.zshrc"
 
 # }}}
 
 source "$ZDOTDIR/.zprompt"
 
+group_lazy_load $HOME/.rvm/scripts/rvm rvm irb rake rails bundle
+unset -f group_lazy_load
+
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
 # PROFILING END BLOCK {{{
-if [[ "$PROFILE_STARTUP" == true ]]
+if [[ "$ZSHRC_PROFILE_STARTUP" == true ]]
 then
 	unsetopt xtrace
 	exec 2>&3 3>&-

@@ -166,3 +166,5 @@ alias zerologs='sudo gtruncate -s 0 **.log'
 alias tailogs='tail -F **.log'
 alias iso8601="date -u +\"%Y-%m-%dT%H:%M:%SZ\""
 alias bpad="bp-all-do"
+
+alias -g uniquelines=' | uniq -c | sort -n'

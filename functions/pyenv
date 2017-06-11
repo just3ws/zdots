@@ -1,0 +1,6 @@
+#!/usr/bin/env zsh
+
+unset pyenv
+eval "$(command pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+pyenv "$@"

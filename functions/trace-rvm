@@ -1,0 +1,3 @@
+#!/usr/bin/env zsh
+
+time /usr/local/bin/zsh -c "rvm_trace_flag=1; source $HOME/.rvm/scripts/rvm" 2>&1 | tee big.log
