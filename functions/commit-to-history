@@ -1,0 +1,5 @@
+#!/usr/bin/env zsh
+
+# store a command in history for reuse w/o executing it
+print -s ${(z)BUFFER}
+zle send-break
