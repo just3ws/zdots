@@ -36,13 +36,13 @@ HOMEBREW_CASK_OPTS="$HOMEBREW_CASK_OPTS --caskroom=/opt/homebrew-cask/Caskroom"
 HOMEBREW_NO_ANALYTICS=1
 HOMEBREW_NO_INSECURE_REDIRECT=1
 
-# /usr/libexec/java_home
+# "$(/usr/libexec/java_home)"
 JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home"
+
 
 export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 PYENV_ROOT="$HOME/.pyenv"
 
-# Default Vim environment variables
 VIM="/usr/local/bin/nvim"
 VIMRUNTIME="/usr/local/share/nvim/runtime"
 
@@ -51,8 +51,6 @@ VISUAL="$EDITOR"
 ALTERNATE_EDITOR="$EDITOR"
 GEM_EDITOR="$EDITOR"
 
-# By default, Zsh considers many characters part of a word (e.g., _ and -).
-# Narrow that down to allow easier skipping through words via M-f and M-b.
 WORDCHARS='!$%&*-;<>?@[]^_~'
 
 export rvmsudo_secure_path=1
