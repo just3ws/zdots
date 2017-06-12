@@ -74,7 +74,7 @@ hash -d pictures="$HOME/Pictures"
 
 # ALIASES {{{
 
-[ -f "$ZDOTDIR/.zsh_aliases" ] && source "$ZDOTDIR/.zsh_aliases"
+[ -f "$ZDOTDIR/aliases" ] && source "$ZDOTDIR/aliases"
 
 # }}}
 
@@ -397,7 +397,7 @@ LS_COLORS='rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:c
 
 # }}}
 
-source "$ZDOTDIR/.zprompt"
+source "$ZDOTDIR/prompt"
 
 group_lazy_load $HOME/.rvm/scripts/rvm rvm irb rake rails bundle
 unset -f group_lazy_load

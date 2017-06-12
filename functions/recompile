@@ -4,7 +4,7 @@
 autoload -Uz zrecompile
 compinit -d "$ZSH_CACHE_DIR/.zcompdump"
 
-for z in .zshenv .zshrc .zsh_aliases
+for z in .zshenv .zshrc aliases
 do
 	zrecompile -p $ZDOTDIR/$z
 done
