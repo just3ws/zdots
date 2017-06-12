@@ -6,12 +6,12 @@
 # Shell and OTE configuration editing {{{
 
 alias vv=" vim $HOME/.config/nvim/init.vim"
-alias zz=" vim -p $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv $ZDOTDIR/.zsh_aliases"
+alias zz=" vim -p $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv $ZDOTDIR/aliases"
 
 alias zshrc="vim /Users/mike/.config/zsh/.zshrc"
 alias zshenv="vim /Users/mike/.config/zsh/.zshenv"
 
-alias vali="vim $ZDOTDIR/.zsh_aliases"
+alias vali="vim $ZDOTDIR/aliases"
 
 alias alg="alias | grep -i"
 
@@ -130,7 +130,6 @@ alias bstop=" brew services stop"
 
 # ! aliases {{{
 
-alias reload="clobber ; bounce"
 alias reload!="clobber ; recompile ; bounce"
 alias clear!="klear"
 
@@ -155,6 +154,7 @@ alias ttr='bundle exec passenger-config restart-app $(pwd) --ignore-app-not-runn
 alias xx="atool -x"
 alias gfp="git format-patch HEAD~1 --no-color --stdout"
 alias chrome="open -a \"Google Chrome\""
+alias spotify="open -a \"Spotify\""
 alias safari="open -a \"Safari\""
 alias firefox="open -a \"FirefoxDeveloperEdition\""
 alias marked="open -a \"Marked 2\""
@@ -168,3 +168,5 @@ alias iso8601="date -u +\"%Y-%m-%dT%H:%M:%SZ\""
 alias bpad="bp-all-do"
 
 alias -g uniquelines=' | uniq -c | sort -n'
+alias reload="clobber ; bounce"
+alias realias="source $ZDOTDIR/aliases"
