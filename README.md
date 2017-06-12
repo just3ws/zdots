@@ -149,3 +149,7 @@ exec "$SHELL"
 - [zsh-async](https://github.com/mafredri/zsh-async)
 - [Asynchronous RPROMPT?](https://unix.stackexchange.com/questions/91087/asynchronous-rprompt)
 - [An Asynchronous Shell Prompt](http://www.anishathalye.com/2015/02/07/an-asynchronous-shell-prompt/)
+
+### unsorted
+- http://zshwiki.org/home/zle/vi-mode
+- http://zshwiki.org/home/zle/bindkeys#why_isn_t_control-r_working_anymore
