@@ -15,7 +15,7 @@ alias vali="vim $ZDOTDIR/aliases"
 
 alias alg="alias | grep -i"
 
-alias xdots=" ~xdots"
+alias xdots=" ~xdots" # TODO: Lump these in with nocorrect loop
 alias vdots=" ~vdots"
 alias zdots=" ~zdots"
 
@@ -55,7 +55,7 @@ done
 
 # Prefix these commands with `nocorrect` to silence annoying
 # warnings from the correct option.
-for cmd in "rspec" "mv" "~zdots" "~api"
+for cmd in "rspec" "mv" "~zdots" "~api" "~xdots" "~vdots"
 do
 	alias $cmd="nocorrect $cmd"
 done
