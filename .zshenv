@@ -11,16 +11,11 @@ ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh"
 if [[ "$ZSHENV_PROFILE_STARTUP" == true ]]
 then
 	PS4=$'%D{%M%S%.} %N:%i> '
-	mkdir -p $ZSH_CACHE_DIR/tmp
-	exec 3>&2 2> $ZSH_CACHE_DIR/tmp/xtrace.zshenv.$$
+	[[ -d "$ZSH_CACHE_DIR/profile"   ]] || mkdir -p "$ZSH_CACHE_DIR/profile"
+	exec 3>&2 2> $ZSH_CACHE_DIR/profile/xtrace.zshenv.$$
 	setopt xtrace
 fi
 # }}}
-
-# https://specifications.freedesktop.org/basedir-spec/latest/ar01s03.html
-# XDG_CONFIG_DIRS="/etc/xdg"
-# XDG_DATA_DIRS="/usr/local/share/:/usr/share/"
-# XDG_RUNTIME_DIR
 
 [[ -d "$ZSH_CACHE_DIR"   ]] || mkdir -p "$ZSH_CACHE_DIR"
 [[ -d "$XDG_CACHE_HOME"  ]] || mkdir -p "$XDG_CACHE_HOME"

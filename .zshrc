@@ -5,8 +5,8 @@ ZSHRC_PROFILE_STARTUP=false
 if [[ "$ZSHRC_PROFILE_STARTUP" == true ]]
 then
 	PS4=$'%D{%M%S%.} %N:%i> '
-	mkdir -p $ZSH_CACHE_DIR/tmp
-	exec 3>&2 2> $ZSH_CACHE_DIR/tmp/xtrace.zshrc.$$
+	[[ -d "$ZSH_CACHE_DIR/profile"   ]] || mkdir -p "$ZSH_CACHE_DIR/profile"
+	exec 3>&2 2> $ZSH_CACHE_DIR/profile/xtrace.zshrc.$$
 	setopt xtrace
 fi
 # }}}
