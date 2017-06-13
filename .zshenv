@@ -36,9 +36,10 @@ HOMEBREW_CASK_OPTS="$HOMEBREW_CASK_OPTS --caskroom=/opt/homebrew-cask/Caskroom"
 HOMEBREW_NO_ANALYTICS=1
 HOMEBREW_NO_INSECURE_REDIRECT=1
 
+PERL5LIB="/usr/local/lib/perl5/site_perl":$PERL5LIB
+
 # "$(/usr/libexec/java_home)"
 JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home"
-
 
 export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 PYENV_ROOT="$HOME/.pyenv"
