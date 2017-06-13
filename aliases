@@ -25,7 +25,7 @@ alias zdots=" ~zdots"
 
 for ote in "ote" "vi" "e" "emacs"
 do
-	alias $ote="vim"
+  alias $ote="vim"
 done
 alias mvim=gvim
 
@@ -35,7 +35,7 @@ alias mvim=gvim
 
 for cmd in "cd" "exit" "mkdir" "rm" "rvm" "source"
 do
-	alias $cmd=" $cmd"
+  alias $cmd=" $cmd"
 done
 
 # }}}
@@ -46,7 +46,7 @@ done
 # default action.
 for ftype in coffee css erb haml html markdown md ru lock txt vim
 do
-	alias -s $ftype=vim
+  alias -s $ftype=vim
 done
 
 # }}}
@@ -57,7 +57,7 @@ done
 # warnings from the correct option.
 for cmd in "rspec" "mv" "~zdots" "~api" "~xdots" "~vdots"
 do
-	alias $cmd="nocorrect $cmd"
+  alias $cmd="nocorrect $cmd"
 done
 
 # }}}

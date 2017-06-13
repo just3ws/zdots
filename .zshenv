@@ -10,10 +10,10 @@ ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh"
 # ZSHENV PROFILING START BLOCK {{{
 if [[ "$ZSHENV_PROFILE_STARTUP" == true ]]
 then
-	PS4=$'%D{%M%S%.} %N:%i> '
-	[[ -d "$ZSH_CACHE_DIR/profile"   ]] || mkdir -p "$ZSH_CACHE_DIR/profile"
-	exec 3>&2 2> $ZSH_CACHE_DIR/profile/xtrace.zshenv.$$
-	setopt xtrace
+  PS4=$'%D{%M%S%.} %N:%i> '
+  [[ -d "$ZSH_CACHE_DIR/profile"   ]] || mkdir -p "$ZSH_CACHE_DIR/profile"
+  exec 3>&2 2> $ZSH_CACHE_DIR/profile/xtrace.zshenv.$$
+  setopt xtrace
 fi
 # }}}
 
@@ -81,7 +81,7 @@ path=(
 # ZSHENV PROFILING END BLOCK {{{
 if [[ "$ZSHENV_PROFILE_STARTUP" == true ]]
 then
-	unsetopt xtrace
-	exec 2>&3 3>&-
+  unsetopt xtrace
+  exec 2>&3 3>&-
 fi
 # }}}
