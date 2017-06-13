@@ -4,10 +4,10 @@
 ZSHRC_PROFILE_STARTUP=false
 if [[ "$ZSHRC_PROFILE_STARTUP" == true ]]
 then
-	PS4=$'%D{%M%S%.} %N:%i> '
-	[[ -d "$ZSH_CACHE_DIR/profile"   ]] || mkdir -p "$ZSH_CACHE_DIR/profile"
-	exec 3>&2 2> $ZSH_CACHE_DIR/profile/xtrace.zshrc.$$
-	setopt xtrace
+  PS4=$'%D{%M%S%.} %N:%i> '
+  [[ -d "$ZSH_CACHE_DIR/profile"   ]] || mkdir -p "$ZSH_CACHE_DIR/profile"
+  exec 3>&2 2> $ZSH_CACHE_DIR/profile/xtrace.zshrc.$$
+  setopt xtrace
 fi
 # }}}
 
@@ -35,12 +35,11 @@ manpath=(
 # AUTOLOADS {{{
 
 autoload -U +X edit-command-line
-autoload -U +X vcs_info
 autoload -U +X colors && colors
 
 for fn in $ZDOTDIR/functions/*(x)
 do
-	autoload -U +X "$(basename $fn)"
+  autoload -U +X "$(basename $fn)"
 done
 
 # }}}
@@ -261,7 +260,7 @@ unset -f group_lazy_load
 # PROFILING END BLOCK {{{
 if [[ "$ZSHRC_PROFILE_STARTUP" == true ]]
 then
-	unsetopt xtrace
-	exec 2>&3 3>&-
+  unsetopt xtrace
+  exec 2>&3 3>&-
 fi
 # }}}

@@ -1,5 +1,7 @@
 # vim:ft=zsh:
 
+autoload -U +X vcs_info
+
 # PROMPT {{{
 
 local _unlocked=''
@@ -17,9 +19,9 @@ PS2=" $_prompt2 "
 PS3=" $_prompt3 "
 
 function zle-line-init zle-keymap-select {
-	local mode="${${KEYMAP/vicmd/ $_normal}/(main|viins)/ $_interactive}"
-	PS1="$mode %2~ $_prompt1 "
-	zle reset-prompt
+  local mode="${${KEYMAP/vicmd/ $_normal}/(main|viins)/ $_interactive}"
+  PS1="$mode %2~ $_prompt1 "
+  zle reset-prompt
 }
 
 # }}}
