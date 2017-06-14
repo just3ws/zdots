@@ -231,12 +231,10 @@ zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 # zstyle ':completion:*:match:*' original only
 # zstyle ':completion:*:approximate:*' max-errors 1 numeric
 
-# # Completing process IDs with menu selection:
-# zstyle ':completion:*:*:kill:*' menu yes select
-# zstyle ':completion:*:kill:*'   force-list always
+zstyle ':completion:*:*:kill:*' menu yes select
+zstyle ':completion:*:kill:*' force-list always
 
-# # cd will never select the parent directory (e.g.: cd ../<TAB>):
-# zstyle ':completion:*:cd:*' ignore-parents parent pwd
+zstyle ':completion:*:cd:*' ignore-parents parent pwd
 
 # zstyle ':completion:*' file-sort name
 # zstyle ':completion:*' list-prompt %SAt %p: Hit TAB for more, or the character to insert%s

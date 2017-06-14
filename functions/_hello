@@ -1,0 +1,2 @@
+#compdef hello
+_arguments "1: :(Sue Pete Jane)" "2: :(Brown Smith Jones)"

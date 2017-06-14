@@ -1,0 +1,13 @@
+#!/usr/bin/env zsh
+
+# http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
+
+typeset -i local date_length=29
+
+typeset -i local cols="$(tput cols)" # Output the number of columns of the terminal
+typeset -i local width=$(($cols-$date_length))
+
+tput sc # Save the cursor position
+tput cup 0 $width # Move cursor to screen location X,Y (top left is 0,0)
+date
+tput rc # Restore the cursor position

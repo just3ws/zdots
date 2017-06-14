@@ -122,7 +122,7 @@ alias dh='dirs -v -l'
 
 # Homebrew {{{
 
-alias bls=" brew services list"
+alias bsl=" brew services list"
 alias bstart=" brew services start"
 alias bstop=" brew services stop"
 
