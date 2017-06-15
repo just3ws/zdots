@@ -56,13 +56,13 @@ hash -d zdots="$ZDOTDIR"
 hash -d vdots="$HOME/.config/nvim"
 hash -d xdots="$HOME/.config"
 
-hash -d applications="/Applications"
-hash -d desktop="$HOME/Desktop"
-hash -d documents="$HOME/Documents"
-hash -d downloads="$HOME/Downloads"
-hash -d movies="$HOME/Movies"
-hash -d music="$HOME/Music"
-hash -d pictures="$HOME/Pictures"
+# hash -d applications="/Applications"
+# hash -d desktop="$HOME/Desktop"
+# hash -d documents="$HOME/Documents"
+# hash -d downloads="$HOME/Downloads"
+# hash -d movies="$HOME/Movies"
+# hash -d music="$HOME/Music"
+# hash -d pictures="$HOME/Pictures"
 
 # }}}
 
@@ -73,13 +73,6 @@ hash -d pictures="$HOME/Pictures"
 # }}}
 
 # SETOPTS {{{
-
-# SETOPTS: PROMPT {{{
-
-setopt prompt_subst
-setopt transient_rprompt
-
-# }}}2
 
 # SETOPTS: HISTORY {{{2
 
@@ -248,7 +241,7 @@ zstyle ':completion:*:cd:*' ignore-parents parent pwd
 
 # }}}
 
-source "$ZDOTDIR/prompt"
+[ -f "$ZDOTDIR/prompt" ] && source "$ZDOTDIR/prompt"
 
 group_lazy_load "$HOME/.rvm/scripts/rvm" rvm irb rake rails bundle pry
 unset -f group_lazy_load

@@ -5,11 +5,16 @@
 # $3: name of the command to run after it's loaded
 # $4+: argv to be passed to $3
 
-local -a names ; names=("${(@s: :)${1}}")
+local -a names
+names=("${(@s: :)${1}}")
 
-unalias "${names[@]}"
+for name in "${names[@]}"
+do
+  [ "$(whence -w $name)" = "$name: alias" ] && unalias $name
+done
 
-. $2
+local file_to_source="$2"
+source $file_to_source
 
 shift 2
 
