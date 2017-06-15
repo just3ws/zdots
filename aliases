@@ -51,17 +51,6 @@ done
 
 # }}}
 
-# Exclude for auto-correction {{{
-
-# Prefix these commands with `nocorrect` to silence annoying
-# warnings from the correct option.
-for cmd in "rspec" "mv" "~zdots" "~api" "~xdots" "~vdots"
-do
-  alias $cmd="nocorrect $cmd"
-done
-
-# }}}
-
 # Git {{{
 
 alias g=" git"
@@ -175,3 +164,14 @@ alias cwd="pwd | pbcopy"
 alias -g lX="l -10"
 alias -g lXX="l -20"
 alias -g lXXX="l -30"
+
+# Exclude for auto-correction {{{
+
+# Prefix these commands with `nocorrect` to silence annoying
+# warnings from the correct option.
+for cmd in "rspec" "mv" "~zdots" "~api" "~xdots" "~vdots" "bundle"
+do
+  alias $cmd="nocorrect $cmd"
+done
+
+# }}}
