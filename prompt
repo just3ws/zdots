@@ -1,14 +1,14 @@
 # vim:ft=zsh:
 
+setopt prompt_subst
+setopt transient_rprompt
+
 autoload -U +X vcs_info
 
 # PROMPT {{{
 
-local _unlocked=''
-local _locked=''
-
-local _interactive="%{$fg_bold[green]%}$_unlocked%{$reset_color%}"
-local _normal="%{$fg_bold[red]%}$_locked%{$reset_color%}"
+local interactive="%{$fg_bold[green]%}%{$reset_color%}"
+local normal="%{$fg_bold[red]%}%{$reset_color%}"
 
 local _prompt1="%{$fg_bold[red]%}❱%{$reset_color%}%{$fg_bold[green]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}"
 local _prompt2="%{$fg_bold[red]%}↳%{$reset_color%}%{$fg_bold[green]%}↳%{$reset_color%}%{$fg_bold[blue]%}↳%{$reset_color%}"
@@ -19,7 +19,7 @@ PS2=" $_prompt2 "
 PS3=" $_prompt3 "
 
 function zle-line-init zle-keymap-select {
-  local mode="${${KEYMAP/vicmd/ $_normal}/(main|viins)/ $_interactive}"
+  local mode="${${KEYMAP/vicmd/ $normal}/(main|viins)/ $interactive}"
   PS1="$mode %2~ $_prompt1 "
   zle reset-prompt
 }

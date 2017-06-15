@@ -7,5 +7,5 @@ shift 1
 
 for cmd in "$@"
 do
-    alias $cmd="lazy_load \"$*\" $script $cmd"
+  alias $cmd="lazy_load \"$*\" $script $cmd"
 done

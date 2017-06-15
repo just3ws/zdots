@@ -170,3 +170,7 @@ alias bpad="bp-all-do"
 alias -g uniquelines=' | uniq -c | sort -n'
 alias reload="clobber ; bounce"
 alias realias="source $ZDOTDIR/aliases"
+alias cwd="pwd | pbcopy"
+alias -g lX="l -10"
+alias -g lXX="l -20"
+alias -g lXXX="l -30"
