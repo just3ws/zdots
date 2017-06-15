@@ -12,7 +12,7 @@ local normal="%{$fg_bold[red]%}%{$reset_color%}"
 
 local _prompt1="%{$fg_bold[red]%}❱%{$reset_color%}%{$fg_bold[green]%}❱%{$reset_color%}%{$fg_bold[blue]%}❱%{$reset_color%}"
 local _prompt2="%{$fg_bold[red]%}↳%{$reset_color%}%{$fg_bold[green]%}↳%{$reset_color%}%{$fg_bold[blue]%}↳%{$reset_color%}"
-local _prompt3="%{$fg_bold[red]%}?%{$reset_color%}%{$fg_bold[green]%}?%{$reset_color%}%{$fg_bold[blue]%}?%{$reset_color%}"
+local _prompt3="%{$fg_bold[red]%}❚%{$reset_color%}%{$fg_bold[green]%}❚%{$reset_color%}%{$fg_bold[blue]%}❚%{$reset_color%}"
 
 PS1="%2~ $_prompt1 "
 PS2=" $_prompt2 "
