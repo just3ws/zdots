@@ -28,11 +28,14 @@ function zle-line-init zle-keymap-select {
 
 # RPROMPT {{{
 
-local git_formats_template='%r %S %b %c %u %m %8>>%i%>>'
+local git_formats_template='%r %S %b%c%u%m %8>>%i%>>'
 local git_actionformats_template='(%s)-[%b|%a]'
 
-git_unstaged () print 'U' # T
-git_staged () print 'S'
+# %u
+git_unstaged () print ' U' # T
+
+# %m
+git_staged () print ' S'
 
 git_formats () print $git_formats_template
 git_actionformats () print $git_actionformats_template
