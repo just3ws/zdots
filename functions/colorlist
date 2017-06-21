@@ -2,5 +2,5 @@
 
 for i in {0..255}                                                                                                                                                                                                                                      
 do
-  print -P "%F{$i}color $i%f"
+  print -P "%F{$i}color $i%f   %K{$i}   %F{232}color $i%f      %F{255}color $i%f        %k"
 done

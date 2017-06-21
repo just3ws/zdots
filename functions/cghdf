@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+
+local owner="$1"
+local repo_name="$2"
+
+git clone "https://github.com/$owner/$repo_name" "$HOME/Dropbox/src/Dotfiles/$owner-$repo_name"
+

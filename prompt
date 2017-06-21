@@ -1,4 +1,6 @@
-# vim:ft=zsh:
+# vim:set filetype=zsh:
+
+# 
 
 setopt prompt_subst
 setopt transient_rprompt

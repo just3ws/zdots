@@ -1,5 +1,18 @@
 # vim:ft=zsh:
 
+export VIM="/usr/local/bin/nvim"
+export VIMRUNTIME="/usr/local/share/nvim/runtime"
+
+export EDITOR="$VIM"
+export VISUAL="$VIM"
+export FCEDIT="$VIM"
+export SUDO_EDITOR="$VIM"
+export ALTERNATE_EDITOR="$VIM"
+export GEM_EDITOR="$VIM"
+
+# Ensure path arrays do not contain duplicates.
+typeset -gU cdpath fpath mailpath path
+
 XDG_CACHE_HOME="$HOME/.cache"
 XDG_CONFIG_HOME="$HOME/.config"
 XDG_DATA_HOME="$HOME/.local/share"
@@ -44,32 +57,28 @@ JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home"
 export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 PYENV_ROOT="$HOME/.pyenv"
 
-VIM="/usr/local/bin/nvim"
-VIMRUNTIME="/usr/local/share/nvim/runtime"
-
-EDITOR=vim
-VISUAL="$EDITOR"
-ALTERNATE_EDITOR="$EDITOR"
-GEM_EDITOR="$EDITOR"
+# VIM="/usr/local/bin/nvim"
+# VIMRUNTIME="/usr/local/share/nvim/runtime"
 
 WORDCHARS='!$%&*-;<>?@[]^_~'
 
 export rvmsudo_secure_path=1
+
 nginx_path="/opt/nginx/sbin"
 [[ -d "$nginx_path" ]] && [[ ! ("$path" =~ "$nginx_path") ]] && path=(/opt/nginx/sbin $path)
 
+# /usr/local/opt/coreutils/libexec/gnubin
+# /usr/local/opt/gnu-tar/libexec/gnubin
+# /usr/local/opt/findutils/libexec/gnubin
+# /usr/local/opt/gnu-sed/libexec/gnubin
+# ./bin
 path=(
-  /usr/local/opt/coreutils/libexec/gnubin
-  /usr/local/opt/gnu-tar/libexec/gnubin
-  /usr/local/opt/findutils/libexec/gnubin
-  /usr/local/opt/gnu-sed/libexec/gnubin
   /usr/local/bin
   /usr/local/sbin
   /usr/bin
   /usr/sbin
   /bin
   /sbin
-  ./bin
   $HOME/.pyenv/bin
   $JAVA_HOME/bin
   /usr/local/opt/go/libexec/bin
