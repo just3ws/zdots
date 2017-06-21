@@ -5,7 +5,19 @@
 
 # Shell and OTE configuration editing {{{
 
+# OTE {{{
+
+# for ote in "ote" "vi" "e" "emacs"
+# do
+#   alias $ote="vim"
+# done
+# alias mvim=gvim
+
+alias vup="vim +PlugUpdate"
 alias vv=" vim $HOME/.config/nvim/init.vim"
+
+# }}}
+
 alias zz=" vim -p $ZDOTDIR/.zshrc $ZDOTDIR/.zshenv $ZDOTDIR/aliases"
 
 alias zshrc="vim /Users/mike/.config/zsh/.zshrc"
@@ -18,16 +30,6 @@ alias alg="alias | grep -i"
 alias xdots=" ~xdots" # TODO: Lump these in with nocorrect loop
 alias vdots=" ~vdots"
 alias zdots=" ~zdots"
-
-# }}}
-
-# OTE {{{
-
-for ote in "ote" "vi" "e" "emacs"
-do
-  alias $ote="vim"
-done
-alias mvim=gvim
 
 # }}}
 
@@ -78,7 +80,7 @@ alias gss=" git status --short"
 # git diff
 alias gwd=" git diff --word-diff"
 # git checkout
-alias gco=" git checkout"
+alias gco=' git checkout'
 # -b create and checkout a new branch
 alias gcb=" git checkout -b"
 alias branch\?="git rev-parse --abbrev-ref HEAD"
@@ -149,7 +151,6 @@ alias safari="open -a \"Safari\""
 alias firefox="open -a \"FirefoxDeveloperEdition\""
 alias marked="open -a \"Marked 2\""
 alias vcsi='vcs_info command; vcs_info_lastmsg'
-alias vup="vim +PlugUpdate"
 alias fl="functions | grep -i \"^\w\+\s\+()\""
 
 alias zerologs='sudo gtruncate -s 0 **.log'
@@ -175,3 +176,9 @@ do
 done
 
 # }}}
+
+alias clone="git clone"
+
+alias foobar="echo bar"
+
+alias ww="whence -w"

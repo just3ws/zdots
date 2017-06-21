@@ -2,8 +2,15 @@
 
 unset vim
 
-VIM="/usr/local/bin/nvim"
-VIMRUNTIME="/usr/local/share/nvim/runtime"
+export VIM="/usr/local/bin/nvim"
+export VIMRUNTIME="/usr/local/share/nvim/runtime"
+
+export EDITOR="$VIM"
+export VISUAL="$VIM"
+export FCEDIT="$VIM"
+export SUDO_EDITOR="$VIM"
+export ALTERNATE_EDITOR="$VIM"
+export GEM_EDITOR="$VIM"
 
 if [[ "$@" =~ ':' ]]
 then

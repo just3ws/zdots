@@ -2,7 +2,7 @@
 # vim:ft=zsh:
 
 autoload -U +X zrecompile
-compinit -d "$ZSH_CACHE_DIR/.zcompdump"
+# compinit -d "$ZSH_CACHE_DIR/.zcompdump"
 
 for z in .zshenv .zshrc aliases
 do
@@ -14,7 +14,8 @@ do
   zrecompile -p $z
 done
 
-for z in _brew _brew_cask _brew_services _rg _git git-completion.bash _the_silver_searcher _youtube-dl _aws
+# git-completion.bash
+for z in _brew _brew_cask _brew_services _rg _git _the_silver_searcher _youtube-dl _aws
 do
   zrecompile -p /usr/local/share/zsh/site-functions/$z
 done
