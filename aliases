@@ -137,7 +137,6 @@ alias -g gi=" | grep -i "
 alias -- -="cd -"
 alias -g ...='../..'
 alias api=" ~api"
-alias be="bundle exec"
 alias dbx=" ~dbx"
 alias ext="exit"
 alias rmed="rm -d ./**/*(/^F)"
@@ -182,3 +181,6 @@ alias clone="git clone"
 alias foobar="echo bar"
 
 alias ww="whence -w"
+
+alias be='bundle exec'
+alias -g rc='rails console'
