@@ -2,5 +2,6 @@
 
 for i in {0..255}                                                                                                                                                                                                                                      
 do
-  print -P "%F{$i}color $i%f   %K{$i}   %F{232}color $i%f      %F{255}color $i%f        %k"
+  local name=${(l:3::0:)i}
+  print -P "%F{$i}color $name%f   %K{$i}   %F{232}color $name%f      %F{255}color $name%f        %k"
 done
