@@ -26,32 +26,31 @@ zle reset-prompt
 
 # }}}
 
-# # RPROMPT {{{
-#
+# RPROMPT {{{
+
 # git_staged  () {
 #   print "$(git diff --cached --numstat --no-color 2> /dev/null | wc -l)"
 # }
-#
+
 # git_unstaged () {
 #   print "$(git diff --numstat --no-color 2> /dev/null | wc -l)"
 # }
-#
+
 zstyle ':vcs_info:*' enable git
-# zstyle ':vcs_info:*+*:*' debug false
 zstyle ':vcs_info:git:*:-all-' command =git
-#
-# zstyle ':vcs_info:git:*' get-revision true
-# zstyle ':vcs_info:git:*' check-for-changes true
-#
-# zstyle ':vcs_info:*' nvcsformats ''
-#
+zstyle ':vcs_info:*+*:*' debug false
+zstyle ':vcs_info:git:*' get-revision true
+zstyle ':vcs_info:git:*' check-for-changes true
+
+zstyle ':vcs_info:*' nvcsformats ''
+
+zstyle ':vcs_info:git:*:*' formats '%b'
 # zstyle ':vcs_info:git:*:*' actionformats "(%s)-[%b|%a]"
-# zstyle ':vcs_info:git:*:*' formats       '( %c%u) %12.12i %r %S %b'
-zstyle ':vcs_info:git:*:*' formats       '%b'
+# zstyle ':vcs_info:git:*:*' formats '( %c%u) %12.12i %r %S %b'
 # zstyle ':vcs_info:git:*:*' stagedstr     "$(git_staged)"
 # zstyle ':vcs_info:git:*:*' stagedstr     "$(git_staged)"
 # zstyle ':vcs_info:git:*:*' unstagedstr   "$(git_unstaged)"
-#
+
 # # +vi-git-untracked () {
 # #   if [[ $(git rev-parse --is-inside-work-tree 2> /dev/null) == 'true' ]] && git status --porcelain | grep '??' &> /dev/null
 # #   then
@@ -62,7 +61,6 @@ zstyle ':vcs_info:git:*:*' formats       '%b'
 # #     hook_com[staged]+='?'
 # #   fi
 # # }
-#
 # # +vi-git-st () {
 # #   local ahead behind
 # #   local -a gitstatus
@@ -91,22 +89,18 @@ zstyle ':vcs_info:git:*:*' formats       '%b'
 # #     hook_com[branch]="${hook_com[branch]} [${remote}]"
 # #   fi
 # # }
-#
 # # ### git: Show +N/-N when your local branch is ahead-of or behind remote HEAD.
 # # # Make sure you have added misc to your 'formats':  %m
 # # zstyle ':vcs_info:git*+set-message:*' hooks git-st
-#
 # # ### git: Show remote branch name for remote-tracking branches
 # # zstyle ':vcs_info:git*+set-message:*' hooks git-remotebranch
-#
 # # ### git: Show marker (?) if there are untracked files in repository
 # # # Make sure you have added staged to your 'formats':  %c
 # # zstyle ':vcs_info:git*+set-message:*' hooks git-untracked
 # #
-#
 precmd () vcs_info
 
 RPS1='${vcs_info_msg_0_}'
 RPS2="$RPS1"
-#
-# # }}}
+
+# }}}
