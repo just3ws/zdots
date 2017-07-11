@@ -46,9 +46,14 @@ done
 
 # Associate these filetypes with Vim as their
 # default action.
-for ftype in coffee css erb haml html markdown md ru lock txt vim
+for ftype in coffee css erb haml html ru lock txt vim
 do
   alias -s $ftype=vim
+done
+
+for ftype in markdown md
+do
+  alias -s $ftype=marked
 done
 
 # }}}
@@ -93,9 +98,7 @@ alias branch\?="git rev-parse --abbrev-ref HEAD"
 # -G Enable colorized output. This option is equivalent to defining CLICOLOR in the environment.
 # -p Write a slash (`/') after each filename if that file is a directory.
 # -B Force printing of non-printable characters (as defined by ctype(3) and current locale settings) in file names as \xxx, where xxx is the numeric value of the character in octal.
-# alias ls=" ls -G -p"
-# alias ls=" ls"
-alias l=" ls"
+alias ls=" gls --color=auto"
 # -C Force multi-column output; this is the default when output is to a terminal.
 alias la=" ls -A -C"
 # -o List in long format, but omit the group id.
