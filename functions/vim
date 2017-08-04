@@ -12,11 +12,11 @@ export SUDO_EDITOR="$VIM"
 export ALTERNATE_EDITOR="$VIM"
 export GEM_EDITOR="$VIM"
 
-if [[ "$@" =~ ':' ]]
-then
-    file_path="$(print $@ | cut -d: -f1)"
-    line_number="$(print $@ | cut -d: -f2)"
-    $VIM "+$line_number|norm! zz" "$file_path"
-else
-  $VIM "$@"
-fi
+#if [[ "$@" =~ ':' ]]
+#then
+    #file_path="$(print $@ | cut -d: -f1)"
+    #line_number="$(print $@ | cut -d: -f2)"
+    #$VIM "+$line_number|norm! zz" "$file_path"
+#else
+$VIM "$@"
+#fi

@@ -1,14 +1,16 @@
 # vim:ft=zsh:
 
-export VIM="/usr/local/bin/nvim"
-export VIMRUNTIME="/usr/local/share/nvim/runtime"
-
-export EDITOR="$VIM"
-export VISUAL="$VIM"
-export FCEDIT="$VIM"
-export SUDO_EDITOR="$VIM"
-export ALTERNATE_EDITOR="$VIM"
-export GEM_EDITOR="$VIM"
+# export VIM="/usr/local/bin/nvim"
+# export VIMRUNTIME="/usr/local/share/nvim/runtime"
+#
+# export EDITOR="$VIM"
+# export VISUAL="$VIM"
+# export FCEDIT="$VIM"
+# export SUDO_EDITOR="$VIM"
+# export ALTERNATE_EDITOR="$VIM"
+# export GEM_EDITOR="$VIM"
+#
+# vi () vim $@
 
 # Ensure path arrays do not contain duplicates.
 typeset -gU cdpath fpath mailpath path
@@ -54,8 +56,8 @@ PERL5LIB="/usr/local/lib/perl5/site_perl":$PERL5LIB
 # "$(/usr/libexec/java_home)"
 JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home"
 
-export PYENV_VIRTUALENV_DISABLE_PROMPT=1
-PYENV_ROOT="$HOME/.pyenv"
+# export PYENV_VIRTUALENV_DISABLE_PROMPT=1
+# PYENV_ROOT="$HOME/.pyenv"
 
 # VIM="/usr/local/bin/nvim"
 # VIMRUNTIME="/usr/local/share/nvim/runtime"
@@ -73,13 +75,14 @@ nginx_path="/opt/nginx/sbin"
 # /usr/local/opt/gnu-sed/libexec/gnubin
 # ./bin
 path=(
+  $HOME/.iterm2
+  /usr/local/opt/python/libexec/bin
   /usr/local/bin
   /usr/local/sbin
   /usr/bin
   /usr/sbin
   /bin
   /sbin
-  $HOME/.pyenv/bin
   $JAVA_HOME/bin
   /usr/local/opt/go/libexec/bin
   ~/bin

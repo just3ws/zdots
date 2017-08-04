@@ -9,6 +9,15 @@ do
   zrecompile -p $ZDOTDIR/$z
 done
 
+for z in /usr/local/share/zsh-navigation-tools/*.zsh
+do
+  zrecompile -p $z
+done
+
+zrecompile -p /usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh
+zrecompile -p /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+zrecompile -p /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
 for z in $ZDOTDIR/functions/*(x)
 do
   zrecompile -p $z

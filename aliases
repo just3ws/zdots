@@ -98,11 +98,11 @@ alias branch\?="git rev-parse --abbrev-ref HEAD"
 # -G Enable colorized output. This option is equivalent to defining CLICOLOR in the environment.
 # -p Write a slash (`/') after each filename if that file is a directory.
 # -B Force printing of non-printable characters (as defined by ctype(3) and current locale settings) in file names as \xxx, where xxx is the numeric value of the character in octal.
-alias ls=" gls --color=auto"
+alias ls="gls --color=auto"
 # -C Force multi-column output; this is the default when output is to a terminal.
-alias la=" ls -A -C"
+alias la="ls -A -C"
 # -o List in long format, but omit the group id.
-alias ll=" ls -A -o -h"
+alias ll="ls -A -o -h"
 
 # }}}
 
@@ -187,3 +187,16 @@ alias ww="whence -w"
 
 alias be='bundle exec'
 alias -g rc='rails console'
+alias -g rdb='rails dbconsole'
+alias -g k='rake'
+
+alias lint-vim-settings="vint --color --style ~/.config/nvim/init.vim"
+alias reri="gem rdoc --all --ri --no-rdoc"
+
+alias grep="grep --color=auto --exclude-dir=.git -i"
+alias fgrep="fgrep --color=auto --exclude-dir=.git -i"
+alias egrep="egrep --color=auto --exclude-dir=.git -i"
+alias ag='ag --path-to-ignore ~/.agignore'
+
+#alias python='/usr/local/bin/python3'
+#alias pip='/usr/local/bin/pip3'
