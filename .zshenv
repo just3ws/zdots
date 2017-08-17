@@ -1,14 +1,15 @@
 # vim:ft=zsh:
 
-# export VIM="/usr/local/bin/nvim"
-# export VIMRUNTIME="/usr/local/share/nvim/runtime"
-#
-# export EDITOR="$VIM"
-# export VISUAL="$VIM"
-# export FCEDIT="$VIM"
-# export SUDO_EDITOR="$VIM"
-# export ALTERNATE_EDITOR="$VIM"
-# export GEM_EDITOR="$VIM"
+export VIM="/usr/local/bin/nvim"
+export VIMRUNTIME="/usr/local/share/nvim/runtime"
+
+export EDITOR="$VIM"
+export ALTERNATE_EDITOR="$VIM"
+export FCEDIT="$VIM"
+export GEM_EDITOR="$VIM"
+export PSQL_EDITOR="$VIM"
+export SUDO_EDITOR="$VIM"
+export VISUAL="$VIM"
 #
 # vi () vim $@
 
@@ -37,43 +38,34 @@ fi
 [[ -d "$XDG_CONFIG_HOME" ]] || mkdir -p "$XDG_CONFIG_HOME"
 [[ -d "$XDG_DATA_HOME"   ]] || mkdir -p "$XDG_DATA_HOME"
 
-DIRSTACKSIZE=16
-DIRSTACKFILE="$ZSH_CACHE_DIR/dirstack"
+export DIRSTACKSIZE=16
+export DIRSTACKFILE="$ZSH_CACHE_DIR/dirstack"
 
-LC_ALL="en_US.UTF-8"
-LANG="en_US.UTF-8"
+export LC_ALL="en_US.UTF-8"
+export LANG="en_US.UTF-8"
 
 SAVEHIST=10000
-HISTSIZE=13300 # Allows room for `hist_expire_dupes_first` processing duplicated events
+HISTSIZE=15000
 HISTFILE="$ZSH_CACHE_DIR/history"
 
-HOMEBREW_CASK_OPTS="$HOMEBREW_CASK_OPTS --caskroom=/opt/homebrew-cask/Caskroom"
-HOMEBREW_NO_ANALYTICS=1
-HOMEBREW_NO_INSECURE_REDIRECT=1
+export HOMEBREW_CASK_OPTS="--appdir=/Applications"
+export HOMEBREW_NO_ANALYTICS=1
+export HOMEBREW_NO_INSECURE_REDIRECT=1
 
-PERL5LIB="/usr/local/lib/perl5/site_perl":$PERL5LIB
+export PERL5LIB="/usr/local/lib/perl5/site_perl":$PERL5LIB
 
 # "$(/usr/libexec/java_home)"
-JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home"
+export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home"
 
-# export PYENV_VIRTUALENV_DISABLE_PROMPT=1
-# PYENV_ROOT="$HOME/.pyenv"
-
-# VIM="/usr/local/bin/nvim"
-# VIMRUNTIME="/usr/local/share/nvim/runtime"
-
-WORDCHARS='!$%&*-;<>?@[]^_~'
+export WORDCHARS='!$%&*-;<>?@[]^_~'
 
 export rvmsudo_secure_path=1
 
 nginx_path="/opt/nginx/sbin"
 [[ -d "$nginx_path" ]] && [[ ! ("$path" =~ "$nginx_path") ]] && path=(/opt/nginx/sbin $path)
 
-# /usr/local/opt/coreutils/libexec/gnubin
-# /usr/local/opt/gnu-tar/libexec/gnubin
-# /usr/local/opt/findutils/libexec/gnubin
-# /usr/local/opt/gnu-sed/libexec/gnubin
-# ./bin
+export GOPATH="$HOME/go"
+
 path=(
   $HOME/.iterm2
   /usr/local/opt/python/libexec/bin
@@ -85,6 +77,7 @@ path=(
   /sbin
   $JAVA_HOME/bin
   /usr/local/opt/go/libexec/bin
+  $GOPATH/bin
   ~/bin
   $path
   $HOME/.rvm/bin

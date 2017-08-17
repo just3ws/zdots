@@ -1,34 +1,34 @@
 #!/usr/bin/env zsh
 # vim:ft=zsh:
 
-autoload -U +X zrecompile
-# compinit -d "$ZSH_CACHE_DIR/.zcompdump"
-
-for z in .zshenv .zshrc aliases
-do
-  zrecompile -p $ZDOTDIR/$z
-done
-
-for z in /usr/local/share/zsh-navigation-tools/*.zsh
-do
-  zrecompile -p $z
-done
-
-zrecompile -p /usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh
-zrecompile -p /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-zrecompile -p /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-
-for z in $ZDOTDIR/functions/*(x)
-do
-  zrecompile -p $z
-done
-
-# git-completion.bash
-for z in _brew _brew_cask _brew_services _rg _git _the_silver_searcher _youtube-dl _aws
-do
-  zrecompile -p /usr/local/share/zsh/site-functions/$z
-done
-
-rm -f $HOME/*.zwc.old(N)
-rm -f $ZDOTDIR/**.zwc.old(N)
-rm -f /usr/local/share/zsh/site-functions/**.zwc.old(N)
+# autoload -U +X zrecompile
+# # compinit -d "$ZSH_CACHE_DIR/.zcompdump"
+#
+# for z in .zshenv .zshrc aliases
+# do
+#   zrecompile -p $ZDOTDIR/$z
+# done
+#
+# for z in /usr/local/share/zsh-navigation-tools/*.zsh
+# do
+#   zrecompile -p $z
+# done
+#
+# zrecompile -p /usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh
+# zrecompile -p /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+# zrecompile -p /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+#
+# for z in $ZDOTDIR/functions/*(x)
+# do
+#   zrecompile -p $z
+# done
+#
+# # git-completion.bash
+# for z in _brew _brew_cask _brew_services _rg _git _the_silver_searcher _youtube-dl _aws
+# do
+#   zrecompile -p /usr/local/share/zsh/site-functions/$z
+# done
+#
+# rm -f $HOME/*.zwc.old(N)
+# rm -f $ZDOTDIR/**.zwc.old(N)
+# rm -f /usr/local/share/zsh/site-functions/**.zwc.old(N)
