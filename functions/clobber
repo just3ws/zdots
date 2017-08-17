@@ -1,9 +1,15 @@
 #!/usr/bin/env zsh
 # vim:ft=zsh:
 
-rm -f $HOME/*.zwc.old(N)
-rm -f $ZDOTDIR/**/*.zwc(N)
-rm -f $ZDOTDIR/**/*.zwc.old(N)
-rm -f $ZDOTDIR/.zcompdump
-rm -f $ZSH_CACHE_DIR/.zcompdump
-rm -f /usr/local/share/zsh/site-functions/**.zwc(N)
+echo "clobbering zwc ~"
+rm -f $HOME/**.{zwc,zwc.old}(N)
+echo "clobbering zcomp"
+rm -rf $HOME/**/.zcomp*(N)
+echo "clobbering zwc /usr/local"
+rm -f /usr/local/**.{zwc,zwc.old}(N)
+
+# rm -f $ZDOTDIR/**.zwc.old(N)
+# rm -f $ZDOTDIR/**.zwc(N)
+# rm -f $ZDOTDIR/**.zwc.old(N)
+# rm -f $ZDOTDIR/.zcompdump
+# rm -f $ZSH_CACHE_DIR/.zcompdump

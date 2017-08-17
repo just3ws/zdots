@@ -13,7 +13,6 @@
 # done
 # alias mvim=gvim
 
-alias vup="vim +PlugUpdate"
 alias vv=" vim $HOME/.config/nvim/init.vim"
 
 # }}}
@@ -35,7 +34,7 @@ alias zdots=" ~zdots"
 
 # Ignore from history {{{
 
-for cmd in "cd" "exit" "mkdir" "rm" "rvm" "source"
+for cmd in "exit" "mkdir" "rm" "rvm" "source"
 do
   alias $cmd=" $cmd"
 done
@@ -124,7 +123,6 @@ alias bstop=" brew services stop"
 
 # ! aliases {{{
 
-alias reload!="clobber ; recompile ; bounce"
 alias clear!="klear"
 
 # }}}
@@ -139,11 +137,8 @@ alias -g gi=" | grep -i "
 
 alias -- -="cd -"
 alias -g ...='../..'
-alias api=" ~api"
-alias dbx=" ~dbx"
 alias ext="exit"
 alias rmed="rm -d ./**/*(/^F)"
-alias ttr='bundle exec passenger-config restart-app $(pwd) --ignore-app-not-running'
 # alias xx="atool -x"
 alias xx="exit"
 alias gfp="git format-patch HEAD~1 --no-color --stdout"
@@ -158,10 +153,10 @@ alias fl="functions | grep -i \"^\w\+\s\+()\""
 alias zerologs='sudo gtruncate -s 0 **.log'
 alias tailogs='tail -F **.log'
 alias iso8601="date -u +\"%Y-%m-%dT%H:%M:%SZ\""
-alias bpad="bp-all-do"
 
 alias -g uniquelines=' | uniq -c | sort -n'
-alias reload="clobber ; bounce"
+alias reload="bounce" # clobber ; bounce"
+alias reload!="bounce" # clobber ; recompile ; bounce"
 alias realias="source $ZDOTDIR/aliases"
 alias cwd="pwd | pbcopy"
 alias -g lX="l -10"
@@ -172,7 +167,7 @@ alias -g lXXX="l -30"
 
 # Prefix these commands with `nocorrect` to silence annoying
 # warnings from the correct option.
-for cmd in "rspec" "mv" "~zdots" "~api" "~xdots" "~vdots" "bundle"
+for cmd in "rspec" "mv" "~zdots" "~xdots" "~vdots" "bundle"
 do
   alias $cmd="nocorrect $cmd"
 done
@@ -187,7 +182,7 @@ alias ww="whence -w"
 
 alias be='bundle exec'
 alias -g rc='rails console'
-alias -g rdb='rails dbconsole'
+alias -g db='rails dbconsole'
 alias -g k='rake'
 
 alias lint-vim-settings="vint --color --style ~/.config/nvim/init.vim"
@@ -200,3 +195,10 @@ alias ag='ag --path-to-ignore ~/.agignore'
 
 #alias python='/usr/local/bin/python3'
 #alias pip='/usr/local/bin/pip3'
+alias pgviz="pbpaste | sed 's/^/EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) /' | psql -qAt wmx_rails_api_development | gocmdpev"
+alias db="psql wmx_rails_api_development"
+
+#alias scp='rsync avzP'
+alias desktop="cd ~/desktop"
+
+alias -g tls="list-sessions"
