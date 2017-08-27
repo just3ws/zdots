@@ -75,8 +75,8 @@ alias gapa=" git add --patch"
 alias gb=" git branch"
 # --all List both remote-tracking branches and local branches.
 alias gba=" git branch --all"
-# git clone
-alias gcl=" git clone"
+# # git clone
+# alias gcl=" git clone"
 # git fetch
 alias gfa=" git fetch --all --prune"
 # git status
@@ -143,7 +143,7 @@ alias rmed="rm -d ./**/*(/^F)"
 alias xx="exit"
 alias gfp="git format-patch HEAD~1 --no-color --stdout"
 alias chrome="open -a \"Google Chrome\""
-alias spotify="open -a \"Spotify\""
+# alias spotify="open -a \"Spotify\""
 alias safari="open -a \"Safari\""
 alias firefox="open -a \"FirefoxDeveloperEdition\""
 alias marked="open -a \"Marked 2\""
@@ -159,9 +159,9 @@ alias reload="bounce" # clobber ; bounce"
 alias reload!="bounce" # clobber ; recompile ; bounce"
 alias realias="source $ZDOTDIR/aliases"
 alias cwd="pwd | pbcopy"
-alias -g lX="l -10"
-alias -g lXX="l -20"
-alias -g lXXX="l -30"
+alias -g lx="l -10"
+alias -g lxx="l -20"
+alias -g lxxx="l -30"
 
 # Exclude for auto-correction {{{
 
@@ -202,3 +202,10 @@ alias db="psql wmx_rails_api_development"
 alias desktop="cd ~/desktop"
 
 alias -g tls="list-sessions"
+
+alias darken="dark-mode on"
+alias lighten="dark-mode off"
+
+alias vi="/usr/local/bin/nvim"
+
+# git -C "$(brew --repo homebrew/dupes)" fetch --unshallow
