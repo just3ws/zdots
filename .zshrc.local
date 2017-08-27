@@ -1,0 +1,319 @@
+# vim:ft=zsh:
+
+nginx_path="/opt/nginx/sbin";
+[[ -d "$nginx_path" ]] && [[ ! ("$path" =~ "$nginx_path") ]] && path=(/opt/nginx/sbin $path)
+
+# Hashes {{{
+
+hash -d my="/Volumes/NANO"
+alias api=" ~api"
+alias my="~my"
+alias My="~my"
+alias ttr='bundle exec passenger-config restart-app $(pwd) --ignore-app-not-running'
+alias bpad="bp-all-do"
+
+# Benchprep {{{2
+
+hash -d bp="$HOME/bp"
+
+hash -d api="$HOME/bp/benchprep-v2"
+
+hash -d marketing="$HOME/bp/benchprep_marketing"
+hash -d marketing_admin="$HOME/bp/benchprep_marketing_admin"
+hash -d course_publisher="$HOME/bp/course_publisher"
+hash -d blueprint="$HOME/bp/course_publisher"
+hash -d web="$HOME/bp/benchprep_webapp"
+hash -d wui="$HOME/bp/benchprep_webapp/app/assets/javascripts/benchprep/"
+hash -d user_manager="$HOME/bp/benchprep_account"
+hash -d teachers="$HOME/bp/benchprep_teacher"
+hash -d sso="$HOME/bp/benchprep_sso"
+hash -d reporting_api="$HOME/bp/benchprep_reporting_api"
+hash -d tenant_dashboard="$HOME/bp/tenant_dashboard"
+hash -d instructor_dashboard="$HOME/bp/instructor_dashboard"
+
+hash -d assets="$HOME/bp/benchprep-assets"
+
+# }}}2
+
+# }}}
+
+# Aliases {{{
+
+alias gcorc="git checkout release_candidate"
+
+# }}}
+
+bp () {
+  local option="$1"
+
+  if [ -z "$option" ]
+  then
+    cd ~bp
+    return 0
+  fi
+
+  case "$option" in
+    (o)
+      local tenant="$2"
+
+      # case "$tenant" in
+      #   (act) ;;
+      #   (actworkkeys) ;;
+      #   (aws) ;;
+      #   (bp) ;;
+      #   (cfainstitute) ;;
+      #   (cliffsnotes) ;;
+      #   (comptia) ;;
+      #   (demo) ;;
+      #   (eatright) ;;
+      #   (esi) ;;
+      #   (finra) ;;
+      #   (gac) ;;
+      #   (gmac) ;;
+      #   (hrci) ;;
+      #   (hrcitests) ;;
+      #   (ins) ;;
+      #   (masteryprep) ;;
+      #   (mheindia) ;;
+      #   (mhprofessional) ;;
+      #   (naviance) ;;
+      #   (ocl) ;;
+      #   (pearsonvue) ;;
+      #   (ppagu) ;;
+      #   (richardson) ;;
+      #   (sasb) ;;
+      # esac
+
+      open -a "FirefoxDeveloperEdition" "http://$tenant.benchprep.dev"
+      ;;
+    (rc*    ) cd ~api ; bundle exec rails console ; cd -    ;;
+    (db*    ) cd ~api ; bundle exec rails dbconsole; cd -   ;;
+    (ba*    ) cd ~api ; ttr ; cd -                          ;;
+    (bsd    ) brew-down                                     ;;
+    (bsr    ) brew-restart                                  ;;
+    (bss    ) brew-status                                   ;;
+    (bsu    ) brew-up                                       ;;
+    (bi     ) bp-all-do 'bundle check || bundle install'    ;;
+    (bw*    ) ~web ; ttr ; cd -                             ;;
+    (cr     ) bp-all-do 'rvm current'                       ;;
+    (fetch  ) bp-all-do 'git fetch --all --prune --verbose' ;;
+    (gb*    ) bp-all-do 'git rev-parse --abbrev-ref head'   ;;
+    (ggc    ) bp-all-do 'git gc --aggressive'               ;;
+    (gs*    ) bp-all-do 'git status --short'                ;;
+    (oa     ) bp-all-do 'open -a iTerm $repo'               ;;
+    (pd     ) ~api ; bundle exec primer stop    ; cd -      ;;
+    (pr     ) ~api ; bundle exec primer restart ; cd -      ;;
+    (prs    ) bp-all-do 'bp-pending-release-stat $repo'     ;;
+    (prd    ) bp-all-do 'bp-pending-release-diff $repo'     ;;
+    (ps     ) ~api ; bundle exec primer status  ; cd -      ;;
+    (pu     ) ~api ; bundle exec primer start   ; cd -      ;;
+    (rebase ) bp-all-do 'bp-rebase-repo $repo'              ;;
+    (refresh) bp rebase                                     ;;
+    (tl*    ) ~bp ; sudo gtruncate -s 0 **.log              ;;
+    (help   )
+      print "No args will \`cd\` to the ~bp."
+      print "Commands marked with asterisk \`*\` run against all subdirectories in ~bp."
+      print
+      print -P " (%B%F{3}rc      %f%b) %B%F{3}a%f%bpi %B%F{3}r%f%bails %B%F{3}c%f%bonsole"
+      print -P " (%B%F{3}db      %f%b) %B%F{3}a%f%bpi %B%F{3}r%f%bails %B%F{3}d%f%bbconsole"
+      print -P " (%B%F{3}ba      %f%b) %B%F{3}b%f%bounce %B%F{3}a%f%bpi"
+      print -P " (%B%F{3}bsd     %f%b) %B%F{3}b%f%brew %B%F{3}s%f%bervices %B%F{3}d%f%bown"
+      print -P " (%B%F{3}bsr     %f%b) %B%F{3}b%f%brew %B%F{3}s%f%bervices %B%F{3}r%f%bestart"
+      print -P " (%B%F{3}bsr     %f%b) %B%F{3}b%f%brew %B%F{3}s%f%bervices %B%F{3}s%f%btatus"
+      print -P " (%B%F{3}bsr     %f%b) %B%F{3}b%f%brew %B%F{3}s%f%bervices %B%F{3}u%f%bp"
+      print -P " (%B%F{3}bw      %f%b) %B%F{3}b%f%bounce %B%F{3}w%f%beb app"
+      print -P " (%B%F{3}oa      %f%b) %B%F{3}o%f%bpen %B%F{3}a%f%ball repos in iTerm"
+      print -P " (%B%F{3}pd      %f%b) %B%F{3}p%f%brimer %B%F{3}d%f%bown"
+      print -P " (%B%F{3}pr      %f%b) %B%F{3}p%f%brimer %B%F{3}r%f%bestart"
+      print -P " (%B%F{3}prs     %f%b) %B%F{3}p%f%bending %B%F{3}r%f%belease %B%F{3}s%f%bstats"
+      print -P " (%B%F{3}prd     %f%b) %B%F{3}p%f%bending %B%F{3}r%f%belease %B%F{3}d%f%biff"
+      print -P " (%B%F{3}ps      %f%b) %B%F{3}p%f%brimer %B%F{3}s%f%btatus"
+      print -P " (%B%F{3}pu      %f%b) %B%F{3}p%f%brimer %B%F{3}u%f%bp"
+      print -P "*(%B%F{3}bi      %f%b) %B%F{3}b%f%bundle %B%F{3}i%f%bnstall"
+      print -P "*(%B%F{3}cr      %f%b) %B%F{3}c%f%burrent %B%F{3}r%f%bvm ruby and gemset"
+      print -P "*(%B%F{3}gb      %f%b) show current %B%F{3}g%f%bit %B%F{3}b%f%branch"
+      print -P "*(%B%F{3}gfa     %f%b) %B%F{3}g%f%bit %B%F{3}f%f%betch %B%F{3}a%f%bll updates from remote repos"
+      print -P "*(%B%F{3}ggc     %f%b) %B%F{3}g%f%bit %B%F{3}g%f%barbage %B%F{3}c%f%bollect"
+      print -P "*(%B%F{3}gs      %f%b) %B%F{3}g%f%bit %B%F{3}s%f%btatus"
+      print -P "*(%B%F{3}rebase  %f%b) git %B%F{3}rebase%f%b"
+      print -P "*(%B%F{3}refresh %f%b) alias for %B%F{3}rebase%f%b"
+      print -P "*(%B%F{3}tl      %f%b) %B%F{3}t%f%bruncate %B%F{3}l%f%bogs"
+      ;;
+    (      *)
+      echo
+      echo "I don't know what to do with: '$@'"
+      echo
+      bp help
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+bp-all-do () {
+  mkdir -p "$HOME/.local/share/bp-all-do"
+  echo "$(iso8601) ; $@" >> "$HOME/.local/share/bp-all-do/history"
+
+  local cwd="$(pwd)"
+
+  for directory in $HOME/bp/*/
+  do
+    local repo="$(basename $directory)"
+    print -P "%B[[%K{228}%F{93} $repo %f%k]]%b"
+    echo
+
+    cd $directory
+    print -P "%B %F{93}>>%f cd %F{220}$directory%f%b"
+
+    print -P "%B %F{93}>>%f %F{220}$@%f%b"
+    echo
+
+    eval "$@"
+
+    echo
+  done
+
+  cd "$cwd"
+  return 0
+}
+
+bp-rebase-repo () {
+  git pull --rebase --autostash
+
+  # local repo="$(basename $@)"
+
+  # if [[ $repo == 'benchprep-assets' ]]
+  # then
+  #   git rebase origin/master --autostash
+  # else
+  #   git rebase origin/release_candidate --autostash
+  # fi
+}
+
+bp-pending-release-stat () {
+  local repo="$(basename $@)"
+
+  if [[ $repo == 'benchprep-assets' ]]
+  then
+    print 'N/A'
+  else
+    git diff origin/master...origin/release_candidate --shortstat
+  fi
+}
+
+bp-pending-release-diff () {
+  local repo="$(basename $@)"
+
+  if [[ $repo == 'benchprep-assets' ]]
+  then
+    print 'N/A'
+  else
+    git diff origin/master...origin/release_candidate
+  fi
+}
+
+brew-up () {
+  for service in postgresql redis
+  do
+    brew services start $service
+  done
+}
+
+brew-down () {
+  for service in postgresql redis
+  do
+    brew services stop $service
+  done
+}
+
+brew-restart () {
+  for service in postgresql redis
+  do
+    brew services restart $service
+  done
+}
+
+brew-status () {
+  brew services status
+}
+
+alias ttr='bundle exec passenger-config restart-app `pwd` --ignore-app-not-running'
+
+# bp-use-local-benchprep-assets () {
+#   for g in $(bp-benchprep-assets-deps)
+#   do
+#   echo $g
+#     vim $g +call\ UseLocalBenchprepAssets\(\) +wqa
+#   done
+# }
+
+# bp-benchprep-assets-deps () print "$(ack '^gem.*benchprep-assets' **/Gemfile --no-color --no-group --nopager --noheading --nobreak | cut -d: -f1)"
+
+alias otr="open -a Safari https://trello.com/b/rh4u3GJa/active-product"
+alias trello=otr
+alias ogh="open -a Safari https://github.com/orgs/watermelonexpress/dashboard"
+alias oab="open -a Safari https://benchprep.airbrake.io/projects"
+alias onr="open -a Safari https://rpm.newrelic.com/accounts/46411/applications"
+alias oci="open -a Safari https://app.codeship.com/benchprep"
+
+fooda () {
+  open -a Safari "https://app.fooda.com/my?date=$(date +"%Y-%m-%d")"
+}
+
+hash -d desktop="/Users/mike/Desktop"
+hash -d docs="/Users/mike/Documents"
+hash -d downloads="/Volumes/NANO/Downloads"
+hash -d gdrive="/Users/mike/Google Drive - BenchPrep"
+hash -d movies="/Users/mike/Movies"
+hash -d music="/Users/mike/Music"
+hash -d pics="/Volumes/NANO/Pictures"
+
+alias api="nocorrect ~api"
+
+eval "$(thefuck --alias)"
+
+# initialize-ssh-agent () {
+  # # ssh-agent -s &> /dev/null
+  # exec /usr/bin/ssh-agent /usr/local/bin/zsh
+  # ssh-add -K ~/.ssh/iaurobp.pem &> /dev/null
+  # ssh-add -K ~/.ssh/id_just3ws@github &> /dev/null
+# }
+# initialize-ssh-agent
+
+
+# http://zsh.sourceforge.net/Doc/Release/Zsh-Modules.html#The-zsh_002fzpty-Module
+# zmodload zsh/zpty # A builtin for starting a command in a pseudo-terminal.
+
+# _alig__preexec () {
+#   local -a tokens
+#   tokens=("${(@s: :)${1}}")
+#
+#   local name="${tokens[1]}"
+#
+#   if [ "$(whence -w $name)" != "$name: alias" ]
+#   then
+#     for a in "$(alias)"
+#     do
+#       if [[ "$a" =~ "$name" ]]
+#       then
+#         print "---"
+#         print "$name"
+#         print "$a"
+#         print "---"
+#       fi
+#     done
+#
+#
+#   fi
+# }
+# autoload -Uz add-zsh-hook
+# add-zsh-hook preexec _alig__preexec
+
+
+hash -d dotfiles="/Volumes/NANO/Dotfiles"
+alias dotfiles=" ~dotfiles"
+
+eval "$(thefuck --alias)"
+
+source ~/.iterm2_shell_integration.`basename $SHELL`
+
