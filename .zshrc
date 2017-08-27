@@ -422,6 +422,8 @@ hash -d vdots="$HOME/.config/nvim"
 hash -d xdots="$HOME/.config"
 hash -d desktop="$HOME/Desktop"
 
+
+
 # }}}
 
 # ALIASES {{{
@@ -748,8 +750,8 @@ compctl -K _pip_completion pip
 export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting/highlighters
 source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
-# Map <esc> to jj
-bindkey -M viins ‘jj’ vi-cmd-mode
+# # Map <esc> to jj
+# bindkey -M viins ‘jj’ vi-cmd-mode
 
 # PROFILING END BLOCK {{{
 if [[ "$ZSHRC_PROFILE_STARTUP" == true ]]
@@ -775,3 +777,6 @@ typeset -gU fignore
 typeset -gU fpath
 typeset -gU mailpath
 typeset -gU path
+
+zmodload zsh/zpty
+

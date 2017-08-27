@@ -1,0 +1,8 @@
+#!/usr/bin/env zsh
+# vim:ft=zsh:
+
+for d in $(gfind . -type d -print)
+do
+  local files=$(find $d -maxdepth 1 -type f | wc -l)
+  echo "$d : $files"
+done
