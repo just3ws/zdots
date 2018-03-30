@@ -1,0 +1,23 @@
+#!/usr/bin/env zsh
+
+local weather=$(curl -s "https://api.apixu.com/v1/current.json?key="$APIXU_API_KEY"&q="60014"")
+local temp=$(echo $weather | jq .current.temp_c)
+local condition=$(echo $weather | jq .current.condition.text)
+
+#Default value
+local color='%F{green}'
+local symbol="\uf2c7"
+
+if [[ $condition == *"rain"* ]] ;
+then symbol="\uf043" ; color='%F{blue}'
+fi
+
+if [[ $condition == *"cloudy"* || $condition == *"Overcast"* ]] ;
+then symbol="\uf0c2" ; color='%F{grey}';
+fi
+
+if [[ $condition == *"Sunny"* ]] ;
+then symbol="\uf185" ; color='%F{yellow}';
+fi
+
+echo -n "%{$color%}$temp\u2103  $symbol"

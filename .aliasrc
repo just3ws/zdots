@@ -1,0 +1,113 @@
+# vim:ft=zsh
+
+alias trash=' rmtrash'
+alias delete=' rmtrash'
+alias del=' rmtrash'
+alias rm=' echo Use "del", or the full path i.e. "/bin/rm"'
+
+hash -d dertferls="$HOME/Dropbox/mike/dertferls"
+hash -d desktop="$HOME/Desktop"
+hash -d dooty="$HOME/dooty"
+hash -d dropbox="$HOME/Dropbox/mike"
+hash -d vdots="$HOME/.config/vdots"
+hash -d workspace="$HOME/workspace"
+hash -d xdots="$HOME/.config"
+hash -d zdots="$ZDOTDIR"
+
+alias dbox='nocorrect ~dropbox'
+alias dertferls='nocorrect ~dertferls'
+alias desk='nocorrect ~desktop'
+alias desktop='nocorrect ~desktop'
+alias dooty='nocorrect ~dooty'
+alias dropbox='nocorrect ~dropbox'
+alias vdots='nocorrect ~vdots'
+alias wkr='nocorrect ~workspace' # Because I cannot type
+alias work='nocorrect ~workspace'
+alias workspace='nocorrect ~workspace'
+alias wrk='nocorrect ~workspace'
+alias xdots='nocorrect ~xdots'
+alias zdots='nocorrect ~zdots'
+
+alias -g gi='| grep -i '
+alias -g lx='l -10'
+alias -g lxx='l -20'
+alias -g lxxx='l -30'
+
+alias be='bundle exec'
+alias beg='bundle exec guard --clear'
+
+alias g='git'
+alias gba='git branch --all'
+alias gco='git checkout'
+alias gfa='git fetch --all --prune'
+alias gfp='git format-patch HEAD~1 --no-color --stdout'
+alias gs='git status --short'
+alias gss='git status --short'
+alias gwd='git diff --word-diff'
+
+alias egrep='egrep --color=auto --exclude-dir=.git'
+alias fgrep='fgrep --color=auto --exclude-dir=.git'
+alias grep='grep --color=auto --exclude-dir=.git'
+
+alias dircolors='gdircolors'
+
+alias bounce='reload'
+alias bsl='brew services list'
+alias clear\!='klear'
+alias cwd='pwd | pbcopy'
+
+alias ll='gls --color=tty --human-readable --classify --almost-all --group-directories-first -lctr --time-style=long-iso'
+alias ls='gls --color=tty' # simply override system ls
+
+alias iso8601-local="gdate +\'%Y-%m-%dT%H:%M:%SZ\'"
+alias iso8601-utc="gdate -u +\'%Y-%m-%dT%H:%M:%SZ\'"
+alias timestamp-dir-local="gdate +\'%Y-%m-%d/%H.%M.%2N\'"
+alias timestamp-dir-utc="gdate -u +\'%Y-%m-%d/%H.%M.%2N\'"
+alias timestamp-local="gdate +\'%Y-%m-%dT%H.%M.%2N\'"
+alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"
+
+alias nvimrc='vim ~nvdots/init.vim'
+alias vimrc='vim ~/.vimrc'
+alias zshenv='vim ~zdots/.zshenv'
+alias zshrc='vim ~zdots/.zshrc'
+alias antigenrc='vim ~zdots/.antigenrc'
+alias aliasrc='vim ~zdots/.aliasrc'
+alias zpromptrc='vim ~zdots/.zpromptrc'
+
+alias acrobat='open -a Adobe\ Acrobat\ Reader\ DC'
+# alias chrome-canary='/Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary'
+alias chrome='/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome'
+# alias chromium='/Applications/Chromium.app/Contents/MacOS/Chromium'
+alias firefox='/Applications/Firefox Developer Edition.app/Contents/MacOS/firefox'
+alias preview='open -a Preview'
+
+alias -s coffee=vim
+alias -s conf=vim
+alias -s css=vim
+alias -s csv=vim
+alias -s erb=vim
+alias -s example=vim
+alias -s gif=preview
+alias -s haml=vim
+alias -s html=vim
+alias -s jpeg=preview
+alias -s jpg=preview
+alias -s js=vim
+alias -s json=vim
+alias -s lock=vim
+alias -s markdown=vim
+alias -s md=vim
+alias -s pdf=acrobat
+alias -s pid=vim
+alias -s png=preview
+alias -s rake=vim
+alias -s rb=vim
+alias -s ru=vim
+alias -s scss=vim
+alias -s sql=vim
+alias -s srt=vim
+alias -s text=vim
+alias -s txt=vim
+alias -s vim=vim
+alias -s xml=vim
+alias -s yml=vim

@@ -1,0 +1,74 @@
+#!/usr/bin/env zsh
+
+# Source on quality levels - http://www.wireless-nets.com/resources/tutorials/define_SNR_values.html
+# Source on signal levels  - http://www.speedguide.net/faq/how-to-read-rssisignal-and-snrnoise-ratings-440
+
+airport -I | /usr/local/bin/ggrep -qi 'AirPort: Off'
+
+if [[ $? -eq 0 ]] ; then
+  # Airport is disabled, no WiFi is possible.
+else
+  # Airport is enabled. WiFi is possible.
+
+  # local ssid="$(airport --getinfo | /usr/local/bin/ggrep -iPo "(?<=[^B]SSID:\s)(.*)")"
+
+  # Usually just on en0 so make it simpler to query.
+  # connection: 'active' or 'inactive'
+  # local connection="$(ifconfig en0 | ggrep -iPo "(?<=status:\s)\w+")"
+
+  local signal="$(airport --getinfo | /usr/local/bin/ggrep -iPo "(?<=agrCtlRSSI:\s[-\+])(.*)")"
+  local noise="$(airport --getinfo | /usr/local/bin/ggrep -iPo "(?<=agrCtlNoise:\s[-\+])(.*)")"
+  local SNR="$(bc <<<"scale=2; $signal / $noise")"
+
+  local color='%F{yellow}'
+  local symbol=''
+
+  # Excellent Signal (5 bars)
+  if [[ $SNR -gt .40 ]] ; then
+    color='%F{blue}'
+    symbol=''
+  fi
+
+  # Good Signal (3-4 bars)
+  if [[ $SNR -le .40 ]] && [[ $SNR -gt .25 ]] ; then
+    color='%F{green}'
+    symbol=''
+  fi
+
+  # Low Signal (2 bars)
+  if [[ $SNR -le .25 ]] && [[ $SNR -gt .15 ]] ; then
+    color='%F{yellow}'
+    symbol="\uf1eb"
+  fi
+
+  # Very Low Signal (1 bar)
+  if [[ $SNR -le .15 ]] && [[ $SNR -gt .10 ]] ; then
+    color='%F{red}'
+    symbol="\uf1eb"
+  fi
+
+  # No Signal - No Internet
+  if [[ $SNR -le .10 ]] ; then
+    color='%F{red}'
+    symbol=''
+  fi
+fi
+
+# # local net="$(curl -D- -o /dev/null -s http://www.google.com | grep HTTP/1.1 | awk '{print $2}')"
+# # local net="$(/usr/local/bin/fping -t 10 -q 8.8.8.8)"
+
+# local gateway_ip="$(netstat -nr -f inet &> /dev/null | ggrep -iPo "(?<=default)\s+\d+\.\d+\.\d+\.\d+\s" | tr -d ' ')"
+# /usr/local/bin/fping -t 100 -q "$gateway_ip"
+
+# # if [[ -z "${signal// }" ]] && [[ "$net" -ne 200 ]] ; then
+# if [[ $? -eq 0 ]] ; then
+#   color='%F{red}'
+#   symbol="\uf011"
+# # elif [[ -z "${signal// }" ]] && [[ "$net" -eq 200 ]] ; then
+# else
+#   # Ethernet Connection (no wifi, hardline)
+#   color='%F{blue}'
+#   symbol="\uf197"
+# fi
+
+echo -n "%{$color%}$symbol " # \f1eb is wifi bars

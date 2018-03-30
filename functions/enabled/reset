@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+
+antigen reset
+
+/bin/rm -rf $XDG_CONFIG_HOME/**/init.zsh
+/bin/rm -rf $XDG_DATA_HOME/**/.zcomp*
+/bin/rm -rf $XDG_CACHE_HOME/**.zwc
