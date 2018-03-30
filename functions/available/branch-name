@@ -1,0 +1,4 @@
+#!/usr/bin/env zsh
+# vim:ft=zsh:
+
+[ -d ./.git ] && git rev-parse --abbrev-ref HEAD

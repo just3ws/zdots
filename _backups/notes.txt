@@ -1,0 +1,19 @@
+# cd ~/doots/repos/${org}/${repo}
+#
+# git remote -v
+# git gc --aggressive
+#
+# afsctool -cv ~/doots/repos/${org}
+#
+#  local -i git_exit_code="$?"
+#  if [[ $git_exit_code == '0' ]] ; then
+#  elif [[ $git_exit_code == '128' ]] ; then
+#    cd "${repo}"
+#
+#    pwd
+#
+#    git fetch --all --prune
+#    git reset --hard
+#  fi
+#
+#  git gc --aggressive

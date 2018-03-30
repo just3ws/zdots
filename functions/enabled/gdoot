@@ -1,0 +1,57 @@
+#!/usr/bin/env zsh
+# vim:ft=zsh
+
+local dootcat="$1"
+local owner="$2"
+local repo="$3"
+
+mkdir -p $HOME/.cache/dooty/doots/$dootcat
+mkdir -p $HOME/dooty/doots/$dootcat
+
+cd $HOME/dooty/doots/$dootcat
+
+echo '>>>'
+echo ":$(date)"
+
+echo "# [$dootcat] $owner / $repo"
+echo "https://github.com/${owner}/${repo}"
+
+mkdir -p $HOME/dooty/doots/${dootcat}/${owner}
+
+if [[ -d $HOME/dooty/doots/${dootcat}/${owner}/${repo} ]] ; then
+  echo 'git fetch: reset: target exists'
+
+  echo $HOME/dooty/doots/${dootcat}/${owner}/${repo}
+  cd $HOME/dooty/doots/${dootcat}/${owner}/${repo}
+
+  git fetch --all --prune
+  git submodule update --init --recursive
+
+  git reset --hard
+else
+  echo 'git clone: run'
+
+  cd $HOME/dooty/doots/${dootcat}/${owner}
+
+  echo "git clone git@github.com:${owner}/${repo}"
+  git clone "git@github.com:${owner}/${repo}"
+
+  _git_exit_code="$?"
+
+  if [[ $_git_exit_code == '0' ]] ; then
+    echo "git clone: success"
+    cd ${repo}
+
+    git fetch --all --prune
+    git submodule update --init --recursive
+
+  elif [[ $_git_exit_code == '128' ]] ; then
+    echo "git clone: error: $_git_exit_code"
+    echo "FAILED: https://github.com/${owner}/${repo}"
+  else
+    echo "git clone: error: $_git_exit_code"
+    echo "FAILED: https://github.com/${owner}/${repo}"
+  fi
+fi
+
+cd $HOME/dooty

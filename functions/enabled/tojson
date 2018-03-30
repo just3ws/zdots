@@ -1,0 +1,4 @@
+#!/usr/bin/env zsh
+# vim:set ft=zsh:
+
+json | pygmentize -l json

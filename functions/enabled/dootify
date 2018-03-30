@@ -1,0 +1,31 @@
+#!/usr/bin/env zsh
+# vim:ft=zsh
+
+# TODO: What directories are *not* in the doots.lst?
+
+mkdir -p ~/dooty/doots
+mkdir -p ~/.cache/dooty
+
+local dootcat="$1"
+
+if [[ "$dootcat" == 'all' ]]; then
+  dootify bash
+  dootify fish
+  dootify zsh
+  dootify tmux
+  dootify dotfiles
+  dootify colorschemes
+  dootify emacs
+  dootify vim
+else
+  while read doot; do
+
+    a=("${(@s|/|)doot}")
+
+    org="$a[1]"
+    repo="$a[2]"
+
+    gdoot $dootcat $org $repo
+
+  done < <(cat ~/.data/dooty/doots.${dootcat}.lst)
+fi
