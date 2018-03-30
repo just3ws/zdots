@@ -1,7 +1,6 @@
 # vim:ft=zsh
 
 export XDG_ROOT="$HOME/Dropbox/$(whoami)"
-source "$XDG_ROOT/.env"
 
 export XDG_CONFIG_HOME="$XDG_ROOT/.config" && [[ ! -d "$XDG_CONFIG_HOME" ]] && mkdir -p "$XDG_CONFIG_HOME"
 export ZDOTDIR="$XDG_CONFIG_HOME/zdots" && [[ ! -d "$ZDOTDIR" ]] && mkdir -p "$ZDOTDIR"
@@ -14,6 +13,8 @@ export XDG_CACHE_HOME="$XDG_ROOT/.cache" && [[ ! -d "$XDG_CACHE_HOME" ]] && mkdi
 [[ ! -d "$XDG_CACHE_HOME/node" ]] && mkdir -p "$XDG_CACHE_HOME/node"
 [[ ! -d "$XDG_CACHE_HOME/zsh" ]] && mkdir -p "$XDG_CACHE_HOME/zsh"
 [[ ! -d "$XDG_CACHE_HOME/antigen" ]] && mkdir -p "$XDG_CACHE_HOME/antigen"
+
+source "$XDG_DATA_HOME/.env"
 
 export ANTIGEN_CACHE="$XDG_CACHE_HOME/antigen/init.zsh"
 
@@ -37,7 +38,6 @@ export SVN_EDITOR="$EDITOR"
 export VISUAL="$EDITOR"
 # }}}
 
-export ANDROID_SDK_ROOT='/usr/local/share/android-sdk'
 export XML_CATALOG_FILES='/usr/local/etc/xml/catalog'
 
 export WORDCHARS='*?.[]~=&;!#$%^(){}<>@'

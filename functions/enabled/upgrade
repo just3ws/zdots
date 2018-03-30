@@ -74,16 +74,16 @@ echo
 /usr/local/bin/mvim -v -c ":call minpac#update() | :call minpac#clean() | :qa"
 /usr/local/bin/nvim -c ":call minpac#update() | :call minpac#clean() | :qa"
 
-local cwd="$(pwd)"
+# local cwd="$(pwd)"
 
-cd $HOME/.config/vdots/pack/minpac/start/omnisharp-vim
-git submodule update --init --recursive
-cd $HOME/.config/vdots/pack/minpac/start/omnisharp-vim/server
-msbuild
+# cd $HOME/.config/vdots/pack/minpac/start/omnisharp-vim
+# git submodule update --init --recursive
+# cd $HOME/.config/vdots/pack/minpac/start/omnisharp-vim/server
+# msbuild
 
-cd $HOME/.config/vdots/pack/minpac/start/YouCompleteMe
-git submodule update --init --recursive
-./install.py --all
+# cd $HOME/.config/vdots/pack/minpac/start/YouCompleteMe
+# git submodule update --init --recursive
+# ./install.py --all
 
 # {{{ [VIM - color_coded]
 # cd $HOME/.config/vdots/pack/minpac/start/color_coded
@@ -92,12 +92,11 @@ git submodule update --init --recursive
 # cmake ..
 # make && make install # Compiling with GCC is preferred, ironically
 # # Clang works on OS X, but has mixed success on Linux and the BSDs
-
 # # Cleanup afterward; frees several hundred megabytes
 # make clean && make clean_clang
 # }}}
 
-cd "$cwd"
+# cd "$cwd"
 
 echo
 echo ' ANTIGEN' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell

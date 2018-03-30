@@ -1,8 +1,0 @@
-#!/usr/bin/env zsh
-
-for image in **.{jpg,png}
-do
-  local res=$(identify -format %wx%h\\n "$image");
-  mkdir -p $res;
-  mv "$image" $res
-done

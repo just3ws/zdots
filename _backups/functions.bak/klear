@@ -1,4 +1,0 @@
-#!/usr/bin/env zsh
-# vim:ft=zsh:
-
-printf "\33c\e[3J"

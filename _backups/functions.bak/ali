@@ -1,7 +1,0 @@
-#!/usr/bin/env zsh
-# vim:ft=zsh:
-
-echo "alias $1=\"${@:2}\"" >> $ZDOTDIR/aliases
-echo "alias $1=\"${@:2}\"";
-
-exec "$SHELL"
