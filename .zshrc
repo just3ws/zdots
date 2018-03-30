@@ -49,7 +49,6 @@ setopt share_history
 zstyle :omz:plugins:ssh-agent agent-forwarding on
 zstyle :omz:plugins:ssh-agent identities 'id_just3ws@github' 'id_just3ws@bitbucket' 'id_rsa-iam-mike'
 
-
 zle -N znt-history-widget
 bindkey "^R" znt-history-widget
 

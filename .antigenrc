@@ -1,16 +1,16 @@
 # vim:ft=zsh
 
-typeset -a ANTIGEN_CHECK_FILES
-export ANTIGEN_CHECK_FILES=(
-  $ZDOTDIR/.ls_colors
-  $ZDOTDIR/.lscolors
-  $ZDOTDIR/.aliasrc
-  $ZDOTDIR/.antigenrc
-  $ZDOTDIR/.fzf.zsh
-  $ZDOTDIR/.iterm2_shell_integration.zsh
-  $ZDOTDIR/.zpromptrc
-  $ZDOTDIR/.zshrc
-)
+# typeset -a ANTIGEN_CHECK_FILES
+# export ANTIGEN_CHECK_FILES=(
+#   $ZDOTDIR/.ls_colors
+#   $ZDOTDIR/.lscolors
+#   $ZDOTDIR/.aliasrc
+#   $ZDOTDIR/.antigenrc
+#   $ZDOTDIR/.fzf.zsh
+#   $ZDOTDIR/.iterm2_shell_integration.zsh
+#   $ZDOTDIR/.zpromptrc
+#   $ZDOTDIR/.zshrc
+# )
 
 source /usr/local/share/antigen/antigen.zsh
 
