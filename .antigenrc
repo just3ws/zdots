@@ -1,0 +1,32 @@
+# vim:ft=zsh
+
+typeset -a ANTIGEN_CHECK_FILES
+export ANTIGEN_CHECK_FILES=(
+  $ZDOTDIR/.ls_colors
+  $ZDOTDIR/.lscolors
+  $ZDOTDIR/.aliasrc
+  $ZDOTDIR/.antigenrc
+  $ZDOTDIR/.fzf.zsh
+  $ZDOTDIR/.iterm2_shell_integration.zsh
+  $ZDOTDIR/.zpromptrc
+  $ZDOTDIR/.zshrc
+)
+
+source /usr/local/share/antigen/antigen.zsh
+
+antigen use oh-my-zsh
+
+source $ZDOTDIR/.zpromptrc
+antigen theme bhilburn/powerlevel9k powerlevel9k
+
+antigen bundles <<EOBUNDLES
+  mafredri/zsh-async
+  zsh-users/zsh-completions
+  zsh-users/zsh-syntax-highlighting
+  zsh-users/zsh-autosuggestions
+  zsh-users/zsh-history-substring-search
+  vi-mode
+EOBUNDLES
+
+antigen apply
+

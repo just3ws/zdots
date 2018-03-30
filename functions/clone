@@ -1,9 +1,0 @@
-#!/usr/bin/env zsh
-# vim:ft=zsh:
-
-if [[ "$2" == 'bb' ]]
-then
-  echo bitbucket
-else
-  echo github
-fi

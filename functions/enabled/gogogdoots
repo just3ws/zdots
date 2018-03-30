@@ -1,0 +1,51 @@
+#!/usr/bin/env zsh
+# vim:set ft=zsh:
+
+local word="$1"
+local filter=".items[] | { repository: .full_name, username: .owner.login, reponame: .name, branch: .default_branch, description: .description }"
+local query="q=$word in:path fork:false"
+# local query="q=evil fork:false language:\"Emacs Lisp\""
+echo -n '{"query": "'
+echo -n "$query"
+echo '"}'
+
+# evil extension:el path:init.el language:"Emacs Lisp"
+# https://github.com/search?l=&q=evil+extension%3Ael+path%3Ainit.el+language%3A%22Emacs+Lisp%22&ref=advsearch&type=Repositories&utf8=%E2%9C%93
+
+typeset -a sort_types=(updated stars fork)
+
+for sort_type in $sort_types
+do
+  echo $sort_type
+  for page in {1..100}
+  do
+
+    echo '================================================================================'
+    echo "### Query: "$query
+    echo "###  Sort: "$sort_type
+    echo "###  Page: "$page
+    echo
+
+    json=$(curl \
+      --get https://api.github.com/search/repositories \
+      --data-urlencode "$query" \
+      --data-urlencode "type=Repositories" \
+      --data-urlencode "sort=$sort_type" \
+      --data-urlencode "order=desc" \
+      --data-urlencode "page=$page" \
+      --data-urlencode "per_page=50" \
+      --header "Accept: application/vnd.github.preview" 2>/dev/null | \
+      jq --ascii-output --compact-output  --monochrome-output "$filter" 2> /dev/null \
+      )
+
+    if [[ "$?" != '0' ]]; then
+      return 0
+    elif [[ "$json" = '' ]]; then
+      return 0
+    else
+      echo "$json"
+      sleep 3
+    fi
+
+  done
+done

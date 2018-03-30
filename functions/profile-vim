@@ -1,5 +1,0 @@
-#!/usr/bin/env zsh
-# vim:ft=zsh:
-
-rm -f ~/.vim-trace
-vim --startuptime ~/.vim-profile-report
