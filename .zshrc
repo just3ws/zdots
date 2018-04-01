@@ -59,8 +59,7 @@ case $TERM in
 esac
 
 source "$ZDOTDIR/.antigenrc"
-source "$ZDOTDIR/.ls_colors"
-source "$ZDOTDIR/.lscolors"
+source "$ZDOTDIR/.colorsrc"
 source "$ZDOTDIR/.aliasrc"
 source "$ZDOTDIR/.iterm2_shell_integration.zsh"
 source "$ZDOTDIR/.fzf.zsh"
