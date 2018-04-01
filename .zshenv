@@ -80,22 +80,22 @@ export NODE_REPL_MODE='sloppy'
 export NODE_REPL_HISTORY="$XDG_CACHE_HOME/node/history"
 export HISTFILE="$XDG_CACHE_HOME/zsh/history"
 
-export CC='/usr/local/bin/gcc-7'
-export CXX='/usr/local/bin/g++-7'
-export CPP='/usr/local/bin/cpp-7'
-export LD='/usr/local/bin/gcc-7'
-
 export ARCHFLAGS='-arch x86_64'
 
-export HOMEBREW_CC='gcc-7'
-export HOMEBREW_CXX='g++-7'
-
-alias c++='/usr/local/bin/c++-7'
-alias g++='/usr/local/bin/g++-7'
-alias gcc='/usr/local/bin/gcc-7'
-alias cpp='/usr/local/bin/cpp-7'
-alias ld='/usr/local/bin/gcc-7'
-alias cc='/usr/local/bin/gcc-7'
+# export CC='/usr/local/bin/gcc-7'
+# export CXX='/usr/local/bin/g++-7'
+# export CPP='/usr/local/bin/cpp-7'
+# export LD='/usr/local/bin/gcc-7'
+#
+# export HOMEBREW_CC='gcc-7'
+# export HOMEBREW_CXX='g++-7'
+#
+# alias c++='/usr/local/bin/c++-7'
+# alias g++='/usr/local/bin/g++-7'
+# alias gcc='/usr/local/bin/gcc-7'
+# alias cpp='/usr/local/bin/cpp-7'
+# alias ld='/usr/local/bin/gcc-7'
+# alias cc='/usr/local/bin/gcc-7'
 
 for fn in $ZDOTDIR/functions/enabled/*(.x); do
   autoload -Uz "$(basename $fn)"

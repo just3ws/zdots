@@ -27,5 +27,5 @@ else
 
     gdoot $dootcat $org $repo
 
-  done < <(cat ~/.data/dooty/doots.${dootcat}.lst)
+  done < <(cat ~/Dropbox/mike/.config/dooty/doots.${dootcat}.lst)
 fi
