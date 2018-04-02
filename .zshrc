@@ -62,13 +62,19 @@ source "$ZDOTDIR/.antigenrc"
 source "$ZDOTDIR/.colorsrc"
 source "$ZDOTDIR/.aliasrc"
 source "$ZDOTDIR/.iterm2_shell_integration.zsh"
-source "$ZDOTDIR/.fzf.zsh"
 
 bindkey '^P' up-line-or-history
 bindkey '^N' down-line-or-history
 
 autoload -Uz colors && colors
 zstyle :completion:*:default list-colors "${(s.:.)LS_COLORS}"
+
+bindkey '^[[A' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
+bindkey -M emacs '^P' history-substring-search-up
+bindkey -M emacs '^N' history-substring-search-down
+bindkey -M vicmd 'k' history-substring-search-up
+bindkey -M vicmd 'j' history-substring-search-down
 
 # Enable Ctrl-x-e to edit command line
 autoload -Uz edit-command-line
@@ -80,3 +86,8 @@ bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
 eval "$(rbenv init -)"
+
+source /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+source /usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh
+source /usr/local/share/zsh-history-substring-search/zsh-history-substring-search.zsh
+source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh

@@ -82,6 +82,9 @@ export HISTFILE="$XDG_CACHE_HOME/zsh/history"
 
 export ARCHFLAGS='-arch x86_64'
 
+export ZSH_AUTOSUGGEST_USE_ASYNC=true
+export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting/highlighters
+
 # export CC='/usr/local/bin/gcc-7'
 # export CXX='/usr/local/bin/g++-7'
 # export CPP='/usr/local/bin/cpp-7'
@@ -102,8 +105,9 @@ for fn in $ZDOTDIR/functions/enabled/*(.x); do
 done
 
 fpath=(
-  $ZDOTDIR/functions/enabled/
-  /usr/local/share/zsh-completions/
+  $ZDOTDIR/functions/enabled
+  /usr/local/share/zsh-completions
+  /usr/local/share/zsh-completions
   $fpath
 )
 

@@ -19,22 +19,24 @@ echo "https://github.com/${owner}/${repo}"
 mkdir -p $HOME/dooty/doots/${dootcat}/${owner}
 
 if [[ -d $HOME/dooty/doots/${dootcat}/${owner}/${repo} ]] ; then
-  echo 'git fetch: reset: target exists'
+  echo 'skip: target exists'
+  
+  # echo 'git fetch: reset: target exists'
 
-  echo $HOME/dooty/doots/${dootcat}/${owner}/${repo}
-  cd $HOME/dooty/doots/${dootcat}/${owner}/${repo}
+  # echo $HOME/dooty/doots/${dootcat}/${owner}/${repo}
+  # cd $HOME/dooty/doots/${dootcat}/${owner}/${repo}
 
-  git fetch --all --prune
-  git submodule update --init --recursive
+  # git fetch --all --prune
+  # git submodule update --init --recursive
 
-  git reset --hard
+  # git reset --hard
 else
   echo 'git clone: run'
 
   cd $HOME/dooty/doots/${dootcat}/${owner}
 
   echo "git clone git@github.com:${owner}/${repo}"
-  git clone "git@github.com:${owner}/${repo}"
+  git clone --depth 1 "git@github.com:${owner}/${repo}"
 
   _git_exit_code="$?"
 
