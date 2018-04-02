@@ -8,13 +8,14 @@ source $ZDOTDIR/.zpromptrc
 antigen theme bhilburn/powerlevel9k powerlevel9k
 
 antigen bundles <<EOBUNDLES
-  mafredri/zsh-async
-  zsh-users/zsh-completions
-  zsh-users/zsh-syntax-highlighting
-  zsh-users/zsh-autosuggestions
-  zsh-users/zsh-history-substring-search
   vi-mode
+  mafredri/zsh-async
 EOBUNDLES
 
-antigen apply
+# zsh-users/zsh-completions
+# zsh-users/zsh-navigation-tools
+# zsh-users/zsh-autosuggestions
+# zsh-users/zsh-history-substring-search
+# zsh-users/zsh-syntax-highlighting
 
+antigen apply
