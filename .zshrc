@@ -28,7 +28,6 @@ unsetopt correct_all
 unsetopt menu_complete
 unsetopt no_match
 
-# {{{ [HISTORY]
 unsetopt hist_beep
 setopt append_history
 setopt bang_hist
@@ -44,7 +43,6 @@ setopt hist_save_no_dups
 setopt hist_verify
 setopt inc_append_history
 setopt share_history
-# }}}
 
 zstyle :omz:plugins:ssh-agent agent-forwarding on
 zstyle :omz:plugins:ssh-agent identities 'id_just3ws@github' 'id_just3ws@bitbucket' 'id_rsa-iam-mike'
@@ -58,8 +56,9 @@ case $TERM in
         ;;
 esac
 
+zmodload zsh/zpty
+
 source "$ZDOTDIR/.antigenrc"
-source "$ZDOTDIR/.colorsrc"
 source "$ZDOTDIR/.aliasrc"
 source "$ZDOTDIR/.iterm2_shell_integration.zsh"
 
