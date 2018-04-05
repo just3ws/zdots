@@ -3,7 +3,6 @@
 alias trash=' rmtrash'
 alias delete=' rmtrash'
 alias del=' rmtrash'
-alias rm=' echo Use "del", or the full path i.e. "/bin/rm"'
 
 hash -d me="$HOME/Dropbox/mike"
 hash -d mike="$HOME/Dropbox/mike"
