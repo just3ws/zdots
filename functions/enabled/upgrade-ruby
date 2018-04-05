@@ -1,0 +1,19 @@
+#!/usr/bin/env zsh
+
+echo
+echo ' RUBY' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
+echo
+
+/usr/local/bin/gem update --system
+/usr/local/bin/gem install bundler --pre
+/usr/local/bin/gem install neovim
+/usr/local/bin/gem install solargraph
+/usr/local/bin/gem install yard
+/usr/local/bin/yard config --gem-install-yri
+
+while read gem ; do
+  /usr/local/bin/gem install "$gem" --force
+done < <(cat $HOME/.defaults/gems)
+
+/usr/local/bin/gem update
+/usr/local/bin/yard gems
