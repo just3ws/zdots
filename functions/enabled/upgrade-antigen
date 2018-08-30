@@ -1,0 +1,5 @@
+#!/usr/bin/env zsh
+
+antigen update
+antigen cleanup
+

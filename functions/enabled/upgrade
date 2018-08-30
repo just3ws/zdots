@@ -1,102 +1,39 @@
 #!/usr/bin/env zsh
 
-echo
-echo ' UPGRADE START' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
+message () {
+  local text="$1"
+  echo
+  echo " $text" | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
+  echo
+}
 
-echo
-echo ' HOMEBREW' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
+message 'UPGRADE START'
 
-brew upgrade
-brew cleanup
-brew prune
+message 'HOMEBREW'
+upgrade-homebrew
 
-echo
-echo ' MACOS' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
+message 'MACOS'
+upgrade-macos
 
-mas upgrade
-
+message 'RUBY'
 upgrade-ruby
 
-echo
-echo ' PYTHON2' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
+message 'PIP2'
+upgrade-pip2
 
-/usr/local/bin/pip2 install --upgrade pip setuptools
-/usr/local/bin/pip2 install --upgrade neovim
-/usr/local/bin/pip2 install --upgrade solargraph-utils.py
+message 'PIP2'
+upgrade-pip3
 
-while read pip ; do
-  /usr/local/bin/pip2 install --upgrade "$pip"
-done < <(cat $HOME/.defaults/pip2)
+# upgrade 'CONDA' 
+# upgrade-conda
 
-echo
-echo ' PYTHON3' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
+message 'NPM' 
+upgrade-npm
 
-/usr/local/bin/pip3 install --upgrade pip setuptools wheel
-/usr/local/bin/pip3 install --upgrade neovim
-/usr/local/bin/pip3 install --upgrade solargraph-utils.py
+message 'VIM PLUGINS'
+upgrade-vim
 
-while read pip ; do
-  /usr/local/bin/pip3 install --upgrade "$pip"
-done < <(cat $HOME/.defaults/pip3)
+message 'ANTIGEN'
+upgrade-antigen
 
-echo
-echo ' NODE' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
-
-/usr/local/bin/npm install --global npm
-/usr/local/bin/npm install --global neovim
-
-while read package ; do
-  /usr/local/bin/npm install --global "$package"
-done < <(cat $HOME/.defaults/npm-packages)
-
-npm upgrade --global
-
-echo
-echo ' VIM' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
-
-# /usr/local/bin/mvim -v -c ":call minpac#update() | :call minpac#clean() | :qa"
-/usr/local/bin/mvim -v -c ":PackUpdate | :PackClean | :qa"
-# /usr/local/bin/nvim -c ":call minpac#update() | :call minpac#clean() | :qa"
-
-# local cwd="$(pwd)"
-
-# cd $HOME/.config/vdots/pack/minpac/start/omnisharp-vim
-# git submodule update --init --recursive
-# cd $HOME/.config/vdots/pack/minpac/start/omnisharp-vim/server
-# msbuild
-
-# cd $HOME/.config/vdots/pack/minpac/start/YouCompleteMe
-# git submodule update --init --recursive
-# ./install.py --all
-
-# {{{ [VIM - color_coded]
-# cd $HOME/.config/vdots/pack/minpac/start/color_coded
-# rm -f CMakeCache.txt
-# mkdir -p build && cd build
-# cmake ..
-# make && make install # Compiling with GCC is preferred, ironically
-# # Clang works on OS X, but has mixed success on Linux and the BSDs
-# # Cleanup afterward; frees several hundred megabytes
-# make clean && make clean_clang
-# }}}
-
-# cd "$cwd"
-
-echo
-echo ' ANTIGEN' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
-
-antigen update
-antigen cleanup
-
-echo
-echo ' UPGRADE DONE' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
-
+message 'UPGRADE DONE' 

@@ -1,0 +1,11 @@
+#!/usr/bin/env zsh
+
+/usr/local/bin/npm install --global npm
+/usr/local/bin/npm install --global neovim
+
+while read package ; do
+  /usr/local/bin/npm install --global "$package"
+done < <(cat $HOME/.defaults/npm-packages)
+
+/usr/local/bin/npm upgrade --global
+

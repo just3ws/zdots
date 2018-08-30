@@ -1,0 +1,9 @@
+#!/usr/bin/env zsh
+
+local version="$(rbenv version-name)"
+local gemset="$(rbenv gemset active 2> /dev/null)"
+if [[ "$gemset" == '' ]]; then 
+  print "$version"
+else
+  print "$version@$(print $gemset | cut -d' ' -f1)"
+fi
