@@ -1,0 +1,11 @@
+#!/usr/bin/env zsh
+
+/usr/local/bin/pip2 install --no-cache-dir --upgrade pip
+/usr/local/bin/pip2 install --no-cache-dir --upgrade setuptools
+/usr/local/bin/pip2 install --no-cache-dir --upgrade neovim
+/usr/local/bin/pip2 install --no-cache-dir --upgrade jedi
+/usr/local/bin/pip2 install --no-cache-dir --upgrade solargraph-utils.py
+
+while read pip ; do
+  /usr/local/bin/pip2 install --no-cache-dir --upgrade "$pip"
+done < <(cat $HOME/.defaults/pip2)
