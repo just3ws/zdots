@@ -4,18 +4,38 @@ alias trash=' rmtrash'
 alias delete=' rmtrash'
 alias del=' rmtrash'
 
+alias prunedirs=' rm -d **/*(/^F)'
+
+alias go-dep-install=' dep ensure -v'
+alias go-dep-update=' dep ensure -update -v'
+
+alias WIP=' git commit -am "WIP"'
+
+alias listening-on='lsof -Pni4 | grep LISTEN'
+
+alias mv=' mv'
+alias rm=' rm'
+
 hash -d me="$HOME/Dropbox/mike"
 hash -d mike="$HOME/Dropbox/mike"
 hash -d dertferls="$HOME/Dropbox/mike/dertferls"
 hash -d desktop="$HOME/Desktop"
 hash -d dooty="$HOME/dooty"
 hash -d dropbox="$HOME/Dropbox/mike"
-hash -d vdots="$XDG_CONFIG_HOME/vdots"
-hash -d workspace="$HOME/workspace"
+# hash -d vdots="$XDG_CONFIG_HOME/vim"
+hash -d vdots="$XDG_CONFIG_HOME/nvim"
+hash -d src="$SRC"
+hash -d workspace="$WORKSPACE"
 hash -d xdots="$HOME/.config"
 hash -d zdots="$ZDOTDIR"
+hash -d just3ws="$SRC/github.com/just3ws"
+hash -d ccs="$SRC/github.com/just3ws/ccs"
+
+alias dc="docker-compose"
 
 alias me='nocorrect ~me'
+alias just3ws='nocorrect ~just3ws'
+alias ccs='nocorrect ~ccs'
 alias mike='nocorrect ~mike'
 alias dbox='nocorrect ~dropbox'
 alias dertferls='nocorrect ~dertferls'
@@ -24,12 +44,19 @@ alias desktop='nocorrect ~desktop'
 alias dooty='nocorrect ~dooty'
 alias dropbox='nocorrect ~dropbox'
 alias vdots='nocorrect ~vdots'
-alias wkr='nocorrect ~workspace' # Because I cannot type
-alias work='nocorrect ~workspace'
-alias workspace='nocorrect ~workspace'
-alias wrk='nocorrect ~workspace'
+alias src='nocorrect ~src'
 alias xdots='nocorrect ~xdots'
 alias zdots='nocorrect ~zdots'
+alias workspace='nocorrect ~workspace'
+alias work='nocorrect ~workspace'
+alias wrk='nocorrect ~workspace'
+alias wkr='nocorrect ~workspace'
+
+alias vim='/usr/local/bin/nvim'
+alias vi='/usr/local/bin/nvim'
+# alias vimrc='vim ~vdots/vimrc'
+alias vimrc='vim ~vdots/init.vim'
+
 
 alias -g gi='| grep -i '
 alias -g lx='l -10'
@@ -39,7 +66,6 @@ alias -g lxxx='l -30'
 alias be='bundle exec'
 alias beg='bundle exec guard --clear'
 
-alias g='git'
 alias gba='git branch --all'
 alias gco='git checkout'
 alias gfa='git fetch --all --prune'
@@ -52,15 +78,16 @@ alias egrep='egrep --color=auto --exclude-dir=.git'
 alias fgrep='fgrep --color=auto --exclude-dir=.git'
 alias grep='grep --color=auto --exclude-dir=.git'
 
-alias dircolors='gdircolors'
+# alias dircolors='gdircolors'
 
 alias bounce='reload'
 alias bsl='brew services list'
-alias clear\!='klear'
+alias clear=' clear'
+alias clear\!=' klear'
 alias cwd='pwd | pbcopy'
 
-alias ll='gls --color=tty --human-readable --classify --almost-all --group-directories-first -lctr --time-style=long-iso'
-alias ls='gls --color=tty' # simply override system ls
+alias ll=' ls --color=tty --human-readable --classify --almost-all --group-directories-first -lctr --time-style=long-iso'
+alias ls=' ls --color=tty' # simply override system ls
 
 alias iso8601-local="gdate +\'%Y-%m-%dT%H:%M:%SZ\'"
 alias iso8601-utc="gdate -u +\'%Y-%m-%dT%H:%M:%SZ\'"
@@ -69,7 +96,6 @@ alias timestamp-dir-utc="gdate -u +\'%Y-%m-%d/%H.%M.%2N\'"
 alias timestamp-local="gdate +\'%Y-%m-%dT%H.%M.%2N\'"
 alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"
 
-alias vimrc='vim ~vdots/init.vim'
 alias zshenv='vim ~zdots/.zshenv'
 alias zshrc='vim ~zdots/.zshrc'
 alias antigenrc='vim ~zdots/.antigenrc'
@@ -113,3 +139,9 @@ alias -s txt=vim
 alias -s vim=vim
 alias -s xml=vim
 alias -s yml=vim
+
+alias g='jump'
+alias s='bookmark'
+alias d='deletemark'
+alias p='showmarks'
+alias l='showmarks'

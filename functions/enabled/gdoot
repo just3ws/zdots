@@ -5,7 +5,7 @@ local dootcat="$1"
 local owner="$2"
 local repo="$3"
 
-mkdir -p $HOME/.cache/dooty/doots/$dootcat
+mkdir -p $XDG_CACHE_HOME/dooty/doots/$dootcat
 mkdir -p $HOME/dooty/doots/$dootcat
 
 cd $HOME/dooty/doots/$dootcat
@@ -44,8 +44,8 @@ else
     echo "git clone: success"
     cd ${repo}
 
-    git fetch --all --prune
-    git submodule update --init --recursive
+    # git fetch --all --prune
+    # git submodule update --init --recursive
 
   elif [[ $_git_exit_code == '128' ]] ; then
     echo "git clone: error: $_git_exit_code"

@@ -4,18 +4,17 @@ source /usr/local/share/antigen/antigen.zsh
 
 antigen use oh-my-zsh
 
-source $ZDOTDIR/.zpromptrc
-antigen theme bhilburn/powerlevel9k powerlevel9k
+antigen bundle Tarrasch/zsh-functional
+antigen bundle mafredri/zsh-async
 
-antigen bundles <<EOBUNDLES
-  vi-mode
-  mafredri/zsh-async
-EOBUNDLES
+SPACESHIP_RUBY_SYMBOL=' '
+SPACESHIP_GIT_SYMBOL=' '
+SPACESHIP_GOLANG_SYMBOL=' ' #    
+SPACESHIP_DOCKER_SYMBOL=' '
+antigen theme denysdovhan/spaceship-prompt spaceship
 
-# zsh-users/zsh-completions
-# zsh-users/zsh-navigation-tools
-# zsh-users/zsh-autosuggestions
-# zsh-users/zsh-history-substring-search
-# zsh-users/zsh-syntax-highlighting
+antigen bundle jocelynmallon/zshmarks
+antigen bundle zpm-zsh/autoenv
+antigen bundle zsh-users/zsh-syntax-highlighting
 
 antigen apply

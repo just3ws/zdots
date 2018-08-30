@@ -1,9 +1,5 @@
 #!/usr/bin/env zsh
 
-echo
-echo ' RUBY' | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
-echo
-
 /usr/local/bin/gem update --system
 /usr/local/bin/gem install bundler --pre
 /usr/local/bin/gem install neovim

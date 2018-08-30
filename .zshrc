@@ -47,20 +47,8 @@ setopt share_history
 zstyle :omz:plugins:ssh-agent agent-forwarding on
 zstyle :omz:plugins:ssh-agent identities 'id_just3ws@github' 'id_just3ws@bitbucket' 'id_rsa-iam-mike'
 
-zle -N znt-history-widget
-bindkey "^R" znt-history-widget
-
-case $TERM in
-    xterm*)
-        precmd () { print -Pn "\e]0;%~\a" }
-        ;;
-esac
-
-zmodload zsh/zpty
-
 source "$ZDOTDIR/.antigenrc"
 source "$ZDOTDIR/.aliasrc"
-source "$ZDOTDIR/.iterm2_shell_integration.zsh"
 
 bindkey '^P' up-line-or-history
 bindkey '^N' down-line-or-history
@@ -68,25 +56,46 @@ bindkey '^N' down-line-or-history
 autoload -Uz colors && colors
 zstyle :completion:*:default list-colors "${(s.:.)LS_COLORS}"
 
-bindkey '^[[A' history-substring-search-up
-bindkey '^[[B' history-substring-search-down
-bindkey -M emacs '^P' history-substring-search-up
-bindkey -M emacs '^N' history-substring-search-down
-bindkey -M vicmd 'k' history-substring-search-up
-bindkey -M vicmd 'j' history-substring-search-down
-
 # Enable Ctrl-x-e to edit command line
 autoload -Uz edit-command-line
 zle -N edit-command-line
-# Emacs style
+
 bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
-# Vi style:
 bindkey -M vicmd v edit-command-line
 
 eval "$(rbenv init -)"
 
-source /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-source /usr/local/share/zsh-navigation-tools/zsh-navigation-tools.plugin.zsh
-source /usr/local/share/zsh-history-substring-search/zsh-history-substring-search.zsh
-source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+# {{{ FZF
+source '/usr/local/opt/fzf/shell/completion.zsh'
+source '/usr/local/opt/fzf/shell/key-bindings.zsh'
+
+export FZF_DEFAULT_OPTS=' --color=dark --color=bg+:#3B4252,bg:#2E3440,spinner:#D08770,hl:#EBCB8B --color=fg:#D8DEE9,header:#EBCB8B,info:#5E81AC,pointer:#D08770 --color=marker:#D08770,fg+:#ECEFF4,prompt:#5E81AC,hl+:#EBCB8B '
+export FZF_DEFAULT_OPTS=" --tabstop=2 --border --inline-info --cycle $FZF_DEFAULT_OPTS"
+
+export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview'"
+export FZF_COMPLETION_TRIGGER=''
+
+export FZF_CTRL_T_OPTS="--select-1 --exit-0"
+
+export FZF_ALT_C_OPTS="--preview 'tree -C {} | head -200'"
+
+fzf-history-widget-accept() {
+  fzf-history-widget
+  zle accept-line
+}
+
+zmodload zsh/zpty # Required for Vim autocompletion via deoplete-zsh
+
+zle     -N     fzf-history-widget-accept
+bindkey '^X^R' fzf-history-widget-accept
+
+bindkey '^T' fzf-completion
+bindkey '^I' $fzf_default_completion
+# }}}
+
+## Base16 Shell
+BASE16_SHELL="$HOME/.config/base16-shell/"
+[ -n "$PS1" ] && \
+    [ -s "$BASE16_SHELL/profile_helper.sh" ] && \
+        eval "$("$BASE16_SHELL/profile_helper.sh")"
