@@ -1,2 +1,98 @@
 # vim:ft=zsh
 
+# https://raw.githubusercontent.com/denysdovhan/spaceship-prompt/master/docs/Options.md
+
+# ¤  •  …  ↑  →  ↓  ↵  √  ⌫  ⎈  ⏎  ─  ├  ├─  ╭  ╭─  ╰  ╰─  ●  ⚡  ✘  ✚      
+#                                                   
+#                                                   
+#                                                   
+#                                                   
+#                                                   
+#                                                   
+#                                                   
+#                                                   
+
+# DISABLED
+export SPACESHIP_AWS_SHOW=false
+export SPACESHIP_CONDA_SHOW=false
+export SPACESHIP_DOTNET_SHOW=false
+export SPACESHIP_ELIXIR_SHOW=false
+export SPACESHIP_GOLANG_SHOW=false
+export SPACESHIP_HASKELL_SHOW=false
+export SPACESHIP_HG_BRANCH_SHOW=false
+export SPACESHIP_HG_SHOW=false
+export SPACESHIP_HG_STATUS_SHOW=false
+export SPACESHIP_HOST_SHOW=false
+export SPACESHIP_HOST_SHOW_FULL=false
+export SPACESHIP_JULIA_SHOW=false
+export SPACESHIP_KUBECONTEXT_SHOW=false
+export SPACESHIP_PACKAGE_SHOW=false
+export SPACESHIP_PYENV_SHOW=true
+export SPACESHIP_RUST_SHOW=false
+export SPACESHIP_SWIFT_SHOW_GLOBAL=false
+export SPACESHIP_SWIFT_SHOW_LOCAL=false
+export SPACESHIP_USER_SHOW=false
+export SPACESHIP_VENV_SHOW=true
+export SPACESHIP_XCODE_SHOW_GLOBAL=false
+export SPACESHIP_XCODE_SHOW_LOCAL=false
+
+# ENABLED
+export SPACESHIP_BATTERY_SHOW=true
+export SPACESHIP_DIR_SHOW=true
+export SPACESHIP_DOCKER_SHOW=true
+export SPACESHIP_EMBER_SHOW=true
+export SPACESHIP_EXEC_TIME_SHOW=true
+export SPACESHIP_EXIT_CODE_SHOW=true
+export SPACESHIP_GIT_BRANCH_SHOW=true
+export SPACESHIP_GIT_SHOW=true
+export SPACESHIP_GIT_STATUS_SHOW=true
+export SPACESHIP_JOBS_SHOW=true
+export SPACESHIP_NODE_SHOW=true
+export SPACESHIP_PHP_SHOW=true
+export SPACESHIP_PROMPT_FIRST_PREFIX_SHOW=true
+export SPACESHIP_PROMPT_PREFIXES_SHOW=true
+export SPACESHIP_PROMPT_SUFFIXES_SHOW=true
+export SPACESHIP_RUBY_SHOW=true
+export SPACESHIP_TIME_SHOW=false
+export SPACESHIP_VI_MODE_SHOW=true
+
+# OVERRIDES
+export SPACESHIP_PROMPT_DEFAULT_PREFIX=''
+export SPACESHIP_CHAR_SYMBOL=' '
+export SPACESHIP_DIR_PREFIX=''
+export SPACESHIP_DOCKER_SYMBOL=' '
+export SPACESHIP_EMBER_SYMBOL=' '
+export SPACESHIP_EXIT_CODE_SYMBOL=' '
+export SPACESHIP_GIT_SYMBOL=' '
+export SPACESHIP_GOLANG_SYMBOL=' '
+export SPACESHIP_NODE_SYMBOL=' '
+export SPACESHIP_PHP_SYMBOL=' '
+export SPACESHIP_PROMPT_ADD_NEWLINE=true
+export SPACESHIP_PROMPT_SEPARATE_LINE=true
+export SPACESHIP_RUBY_SYMBOL=' '
+export SPACESHIP_TIME_PREFIX=''
+
+export SPACESHIP_PROMPT_ORDER=(
+  time          # Time stampts section
+  user          # Username section
+  dir           # Current directory section
+  host          # Hostname section
+  git           # Git section (git_branch + git_status)
+  node          # Node.js section
+  ruby          # Ruby section
+  venv
+  pyenv
+  php           # PHP section
+  docker        # Docker section
+  ember         # Ember.js section
+  exec_time     # Execution time
+  line_sep      # Line break
+  battery       # Battery level and status
+  vi_mode       # Vi-mode indicator
+  jobs          # Background jobs indicator
+  exit_code     # Exit code section
+  char          # Prompt character
+)
+
+export SPACESHIP_RPROMPT_ORDER=()
+

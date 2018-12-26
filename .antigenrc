@@ -7,10 +7,7 @@ antigen use oh-my-zsh
 antigen bundle Tarrasch/zsh-functional
 antigen bundle mafredri/zsh-async
 
-SPACESHIP_RUBY_SYMBOL=' '
-SPACESHIP_GIT_SYMBOL=' '
-SPACESHIP_GOLANG_SYMBOL=' ' #    
-SPACESHIP_DOCKER_SYMBOL=' '
+source $ZDOTDIR/.spaceshiprc
 antigen theme denysdovhan/spaceship-prompt spaceship
 
 antigen bundle jocelynmallon/zshmarks

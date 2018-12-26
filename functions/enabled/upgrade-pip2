@@ -8,4 +8,4 @@
 
 while read pip ; do
   /usr/local/bin/pip2 install --no-cache-dir --upgrade "$pip"
-done < <(cat $HOME/.defaults/pip2)
+done < <(cat $HOME/.config/upgrade/pip2)

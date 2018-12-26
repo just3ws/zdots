@@ -1,20 +1,13 @@
 # vim:ft=zsh
 
-alias trash=' rmtrash'
-alias delete=' rmtrash'
-alias del=' rmtrash'
+alias prunedirs='rm -d **/*(/^F)'
 
-alias prunedirs=' rm -d **/*(/^F)'
+alias go-dep-install='dep ensure -v'
+alias go-dep-update='dep ensure -update -v'
 
-alias go-dep-install=' dep ensure -v'
-alias go-dep-update=' dep ensure -update -v'
-
-alias WIP=' git commit -am "WIP"'
+alias WIP='git commit -am "WIP"'
 
 alias listening-on='lsof -Pni4 | grep LISTEN'
-
-alias mv=' mv'
-alias rm=' rm'
 
 hash -d me="$HOME/Dropbox/mike"
 hash -d mike="$HOME/Dropbox/mike"
@@ -52,8 +45,8 @@ alias work='nocorrect ~workspace'
 alias wrk='nocorrect ~workspace'
 alias wkr='nocorrect ~workspace'
 
-alias vim='/usr/local/bin/nvim'
-alias vi='/usr/local/bin/nvim'
+alias vim='/usr/local/bin/mvim -v'
+alias vi='/usr/local/bin/mvim -v'
 # alias vimrc='vim ~vdots/vimrc'
 alias vimrc='vim ~vdots/init.vim'
 
@@ -82,12 +75,12 @@ alias grep='grep --color=auto --exclude-dir=.git'
 
 alias bounce='reload'
 alias bsl='brew services list'
-alias clear=' clear'
-alias clear\!=' klear'
+alias clear='clear'
+alias clear\!='klear'
 alias cwd='pwd | pbcopy'
 
-alias ll=' ls --color=tty --human-readable --classify --almost-all --group-directories-first -lctr --time-style=long-iso'
-alias ls=' ls --color=tty' # simply override system ls
+alias ll='ls --color=tty --human-readable --classify --almost-all --group-directories-first -lctr --time-style=long-iso'
+alias ls='ls --color=tty' # simply override system ls
 
 alias iso8601-local="gdate +\'%Y-%m-%dT%H:%M:%SZ\'"
 alias iso8601-utc="gdate -u +\'%Y-%m-%dT%H:%M:%SZ\'"
