@@ -1,15 +1,13 @@
 #!/usr/bin/env zsh
 
-/usr/local/bin/gem update --system
-/usr/local/bin/gem install bundler --pre
-/usr/local/bin/gem install neovim
-/usr/local/bin/gem install solargraph
-/usr/local/bin/gem install yard
-/usr/local/bin/yard config --gem-install-yri
+/usr/local/opt/ruby/bin/gem update --system
+/usr/local/opt/ruby/bin/gem install bundler --pre
+/usr/local/opt/ruby/bin/gem install neovim
+/usr/local/opt/ruby/bin/gem install solargraph
+/usr/local/opt/ruby/bin/gem install yard
 
 while read gem ; do
-  /usr/local/bin/gem install "$gem" --force
-done < <(cat $HOME/.defaults/gems)
+  /usr/local/opt/ruby/bin/gem install "$gem" --force
+done < <(cat $HOME/.config/upgrade/gems)
 
-/usr/local/bin/gem update
-/usr/local/bin/yard gems
+/usr/local/opt/ruby/bin/gem update

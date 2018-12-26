@@ -2,8 +2,10 @@
 # vim:set ft=zsh:
 
 local word="$1"
-local filter=".items[] | { repository: .full_name, username: .owner.login, reponame: .name, branch: .default_branch, description: .description }"
-local query="q=$word in:path fork:false"
+# local filter=".items[] | { repository: .full_name, username: .owner.login, reponame: .name, branch: .default_branch, description: .description }"
+# local filter=".items[] | { username: .owner.login, reponame: .name, branch: .default_branch }"
+local filter=".items[] | [ .full_name, .default_branch ]"
+local query="q=fork:false in:path $word"
 # local query="q=evil fork:false language:\"Emacs Lisp\""
 echo -n '{"query": "'
 echo -n "$query"
@@ -36,7 +38,7 @@ do
       --data-urlencode "per_page=50" \
       --header "Accept: application/vnd.github.preview" 2>/dev/null | \
       jq --ascii-output --compact-output  --monochrome-output "$filter" 2> /dev/null \
-      )
+    )
 
     if [[ "$?" != '0' ]]; then
       return 0
