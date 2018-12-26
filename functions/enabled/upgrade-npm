@@ -5,7 +5,7 @@
 
 while read package ; do
   /usr/local/bin/npm install --global "$package"
-done < <(cat $HOME/.defaults/npm-packages)
+done < <(cat $HOME/.config/upgrade/npm-packages)
 
 /usr/local/bin/npm upgrade --global
 

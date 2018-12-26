@@ -9,5 +9,5 @@
 
 while read pip ; do
   /usr/local/bin/pip3 install --no-cache-dir --upgrade "$pip"
-done < <(cat $HOME/.defaults/pip3)
+done < <(cat $HOME/.config/upgrade/pip3)
 

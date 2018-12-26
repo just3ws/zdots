@@ -28,13 +28,16 @@ fpath=(
   $fpath
 )
 
+  # /usr/local/opt/{apr,apr-util}/bin
+
 path=(
   ./bin
   $GOBIN
-  /usr/local/opt/php/bin
+  /usr/local/opt/{ruby,php}/bin
+  /usr/local/opt/{coreutils,findutils}/libexec/gnubin
   /usr/local/opt/{go,python}/libexec/bin
-  /usr/local/opt/{coreutils,findutils,make,gnu-sed,gnu-tar}/libexec/gnubin
-  /usr/local/opt/{apr,apr-util,file-formula,fzf,gnu-getopt,imagemagick@6,m4}/bin
+  /usr/local/opt/{make,gnu-sed,gnu-tar}/libexec/gnubin
+  /usr/local/opt/{file-formula,fzf,gnu-getopt,imagemagick@6,m4}/bin
   /usr/local/{bin,sbin}
   /usr/{bin,sbin}
   /{bin,sbin}
