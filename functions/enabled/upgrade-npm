@@ -8,4 +8,3 @@ while read package ; do
 done < <(cat $HOME/.config/upgrade/npm-packages)
 
 /usr/local/bin/npm upgrade --global
-

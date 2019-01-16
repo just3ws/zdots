@@ -1,0 +1,73 @@
+#!/usr/bin/env zsh
+
+local option="$1"
+
+if [ -z "$option" ]
+then
+  cd ~sk
+  return 0
+fi
+
+case "$option" in
+  (app)
+    cd "$SKPATH/mr-skin/mr-skin-rails"
+    ;;
+
+  (msc)
+    cd "$SKPATH/nats/affiliate-tracking"
+    ;;
+
+  (auth)
+
+    if [[ "$2" == 'client' ]] ; then
+      cd "$SKPATH/sk-auth/sk-auth-client"
+    else
+      cd "$SKPATH/sk-auth/sk-auth-app"
+    fi
+    ;;
+
+  (billing)
+    if [[ "$2" == 'client' ]] ; then
+      cd "$SKPATH/sk-billing/sk-billing-client"
+    else
+      cd "$SKPATH/sk-billing/sk-billing-app"
+    fi
+    ;;
+
+  (branches)
+    sk-all-do 'git rev-parse --abbrev-ref head'
+    ;;
+
+  (fetch)
+    sk-all-do 'git fetch --all --prune --verbose'
+    ;;
+
+  (pull)
+    sk-all-do 'git pull --rebase --autostash'
+    ;;
+
+  (bundle)
+    sk-all-do 'bundle check || bundle install' # ; rbenv rehash'
+    ;;
+
+  (status)
+    sk-all-do 'git status --short'
+    ;;
+
+  (ggc)
+    sk-all-do 'git gc --aggressive'
+    ;;
+
+  (help)
+    print "No args will \`cd\` to the $SKPATH."
+    ;;
+
+  (*)
+    echo
+    echo "I don't know what to do with: '$@'"
+    echo
+    sk help
+    return 1
+    ;;
+esac
+return 0
