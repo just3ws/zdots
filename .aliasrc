@@ -9,47 +9,32 @@ alias WIP='git commit -am "WIP"'
 
 alias listening-on='lsof -Pni4 | grep LISTEN'
 
-hash -d me="$HOME/Dropbox/mike"
 hash -d mike="$HOME/Dropbox/mike"
-hash -d dertferls="$HOME/Dropbox/mike/dertferls"
 hash -d desktop="$HOME/Desktop"
-hash -d dooty="$HOME/dooty"
 hash -d dropbox="$HOME/Dropbox/mike"
-# hash -d vdots="$XDG_CONFIG_HOME/vim"
 hash -d vdots="$XDG_CONFIG_HOME/nvim"
 hash -d src="$SRC"
-hash -d workspace="$WORKSPACE"
 hash -d xdots="$HOME/.config"
 hash -d zdots="$ZDOTDIR"
-hash -d just3ws="$SRC/github.com/just3ws"
-hash -d ccs="$SRC/github.com/just3ws/ccs"
+
+hash -d sk="$SRC/git.skintertainment.com"
 
 alias dc="docker-compose"
 
-alias me='nocorrect ~me'
-alias just3ws='nocorrect ~just3ws'
-alias ccs='nocorrect ~ccs'
 alias mike='nocorrect ~mike'
-alias dbox='nocorrect ~dropbox'
-alias dertferls='nocorrect ~dertferls'
-alias desk='nocorrect ~desktop'
 alias desktop='nocorrect ~desktop'
-alias dooty='nocorrect ~dooty'
 alias dropbox='nocorrect ~dropbox'
 alias vdots='nocorrect ~vdots'
 alias src='nocorrect ~src'
 alias xdots='nocorrect ~xdots'
 alias zdots='nocorrect ~zdots'
-alias workspace='nocorrect ~workspace'
-alias work='nocorrect ~workspace'
-alias wrk='nocorrect ~workspace'
-alias wkr='nocorrect ~workspace'
+
+alias cat='bat'
 
 alias vim='/usr/local/bin/mvim -v'
 alias vi='/usr/local/bin/mvim -v'
-# alias vimrc='vim ~vdots/vimrc'
 alias vimrc='vim ~vdots/init.vim'
-
+alias gvimrc='vim ~vdots/.gvimrc'
 
 alias -g gi='| grep -i '
 alias -g lx='l -10'
@@ -80,7 +65,7 @@ alias clear\!='klear'
 alias cwd='pwd | pbcopy'
 
 alias ll='ls --color=tty --human-readable --classify --almost-all --group-directories-first -lctr --time-style=long-iso'
-alias ls='ls --color=tty' # simply override system ls
+# alias ls='ls --color=tty' # simply override system ls
 
 alias iso8601-local="gdate +\'%Y-%m-%dT%H:%M:%SZ\'"
 alias iso8601-utc="gdate -u +\'%Y-%m-%dT%H:%M:%SZ\'"
@@ -89,11 +74,12 @@ alias timestamp-dir-utc="gdate -u +\'%Y-%m-%d/%H.%M.%2N\'"
 alias timestamp-local="gdate +\'%Y-%m-%dT%H.%M.%2N\'"
 alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"
 
+alias aliasrc='vim ~zdots/.aliasrc'
+alias antigenrc='vim ~zdots/.antigenrc'
+alias spaceshiprc='vim ~zdots/.spaceshiprc'
+alias zpromptrc='vim ~zdots/.zpromptrc'
 alias zshenv='vim ~zdots/.zshenv'
 alias zshrc='vim ~zdots/.zshrc'
-alias antigenrc='vim ~zdots/.antigenrc'
-alias aliasrc='vim ~zdots/.aliasrc'
-alias zpromptrc='vim ~zdots/.zpromptrc'
 
 alias acrobat='open -a Adobe\ Acrobat\ Reader\ DC'
 # alias chrome-canary='/Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary'

@@ -78,6 +78,12 @@ export SPACESHIP_RBENV_SUFFIX="${SPACESHIP_RBENV_SUFFIX="$SPACESHIP_PROMPT_DEFAU
 export SPACESHIP_RBENV_SYMBOL="${SPACESHIP_RBENV_SYMBOL=" "}"
 export SPACESHIP_RBENV_COLOR="${SPACESHIP_RBENV_COLOR="red"}"
 
+export SPACESHIP_RVM_SHOW="${SPACESHIP_RVM_SHOW=true}"
+export SPACESHIP_RVM_PREFIX="${SPACESHIP_RVM_PREFIX="$SPACESHIP_PROMPT_DEFAULT_PREFIX"}"
+export SPACESHIP_RVM_SUFFIX="${SPACESHIP_RVM_SUFFIX="$SPACESHIP_PROMPT_DEFAULT_SUFFIX"}"
+export SPACESHIP_RVM_SYMBOL="${SPACESHIP_RVM_SYMBOL=" "}"
+export SPACESHIP_RVM_COLOR="${SPACESHIP_RVM_COLOR="red"}"
+
 spaceship_rbenv() {
   [[ $SPACESHIP_RBENV_SHOW == false ]] && return
 
@@ -104,6 +110,22 @@ spaceship_rbenv() {
     "$SPACESHIP_RBENV_SUFFIX"
 }
 
+spaceship_rvm() {
+  [[ $SPACESHIP_RVM_SHOW == false ]] && return
+
+  spaceship::exists rvm || return
+
+  local 'rvm_status'
+
+  rvm_status="$(rvm current)"
+
+  spaceship::section \
+    "$SPACESHIP_RVM_COLOR" \
+    "$SPACESHIP_RVM_PREFIX" \
+    "$SPACESHIP_RVM_SYMBOL$rvm_status " \
+    "$SPACESHIP_RVM_SUFFIX"
+}
+
 export SPACESHIP_PROMPT_ORDER=(
   time
   user
@@ -115,7 +137,7 @@ export SPACESHIP_PROMPT_ORDER=(
   pyenv
   docker
   ember
-  rbenv
+  rvm 
   exec_time
   line_sep
   battery
@@ -126,4 +148,3 @@ export SPACESHIP_PROMPT_ORDER=(
 )
 
 export SPACESHIP_RPROMPT_ORDER=()
-

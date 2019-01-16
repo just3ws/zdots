@@ -17,6 +17,7 @@ export HYPHEN_INSENSITIVE=true
 export HISTFILE="$XDG_DATA_HOME/zsh/history"
 export KEYTIMEOUT=1
 export WORDCHARS='*?.[]~=&;!#$%^(){}<>@'
+export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting/highlighters
 
 for fn in $ZDOTDIR/functions/enabled/*(.x); do
   autoload -Uz "$(basename $fn)"
@@ -33,7 +34,7 @@ fpath=(
 path=(
   ./bin
   $GOBIN
-  /usr/local/opt/{ruby,php}/bin
+  /usr/local/opt/{ruby,php,mysql@5.6}/bin
   /usr/local/opt/{coreutils,findutils}/libexec/gnubin
   /usr/local/opt/{go,python}/libexec/bin
   /usr/local/opt/{make,gnu-sed,gnu-tar}/libexec/gnubin
