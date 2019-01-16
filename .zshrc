@@ -64,14 +64,14 @@ bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
-eval "$(rbenv init -)"
+# eval "$(rbenv init -)"
 
 # {{{ FZF
 source '/usr/local/opt/fzf/shell/completion.zsh'
 source '/usr/local/opt/fzf/shell/key-bindings.zsh'
 
-export FZF_DEFAULT_OPTS=' --color=dark --color=bg+:#3B4252,bg:#2E3440,spinner:#D08770,hl:#EBCB8B --color=fg:#D8DEE9,header:#EBCB8B,info:#5E81AC,pointer:#D08770 --color=marker:#D08770,fg+:#ECEFF4,prompt:#5E81AC,hl+:#EBCB8B '
-export FZF_DEFAULT_OPTS=" --tabstop=2 --border --inline-info --cycle $FZF_DEFAULT_OPTS"
+# export FZF_DEFAULT_OPTS=' --color=dark --color=bg+:#3B4252,bg:#2E3440,spinner:#D08770,hl:#EBCB8B --color=fg:#D8DEE9,header:#EBCB8B,info:#5E81AC,pointer:#D08770 --color=marker:#D08770,fg+:#ECEFF4,prompt:#5E81AC,hl+:#EBCB8B '
+export FZF_DEFAULT_OPTS=' --tabstop=2 --border --inline-info --cycle --color=dark '
 
 export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview'"
 export FZF_COMPLETION_TRIGGER=''
@@ -93,3 +93,6 @@ bindkey '^X^R' fzf-history-widget-accept
 bindkey '^T' fzf-completion
 bindkey '^I' $fzf_default_completion
 # }}}
+
+# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
+export PATH="$PATH:$HOME/.rvm/bin"
