@@ -10,7 +10,13 @@ fi
 
 case "$option" in
   (app)
-    cd "$SKPATH/mr-skin/mr-skin-rails"
+
+    if [[ "$2" == 'admin' ]] ; then
+      cd "$SKPATH/mr-skin/mr-skin-rails/engines/mrskin_admin"
+    else
+      cd "$SKPATH/mr-skin/mr-skin-rails"
+    fi
+
     ;;
 
   (msc)
@@ -24,6 +30,10 @@ case "$option" in
     else
       cd "$SKPATH/sk-auth/sk-auth-app"
     fi
+    ;;
+
+  (email)
+    cd "$SKPATH/customer-email-system/core"
     ;;
 
   (billing)
