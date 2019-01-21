@@ -137,7 +137,7 @@ export SPACESHIP_PROMPT_ORDER=(
   pyenv
   docker
   ember
-  rvm 
+  rbenv
   exec_time
   line_sep
   battery
