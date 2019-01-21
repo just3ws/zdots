@@ -64,7 +64,7 @@ bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
-# eval "$(rbenv init -)"
+eval "$(rbenv init -)"
 
 # {{{ FZF
 source '/usr/local/opt/fzf/shell/completion.zsh'
@@ -93,6 +93,3 @@ bindkey '^X^R' fzf-history-widget-accept
 bindkey '^T' fzf-completion
 bindkey '^I' $fzf_default_completion
 # }}}
-
-# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
-export PATH="$PATH:$HOME/.rvm/bin"
