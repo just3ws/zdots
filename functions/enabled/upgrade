@@ -15,25 +15,26 @@ upgrade-homebrew
 message 'MACOS'
 upgrade-macos
 
+message 'VIM PLUGINS'
+upgrade-vim
+
 message 'RUBY'
 upgrade-ruby
 
-message 'PIP2'
-upgrade-pip2
-
-message 'PIP2'
+message 'PIP3'
 upgrade-pip3
-
-# upgrade 'CONDA' 
-# upgrade-conda
 
 message 'NPM' 
 upgrade-npm
 
-message 'VIM PLUGINS'
-upgrade-vim
+message 'CABAL'
+upgrade-cabal
+
+message 'PIP2'
+upgrade-pip2
 
 message 'ANTIGEN'
 upgrade-antigen
 
 message 'UPGRADE DONE' 
+

@@ -6,3 +6,4 @@ antigen reset
 /bin/rm -rf $XDG_DATA_HOME/**/.zcomp*
 /bin/rm -rf $XDG_CACHE_HOME/**.zwc
 /bin/rm -rf $XDG_CONFIG_HOME/**.zwc
+

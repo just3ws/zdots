@@ -29,25 +29,31 @@ fpath=(
   $fpath
 )
 
-  # /usr/local/opt/{apr,apr-util}/bin
+# ./bin
+# /usr/local/opt/{apr,apr-util}/bin
+# /usr/local/opt/{coreutils,findutils}/libexec/gnubin
+# /usr/local/opt/{file-formula,fzf,gnu-getopt,imagemagick@6,m4}/bin
+# /usr/local/opt/{make,gnu-sed,gnu-tar}/libexec/gnubin
+# /usr/local/opt/{ruby,mysql@5.6}/bin
+#
+#   /Applications/MySQLWorkbench.app/Contents/MacOS
+#   /Users/mike/.local/share/nvim/plugged/vim-iced/bin
 
 path=(
-  ./bin
-  $GOBIN
-  /usr/local/opt/{ruby,php,mysql@5.6}/bin
-  /usr/local/opt/{coreutils,findutils}/libexec/gnubin
+  /usr/local/opt/mysql@5.6/bin
+  /usr/local/opt/ruby/bin
   /usr/local/opt/{go,python}/libexec/bin
-  /usr/local/opt/{make,gnu-sed,gnu-tar}/libexec/gnubin
-  /usr/local/opt/{file-formula,fzf,gnu-getopt,imagemagick@6,m4}/bin
+  /usr/local/opt/{fzf,imagemagick@6}/bin
+  $GOBIN
   /usr/local/{bin,sbin}
   /usr/{bin,sbin}
   /{bin,sbin}
   $path
 )
 
-manpath=(
-  /usr/local/opt/{coreutils,gnu-sed,gnu-tar,make}/libexec/gnuman
-  $manpath
-)
+# manpath=(
+#   /usr/local/opt/{coreutils,gnu-sed,gnu-tar,make}/libexec/gnuman
+#   $manpath
+# )
 
 typeset -gU cdpath fignore fpath mailpath path
