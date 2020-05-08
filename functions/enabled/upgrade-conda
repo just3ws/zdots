@@ -1,5 +1,0 @@
-#!/usr/bin/env zsh
-
-# /usr/local/anaconda3/bin/conda update -n base conda
-# /usr/local/anaconda3/bin/conda update --all
-

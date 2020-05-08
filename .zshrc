@@ -44,8 +44,8 @@ setopt hist_verify
 setopt inc_append_history
 setopt share_history
 
-zstyle :omz:plugins:ssh-agent agent-forwarding on
-zstyle :omz:plugins:ssh-agent identities 'id_just3ws@github' 'id_just3ws@bitbucket' 'id_rsa-iam-mike'
+# zstyle :omz:plugins:ssh-agent agent-forwarding on
+# zstyle :omz:plugins:ssh-agent identities 'id_just3ws@github' 'id_just3ws@bitbucket' 'id_rsa-iam-mike'
 
 source "$ZDOTDIR/.antigenrc"
 source "$ZDOTDIR/.aliasrc"
@@ -70,26 +70,44 @@ eval "$(rbenv init -)"
 source '/usr/local/opt/fzf/shell/completion.zsh'
 source '/usr/local/opt/fzf/shell/key-bindings.zsh'
 
-# export FZF_DEFAULT_OPTS=' --color=dark --color=bg+:#3B4252,bg:#2E3440,spinner:#D08770,hl:#EBCB8B --color=fg:#D8DEE9,header:#EBCB8B,info:#5E81AC,pointer:#D08770 --color=marker:#D08770,fg+:#ECEFF4,prompt:#5E81AC,hl+:#EBCB8B '
-export FZF_DEFAULT_OPTS=' --tabstop=2 --border --inline-info --cycle --color=dark '
+# # export FZF_DEFAULT_OPTS=' --color=dark --color=bg+:#3B4252,bg:#2E3440,spinner:#D08770,hl:#EBCB8B --color=fg:#D8DEE9,header:#EBCB8B,info:#5E81AC,pointer:#D08770 --color=marker:#D08770,fg+:#ECEFF4,prompt:#5E81AC,hl+:#EBCB8B '
+# export FZF_DEFAULT_OPTS=' ' # --color=dark '
+#   --tabstop=2 --border --inline-info --cycle 
 
-export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview'"
+export FZF_DEFAULT_OPTS='
+  --color fg:255,bg:236,hl:84,fg+:255,bg+:236,hl+:215
+  --color info:141,prompt:84,spinner:212,pointer:212,marker:212
+'
+
+# export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview'"
 export FZF_COMPLETION_TRIGGER=''
 
 export FZF_CTRL_T_OPTS="--select-1 --exit-0"
 
 export FZF_ALT_C_OPTS="--preview 'tree -C {} | head -200'"
 
-fzf-history-widget-accept() {
+export FZF_DEFAULT_COMMAND='ag --hidden --ignore .git -g ""'
+
+fzf-history-widget-accept () {
   fzf-history-widget
   zle accept-line
 }
 
 zmodload zsh/zpty # Required for Vim autocompletion via deoplete-zsh
 
-zle     -N     fzf-history-widget-accept
+zle -N fzf-history-widget-accept
 bindkey '^X^R' fzf-history-widget-accept
 
 bindkey '^T' fzf-completion
 bindkey '^I' $fzf_default_completion
 # }}}
+
+# [ -f /usr/local/etc/profile.d/autojump.sh ] && . /usr/local/etc/profile.d/autojump.sh
+
+HEROKU_AC_ZSH_SETUP_PATH=/Users/mike/Library/Caches/heroku/autocomplete/zsh_setup && test -f $HEROKU_AC_ZSH_SETUP_PATH && source $HEROKU_AC_ZSH_SETUP_PATH;
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"

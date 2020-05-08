@@ -2,5 +2,4 @@
 
 brew upgrade
 brew cleanup
-brew prune
 

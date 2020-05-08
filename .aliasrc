@@ -10,6 +10,7 @@ alias WIP='git commit -am "WIP"'
 alias listening-on='lsof -Pni4 | grep LISTEN'
 
 hash -d mike="$HOME/Dropbox/mike"
+hash -d desk="$HOME/Desktop"
 hash -d desktop="$HOME/Desktop"
 hash -d dropbox="$HOME/Dropbox/mike"
 hash -d vdots="$XDG_CONFIG_HOME/nvim"
@@ -22,6 +23,7 @@ hash -d sk="$SRC/git.skintertainment.com"
 alias dc="docker-compose"
 
 alias mike='nocorrect ~mike'
+alias desk='nocorrect ~desk'
 alias desktop='nocorrect ~desktop'
 alias dropbox='nocorrect ~dropbox'
 alias vdots='nocorrect ~vdots'
@@ -31,8 +33,14 @@ alias zdots='nocorrect ~zdots'
 
 alias cat='bat'
 
-alias vim='/usr/local/bin/mvim -v'
-alias vi='/usr/local/bin/mvim -v'
+# # MacVim
+# alias vim='/usr/local/bin/mvim -v'
+# alias vi='/usr/local/bin/mvim -v'
+
+# # # Neovim
+alias vim='/usr/local/bin/nvim'
+alias vi='/usr/local/bin/nvim'
+
 alias vimrc='vim ~vdots/init.vim'
 alias gvimrc='vim ~vdots/.gvimrc'
 
@@ -44,6 +52,13 @@ alias -g lxxx='l -30'
 alias be='bundle exec'
 alias beg='bundle exec guard --clear'
 
+alias b="bundle"
+alias bi="b install --path vendor"
+alias bil="bi --local"
+alias bu="b update"
+alias be="b exec"
+alias binit="bi && b package && echo 'vendor/ruby' >> .gitignore"
+
 alias gba='git branch --all'
 alias gco='git checkout'
 alias gfa='git fetch --all --prune'
@@ -52,9 +67,9 @@ alias gs='git status --short'
 alias gss='git status --short'
 alias gwd='git diff --word-diff'
 
-alias egrep='egrep --color=auto --exclude-dir=.git'
-alias fgrep='fgrep --color=auto --exclude-dir=.git'
-alias grep='grep --color=auto --exclude-dir=.git'
+# alias egrep='egrep --color=auto --exclude-dir=.git'
+# alias fgrep='fgrep --color=auto --exclude-dir=.git'
+# alias grep='grep --color=auto --exclude-dir=.git'
 
 # alias dircolors='gdircolors'
 
@@ -64,8 +79,9 @@ alias clear='clear'
 alias clear\!='klear'
 alias cwd='pwd | pbcopy'
 
-alias ll='ls --color=tty --human-readable --classify --almost-all --group-directories-first -lctr --time-style=long-iso'
+# alias ll='gls --color=tty --human-readable --classify --almost-all --group-directories-first -lctr --time-style=long-iso'
 # alias ls='ls --color=tty' # simply override system ls
+# alias ll='ls -alh'
 
 alias iso8601-local="gdate +\'%Y-%m-%dT%H:%M:%SZ\'"
 alias iso8601-utc="gdate -u +\'%Y-%m-%dT%H:%M:%SZ\'"

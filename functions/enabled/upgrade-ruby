@@ -1,5 +1,8 @@
 #!/usr/bin/env zsh
 
+echo "/usr/local/opt/ruby/bin/gem --version"
+/usr/local/opt/ruby/bin/gem --version
+
 /usr/local/opt/ruby/bin/gem update --system
 /usr/local/opt/ruby/bin/gem install bundler --pre
 /usr/local/opt/ruby/bin/gem install neovim
@@ -8,6 +11,7 @@
 
 while read gem ; do
   /usr/local/opt/ruby/bin/gem install "$gem" --force
-done < <(cat $HOME/.config/upgrade/gems)
+done < <(cat $HOME/.config/upgrade/rubygems)
 
 /usr/local/opt/ruby/bin/gem update
+

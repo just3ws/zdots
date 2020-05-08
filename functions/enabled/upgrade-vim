@@ -1,30 +1,5 @@
 #!/usr/bin/env zsh
 
-# /usr/local/bin/vim -v -c ":PackUpdate | :PackClean | :qa"
-/usr/local/bin/nvim -c ":PlugUpgrade | :PlugUpdate | :PlugClean | :qa"
-# /usr/local/bin/nvim -c ":call minpac#update() | :call minpac#clean() | :qa"
-
-# local cwd="$(pwd)"
-
-# cd $HOME/.config/vdots/pack/minpac/start/omnisharp-vim
-# git submodule update --init --recursive
-# cd $HOME/.config/vdots/pack/minpac/start/omnisharp-vim/server
-# msbuild
-
-# cd $HOME/.config/vdots/pack/minpac/start/YouCompleteMe
-# git submodule update --init --recursive
-# ./install.py --all
-
-# {{{ [VIM - color_coded]
-# cd $HOME/.config/vdots/pack/minpac/start/color_coded
-# rm -f CMakeCache.txt
-# mkdir -p build && cd build
-# cmake ..
-# make && make install # Compiling with GCC is preferred, ironically
-# # Clang works on OS X, but has mixed success on Linux and the BSDs
-# # Cleanup afterward; frees several hundred megabytes
-# make clean && make clean_clang
-# }}}
-
-# cd "$cwd"
+/usr/local/bin/nvim --headless -c ':PlugUpgrade | :PlugUpdate | :PlugClean | :qa'
+/usr/local/bin/mvim -v -c ':PlugUpgrade | :PlugUpdate | :PlugClean | :qa'
 
