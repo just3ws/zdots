@@ -132,15 +132,10 @@ export SPACESHIP_PROMPT_ORDER=(
   dir
   host
   git
-  node
-  venv
-  pyenv
-  docker
-  ember
   rbenv
+  node
   exec_time
   line_sep
-  battery
   vi_mode
   jobs
   exit_code
