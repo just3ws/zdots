@@ -64,7 +64,7 @@ bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
-eval "$(rbenv init -)"
+# eval "$(rbenv init -)"
 
 # {{{ FZF
 source '/usr/local/opt/fzf/shell/completion.zsh'
