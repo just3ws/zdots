@@ -1,0 +1,82 @@
+#!/usr/bin/env zsh
+
+local option="$1"
+
+if [ -z "$option" ]
+then
+  cd ~my
+  return 0
+fi
+
+case "$option" in
+  (aff) cd "$MYPATH/nats/affiliate-tracking" ;;
+  (app) if [[ "$2" == 'admin' ]]
+    then
+      cd "$MYPATH/mr-skin/mr-skin-rails/engines/mrskin_admin"
+    else
+      cd "$MYPATH/mr-skin/mr-skin-rails"
+    fi ;;
+  (auth) if [[ "$2" == 'client' ]]
+    then
+      cd "$MYPATH/sk-auth/sk-auth-client"
+    else
+      cd "$MYPATH/sk-auth/sk-auth-app"
+    fi ;;
+  (billing) if [[ "$2" == 'client' ]]
+    then
+      cd "$MYPATH/sk-billing/sk-billing-client"
+    else
+      cd "$MYPATH/sk-billing/sk-billing-app"
+    fi ;;
+  (branches) my-all-do 'git rev-parse --abbrev-ref head' ;;
+  (bundle) my-all-do 'bundle check || bundle install' ;;
+  (docs) cd "$MYPATH/external/sk-developer-network" ;;
+  (email) cd "$MYPATH/customer-email-system/core" ;;
+  (fetch) my-all-do 'git fetch --all --prune --verbose' ;;
+  (files) cd $HOME/Dropbox/mike/SK ;;
+  (gems) cd "$MYPATH/gems" ;;
+  (ggc) my-all-do 'git gc --aggressive' ;;
+  (gpm) cd "$MYPATH/good-parts-media/prep-service" ;;
+  (help) print "No args will \`cd\` to the $MYPATH." ;;
+  (prep) cd "$MYPATH/good-parts-media/prep-service" ;;
+  (pull) my-all-do 'git pull --rebase --autostash' ;;
+  (puppet) cd "$MYPATH/puppet" ;;
+  (reports) cd "$MYPATH/stats/report-track" ;;
+  (stats) cd "$MYPATH/stats/report-track" ;;
+  (status) my-all-do 'git status --short' ;;
+  (tickets) cd "$MYPATH/internal-admins/tickets" ;;
+  (trans) cd "$MYPATH/internal-admins/sk_translations_admin" ;;
+  (vu) cd "$MYPATH/web-applications/vitaly-uncensored" ;;
+  (*) echo
+    echo "aff      => cd \"$MYPATH/nats/affiliate-tracking\""
+    echo "app      => cd \"$MYPATH/mr-skin/mr-skin-rails\""
+    echo "auth     => cd \"$MYPATH/sk-auth/sk-auth-app\""
+    echo "billing  => cd \"$MYPATH/sk-billing/sk-billing-app\""
+    echo "branches => my-all-do 'git rev-parse --abbrev-ref head'"
+    echo "bundle   => my-all-do 'bundle check || bundle install'"
+    echo "docs     => cd \"$MYPATH/external/sk-developer-network\""
+    echo "email    => cd \"$MYPATH/customer-email-system/core\""
+    echo "fetch    => my-all-do 'git fetch --all --prune --verbose'"
+    echo "files    => cd $HOME/Dropbox/mike/SK"
+    echo "gems     => cd \"$MYPATH/gems\""
+    echo "ggc      => my-all-do 'git gc --aggressive'"
+    echo "gpm      => cd \"$MYPATH/good-parts-media/prep-service\""
+    echo "help     => print \"No args will \`cd\` to the $MYPATH.\""
+    echo "prep     => cd \"$MYPATH/good-parts-media/prep-service\""
+    echo "pull     => my-all-do 'git pull --rebase --autostash'"
+    echo "puppet   => cd \"$MYPATH/puppet\""
+    echo "reports  => cd \"$MYPATH/stats/report-track\""
+    echo "stats    => cd \"$MYPATH/stats/report-track\""
+    echo "status   => my-all-do 'git status --short'"
+    echo "tickets  => cd \"$MYPATH/internal-admins/tickets\""
+    echo "trans    => cd \"$MYPATH/internal-admins/sk_translations_admin\""
+    echo "vu       => cd \"$MYPATH/web-applications/vitaly-uncensored\""
+    echo
+    echo "I don't know what to do with: '$@'"
+    echo
+    my help
+    return 1 ;;
+esac
+
+return 0
+

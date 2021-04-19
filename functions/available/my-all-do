@@ -1,13 +1,13 @@
 #!/usr/bin/env zsh
 
-mkdir -p "$HOME/.local/share/sk-all-do"
+mkdir -p "$HOME/.local/share/my-all-do"
 
-echo "$(iso8601-local) ; $@" >>! "$HOME/.local/share/sk-all-do/history"
+echo "$(iso8601-local) ; $@" >>! "$HOME/.local/share/my-all-do/history"
 
-# for directory in $HOME/sk/*/
+# for directory in $HOME/my/*/
 while read directory ; do
   local repo="$directory"
-  cd "$SKPATH/$directory"
+  cd "$MYPATH/$directory"
 
   local segment_repo='%F{8}[%f%F{11}REPO%f%F{8}=%f%B$repo%b%F{8}]%f'
   local segment_branch='%F{8}[%f%F{11}BRANCH%f%F{8}=%f%B$(git rev-parse --abbrev-ref HEAD)%b%F{8}]%f'
@@ -17,9 +17,9 @@ while read directory ; do
 
   eval "$@"
 
-  cd "$SKPATH"
+  cd "$MYPATH"
   echo
-done < "$SKPATH/.skrc"
+done < "$MYPATH/.myrc"
 
 return 0
 
