@@ -3,7 +3,7 @@
 message () {
   local text="$1"
   echo
-  echo " $text" | /usr/local/bin/boxes -d ccel | /usr/local/bin/boxes -d shell
+  echo " $text" | /usr/local/bin/boxes -d shell
   echo
 }
 
@@ -12,26 +12,26 @@ message 'UPGRADE START'
 message 'HOMEBREW'
 upgrade-homebrew
 
-message 'MACOS'
-upgrade-macos
-
-message 'VIM PLUGINS'
-upgrade-vim
-
-message 'RUBY'
-upgrade-ruby
-
-message 'PIP3'
-upgrade-pip3
-
-message 'NPM' 
-upgrade-npm
-
-message 'CABAL'
-upgrade-cabal
-
-message 'PIP2'
-upgrade-pip2
+# message 'MACOS'
+# upgrade-macos
+# 
+# message 'VIM PLUGINS'
+# upgrade-vim
+# 
+# message 'RUBY'
+# upgrade-ruby
+# 
+# message 'PIP3'
+# upgrade-pip3
+# 
+# message 'NPM' 
+# upgrade-npm
+# 
+# message 'CABAL'
+# upgrade-cabal
+# 
+# message 'PIP2'
+# upgrade-pip2
 
 message 'ANTIGEN'
 upgrade-antigen
