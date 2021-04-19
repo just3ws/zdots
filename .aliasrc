@@ -10,18 +10,15 @@ alias wip='git commit -am "WIP"'
 alias listening-on='lsof -Pni4 | grep LISTEN'
 
 hash -d desk="$HOME/Desktop"
-hash -d desktop="$HOME/Desktop"
-hash -d vdots="$XDG_CONFIG_HOME/nvim"
-hash -d xdots="$HOME/.config"
-hash -d zdots="$ZDOTDIR"
-
-alias dc="docker-compose"
-
-alias mike='nocorrect ~mike'
 alias desk='nocorrect ~desk'
-alias desktop='nocorrect ~desktop'
-alias vdots='nocorrect ~vdots'
+
+hash -d xdots="$HOME/.config"
 alias xdots='nocorrect ~xdots'
+
+hash -d vdots="$XDG_CONFIG_HOME/nvim"
+alias vdots='nocorrect ~vdots'
+
+hash -d zdots="$ZDOTDIR"
 alias zdots='nocorrect ~zdots'
 
 alias vim='/usr/local/bin/nvim'
@@ -62,8 +59,6 @@ alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"
 
 alias aliasrc='vim ~zdots/.aliasrc'
 alias antigenrc='vim ~zdots/.antigenrc'
-alias spaceshiprc='vim ~zdots/.spaceshiprc'
-alias zpromptrc='vim ~zdots/.zpromptrc'
 alias zshenv='vim ~zdots/.zshenv'
 alias zshrc='vim ~zdots/.zshrc'
 

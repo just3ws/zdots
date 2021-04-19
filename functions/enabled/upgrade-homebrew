@@ -2,12 +2,15 @@
 
 brew update 
 brew update --preinstall
+
 brew upgrade
 brew upgrade --greedy
+
 brew autoremove
+
 brew cleanup
 brew cleanup --prune=all
 brew cleanup -s
 brew cleanup
-brew autoremove
 
+brew autoremove
