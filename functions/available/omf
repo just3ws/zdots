@@ -1,0 +1,82 @@
+#!/usr/bin/env zsh
+
+local option="$1"
+
+if [ -z "$option" ]
+then
+  cd ~omf
+  return 0
+fi
+
+case "$option" in
+  (aff) cd "$OMFPATH/nats/affiliate-tracking" ;;
+  (app) if [[ "$2" == 'admin' ]]
+    then
+      cd "$OMFPATH/mr-skin/mr-skin-rails/engines/mrskin_admin"
+    else
+      cd "$OMFPATH/mr-skin/mr-skin-rails"
+    fi ;;
+  (auth) if [[ "$2" == 'client' ]]
+    then
+      cd "$OMFPATH/sk-auth/sk-auth-client"
+    else
+      cd "$OMFPATH/sk-auth/sk-auth-app"
+    fi ;;
+  (billing) if [[ "$2" == 'client' ]]
+    then
+      cd "$OMFPATH/sk-billing/sk-billing-client"
+    else
+      cd "$OMFPATH/sk-billing/sk-billing-app"
+    fi ;;
+  (branches) omf-all-do 'git rev-parse --abbrev-ref head' ;;
+  (bundle) omf-all-do 'bundle check || bundle install' ;;
+  (docs) cd "$OMFPATH/external/sk-developer-network" ;;
+  (email) cd "$OMFPATH/customer-email-system/core" ;;
+  (fetch) omf-all-do 'git fetch --all --prune --verbose' ;;
+  (files) cd $HOME/Dropbox/mike/SK ;;
+  (gems) cd "$OMFPATH/gems" ;;
+  (ggc) omf-all-do 'git gc --aggressive' ;;
+  (gpm) cd "$OMFPATH/good-parts-media/prep-service" ;;
+  (help) print "No args will \`cd\` to the $OMFPATH." ;;
+  (prep) cd "$OMFPATH/good-parts-media/prep-service" ;;
+  (pull) omf-all-do 'git pull --rebase --autostash' ;;
+  (puppet) cd "$OMFPATH/puppet" ;;
+  (reports) cd "$OMFPATH/stats/report-track" ;;
+  (stats) cd "$OMFPATH/stats/report-track" ;;
+  (status) omf-all-do 'git status --short' ;;
+  (tickets) cd "$OMFPATH/internal-admins/tickets" ;;
+  (trans) cd "$OMFPATH/internal-admins/sk_translations_admin" ;;
+  (vu) cd "$OMFPATH/web-applications/vitaly-uncensored" ;;
+  (*) echo
+    echo "aff      => cd \"$OMFPATH/nats/affiliate-tracking\""
+    echo "app      => cd \"$OMFPATH/mr-skin/mr-skin-rails\""
+    echo "auth     => cd \"$OMFPATH/sk-auth/sk-auth-app\""
+    echo "billing  => cd \"$OMFPATH/sk-billing/sk-billing-app\""
+    echo "branches => omf-all-do 'git rev-parse --abbrev-ref head'"
+    echo "bundle   => omf-all-do 'bundle check || bundle install'"
+    echo "docs     => cd \"$OMFPATH/external/sk-developer-network\""
+    echo "email    => cd \"$OMFPATH/customer-email-system/core\""
+    echo "fetch    => omf-all-do 'git fetch --all --prune --verbose'"
+    echo "files    => cd $HOME/Dropbox/mike/SK"
+    echo "gems     => cd \"$OMFPATH/gems\""
+    echo "ggc      => omf-all-do 'git gc --aggressive'"
+    echo "gpm      => cd \"$OMFPATH/good-parts-media/prep-service\""
+    echo "help     => print \"No args will \`cd\` to the $OMFPATH.\""
+    echo "prep     => cd \"$OMFPATH/good-parts-media/prep-service\""
+    echo "pull     => omf-all-do 'git pull --rebase --autostash'"
+    echo "puppet   => cd \"$OMFPATH/puppet\""
+    echo "reports  => cd \"$OMFPATH/stats/report-track\""
+    echo "stats    => cd \"$OMFPATH/stats/report-track\""
+    echo "status   => omf-all-do 'git status --short'"
+    echo "tickets  => cd \"$OMFPATH/internal-admins/tickets\""
+    echo "trans    => cd \"$OMFPATH/internal-admins/sk_translations_admin\""
+    echo "vu       => cd \"$OMFPATH/web-applications/vitaly-uncensored\""
+    echo
+    echo "I don't know what to do with: '$@'"
+    echo
+    omf help
+    return 1 ;;
+esac
+
+return 0
+
