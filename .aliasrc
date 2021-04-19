@@ -14,11 +14,11 @@ hash -d desk="$HOME/Desktop"
 hash -d desktop="$HOME/Desktop"
 hash -d dropbox="$HOME/Dropbox/mike"
 hash -d vdots="$XDG_CONFIG_HOME/nvim"
-hash -d src="$SRC"
+# hash -d src="$SRC"
 hash -d xdots="$HOME/.config"
 hash -d zdots="$ZDOTDIR"
 
-hash -d sk="$SRC/git.skintertainment.com"
+# hash -d my="$SRC/git.skintertainment.com"
 
 alias dc="docker-compose"
 
@@ -27,17 +27,12 @@ alias desk='nocorrect ~desk'
 alias desktop='nocorrect ~desktop'
 alias dropbox='nocorrect ~dropbox'
 alias vdots='nocorrect ~vdots'
-alias src='nocorrect ~src'
+# alias src='nocorrect ~src'
 alias xdots='nocorrect ~xdots'
 alias zdots='nocorrect ~zdots'
 
-alias cat='bat'
+# alias cat='bat'
 
-# # MacVim
-# alias vim='/usr/local/bin/mvim -v'
-# alias vi='/usr/local/bin/mvim -v'
-
-# # # Neovim
 alias vim='/usr/local/bin/nvim'
 alias vi='/usr/local/bin/nvim'
 

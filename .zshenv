@@ -8,7 +8,7 @@ export ADOTDIR="$XDG_DATA_HOME/antigen" && [[ ! -d "$ADOTDIR" ]] && mkdir -p "$A
 [[ ! -d "$XDG_CACHE_HOME/zsh" ]] && mkdir -p "$XDG_CACHE_HOME/zsh"
 [[ ! -d "$XDG_CACHE_HOME/antigen" ]] && mkdir -p "$XDG_CACHE_HOME/antigen"
 
-export DEOPLETE_ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh/deoplete" && [[ ! -d "$DEOPLETE_ZSH_CACHE_DIR" ]] && mkdir -p "$DEOPLETE_ZSH_CACHE_DIR"
+# export DEOPLETE_ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh/deoplete" && [[ ! -d "$DEOPLETE_ZSH_CACHE_DIR" ]] && mkdir -p "$DEOPLETE_ZSH_CACHE_DIR"
 
 export ANTIGEN_CACHE="$XDG_CACHE_HOME/antigen/init.zsh"
 export CORRECT_IGNORE='_*'
@@ -17,7 +17,7 @@ export HYPHEN_INSENSITIVE=true
 export HISTFILE="$XDG_DATA_HOME/zsh/history"
 export KEYTIMEOUT=1
 export WORDCHARS='*?.[]~=&;!#$%^(){}<>@'
-export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting/highlighters
+# export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting/highlighters
 
 for fn in $ZDOTDIR/functions/enabled/*(.x); do
   autoload -Uz "$(basename $fn)"
@@ -29,22 +29,12 @@ fpath=(
   $fpath
 )
 
-# ./bin
-# /usr/local/opt/{apr,apr-util}/bin
-# /usr/local/opt/{coreutils,findutils}/libexec/gnubin
-# /usr/local/opt/{file-formula,fzf,gnu-getopt,imagemagick@6,m4}/bin
-# /usr/local/opt/{make,gnu-sed,gnu-tar}/libexec/gnubin
-# /usr/local/opt/{ruby,mysql@5.6}/bin
-#
-#   /Applications/MySQLWorkbench.app/Contents/MacOS
-#   /Users/mike/.local/share/nvim/plugged/vim-iced/bin
+# /usr/local/opt/ruby/bin
+# /usr/local/opt/{go,python}/libexec/bin
+# /usr/local/opt/{fzf,imagemagick@6}/bin
+# $GOBIN
 
 path=(
-  /usr/local/opt/mysql@5.6/bin
-  /usr/local/opt/ruby/bin
-  /usr/local/opt/{go,python}/libexec/bin
-  /usr/local/opt/{fzf,imagemagick@6}/bin
-  $GOBIN
   /usr/local/{bin,sbin}
   /usr/{bin,sbin}
   /{bin,sbin}
