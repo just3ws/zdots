@@ -54,8 +54,8 @@ setopt hist_verify
 setopt inc_append_history
 setopt share_history
 
-# zstyle :omz:plugins:ssh-agent agent-forwarding on
-# zstyle :omz:plugins:ssh-agent identities 'id_just3ws@github' 'id_just3ws@bitbucket' 'id_rsa-iam-mike'
+zstyle :omz:plugins:ssh-agent agent-forwarding on
+zstyle :omz:plugins:ssh-agent identities 'id_ed25519' 'id_just3ws@github' 'id_mike-localdev@github' 'id_rsa'
 
 source "$ZDOTDIR/.antigenrc"
 source "$ZDOTDIR/.aliasrc"
@@ -74,7 +74,7 @@ bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
-eval "$(rbenv init -)"
+# eval "$(rbenv init -)"
 
 # {{{ FZF
 source '/usr/local/opt/fzf/shell/completion.zsh'
