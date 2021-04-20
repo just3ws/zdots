@@ -67,7 +67,7 @@ alias -s pdf=acrobat
 
 alias chrome='/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome'
 alias firefox='/Applications/Firefox.app/Contents/MacOS/firefox'
-alias marked='/Applications/Marked 2.app/Contents/MacOS/Marked\ 2'
+alias marked='/Applications/Marked\ 2.app/Contents/MacOS/Marked\ 2'
 
 alias preview='open -a Preview'
 alias -s gif=preview
