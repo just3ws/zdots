@@ -16,20 +16,23 @@ export HISTFILE="$XDG_DATA_HOME/zsh/history"
 export KEYTIMEOUT=1
 export WORDCHARS='-*?.[]~=&;!#$%^(){}<>@'
 
-for fn in $ZDOTDIR/functions/enabled/*(.x); do
+
+source ~/.asdf/asdf.sh
+
+for fn in ${ZDOTDIR}/functions/enabled/*(.x); do
   autoload -Uz "$(basename $fn)"
 done
 
 fpath=(
-  $ZDOTDIR/functions/enabled
+  ${ZDOTDIR}/functions/enabled
+  ${HOME}/.asdf/completions
   /usr/local/share/zsh-completions
   $fpath
 )
 
 path=(
+  /usr/local/opt/postgresql@10/bin
   /usr/local/{bin,sbin}
-  /usr/{bin,sbin}
-  /{bin,sbin}
   $path
 )
 
