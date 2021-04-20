@@ -4,4 +4,4 @@
 .zcomp*
 .zdirs
 .zsh_history
-
+.zsh_sessions/
