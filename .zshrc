@@ -1,3 +1,5 @@
+# vim:ft=zsh
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.config/zsh/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -5,7 +7,8 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-# vim:ft=zsh
+export CLICOLOR=1
+export DISABLE_SPRING=true
 
 setopt always_to_end
 setopt auto_cd
@@ -71,7 +74,7 @@ bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
-# eval "$(rbenv init -)"
+eval "$(rbenv init -)"
 
 # {{{ FZF
 source '/usr/local/opt/fzf/shell/completion.zsh'
@@ -100,7 +103,7 @@ fzf-history-widget-accept () {
   zle accept-line
 }
 
-zmodload zsh/zpty # Required for Vim autocompletion via deoplete-zsh
+# zmodload zsh/zpty # Required for Vim autocompletion via deoplete-zsh
 
 zle -N fzf-history-widget-accept
 bindkey '^X^R' fzf-history-widget-accept
