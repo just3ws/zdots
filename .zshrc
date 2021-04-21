@@ -75,6 +75,7 @@ bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
 # eval "$(rbenv init -)"
+export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
 
 # {{{ FZF
 source '/usr/local/opt/fzf/shell/completion.zsh'
