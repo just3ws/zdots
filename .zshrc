@@ -112,6 +112,8 @@ bindkey '^X^R' fzf-history-widget-accept
 bindkey '^T' fzf-completion
 bindkey '^I' $fzf_default_completion
 
+. $HOME/.asdf/asdf.sh
+
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
