@@ -74,8 +74,15 @@ bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
+export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
 # eval "$(rbenv init -)"
 export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
+
+command -v arkade &>/dev/null 2>&1 && source <(arkade completion zsh)
+command -v kubectl &>/dev/null 2>&1 && {
+    alias k=kubectl
+    source <(kubectl completion zsh)
+}
 
 # {{{ FZF
 source '/usr/local/opt/fzf/shell/completion.zsh'
