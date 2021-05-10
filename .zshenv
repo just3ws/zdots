@@ -31,7 +31,6 @@ fpath=(
 )
 
 path=(
-  /usr/local/opt/postgresql@10/bin
   /usr/local/{bin,sbin}
   $path
 )

@@ -75,22 +75,10 @@ bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
 export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
-# eval "$(rbenv init -)"
-export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
-
-command -v arkade &>/dev/null 2>&1 && source <(arkade completion zsh)
-command -v kubectl &>/dev/null 2>&1 && {
-    alias k=kubectl
-    source <(kubectl completion zsh)
-}
 
 # {{{ FZF
 source '/usr/local/opt/fzf/shell/completion.zsh'
 source '/usr/local/opt/fzf/shell/key-bindings.zsh'
-
-# # export FZF_DEFAULT_OPTS=' --color=dark --color=bg+:#3B4252,bg:#2E3440,spinner:#D08770,hl:#EBCB8B --color=fg:#D8DEE9,header:#EBCB8B,info:#5E81AC,pointer:#D08770 --color=marker:#D08770,fg+:#ECEFF4,prompt:#5E81AC,hl+:#EBCB8B '
-# export FZF_DEFAULT_OPTS=' ' # --color=dark '
-#   --tabstop=2 --border --inline-info --cycle 
 
 export FZF_DEFAULT_OPTS='
   --color fg:255,bg:236,hl:84,fg+:255,bg+:236,hl+:215
