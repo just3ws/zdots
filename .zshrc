@@ -7,6 +7,9 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
+export ANSIBLE_COW_SELECTION=random
+export ANSIBLE_NOCOWS=1
+
 export CLICOLOR=1
 export DISABLE_SPRING=true
 
@@ -76,39 +79,10 @@ bindkey -M vicmd v edit-command-line
 
 export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
 
-# {{{ FZF
-source '/usr/local/opt/fzf/shell/completion.zsh'
-source '/usr/local/opt/fzf/shell/key-bindings.zsh'
-
-export FZF_DEFAULT_OPTS='
-  --color fg:255,bg:236,hl:84,fg+:255,bg+:236,hl+:215
-  --color info:141,prompt:84,spinner:212,pointer:212,marker:212
-'
-
-# export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview'"
-export FZF_COMPLETION_TRIGGER=''
-
-export FZF_CTRL_T_OPTS="--select-1 --exit-0"
-
-export FZF_ALT_C_OPTS="--preview 'tree -C {} | head -200'"
-
-export FZF_DEFAULT_COMMAND='ag --hidden --ignore .git -g ""'
-
-fzf-history-widget-accept () {
-  fzf-history-widget
-  zle accept-line
-}
-
-# zmodload zsh/zpty # Required for Vim autocompletion via deoplete-zsh
-
-zle -N fzf-history-widget-accept
-bindkey '^X^R' fzf-history-widget-accept
-
-bindkey '^T' fzf-completion
-bindkey '^I' $fzf_default_completion
+source ~/.config/zsh/fzfrc
 
 . $HOME/.asdf/asdf.sh
 
-test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
-
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
+
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
