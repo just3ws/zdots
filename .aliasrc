@@ -1,5 +1,7 @@
 # vim:ft=zsh
 
+alias ll='ls -alh'
+
 alias prunedirs='rm -d **/*(/^F)'
 
 alias go-dep-install='dep ensure -v'
@@ -25,6 +27,8 @@ alias vim='/usr/local/bin/nvim'
 alias vi='/usr/local/bin/nvim'
 
 alias vimrc='vim ~vdots/init.vim'
+
+alias -g nv='--tls-no-verify'
 
 alias -g gi='| grep -i'
 alias -g lx='l -10'
@@ -106,3 +110,6 @@ alias -s yml=vim
 # alias d='deletemark'
 # alias p='showmarks'
 # alias l='showmarks'
+#
+alias k=kubectl
+complete -F __start_kubectl k
