@@ -1,18 +1,24 @@
 # vim:ft=zsh
 
-export XDG_ROOT="$HOME"                        && [[ ! -d "$XDG_ROOT"        ]] && mkdir -p "$XDG_ROOT"
-export XDG_CONFIG_HOME="$XDG_ROOT/.config"     && [[ ! -d "$XDG_CONFIG_HOME" ]] && mkdir -p "$XDG_CONFIG_HOME"
-export XDG_CACHE_HOME="$XDG_ROOT/.cache"       && [[ ! -d "$XDG_CACHE_HOME"  ]] && mkdir -p "$XDG_CACHE_HOME"
-export XDG_DATA_HOME="$XDG_ROOT/.local/share"  && [[ ! -d "$XDG_DATA_HOME"   ]] && mkdir -p "$XDG_DATA_HOME"
-export XDG_STATE_HOME="$XDG_ROOT/.local/state" && [[ ! -d "$XDG_STATE_HOME"  ]] && mkdir -p "$XDG_STATE_HOME"
-
+export XDG_ROOT="$HOME" && [[ ! -d "$XDG_ROOT" ]] && mkdir -p "$XDG_ROOT"
+export XDG_STATE_HOME="$XDG_ROOT/.local/state" && [[ ! -d "$XDG_STATE_HOME" ]] && mkdir -p "$XDG_STATE_HOME"
+export XDG_CONFIG_HOME="$XDG_ROOT/.config" && [[ ! -d "$XDG_CONFIG_HOME" ]] && mkdir -p "$XDG_CONFIG_HOME"
+export ZDOTDIR="$XDG_CONFIG_HOME/zsh" && [[ ! -d "$ZDOTDIR" ]] && mkdir -p "$ZDOTDIR"
 . "$XDG_CONFIG_HOME/env"
-
-[[ ! -d "$XDG_DATA_HOME/nvim"    ]] && mkdir -p "$XDG_DATA_HOME/nvim"
-[[ ! -d "$XDG_DATA_HOME/node"    ]] && mkdir -p "$XDG_DATA_HOME/node"
-[[ ! -d "$XDG_DATA_HOME/python"  ]] && mkdir -p "$XDG_DATA_HOME/python"
-[[ ! -d "$XDG_DATA_HOME/psql"    ]] && mkdir -p "$XDG_DATA_HOME/psql"
-[[ ! -d "$XDG_DATA_HOME/ruby"    ]] && mkdir -p "$XDG_DATA_HOME/ruby"
+export XDG_CACHE_HOME="$XDG_ROOT/.cache" && [[ ! -d "$XDG_CACHE_HOME" ]] && mkdir -p "$XDG_CACHE_HOME"
+export XDG_DATA_HOME="$XDG_ROOT/.local/share" && [[ ! -d "$XDG_DATA_HOME" ]] && mkdir -p "$XDG_DATA_HOME"
+[[ ! -d "$XDG_DATA_HOME/nvim" ]] && mkdir -p "$XDG_DATA_HOME/nvim"
+[[ ! -d "$XDG_DATA_HOME/node" ]] && mkdir -p "$XDG_DATA_HOME/node"
+[[ ! -d "$XDG_DATA_HOME/python" ]] && mkdir -p "$XDG_DATA_HOME/python"
+[[ ! -d "$XDG_DATA_HOME/psql" ]] && mkdir -p "$XDG_DATA_HOME/psql"
+[[ ! -d "$XDG_DATA_HOME/ruby" ]] && mkdir -p "$XDG_DATA_HOME/ruby"
+export ADOTDIR="$XDG_DATA_HOME/antigen" && [[ ! -d "$ADOTDIR" ]] && mkdir -p "$ADOTDIR"
+[[ ! -d "$XDG_CACHE_HOME/zsh" ]] && mkdir -p "$XDG_CACHE_HOME/zsh"
+[[ ! -d "$XDG_CACHE_HOME/antigen" ]] && mkdir -p "$XDG_CACHE_HOME/antigen"
+export ANTIGEN_CACHE="$XDG_CACHE_HOME/antigen/init.zsh"
+[[ ! -d "$XDG_DATA_HOME/zsh" ]] && mkdir -p "$XDG_DATA_HOME/zsh"
+[[ ! -d "$XDG_DATA_HOME/antigen" ]] && mkdir -p "$XDG_DATA_HOME/antigen"
+touch "$XDG_DATA_HOME/antigen/debug.log"
 
 export EDITOR='/usr/local/bin/nvim'
 export ALTERNATE_EDITOR='/usr/local/bin/nvim'
@@ -55,18 +61,6 @@ export GITHUB_TOKEN='[REDACTED_GITHUB_TOKEN]'
 export GITHUB_PASSWORD="$GITHUB_TOKEN"
 export HOMEBREW_GITHUB_API_TOKEN='[REDACTED_GITHUB_TOKEN]'
 
-export ZDOTDIR="$XDG_CONFIG_HOME/zsh" && [[ ! -d "$ZDOTDIR" ]] && mkdir -p "$ZDOTDIR"
-export ADOTDIR="$XDG_DATA_HOME/antigen" && [[ ! -d "$ADOTDIR" ]] && mkdir -p "$ADOTDIR"
-
-[[ ! -d "$XDG_CACHE_HOME/zsh" ]] && mkdir -p "$XDG_CACHE_HOME/zsh"
-[[ ! -d "$XDG_CACHE_HOME/antigen" ]] && mkdir -p "$XDG_CACHE_HOME/antigen"
-
-export ANTIGEN_CACHE="$XDG_CACHE_HOME/antigen/init.zsh"
-
-[[ ! -d "$XDG_DATA_HOME/zsh"     ]] && mkdir -p "$XDG_DATA_HOME/zsh"
-[[ ! -d "$XDG_DATA_HOME/antigen" ]] && mkdir -p "$XDG_DATA_HOME/antigen"
-
-touch "$XDG_DATA_HOME/antigen/debug.log"
 
 export CORRECT_IGNORE='_*'
 export CORRECT_IGNORE_FILE='.*'
@@ -77,13 +71,6 @@ export KEYTIMEOUT=1
 export WORDCHARS='-*?.[]~=&;!#$%^(){}<>@'
 
 export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting/highlighters
-
-export DOCKER_CLI_EXPERIMENTAL=enabled
-export DOCKER_BUILDKIT=1
-export OPENFAAS_URL='http://malina101.zalewhol.lan:8080'
-export OPENFAAS_PASSWORD='wURs5VD9e7Z7m7tgDyyoRkSx4DDSuQsYfAQZEUlZu3ZBpkwhEWEz0HIsXC7aB8L'
-export OPENFAAS_PREFIX='just3ws'
-# cat ~/faas_pass.txt | faas-cli login --password-stdin --tls-no-verify --gateway http://malina101.zalewhol.lan:8080
 
 for fn in $ZDOTDIR/functions/enabled/*(.x); do
   autoload -Uz "$(basename $fn)"
@@ -98,7 +85,6 @@ fpath=(
 
 path=(
   $GOBIN
-  $HOME/.krew/bin
   /usr/local/{bin,sbin}
   /usr/{bin,sbin}
   /{bin,sbin}
@@ -106,3 +92,7 @@ path=(
 )
 
 typeset -gU cdpath fignore fpath mailpath path
+
+export OUTLIER_JOBS_DATABASE_URL='postgres://outlier_jobs:window.snow@malina103/outlier_jobs_production'
+export OUTLIER_JOBS_REDIS_CACHE_URL='redis://localhost:6379/0'
+export OUTLIER_JOBS_REDIS_SIDEKIQ_URL='redis://localhost:6379/0'

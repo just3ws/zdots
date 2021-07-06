@@ -8,5 +8,6 @@ antigen bundle Tarrasch/zsh-functional
 antigen bundle mafredri/zsh-async
 
 antigen theme romkatv/powerlevel10k
+# antigen theme spaceship-prompt/spaceship-prompt
 
 antigen apply
