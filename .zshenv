@@ -61,7 +61,6 @@ export GITHUB_TOKEN='[REDACTED_GITHUB_TOKEN]'
 export GITHUB_PASSWORD="$GITHUB_TOKEN"
 export HOMEBREW_GITHUB_API_TOKEN='[REDACTED_GITHUB_TOKEN]'
 
-
 export CORRECT_IGNORE='_*'
 export CORRECT_IGNORE_FILE='.*'
 
@@ -91,8 +90,6 @@ path=(
   $path
 )
 
-typeset -gU cdpath fignore fpath mailpath path
+. ~/.zshenv.local
 
-export OUTLIER_JOBS_DATABASE_URL='postgres://outlier_jobs:window.snow@malina103/outlier_jobs_production'
-export OUTLIER_JOBS_REDIS_CACHE_URL='redis://localhost:6379/0'
-export OUTLIER_JOBS_REDIS_SIDEKIQ_URL='redis://localhost:6379/0'
+typeset -gU cdpath fignore fpath mailpath path
