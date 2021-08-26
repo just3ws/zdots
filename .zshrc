@@ -62,7 +62,7 @@ setopt share_history
 zstyle :omz:plugins:ssh-agent agent-forwarding on
 zstyle :omz:plugins:ssh-agent identities 'id_ed25519' 'id_just3ws@github' 'id_mike-localdev@github' 'id_omf@github' 'id_omf@mike.hall' 'id_rsa'
 
-touch "$XDG_DATA_HOME/.antigen/debug.log"
+touch "$XDG_DATA_HOME/antigen/debug.log"
 source "$ZDOTDIR/.antigenrc"
 source "$ZDOTDIR/.aliasrc"
 
