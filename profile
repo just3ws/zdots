@@ -1,26 +1,12 @@
 # vim:ft=bash
 
-export XDG_ROOT="$HOME"                        && [[ ! -d "$XDG_ROOT"        ]] && mkdir -p "$XDG_ROOT"
-export XDG_CONFIG_HOME="$XDG_ROOT/.config"     && [[ ! -d "$XDG_CONFIG_HOME" ]] && mkdir -p "$XDG_CONFIG_HOME"
-export XDG_CACHE_HOME="$XDG_ROOT/.cache"       && [[ ! -d "$XDG_CACHE_HOME"  ]] && mkdir -p "$XDG_CACHE_HOME"
-export XDG_DATA_HOME="$XDG_ROOT/.local/share"  && [[ ! -d "$XDG_DATA_HOME"   ]] && mkdir -p "$XDG_DATA_HOME"
-export XDG_STATE_HOME="$XDG_ROOT/.local/state" && [[ ! -d "$XDG_STATE_HOME"  ]] && mkdir -p "$XDG_STATE_HOME"
+export XDG_ROOT="$HOME"
+export XDG_CONFIG_HOME="$XDG_ROOT/.config"
+export XDG_CACHE_HOME="$XDG_ROOT/.cache"
+export XDG_DATA_HOME="$XDG_ROOT/.local/share"
+export XDG_STATE_HOME="$XDG_ROOT/.local/state"
 
-source "$XDG_CONFIG_HOME/env"
-
-export ZDOTDIR="$XDG_CONFIG_HOME/zsh" && [[ ! -d "$ZDOTDIR" ]] && mkdir -p "$ZDOTDIR"
-
-[[ ! -d "$XDG_CACHE_HOME/zsh" ]] && mkdir -p "$XDG_CACHE_HOME/zsh"
-
-[[ ! -d "$XDG_DATA_HOME/nvim"    ]] && mkdir -p "$XDG_DATA_HOME/nvim"
-[[ ! -d "$XDG_DATA_HOME/node"    ]] && mkdir -p "$XDG_DATA_HOME/node"
-[[ ! -d "$XDG_DATA_HOME/python"  ]] && mkdir -p "$XDG_DATA_HOME/python"
-[[ ! -d "$XDG_DATA_HOME/psql"    ]] && mkdir -p "$XDG_DATA_HOME/psql"
-[[ ! -d "$XDG_DATA_HOME/ruby"    ]] && mkdir -p "$XDG_DATA_HOME/ruby"
-[[ ! -d "$XDG_DATA_HOME/zsh"     ]] && mkdir -p "$XDG_DATA_HOME/zsh"
-[[ ! -d "$XDG_DATA_HOME/antigen" ]] && mkdir -p "$XDG_DATA_HOME/antigen"
-
-touch "$XDG_DATA_HOME/antigen/debug.log"
+export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 
 export EDITOR='/usr/local/bin/nvim'
 export ALTERNATE_EDITOR='/usr/local/bin/nvim'
