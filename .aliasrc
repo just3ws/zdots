@@ -41,7 +41,7 @@ alias bu="b update"
 alias be="b exec"
 
 alias gba='git branch --all'
-# alias gco='git checkout'
+alias gco='git checkout '
 alias gfa='git fetch --all --prune'
 alias gfp='git format-patch HEAD~1 --no-color --stdout'
 alias gs='git status --short'
