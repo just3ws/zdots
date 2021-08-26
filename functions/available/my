@@ -33,7 +33,6 @@ case "$option" in
   (docs) cd "$MYPATH/external/sk-developer-network" ;;
   (email) cd "$MYPATH/customer-email-system/core" ;;
   (fetch) my-all-do 'git fetch --all --prune --verbose' ;;
-  (files) cd $HOME/Dropbox/mike/SK ;;
   (gems) cd "$MYPATH/gems" ;;
   (ggc) my-all-do 'git gc --aggressive' ;;
   (gpm) cd "$MYPATH/good-parts-media/prep-service" ;;

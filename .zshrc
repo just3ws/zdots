@@ -1,5 +1,7 @@
 # vim:ft=zsh
 
+export GITSTATUS_LOG_LEVEL=DEBUG
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.config/zsh/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -58,7 +60,7 @@ setopt inc_append_history
 setopt share_history
 
 zstyle :omz:plugins:ssh-agent agent-forwarding on
-zstyle :omz:plugins:ssh-agent identities 'id_rsa' 'id_ed25519' 'id_just3ws@github' 'id_mike-zalewhol@github'
+zstyle :omz:plugins:ssh-agent identities 'id_ed25519' 'id_just3ws@github' 'id_mike-zalewhol@github' 'id_omf@github' 'id_omf@mike.hall' 'id_rsa'
 
 source "$ZDOTDIR/.antigenrc"
 source "$ZDOTDIR/.aliasrc"
@@ -79,14 +81,12 @@ bindkey -M vicmd v edit-command-line
 
 export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
 
-# source ~/.config/zsh/fzfrc
-
-source $HOME/.asdf/asdf.sh
-
-[[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
-
 eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib=$HOME/perl5)"
+
+source "$HOME/.asdf/asdf.sh"
+
+source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-test -e "${ZDOTDIR}/.iterm2_shell_integration.zsh" && source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
+source "${ZDOTDIR}/.p10k.zsh"

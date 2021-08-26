@@ -1,24 +1,14 @@
 # vim:ft=zsh
 
-export XDG_ROOT="$HOME" && [[ ! -d "$XDG_ROOT" ]] && mkdir -p "$XDG_ROOT"
-export XDG_STATE_HOME="$XDG_ROOT/.local/state" && [[ ! -d "$XDG_STATE_HOME" ]] && mkdir -p "$XDG_STATE_HOME"
-export XDG_CONFIG_HOME="$XDG_ROOT/.config" && [[ ! -d "$XDG_CONFIG_HOME" ]] && mkdir -p "$XDG_CONFIG_HOME"
-export ZDOTDIR="$XDG_CONFIG_HOME/zsh" && [[ ! -d "$ZDOTDIR" ]] && mkdir -p "$ZDOTDIR"
-. "$XDG_CONFIG_HOME/env"
-export XDG_CACHE_HOME="$XDG_ROOT/.cache" && [[ ! -d "$XDG_CACHE_HOME" ]] && mkdir -p "$XDG_CACHE_HOME"
-export XDG_DATA_HOME="$XDG_ROOT/.local/share" && [[ ! -d "$XDG_DATA_HOME" ]] && mkdir -p "$XDG_DATA_HOME"
-[[ ! -d "$XDG_DATA_HOME/nvim" ]] && mkdir -p "$XDG_DATA_HOME/nvim"
-# [[ ! -d "$XDG_DATA_HOME/node" ]] && mkdir -p "$XDG_DATA_HOME/node"
-# [[ ! -d "$XDG_DATA_HOME/python" ]] && mkdir -p "$XDG_DATA_HOME/python"
-[[ ! -d "$XDG_DATA_HOME/psql" ]] && mkdir -p "$XDG_DATA_HOME/psql"
-# [[ ! -d "$XDG_DATA_HOME/ruby" ]] && mkdir -p "$XDG_DATA_HOME/ruby"
-export ADOTDIR="$XDG_DATA_HOME/antigen" && [[ ! -d "$ADOTDIR" ]] && mkdir -p "$ADOTDIR"
-[[ ! -d "$XDG_CACHE_HOME/zsh" ]] && mkdir -p "$XDG_CACHE_HOME/zsh"
-[[ ! -d "$XDG_CACHE_HOME/antigen" ]] && mkdir -p "$XDG_CACHE_HOME/antigen"
+export XDG_ROOT="$HOME"
+export XDG_STATE_HOME="$XDG_ROOT/.local/state"
+export XDG_CONFIG_HOME="$XDG_ROOT/.config"
+export XDG_CACHE_HOME="$XDG_ROOT/.cache"
+export XDG_DATA_HOME="$XDG_ROOT/.local/share"
+export XDG_CACHE_HOME="$XDG_ROOT/.cache"
+export XDG_DATA_HOME="$XDG_ROOT/.local/share"
+export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 export ANTIGEN_CACHE="$XDG_CACHE_HOME/antigen/init.zsh"
-[[ ! -d "$XDG_DATA_HOME/zsh" ]] && mkdir -p "$XDG_DATA_HOME/zsh"
-[[ ! -d "$XDG_DATA_HOME/antigen" ]] && mkdir -p "$XDG_DATA_HOME/antigen"
-touch "$XDG_DATA_HOME/antigen/debug.log"
 
 export EDITOR='/usr/local/bin/nvim'
 export ALTERNATE_EDITOR='/usr/local/bin/nvim'
@@ -31,12 +21,6 @@ export VISUAL='/usr/local/bin/nvim'
 
 alias vim='/usr/local/bin/nvim'
 alias vi='/usr/local/bin/nvim'
-
-# export PYTHON_HOST_PROG="$HOME/.asdf/shims/python2"
-# export PYTHON3_HOST_PROG="/usr/local/bin/python3"
-
-# export GOPATH="$HOME" && [[ ! -d "$GOPATH" ]] && mkdir -p "$GOPATH"
-# export GOBIN="$GOPATH/bin"
 
 export LANG='en_US.UTF-8'
 
@@ -51,11 +35,6 @@ export HISTSIZE=999999
 export HOMEBREW_CASK_OPTS='--appdir=/Applications'
 export HOMEBREW_NO_ANALYTICS=1
 export HOMEBREW_NO_INSECURE_REDIRECT=1
-
-# export GITHUB_USER=just3ws
-# export GITHUB_TOKEN='[REDACTED_GITHUB_TOKEN]'
-# export GITHUB_PASSWORD="$GITHUB_TOKEN"
-# export HOMEBREW_GITHUB_API_TOKEN='[REDACTED_GITHUB_TOKEN]'
 
 export CORRECT_IGNORE='_*'
 export CORRECT_IGNORE_FILE='.*'
@@ -76,16 +55,13 @@ fpath=(
   $fpath
 )
 
-# $GOBIN
 path=(
+  /usr/local/opt/influxdb@1/bin
+  /usr/local/opt/openjdk/bin
   /usr/local/{bin,sbin}
   /usr/{bin,sbin}
   /{bin,sbin}
   $path
 )
-
-export OUTLIER_JOBS_DATABASE_URL='postgres://outlier_jobs:window.snow@malina103/outlier_jobs_production'
-export OUTLIER_JOBS_REDIS_CACHE_URL='redis://localhost:6379/0'
-export OUTLIER_JOBS_REDIS_SIDEKIQ_URL='redis://localhost:6379/0'
 
 typeset -gU cdpath fignore fpath mailpath path
