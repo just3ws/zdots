@@ -58,7 +58,7 @@ setopt inc_append_history
 setopt share_history
 
 zstyle :omz:plugins:ssh-agent agent-forwarding on
-zstyle :omz:plugins:ssh-agent identities 'id_ed25519' 'id_just3ws@github' 'id_mike-localdev@github' 'id_rsa'
+zstyle :omz:plugins:ssh-agent identities 'id_rsa' 'id_ed25519' 'id_just3ws@github' 'id_mike-localdev@github'
 
 source "$ZDOTDIR/.antigenrc"
 source "$ZDOTDIR/.aliasrc"
@@ -79,10 +79,14 @@ bindkey -M vicmd v edit-command-line
 
 export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
 
-source ~/.config/zsh/fzfrc
+# source ~/.config/zsh/fzfrc
 
-. $HOME/.asdf/asdf.sh
+source $HOME/.asdf/asdf.sh
 
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
 
-test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib=$HOME/perl5)"
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+test -e "${ZDOTDIR}/.iterm2_shell_integration.zsh" && source "${ZDOTDIR}/.iterm2_shell_integration.zsh"

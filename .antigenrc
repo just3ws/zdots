@@ -4,10 +4,16 @@ source /usr/local/share/antigen/antigen.zsh
 
 antigen use oh-my-zsh
 
+export ZSH_THEME=''
+
 antigen bundle Tarrasch/zsh-functional
 antigen bundle mafredri/zsh-async
 
+# source $HOME/.dracula/themes/zsh-syntax-highlighting/zsh-syntax-highlighting.sh
+export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting/highlighters
+
+antigen bundle zsh-users/zsh-syntax-highlighting
+
 antigen theme romkatv/powerlevel10k
-# antigen theme spaceship-prompt/spaceship-prompt
 
 antigen apply
