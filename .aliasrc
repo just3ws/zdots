@@ -4,8 +4,8 @@ alias ll='ls -alh'
 
 alias prunedirs='rm -d **/*(/^F)'
 
-alias go-dep-install='dep ensure -v'
-alias go-dep-update='dep ensure -update -v'
+# alias go-dep-install='dep ensure -v'
+# alias go-dep-update='dep ensure -update -v'
 
 alias wip='git commit -am "WIP"'
 
@@ -104,12 +104,3 @@ alias -s txt=vim
 alias -s vim=vim
 alias -s xml=vim
 alias -s yml=vim
-
-# alias g='jump'
-# alias s='bookmark'
-# alias d='deletemark'
-# alias p='showmarks'
-# alias l='showmarks'
-#
-alias k=kubectl
-complete -F __start_kubectl k
