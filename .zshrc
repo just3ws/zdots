@@ -1,13 +1,10 @@
 # vim:ft=zsh
 
-export GITSTATUS_LOG_LEVEL=DEBUG
-
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.config/zsh/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
+
+source "$ZDOTDIR/.antigenrc"
 
 export ANSIBLE_COW_SELECTION=random
 export ANSIBLE_NOCOWS=1
@@ -62,8 +59,6 @@ setopt share_history
 zstyle :omz:plugins:ssh-agent agent-forwarding on
 zstyle :omz:plugins:ssh-agent identities 'id_ed25519' 'id_just3ws@github' 'id_mike-zalewhol@github' 'id_omf@github' 'id_omf@mike.hall' 'id_rsa'
 
-touch "$XDG_DATA_HOME/antigen/debug.log"
-source "$ZDOTDIR/.antigenrc"
 source "$ZDOTDIR/.aliasrc"
 
 bindkey '^P' up-line-or-history
@@ -90,4 +85,4 @@ source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-source "${ZDOTDIR}/.p10k.zsh"
+[[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
