@@ -1,4 +1,6 @@
 #!/usr/bin/env zsh
 
+clear
+tput clear
 printf "\33c\e[3J"
 

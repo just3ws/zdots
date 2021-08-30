@@ -1,5 +1,0 @@
-#!/usr/bin/env zsh
-
-/usr/local/bin/nvim --headless -c ':PlugUpgrade | :PlugUpdate | :PlugClean | :qa'
-/usr/local/bin/mvim -v -c ':PlugUpgrade | :PlugUpdate | :PlugClean | :qa'
-
