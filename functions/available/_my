@@ -1,9 +1,0 @@
-#compdef my 
-
-# /usr/local/Homebrew/completions/zsh/_brew
-
-_my () {
-}
-
-
-_my "$@"

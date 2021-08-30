@@ -1,9 +1,0 @@
-#!/usr/bin/env zsh
-
-# Go to a path relative to the top directory of the current git worktree.
-local topdir=$(git rev-parse --show-toplevel)
-if [ $? -ne 0 ]; then
-  return 1
-fi
-
-cd "${topdir}/${1}"
