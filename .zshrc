@@ -1,10 +1,14 @@
 # vim:ft=zsh
 
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+  . "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-source "$ZDOTDIR/.antigenrc"
+. "${ZDOTDIR}/.antigenrc"
+
+export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
+
+. "$HOME/.asdf/asdf.sh"
 
 export ANSIBLE_COW_SELECTION=random
 export ANSIBLE_NOCOWS=1
@@ -59,8 +63,6 @@ setopt share_history
 zstyle :omz:plugins:ssh-agent agent-forwarding on
 zstyle :omz:plugins:ssh-agent identities 'id_ed25519' 'id_just3ws@github' 'id_mike-localdev@github' 'id_omf@github' 'id_omf@mike.hall' 'id_rsa'
 
-source "$ZDOTDIR/.aliasrc"
-
 bindkey '^P' up-line-or-history
 bindkey '^N' down-line-or-history
 
@@ -75,14 +77,14 @@ bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
-export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
+export PERL5LIB="$HOME/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"
+export PERL_LOCAL_LIB_ROOT="$HOME/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"
+export PERL_MM_USE_DEFAULT=1
+export PERL_CPANM_OPT="--prompt --reinstall -l -I$HOME/perl5/lib/perl5 --mirror http://cpan.cpantesters.org"
+export PERL_MB_OPT="--install_base \"$HOME/perl5\""
+export PERL_MM_OPT="INSTALL_BASE=$HOME/perl5"
 
-eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib=$HOME/perl5)"
-
-source "$HOME/.asdf/asdf.sh"
-
-source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
-
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-[[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
+. "${ZDOTDIR}/.aliasrc"
+. "${ZDOTDIR}/.iterm2_shell_integration.zsh"
+. "${ZDOTDIR}/.fzf.zsh"
+. "${ZDOTDIR}/.p10k.zsh"

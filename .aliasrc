@@ -1,4 +1,4 @@
-# vim:ft=zsh
+# # vim:ft=zsh
 
 alias ll='ls -alh'
 
@@ -17,16 +17,16 @@ alias desk='nocorrect ~desk'
 hash -d xdots="$HOME/.config"
 alias xdots='nocorrect ~xdots'
 
-hash -d vdots="$XDG_CONFIG_HOME/nvim"
-alias vdots='nocorrect ~vdots'
+# # # hash -d vdots="$XDG_CONFIG_HOME/nvim"
+# # alias vdots='nocorrect ~vdots'
 
 hash -d zdots="$ZDOTDIR"
 alias zdots='nocorrect ~zdots'
 
-alias vim='/usr/local/bin/nvim'
-alias vi='/usr/local/bin/nvim'
+# # alias vim='/usr/local/bin/nvim'
+# # alias vi='/usr/local/bin/nvim'
 
-alias vimrc='vim ~vdots/init.vim'
+# # # alias vimrc='vim ~vdots/init.vim'
 
 alias -g nv='--tls-no-verify'
 
@@ -61,10 +61,10 @@ alias timestamp-dir-utc="gdate -u +\'%Y-%m-%d/%H.%M.%2N\'"
 alias timestamp-local="gdate +\'%Y-%m-%dT%H.%M.%2N\'"
 alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"
 
-alias aliasrc='vim ~zdots/.aliasrc'
-alias antigenrc='vim ~zdots/.antigenrc'
-alias zshenv='vim ~zdots/.zshenv'
-alias zshrc='vim ~zdots/.zshrc'
+# # alias aliasrc='vim ~zdots/.aliasrc'
+# # alias antigenrc='vim ~zdots/.antigenrc'
+# # alias zshenv='vim ~zdots/.zshenv'
+# # alias zshrc='vim ~zdots/.zshrc'
 
 alias acrobat='open -a Adobe\ Acrobat\ Reader\ DC'
 alias -s pdf=acrobat
@@ -79,28 +79,28 @@ alias -s jpeg=preview
 alias -s jpg=preview
 alias -s png=preview
 
-alias -s coffee=vim
-alias -s markdown=vim
-alias -s conf=vim
-alias -s css=vim
-alias -s csv=vim
-alias -s erb=vim
-alias -s example=vim
-alias -s haml=vim
-alias -s html=vim
-alias -s js=vim
-alias -s json=vim
-alias -s lock=vim
-alias -s md=vim
-alias -s pid=vim
-alias -s rake=vim
-alias -s rb=vim
-alias -s ru=vim
-alias -s scss=vim
-alias -s sql=vim
-alias -s srt=vim
-alias -s text=vim
-alias -s txt=vim
-alias -s vim=vim
-alias -s xml=vim
-alias -s yml=vim
+# alias -s coffee=vim
+# alias -s markdown=vim
+# alias -s conf=vim
+# alias -s css=vim
+# alias -s csv=vim
+# alias -s erb=vim
+# alias -s example=vim
+# alias -s haml=vim
+# alias -s html=vim
+# alias -s js=vim
+# alias -s json=vim
+# alias -s lock=vim
+# alias -s md=vim
+# alias -s pid=vim
+# alias -s rake=vim
+# alias -s rb=vim
+# alias -s ru=vim
+# alias -s scss=vim
+# alias -s sql=vim
+# alias -s srt=vim
+# alias -s text=vim
+# alias -s txt=vim
+# alias -s vim=vim
+# alias -s xml=vim
+# alias -s yml=vim
