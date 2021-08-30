@@ -1,45 +1,72 @@
 # # vim:ft=zsh
 
-alias ll='ls -alh'
-
-alias prunedirs='rm -d **/*(/^F)'
-
-# alias go-dep-install='dep ensure -v'
-# alias go-dep-update='dep ensure -update -v'
-
-alias wip='git commit -am "WIP"'
-
-alias listening-on='lsof -Pni4 | grep LISTEN'
-
 hash -d desk="$HOME/Desktop"
-alias desk='nocorrect ~desk'
-
+hash -d vdots="$XDG_CONFIG_HOME/nvim"
 hash -d xdots="$HOME/.config"
-alias xdots='nocorrect ~xdots'
-
-# # # hash -d vdots="$XDG_CONFIG_HOME/nvim"
-# # alias vdots='nocorrect ~vdots'
-
 hash -d zdots="$ZDOTDIR"
+
+alias desk='nocorrect ~desk'
+alias vdots='nocorrect ~vdots'
+alias xdots='nocorrect ~xdots'
 alias zdots='nocorrect ~zdots'
 
-# # alias vim='/usr/local/bin/nvim'
-# # alias vi='/usr/local/bin/nvim'
+alias vim="$HOME/.asdf/shims/nvim"
+alias vi="$HOME/.asdf/shims/nvim"
 
-# # # alias vimrc='vim ~vdots/init.vim'
+alias vimrc='vim ~vdots/init.vim'
 
-alias -g nv='--tls-no-verify'
+alias aliasrc='vim ~zdots/.aliasrc'
+alias antigenrc='vim ~zdots/.antigenrc'
+alias zshenv='vim ~zdots/.zshenv'
+alias zshrc='vim ~zdots/.zshrc'
 
 alias -g gi='| grep -i'
 alias -g lx='l -10'
 alias -g lxx='l -20'
 alias -g lxxx='l -30'
-
-alias be='bundle exec'
+alias -g nv='--tls-no-verify'
+alias -s coffee=vim
+alias -s conf=vim
+alias -s css=vim
+alias -s csv=vim
+alias -s erb=vim
+alias -s example=vim
+alias -s gif=preview
+alias -s haml=vim
+alias -s html=vim
+alias -s jpeg=preview
+alias -s jpg=preview
+alias -s js=vim
+alias -s json=vim
+alias -s lock=vim
+alias -s markdown=vim
+alias -s md=vim
+alias -s pdf=acrobat
+alias -s pid=vim
+alias -s png=preview
+alias -s rake=vim
+alias -s rb=vim
+alias -s ru=vim
+alias -s scss=vim
+alias -s sql=vim
+alias -s srt=vim
+alias -s text=vim
+alias -s txt=vim
+alias -s vim=vim
+alias -s xml=vim
+alias -s yml=vim
+alias acrobat='open -a Adobe\ Acrobat\ Reader\ DC'
 alias b="bundle"
-alias bu="b update"
 alias be="b exec"
-
+alias be='bundle exec'
+alias bounce='reload'
+alias bsl='brew services list'
+alias bu="b update"
+alias chrome='/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome'
+alias clear='clear'
+alias clear\!='klear'
+alias cwd='pwd | pbcopy'
+alias firefox='/Applications/Firefox.app/Contents/MacOS/firefox'
 alias gba='git branch --all'
 alias gco='git checkout '
 alias gfa='git fetch --all --prune'
@@ -47,60 +74,18 @@ alias gfp='git format-patch HEAD~1 --no-color --stdout'
 alias gs='git status --short'
 alias gss='git status --short'
 alias gwd='git diff --word-diff'
-
-alias bounce='reload'
-alias bsl='brew services list'
-alias clear='clear'
-alias clear\!='klear'
-alias cwd='pwd | pbcopy'
-
 alias iso8601-local="gdate +\'%Y-%m-%dT%H:%M:%SZ\'"
 alias iso8601-utc="gdate -u +\'%Y-%m-%dT%H:%M:%SZ\'"
+alias listening-on='lsof -Pni4 | grep LISTEN'
+alias ll='ls -alh'
+alias marked='/Applications/Marked\ 2.app/Contents/MacOS/Marked\ 2'
+alias preview='open -a Preview'
+alias prunedirs='rm -d **/*(/^F)'
 alias timestamp-dir-local="gdate +\'%Y-%m-%d/%H.%M.%2N\'"
 alias timestamp-dir-utc="gdate -u +\'%Y-%m-%d/%H.%M.%2N\'"
 alias timestamp-local="gdate +\'%Y-%m-%dT%H.%M.%2N\'"
 alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"
+alias wip='git commit -am "WIP"'
 
-# # alias aliasrc='vim ~zdots/.aliasrc'
-# # alias antigenrc='vim ~zdots/.antigenrc'
-# # alias zshenv='vim ~zdots/.zshenv'
-# # alias zshrc='vim ~zdots/.zshrc'
-
-alias acrobat='open -a Adobe\ Acrobat\ Reader\ DC'
-alias -s pdf=acrobat
-
-alias chrome='/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome'
-alias firefox='/Applications/Firefox.app/Contents/MacOS/firefox'
-alias marked='/Applications/Marked\ 2.app/Contents/MacOS/Marked\ 2'
-
-alias preview='open -a Preview'
-alias -s gif=preview
-alias -s jpeg=preview
-alias -s jpg=preview
-alias -s png=preview
-
-# alias -s coffee=vim
-# alias -s markdown=vim
-# alias -s conf=vim
-# alias -s css=vim
-# alias -s csv=vim
-# alias -s erb=vim
-# alias -s example=vim
-# alias -s haml=vim
-# alias -s html=vim
-# alias -s js=vim
-# alias -s json=vim
-# alias -s lock=vim
-# alias -s md=vim
-# alias -s pid=vim
-# alias -s rake=vim
-# alias -s rb=vim
-# alias -s ru=vim
-# alias -s scss=vim
-# alias -s sql=vim
-# alias -s srt=vim
-# alias -s text=vim
-# alias -s txt=vim
-# alias -s vim=vim
-# alias -s xml=vim
-# alias -s yml=vim
+# alias go-dep-install='dep ensure -v'
+# alias go-dep-update='dep ensure -update -v'
