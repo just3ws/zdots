@@ -67,6 +67,4 @@ path=(
   $path
 )
 
-. "$HOME/.asdf/asdf.sh"
-
 typeset -gU cdpath fignore fpath mailpath path
