@@ -16,6 +16,11 @@ alias wwworkremote=w3r
 alias wwwr=w3r
 alias wr=w3r
 
+alias wwworkremote-all-do=w3r-all-do
+alias wwwr-all-do=w3r-all-do
+alias wr-all-do=w3r-all-do
+alias wrad=w3r-all-do
+
 alias projects='nocorrect ~projects'
 alias desk='nocorrect ~desk'
 alias vdots='nocorrect ~vdots'
