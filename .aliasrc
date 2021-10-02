@@ -5,9 +5,17 @@ hash -d vdots="$XDG_CONFIG_HOME/nvim"
 hash -d xdots="$HOME/.config"
 hash -d zdots="$ZDOTDIR"
 hash -d projects="$HOME/projects"
+
+hash -d wwworkremote="$HOME/projects/wwworkremote"
+hash -d wwwr="$HOME/projects/wwworkremote"
 hash -d w3r="$HOME/projects/wwworkremote"
+hash -d wr="$HOME/projects/wwworkremote"
 
 # alias w3r='nocorrect ~w3r'
+alias wwworkremote=w3r
+alias wwwr=w3r
+alias wr=w3r
+
 alias projects='nocorrect ~projects'
 alias desk='nocorrect ~desk'
 alias vdots='nocorrect ~vdots'
