@@ -9,16 +9,16 @@ then
 fi
 
 case "$option" in
-  (core) cd "$W3RPATH/core" ;;
-  (dashboard) cd "$W3RPATH/dashboard" ;;
+  (br*) w3r-all-do 'git rev-parse --abbrev-ref head' ;;
+  (bu*) w3r-all-do 'bundle check || bundle install' ;;
+  (co*) cd "$W3RPATH/core" ;;
+  (da*) cd "$W3RPATH/dashboard" ;;
+  (dr*) cd $HOME/Dropbox/mike/projects/wwworkremote/ ;;
+  (fe*) w3r-all-do 'git fetch --all --prune --verbose' ;;
+  (gg*) w3r-all-do 'git gc --aggressive' ;;
+  (gs*) w3r-all-do 'git status --short' ;;
+  (pu*) w3r-all-do 'git pull --rebase --autostash' ;;
   (rc) cat "$W3RPATH/.w3rrc" ;;
-  (branches) w3r-all-do 'git rev-parse --abbrev-ref head' ;;
-  (bundle) w3r-all-do 'bundle check || bundle install' ;;
-  (fetch) w3r-all-do 'git fetch --all --prune --verbose' ;;
-  (dropbox) cd $HOME/Dropbox/mike/projects/wwworkremote/ ;;
-  (ggc) w3r-all-do 'git gc --aggressive' ;;
-  (pull) w3r-all-do 'git pull --rebase --autostash' ;;
-  (status) w3r-all-do 'git status --short' ;;
   (*) echo
     echo "No args will \`cd\` to the $W3RPATH."
     echo
