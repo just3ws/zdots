@@ -1,0 +1,26 @@
+#!/usr/bin/env zsh
+
+export PROJECTS_PATH="$HOME/projects/"
+
+mkdir -p "$HOME/.local/share/projects-all-do"
+
+echo "$(iso8601-local) ; $@" >>! "$HOME/.local/share/projects-all-do/history"
+
+while read directory ; do
+  local repo="$directory"
+  cd "$PROJECTS_PATH/$directory"
+
+  local segment_repo='%F{8}[%f%F{11}REPO%f%F{8}=%f%B$repo%b%F{8}]%f'
+  local segment_branch='%F{8}[%f%F{11}BRANCH%f%F{8}=%f%B$(git rev-parse --abbrev-ref HEAD)%b%F{8}]%f'
+  local segment_cmd='%F{8}[%f%F{11}CMD%f%F{8}=%f%B$@%b%F{8}]%f'
+
+  print -P "$segment_repo $segment_branch $segment_cmd\n"
+
+  eval "$@"
+
+  cd "$PROJECTS_PATH"
+  echo
+done < "$PROJECTS_PATH/.skrc"
+
+return 0
+

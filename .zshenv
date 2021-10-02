@@ -48,6 +48,9 @@ for fn in $ZDOTDIR/functions/enabled/*(.x); do
   autoload -Uz "$(basename $fn)"
 done
 
+export PROJECTSPATH="$HOME/projects/"
+export W3RPATH="$HOME/projects/wwworkremote/"
+
 fpath=(
   $ZDOTDIR/functions/enabled
   $HOME/.asdf/completions
