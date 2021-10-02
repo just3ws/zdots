@@ -9,21 +9,30 @@ then
 fi
 
 case "$option" in
-  (br*) w3r-all-do 'git rev-parse --abbrev-ref head' ;;
-  (bu*) w3r-all-do 'bundle check || bundle install' ;;
-  (co*) cd "$W3RPATH/core" ;;
-  (da*) cd "$W3RPATH/dashboard" ;;
-  (dr*) cd $HOME/Dropbox/mike/projects/wwworkremote/ ;;
-  (fe*) w3r-all-do 'git fetch --all --prune --verbose' ;;
-  (gg*) w3r-all-do 'git gc --aggressive' ;;
-  (gs*) w3r-all-do 'git status --short' ;;
-  (pu*) w3r-all-do 'git pull --rebase --autostash' ;;
+  (ac*) cd "$W3RPATH/actions/" ;;
+  (bi*) cd "$W3RPATH/binder/" ;;
+  (co*) cd "$W3RPATH/core/" ;;
+  (da*) cd "$W3RPATH/dashboard/" ;;
+  (op*) cd "$W3RPATH/ops/" ;;
+  (drop*) cd $HOME/Dropbox/mike/projects/wwworkremote/ ;;
+  (bbi) w3r-all-do 'bundle check || bundle install' ;;
+  (bbu) w3r-all-do 'bundle update' ;;
+  (ppi) w3r-all-do 'pip install -r requirements.txt' ;;
+  (ppu) w3r-all-do 'pip install -U -r requirements.txt' ;;
+  (gfa) w3r-all-do 'git fetch --all --prune --verbose' ;;
+  (gbr) w3r-all-do 'git rev-parse --abbrev-ref head' ;;
+  (ggc) w3r-all-do 'git gc --aggressive' ;;
+  (gpu) w3r-all-do 'git pull --rebase --autostash' ;;
+  (gss|status) w3r-all-do 'git status --short' ;;
   (rc) cat "$W3RPATH/.w3rrc" ;;
   (*) echo
     echo "No args will \`cd\` to the $W3RPATH."
     echo
+    echo "actions   => cd \"$W3RPATH/actions/\""
+    echo "binder    => cd \"$W3RPATH/binder/\""
     echo "core      => cd \"$W3RPATH/core/\""
     echo "dashboard => cd \"$W3RPATH/dashboard/\""
+    echo "ops       => cd \"$W3RPATH/ops/\""
     echo "branches  => w3r-all-do 'git rev-parse --abbrev-ref head'"
     echo "bundle    => w3r-all-do 'bundle check || bundle install'"
     echo "dropbox   => cd $HOME/Dropbox/mike/projects/wwworkremote/"
