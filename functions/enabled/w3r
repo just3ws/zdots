@@ -1,0 +1,42 @@
+#!/usr/bin/env zsh
+
+local option="$1"
+
+if [ -z "$option" ]
+then
+  cd ~w3r
+  return 0
+fi
+
+case "$option" in
+  (core) cd "$W3RPATH/core" ;;
+  (dashboard) cd "$W3RPATH/dashboard" ;;
+  (branches) w3r-all-do 'git rev-parse --abbrev-ref head' ;;
+  (bundle) w3r-all-do 'bundle check || bundle install' ;;
+  (fetch) w3r-all-do 'git fetch --all --prune --verbose' ;;
+  (dropbox) cd $HOME/Dropbox/mike/projects/wwworkremote/ ;;
+  (ggc) w3r-all-do 'git gc --aggressive' ;;
+  (help) print "No args will \`cd\` to the $W3RPATH." ;;
+  (pull) w3r-all-do 'git pull --rebase --autostash' ;;
+  (status) w3r-all-do 'git status --short' ;;
+  (*) echo
+    echo "core      => cd \"$W3RPATH/core/\""
+    echo "dashboard => cd \"$W3RPATH/dashboard/\""
+    echo "branches  => w3r-all-do 'git rev-parse --abbrev-ref head'"
+    echo "bundle    => w3r-all-do 'bundle check || bundle install'"
+    echo "dropbox   => cd $HOME/Dropbox/mike/projects/wwworkremote/"
+    echo "fetch     => w3r-all-do 'git fetch --all --prune --verbose'"
+    echo "ggc       => w3r-all-do 'git gc --aggressive'"
+    echo "pull      => w3r-all-do 'git pull --rebase --autostash'"
+    echo "status    => w3r-all-do 'git status --short'"
+    echo "help      => print \"No args will \`cd\` to the $W3RPATH.\""
+    echo
+    echo "I don't know what to do with: '$@'"
+    echo
+    w3r help
+    return 1 ;;
+esac
+
+return 0
+
+
