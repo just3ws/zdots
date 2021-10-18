@@ -17,12 +17,15 @@ then
 fi
 
 case "$option" in
+  (fe) ;&
   (fr*) 
     if [[ ! -z "$OMFPATH/frontend/" ]]; then 
       mkdir -p "$OMFPATH/frontend/"
     fi
 
     cd "$OMFPATH/frontend/" 
+
+    # open https://github.com/springleaf/frontend/pulls
     ;;
   (mu*) 
     if [[ ! -z "$OMFPATH/mulesoft_client/" ]]; then 
@@ -30,6 +33,8 @@ case "$option" in
     fi
 
     cd "$OMFPATH/mulesoft_client/" 
+
+    # open https://github.com/springleaf/mulesoft_client/pulls
     ;;
   (ac*) 
     if [[ ! -z "$OMFPATH/acquisition/" ]]; then 
@@ -37,18 +42,25 @@ case "$option" in
     fi
 
     cd "$OMFPATH/acquisition/" 
+
+    # open https://github.com/springleaf/acquisition/pulls
     ;;
-  (bundle) omf-all-do 'bundle check || bundle install' ;;
-  (fetch)  omf-all-do 'git fetch --all --prune --verbose' ;;
-  (status) omf-all-do 'git status --short' ;;
+
+  (bun*) ;&
   (bbi)    omf-all-do 'bundle check || bundle install' ;;
+
   (bbu)    omf-all-do 'bundle update' ;;
   (ppi)    omf-all-do 'pip install -r requirements.txt' ;;
   (ppu)    omf-all-do 'pip install -U -r requirements.txt' ;;
+
+  (fet*) ;&
   (gfa)    omf-all-do 'git fetch --all --prune --verbose' ;;
+
   (gbr)    omf-all-do 'git rev-parse --abbrev-ref head' ;;
   (ggc)    omf-all-do 'git gc --aggressive' ;;
   (gpu)    omf-all-do 'git pull --rebase --autostash' ;;
+
+  (stat*) ;&
   (gss)    omf-all-do 'git status --short' ;;
   (rc) 
     if [[ ! -a "$OMFPATH/.omfrc" ]]; then 
