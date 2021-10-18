@@ -49,6 +49,7 @@ for fn in $ZDOTDIR/functions/enabled/*(.x); do
 done
 
 export PROJECTSPATH="$HOME/projects/"
+export OMFPATH="$HOME/projects/"
 export W3RPATH="$HOME/projects/wwworkremote/"
 
 fpath=(

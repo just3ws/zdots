@@ -1,0 +1,76 @@
+#!/usr/bin/env zsh
+
+local option="$1"
+
+if [[ ! -z "$OMFPATH" ]]; then 
+  mkdir -p "$OMFPATH"
+fi
+
+if [[ ! -a "$OMFPATH/.omfrc" ]]; then 
+  touch "$OMFPATH/.omfrc"
+fi
+
+if [ -z "$option" ]
+then
+  cd "$OMFPATH"
+  return 0
+fi
+
+case "$option" in
+  (fr*) 
+    if [[ ! -z "$OMFPATH/frontend/" ]]; then 
+      mkdir -p "$OMFPATH/frontend/"
+    fi
+
+    cd "$OMFPATH/frontend/" 
+    ;;
+  (mu*) 
+    if [[ ! -z "$OMFPATH/mulesoft_client/" ]]; then 
+      mkdir -p "$OMFPATH/mulesoft_client/"
+    fi
+
+    cd "$OMFPATH/mulesoft_client/" 
+    ;;
+  (ac*) 
+    if [[ ! -z "$OMFPATH/acquisition/" ]]; then 
+      mkdir -p "$OMFPATH/acquisition/"
+    fi
+
+    cd "$OMFPATH/acquisition/" 
+    ;;
+  (bbi) omf-all-do 'bundle check || bundle install' ;;
+  (bbu) omf-all-do 'bundle update' ;;
+  (ppi) omf-all-do 'pip install -r requirements.txt' ;;
+  (ppu) omf-all-do 'pip install -U -r requirements.txt' ;;
+  (gfa) omf-all-do 'git fetch --all --prune --verbose' ;;
+  (gbr) omf-all-do 'git rev-parse --abbrev-ref head' ;;
+  (ggc) omf-all-do 'git gc --aggressive' ;;
+  (gpu) omf-all-do 'git pull --rebase --autostash' ;;
+  (gss|status) omf-all-do 'git status --short' ;;
+  (rc) 
+    if [[ ! -a "$OMFPATH/.omfrc" ]]; then 
+      touch "$OMFPATH/.omfrc"
+    fi
+
+    cat "$OMFPATH/.omfrc" 
+    ;;
+  (*) echo
+    echo "No args will \`cd\` to the $OMFPATH."
+    echo
+    echo "frontend        => cd \"$OMFPATH/frontend/\""
+    echo "acquisition     => cd \"$OMFPATH/acquisition/\""
+    echo "mulesoft_client => cd \"$OMFPATH/mulesoft_client/\""
+    echo "branches        => omf-all-do 'git rev-parse --abbrev-ref head'"
+    echo "bundle          => omf-all-do 'bundle check || bundle install'"
+    echo "dropbox         => cd $HOME/Dropbox/mike/omf/"
+    echo "fetch           => omf-all-do 'git fetch --all --prune --verbose'"
+    echo "ggc             => omf-all-do 'git gc --aggressive'"
+    echo "pull            => omf-all-do 'git pull --rebase --autostash'"
+    echo "status          => omf-all-do 'git status --short'"
+    echo
+    echo "I don't know what to do with: '$@'"
+    echo
+    return 1 ;;
+esac
+
+return 0
