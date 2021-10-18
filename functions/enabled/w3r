@@ -2,6 +2,14 @@
 
 local option="$1"
 
+if [[ ! -z "~w3r" ]]; then 
+  mkdir -p ~w3r
+fi
+
+if [[ ! -z "$W3RPATH" ]]; then 
+  mkdir -p "$W3RPATH"
+fi
+
 if [ -z "$option" ]
 then
   cd ~w3r
@@ -9,12 +17,48 @@ then
 fi
 
 case "$option" in
-  (ac*) cd "$W3RPATH/actions/" ;;
-  (bi*) cd "$W3RPATH/binder/" ;;
-  (co*) cd "$W3RPATH/core/" ;;
-  (da*) cd "$W3RPATH/dashboard/" ;;
-  (op*) cd "$W3RPATH/ops/" ;;
-  (drop*) cd $HOME/Dropbox/mike/projects/wwworkremote/ ;;
+  (ac*) 
+    if [[ ! -z "$W3RPATH/actions/" ]]; then 
+      mkdir -p "$W3RPATH/actions/"
+    fi
+
+    cd "$W3RPATH/actions/" 
+    ;;
+  (bi*) 
+    if [[ ! -z "$W3RPATH/binder/" ]]; then 
+      mkdir -p "$W3RPATH/binder/"
+    fi
+
+    cd "$W3RPATH/binder/" 
+    ;;
+  (co*) 
+    if [[ ! -z "$W3RPATH/core/" ]]; then 
+      mkdir -p "$W3RPATH/core/"
+    fi
+
+    cd "$W3RPATH/core/" 
+    ;;
+  (da*) 
+    if [[ ! -z "$W3RPATH/dashboard/" ]]; then 
+      mkdir -p "$W3RPATH/dashboard/"
+    fi
+
+    cd "$W3RPATH/dashboard/" 
+    ;;
+  (op*) 
+    if [[ ! -z "$W3RPATH/ops/" ]]; then 
+      mkdir -p "$W3RPATH/ops/"
+    fi
+
+    cd "$W3RPATH/ops/" 
+    ;;
+  (drop*) 
+    if [[ ! -z "$HOME/Dropbox/mike/projects/wwworkremote/" ]]; then 
+      mkdir -p "$HOME/Dropbox/mike/projects/wwworkremote/"
+    fi
+
+    cd "$HOME/Dropbox/mike/projects/wwworkremote/"
+    ;;
   (bbi) w3r-all-do 'bundle check || bundle install' ;;
   (bbu) w3r-all-do 'bundle update' ;;
   (ppi) w3r-all-do 'pip install -r requirements.txt' ;;
@@ -24,7 +68,13 @@ case "$option" in
   (ggc) w3r-all-do 'git gc --aggressive' ;;
   (gpu) w3r-all-do 'git pull --rebase --autostash' ;;
   (gss|status) w3r-all-do 'git status --short' ;;
-  (rc) cat "$W3RPATH/.w3rrc" ;;
+  (rc) 
+    if [[ ! -a "$W3RPATH/.w3rrc" ]]; then 
+      touch "$W3RPATH/.w3rrc"
+    fi
+
+    cat "$W3RPATH/.w3rrc" 
+    ;;
   (*) echo
     echo "No args will \`cd\` to the $W3RPATH."
     echo
