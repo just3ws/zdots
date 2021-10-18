@@ -2,6 +2,12 @@
 
 local option="$1"
 
+if [ -z "$option" ]
+then
+  cd "$W3RPATH"
+  return 0
+fi
+
 if [[ ! -z "~w3r" ]]; then 
   mkdir -p ~w3r
 fi
@@ -10,10 +16,8 @@ if [[ ! -z "$W3RPATH" ]]; then
   mkdir -p "$W3RPATH"
 fi
 
-if [ -z "$option" ]
-then
-  cd ~w3r
-  return 0
+if [[ ! -a "$W3RPATH/.w3rrc" ]]; then 
+  touch "$W3RPATH/.w3rrc"
 fi
 
 case "$option" in
