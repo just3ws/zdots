@@ -1,5 +1,7 @@
 #!/usr/bin/env zsh
 
+# https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html
+
 local option="$1"
 
 if [[ ! -z "$OMFPATH" ]]; then 
