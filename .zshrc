@@ -13,7 +13,8 @@ fi
 
 . "${ZDOTDIR}/.antigenrc"
 
-export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1)"
+export RUBY_CONFIGURE_OPTS="--with-jemalloc=$(brew --prefix jemalloc) --with-openssl-dir=$(brew --prefix openssl@1.1)"
+# export RUBYOPT='-W:no-deprecated -W:no-experimental'
 
 . "$HOME/.asdf/asdf.sh"
 
