@@ -11,6 +11,8 @@ antigen use oh-my-zsh
 
 # antigen bundle zsh-users/zsh-syntax-highlighting
 
-antigen theme romkatv/powerlevel10k
+# antigen theme romkatv/powerlevel10k
+antigen theme jackharrisonsherlock/common
+
 
 antigen apply
