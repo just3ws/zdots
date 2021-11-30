@@ -10,17 +10,17 @@ export XDG_DATA_HOME="$XDG_ROOT/.local/share"
 export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 export ANTIGEN_CACHE="$XDG_CACHE_HOME/antigen/init.zsh"
 
-export EDITOR="$HOME/.asdf/shims/nvim"
-export ALTERNATE_EDITOR="$HOME/.asdf/shims/nvim"
-export BUNDLER_EDITOR="$HOME/.asdf/shims/nvim"
-export GEM_EDITOR="$HOME/.asdf/shims/nvim"
-export GIT_EDITOR="$HOME/.asdf/shims/nvim"
-export PSQL_EDITOR="$HOME/.asdf/shims/nvim"
-export SUDO_EDITOR="$HOME/.asdf/shims/nvim"
-export VISUAL="$HOME/.asdf/shims/nvim"
+export EDITOR="/usr/local/bin/nvim"
+export ALTERNATE_EDITOR="/usr/local/bin/nvim"
+export BUNDLER_EDITOR="/usr/local/bin/nvim"
+export GEM_EDITOR="/usr/local/bin/nvim"
+export GIT_EDITOR="/usr/local/bin/nvim"
+export PSQL_EDITOR="/usr/local/bin/nvim"
+export SUDO_EDITOR="/usr/local/bin/nvim"
+export VISUAL="/usr/local/bin/nvim"
 
-alias vim="$HOME/.asdf/shims/nvim"
-alias vi="$HOME/.asdf/shims/nvim"
+alias vim="/usr/local/bin/nvim"
+alias vi="/usr/local/bin/nvim"
 
 export LANG='en_US.UTF-8'
 
@@ -64,9 +64,9 @@ fpath=(
 path=(
   $HOME/.asdf/shims
   $HOME/.asdf/bin
+  /usr/local/opt/openjdk/bin
   $HOME/perl5/bin
   /usr/local/opt/influxdb@1/bin
-  /usr/local/opt/openjdk/bin
   /usr/local/{bin,sbin}
   /usr/{bin,sbin}
   /{bin,sbin}
