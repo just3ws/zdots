@@ -32,8 +32,8 @@ alias vdots='nocorrect ~vdots'
 alias xdots='nocorrect ~xdots'
 alias zdots='nocorrect ~zdots'
 
-alias vim="$HOME/.asdf/shims/nvim"
-alias vi="$HOME/.asdf/shims/nvim"
+alias vim='/usr/local/bin/nvim'
+alias vi='/usr/local/bin/nvim'
 
 alias vimrc='vim ~vdots/init.vim'
 
