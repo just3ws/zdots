@@ -1,5 +1,7 @@
 # # vim:ft=zsh
 
+alias railc='bundle exec rails console -- --simple-prompt --back-trace-limit 8 --noecho -W0'
+
 hash -d desk="$HOME/Desktop"
 hash -d vdots="$XDG_CONFIG_HOME/nvim"
 hash -d xdots="$HOME/.config"
