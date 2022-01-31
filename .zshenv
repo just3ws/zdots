@@ -22,6 +22,8 @@ export VISUAL="/usr/local/bin/nvim"
 alias vim="/usr/local/bin/nvim"
 alias vi="/usr/local/bin/nvim"
 
+export HAXE_STD_PATH="/usr/local/lib/haxe/std"
+
 export LANG='en_US.UTF-8'
 
 export PGPASSFILE="${HOME}/.pgpass"
