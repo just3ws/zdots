@@ -93,12 +93,12 @@ bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
-export PERL5LIB="$HOME/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"
-export PERL_LOCAL_LIB_ROOT="$HOME/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"
-export PERL_MM_USE_DEFAULT=1
-# export PERL_CPANM_OPT="--prompt --reinstall -l -I$HOME/perl5/lib/perl5 --mirror http://cpan.cpantesters.org"
-export PERL_MB_OPT="--install_base \"$HOME/perl5\""
-export PERL_MM_OPT="INSTALL_BASE=$HOME/perl5"
+# export PERL5LIB="$HOME/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"
+# export PERL_LOCAL_LIB_ROOT="$HOME/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"
+# export PERL_MM_USE_DEFAULT=1
+# # export PERL_CPANM_OPT="--prompt --reinstall -l -I$HOME/perl5/lib/perl5 --mirror http://cpan.cpantesters.org"
+# export PERL_MB_OPT="--install_base \"$HOME/perl5\""
+# export PERL_MM_OPT="INSTALL_BASE=$HOME/perl5"
 
 . "${ZDOTDIR}/.aliasrc"
 . "${ZDOTDIR}/.iterm2_shell_integration.zsh"
