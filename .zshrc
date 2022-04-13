@@ -1,14 +1,10 @@
+# vim:ft=zsh
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.config/zsh/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
-# vim:ft=zsh
-
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  . "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
 export MALLOC_ARENA_MAX=2
@@ -22,9 +18,6 @@ export RUBY_CONFIGURE_OPTS="--with-jemalloc=$(brew --prefix jemalloc) --with-ope
 # export RUBYOPT='-W:no-deprecated -W:no-experimental'
 
 . "$HOME/.asdf/asdf.sh"
-
-# eval "$(pyenv -)"
-# eval "$(pyenv virtualenv-init -)"
 
 export ANSIBLE_COW_SELECTION=random
 export ANSIBLE_NOCOWS=1
@@ -93,19 +86,13 @@ bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
 
-# export PERL5LIB="$HOME/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"
-# export PERL_LOCAL_LIB_ROOT="$HOME/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"
-# export PERL_MM_USE_DEFAULT=1
-# # export PERL_CPANM_OPT="--prompt --reinstall -l -I$HOME/perl5/lib/perl5 --mirror http://cpan.cpantesters.org"
-# export PERL_MB_OPT="--install_base \"$HOME/perl5\""
-# export PERL_MM_OPT="INSTALL_BASE=$HOME/perl5"
+source "${ZDOTDIR}/.aliasrc"
+source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
+source "${ZDOTDIR}/.fzf.zsh"
+source "${ZDOTDIR}/.p10k.zsh"
 
-. "${ZDOTDIR}/.aliasrc"
-. "${ZDOTDIR}/.iterm2_shell_integration.zsh"
-. "${ZDOTDIR}/.fzf.zsh"
-. "${ZDOTDIR}/.p10k.zsh"
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
-
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+(( ! ${+functions[p10k]} )) || p10k finalize
