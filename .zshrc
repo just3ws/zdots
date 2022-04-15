@@ -12,12 +12,14 @@ export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1) --wi
 
 export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting/highlighters
 
-. "${ZDOTDIR}/.antigenrc"
+source "${ZDOTDIR}/.antigenrc"
 
 export RUBY_CONFIGURE_OPTS="--with-jemalloc=$(brew --prefix jemalloc) --with-openssl-dir=$(brew --prefix openssl@1.1)"
 # export RUBYOPT='-W:no-deprecated -W:no-experimental'
 
-. "$HOME/.asdf/asdf.sh"
+source "$HOME/.asdf/asdf.sh"
+
+eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib=$HOME/perl5)"
 
 export ANSIBLE_COW_SELECTION=random
 export ANSIBLE_NOCOWS=1
@@ -89,10 +91,7 @@ bindkey -M vicmd v edit-command-line
 source "${ZDOTDIR}/.aliasrc"
 source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
 source "${ZDOTDIR}/.fzf.zsh"
-source "${ZDOTDIR}/.p10k.zsh"
-
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
-[[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
+source "${ZDOTDIR}/.p10k.zsh"
 (( ! ${+functions[p10k]} )) || p10k finalize
