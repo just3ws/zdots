@@ -25,8 +25,6 @@ alias vi="$EDITOR"
 alias vim="$EDITOR"
 alias vi="$EDITOR"
 
-export HAXE_STD_PATH="/usr/local/lib/haxe/std"
-
 export LANG='en_US.UTF-8'
 
 export PGPASSFILE="${HOME}/.pgpass"
@@ -53,7 +51,7 @@ for fn in $ZDOTDIR/functions/enabled/*(.x); do
 done
 
 export PROJECTSPATH="$HOME/projects/"
-export OMFPATH="$HOME/projects/springleaf/"
+export OMFPATH="$HOME/projects/omf/"
 export W3RPATH="$HOME/projects/wwworkremote/"
 
 fpath=(

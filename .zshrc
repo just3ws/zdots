@@ -8,13 +8,13 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 
 export MALLOC_ARENA_MAX=2
-export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1) --with-jemalloc=$(brew --prefix jemalloc)"
 
 export ZSH_HIGHLIGHT_HIGHLIGHTERS_DIR=/usr/local/share/zsh-syntax-highlighting/highlighters
 
 source "${ZDOTDIR}/.antigenrc"
 
-export RUBY_CONFIGURE_OPTS="--with-jemalloc=$(brew --prefix jemalloc) --with-openssl-dir=$(brew --prefix openssl@1.1)"
+export RUBY_CONFIGURE_OPTS="--with-openssl-dir=$(brew --prefix openssl@1.1) --with-jemalloc=$(brew --prefix jemalloc)"
+# export RUBY_CONFIGURE_OPTS="--with-jemalloc=$(brew --prefix jemalloc) --with-openssl-dir=$(brew --prefix openssl@1.1)"
 # export RUBYOPT='-W:no-deprecated -W:no-experimental'
 
 source "$HOME/.asdf/asdf.sh"
@@ -87,6 +87,8 @@ zle -N edit-command-line
 bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey -M vicmd v edit-command-line
+
+autoload -U bashcompinit && bashcompinit
 
 source "${ZDOTDIR}/.aliasrc"
 source "${ZDOTDIR}/.iterm2_shell_integration.zsh"

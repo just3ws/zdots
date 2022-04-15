@@ -16,20 +16,20 @@ fi
 case "$option" in
   (fe) ;&
   (fr*)
-    [[ ! -z "$OMFPATH/frontend/" ]] && mkdir -p "$OMFPATH/frontend/"
-    cd "$OMFPATH/frontend/"
+    [[ ! -z "$OMFPATH/springleaf/frontend/" ]] && mkdir -p "$OMFPATH/springleaf/frontend/"
+    cd "$OMFPATH/springleaf/frontend/"
     # open https://github.com/springleaf/frontend/pulls
     ;;
 
   (mu*)
-    [[ ! -z "$OMFPATH/mulesoft_client/" ]] && mkdir -p "$OMFPATH/mulesoft_client/"
-    cd "$OMFPATH/mulesoft_client/"
+    [[ ! -z "$OMFPATH/springleaf/mulesoft_client/" ]] && mkdir -p "$OMFPATH/springleaf/mulesoft_client/"
+    cd "$OMFPATH/springleaf/mulesoft_client/"
     # open https://github.com/springleaf/mulesoft_client/pulls
     ;;
 
   (ac*)
-    [[ ! -z "$OMFPATH/acquisition/" ]] && mkdir -p "$OMFPATH/acquisition/"
-    cd "$OMFPATH/acquisition/"
+    [[ ! -z "$OMFPATH/springleaf/acquisition/" ]] && mkdir -p "$OMFPATH/springleaf/acquisition/"
+    cd "$OMFPATH/springleaf/acquisition/"
     # open https://github.com/springleaf/acquisition/pulls
     ;;
 
@@ -80,9 +80,9 @@ case "$option" in
   (*) echo
     echo "No args will \`cd\` to the $OMFPATH."
     echo
-    echo "frontend        => cd \"$OMFPATH/frontend/\""
-    echo "acquisition     => cd \"$OMFPATH/acquisition/\""
-    echo "mulesoft_client => cd \"$OMFPATH/mulesoft_client/\""
+    echo "frontend        => cd \"$OMFPATH/springleaf/frontend/\""
+    echo "acquisition     => cd \"$OMFPATH/springleaf/acquisition/\""
+    echo "mulesoft_client => cd \"$OMFPATH/springleaf/mulesoft_client/\""
     echo "bundle          => omf-all-do 'bundle check || bundle install' "
     echo "fetch           => omf-all-do 'git fetch --all --prune --verbose' "
     echo "status          => omf-all-do 'git status --short'"
