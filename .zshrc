@@ -16,7 +16,8 @@ fi
 export RUBY_CONFIGURE_OPTS="--with-jemalloc=$(brew --prefix jemalloc) --with-openssl-dir=$(brew --prefix openssl@1.1)"
 # export RUBYOPT='-W:no-deprecated -W:no-experimental'
 
-. "$HOME/.asdf/asdf.sh"
+# . "$HOME/.asdf/asdf.sh"
+. /usr/local/opt/asdf/libexec/asdf.sh
 
 export ANSIBLE_COW_SELECTION=random
 export ANSIBLE_NOCOWS=1
@@ -99,3 +100,8 @@ export PERL_MM_OPT="INSTALL_BASE=$HOME/perl5"
 
 # To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
+
+# pnpm
+export PNPM_HOME="/Users/mike.hall/.local/share/pnpm"
+export PATH="$PNPM_HOME:$PATH"
+# pnpm end

@@ -61,12 +61,17 @@ fpath=(
   $fpath
 )
 
+# /Library/Java/JavaVirtualMachines/temurin-17.jdk
+
+export JAVA_HOME="$(/usr/libexec/java_home -v11)"
+export OPENSEARCH_JAVA_HOME="$(/usr/libexec/java_home -v11)"
+
 path=(
+  $HOME/.local/bin
   $HOME/.asdf/shims
   $HOME/.asdf/bin
-  /usr/local/opt/openjdk/bin
+  $JAVA_HOME/bin
   $HOME/perl5/bin
-  /usr/local/opt/influxdb@1/bin
   /usr/local/{bin,sbin}
   /usr/{bin,sbin}
   /{bin,sbin}
