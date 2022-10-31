@@ -1,9 +1,8 @@
 #!/usr/bin/env zsh
 
-brew update 
+brew update
 brew update --preinstall
 
-brew upgrade
-brew upgrade --greedy
+brew upgrade --greedy --force --verbose
 
 cleanup-homebrew
