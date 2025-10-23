@@ -1,0 +1,51 @@
+#!/usr/bin/env zsh
+
+# asdf update --head
+asdf plugin update --all
+
+# asdf plugin add nim
+# asdf install nim latest
+# asdf set --home nim latest
+
+# asdf plugin add julia
+# asdf install julia latest
+# asdf set --home julia latest
+
+asdf plugin add golang
+asdf install golang latest
+asdf set --home golang latest
+
+asdf plugin add neovim
+asdf install neovim latest
+asdf set --home neovim latest
+
+asdf plugin add nodejs
+asdf install nodejs latest:18
+asdf set --home nodejs latest:18
+
+asdf plugin add python
+asdf install python latest:3.10
+asdf set --home python latest:3.10
+
+asdf plugin add ruby
+asdf install ruby latest
+asdf set --home ruby latest
+
+# asdf plugin add yarn
+# asdf install yarn latest
+# asdf set --home yarn latest
+
+pip3 install -U pip
+touch ~/.default-python-packages
+# pip3 install -U -r ~/.default-python-packages
+
+npm update -g npm
+npm update -g neovim
+npm update -g
+
+gem update --system
+gem install bundler
+gem install neovim
+gem update
+
+asdf reshim

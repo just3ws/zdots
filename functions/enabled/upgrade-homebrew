@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 
-brew update
-brew update --preinstall
+brew update --verbose
+brew update --auto-update --verbose
 
 brew upgrade --greedy --force --verbose
 

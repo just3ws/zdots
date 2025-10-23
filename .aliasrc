@@ -1,82 +1,26 @@
-# # vim:ft=zsh
-
 hash -d desk="$HOME/Desktop"
-hash -d vdots="$XDG_CONFIG_HOME/nvim"
 hash -d xdots="$HOME/.config"
 hash -d zdots="$ZDOTDIR"
 
 hash -d projects="$HOME/projects"
 alias projects='nocorrect ~projects'
 
-hash -d omf="$HOME/projects/"
-alias omfad=omf-all-do
-alias oad=omf-all-do
-
-hash -d wwworkremote="$HOME/projects/wwworkremote"
-hash -d wwwr="$HOME/projects/wwworkremote"
-hash -d w3r="$HOME/projects/wwworkremote"
-hash -d wr="$HOME/projects/wwworkremote"
-
-# alias w3r='nocorrect ~w3r'
-alias wwworkremote=w3r
-alias wwwr=w3r
-alias wr=w3r
-
-alias wwworkremote-all-do=w3r-all-do
-alias wwwr-all-do=w3r-all-do
-alias wr-all-do=w3r-all-do
-alias wrad=w3r-all-do
-
 alias desk='nocorrect ~desk'
-alias vdots='nocorrect ~vdots'
 alias xdots='nocorrect ~xdots'
 alias zdots='nocorrect ~zdots'
 
-alias vim='/usr/local/bin/nvim'
-alias vi='/usr/local/bin/nvim'
-
-alias vimrc='vim ~vdots/init.vim'
-
-alias aliasrc='vim ~zdots/.aliasrc'
-alias antigenrc='vim ~zdots/.antigenrc'
-alias zshenv='vim ~zdots/.zshenv'
-alias zshrc='vim ~zdots/.zshrc'
+alias ls="gls --color"
 
 alias -g gi='| grep -i'
 alias -g lx='l -10'
 alias -g lxx='l -20'
 alias -g lxxx='l -30'
 alias -g nv='--tls-no-verify'
-alias -s coffee=vim
-alias -s conf=vim
-alias -s css=vim
-alias -s csv=vim
-alias -s erb=vim
-alias -s example=vim
 alias -s gif=preview
-alias -s haml=vim
-alias -s html=vim
 alias -s jpeg=preview
 alias -s jpg=preview
-alias -s js=vim
-alias -s json=vim
-alias -s lock=vim
-alias -s markdown=vim
-alias -s md=vim
 alias -s pdf=acrobat
-alias -s pid=vim
 alias -s png=preview
-alias -s rake=vim
-alias -s rb=vim
-alias -s ru=vim
-alias -s scss=vim
-alias -s sql=vim
-alias -s srt=vim
-alias -s text=vim
-alias -s txt=vim
-alias -s vim=vim
-alias -s xml=vim
-alias -s yml=vim
 alias acrobat='open -a Adobe\ Acrobat\ Reader\ DC'
 alias b="bundle"
 alias be="b exec"
@@ -106,8 +50,5 @@ alias prunedirs='rm -d **/*(/^F)'
 alias timestamp-dir-local="gdate +\'%Y-%m-%d/%H.%M.%2N\'"
 alias timestamp-dir-utc="gdate -u +\'%Y-%m-%d/%H.%M.%2N\'"
 alias timestamp-local="gdate +\'%Y-%m-%dT%H.%M.%2N\'"
-alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"
 alias wip='git commit -am "WIP"'
-
-# alias go-dep-install='dep ensure -v'
-# alias go-dep-update='dep ensure -update -v'
+alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"

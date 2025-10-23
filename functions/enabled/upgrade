@@ -12,28 +12,31 @@ message 'UPGRADE START'
 message 'HOMEBREW'
 upgrade-homebrew
 
+message 'ASDF'
+upgrade-asdf
+
 # message 'MACOS'
 # upgrade-macos
-# 
+#
 # message 'VIM PLUGINS'
 # upgrade-vim
-# 
+#
 # message 'RUBY'
 # upgrade-ruby
-# 
+#
 # message 'PIP3'
 # upgrade-pip3
-# 
-# message 'NPM' 
+#
+# message 'NPM'
 # upgrade-npm
-# 
+#
 # message 'CABAL'
 # upgrade-cabal
-# 
+#
 # message 'PIP2'
 # upgrade-pip2
 
 message 'ANTIGEN'
 upgrade-antigen
 
-message 'UPGRADE DONE' 
+message 'UPGRADE DONE'
