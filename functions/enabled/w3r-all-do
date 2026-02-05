@@ -1,38 +1,3 @@
 #!/usr/bin/env zsh
 
-if [[ ! -z "~w3r" ]]; then 
-  mkdir -p ~w3r
-fi
-
-if [[ ! -z "$W3RPATH" ]]; then 
-  mkdir -p "$W3RPATH"
-fi
-
-if [[ ! -a "$W3RPATH/.w3rrc" ]]; then 
-  touch "$W3RPATH/.w3rrc"
-fi
-
-if [[ ! -z "$HOME/.local/share/w3r-all-do/" ]]; then 
-  mkdir -p "$HOME/.local/share/w3r-all-do/"
-fi
-
-echo "$(iso8601-local) ; $@" >>! "$HOME/.local/share/w3r-all-do/history"
-
-# for directory in $HOME/projects/wwworkremote/*/
-while read directory ; do
-  local repo="$directory"
-  cd "$W3RPATH/$directory"
-
-  local segment_repo='%F{8}[%f%F{11}REPO%f%F{8}=%f%B$repo%b%F{8}]%f'
-  local segment_branch='%F{8}[%f%F{11}BRANCH%f%F{8}=%f%B$(git rev-parse --abbrev-ref HEAD)%b%F{8}]%f'
-  local segment_cmd='%F{8}[%f%F{11}CMD%f%F{8}=%f%B$@%b%F{8}]%f'
-
-  print -P "$segment_repo $segment_branch $segment_cmd\n"
-
-  eval "$@"
-
-  cd "$W3RPATH"
-  echo
-done < "$W3RPATH/.w3rrc"
-
-return 0
+wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" all-do "$@"

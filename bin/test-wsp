@@ -1,0 +1,45 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+root="/tmp/ws-demo"
+name="demo"
+rc_file="$root/.${name}rc"
+func_file="$ZDOTDIR/functions/enabled/${name}"
+export_var="${(U)name}PATH"
+
+cleanup() {
+  rm -rf "$root"
+  rm -f "$func_file"
+}
+trap cleanup EXIT
+
+WSP_NO_ENV=1 wsp init "$name" "$root"
+
+if [[ ! -d "$root" ]]; then
+  echo "missing root: $root" >&2
+  exit 1
+fi
+
+if [[ ! -f "$rc_file" ]]; then
+  echo "missing rc file: $rc_file" >&2
+  exit 1
+fi
+
+if [[ ! -x "$func_file" ]]; then
+  echo "missing function wrapper: $func_file" >&2
+  exit 1
+fi
+
+if rg -q "export ${export_var}=" "$ZDOTDIR/.zshenv"; then
+  echo "unexpected export ${export_var} in $ZDOTDIR/.zshenv (WSP_NO_ENV set)" >&2
+  exit 1
+fi
+
+mkdir -p "$root/one" "$root/two"
+print -r -- "one" "two" > "$rc_file"
+
+"$func_file" all pwd >/dev/null
+"$func_file" rc >/dev/null
+
+print -r -- "ok"

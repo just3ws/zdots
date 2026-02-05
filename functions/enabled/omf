@@ -4,32 +4,25 @@
 
 local option="$1"
 
-[[ ! -z "$OMFPATH" ]] && mkdir -p "$OMFPATH"
-
-[[ ! -a "$OMFPATH/.omfrc" ]] && touch "$OMFPATH/.omfrc"
-
 if [ -z "$option" ]; then
-  cd "$OMFPATH"
-  return 0
+  wsp omf "$OMFPATH" "$OMFPATH/.omfrc" "$HOME/.local/share/omf-all-do/history" cd
+  return $?
 fi
 
 case "$option" in
   (fe) ;&
   (fr*)
-    [[ ! -z "$OMFPATH/frontend/" ]] && mkdir -p "$OMFPATH/frontend/"
-    cd "$OMFPATH/frontend/"
+    wsp omf "$OMFPATH" "$OMFPATH/.omfrc" "$HOME/.local/share/omf-all-do/history" cd frontend
     # open https://github.com/springleaf/frontend/pulls
     ;;
 
   (mu*)
-    [[ ! -z "$OMFPATH/mulesoft_client/" ]] && mkdir -p "$OMFPATH/mulesoft_client/"
-    cd "$OMFPATH/mulesoft_client/"
+    wsp omf "$OMFPATH" "$OMFPATH/.omfrc" "$HOME/.local/share/omf-all-do/history" cd mulesoft_client
     # open https://github.com/springleaf/mulesoft_client/pulls
     ;;
 
   (ac*)
-    [[ ! -z "$OMFPATH/acquisition/" ]] && mkdir -p "$OMFPATH/acquisition/"
-    cd "$OMFPATH/acquisition/"
+    wsp omf "$OMFPATH" "$OMFPATH/.omfrc" "$HOME/.local/share/omf-all-do/history" cd acquisition
     # open https://github.com/springleaf/acquisition/pulls
     ;;
 
@@ -74,8 +67,7 @@ case "$option" in
     ;;
 
   (rc)
-    [[ ! -a "$OMFPATH/.omfrc" ]] && touch "$OMFPATH/.omfrc"
-    cat "$OMFPATH/.omfrc"
+    wsp omf "$OMFPATH" "$OMFPATH/.omfrc" "$HOME/.local/share/omf-all-do/history" rc
     ;;
   (*) echo
     echo "No args will \`cd\` to the $OMFPATH."
@@ -83,19 +75,17 @@ case "$option" in
     echo "frontend        => cd \"$OMFPATH/frontend/\""
     echo "acquisition     => cd \"$OMFPATH/acquisition/\""
     echo "mulesoft_client => cd \"$OMFPATH/mulesoft_client/\""
-    echo "bundle          => omf-all-do 'bundle check || bundle install' "
-    echo "fetch           => omf-all-do 'git fetch --all --prune --verbose' "
-    echo "status          => omf-all-do 'git status --short'"
-    echo "bbi             => omf-all-do 'bundle check || bundle install' "
-    echo "bbu             => omf-all-do 'bundle update' "
-    echo "ppi             => omf-all-do 'pip install -r requirements.txt' "
-    echo "ppu             => omf-all-do 'pip install -U -r requirements.txt' "
-    echo "gfa             => omf-all-do 'git fetch --all --prune --verbose' "
-    echo "gbr             => omf-all-do 'git rev-parse --abbrev-ref head' "
-    echo "ggc             => omf-all-do 'git gc --aggressive' "
-    echo "gpu             => omf-all-do 'git pull --rebase --autostash' "
+    echo "rc              => cat \"$OMFPATH/.omfrc\""
+    echo
+    echo "bbi             => omf-all-do 'bundle check || bundle install'"
+    echo "bbu             => omf-all-do 'bundle update'"
+    echo "ppi             => omf-all-do 'pip install -r requirements.txt'"
+    echo "ppu             => omf-all-do 'pip install -U -r requirements.txt'"
+    echo "gfa             => omf-all-do 'git fetch --all --prune --verbose'"
+    echo "gbr             => omf-all-do 'git rev-parse --abbrev-ref head'"
+    echo "ggc             => omf-all-do 'git gc --aggressive'"
+    echo "gpu             => omf-all-do 'git pull --rebase --autostash'"
     echo "gss             => omf-all-do 'git status --short'"
-    echo "rc              => cat \"$OMFPATH/.omrc\""
 
     echo
     echo "I don't know what to do with: '$@'"
