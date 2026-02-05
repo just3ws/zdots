@@ -21,6 +21,8 @@ export PSQL_EDITOR="$EDITOR"
 export SUDO_EDITOR="$EDITOR"
 export VISUAL="$EDITOR"
 
+export DOCKER_CLI_HINTS=false
+
 alias vim="$EDITOR"
 alias vi="$EDITOR"
 
