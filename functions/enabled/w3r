@@ -4,57 +4,25 @@ local option="$1"
 
 if [ -z "$option" ]
 then
-  cd "$W3RPATH"
-  return 0
-fi
-
-if [[ ! -z "~w3r" ]]; then 
-  mkdir -p ~w3r
-fi
-
-if [[ ! -z "$W3RPATH" ]]; then 
-  mkdir -p "$W3RPATH"
-fi
-
-if [[ ! -a "$W3RPATH/.w3rrc" ]]; then 
-  touch "$W3RPATH/.w3rrc"
+  wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" cd
+  return $?
 fi
 
 case "$option" in
-  (ac*) 
-    if [[ ! -z "$W3RPATH/actions/" ]]; then 
-      mkdir -p "$W3RPATH/actions/"
-    fi
-
-    cd "$W3RPATH/actions/" 
+  (ac*)
+    wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" cd actions
     ;;
-  (bi*) 
-    if [[ ! -z "$W3RPATH/binder/" ]]; then 
-      mkdir -p "$W3RPATH/binder/"
-    fi
-
-    cd "$W3RPATH/binder/" 
+  (bi*)
+    wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" cd binder
     ;;
-  (co*) 
-    if [[ ! -z "$W3RPATH/core/" ]]; then 
-      mkdir -p "$W3RPATH/core/"
-    fi
-
-    cd "$W3RPATH/core/" 
+  (co*)
+    wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" cd core
     ;;
-  (da*) 
-    if [[ ! -z "$W3RPATH/dashboard/" ]]; then 
-      mkdir -p "$W3RPATH/dashboard/"
-    fi
-
-    cd "$W3RPATH/dashboard/" 
+  (da*)
+    wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" cd dashboard
     ;;
-  (op*) 
-    if [[ ! -z "$W3RPATH/ops/" ]]; then 
-      mkdir -p "$W3RPATH/ops/"
-    fi
-
-    cd "$W3RPATH/ops/" 
+  (op*)
+    wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" cd ops
     ;;
   (drop*) 
     if [[ ! -z "$HOME/Dropbox/mike/projects/wwworkremote/" ]]; then 
@@ -72,12 +40,8 @@ case "$option" in
   (ggc) w3r-all-do 'git gc --aggressive' ;;
   (gpu) w3r-all-do 'git pull --rebase --autostash' ;;
   (gss|status) w3r-all-do 'git status --short' ;;
-  (rc) 
-    if [[ ! -a "$W3RPATH/.w3rrc" ]]; then 
-      touch "$W3RPATH/.w3rrc"
-    fi
-
-    cat "$W3RPATH/.w3rrc" 
+  (rc)
+    wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" rc
     ;;
   (*) echo
     echo "No args will \`cd\` to the $W3RPATH."
@@ -87,13 +51,18 @@ case "$option" in
     echo "core      => cd \"$W3RPATH/core/\""
     echo "dashboard => cd \"$W3RPATH/dashboard/\""
     echo "ops       => cd \"$W3RPATH/ops/\""
-    echo "branches  => w3r-all-do 'git rev-parse --abbrev-ref head'"
-    echo "bundle    => w3r-all-do 'bundle check || bundle install'"
-    echo "dropbox   => cd $HOME/Dropbox/mike/projects/wwworkremote/"
-    echo "fetch     => w3r-all-do 'git fetch --all --prune --verbose'"
+    echo "dropbox   => cd \"$HOME/Dropbox/mike/projects/wwworkremote/\""
+    echo "rc        => cat \"$W3RPATH/.w3rrc\""
+    echo
+    echo "bbi       => w3r-all-do 'bundle check || bundle install'"
+    echo "bbu       => w3r-all-do 'bundle update'"
+    echo "ppi       => w3r-all-do 'pip install -r requirements.txt'"
+    echo "ppu       => w3r-all-do 'pip install -U -r requirements.txt'"
+    echo "gfa       => w3r-all-do 'git fetch --all --prune --verbose'"
+    echo "gbr       => w3r-all-do 'git rev-parse --abbrev-ref head'"
     echo "ggc       => w3r-all-do 'git gc --aggressive'"
-    echo "pull      => w3r-all-do 'git pull --rebase --autostash'"
-    echo "status    => w3r-all-do 'git status --short'"
+    echo "gpu       => w3r-all-do 'git pull --rebase --autostash'"
+    echo "gss       => w3r-all-do 'git status --short'"
     echo
     echo "I don't know what to do with: '$@'"
     echo
@@ -101,5 +70,3 @@ case "$option" in
 esac
 
 return 0
-
-
