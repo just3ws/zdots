@@ -52,3 +52,5 @@ alias timestamp-dir-utc="gdate -u +\'%Y-%m-%d/%H.%M.%2N\'"
 alias timestamp-local="gdate +\'%Y-%m-%dT%H.%M.%2N\'"
 alias wip='git commit -am "WIP"'
 alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"
+
+. "${ZDOTDIR}/.aliasrc.claude"
