@@ -10,11 +10,11 @@ fi
 . "${ZDOTDIR}/.antigenrc"
 
 export MALLOC_ARENA_MAX=2
-export RUBY_CONFIGURE_OPTS="--with-jemalloc=$(brew --prefix jemalloc) --with-openssl-dir=$(brew --prefix openssl@1.1)"
+export RUBY_CONFIGURE_OPTS="--with-jemalloc=$HOMEBREW_PREFIX/opt/jemalloc --with-openssl-dir=$HOMEBREW_PREFIX/opt/openssl@3"
 # export RUBYOPT='-W:no-deprecated -W:no-experimental'
 
 # . "$HOME/.asdf/asdf.sh"
-. /usr/local/opt/asdf/libexec/asdf.sh
+. $HOMEBREW_PREFIX/opt/asdf/libexec/asdf.sh
 
 export ANSIBLE_COW_SELECTION=random
 export ANSIBLE_NOCOWS=1
@@ -90,3 +90,16 @@ bindkey -M vicmd v edit-command-line
 
 # To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
+
+# pnpm
+export PNPM_HOME="/Users/mike/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+
+# bun completions
+[ -s "/Users/mike/.bun/_bun" ] && source "/Users/mike/.bun/_bun"
+
+. "$HOME/.local/share/../bin/env"
