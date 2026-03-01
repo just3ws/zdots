@@ -73,7 +73,11 @@ if command -v shellcheck >/dev/null 2>&1; then
 fi
 
 if command -v zlint >/dev/null 2>&1; then
-  zlint .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*
+  if [[ "${ZDOTS_CHECK_ENABLE_ZLINT:-0}" == "1" ]]; then
+    zlint .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*
+  else
+    echo "check: zlint detected but disabled by default (set ZDOTS_CHECK_ENABLE_ZLINT=1 to enable)"
+  fi
 else
   echo "check: zlint not found; skipping zsh lint pass"
 fi

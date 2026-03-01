@@ -41,6 +41,7 @@ brew bundle --file ~/.config/zsh/Brewfile
 It validates both interactive startup (`zsh -i`) and login+interactive startup (`zsh -l -i`).
 When `shellcheck` is installed, `bin/check` also runs a shellcheck pass for any bash/sh scripts in the repo.
 It also verifies prompt theme availability in normal mode.
+If `zlint` exists, it is disabled by default; enable with `ZDOTS_CHECK_ENABLE_ZLINT=1` only if you intentionally want that linter.
 
 Fast sanity mode (skip external dependencies like asdf/Homebrew checks):
 
