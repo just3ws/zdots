@@ -36,6 +36,12 @@ brew bundle --file ~/.config/zsh/Brewfile
 - `~/.config/zsh/.zshrc.local` for machine-specific shell behavior.
 - `~/.config/zsh/.aliasrc.local` for machine-specific aliases/functions.
 
+## Color Theme
+
+- `LS_COLORS` is generated from the vendored Nord theme file at `assets/nord/dir_colors` via `gdircolors`/`dircolors`.
+- If `dircolors` tooling is unavailable, the config falls back to `vivid generate nord`.
+- BSD `ls -G` fallback exports a Nord-inspired `LSCOLORS` value when GNU `gls` is not installed.
+
 ## Roadmap
 
 - See [TODO.md](TODO.md) for prioritized follow-up work.

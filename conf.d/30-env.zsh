@@ -6,9 +6,17 @@ export ANSIBLE_COW_SELECTION=random
 export ANSIBLE_NOCOWS=1
 
 export CLICOLOR=1
-if command -v vivid >/dev/null 2>&1; then
+_zdots_nord_dircolors_file="${ZDOTDIR}/assets/nord/dir_colors"
+if [[ -r "${_zdots_nord_dircolors_file}" ]]; then
+  if command -v gdircolors >/dev/null 2>&1; then
+    eval "$(gdircolors -b "${_zdots_nord_dircolors_file}")"
+  elif command -v dircolors >/dev/null 2>&1; then
+    eval "$(dircolors -b "${_zdots_nord_dircolors_file}")"
+  fi
+elif command -v vivid >/dev/null 2>&1; then
   export LS_COLORS="$(vivid generate nord)"
 fi
+unset _zdots_nord_dircolors_file
 export DISABLE_SPRING=true
 export CORRECT_IGNORE='_*'
 export CORRECT_IGNORE_FILE='.*'

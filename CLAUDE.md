@@ -65,6 +65,7 @@ Files must be executable (`chmod +x`). Each file defines a single function match
 - Editor is always neovim (`$EDITOR`); `vim` and `vi` are aliased to it
 - `klear` is the scrollback-clearing function — used as a prefix before running visible output commands (e.g., `klear ; ruby script.rb`). It is a helper, not an optimization target.
 - GNU coreutils preferred: `gls`, `gdate` (with graceful BSD fallback aliases)
+- Nord colors are sourced from `assets/nord/dir_colors` via `gdircolors`/`dircolors` when available
 - `clobber` is unset — use `>!` to overwrite files
 
 ### Deprecation Policy

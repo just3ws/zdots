@@ -14,6 +14,9 @@ alias vi="$EDITOR"
 if command -v gls >/dev/null 2>&1; then
   alias ls='command gls --color'
 else
+  # Nord-inspired fallback for BSD ls when GNU ls is unavailable.
+  : "${LSCOLORS:=gxfxcxdxbxegedabagacad}"
+  export LSCOLORS
   alias ls='command ls -G'
 fi
 
