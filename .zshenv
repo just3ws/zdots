@@ -41,9 +41,6 @@ export HOMEBREW_CASK_OPTS='--appdir=/Applications'
 export HOMEBREW_NO_ANALYTICS=1
 export HOMEBREW_NO_INSECURE_REDIRECT=1
 
-export PROJECTSPATH="$HOME/projects/"
-export W3RPATH="$HOME/projects/wwworkremote/"
-
 path=(
   $HOMEBREW_PREFIX/opt/postgresql@17/bin
   $HOME/.local/bin

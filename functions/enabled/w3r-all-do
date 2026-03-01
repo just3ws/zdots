@@ -1,3 +1,0 @@
-#!/usr/bin/env zsh
-
-wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" all-do "$@"

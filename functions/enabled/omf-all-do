@@ -1,3 +1,0 @@
-#!/usr/bin/env zsh
-
-wsp omf "$OMFPATH" "$OMFPATH/.omfrc" "$HOME/.local/share/omf-all-do/history" all-do "$@"
