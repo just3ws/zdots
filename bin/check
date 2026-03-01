@@ -4,6 +4,7 @@ set -euo pipefail
 
 REPO_ROOT="${0:A:h:h}"
 cd "$REPO_ROOT"
+SKIP_EXTERNAL="${ZDOTS_CHECK_SKIP_EXTERNAL:-0}"
 
 zsh -n .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*
 
@@ -28,8 +29,12 @@ fi
 rm -f "$errfile"
 
 if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&1'; then
-  echo "check: asdf failed to initialize in interactive shell" >&2
-  exit 1
+  if [[ "$SKIP_EXTERNAL" == "1" ]]; then
+    echo "check: skipping asdf dependency check (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
+  else
+    echo "check: asdf failed to initialize in interactive shell" >&2
+    exit 1
+  fi
 fi
 
 compaudit_out="$(zsh -i -c 'autoload -Uz compaudit; compaudit 2>/dev/null' || true)"
@@ -41,8 +46,17 @@ if [[ -n "$compaudit_out" ]]; then
   fi
 fi
 
-if command -v brew >/dev/null 2>&1 && [[ -f "$REPO_ROOT/Brewfile" ]]; then
-  HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file "$REPO_ROOT/Brewfile"
+if [[ "$SKIP_EXTERNAL" != "1" ]]; then
+  if ! zsh -i -c 'candidates=("$HOMEBREW_PREFIX/opt/powerlevel10k/powerlevel10k.zsh-theme" "$HOMEBREW_PREFIX/share/powerlevel10k/powerlevel10k.zsh-theme" "$HOME/.local/share/powerlevel10k/powerlevel10k.zsh-theme"); for c in $candidates; do [[ -r "$c" ]] && exit 0; done; exit 1'; then
+    echo "check: no Powerlevel10k theme candidate found" >&2
+    exit 1
+  fi
+
+  if command -v brew >/dev/null 2>&1 && [[ -f "$REPO_ROOT/Brewfile" ]]; then
+    HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file "$REPO_ROOT/Brewfile"
+  fi
+else
+  echo "check: skipping external dependency checks (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
 fi
 
 if command -v shellcheck >/dev/null 2>&1; then
@@ -55,6 +69,12 @@ if command -v shellcheck >/dev/null 2>&1; then
     shellcheck -x "${shfiles[@]}"
   else
     echo "check: shellcheck available, no bash/sh scripts detected; skipping shellcheck pass"
+  fi
+fi
+
+if [[ -f "$HOME/.zshenv" && "${ZDOTS_CHECK_VERIFY_BOOTSTRAP:-1}" == "1" ]]; then
+  if ! grep -Eq '(^|[[:space:]])ZDOTDIR=.*\.config/zsh|Bootstrap Zdots' "$HOME/.zshenv"; then
+    echo "check: warning: ~/.zshenv may not be using zdots bootstrap/source-of-truth" >&2
   fi
 fi
 

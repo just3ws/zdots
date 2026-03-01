@@ -24,6 +24,10 @@
   - Remove broad forced upgrades.
   - Require explicit opt-in for aggressive behavior.
 
+- [x] Normalize `~/.zshenv` bootstrap to repo source-of-truth.
+  - Keep runtime settings in repo-managed `$ZDOTDIR/.zshenv`.
+  - Minimize host-local drift in startup behavior.
+
 ## P2 (Safety + UX)
 
 - [x] Remove insecure TLS bypass alias.
@@ -44,7 +48,7 @@
 - [x] Add optional `shellcheck` pass to `bin/check`.
   - Run only when `shellcheck` exists.
 
-- [ ] Add prompt health check to `bin/check`.
+- [x] Add prompt health check to `bin/check`.
   - Verify at least one Powerlevel10k theme candidate is present.
 
 - [x] Add recovery/troubleshooting doc section.
