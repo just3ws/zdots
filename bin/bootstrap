@@ -18,9 +18,27 @@ fi
 
 mkdir -p \
   "$HOME/.config" \
+  "$HOME/.config/git" \
   "$HOME/.cache" \
   "$HOME/.local/state" \
   "$HOME/.local/share"
+
+touch "$HOME/.config/git/config" "$HOME/.config/git/ignore"
+
+if [[ ! -e "$HOME/.gitconfig" ]]; then
+  cat > "$HOME/.gitconfig" <<'EOF'
+[include]
+  path = ~/.config/git/config
+EOF
+  echo "bootstrap: created $HOME/.gitconfig include -> ~/.config/git/config"
+elif ! grep -Fq '.config/git/config' "$HOME/.gitconfig"; then
+  {
+    echo
+    echo "[include]"
+    echo "  path = ~/.config/git/config"
+  } >> "$HOME/.gitconfig"
+  echo "bootstrap: appended include for ~/.config/git/config to $HOME/.gitconfig"
+fi
 
 brew bundle --file "$REPO_ROOT/Brewfile"
 
