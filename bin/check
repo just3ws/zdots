@@ -1,0 +1,24 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+REPO_ROOT="${0:A:h:h}"
+cd "$REPO_ROOT"
+
+zsh -n .zshenv .zprofile .zshrc .aliasrc .fzf.zsh functions/enabled/*
+
+errfile="$(mktemp)"
+zsh -i -c 'exit' >/dev/null 2>"$errfile"
+if [[ -s "$errfile" ]]; then
+  echo "check: zsh -i -c exit emitted stderr:" >&2
+  cat "$errfile" >&2
+  rm -f "$errfile"
+  exit 1
+fi
+rm -f "$errfile"
+
+if command -v brew >/dev/null 2>&1 && [[ -f "$REPO_ROOT/Brewfile" ]]; then
+  brew bundle check --file "$REPO_ROOT/Brewfile"
+fi
+
+echo "check: OK"

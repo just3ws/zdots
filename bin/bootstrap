@@ -1,0 +1,33 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+REPO_ROOT="${0:A:h:h}"
+
+if [[ ! -f "$REPO_ROOT/Brewfile" ]]; then
+  echo "bootstrap: Brewfile not found at $REPO_ROOT/Brewfile" >&2
+  exit 1
+fi
+
+if ! command -v brew >/dev/null 2>&1; then
+  echo "bootstrap: Homebrew is required." >&2
+  echo "Install with:" >&2
+  echo "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"" >&2
+  exit 1
+fi
+
+mkdir -p \
+  "$HOME/.config" \
+  "$HOME/.cache" \
+  "$HOME/.local/state" \
+  "$HOME/.local/share"
+
+brew bundle --file "$REPO_ROOT/Brewfile"
+
+if [[ ! -e "$HOME/.zshenv" ]]; then
+  ln -s "$REPO_ROOT/.zshenv" "$HOME/.zshenv"
+  echo "bootstrap: linked $HOME/.zshenv -> $REPO_ROOT/.zshenv"
+fi
+
+echo "bootstrap: complete"
+exec "$SHELL"
