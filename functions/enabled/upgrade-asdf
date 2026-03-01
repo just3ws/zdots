@@ -1,5 +1,29 @@
 #!/usr/bin/env zsh
 
+set -euo pipefail
+
+GOLANG_VERSION="${ASDF_GOLANG_VERSION:-latest:1.24}"
+NEOVIM_VERSION="${ASDF_NEOVIM_VERSION:-latest:0.11}"
+NODEJS_VERSION="${ASDF_NODEJS_VERSION:-latest:24}"
+PYTHON_VERSION="${ASDF_PYTHON_VERSION:-latest:3.10}"
+RUBY_VERSION="${ASDF_RUBY_VERSION:-latest:3.4}"
+UPDATE_GLOBALS="${ZDOTS_UPGRADE_GLOBALS:-0}"
+
+ensure_plugin() {
+  local tool="$1"
+  if ! asdf plugin list | grep -qx "$tool"; then
+    asdf plugin add "$tool"
+  fi
+}
+
+install_track() {
+  local tool="$1"
+  local version="$2"
+  ensure_plugin "$tool"
+  asdf install "$tool" "$version"
+  asdf set --home "$tool" "$version"
+}
+
 # asdf update --head
 asdf plugin update --all
 
@@ -11,41 +35,29 @@ asdf plugin update --all
 # asdf install julia latest
 # asdf set --home julia latest
 
-asdf plugin add golang
-asdf install golang latest
-asdf set --home golang latest
-
-asdf plugin add neovim
-asdf install neovim latest
-asdf set --home neovim latest
-
-asdf plugin add nodejs
-asdf install nodejs latest:24
-asdf set --home nodejs latest:24
-
-asdf plugin add python
-asdf install python latest:3.10
-asdf set --home python latest:3.10
-
-asdf plugin add ruby
-asdf install ruby latest
-asdf set --home ruby latest
+install_track golang "$GOLANG_VERSION"
+install_track neovim "$NEOVIM_VERSION"
+install_track nodejs "$NODEJS_VERSION"
+install_track python "$PYTHON_VERSION"
+install_track ruby "$RUBY_VERSION"
 
 # asdf plugin add yarn
 # asdf install yarn latest
 # asdf set --home yarn latest
 
-pip3 install -U pip
-touch ~/.default-python-packages
-# pip3 install -U -r ~/.default-python-packages
+if [[ "$UPDATE_GLOBALS" == "1" ]]; then
+  pip3 install -U pip
+  touch ~/.default-python-packages
+  # pip3 install -U -r ~/.default-python-packages
 
-npm update -g npm
-npm update -g neovim
-npm update -g
+  npm update -g npm
+  npm update -g neovim
+  npm update -g
 
-gem update --system
-gem install bundler
-gem install neovim
-gem update
+  gem update --system
+  gem install bundler
+  gem install neovim
+  gem update
+fi
 
 asdf reshim

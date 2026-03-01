@@ -6,11 +6,36 @@
   - Switched from lazy wrapper to explicit `asdf.sh` initialization.
   - Added regression check in `bin/check` (`asdf --version` in interactive shell).
 
-## P1
+## P1 (Security + Reliability)
 
-- [x] Add explicit `compinit` cache setup.
-  - `compinit` now uses a cache path under `$XDG_CACHE_HOME/zsh`.
-  - `bin/check` now verifies completion security with `compaudit`.
+- [x] Add CI gate to run `bin/check` on PR/push.
+  - Prevent regressions from landing without local validation parity.
+
+- [x] Add login-shell runtime validation in `bin/check`.
+  - Catch `.zprofile` and login-only startup failures.
+
+- [x] Harden `history-import` persistence path and data lifecycle.
+  - Enforce private DB permissions.
+  - Add import idempotency protections.
+  - Add retention/prune support.
+
+- [x] Make upgrade helpers safer by default.
+  - Remove broad forced upgrades.
+  - Require explicit opt-in for aggressive behavior.
+
+## P2 (Safety + UX)
+
+- [x] Remove insecure TLS bypass alias.
+  - Retire `nv=--tls-no-verify` global alias.
+
+- [x] Revisit cross-session history sharing defaults.
+  - Prefer append-only history writes by default.
+  - Keep optional opt-in for shared history.
+
+- [x] Remove legacy/non-effective history knob.
+  - Drop `HISTFILESIZE` in favor of `HISTSIZE`/`SAVEHIST`.
+
+## P3 (Quality of Life)
 
 - [ ] Add a `Makefile` for common workflows.
   - Targets: `bootstrap`, `check`, `bench`, `upgrade`.
@@ -20,15 +45,6 @@
 
 - [ ] Add prompt health check to `bin/check`.
   - Verify at least one Powerlevel10k theme candidate is present.
-
-## P2
-
-- [ ] Review `upgrade-asdf` version strategy.
-  - Replace broad `latest` installs with explicit stable version pins where needed.
-
-- [ ] Trim alias surface area over time.
-  - Keep frequently used aliases in `.aliasrc`.
-  - Move low-usage aliases into an archived file.
 
 - [ ] Add recovery/troubleshooting doc section.
   - Include startup failure workflow (`zsh -f`, disable a module, run `bin/check`).

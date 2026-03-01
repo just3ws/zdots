@@ -39,5 +39,9 @@ setopt hist_no_functions
 setopt hist_reduce_blanks
 setopt hist_save_no_dups
 setopt hist_verify
-setopt inc_append_history
-setopt share_history
+setopt inc_append_history_time
+if [[ "${ZDOTS_SHARE_HISTORY:-0}" == "1" ]]; then
+  setopt share_history
+else
+  unsetopt share_history
+fi

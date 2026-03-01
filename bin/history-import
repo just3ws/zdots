@@ -4,10 +4,11 @@ set -euo pipefail
 
 DB_PATH="${XDG_STATE_HOME:-$HOME/.local/state}/zdots/history.sqlite3"
 SHELL_HINT=""
+PRUNE_DAYS=""
 
 usage() {
   cat <<USAGE
-usage: history-import [--db <path>] [--shell <zsh|bash|fish>] <history-file>...
+usage: history-import [--db <path>] [--shell <zsh|bash|fish>] [--prune-days <n>] <history-file>...
 
 Imports shell history files into a sqlite database.
 USAGE
@@ -21,6 +22,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     (--shell)
       SHELL_HINT="$2"
+      shift 2
+      ;;
+    (--prune-days)
+      PRUNE_DAYS="$2"
       shift 2
       ;;
     (-h|--help)
@@ -53,6 +58,12 @@ if ! command -v sqlite3 >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -n "$PRUNE_DAYS" && ! "$PRUNE_DAYS" =~ '^[0-9]+$' ]]; then
+  echo "history-import: --prune-days must be a non-negative integer" >&2
+  exit 1
+fi
+
+umask 077
 mkdir -p "${DB_PATH:h}"
 
 sqlite3 "$DB_PATH" <<'SQL' >/dev/null
@@ -72,7 +83,9 @@ CREATE TABLE IF NOT EXISTS commands (
 CREATE INDEX IF NOT EXISTS idx_commands_cmd ON commands(cmd);
 CREATE INDEX IF NOT EXISTS idx_commands_ts ON commands(ts);
 CREATE INDEX IF NOT EXISTS idx_commands_source ON commands(source_file);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_commands_source_line_raw ON commands(source_file, line_no, raw);
 SQL
+chmod 600 "$DB_PATH" 2>/dev/null || true
 
 sql_escape() {
   local s="$1"
@@ -136,7 +149,7 @@ import_file() {
       raw_sql="$(sql_escape "$raw")"
       cmd_sql="$(sql_escape "$cmd")"
       args_sql="$(sql_escape "$args")"
-      print -r -- "INSERT INTO commands(source_file,line_no,ts,duration,shell,raw,cmd,args) VALUES('$file_sql',$line_no,${ts:-NULL},${duration:-NULL},'$shell_sql','$raw_sql','$cmd_sql','$args_sql');"
+      print -r -- "INSERT OR IGNORE INTO commands(source_file,line_no,ts,duration,shell,raw,cmd,args) VALUES('$file_sql',$line_no,${ts:-NULL},${duration:-NULL},'$shell_sql','$raw_sql','$cmd_sql','$args_sql');"
     done < "$file"
     print -r -- "COMMIT;"
   } | sqlite3 "$DB_PATH"
@@ -145,5 +158,10 @@ import_file() {
 for file in "$@"; do
   import_file "$file" "$SHELL_HINT"
 done
+
+if [[ -n "$PRUNE_DAYS" ]]; then
+  cutoff_epoch="$(( $(date +%s) - (PRUNE_DAYS * 86400) ))"
+  sqlite3 "$DB_PATH" "DELETE FROM commands WHERE (ts IS NOT NULL AND ts < $cutoff_epoch) OR (ts IS NULL AND imported_at < $cutoff_epoch);"
+fi
 
 echo "history-import: imported into $DB_PATH"

@@ -1,9 +1,16 @@
 #!/usr/bin/env zsh
 
-brew update --verbose
-brew update --auto-update --verbose
+set -euo pipefail
 
-brew upgrade --greedy --force --verbose
+aggressive_upgrade="${ZDOTS_HOMEBREW_AGGRESSIVE:-0}"
+
+brew update --verbose
+
+if [[ "$aggressive_upgrade" == "1" ]]; then
+  brew upgrade --greedy --verbose
+else
+  brew upgrade --verbose
+fi
 
 if [[ -f "$ZDOTDIR/Brewfile" ]]; then
   brew bundle check --file "$ZDOTDIR/Brewfile" || brew bundle --file "$ZDOTDIR/Brewfile"

@@ -32,6 +32,7 @@ brew bundle --file ~/.config/zsh/Brewfile
 ```
 
 `bin/check` enforces completion path security via `compaudit` by default.
+It validates both interactive startup (`zsh -i`) and login+interactive startup (`zsh -l -i`).
 
 If validation fails with insecure completion paths:
 
@@ -71,6 +72,7 @@ Useful options:
 
 - `history-import --db <path>` to override the default DB path (`$XDG_STATE_HOME/zdots/history.sqlite3`)
 - `history-import --shell <zsh|bash|fish>` to force shell parsing mode when auto-detection is ambiguous
+- `history-import --prune-days <n>` to prune old rows after import (retention control)
 - `history-analyze --out <path>` to write report to a custom location
 - `history-analyze --quick` to print a short top-command summary to stdout
 
@@ -89,6 +91,18 @@ Useful options:
 git config --global user.name "Your Name"
 git config --global user.email "you@example.com"
 ```
+
+## History Defaults
+
+- Cross-session history sharing is off by default.
+- Enable shared history explicitly with `ZDOTS_SHARE_HISTORY=1`.
+
+## Upgrade Safety Controls
+
+- `upgrade-homebrew` runs conservative upgrades by default.
+- Set `ZDOTS_HOMEBREW_AGGRESSIVE=1` to enable `--greedy` upgrades.
+- `upgrade-asdf` uses version-track defaults and skips global package-manager upgrades by default.
+- Set `ZDOTS_UPGRADE_GLOBALS=1` to re-enable global `pip`/`npm`/`gem` updates.
 
 ## Color Theme
 
