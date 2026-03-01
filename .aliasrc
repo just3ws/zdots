@@ -71,4 +71,5 @@ alias timestamp-utc="${_zdots_date_bin} -u +'${_zdots_ts_fmt}'"
 
 unset _zdots_date_bin _zdots_ts_fmt _zdots_ts_dir_fmt
 
-. "${ZDOTDIR}/.aliasrc.claude"
+[[ -r "${ZDOTDIR}/.aliasrc.claude" ]] && . "${ZDOTDIR}/.aliasrc.claude"
+[[ -r "${ZDOTDIR}/.aliasrc.local" ]] && . "${ZDOTDIR}/.aliasrc.local"
