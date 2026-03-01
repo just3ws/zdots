@@ -1,9 +1,14 @@
 #!/usr/bin/env zsh
 
-antigen reset
-
 # /bin/rm -rf $XDG_CONFIG_HOME/**/init.zsh
-/bin/rm -rf $XDG_DATA_HOME/**/.zcomp*
-/bin/rm -rf $XDG_CACHE_HOME/**.zwc
-/bin/rm -rf $XDG_CONFIG_HOME/**.zwc
+if [[ -n "${XDG_DATA_HOME:-}" && -d "$XDG_DATA_HOME" ]]; then
+  /bin/rm -rf -- ${XDG_DATA_HOME}/**/.zcomp*(N)
+fi
 
+if [[ -n "${XDG_CACHE_HOME:-}" && -d "$XDG_CACHE_HOME" ]]; then
+  /bin/rm -rf -- ${XDG_CACHE_HOME}/**/*.zwc(N)
+fi
+
+if [[ -n "${XDG_CONFIG_HOME:-}" && -d "$XDG_CONFIG_HOME" ]]; then
+  /bin/rm -rf -- ${XDG_CONFIG_HOME}/**/*.zwc(N)
+fi
