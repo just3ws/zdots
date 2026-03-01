@@ -76,7 +76,8 @@ SQL
 
 sql_escape() {
   local s="$1"
-  s="${s//\'/\'\'}"
+  local quote="'"
+  s="${s//${quote}/${quote}${quote}}"
   print -r -- "$s"
 }
 
