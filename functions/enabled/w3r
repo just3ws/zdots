@@ -25,11 +25,9 @@ case "$option" in
     wsp w3r "$W3RPATH" "$W3RPATH/.w3rrc" "$HOME/.local/share/w3r-all-do/history" cd ops
     ;;
   (drop*) 
-    if [[ ! -z "$HOME/Dropbox/mike/projects/wwworkremote/" ]]; then 
-      mkdir -p "$HOME/Dropbox/mike/projects/wwworkremote/"
-    fi
-
-    cd "$HOME/Dropbox/mike/projects/wwworkremote/"
+    local dropbox_path="$HOME/Dropbox/mike/projects/wwworkremote/"
+    mkdir -p "$dropbox_path"
+    cd "$dropbox_path"
     ;;
   (bbi) w3r-all-do 'bundle check || bundle install' ;;
   (bbu) w3r-all-do 'bundle update' ;;

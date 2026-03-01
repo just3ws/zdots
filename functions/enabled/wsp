@@ -199,3 +199,9 @@ wsp-run-all() {
 
   return 0
 }
+
+# First invocation via autoload executes this file body once.
+# Re-dispatch to wsp so behavior is correct on initial call.
+if [[ "$funcstack[1]" == "wsp" ]]; then
+  wsp "$@"
+fi
