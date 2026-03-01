@@ -54,6 +54,7 @@ path=(
   $HOME/.local/bin
   $HOME/.asdf/shims
   $HOME/.asdf/bin
+  $HOMEBREW_PREFIX/opt/openjdk/bin
   $HOMEBREW_PREFIX/{bin,sbin}
   /usr/{bin,sbin}
   /{bin,sbin}
