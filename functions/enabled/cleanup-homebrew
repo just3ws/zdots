@@ -1,11 +1,5 @@
 #!/usr/bin/env zsh
 
 brew autoremove
-
-brew cleanup
 brew cleanup --prune=all
 brew cleanup -s
-brew cleanup
-
-brew autoremove
-
