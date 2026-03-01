@@ -17,6 +17,11 @@ if [[ -s "$errfile" ]]; then
 fi
 rm -f "$errfile"
 
+if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&1'; then
+  echo "check: asdf failed to initialize in interactive shell" >&2
+  exit 1
+fi
+
 if command -v brew >/dev/null 2>&1 && [[ -f "$REPO_ROOT/Brewfile" ]]; then
   brew bundle check --file "$REPO_ROOT/Brewfile"
 fi
