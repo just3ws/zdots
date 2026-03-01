@@ -22,6 +22,15 @@ if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&
   exit 1
 fi
 
+compaudit_out="$(zsh -i -c 'autoload -Uz compaudit; compaudit 2>/dev/null' || true)"
+if [[ -n "$compaudit_out" ]]; then
+  echo "check: warning: insecure completion paths detected by compaudit:" >&2
+  print -r -- "$compaudit_out" >&2
+  if [[ "${ZDOTS_CHECK_STRICT_COMPAUDIT:-0}" == "1" ]]; then
+    exit 1
+  fi
+fi
+
 if command -v brew >/dev/null 2>&1 && [[ -f "$REPO_ROOT/Brewfile" ]]; then
   HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file "$REPO_ROOT/Brewfile"
 fi

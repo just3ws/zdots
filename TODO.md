@@ -8,9 +8,9 @@
 
 ## P1
 
-- [ ] Add explicit `compinit` cache setup.
-  - Use `compinit -d "$XDG_CACHE_HOME/zsh/zcompdump"` for predictable completion cache behavior.
-  - Add cache reset guidance for troubleshooting.
+- [x] Add explicit `compinit` cache setup.
+  - `compinit` now uses a cache path under `$XDG_CACHE_HOME/zsh`.
+  - `bin/check` now verifies completion security with `compaudit`.
 
 - [ ] Add a `Makefile` for common workflows.
   - Targets: `bootstrap`, `check`, `bench`, `upgrade`.
