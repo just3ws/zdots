@@ -21,21 +21,23 @@ Both use `set -euo pipefail`, print "ok" on success, and clean up via `trap EXIT
 
 ```
 ~/.zshenv (symlinked to $ZDOTDIR/.zshenv)
-  → sets XDG paths, EDITOR, PATH, HISTFILE
-  → autoloads functions from functions/enabled/
-  → sets fpath and path arrays
+  → sets XDG paths, core env vars, PATH, HISTFILE
+  → cheap Homebrew prefix detection only
+  → sets minimal fpath for autoload compatibility
 
 ~/.config/zsh/.zshrc
   → p10k instant prompt (must stay at top)
-  → .antigenrc (oh-my-zsh + powerlevel10k)
+  → direct powerlevel10k theme loading
+  → interactive Homebrew shellenv + vivid LS_COLORS
+  → autoload loop for functions/enabled/
   → setopt/unsetopt blocks
   → key bindings
-  → sources: .aliasrc, .iterm2_shell_integration.zsh, .fzf.zsh, .p10k.zsh
+  → sources: .aliasrc, .iterm2_shell_integration.zsh (iTerm TTY only), .fzf.zsh (TTY only), .p10k.zsh (TTY only)
 ```
 
 ### Function Autoloading
 
-Functions live in `functions/enabled/` and are autoloaded via a glob loop in `.zshenv`:
+Functions live in `functions/enabled/` and are autoloaded via a glob loop in `.zshrc`:
 ```zsh
 for fn in $ZDOTDIR/functions/enabled/*(.x); do
   autoload -Uz "$(basename $fn)"
@@ -62,13 +64,13 @@ Concrete implementations: `omf`, `w3r` — each delegates to `wsp` with its own 
 
 | File | Purpose |
 |------|---------|
-| `.zshenv` | Environment, PATH, function autoloading |
-| `.zshrc` | Shell options, plugins, key bindings, sourcing |
+| `.zshenv` | Environment, PATH, minimal fpath bootstrap |
+| `.zshrc` | Interactive shell options, prompt setup, function autoloading, sourcing |
 | `.aliasrc` | All aliases (directory hashes, git, ruby, utilities) |
-| `.antigenrc` | Plugin manager config (oh-my-zsh + p10k) |
+| `Brewfile` | Homebrew dependencies for this config |
 | `fzfrc` | FZF configuration (Dracula theme, ag backend) |
 | `.p10k.zsh` | Powerlevel10k theme (wizard-generated, ~90KB) |
-| `functions/enabled/upgrade` | Master upgrade orchestrator (homebrew → asdf → antigen) |
+| `functions/enabled/upgrade` | Master upgrade orchestrator (homebrew → asdf) |
 | `functions/enabled/wsp` | Workspace framework |
 
 ### Conventions
@@ -80,5 +82,5 @@ Concrete implementations: `omf`, `w3r` — each delegates to `wsp` with its own 
 - XDG Base Directory compliance throughout
 - Editor is always neovim (`$EDITOR`); `vim` and `vi` are aliased to it
 - `klear` is the scrollback-clearing function — used as a prefix before running visible output commands (e.g., `klear ; ruby script.rb`). It is a helper, not an optimization target.
-- GNU coreutils preferred: `gls`, `gdate` (via Homebrew)
+- GNU coreutils preferred: `gls`, `gdate` (with graceful BSD fallback aliases)
 - `clobber` is unset — use `>!` to overwrite files

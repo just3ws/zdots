@@ -13,6 +13,12 @@ ln ~/.config/zsh/.zshenv ~/.zshenv
 exec "$SHELL"
 ```
 
+## Dependencies
+
+```shell
+brew bundle --file ~/.config/zsh/Brewfile
+```
+
 ## Zsh Bookmarks
 
 ### Official
