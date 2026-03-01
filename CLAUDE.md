@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Personal zsh dotfiles repo (`just3ws/zdots`). Manages shell configuration, functions, aliases, and workspace tooling for a macOS development environment. The owner is a Ruby developer — `bundle exec` and Rails commands are core daily tools, not optimization targets.
+Personal zsh dotfiles repo (`just3ws/zdots`). Manages shell configuration, functions, aliases, and utility tooling for a macOS development environment. The owner is a Ruby developer — `bundle exec` and Rails commands are core daily tools, not optimization targets.
 
 ## Running Checks
 
