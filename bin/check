@@ -72,6 +72,12 @@ if command -v shellcheck >/dev/null 2>&1; then
   fi
 fi
 
+if command -v zlint >/dev/null 2>&1; then
+  zlint .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*
+else
+  echo "check: zlint not found; skipping zsh lint pass"
+fi
+
 if [[ -f "$HOME/.zshenv" && "${ZDOTS_CHECK_VERIFY_BOOTSTRAP:-1}" == "1" ]]; then
   if ! grep -Eq '(^|[[:space:]])ZDOTDIR=.*\.config/zsh|Bootstrap Zdots' "$HOME/.zshenv"; then
     echo "check: warning: ~/.zshenv may not be using zdots bootstrap/source-of-truth" >&2
