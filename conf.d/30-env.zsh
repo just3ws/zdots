@@ -24,6 +24,11 @@ export HYPHEN_INSENSITIVE=true
 export KEYTIMEOUT=1
 export WORDCHARS='-*?.[]~=&;!#$%^(){}<>@'
 
+# Re-assert history settings after system zshrc defaults.
+HISTFILE="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/history"
+typeset -gi HISTSIZE=999999
+typeset -gi SAVEHIST=999999
+
 # Ensure history directory exists for reliable persistence.
 mkdir -p "${HISTFILE:h}"
 

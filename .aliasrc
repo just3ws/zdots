@@ -65,7 +65,7 @@ else
   _zdots_ts_dir_fmt='%Y-%m-%d/%H.%M.%S'
 fi
 
-alias iso8601-local="${_zdots_date_bin} +'%Y-%m-%dT%H:%M:%SZ'"
+alias iso8601-local="${_zdots_date_bin} +'%Y-%m-%dT%H:%M:%S%z'"
 alias iso8601-utc="${_zdots_date_bin} -u +'%Y-%m-%dT%H:%M:%SZ'"
 alias timestamp-dir-local="${_zdots_date_bin} +'${_zdots_ts_dir_fmt}'"
 alias timestamp-dir-utc="${_zdots_date_bin} -u +'${_zdots_ts_dir_fmt}'"

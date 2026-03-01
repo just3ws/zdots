@@ -7,6 +7,17 @@ fpath=(
 )
 typeset -gU cdpath fignore fpath mailpath path
 
+if [[ ${+functions[compdef]} -eq 0 ]]; then
+  autoload -Uz compinit
+  _zdots_compdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-${ZSH_VERSION}"
+  if mkdir -p "${_zdots_compdump:h}" 2>/dev/null; then
+    compinit -i -d "$_zdots_compdump"
+  else
+    compinit -i
+  fi
+  unset _zdots_compdump
+fi
+
 for fn in $ZDOTDIR/functions/enabled/*(.x); do
   autoload -Uz "$(basename $fn)"
 done

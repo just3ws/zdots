@@ -23,7 +23,7 @@ if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&
 fi
 
 if command -v brew >/dev/null 2>&1 && [[ -f "$REPO_ROOT/Brewfile" ]]; then
-  brew bundle check --file "$REPO_ROOT/Brewfile"
+  HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file "$REPO_ROOT/Brewfile"
 fi
 
 echo "check: OK"
