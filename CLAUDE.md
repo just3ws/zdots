@@ -6,14 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Personal zsh dotfiles repo (`just3ws/zdots`). Manages shell configuration, functions, aliases, and workspace tooling for a macOS development environment. The owner is a Ruby developer — `bundle exec` and Rails commands are core daily tools, not optimization targets.
 
-## Running Tests
+## Running Checks
 
 ```shell
-bin/test-wsp          # Test wsp workspace helper (no .zshenv modification)
-bin/test-wsp-env      # Test wsp workspace helper (with .zshenv export)
+zsh -n .zshenv .zprofile .zshrc .aliasrc .fzf.zsh functions/enabled/*
+zsh -i -c exit
 ```
-
-Both use `set -euo pipefail`, print "ok" on success, and clean up via `trap EXIT`. They validate that `wsp init` creates the expected directory, RC file, function wrapper, and (optionally) environment export.
 
 ## Architecture
 
@@ -46,20 +44,6 @@ done
 
 Files must be executable (`chmod +x`). Each file defines a single function matching its filename.
 
-### Workspace System (`wsp`)
-
-`wsp` is a generic workspace management framework. It creates project workspace helpers that manage:
-- A root directory (`NAMEPATH` env var)
-- An RC file listing repos (`.namerc`, one repo per line, `#` for comments)
-- A history log at `~/.local/share/name-all-do/history`
-- A generated function wrapper in `functions/enabled/`
-
-**Creating a new workspace:** `wsp init <name> <path>` generates the function file, RC file, and appends the path export to `.zshenv` (skip with `WSP_NO_ENV=1`).
-
-**Workspace actions:** `cd` (default), `rc` (print RC), `all-do` (run command across all repos listed in RC file).
-
-Concrete implementations: `omf`, `w3r` — each delegates to `wsp` with its own paths.
-
 ### Key Files
 
 | File | Purpose |
@@ -71,13 +55,11 @@ Concrete implementations: `omf`, `w3r` — each delegates to `wsp` with its own 
 | `fzfrc` | FZF configuration (Dracula theme, ag backend) |
 | `.p10k.zsh` | Powerlevel10k theme (wizard-generated, ~90KB) |
 | `functions/enabled/upgrade` | Master upgrade orchestrator (homebrew → asdf) |
-| `functions/enabled/wsp` | Workspace framework |
 
 ### Conventions
 
-- Functions: lowercase, hyphen-separated (`upgrade-homebrew`, `omf-all-do`)
+- Functions: lowercase, hyphen-separated (`upgrade-homebrew`, `cleanup-homebrew`)
 - Environment vars: `UPPER_SNAKE_CASE`
-- RC files: `.{name}rc` in workspace root
 - File headers: `# vim:ft=zsh` or `#!/usr/bin/env zsh`
 - XDG Base Directory compliance throughout
 - Editor is always neovim (`$EDITOR`); `vim` and `vi` are aliased to it
