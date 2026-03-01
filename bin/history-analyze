@@ -1,0 +1,188 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+DB_PATH="${XDG_STATE_HOME:-$HOME/.local/state}/zdots/history.sqlite3"
+OUT_PATH=""
+DAYS=90
+TOP_N=25
+QUICK=0
+
+usage() {
+  cat <<USAGE
+usage: history-analyze [--db <path>] [--out <path>] [--days <n>] [--top <n>] [--quick]
+
+Generates usage pattern reports from imported shell history.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    (--db)
+      DB_PATH="$2"
+      shift 2
+      ;;
+    (--out)
+      OUT_PATH="$2"
+      shift 2
+      ;;
+    (--days)
+      DAYS="$2"
+      shift 2
+      ;;
+    (--top)
+      TOP_N="$2"
+      shift 2
+      ;;
+    (--quick)
+      QUICK=1
+      shift
+      ;;
+    (-h|--help)
+      usage
+      exit 0
+      ;;
+    (*)
+      echo "history-analyze: unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if ! command -v sqlite3 >/dev/null 2>&1; then
+  echo "history-analyze: sqlite3 is required" >&2
+  exit 1
+fi
+
+if [[ ! -f "$DB_PATH" ]]; then
+  echo "history-analyze: database not found: $DB_PATH" >&2
+  exit 1
+fi
+
+if [[ -z "$OUT_PATH" ]]; then
+  OUT_PATH="$PWD/reports/history-summary.md"
+fi
+mkdir -p "${OUT_PATH:h}"
+
+sql() {
+  sqlite3 -noheader -separator $'\t' "$DB_PATH" "$1"
+}
+
+capture_table() {
+  local query="$1"
+  local fallback="$2"
+  local out
+  out="$(sql "$query")"
+  if [[ -z "$out" ]]; then
+    print -r -- "$fallback"
+  else
+    print -r -- "$out"
+  fi
+}
+
+now_epoch="$(date +%s)"
+window_start="$(( now_epoch - (DAYS * 86400) ))"
+
+# alias definitions from repo files (normal aliases only)
+tmp_aliases="$(mktemp)"
+{
+  for alias_file in "$ZDOTDIR/.aliasrc" "$ZDOTDIR/.aliasrc.claude" "$ZDOTDIR/.aliasrc.local"; do
+    [[ -r "$alias_file" ]] || continue
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ "$line" =~ '^alias[[:space:]]+([A-Za-z0-9_.!+-]+)=' ]]; then
+        print -r -- "$match[1]"
+      fi
+    done < "$alias_file"
+  done
+} | sort -u > "$tmp_aliases"
+
+{
+  echo "# Shell History Analysis"
+  echo
+  echo "- Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  echo "- Database: \`$DB_PATH\`"
+  echo "- Window: last ${DAYS} days"
+  echo
+
+  echo "## Top Commands (All Time)"
+  echo
+  echo "| Command | Count |"
+  echo "|---|---:|"
+  capture_table "SELECT cmd, COUNT(*) c FROM commands WHERE cmd IS NOT NULL AND cmd != '' GROUP BY cmd ORDER BY c DESC LIMIT $TOP_N;" $'<none>\t0' | while IFS=$'\t' read -r cmd c; do
+    echo "| \`${cmd:-<none>}\` | ${c:-0} |"
+  done
+  echo
+
+  echo "## Top Commands (Recent)"
+  echo
+  echo "| Command | Count |"
+  echo "|---|---:|"
+  capture_table "SELECT cmd, COUNT(*) c FROM commands WHERE cmd IS NOT NULL AND cmd != '' AND ts IS NOT NULL AND ts >= $window_start GROUP BY cmd ORDER BY c DESC LIMIT $TOP_N;" $'<none>\t0' | while IFS=$'\t' read -r cmd c; do
+    echo "| \`${cmd:-<none>}\` | ${c:-0} |"
+  done
+  echo
+
+  echo "## Repeated Long Commands (Alias Candidates)"
+  echo
+  echo "| Count | Command |"
+  echo "|---:|---|"
+  capture_table "SELECT COUNT(*) c, raw FROM commands WHERE LENGTH(raw) >= 30 GROUP BY raw HAVING c >= 3 ORDER BY c DESC, LENGTH(raw) DESC LIMIT $TOP_N;" $'0\t<none>' | while IFS=$'\t' read -r c raw; do
+    echo "| ${c:-0} | \`${raw:-<none>}\` |"
+  done
+  echo
+
+  echo "## Repeated Pipeline/Chain Commands (Function Candidates)"
+  echo
+  echo "| Count | Command |"
+  echo "|---:|---|"
+  capture_table "SELECT COUNT(*) c, raw FROM commands WHERE (raw LIKE '%|%' OR raw LIKE '%&&%' OR raw LIKE '%;%' OR raw LIKE '%||%') GROUP BY raw HAVING c >= 2 ORDER BY c DESC LIMIT $TOP_N;" $'0\t<none>' | while IFS=$'\t' read -r c raw; do
+    echo "| ${c:-0} | \`${raw:-<none>}\` |"
+  done
+  echo
+
+  echo "## Alias Usage"
+  echo
+  echo "| Alias | Uses | Recommendation |"
+  echo "|---|---:|---|"
+  while IFS= read -r alias_name; do
+    [[ -n "$alias_name" ]] || continue
+    uses="$(sql "SELECT COUNT(*) FROM commands WHERE cmd = '$alias_name';")"
+    rec="keep"
+    if [[ "${uses:-0}" -eq 0 ]]; then
+      rec="retire-candidate"
+    elif [[ "${uses:-0}" -lt 3 ]]; then
+      rec="review"
+    fi
+    echo "| \`${alias_name}\` | ${uses:-0} | ${rec} |"
+  done < "$tmp_aliases"
+  echo
+
+  echo "## Helper Usage (functions/enabled)"
+  echo
+  echo "| Helper | Uses |"
+  echo "|---|---:|"
+  for helper_path in "$ZDOTDIR"/functions/enabled/*(N); do
+    helper="${helper_path:t}"
+    [[ "$helper" == _* ]] && continue
+    uses="$(sql "SELECT COUNT(*) FROM commands WHERE cmd = '$helper';")"
+    echo "| \`${helper}\` | ${uses:-0} |"
+  done
+  echo
+
+  echo "## Suggested Actions"
+  echo
+  echo "1. Add aliases for high-frequency long commands above."
+  echo "2. Promote repeated pipeline/chained commands to helper functions."
+  echo "3. Retire aliases with zero usage over the selected window."
+  echo "4. Prune helper scripts with zero usage and no internal references."
+} > "$OUT_PATH"
+
+rm -f "$tmp_aliases"
+
+if [[ "$QUICK" -eq 1 ]]; then
+  echo "history-analyze: quick mode summary"
+  sql "SELECT cmd, COUNT(*) c FROM commands WHERE cmd IS NOT NULL AND cmd != '' GROUP BY cmd ORDER BY c DESC LIMIT 10;" | awk -F '\t' '{printf "  %s\t%s\n", $1, $2}'
+else
+  echo "history-analyze: wrote report to $OUT_PATH"
+fi

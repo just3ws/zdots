@@ -55,6 +55,8 @@ Files must be executable (`chmod +x`). Each file defines a single function match
 | `functions/enabled/upgrade` | Master upgrade orchestrator (homebrew → asdf) |
 | `bin/bootstrap` | First-time setup script |
 | `bin/check` | Local validation script |
+| `bin/history-import` | Import shell history files into SQLite |
+| `bin/history-analyze` | Build history usage report and recommendations |
 
 ### Conventions
 

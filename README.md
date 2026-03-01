@@ -31,6 +31,29 @@ brew bundle --file ~/.config/zsh/Brewfile
 ~/.config/zsh/bin/check
 ```
 
+## History Analysis Pipeline
+
+Import one or more history files into a SQLite database:
+
+```shell
+~/.config/zsh/bin/history-import \
+  ~/.zsh_history \
+  ~/.bash_history
+```
+
+Generate a Markdown report (defaults to `./reports/history-summary.md`):
+
+```shell
+~/.config/zsh/bin/history-analyze --days 90 --top 25
+```
+
+Useful options:
+
+- `history-import --db <path>` to override the default DB path (`$XDG_STATE_HOME/zdots/history.sqlite3`)
+- `history-import --shell <zsh|bash|fish>` to force shell parsing mode when auto-detection is ambiguous
+- `history-analyze --out <path>` to write report to a custom location
+- `history-analyze --quick` to print a short top-command summary to stdout
+
 ## Local Overrides
 
 - `~/.config/zsh/.zshrc.local` for machine-specific shell behavior.
