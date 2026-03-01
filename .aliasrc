@@ -8,8 +8,14 @@ alias projects='nocorrect ~projects'
 alias desk='nocorrect ~desk'
 alias xdots='nocorrect ~xdots'
 alias zdots='nocorrect ~zdots'
+alias vim="$EDITOR"
+alias vi="$EDITOR"
 
-alias ls="gls --color"
+if command -v gls >/dev/null 2>&1; then
+  alias ls='command gls --color'
+else
+  alias ls='command ls -G'
+fi
 
 alias -g gi='| grep -i'
 alias -g lx='l -10'
@@ -24,7 +30,6 @@ alias -s png=preview
 alias acrobat='open -a Adobe\ Acrobat\ Reader\ DC'
 alias b="bundle"
 alias be="b exec"
-alias be='bundle exec'
 alias bounce='reload'
 alias bsl='brew services list'
 alias bu="b update"
@@ -40,17 +45,30 @@ alias gfp='git format-patch HEAD~1 --no-color --stdout'
 alias gs='git status --short'
 alias gss='git status --short'
 alias gwd='git diff --word-diff'
-alias iso8601-local="gdate +\'%Y-%m-%dT%H:%M:%SZ\'"
-alias iso8601-utc="gdate -u +\'%Y-%m-%dT%H:%M:%SZ\'"
 alias listening-on='lsof -Pni4 | grep LISTEN'
 alias ll='ls -alh'
 alias marked='/Applications/Marked\ 2.app/Contents/MacOS/Marked\ 2'
 alias preview='open -a Preview'
 alias prunedirs='rm -d **/*(/^F)'
-alias timestamp-dir-local="gdate +\'%Y-%m-%d/%H.%M.%2N\'"
-alias timestamp-dir-utc="gdate -u +\'%Y-%m-%d/%H.%M.%2N\'"
-alias timestamp-local="gdate +\'%Y-%m-%dT%H.%M.%2N\'"
 alias wip='git commit -am "WIP"'
-alias timestamp-utc="gdate -u +\'%Y-%m-%dT%H.%M.%2N\'"
+
+if command -v gdate >/dev/null 2>&1; then
+  _zdots_date_bin='gdate'
+  _zdots_ts_fmt='%Y-%m-%dT%H.%M.%2N'
+  _zdots_ts_dir_fmt='%Y-%m-%d/%H.%M.%2N'
+else
+  _zdots_date_bin='date'
+  _zdots_ts_fmt='%Y-%m-%dT%H.%M.%S'
+  _zdots_ts_dir_fmt='%Y-%m-%d/%H.%M.%S'
+fi
+
+alias iso8601-local="${_zdots_date_bin} +'%Y-%m-%dT%H:%M:%SZ'"
+alias iso8601-utc="${_zdots_date_bin} -u +'%Y-%m-%dT%H:%M:%SZ'"
+alias timestamp-dir-local="${_zdots_date_bin} +'${_zdots_ts_dir_fmt}'"
+alias timestamp-dir-utc="${_zdots_date_bin} -u +'${_zdots_ts_dir_fmt}'"
+alias timestamp-local="${_zdots_date_bin} +'${_zdots_ts_fmt}'"
+alias timestamp-utc="${_zdots_date_bin} -u +'${_zdots_ts_fmt}'"
+
+unset _zdots_date_bin _zdots_ts_fmt _zdots_ts_dir_fmt
 
 . "${ZDOTDIR}/.aliasrc.claude"
