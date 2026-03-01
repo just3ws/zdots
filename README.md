@@ -36,6 +36,10 @@ brew bundle --file ~/.config/zsh/Brewfile
 - `~/.config/zsh/.zshrc.local` for machine-specific shell behavior.
 - `~/.config/zsh/.aliasrc.local` for machine-specific aliases/functions.
 
+## Roadmap
+
+- See [TODO.md](TODO.md) for prioritized follow-up work.
+
 ## Zsh Bookmarks
 
 ### Official
