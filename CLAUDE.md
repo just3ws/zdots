@@ -27,7 +27,7 @@ bin/check
 ~/.config/zsh/.zshrc
   → p10k instant prompt (must stay at top)
   → sources modular config in conf.d/*.zsh
-  → prompt + env + lazy asdf + options + key bindings + integrations
+  → prompt + env + asdf init + options + key bindings + integrations
 ```
 
 ### Function Autoloading
