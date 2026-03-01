@@ -2,8 +2,14 @@
 
 message () {
   local text="$1"
+  local boxes_bin
+  boxes_bin="$(command -v boxes 2>/dev/null)"
   echo
-  echo " $text" | /usr/local/bin/boxes -d shell
+  if [[ -n "$boxes_bin" ]]; then
+    echo " $text" | "$boxes_bin" -d shell
+  else
+    echo "[$text]"
+  fi
   echo
 }
 
@@ -35,8 +41,5 @@ upgrade-asdf
 #
 # message 'PIP2'
 # upgrade-pip2
-
-message 'ANTIGEN'
-upgrade-antigen
 
 message 'UPGRADE DONE'
