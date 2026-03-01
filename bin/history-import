@@ -85,6 +85,7 @@ import_file() {
   local file="$1"
   local default_shell="$2"
   local line line_no pending_ts shell ts duration raw cmd args
+  local file_sql shell_sql raw_sql cmd_sql args_sql
 
   if [[ ! -f "$file" ]]; then
     echo "history-import: skipping missing file: $file" >&2
@@ -94,54 +95,51 @@ import_file() {
   default_shell="${default_shell:-auto}"
   pending_ts=""
   line_no=0
+  file_sql="$(sql_escape "$file")"
 
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    ((++line_no))
-    ts=""
-    duration=""
-    raw="$line"
-    shell="$default_shell"
+  {
+    print -r -- "BEGIN;"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      ((++line_no))
+      ts=""
+      duration=""
+      raw="$line"
+      shell="$default_shell"
 
-    if [[ "$line" =~ '^: ([0-9]+):([0-9]+);(.*)$' ]]; then
-      ts="$match[1]"
-      duration="$match[2]"
-      raw="$match[3]"
-      shell="zsh"
-    elif [[ "$line" =~ '^#([0-9]{9,})$' ]]; then
-      pending_ts="$match[1]"
-      continue
-    elif [[ -n "$pending_ts" ]]; then
-      ts="$pending_ts"
-      pending_ts=""
-      [[ "$shell" == "auto" ]] && shell="bash"
-    fi
+      if [[ "$line" =~ '^: ([0-9]+):([0-9]+);(.*)$' ]]; then
+        ts="$match[1]"
+        duration="$match[2]"
+        raw="$match[3]"
+        shell="zsh"
+      elif [[ "$line" =~ '^#([0-9]{9,})$' ]]; then
+        pending_ts="$match[1]"
+        continue
+      elif [[ -n "$pending_ts" ]]; then
+        ts="$pending_ts"
+        pending_ts=""
+        [[ "$shell" == "auto" ]] && shell="bash"
+      fi
 
-    raw="${raw##[[:space:]]#}"
-    [[ -z "$raw" ]] && continue
+      raw="${raw##[[:space:]]#}"
+      [[ -z "$raw" ]] && continue
 
-    local -a words
-    words=("${(z)raw}")
-    cmd="${words[1]:-}"
-    args="$raw"
-    if [[ -n "$cmd" ]]; then
-      args="${raw#$cmd}"
-      args="${args## }"
-    fi
+      local -a words
+      words=("${(z)raw}")
+      cmd="${words[1]:-}"
+      args="$raw"
+      if [[ -n "$cmd" ]]; then
+        args="${raw#$cmd}"
+        args="${args## }"
+      fi
 
-    sqlite3 "$DB_PATH" <<SQL
-INSERT INTO commands(source_file,line_no,ts,duration,shell,raw,cmd,args)
-VALUES(
-  '$(sql_escape "$file")',
-  $line_no,
-  ${ts:-NULL},
-  ${duration:-NULL},
-  '$(sql_escape "$shell")',
-  '$(sql_escape "$raw")',
-  '$(sql_escape "$cmd")',
-  '$(sql_escape "$args")'
-);
-SQL
-  done < "$file"
+      shell_sql="$(sql_escape "$shell")"
+      raw_sql="$(sql_escape "$raw")"
+      cmd_sql="$(sql_escape "$cmd")"
+      args_sql="$(sql_escape "$args")"
+      print -r -- "INSERT INTO commands(source_file,line_no,ts,duration,shell,raw,cmd,args) VALUES('$file_sql',$line_no,${ts:-NULL},${duration:-NULL},'$shell_sql','$raw_sql','$cmd_sql','$args_sql');"
+    done < "$file"
+    print -r -- "COMMIT;"
+  } | sqlite3 "$DB_PATH"
 }
 
 for file in "$@"; do
