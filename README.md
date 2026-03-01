@@ -110,11 +110,22 @@ By default, `history-import` redacts common secret/token/password patterns befor
 
 - Zsh sets `GIT_CONFIG_GLOBAL=$XDG_CONFIG_HOME/git/config`.
 - `bin/bootstrap` creates `~/.config/git/config` and a compatibility include in `~/.gitconfig` for non-zsh environments.
+- `bin/bootstrap` configures local Git hooks with `core.hooksPath=.githooks`.
 - Set identity in the XDG-backed global config with:
 
 ```shell
 git config --global user.name "Your Name"
 git config --global user.email "you@example.com"
+```
+
+## Git Hooks
+
+- This repo versions hooks in `.githooks/`.
+- `pre-push` runs `ZDOTS_CHECK_SKIP_EXTERNAL=1 ./bin/check`.
+- To enable in an existing clone:
+
+```shell
+git config --local core.hooksPath .githooks
 ```
 
 ## History Defaults

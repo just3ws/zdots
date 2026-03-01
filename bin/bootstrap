@@ -47,5 +47,13 @@ if [[ ! -e "$HOME/.zshenv" ]]; then
   echo "bootstrap: linked $HOME/.zshenv -> $REPO_ROOT/.zshenv"
 fi
 
+if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  current_hooks_path="$(git -C "$REPO_ROOT" config --local --get core.hooksPath || true)"
+  if [[ "$current_hooks_path" != ".githooks" ]]; then
+    git -C "$REPO_ROOT" config --local core.hooksPath .githooks
+    echo "bootstrap: configured git core.hooksPath -> .githooks"
+  fi
+fi
+
 echo "bootstrap: complete"
 exec "$SHELL"
