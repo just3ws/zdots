@@ -47,7 +47,7 @@
 
 - [x] Add optional `shellcheck` pass to `bin/check`.
   - Run only when `shellcheck` exists.
-  - Added optional `zlint` pass when available for zsh-specific linting.
+  - Added optional `zlint` pass behind `ZDOTS_CHECK_ENABLE_ZLINT=1`.
 
 - [x] Add prompt health check to `bin/check`.
   - Verify at least one Powerlevel10k theme candidate is present.
