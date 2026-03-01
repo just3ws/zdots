@@ -8,11 +8,20 @@ NODEJS_VERSION="${ASDF_NODEJS_VERSION:-latest:24}"
 PYTHON_VERSION="${ASDF_PYTHON_VERSION:-latest:3.10}"
 RUBY_VERSION="${ASDF_RUBY_VERSION:-latest:3.4}"
 UPDATE_GLOBALS="${ZDOTS_UPGRADE_GLOBALS:-0}"
+DRY_RUN="${ZDOTS_UPGRADE_DRY_RUN:-0}"
+
+run_cmd() {
+  print -r -- "+ $*"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    return 0
+  fi
+  "$@"
+}
 
 ensure_plugin() {
   local tool="$1"
   if ! asdf plugin list | grep -qx "$tool"; then
-    asdf plugin add "$tool"
+    run_cmd asdf plugin add "$tool"
   fi
 }
 
@@ -20,12 +29,12 @@ install_track() {
   local tool="$1"
   local version="$2"
   ensure_plugin "$tool"
-  asdf install "$tool" "$version"
-  asdf set --home "$tool" "$version"
+  run_cmd asdf install "$tool" "$version"
+  run_cmd asdf set --home "$tool" "$version"
 }
 
 # asdf update --head
-asdf plugin update --all
+run_cmd asdf plugin update --all
 
 # asdf plugin add nim
 # asdf install nim latest
@@ -46,18 +55,18 @@ install_track ruby "$RUBY_VERSION"
 # asdf set --home yarn latest
 
 if [[ "$UPDATE_GLOBALS" == "1" ]]; then
-  pip3 install -U pip
-  touch ~/.default-python-packages
+  run_cmd pip3 install -U pip
+  run_cmd touch ~/.default-python-packages
   # pip3 install -U -r ~/.default-python-packages
 
-  npm update -g npm
-  npm update -g neovim
-  npm update -g
+  run_cmd npm update -g npm
+  run_cmd npm update -g neovim
+  run_cmd npm update -g
 
-  gem update --system
-  gem install bundler
-  gem install neovim
-  gem update
+  run_cmd gem update --system
+  run_cmd gem install bundler
+  run_cmd gem install neovim
+  run_cmd gem update
 fi
 
-asdf reshim
+run_cmd asdf reshim

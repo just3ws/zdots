@@ -33,6 +33,7 @@ brew bundle --file ~/.config/zsh/Brewfile
 
 `bin/check` enforces completion path security via `compaudit` by default.
 It validates both interactive startup (`zsh -i`) and login+interactive startup (`zsh -l -i`).
+When `shellcheck` is installed, `bin/check` also runs a shellcheck pass for any bash/sh scripts in the repo.
 
 If validation fails with insecure completion paths:
 
@@ -73,8 +74,11 @@ Useful options:
 - `history-import --db <path>` to override the default DB path (`$XDG_STATE_HOME/zdots/history.sqlite3`)
 - `history-import --shell <zsh|bash|fish>` to force shell parsing mode when auto-detection is ambiguous
 - `history-import --prune-days <n>` to prune old rows after import (retention control)
+- `history-import --no-redact` to disable sensitive-value redaction during import
 - `history-analyze --out <path>` to write report to a custom location
 - `history-analyze --quick` to print a short top-command summary to stdout
+
+By default, `history-import` redacts common secret/token/password patterns before writing `raw`/`args` fields.
 
 ## Local Overrides
 
@@ -103,6 +107,20 @@ git config --global user.email "you@example.com"
 - Set `ZDOTS_HOMEBREW_AGGRESSIVE=1` to enable `--greedy` upgrades.
 - `upgrade-asdf` uses version-track defaults and skips global package-manager upgrades by default.
 - Set `ZDOTS_UPGRADE_GLOBALS=1` to re-enable global `pip`/`npm`/`gem` updates.
+- Set `ZDOTS_UPGRADE_DRY_RUN=1` to print upgrade actions without executing them.
+
+## Troubleshooting Runbook
+
+1. Start with a clean shell:
+   `zsh -f`
+2. Validate startup and config:
+   `~/.config/zsh/bin/check`
+3. Check completion path security:
+   `zsh -i -c 'autoload -Uz compaudit; compaudit'`
+4. Rebuild shell caches if needed:
+   `reset`
+5. Isolate a startup module:
+   Move a file from `conf.d/` out of the directory temporarily, then re-run `bin/check`.
 
 ## Color Theme
 

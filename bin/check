@@ -45,4 +45,17 @@ if command -v brew >/dev/null 2>&1 && [[ -f "$REPO_ROOT/Brewfile" ]]; then
   HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file "$REPO_ROOT/Brewfile"
 fi
 
+if command -v shellcheck >/dev/null 2>&1; then
+  shfiles=()
+  while IFS= read -r shfile; do
+    shfiles+=("$shfile")
+  done < <(rg -l '^#![[:space:]]*/usr/bin/env[[:space:]]+(bash|sh)$' -- bin functions/enabled conf.d 2>/dev/null || true)
+
+  if (( ${#shfiles[@]} > 0 )); then
+    shellcheck -x "${shfiles[@]}"
+  else
+    echo "check: shellcheck available, no bash/sh scripts detected; skipping shellcheck pass"
+  fi
+fi
+
 echo "check: OK"

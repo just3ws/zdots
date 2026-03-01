@@ -3,17 +3,31 @@
 set -euo pipefail
 
 aggressive_upgrade="${ZDOTS_HOMEBREW_AGGRESSIVE:-0}"
+dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
 
-brew update --verbose
+run_cmd() {
+  print -r -- "+ $*"
+  if [[ "$dry_run" == "1" ]]; then
+    return 0
+  fi
+  "$@"
+}
+
+run_cmd brew update --verbose
 
 if [[ "$aggressive_upgrade" == "1" ]]; then
-  brew upgrade --greedy --verbose
+  run_cmd brew upgrade --greedy --verbose
 else
-  brew upgrade --verbose
+  run_cmd brew upgrade --verbose
 fi
 
 if [[ -f "$ZDOTDIR/Brewfile" ]]; then
-  brew bundle check --file "$ZDOTDIR/Brewfile" || brew bundle --file "$ZDOTDIR/Brewfile"
+  if [[ "$dry_run" == "1" ]]; then
+    run_cmd brew bundle check --file "$ZDOTDIR/Brewfile"
+    run_cmd brew bundle --file "$ZDOTDIR/Brewfile"
+  else
+    run_cmd brew bundle check --file "$ZDOTDIR/Brewfile" || run_cmd brew bundle --file "$ZDOTDIR/Brewfile"
+  fi
 fi
 
-cleanup-homebrew
+run_cmd cleanup-homebrew
