@@ -41,7 +41,6 @@ brew bundle --file ~/.config/zsh/Brewfile
 It validates both interactive startup (`zsh -i`) and login+interactive startup (`zsh -l -i`).
 When `shellcheck` is installed, `bin/check` also runs a shellcheck pass for any bash/sh scripts in the repo.
 It also verifies prompt theme availability in normal mode.
-If `zlint` exists, it is disabled by default; enable with `ZDOTS_CHECK_ENABLE_ZLINT=1` only if you intentionally want that linter.
 
 Fast sanity mode (skip external dependencies like asdf/Homebrew checks):
 
@@ -227,7 +226,6 @@ git config --global user.email "you@example.com"
 - [Zsh Workshop: Table of Contents](https://www-s.acm.illinois.edu/workshops/zsh/toc.html)
 - [Zsh/Bash startup files loading order (.bashrc, .zshrc etc.) | The Lumber Room](https://shreevatsa.wordpress.com/2008/03/30/zshbash-startup-files-loading-order-bashrc-zshrc-etc/)
 - [chris blogs: 10 new zsh tricks you may not know...](http://chneukirchen.org/blog/archive/2012/02/10-new-zsh-tricks-you-may-not-know.html)
-- [molovo/zlint: A linter and code style checker for ZSH](https://github.com/molovo/zlint)
 - [per directory zsh config (Example)](https://coderwall.com/p/a3xreg/per-directory-zsh-config)
 - [reload all running zsh instances - Super User](https://superuser.com/questions/852912/reload-all-running-zsh-instances)
 - [the8/terminal-app.zsh: OSX 10.11(El Capitan) Terminal.app and Zsh integration using new status escape codes and a dash of Emoji to make your terminal shine.](https://github.com/the8/terminal-app.zsh)
