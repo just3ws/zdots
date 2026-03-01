@@ -32,7 +32,8 @@ export VISUAL="$EDITOR"
 export LANG='en_US.UTF-8'
 export PGPASSFILE="${HOME}/.pgpass"
 export DOCKER_CLI_HINTS=false
-export GIT_CONFIG_GLOBAL="$XDG_CONFIG_HOME/git/config"
+: "${GIT_CONFIG_GLOBAL:=$XDG_CONFIG_HOME/git/config}"
+export GIT_CONFIG_GLOBAL
 
 export HISTFILESIZE=999999
 export HISTSIZE=999999

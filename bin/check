@@ -5,7 +5,7 @@ set -euo pipefail
 REPO_ROOT="${0:A:h:h}"
 cd "$REPO_ROOT"
 
-zsh -n .zshenv .zprofile .zshrc .aliasrc .fzf.zsh functions/enabled/*
+zsh -n .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*
 
 errfile="$(mktemp)"
 zsh -i -c 'exit' >/dev/null 2>"$errfile"

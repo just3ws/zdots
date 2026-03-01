@@ -31,6 +31,26 @@ brew bundle --file ~/.config/zsh/Brewfile
 ~/.config/zsh/bin/check
 ```
 
+`bin/check` enforces completion path security via `compaudit` by default.
+
+If validation fails with insecure completion paths:
+
+```shell
+zsh -i -c 'autoload -Uz compaudit; compaudit'
+```
+
+Fix each reported path by removing group/other write permissions (example):
+
+```shell
+chmod g-w /opt/homebrew/share
+```
+
+Temporary bypass (not recommended as a default):
+
+```shell
+ZDOTS_CHECK_STRICT_COMPAUDIT=0 ~/.config/zsh/bin/check
+```
+
 ## History Analysis Pipeline
 
 Import one or more history files into a SQLite database:
@@ -58,6 +78,17 @@ Useful options:
 
 - `~/.config/zsh/.zshrc.local` for machine-specific shell behavior.
 - `~/.config/zsh/.aliasrc.local` for machine-specific aliases/functions.
+
+## Git XDG Config
+
+- Zsh sets `GIT_CONFIG_GLOBAL=$XDG_CONFIG_HOME/git/config`.
+- `bin/bootstrap` creates `~/.config/git/config` and a compatibility include in `~/.gitconfig` for non-zsh environments.
+- Set identity in the XDG-backed global config with:
+
+```shell
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
 
 ## Color Theme
 
