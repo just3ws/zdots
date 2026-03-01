@@ -24,9 +24,9 @@ fi
 
 compaudit_out="$(zsh -i -c 'autoload -Uz compaudit; compaudit 2>/dev/null' || true)"
 if [[ -n "$compaudit_out" ]]; then
-  echo "check: warning: insecure completion paths detected by compaudit:" >&2
+  echo "check: insecure completion paths detected by compaudit:" >&2
   print -r -- "$compaudit_out" >&2
-  if [[ "${ZDOTS_CHECK_STRICT_COMPAUDIT:-0}" == "1" ]]; then
+  if [[ "${ZDOTS_CHECK_STRICT_COMPAUDIT:-1}" == "1" ]]; then
     exit 1
   fi
 fi
