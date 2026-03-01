@@ -1,0 +1,150 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+DB_PATH="${XDG_STATE_HOME:-$HOME/.local/state}/zdots/history.sqlite3"
+SHELL_HINT=""
+
+usage() {
+  cat <<USAGE
+usage: history-import [--db <path>] [--shell <zsh|bash|fish>] <history-file>...
+
+Imports shell history files into a sqlite database.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    (--db)
+      DB_PATH="$2"
+      shift 2
+      ;;
+    (--shell)
+      SHELL_HINT="$2"
+      shift 2
+      ;;
+    (-h|--help)
+      usage
+      exit 0
+      ;;
+    (--)
+      shift
+      break
+      ;;
+    (-*)
+      echo "history-import: unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+    (*)
+      break
+      ;;
+  esac
+done
+
+if [[ $# -eq 0 ]]; then
+  echo "history-import: provide at least one history file" >&2
+  usage >&2
+  exit 1
+fi
+
+if ! command -v sqlite3 >/dev/null 2>&1; then
+  echo "history-import: sqlite3 is required" >&2
+  exit 1
+fi
+
+mkdir -p "${DB_PATH:h}"
+
+sqlite3 "$DB_PATH" <<'SQL' >/dev/null
+PRAGMA journal_mode=WAL;
+CREATE TABLE IF NOT EXISTS commands (
+  id INTEGER PRIMARY KEY,
+  source_file TEXT NOT NULL,
+  line_no INTEGER NOT NULL,
+  ts INTEGER,
+  duration INTEGER,
+  shell TEXT,
+  raw TEXT NOT NULL,
+  cmd TEXT,
+  args TEXT,
+  imported_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_commands_cmd ON commands(cmd);
+CREATE INDEX IF NOT EXISTS idx_commands_ts ON commands(ts);
+CREATE INDEX IF NOT EXISTS idx_commands_source ON commands(source_file);
+SQL
+
+sql_escape() {
+  local s="$1"
+  s="${s//\'/\'\'}"
+  print -r -- "$s"
+}
+
+import_file() {
+  local file="$1"
+  local default_shell="$2"
+  local line line_no pending_ts shell ts duration raw cmd args
+
+  if [[ ! -f "$file" ]]; then
+    echo "history-import: skipping missing file: $file" >&2
+    return 0
+  fi
+
+  default_shell="${default_shell:-auto}"
+  pending_ts=""
+  line_no=0
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    ((++line_no))
+    ts=""
+    duration=""
+    raw="$line"
+    shell="$default_shell"
+
+    if [[ "$line" =~ '^: ([0-9]+):([0-9]+);(.*)$' ]]; then
+      ts="$match[1]"
+      duration="$match[2]"
+      raw="$match[3]"
+      shell="zsh"
+    elif [[ "$line" =~ '^#([0-9]{9,})$' ]]; then
+      pending_ts="$match[1]"
+      continue
+    elif [[ -n "$pending_ts" ]]; then
+      ts="$pending_ts"
+      pending_ts=""
+      [[ "$shell" == "auto" ]] && shell="bash"
+    fi
+
+    raw="${raw##[[:space:]]#}"
+    [[ -z "$raw" ]] && continue
+
+    local -a words
+    words=("${(z)raw}")
+    cmd="${words[1]:-}"
+    args="$raw"
+    if [[ -n "$cmd" ]]; then
+      args="${raw#$cmd}"
+      args="${args## }"
+    fi
+
+    sqlite3 "$DB_PATH" <<SQL
+INSERT INTO commands(source_file,line_no,ts,duration,shell,raw,cmd,args)
+VALUES(
+  '$(sql_escape "$file")',
+  $line_no,
+  ${ts:-NULL},
+  ${duration:-NULL},
+  '$(sql_escape "$shell")',
+  '$(sql_escape "$raw")',
+  '$(sql_escape "$cmd")',
+  '$(sql_escape "$args")'
+);
+SQL
+  done < "$file"
+}
+
+for file in "$@"; do
+  import_file "$file" "$SHELL_HINT"
+done
+
+echo "history-import: imported into $DB_PATH"
