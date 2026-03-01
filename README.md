@@ -13,11 +13,28 @@ ln ~/.config/zsh/.zshenv ~/.zshenv
 exec "$SHELL"
 ```
 
+## Quick Start
+
+```shell
+~/.config/zsh/bin/bootstrap
+```
+
 ## Dependencies
 
 ```shell
 brew bundle --file ~/.config/zsh/Brewfile
 ```
+
+## Validation
+
+```shell
+~/.config/zsh/bin/check
+```
+
+## Local Overrides
+
+- `~/.config/zsh/.zshrc.local` for machine-specific shell behavior.
+- `~/.config/zsh/.aliasrc.local` for machine-specific aliases/functions.
 
 ## Zsh Bookmarks
 

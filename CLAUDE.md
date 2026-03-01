@@ -11,6 +11,7 @@ Personal zsh dotfiles repo (`just3ws/zdots`). Manages shell configuration, funct
 ```shell
 zsh -n .zshenv .zprofile .zshrc .aliasrc .fzf.zsh functions/enabled/*
 zsh -i -c exit
+bin/check
 ```
 
 ## Architecture
@@ -25,17 +26,13 @@ zsh -i -c exit
 
 ~/.config/zsh/.zshrc
   → p10k instant prompt (must stay at top)
-  → direct powerlevel10k theme loading
-  → interactive Homebrew shellenv + vivid LS_COLORS
-  → autoload loop for functions/enabled/
-  → setopt/unsetopt blocks
-  → key bindings
-  → sources: .aliasrc, .iterm2_shell_integration.zsh (iTerm TTY only), .fzf.zsh (TTY only), .p10k.zsh (TTY only)
+  → sources modular config in conf.d/*.zsh
+  → prompt + env + lazy asdf + options + key bindings + integrations
 ```
 
 ### Function Autoloading
 
-Functions live in `functions/enabled/` and are autoloaded via a glob loop in `.zshrc`:
+Functions live in `functions/enabled/` and are autoloaded via a glob loop in `conf.d/40-completion.zsh`:
 ```zsh
 for fn in $ZDOTDIR/functions/enabled/*(.x); do
   autoload -Uz "$(basename $fn)"
@@ -49,12 +46,15 @@ Files must be executable (`chmod +x`). Each file defines a single function match
 | File | Purpose |
 |------|---------|
 | `.zshenv` | Environment, PATH, minimal fpath bootstrap |
-| `.zshrc` | Interactive shell options, prompt setup, function autoloading, sourcing |
+| `.zshrc` | Thin loader for modular config |
+| `conf.d/*.zsh` | Ordered interactive shell modules |
 | `.aliasrc` | All aliases (directory hashes, git, ruby, utilities) |
 | `Brewfile` | Homebrew dependencies for this config |
 | `fzfrc` | FZF configuration (Dracula theme, ag backend) |
 | `.p10k.zsh` | Powerlevel10k theme (wizard-generated, ~90KB) |
 | `functions/enabled/upgrade` | Master upgrade orchestrator (homebrew → asdf) |
+| `bin/bootstrap` | First-time setup script |
+| `bin/check` | Local validation script |
 
 ### Conventions
 
@@ -66,3 +66,11 @@ Files must be executable (`chmod +x`). Each file defines a single function match
 - `klear` is the scrollback-clearing function — used as a prefix before running visible output commands (e.g., `klear ; ruby script.rb`). It is a helper, not an optimization target.
 - GNU coreutils preferred: `gls`, `gdate` (with graceful BSD fallback aliases)
 - `clobber` is unset — use `>!` to overwrite files
+
+### Deprecation Policy
+
+- A helper/function can be removed when all are true:
+  - No history usage in recent snapshots.
+  - Backing path/config no longer exists.
+  - No remaining internal references/docs depend on it.
+- Removals should be done in a dedicated commit with docs updated in the same PR.

@@ -5,4 +5,8 @@ brew update --auto-update --verbose
 
 brew upgrade --greedy --force --verbose
 
+if [[ -f "$ZDOTDIR/Brewfile" ]]; then
+  brew bundle check --file "$ZDOTDIR/Brewfile" || brew bundle --file "$ZDOTDIR/Brewfile"
+fi
+
 cleanup-homebrew
