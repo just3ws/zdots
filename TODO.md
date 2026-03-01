@@ -42,11 +42,12 @@
 
 ## P3 (Quality of Life)
 
-- [ ] Add a `Makefile` for common workflows.
+- [x] Add a `Makefile` for common workflows.
   - Targets: `bootstrap`, `check`, `bench`, `upgrade`.
 
 - [x] Add optional `shellcheck` pass to `bin/check`.
   - Run only when `shellcheck` exists.
+  - Added optional `zlint` pass when available for zsh-specific linting.
 
 - [x] Add prompt health check to `bin/check`.
   - Verify at least one Powerlevel10k theme candidate is present.

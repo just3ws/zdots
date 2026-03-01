@@ -19,6 +19,12 @@ exec "$SHELL"
 ~/.config/zsh/bin/bootstrap
 ```
 
+or
+
+```shell
+make bootstrap
+```
+
 ## Dependencies
 
 ```shell
@@ -40,6 +46,14 @@ Fast sanity mode (skip external dependencies like asdf/Homebrew checks):
 
 ```shell
 ZDOTS_CHECK_SKIP_EXTERNAL=1 ~/.config/zsh/bin/check
+```
+
+Make targets:
+
+```shell
+make check
+make check-fast
+make bench
 ```
 
 If validation fails with insecure completion paths:
@@ -115,6 +129,9 @@ git config --global user.email "you@example.com"
 - `upgrade-asdf` uses version-track defaults and skips global package-manager upgrades by default.
 - Set `ZDOTS_UPGRADE_GLOBALS=1` to re-enable global `pip`/`npm`/`gem` updates.
 - Set `ZDOTS_UPGRADE_DRY_RUN=1` to print upgrade actions without executing them.
+- Convenience targets:
+  - `make upgrade`
+  - `make upgrade-dry`
 
 ## Troubleshooting Runbook
 
