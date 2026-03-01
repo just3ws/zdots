@@ -17,6 +17,16 @@ if [[ -s "$errfile" ]]; then
 fi
 rm -f "$errfile"
 
+errfile="$(mktemp)"
+zsh -l -i -c 'exit' >/dev/null 2>"$errfile"
+if [[ -s "$errfile" ]]; then
+  echo "check: zsh -l -i -c exit emitted stderr:" >&2
+  cat "$errfile" >&2
+  rm -f "$errfile"
+  exit 1
+fi
+rm -f "$errfile"
+
 if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&1'; then
   echo "check: asdf failed to initialize in interactive shell" >&2
   exit 1

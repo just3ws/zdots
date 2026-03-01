@@ -35,7 +35,6 @@ export DOCKER_CLI_HINTS=false
 : "${GIT_CONFIG_GLOBAL:=$XDG_CONFIG_HOME/git/config}"
 export GIT_CONFIG_GLOBAL
 
-export HISTFILESIZE=999999
 export HISTSIZE=999999
 export HISTFILE="$XDG_DATA_HOME/zsh/history"
 

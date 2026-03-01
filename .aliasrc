@@ -24,7 +24,6 @@ alias -g gi='| grep -i'
 alias -g lx='l -10'
 alias -g lxx='l -20'
 alias -g lxxx='l -30'
-alias -g nv='--tls-no-verify'
 alias -s gif=preview
 alias -s jpeg=preview
 alias -s jpg=preview
