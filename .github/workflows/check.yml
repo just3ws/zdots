@@ -13,8 +13,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
-        run: brew bundle --file Brewfile
+      - name: Cache Homebrew Downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: ${{ runner.os }}-homebrew-${{ hashFiles('Brewfile') }}
+          restore-keys: |
+            ${{ runner.os }}-homebrew-
 
-      - name: Run Checks
-        run: ./bin/check
+      - name: Install Dependencies (Retry)
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if brew bundle --file Brewfile; then
+              exit 0
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo "brew bundle failed after ${attempt} attempts" >&2
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
+
+      - name: Run Checks (Retry)
+        shell: bash
+        run: |
+          for attempt in 1 2; do
+            if ./bin/check; then
+              exit 0
+            fi
+            if [[ "$attempt" -eq 2 ]]; then
+              echo "bin/check failed after ${attempt} attempts" >&2
+              exit 1
+            fi
+            sleep 5
+          done

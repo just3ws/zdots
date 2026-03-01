@@ -10,6 +10,7 @@
 
 - [x] Add CI gate to run `bin/check` on PR/push.
   - Prevent regressions from landing without local validation parity.
+  - Workflow now includes Homebrew cache reuse and retry loops for flaky network/install steps.
 
 - [x] Add login-shell runtime validation in `bin/check`.
   - Catch `.zprofile` and login-only startup failures.
@@ -40,11 +41,11 @@
 - [ ] Add a `Makefile` for common workflows.
   - Targets: `bootstrap`, `check`, `bench`, `upgrade`.
 
-- [ ] Add optional `shellcheck` pass to `bin/check`.
+- [x] Add optional `shellcheck` pass to `bin/check`.
   - Run only when `shellcheck` exists.
 
 - [ ] Add prompt health check to `bin/check`.
   - Verify at least one Powerlevel10k theme candidate is present.
 
-- [ ] Add recovery/troubleshooting doc section.
+- [x] Add recovery/troubleshooting doc section.
   - Include startup failure workflow (`zsh -f`, disable a module, run `bin/check`).
