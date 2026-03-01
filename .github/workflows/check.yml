@@ -7,8 +7,19 @@ on:
   pull_request:
 
 jobs:
-  check:
+  sanity:
     runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Fast Sanity Checks
+        run: ZDOTS_CHECK_SKIP_EXTERNAL=1 ./bin/check
+
+  full:
+    runs-on: macos-latest
+    needs: sanity
+    if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

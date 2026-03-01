@@ -9,7 +9,7 @@ cd
 mv -f .zshenv .zshenv.bak
 mkdir -p ~/.local/share/zsh
 git clone git@github.com:just3ws/zdots.git ~/.config/zsh
-ln ~/.config/zsh/.zshenv ~/.zshenv
+ln -s ~/.config/zsh/.zshenv ~/.zshenv
 exec "$SHELL"
 ```
 
@@ -34,6 +34,13 @@ brew bundle --file ~/.config/zsh/Brewfile
 `bin/check` enforces completion path security via `compaudit` by default.
 It validates both interactive startup (`zsh -i`) and login+interactive startup (`zsh -l -i`).
 When `shellcheck` is installed, `bin/check` also runs a shellcheck pass for any bash/sh scripts in the repo.
+It also verifies prompt theme availability in normal mode.
+
+Fast sanity mode (skip external dependencies like asdf/Homebrew checks):
+
+```shell
+ZDOTS_CHECK_SKIP_EXTERNAL=1 ~/.config/zsh/bin/check
+```
 
 If validation fails with insecure completion paths:
 
