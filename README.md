@@ -74,6 +74,12 @@ Temporary bypass (not recommended as a default):
 ZDOTS_CHECK_STRICT_COMPAUDIT=0 ~/.config/zsh/bin/check
 ```
 
+Runtime bypass for completion initialization (not recommended as a default):
+
+```shell
+ZDOTS_COMPLETION_PERMISSIVE=1 exec zsh
+```
+
 ## History Analysis Pipeline
 
 Import one or more history files into a SQLite database:
