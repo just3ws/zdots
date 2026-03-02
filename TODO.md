@@ -53,3 +53,32 @@
 
 - [x] Add recovery/troubleshooting doc section.
   - Include startup failure workflow (`zsh -f`, disable a module, run `bin/check`).
+
+## P1 (Rubric: Reliability + Security)
+
+- [ ] Enforce mutually exclusive history mode settings.
+  - Update `conf.d/50-options.zsh` so `share_history` and `inc_append_history_time` are not enabled together.
+  - Document exact behavior in `README.md`.
+  - Add/adjust checks for expected mode behavior.
+
+- [ ] Align completion runtime policy with strict security defaults.
+  - Replace default permissive `compinit -i` flow with strict behavior.
+  - Keep explicit env-gated bypass for constrained systems.
+  - Document failure mode and bypass in `README.md`.
+
+- [ ] Add keybinding regression checks for history search.
+  - Extend `bin/check` to validate `^R` mapping policy (`fzf-history-widget` when present, safe fallback otherwise).
+  - Ensure checks run under both `zsh -i` and `zsh -l -i`.
+
+## P2 (Rubric: Hygiene)
+
+- [ ] Remove duplicate `PNPM_HOME` path setup.
+  - Consolidate to one source of truth between `.zshrc` and `conf.d/30-env.zsh`.
+  - Verify no duplicate `PNPM_HOME` entry in `PATH`.
+
+## P3 (Rubric: Performance)
+
+- [ ] Define and track startup performance budget.
+  - Record baseline startup metrics and target threshold.
+  - Document budget policy and refresh cadence in `README.md`.
+  - Add optional non-blocking timing report to validation workflow.

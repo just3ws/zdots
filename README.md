@@ -166,6 +166,7 @@ git config --local core.hooksPath .githooks
 ## Roadmap
 
 - See [TODO.md](TODO.md) for prioritized follow-up work.
+- See [docs/zsh-quality-rubric.md](docs/zsh-quality-rubric.md) for the quality rubric, scorecard, and remediation plan.
 
 ## Zsh Bookmarks
 
