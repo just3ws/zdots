@@ -1,14 +1,8 @@
 # vim:ft=zsh
 
-source "$HOMEBREW_PREFIX/opt/fzf/shell/completion.zsh"
-source "$HOMEBREW_PREFIX/opt/fzf/shell/key-bindings.zsh"
-
-# export FZF_DEFAULT_OPTS='
-#   --color fg:255,bg:236,hl:84,fg+:255,bg+:236,hl+:215
-#   --color info:141,prompt:84,spinner:212,pointer:212,marker:212
-# '
-
-# export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview'"
+# Custom FZF overrides loaded from conf.d/70-integrations.zsh.
+# Base FZF initialization is handled in $ZDOTDIR/.fzf.zsh.
+[[ -o interactive ]] || return 0
 
 export FZF_DEFAULT_OPTS='--color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
 
@@ -16,17 +10,28 @@ export FZF_COMPLETION_TRIGGER=''
 
 export FZF_CTRL_T_OPTS="--select-1 --exit-0"
 
-export FZF_ALT_C_OPTS="--preview 'tree -C {} | head -200'"
+if command -v tree >/dev/null 2>&1; then
+  export FZF_ALT_C_OPTS="--preview 'tree -C {} | head -200'"
+else
+  export FZF_ALT_C_OPTS="--preview 'ls -la {}'"
+fi
 
-export FZF_DEFAULT_COMMAND='fd --hidden --follow --exclude .git .'
+if command -v fd >/dev/null 2>&1; then
+  export FZF_DEFAULT_COMMAND='fd --hidden --follow --exclude .git .'
+elif command -v rg >/dev/null 2>&1; then
+  export FZF_DEFAULT_COMMAND='rg --files --hidden -g "!.git"'
+else
+  export FZF_DEFAULT_COMMAND='find . -type f'
+fi
 
-fzf-history-widget-accept () {
-  fzf-history-widget
-  zle accept-line
-}
-
-zle -N fzf-history-widget-accept
-bindkey '^X^R' fzf-history-widget-accept
-
-bindkey '^T' fzf-completion
-bindkey '^I' $fzf_default_completion
+if (( ${+widgets[fzf-history-widget]} )); then
+  fzf-history-widget-accept() {
+    fzf-history-widget
+    zle accept-line
+  }
+  zle -N fzf-history-widget-accept
+  bindkey '^X^R' fzf-history-widget-accept
+  bindkey -M emacs '^X^R' fzf-history-widget-accept
+  bindkey -M viins '^X^R' fzf-history-widget-accept
+  bindkey -M vicmd '^X^R' fzf-history-widget-accept
+fi
