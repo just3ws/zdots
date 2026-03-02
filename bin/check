@@ -97,6 +97,29 @@ assert_ctrl_r_policy() {
 assert_ctrl_r_policy "interactive" -i
 assert_ctrl_r_policy "login+interactive" -l -i
 
+assert_pnpm_path() {
+  local mode="$1"
+  shift
+  local -a shell_args=("$@")
+  local pnpm_count
+
+  pnpm_count="$(zsh "${shell_args[@]}" -c '
+    typeset -i count=0
+    for entry in ${(s/:/)PATH}; do
+      [[ "$entry" == "$PNPM_HOME" ]] && (( count++ ))
+    done
+    echo "$count"
+  ')"
+
+  if [[ "$pnpm_count" -ne 1 ]]; then
+    echo "check: expected exactly one PNPM_HOME PATH entry in ${mode} mode, got ${pnpm_count}" >&2
+    exit 1
+  fi
+}
+
+assert_pnpm_path "interactive" -i
+assert_pnpm_path "login+interactive" -l -i
+
 if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&1'; then
   if [[ "$SKIP_EXTERNAL" == "1" ]]; then
     echo "check: skipping asdf dependency check (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
