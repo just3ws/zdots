@@ -57,6 +57,22 @@ make check-fast
 make bench
 ```
 
+## Startup Performance Budget
+
+- Metric: median `real` time for `zsh -i -c exit` over 5 runs.
+- Current baseline: `0.03s` (2026-03-02).
+- Warning threshold: `0.08s` (`ZDOTS_STARTUP_WARN_THRESHOLD_SEC`).
+- Refresh cadence: at least quarterly, and after major prompt/plugin/startup changes.
+
+Optional startup timing report during validation (non-blocking warning only):
+
+```shell
+ZDOTS_CHECK_REPORT_STARTUP=1 ~/.config/zsh/bin/check
+```
+
+Detailed policy and baseline data:
+- [docs/startup-performance-budget.md](docs/startup-performance-budget.md)
+
 If validation fails with insecure completion paths:
 
 ```shell

@@ -78,7 +78,7 @@
 
 ## P3 (Rubric: Performance)
 
-- [ ] Define and track startup performance budget.
+- [x] Define and track startup performance budget.
   - Record baseline startup metrics and target threshold.
   - Document budget policy and refresh cadence in `README.md`.
   - Add optional non-blocking timing report to validation workflow.
