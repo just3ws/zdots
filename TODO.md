@@ -66,7 +66,7 @@
   - Keep explicit env-gated bypass for constrained systems.
   - Document failure mode and bypass in `README.md`.
 
-- [ ] Add keybinding regression checks for history search.
+- [x] Add keybinding regression checks for history search.
   - Extend `bin/check` to validate `^R` mapping policy (`fzf-history-widget` when present, safe fallback otherwise).
   - Ensure checks run under both `zsh -i` and `zsh -l -i`.
 
