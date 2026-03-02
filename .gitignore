@@ -5,3 +5,11 @@
 .zdirs
 .zsh_history
 .zsh_sessions/
+.zshrc.local
+.zprofile.local
+.zshenv.local
+.aliasrc.local
+fzfrc.local
+.env
+.env.*
+!.env.example

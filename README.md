@@ -49,6 +49,12 @@ Fast sanity mode (skip external dependencies like asdf/Homebrew checks):
 ZDOTS_CHECK_SKIP_EXTERNAL=1 ~/.config/zsh/bin/check
 ```
 
+Secret scan (tracked files):
+
+```shell
+~/.config/zsh/bin/secret-scan
+```
+
 Make targets:
 
 ```shell
@@ -128,6 +134,12 @@ By default, `history-import` redacts common secret/token/password patterns befor
 
 - `~/.config/zsh/.zshrc.local` for machine-specific shell behavior.
 - `~/.config/zsh/.aliasrc.local` for machine-specific aliases/functions.
+- Local override files are intentionally gitignored to reduce accidental secret commits.
+
+## Security
+
+- Review [SECURITY.md](SECURITY.md) for vulnerability reporting guidance.
+- CI runs a dedicated secret scan workflow on push and pull requests.
 
 ## Git XDG Config
 
@@ -192,6 +204,7 @@ git config --local core.hooksPath .githooks
 
 - See [TODO.md](TODO.md) for prioritized follow-up work.
 - See [docs/zsh-quality-rubric.md](docs/zsh-quality-rubric.md) for the quality rubric, scorecard, and remediation plan.
+- See [CHANGELOG.md](CHANGELOG.md) for an era-by-era history summary.
 
 ## Zsh Bookmarks
 
