@@ -130,8 +130,10 @@ git config --local core.hooksPath .githooks
 
 ## History Defaults
 
-- Cross-session history sharing is off by default.
-- Enable shared history explicitly with `ZDOTS_SHARE_HISTORY=1`.
+- Default mode (`ZDOTS_SHARE_HISTORY=0`): append-only local history with
+  `inc_append_history_time` enabled.
+- Shared mode (`ZDOTS_SHARE_HISTORY=1`): cross-session history sharing enabled,
+  with `inc_append_history_time` disabled to avoid conflicting write modes.
 
 ## Upgrade Safety Controls
 
