@@ -120,6 +120,54 @@ assert_pnpm_path() {
 assert_pnpm_path "interactive" -i
 assert_pnpm_path "login+interactive" -l -i
 
+report_startup_timing() {
+  local -i runs="${ZDOTS_STARTUP_BENCH_RUNS:-5}"
+  local threshold="${ZDOTS_STARTUP_WARN_THRESHOLD_SEC:-0.08}"
+  local timings_file
+  local median
+  local real
+  local -i i
+
+  if (( runs < 1 )); then
+    echo "check: startup timing skipped (runs < 1)"
+    return 0
+  fi
+
+  timings_file="$(mktemp)"
+  for (( i = 1; i <= runs; i++ )); do
+    real="$({ /usr/bin/time -p env ZDOTDIR="$REPO_ROOT" HOME="$HOME" zsh -i -c exit >/dev/null; } 2>&1 | awk '$1=="real"{print $2}')"
+    if [[ -z "$real" ]]; then
+      echo "check: warning: startup timing run ${i} did not produce a real value" >&2
+      rm -f "$timings_file"
+      return 0
+    fi
+    print -r -- "$real" >>"$timings_file"
+  done
+
+  median="$(sort -n "$timings_file" | awk '
+    { values[NR] = $1 }
+    END {
+      if (NR == 0) exit 1
+      if (NR % 2 == 1) {
+        print values[(NR + 1) / 2]
+      } else {
+        print (values[NR / 2] + values[(NR / 2) + 1]) / 2
+      }
+    }
+  ')"
+  rm -f "$timings_file"
+
+  if [[ -z "$median" ]]; then
+    echo "check: warning: startup timing median unavailable" >&2
+    return 0
+  fi
+
+  echo "check: startup median real=${median}s over ${runs} runs (warn>${threshold}s)"
+  if awk -v median="$median" -v threshold="$threshold" 'BEGIN { exit (median > threshold) ? 0 : 1 }'; then
+    echo "check: warning: startup median exceeds budget threshold (non-blocking)" >&2
+  fi
+}
+
 if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&1'; then
   if [[ "$SKIP_EXTERNAL" == "1" ]]; then
     echo "check: skipping asdf dependency check (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
@@ -168,6 +216,10 @@ if [[ -f "$HOME/.zshenv" && "${ZDOTS_CHECK_VERIFY_BOOTSTRAP:-1}" == "1" ]]; then
   if ! grep -Eq '(^|[[:space:]])ZDOTDIR=.*\.config/zsh|Bootstrap Zdots' "$HOME/.zshenv"; then
     echo "check: warning: ~/.zshenv may not be using zdots bootstrap/source-of-truth" >&2
   fi
+fi
+
+if [[ "${ZDOTS_CHECK_REPORT_STARTUP:-0}" == "1" ]]; then
+  report_startup_timing
 fi
 
 echo "check: OK"

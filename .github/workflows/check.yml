@@ -14,7 +14,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Fast Sanity Checks
-        run: ZDOTS_CHECK_SKIP_EXTERNAL=1 ./bin/check
+        run: ZDOTS_CHECK_SKIP_EXTERNAL=1 ZDOTS_CHECK_REPORT_STARTUP=1 ./bin/check
 
   full:
     runs-on: macos-latest
@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           for attempt in 1 2; do
-            if ./bin/check; then
+            if ZDOTS_CHECK_REPORT_STARTUP=1 ./bin/check; then
               exit 0
             fi
             if [[ "$attempt" -eq 2 ]]; then
