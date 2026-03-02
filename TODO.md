@@ -72,7 +72,7 @@
 
 ## P2 (Rubric: Hygiene)
 
-- [ ] Remove duplicate `PNPM_HOME` path setup.
+- [x] Remove duplicate `PNPM_HOME` path setup.
   - Consolidate to one source of truth between `.zshrc` and `conf.d/30-env.zsh`.
   - Verify no duplicate `PNPM_HOME` entry in `PATH`.
 
