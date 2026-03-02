@@ -56,7 +56,7 @@
 
 ## P1 (Rubric: Reliability + Security)
 
-- [ ] Enforce mutually exclusive history mode settings.
+- [x] Enforce mutually exclusive history mode settings.
   - Update `conf.d/50-options.zsh` so `share_history` and `inc_append_history_time` are not enabled together.
   - Document exact behavior in `README.md`.
   - Add/adjust checks for expected mode behavior.

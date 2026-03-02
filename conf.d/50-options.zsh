@@ -39,9 +39,14 @@ setopt hist_no_functions
 setopt hist_reduce_blanks
 setopt hist_save_no_dups
 setopt hist_verify
-setopt inc_append_history_time
+
+# History policy:
+# - Default: local append-only with command duration timestamps.
+# - Optional: shared history across sessions (disables inc_append_history_time).
 if [[ "${ZDOTS_SHARE_HISTORY:-0}" == "1" ]]; then
+  unsetopt inc_append_history_time
   setopt share_history
 else
+  setopt inc_append_history_time
   unsetopt share_history
 fi

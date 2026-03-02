@@ -28,6 +28,40 @@ if [[ -s "$errfile" ]]; then
 fi
 rm -f "$errfile"
 
+assert_history_mode() {
+  local mode="$1"
+  local share_flag="$2"
+  local flags
+
+  flags="$(ZDOTS_SHARE_HISTORY="$share_flag" zsh -i -c '
+    [[ -o share_history ]] && echo "share:on" || echo "share:off"
+    [[ -o inc_append_history_time ]] && echo "inc_append_history_time:on" || echo "inc_append_history_time:off"
+  ')"
+
+  if [[ "$share_flag" == "1" ]]; then
+    if ! grep -qx 'share:on' <<<"$flags"; then
+      echo "check: expected share_history in ${mode} mode" >&2
+      exit 1
+    fi
+    if grep -qx 'inc_append_history_time:on' <<<"$flags"; then
+      echo "check: inc_append_history_time must be disabled in ${mode} mode" >&2
+      exit 1
+    fi
+  else
+    if grep -qx 'share:on' <<<"$flags"; then
+      echo "check: share_history should be disabled in ${mode} mode" >&2
+      exit 1
+    fi
+    if ! grep -qx 'inc_append_history_time:on' <<<"$flags"; then
+      echo "check: expected inc_append_history_time in ${mode} mode" >&2
+      exit 1
+    fi
+  fi
+}
+
+assert_history_mode "default" 0
+assert_history_mode "shared" 1
+
 if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&1'; then
   if [[ "$SKIP_EXTERNAL" == "1" ]]; then
     echo "check: skipping asdf dependency check (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
