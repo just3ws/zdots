@@ -9,13 +9,17 @@ typeset -gU cdpath fignore fpath mailpath path
 
 if [[ ${+functions[compdef]} -eq 0 ]]; then
   autoload -Uz compinit
+  _zdots_compinit_args=()
+  if [[ "${ZDOTS_COMPLETION_PERMISSIVE:-0}" == "1" ]]; then
+    _zdots_compinit_args=(-i)
+  fi
   _zdots_compdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-${ZSH_VERSION}"
   if mkdir -p "${_zdots_compdump:h}" 2>/dev/null; then
-    compinit -i -d "$_zdots_compdump"
+    compinit "${_zdots_compinit_args[@]}" -d "$_zdots_compdump"
   else
-    compinit -i
+    compinit "${_zdots_compinit_args[@]}"
   fi
-  unset _zdots_compdump
+  unset _zdots_compdump _zdots_compinit_args
 fi
 
 for fn in $ZDOTDIR/functions/enabled/*(.x); do

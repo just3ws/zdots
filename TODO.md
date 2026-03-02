@@ -61,7 +61,7 @@
   - Document exact behavior in `README.md`.
   - Add/adjust checks for expected mode behavior.
 
-- [ ] Align completion runtime policy with strict security defaults.
+- [x] Align completion runtime policy with strict security defaults.
   - Replace default permissive `compinit -i` flow with strict behavior.
   - Keep explicit env-gated bypass for constrained systems.
   - Document failure mode and bypass in `README.md`.
