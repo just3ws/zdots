@@ -39,6 +39,7 @@ brew bundle --file ~/.config/zsh/Brewfile
 
 `bin/check` enforces completion path security via `compaudit` by default.
 It validates both interactive startup (`zsh -i`) and login+interactive startup (`zsh -l -i`).
+It validates `^R` history keybinding policy for both fallback and FZF-enabled paths.
 When `shellcheck` is installed, `bin/check` also runs a shellcheck pass for any bash/sh scripts in the repo.
 It also verifies prompt theme availability in normal mode.
 

@@ -62,6 +62,41 @@ assert_history_mode() {
 assert_history_mode "default" 0
 assert_history_mode "shared" 1
 
+assert_ctrl_r_policy() {
+  local mode="$1"
+  shift
+  local -a shell_args=("$@")
+  local fallback_bindings
+  local fzf_bindings
+
+  fallback_bindings="$(zsh "${shell_args[@]}" -c '
+    bindkey "^R"
+    bindkey -M emacs "^R"
+    bindkey -M viins "^R"
+  ')"
+  if [[ "$(grep -c 'history-incremental-search-backward' <<<"$fallback_bindings")" -ne 3 ]]; then
+    echo "check: expected ^R fallback bindings in ${mode} mode" >&2
+    echo "$fallback_bindings" >&2
+    exit 1
+  fi
+
+  fzf_bindings="$(zsh "${shell_args[@]}" -c '
+    zle -N fzf-history-widget self-insert
+    source "$ZDOTDIR/conf.d/70-integrations.zsh"
+    bindkey "^R"
+    bindkey -M emacs "^R"
+    bindkey -M viins "^R"
+  ')"
+  if [[ "$(grep -c 'fzf-history-widget' <<<"$fzf_bindings")" -ne 3 ]]; then
+    echo "check: expected ^R fzf bindings in ${mode} mode" >&2
+    echo "$fzf_bindings" >&2
+    exit 1
+  fi
+}
+
+assert_ctrl_r_policy "interactive" -i
+assert_ctrl_r_policy "login+interactive" -l -i
+
 if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&1'; then
   if [[ "$SKIP_EXTERNAL" == "1" ]]; then
     echo "check: skipping asdf dependency check (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
