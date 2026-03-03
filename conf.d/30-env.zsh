@@ -1,5 +1,7 @@
 export MALLOC_ARENA_MAX=2
-export RUBY_CONFIGURE_OPTS="--with-jemalloc=$HOMEBREW_PREFIX/opt/jemalloc --with-openssl-dir=$HOMEBREW_PREFIX/opt/openssl@3"
+export RUBY_CONFIGURE_OPTS="--with-jemalloc --with-openssl-dir=$HOMEBREW_PREFIX/opt/openssl@3"
+export CPPFLAGS="-I$HOMEBREW_PREFIX/opt/jemalloc/include"
+export LDFLAGS="-L$HOMEBREW_PREFIX/opt/jemalloc/lib"
 # export RUBYOPT='-W:no-deprecated -W:no-experimental'
 
 export ANSIBLE_COW_SELECTION=random
