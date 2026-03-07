@@ -1,0 +1,49 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+GOLANG_VERSION="${MISE_GOLANG_VERSION:-latest:1.24}"
+NEOVIM_VERSION="${MISE_NEOVIM_VERSION:-latest:0.11}"
+NODEJS_VERSION="${MISE_NODEJS_VERSION:-latest:24}"
+PYTHON_VERSION="${MISE_PYTHON_VERSION:-latest:3.10}"
+RUBY_VERSION="${MISE_RUBY_VERSION:-latest:3.4}"
+UPDATE_GLOBALS="${ZDOTS_UPGRADE_GLOBALS:-0}"
+DRY_RUN="${ZDOTS_UPGRADE_DRY_RUN:-0}"
+
+run_cmd() {
+  print -r -- "+ $*"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    return 0
+  fi
+  "$@"
+}
+
+install_track() {
+  local tool="$1"
+  local version="$2"
+  run_cmd mise use --global "${tool}@${version}"
+}
+
+# mise self-update if not installed via brew
+if ! command -v brew >/dev/null 2>&1 || ! brew list mise >/dev/null 2>&1; then
+  run_cmd mise self-update || true
+fi
+
+install_track golang "$GOLANG_VERSION"
+install_track neovim "$NEOVIM_VERSION"
+install_track nodejs "$NODEJS_VERSION"
+install_track python "$PYTHON_VERSION"
+install_track ruby "$RUBY_VERSION"
+
+if [[ "$UPDATE_GLOBALS" == "1" ]]; then
+  run_cmd mise exec python -- pip install -U pip
+  
+  run_cmd mise exec node -- npm update -g npm
+  run_cmd mise exec node -- npm update -g neovim
+  run_cmd mise exec node -- npm update -g
+
+  run_cmd mise exec ruby -- gem update --system
+  run_cmd mise exec ruby -- gem install bundler
+  run_cmd mise exec ruby -- gem install neovim
+  run_cmd mise exec ruby -- gem update
+fi
