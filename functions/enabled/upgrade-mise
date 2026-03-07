@@ -1,5 +1,3 @@
-#!/usr/bin/env zsh
-
 # Scoped options for function only (won't exit your interactive shell).
 setopt localoptions errexit pipefail
 
