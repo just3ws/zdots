@@ -2,7 +2,7 @@
 
 tap "romkatv/powerlevel10k"
 
-brew "asdf"
+brew "mise"
 brew "boxes"
 brew "coreutils"
 brew "fd"

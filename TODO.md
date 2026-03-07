@@ -2,9 +2,9 @@
 
 ## P0 (Highest)
 
-- [x] Fix `asdf` loading behavior in interactive shells.
-  - Switched from lazy wrapper to explicit `asdf.sh` initialization.
-  - Added regression check in `bin/check` (`asdf --version` in interactive shell).
+- [x] Migrate from `asdf` to `mise`.
+L6:   - Switched from shell-script initialization to `mise activate zsh`.
+L7:   - Added regression check in `bin/check` (`mise --version` in interactive shell).
 
 ## P1 (Security + Reliability)
 
