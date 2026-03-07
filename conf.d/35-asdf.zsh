@@ -1,4 +1,7 @@
 # Initialize asdf when available.
+
+export ASDF_NODEJS_AUTO_ENABLE_COREPACK=1
+
 _asdf_scripts=(
   "$HOMEBREW_PREFIX/opt/asdf/libexec/asdf.sh"
   "$HOME/.asdf/asdf.sh"

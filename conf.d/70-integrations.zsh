@@ -15,6 +15,22 @@ fi
 # Machine-local and private overrides.
 [[ -r "$ZDOTDIR/.zshrc.local" ]] && source "$ZDOTDIR/.zshrc.local"
 
+# Keep Tab deterministic: prefer fzf completion when available, otherwise use
+# default expand-or-complete across common interactive keymaps.
+if [[ -o interactive ]]; then
+  if (( ${+widgets[fzf-completion]} )); then
+    bindkey '^I' fzf-completion
+    bindkey -M main '^I' fzf-completion
+    bindkey -M emacs '^I' fzf-completion
+    bindkey -M viins '^I' fzf-completion
+  else
+    bindkey '^I' expand-or-complete
+    bindkey -M main '^I' expand-or-complete
+    bindkey -M emacs '^I' expand-or-complete
+    bindkey -M viins '^I' expand-or-complete
+  fi
+fi
+
 # Keep ^R deterministic: prefer fzf history when available, otherwise use
 # built-in incremental history search across keymaps.
 if [[ -o interactive ]]; then
