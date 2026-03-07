@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
 
-set -euo pipefail
+# Scoped options for function only (won't exit your interactive shell).
+setopt localoptions errexit pipefail
 
 aggressive_upgrade="${ZDOTS_HOMEBREW_AGGRESSIVE:-0}"
 dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
