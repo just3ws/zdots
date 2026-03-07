@@ -1,5 +1,8 @@
 #!/usr/bin/env zsh
 
+# Scoped options for function only (won't exit your interactive shell).
+setopt localoptions errexit pipefail
+
 message () {
   local text="$1"
   local boxes_bin
