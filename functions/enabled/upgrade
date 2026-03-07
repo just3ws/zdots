@@ -18,8 +18,8 @@ message 'UPGRADE START'
 message 'HOMEBREW'
 upgrade-homebrew
 
-message 'ASDF'
-upgrade-asdf
+message 'MISE'
+upgrade-mise
 
 # message 'MACOS'
 # upgrade-macos

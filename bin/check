@@ -168,11 +168,11 @@ report_startup_timing() {
   fi
 }
 
-if ! zsh -i -c 'command -v asdf >/dev/null 2>&1 && asdf --version >/dev/null 2>&1'; then
+if ! zsh -i -c 'command -v mise >/dev/null 2>&1 && mise --version >/dev/null 2>&1'; then
   if [[ "$SKIP_EXTERNAL" == "1" ]]; then
-    echo "check: skipping asdf dependency check (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
+    echo "check: skipping mise dependency check (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
   else
-    echo "check: asdf failed to initialize in interactive shell" >&2
+    echo "check: mise failed to initialize in interactive shell" >&2
     exit 1
   fi
 fi
