@@ -27,7 +27,7 @@ bin/check
 ~/.config/zsh/.zshrc
   → p10k instant prompt (must stay at top)
   → sources modular config in conf.d/*.zsh
-  → prompt + env + asdf init + options + key bindings + integrations
+  → prompt + env + mise init + options + key bindings + integrations
 ```
 
 ### Function Autoloading
@@ -52,7 +52,7 @@ Files must be executable (`chmod +x`). Each file defines a single function match
 | `Brewfile` | Homebrew dependencies for this config |
 | `fzfrc` | FZF configuration (Dracula theme, ag backend) |
 | `.p10k.zsh` | Powerlevel10k theme (wizard-generated, ~90KB) |
-| `functions/enabled/upgrade` | Master upgrade orchestrator (homebrew → asdf) |
+| `functions/enabled/upgrade` | Master upgrade orchestrator (homebrew → mise) |
 | `bin/bootstrap` | First-time setup script |
 | `bin/check` | Local validation script |
 | `bin/history-import` | Import shell history files into SQLite |

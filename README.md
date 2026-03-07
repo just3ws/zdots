@@ -174,7 +174,7 @@ git config --local core.hooksPath .githooks
 
 - `upgrade-homebrew` runs conservative upgrades by default.
 - Set `ZDOTS_HOMEBREW_AGGRESSIVE=1` to enable `--greedy` upgrades.
-- `upgrade-asdf` uses version-track defaults and skips global package-manager upgrades by default.
+- `upgrade-mise` uses version-track defaults and skips global package-manager upgrades by default.
 - Set `ZDOTS_UPGRADE_GLOBALS=1` to re-enable global `pip`/`npm`/`gem` updates.
 - Set `ZDOTS_UPGRADE_DRY_RUN=1` to print upgrade actions without executing them.
 - Convenience targets:
