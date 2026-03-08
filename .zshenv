@@ -50,8 +50,9 @@ export HOMEBREW_NO_ANALYTICS=1
 export HOMEBREW_NO_INSECURE_REDIRECT=1
 
 path=(
-  $HOMEBREW_PREFIX/opt/postgresql@17/bin
   $HOME/.local/bin
+  $HOMEBREW_PREFIX/opt/rustup/bin
+  $HOMEBREW_PREFIX/opt/postgresql@17/bin
   $HOMEBREW_PREFIX/opt/openjdk/bin
   $HOMEBREW_PREFIX/{bin,sbin}
   /usr/{bin,sbin}
