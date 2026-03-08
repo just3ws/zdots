@@ -11,3 +11,9 @@ for conf in "$ZDOTDIR"/conf.d/*.zsh(N); do
   source "$conf"
 done
 unset conf
+
+# Syntax highlighting should be sourced last to catch all aliases and functions.
+# Prefer Homebrew installed version.
+if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
+  source "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+fi

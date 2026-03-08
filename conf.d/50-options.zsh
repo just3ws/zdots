@@ -15,6 +15,8 @@ setopt glob_star_short
 setopt interactive_comments
 setopt magic_equal_subst
 setopt multios
+setopt notify
+setopt numeric_glob_sort
 setopt path_dirs
 setopt pushd_ignore_dups
 setopt short_loops
