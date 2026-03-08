@@ -33,6 +33,22 @@ fi
 alias prunedirs='rm -d **/*(/^F)'
 alias wip='git commit -am "WIP"'
 
+# Git aliases
+alias gs='git status --short'
+alias gss='git status --short'
+alias gba='git branch --all'
+alias gco='git checkout '
+alias gfa='git fetch --all --prune'
+alias gwd='git diff --word-diff'
+
+# Utility aliases
+alias b="bundle"
+alias be="b exec"
+alias bu="b update"
+alias bounce='reload'
+alias cwd='pwd | pbcopy'
+alias listening-on='lsof -Pni4 | grep LISTEN'
+
 if command -v gdate >/dev/null 2>&1; then
   _zdots_date_bin='gdate'
   _zdots_ts_fmt='%Y-%m-%dT%H.%M.%2N'
