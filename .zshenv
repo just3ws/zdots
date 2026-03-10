@@ -10,18 +10,9 @@ export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 # Codex sandbox sessions cannot write under ~/.cache, which causes noisy mise
 # cache warnings on every shim invocation. Keep normal shells on the standard
 # XDG cache path and redirect only sandboxed Codex sessions to a writable temp
-# directory. Git's fsmonitor IPC also fails under the sandbox, so disable that
-# feature for Codex sessions without changing the user's normal Git config.
+# directory.
 if [[ -n "${CODEX_SANDBOX:-}" ]]; then
   export MISE_CACHE_DIR="${${TMPDIR:-/tmp}%/}/mise-cache"
-  if [[ -z "${_ZDOTS_CODEX_GIT_FSMONITOR_DISABLED:-}" ]]; then
-    typeset -gi _zdots_git_config_count="${GIT_CONFIG_COUNT:-0}"
-    export GIT_CONFIG_COUNT="$((_zdots_git_config_count + 1))"
-    typeset -gx "GIT_CONFIG_KEY_${_zdots_git_config_count}=core.fsmonitor"
-    typeset -gx "GIT_CONFIG_VALUE_${_zdots_git_config_count}=false"
-    export _ZDOTS_CODEX_GIT_FSMONITOR_DISABLED=1
-    unset _zdots_git_config_count
-  fi
 fi
 
 # Cheap Homebrew prefix detection for all shell types.
