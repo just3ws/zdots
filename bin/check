@@ -120,6 +120,32 @@ assert_pnpm_path() {
 assert_pnpm_path "interactive" -i
 assert_pnpm_path "login+interactive" -l -i
 
+assert_login_shell_node_path() {
+  local actual_node
+  local expected_node
+
+  expected_node="$(zsh -l -c 'command -v mise >/dev/null 2>&1 && mise which node' 2>/dev/null || true)"
+  if [[ -z "$expected_node" ]]; then
+    return 0
+  fi
+
+  actual_node="$(zsh -l -c 'command -v node' 2>/dev/null || true)"
+  if [[ -z "$actual_node" ]]; then
+    echo "check: node missing in login shell while mise provides one" >&2
+    echo "check: mise node=$expected_node" >&2
+    exit 1
+  fi
+
+  if [[ "$actual_node" != "$expected_node" ]]; then
+    echo "check: expected login shell node to match mise node" >&2
+    echo "check: node=$actual_node" >&2
+    echo "check: mise node=$expected_node" >&2
+    exit 1
+  fi
+}
+
+assert_login_shell_node_path
+
 report_startup_timing() {
   local -i runs="${ZDOTS_STARTUP_BENCH_RUNS:-5}"
   local threshold="${ZDOTS_STARTUP_WARN_THRESHOLD_SEC:-0.08}"

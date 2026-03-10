@@ -7,6 +7,14 @@ export XDG_CACHE_HOME="$XDG_ROOT/.cache"
 export XDG_DATA_HOME="$XDG_ROOT/.local/share"
 export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 
+# Codex sandbox sessions cannot write under ~/.cache, which causes noisy mise
+# cache warnings on every shim invocation. Keep normal shells on the standard
+# XDG cache path and redirect only sandboxed Codex sessions to a writable temp
+# directory.
+if [[ -n "${CODEX_SANDBOX:-}" ]]; then
+  export MISE_CACHE_DIR="${${TMPDIR:-/tmp}%/}/mise-cache"
+fi
+
 # Cheap Homebrew prefix detection for all shell types.
 if [[ -z "${HOMEBREW_PREFIX:-}" ]]; then
   if [[ -d /opt/homebrew ]]; then
@@ -51,6 +59,7 @@ export HOMEBREW_NO_INSECURE_REDIRECT=1
 
 path=(
   $HOME/.local/bin
+  $XDG_DATA_HOME/mise/shims
   $HOMEBREW_PREFIX/opt/rustup/bin
   $HOMEBREW_PREFIX/opt/postgresql@17/bin
   $HOMEBREW_PREFIX/opt/openjdk/bin

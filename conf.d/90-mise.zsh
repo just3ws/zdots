@@ -1,6 +1,7 @@
-# Initialize mise when available.
-# This should be loaded late (after Homebrew/pnpm) to ensure mise-managed tools
-# take precedence over system versions.
+# Initialize full mise shell integration for interactive shells.
+# Login-only, non-interactive shells get the same activation in `.zprofile`;
+# this block still runs late so interactive sessions keep hooks and runtime
+# precedence after other PATH edits.
 if [[ -x /opt/homebrew/bin/mise ]]; then
   eval "$(/opt/homebrew/bin/mise activate zsh)"
   export MISE_NODE_COREPACK=1
