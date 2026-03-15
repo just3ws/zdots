@@ -17,6 +17,13 @@ unset conf
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
   source "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 fi
+# Prefer Vi-style editing while keeping a few essential Emacs motions active.
+bindkey -v
+bindkey '^A' beginning-of-line
+bindkey '^E' end-of-line
+bindkey '^K' kill-line
+bindkey '^U' backward-kill-line
+bindkey '^Y' yank
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
 fpath=(/Users/mike/.docker/completions $fpath)
 autoload -Uz compinit
