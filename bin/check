@@ -97,6 +97,27 @@ assert_ctrl_r_policy() {
 assert_ctrl_r_policy "interactive" -i
 assert_ctrl_r_policy "login+interactive" -l -i
 
+assert_fzf_tab_policy() {
+  local mode="$1"
+  shift
+  local -a shell_args=("$@")
+  local widgets_out
+
+  widgets_out="$(zsh "${shell_args[@]}" -c '
+    zle -l
+  ')"
+
+  if ! grep -q 'fzf-tab-complete' <<<"$widgets_out"; then
+    echo "check: expected fzf-tab-complete widget in ${mode} mode" >&2
+    exit 1
+  fi
+}
+
+if [[ "$SKIP_EXTERNAL" != "1" ]]; then
+  assert_fzf_tab_policy "interactive" -i
+  assert_fzf_tab_policy "login+interactive" -l -i
+fi
+
 assert_pnpm_path() {
   local mode="$1"
   shift
