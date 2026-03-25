@@ -6,7 +6,7 @@
 # ------------------------------------------------------------------------------
 tap "romkatv/powerlevel10k"
 brew "zsh"              # The shell itself.
-brew "powerlevel10k"    # The theme engine; depends on Meslo Nerd Font.
+brew "powerlevel10k"    # The theme engine; depends on Fira Code Nerd Font.
 brew "vivid"            # LS_COLORS generator; used in conf.d/30-env.zsh for theme-specific colors.
 
 # ------------------------------------------------------------------------------
@@ -75,4 +75,4 @@ brew "zsh-vi-mode"                  # Improved Vi-mode experience with mode indi
 # ------------------------------------------------------------------------------
 # Casks
 # ------------------------------------------------------------------------------
-cask "font-meslo-lg-nerd-font"      # Required font for Powerlevel10k glyphs.
+cask "font-fira-code-nerd-font"      # Preferred font for Powerlevel10k glyphs.
