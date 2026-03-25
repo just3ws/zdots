@@ -2,7 +2,7 @@
 SHELL := /bin/zsh
 ZDOTDIR ?= $(HOME)/.config/zsh
 
-.PHONY: bootstrap check check-fast bench upgrade upgrade-dry map search refactor context tags stats
+.PHONY: bootstrap check check-fast bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean
 
 # ------------------------------------------------------------------------------
 # CORE & VALIDATION
@@ -18,11 +18,30 @@ check-fast:
 
 bench:
 	@for i in 1 2 3 4 5; do \
-		echo "run $$i"; \
-		/usr/bin/time -p env ZDOTDIR="$(ZDOTDIR)" HOME="$(HOME)" zsh -i -c exit >/dev/null; \
+	        echo "run $$i"; \
+	        /usr/bin/time -p env ZDOTDIR="$(ZDOTDIR)" HOME="$(HOME)" zsh -i -c exit >/dev/null; \
 	done
 
+# ------------------------------------------------------------------------------
+# LOCAL CI (Colima + act)
+# ------------------------------------------------------------------------------
+ci-up:
+	$(ZDOTDIR)/bin/local-ci up
+
+ci-down:
+	$(ZDOTDIR)/bin/local-ci down
+
+ci-status:
+	$(ZDOTDIR)/bin/local-ci status
+
+ci-run:
+	$(ZDOTDIR)/bin/local-ci run $(ARGS)
+
+ci-clean:
+	$(ZDOTDIR)/bin/local-ci clean
+
 upgrade:
+
 	ZDOTDIR="$(ZDOTDIR)" zsh -i -c upgrade
 
 upgrade-dry:

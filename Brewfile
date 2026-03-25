@@ -78,6 +78,9 @@ brew "openjdk"          # Java Runtime; JAVA_HOME and path managed in .zshenv.
 brew "shellcheck"       # Bash/sh linter; used by bin/check to validate repo scripts.
 brew "shfmt"            # Shell script formatter.
 brew "actionlint"       # GitHub Actions linter; ensures CI stability.
+brew "act"              # Run GitHub Actions locally for rapid iteration.
+brew "colima"           # Container runtime (lightweight CLI-driven alternative to Docker Desktop).
+brew "docker"           # Docker CLI client.
 brew "pre-commit"       # Git hook manager; automates safety and quality checks.
 brew "gitleaks"         # Secret scanner; prevents sensitive data leaks.
 brew "trufflehog"       # Advanced secret scanner; deep historical scanning.
