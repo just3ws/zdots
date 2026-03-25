@@ -31,11 +31,11 @@ if [[ "$TERM_PROGRAM" == "iTerm.app" && -o interactive && -t 1 && -r "$ZDOTDIR/.
   source "$ZDOTDIR/.iterm2_shell_integration.zsh"
 fi
 
-if [[ -o interactive && -t 1 && -r "$ZDOTDIR/.fzf.zsh" ]]; then
+if [[ -o interactive && "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/.fzf.zsh" ]]; then
   source "$ZDOTDIR/.fzf.zsh"
 fi
 
-if [[ -o interactive && -t 1 && -r "$ZDOTDIR/fzfrc" ]]; then
+if [[ -o interactive && "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/fzfrc" ]]; then
   source "$ZDOTDIR/fzfrc"
 fi
 
