@@ -12,7 +12,7 @@ run_cmd() {
 
 if command -v mise >/dev/null 2>&1; then
   echo "Updating mise runtimes..."
-  
+
   # 1. mise self-update if not brew-managed
   if ! brew list mise >/dev/null 2>&1; then
     run_cmd mise self-update || true
@@ -21,7 +21,7 @@ if command -v mise >/dev/null 2>&1; then
   # 2. Install all tools defined in global/local configs
   # This will ensure ruby@3.4.8 and others are present
   run_cmd mise install
-  
+
   # 3. Prune old versions
   run_cmd mise prune --yes
 fi

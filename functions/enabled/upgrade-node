@@ -14,7 +14,7 @@ if command -v pnpm >/dev/null 2>&1; then
   echo "Updating pnpm itself..."
   # pnpm self-update is usually managed via mise/brew, but we check globals
   run_cmd pnpm add -g pnpm
-  
+
   echo "Updating global pnpm packages..."
   run_cmd pnpm update -g
 fi
