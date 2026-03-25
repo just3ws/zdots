@@ -67,6 +67,7 @@ brew "zsh-autosuggestions"          # Fish-like autosuggestions.
 brew "zsh-completions"              # Additional completion definitions.
 brew "zsh-syntax-highlighting"      # Fish-like syntax highlighting.
 brew "zsh-history-substring-search" # Up/Down arrows search through history matches.
+brew "zsh-history-enquirer"         # Interactive history cleanup and management.
 brew "zsh-autopair"                 # Auto-close brackets, quotes, etc.
 brew "zsh-you-should-use"           # Alias coach; reminds you of existing shortcuts.
 brew "zsh-vi-mode"                  # Improved Vi-mode experience with mode indicators.
