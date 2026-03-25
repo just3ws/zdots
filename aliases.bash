@@ -80,11 +80,21 @@ if command -v fly >/dev/null 2>&1; then
   alias fl='fly logs'
   alias fd='fly deploy'
   alias fs='fly status'
+  # Project-specific shorthands (active only in phalanxduel)
+  if [ -f fly.staging.toml ]; then
+    alias fds='fly deploy --app phalanxduel-staging --config fly.staging.toml'
+  fi
+  if [ -f fly.production.toml ]; then
+    alias fdp='fly deploy --app phalanxduel-production --config fly.production.toml'
+  fi
 fi
 
 # AI Workflow
 if command -v claude >/dev/null 2>&1; then alias cl='claude'; fi
 if command -v gemini >/dev/null 2>&1; then alias gm='gemini'; fi
+
+# Modern DSL Patterns
+alias path='echo $PATH | tr ":" "\n"'
 
 # Utility Functions
 ff() { find "${2:-.}" -type f -iname "*$1*"; }
