@@ -6,6 +6,8 @@
 
 if [[ "$ZDOTS_THEME" == "dracula" ]]; then
   export FZF_DEFAULT_OPTS='--tiebreak=begin,length --color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
+elif [[ "$ZDOTS_THEME" == dracula-pro* ]]; then
+  export FZF_DEFAULT_OPTS='--tiebreak=begin,length --color=fg:#F8F8F2,bg:#22212C,hl:#9580FF --color=fg+:#F8F8F2,bg+:#454158,hl+:#9580FF --color=info:#FFCA80,prompt:#8AFF80,pointer:#FF80BF --color=marker:#FF80BF,spinner:#FFCA80,header:#7970A9'
 elif [[ "$ZDOTS_THEME" == "nord" ]]; then
   export FZF_DEFAULT_OPTS='--tiebreak=begin,length --color=fg:#e5e9f0,bg:#2e3440,hl:#81a1c1 --color=fg+:#e5e9f0,bg+:#3b4252,hl+:#81a1c1 --color=info:#eacb8a,prompt:#81a1c1,pointer:#b48ead --color=marker:#a3be8c,spinner:#b48ead,header:#a3be8c'
 fi
