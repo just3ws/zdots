@@ -74,6 +74,7 @@ export HOMEBREW_BUNDLE_FILE="$ZDOTDIR/Brewfile"
 
 path=(
   $HOME/.local/bin
+  $ZDOTDIR/bin
   $XDG_DATA_HOME/mise/shims
   $GOPATH/bin
   $GEM_HOME/bin
