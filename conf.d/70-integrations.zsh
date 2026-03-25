@@ -86,7 +86,7 @@ fi
 # Machine-local and private overrides.
 [[ -r "$ZDOTDIR/.zshrc.local" ]] && source "$ZDOTDIR/.zshrc.local"
 
-# Let fzf-tab (or standard completion) handle Tab. 
+# Let fzf-tab (or standard completion) handle Tab.
 # Remove the aggressive fzf-completion override to reduce "greediness".
 if [[ -o interactive ]]; then
   if (( ${+widgets[fzf-completion]} )); then
@@ -133,4 +133,3 @@ if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-history-substr
   zvm_after_init_commands+=('bindkey -M vicmd "k" history-substring-search-up')
   zvm_after_init_commands+=('bindkey -M vicmd "j" history-substring-search-down')
 fi
-

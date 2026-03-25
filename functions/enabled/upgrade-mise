@@ -39,7 +39,7 @@ install_track ruby "$RUBY_VERSION"
 if [[ "$UPDATE_GLOBALS" == "1" ]]; then
   print "Updating global packages..."
   run_cmd mise exec python -- pip install -U pip
-  
+
   run_cmd mise exec node -- npm update -g npm
   run_cmd mise exec node -- npm update -g neovim
   run_cmd mise exec node -- npm update -g
