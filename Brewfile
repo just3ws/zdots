@@ -1,24 +1,50 @@
 # Zsh Configuration & Toolchain Dependencies
-# This file tracks all Homebrew dependencies required for the zsh environment.
+# This file tracks Homebrew dependencies required for this shell environment.
 
 # ------------------------------------------------------------------------------
-# Core Shell & Prompt
+# Core Shell & Prompt (Powering the Interactive Experience)
 # ------------------------------------------------------------------------------
 tap "romkatv/powerlevel10k"
-brew "zsh"              # The shell itself.
-brew "powerlevel10k"    # The theme engine; depends on Fira Code Nerd Font.
+brew "zsh"              # Primary shell; configured via .zshrc and conf.d/
+brew "powerlevel10k"    # Prompt engine; depends on Fira Code Nerd Font for glyphs.
 brew "vivid"            # LS_COLORS generator; used in conf.d/30-env.zsh for theme-specific colors.
 
 # ------------------------------------------------------------------------------
-# Navigation & Search
+# Navigation & Search (Fundamentals of the Shell)
 # ------------------------------------------------------------------------------
 brew "zoxide"           # Better 'cd' (aliased to 'z'); initialized in conf.d/70-integrations.zsh.
-brew "fzf"              # Fuzzy finder; provides Ctrl-R and Ctrl-T widgets via conf.d/70-integrations.zsh.
+brew "fzf"              # Fuzzy finder; provides Ctrl-R/Ctrl-T widgets via conf.d/70-integrations.zsh.
 brew "fzf-tab"          # Replaces zsh completion menu with fzf; sourced in conf.d/70-integrations.zsh.
-brew "eza"              # Modern 'ls' replacement; used for aliases (ls, ll, la) in .aliasrc.
-brew "fd"               # Modern 'find' replacement; used as the default search backend in fzfrc.
-brew "ripgrep"          # Fast text search; often used as an alternative fzf backend.
+brew "eza"              # Modern 'ls'; used for aliases (ls, ll, la) in .aliasrc.
+brew "fd"               # Modern 'find'; search backend for fzf in fzfrc.
+brew "ripgrep"          # Fast text search; used as grep alternative and fzf backend.
+brew "ack"              # Alternative search tool; found in history usage.
 brew "tree"             # Directory tree visualization; used for fzf previews in fzfrc.
+brew "television"       # Modern TUI browser; agent-friendly interface for data navigation.
+
+# ------------------------------------------------------------------------------
+# AI & Agent Infrastructure (Maximizing Token Efficiency & Context)
+# ------------------------------------------------------------------------------
+brew "repomix"          # Packs repository context for LLMs (Critical for token efficiency).
+brew "rtk"              # CLI proxy to minimize LLM token consumption (High-signal summaries).
+brew "backlog-md"       # Markdown task manager; provides project state/roadmap to agents.
+brew "tokei"            # Blazingly fast code stats; provides project metadata to agents.
+brew "universal-ctags"  # Symbol indexing; allows agents to find definitions without deep scans.
+brew "ast-grep"         # Structural code search (sg); used for complex refactoring by agents.
+brew "fabric-ai"        # AI workflow pattern executor.
+brew "ollama"           # Local LLM runner for private AI interactions.
+brew "gemini-cli"       # Google Gemini AI CLI; aliased to 'gm' in conf.d/80-aliases.zsh.
+brew "usage"            # CLI specification tool; helps agents understand CLI parameters.
+
+# ------------------------------------------------------------------------------
+# Data Processing (Structured Context for Humans and Agents)
+# ------------------------------------------------------------------------------
+brew "jq"               # JSON processor; used via 'J' global alias in conf.d/80-aliases.zsh.
+brew "yq"               # YAML processor; essential for config manipulation (mise, fly, actions).
+brew "dasel"            # Unified JSON/YAML/TOML/XML query tool; used for agent-friendly config lookups.
+brew "fx"               # Terminal JSON viewer; interactive data exploration.
+brew "jless"            # Interactive JSON pager; similar to 'less' but for structured data.
+brew "glow"             # Markdown renderer; used for reading repository docs (README, CLAUDE.md).
 
 # ------------------------------------------------------------------------------
 # UI & Productivity
@@ -26,45 +52,35 @@ brew "tree"             # Directory tree visualization; used for fzf previews in
 brew "atuin"            # SQLite-backed history sync/search; replaces Ctrl-R in conf.d/70-integrations.zsh.
 brew "lazygit"          # Git TUI; aliased to 'lg' in conf.d/80-aliases.zsh.
 brew "bat"              # Syntax-highlighted 'cat' and fzf previewer; used in .aliasrc and fzfrc.
-brew "jless"            # Interactive JSON pager; used for viewing JSON API responses.
-brew "fx"               # Terminal JSON viewer/processor; used for interactive data exploration.
 brew "bottom"           # Graphical process monitor; aliased to 'top' and 'htop' in conf.d/80-aliases.zsh.
-brew "tealdeer"         # Fast 'tldr' client; provides practical command examples aliased to 'help'.
-brew "boxes"            # Draws ASCII boxes around text; occasionally used for banners/comments.
+brew "tealdeer"         # Fast 'tldr' client; provides command examples aliased to 'help'.
+brew "boxes"            # Draws ASCII boxes; used for banners and code documentation.
 
 # ------------------------------------------------------------------------------
-# Development Toolchain
+# Development Toolchain & Runtimes
 # ------------------------------------------------------------------------------
-brew "mise"             # Polyglot runtime manager; replaces asdf; activated in .zprofile and conf.d/90-mise.zsh.
+brew "mise"             # Polyglot runtime manager; replaces asdf; activated in .zprofile.
+brew "pnpm"             # Fast package manager; used extensively in TS/JS development.
+brew "uv"               # Extremely fast Python package manager; modern standard for Python.
 brew "gh"               # GitHub CLI; provides _gh completion and repo management.
-brew "repomix"          # Packs repository context for AI agents (token efficiency).
-brew "tokei"            # Fast code statistics; provides high-signal project metadata.
-brew "universal-ctags"  # Symbol indexing; allows agents to find definitions quickly.
-brew "ast-grep"         # Structural code search/rewrite (binary 'sg'); used for code refactoring.
-brew "hyperfine"        # Benchmarking tool; aliased to 'bench' for measuring startup/command performance.
-brew "pnpm"             # Fast, disk-efficient package manager; used extensively in TS/JS projects.
-brew "flyctl"           # Fly.io CLI (binary 'fly'); used for deployments via 'fd', 'fds', 'fdp' aliases.
-brew "rtk"              # CLI proxy to minimize LLM token consumption.
-brew "backlog-md"       # Markdown-native task manager (binary 'backlog'); provides agent context.
-brew "gemini-cli"       # CLI for Gemini AI; aliased to 'gm' in conf.d/80-aliases.zsh.
+brew "flyctl"           # Fly.io CLI (fly); used for cloud deployments via 'fd' aliases.
+brew "hyperfine"        # Benchmarking tool; used by bin/check to enforce performance budget.
+brew "postgresql@18"    # Postgres client tools; path managed in .zshenv.
+brew "openjdk"          # Java Runtime; JAVA_HOME and path managed in .zshenv.
 
 # ------------------------------------------------------------------------------
-# Security & Validation
+# Security, Infrastructure & Validation
 # ------------------------------------------------------------------------------
-brew "shellcheck"       # Bash/sh script linter; used by bin/check to validate repo scripts.
-brew "actionlint"       # GitHub Actions workflow linter; ensures CI stability.
+brew "shellcheck"       # Bash/sh linter; used by bin/check to validate repo scripts.
+brew "actionlint"       # GitHub Actions linter; ensures CI stability.
 brew "pre-commit"       # Git hook manager; automates safety and quality checks.
-brew "dasel"            # JSON/YAML/TOML/XML parser; used for agent-friendly config querying.
-brew "sqlite"           # SQLite CLI; used by bin/history-import to manage the history database.
-brew "gitleaks"         # Secret scanner; used to prevent sensitive data commits.
-
-# ------------------------------------------------------------------------------
-# System Libraries
-# ------------------------------------------------------------------------------
-brew "coreutils"        # GNU versions of basic system utilities (ls, cp, mv).
-brew "jemalloc"         # High-performance malloc implementation; used in RUBY_CONFIGURE_OPTS.
-brew "openssl@3"        # Cryptography toolkit; used by Ruby/Node build processes.
-brew "postgresql@18"    # Postgres client tools and headers.
+brew "gitleaks"         # Secret scanner; prevents sensitive data leaks.
+brew "trufflehog"       # Advanced secret scanner; deep historical scanning.
+brew "git-lfs"          # Git Large File Storage; manages binary assets.
+brew "sqlite"           # SQLite CLI; powers atuin and bin/history-import.
+brew "coreutils"        # GNU system utilities; provides consistent behavior across platforms.
+brew "openssl@3"        # Cryptography toolkit; dependency for Node/Ruby builds.
+brew "jemalloc"         # High-performance malloc; optimized for Ruby (RUBY_CONFIGURE_OPTS).
 
 # ------------------------------------------------------------------------------
 # Zsh Plugins (Sourced in .zshrc or conf.d/70-integrations.zsh)
@@ -81,4 +97,4 @@ brew "zsh-vi-mode"                  # Improved Vi-mode experience with mode indi
 # ------------------------------------------------------------------------------
 # Casks
 # ------------------------------------------------------------------------------
-cask "font-fira-code-nerd-font"      # Preferred font for Powerlevel10k glyphs.
+cask "font-fira-code-nerd-font"      # Preferred font for Powerlevel10k and UI glyphs.
