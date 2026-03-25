@@ -1,6 +1,6 @@
 # AGENTS.md — Core Context for AI Agents
 
-This repository is a modular, high-performance Zsh configuration ("Zdots"). All agents must adhere to the standards and use the tools defined below.
+This repository is a modular, high-performance Zsh configuration ("Zdots"). All agents must adhere to the standards and use the tools defined below. It also provides an AI-friendly Bash bridge (`~/.bashrc`) for consistency across shell environments.
 
 ## Build & Validation
 - **Run All Checks:** `make check` (Primary regression suite)

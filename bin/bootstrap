@@ -47,6 +47,16 @@ if [[ ! -e "$HOME/.zshenv" ]]; then
   echo "bootstrap: linked $HOME/.zshenv -> $REPO_ROOT/.zshenv"
 fi
 
+if [[ ! -e "$HOME/.bashrc" ]]; then
+  ln -s "$REPO_ROOT/bashrc" "$HOME/.bashrc"
+  echo "bootstrap: linked $HOME/.bashrc -> $REPO_ROOT/bashrc"
+fi
+
+if [[ ! -e "$HOME/.bash_profile" ]]; then
+  ln -s "$REPO_ROOT/bash_profile" "$HOME/.bash_profile"
+  echo "bootstrap: linked $HOME/.bash_profile -> $REPO_ROOT/bash_profile"
+fi
+
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   current_hooks_path="$(git -C "$REPO_ROOT" config --local --get core.hooksPath || true)"
   if [[ "$current_hooks_path" != ".githooks" ]]; then
