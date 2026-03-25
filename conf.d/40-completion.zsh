@@ -14,7 +14,13 @@ if [[ ${+functions[compdef]} -eq 0 ]]; then
   fi
   _zdots_compdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-${ZSH_VERSION}"
   if mkdir -p "${_zdots_compdump:h}" 2>/dev/null; then
-    compinit "${_zdots_compinit_args[@]}" -d "$_zdots_compdump"
+    # Use -C to skip security checks if the dump file is less than 24h old.
+    # bin/check handles the heavy lifting of security validation.
+    if [[ -n "$_zdots_compdump"(#qN.m-1) ]]; then
+      compinit "${_zdots_compinit_args[@]}" -C -d "$_zdots_compdump"
+    else
+      compinit "${_zdots_compinit_args[@]}" -d "$_zdots_compdump"
+    fi
   else
     compinit "${_zdots_compinit_args[@]}"
   fi
