@@ -87,5 +87,11 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
 ## Tooling Standards
 - **History:** `atuin` (SQLite) with `history_enquire` (`he`) for maintenance.
 - **Search:** `fzf` + `fzf-tab` integration.
-- **File System:** `zoxide` (`z`) and `eza` (aliased to `ls`).
+- **File System:** `zoxide` (`z`), `eza` (aliased to `ls`), and `broot` (`br`) for weighted tree navigation.
+- **AI Integration:** Use the `ai` function to pipe command output into patterns (e.g., `cat logs.txt | ai summarize`).
 - **Data Handling:** `jless`/`fx` for interactive JSON exploration.
+- **GitHub:** Use `gh dash` for a full overview of PRs and Issues.
+
+## Safety & Quality
+- **Commits:** Use `git absorb` to automatically attribute fixup changes to the correct commit.
+- **Guardrails:** This repository uses `pre-commit` to automate secret scanning (`gitleaks`) and script validation.
