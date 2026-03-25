@@ -13,5 +13,5 @@ run_cmd() {
 echo "Checking for system updates (softwareupdate)..."
 run_cmd softwareupdate --list --verbose
 
-# Note: We don't run 'softwareupdate --install' automatically 
+# Note: We don't run 'softwareupdate --install' automatically
 # as it often requires restarts and manual intervention.
