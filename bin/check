@@ -244,9 +244,16 @@ compaudit_out="$(zsh -i -c 'autoload -Uz compaudit; compaudit 2>/dev/null' || tr
 if [[ -n "$compaudit_out" ]]; then
   echo "check: insecure completion paths detected by compaudit:" >&2
   print -r -- "$compaudit_out" >&2
-  if [[ "${ZDOTS_CHECK_STRICT_COMPAUDIT:-1}" == "1" ]]; then
+  # In CI environments, compaudit often fails due to system-level directory permissions (e.g. /usr/local/share).
+  # We make it non-blocking in CI by default unless overridden.
+  _zdots_strict_comp="${ZDOTS_CHECK_STRICT_COMPAUDIT:-}"
+  if [[ -z "$_zdots_strict_comp" && "$CI" == "true" ]]; then
+    _zdots_strict_comp=0
+  fi
+  if [[ "${_zdots_strict_comp:-1}" == "1" ]]; then
     exit 1
   fi
+  unset _zdots_strict_comp
 fi
 
 if [[ "$SKIP_EXTERNAL" != "1" ]]; then
