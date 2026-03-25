@@ -44,7 +44,8 @@ brew "ast-grep"         # Structural code search/rewrite (binary 'sg'); used for
 brew "hyperfine"        # Benchmarking tool; aliased to 'bench' for measuring startup/command performance.
 brew "pnpm"             # Fast, disk-efficient package manager; used extensively in TS/JS projects.
 brew "flyctl"           # Fly.io CLI (binary 'fly'); used for deployments via 'fd', 'fds', 'fdp' aliases.
-brew "rtk"              # Repository management tool; used for various project automation tasks.
+brew "rtk"              # CLI proxy to minimize LLM token consumption.
+brew "backlog-md"       # Markdown-native task manager (binary 'backlog'); provides agent context.
 brew "gemini-cli"       # CLI for Gemini AI; aliased to 'gm' in conf.d/80-aliases.zsh.
 
 # ------------------------------------------------------------------------------

@@ -27,5 +27,7 @@ High-signal guide for AI agents interacting with this repository.
 ## Agent Efficiency Tools
 - **Codebase Stats:** `tokei`
 - **Context Packing:** `repomix` (Generate context for LLMs)
+- **Token Optimizer:** `rtk` (Proxy commands to minimize output noise)
+- **Task Context:** `backlog-md` (Markdown-native project state)
 - **Symbol Index:** `universal-ctags` (via `tags` file)
 - **Config Parsing:** `dasel` (JSON/YAML/TOML/XML)
