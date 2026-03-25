@@ -19,10 +19,18 @@ if [[ -r "${_zdots_theme_dircolors_file}" ]]; then
     eval "$(dircolors -b "${_zdots_theme_dircolors_file}")"
   fi
 elif command -v vivid >/dev/null 2>&1; then
-  _zdots_vivid_theme="$ZDOTS_THEME"
-  [[ "$_zdots_vivid_theme" == dracula-* ]] && _zdots_vivid_theme="dracula"
-  export LS_COLORS="$(vivid generate "$_zdots_vivid_theme")"
-  unset _zdots_vivid_theme
+  _zdots_lsc_cache="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/ls_colors.${ZDOTS_THEME}"
+  if [[ -r "$_zdots_lsc_cache" ]]; then
+    export LS_COLORS="$(<"$_zdots_lsc_cache")"
+  else
+    _zdots_vivid_theme="$ZDOTS_THEME"
+    [[ "$_zdots_vivid_theme" == dracula-* ]] && _zdots_vivid_theme="dracula"
+    export LS_COLORS="$(vivid generate "$_zdots_vivid_theme")"
+    mkdir -p "$_zdots_lsc_cache:h"
+    echo "$LS_COLORS" > "$_zdots_lsc_cache"
+    unset _zdots_vivid_theme
+  fi
+  unset _zdots_lsc_cache
 fi
 unset _zdots_theme_dircolors_file
 export DISABLE_SPRING=true
