@@ -67,11 +67,41 @@ if [ -d "$HOMEBREW_PREFIX/opt/openjdk" ]; then
   export JAVA_HOME="$HOMEBREW_PREFIX/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
 fi
 
-# 7. Path Construction (POSIX-compliant)
-PATH="$HOME/.local/bin:$ZDOTDIR/bin:$XDG_DATA_HOME/mise/shims:$GOPATH/bin:$GEM_HOME/bin:$HOME/.cargo/bin:$PNPM_HOME"
-[ -n "${HOMEBREW_PREFIX:-}" ] && PATH="$PATH:$HOMEBREW_PREFIX/opt/rustup/bin:$HOMEBREW_PREFIX/opt/postgresql@18/bin:$HOMEBREW_PREFIX/opt/openjdk/bin:$HOMEBREW_PREFIX/bin:$HOMEBREW_PREFIX/sbin"
-PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
+# 7. Path Construction (POSIX-compliant & Decoupled)
+# Helper to append to PATH if directory exists and is not already present.
+_zdots_path_add() {
+  case ":$PATH:" in
+    *":$1:"*) ;;
+    *) [ -d "$1" ] && PATH="$1:$PATH" ;;
+  esac
+}
+
+# Core system paths first (to ensure basic tools are available)
+PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+
+# Homebrew (if detected)
+if [ -n "${HOMEBREW_PREFIX:-}" ]; then
+  _zdots_path_add "$HOMEBREW_PREFIX/bin"
+  _zdots_path_add "$HOMEBREW_PREFIX/sbin"
+  _zdots_path_add "$HOMEBREW_PREFIX/opt/openjdk/bin"
+  _zdots_path_add "$HOMEBREW_PREFIX/opt/postgresql@18/bin"
+  _zdots_path_add "$HOMEBREW_PREFIX/opt/rustup/bin"
+fi
+
+# Toolchain Shims & Binaries (Decoupled from specific managers where possible)
+_zdots_path_add "$CARGO_HOME/bin"
+_zdots_path_add "$GEM_HOME/bin"
+_zdots_path_add "$GOPATH/bin"
+_zdots_path_add "$PNPM_HOME"
+_zdots_path_add "$XDG_DATA_HOME/mise/shims"
+_zdots_path_add "$XDG_DATA_HOME/asdf/shims"
+
+# User Binaries (Highest precedence)
+_zdots_path_add "$ZDOTDIR/bin"
+_zdots_path_add "$HOME/.local/bin"
+
 export PATH
+unset -f _zdots_path_add
 
 # 8. History (XDG Compliance: Move to STATE_HOME)
 export HISTSIZE=999999

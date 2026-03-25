@@ -11,7 +11,7 @@ run_cmd() {
 }
 
 # 1. Claude Code
-if command -v claude >/dev/null 2>&1; then
+if command -v claude >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
   echo "Updating Claude Code..."
   run_cmd npm install -g @anthropic-ai/claude-code
 fi
@@ -23,9 +23,10 @@ if command -v ollama >/dev/null 2>&1; then
   if ollama list >/dev/null 2>&1; then
     # Get list of installed models (NAME column, skip header)
     local models
-    models=$(ollama list | awk 'NR>1 {print $1}')
+    models=$(ollama list | awk 'NR>1 {print $1}' | sed '/^[[:space:]]*$/d')
     if [[ -n "$models" ]]; then
       echo "$models" | while read -r model; do
+        [[ -z "$model" ]] && continue
         echo "Updating Ollama model: $model..."
         run_cmd ollama pull "$model"
       done
