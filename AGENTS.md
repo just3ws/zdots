@@ -66,6 +66,15 @@ rtk json <file>         # Schema-only view of large JSON files
 ```
 <!-- /rtk-instructions -->
 
+## Backlog.md - Task & Project State
+This repository uses `backlog-md` (binary `backlog`) for task management. It is the **Source of Truth** for the project roadmap and task state.
+
+**Agent Instructions:**
+- **Discovery:** Run `backlog tasks` to see the current task list and status.
+- **Context:** Read individual tasks in the `backlog/` directory for deep requirements.
+- **Updates:** After completing a task, update its status via the `backlog` CLI or by editing the Markdown file directly.
+- **Standard:** Prefer `backlog` commands for high-level status and manual Markdown edits for detailed notes.
+
 ## Tooling Standards
 - **History:** `atuin` (SQLite) with `history_enquire` (`he`) for maintenance.
 - **Search:** `fzf` + `fzf-tab` integration.
