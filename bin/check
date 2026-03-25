@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
 
-set -euo pipefail
+set -exu
+setopt pipefail
 setopt nonomatch
 
 REPO_ROOT="${0:A:h:h}"
