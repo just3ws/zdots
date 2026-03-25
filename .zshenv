@@ -67,7 +67,7 @@ path=(
   $HOME/.cargo/bin
   $PNPM_HOME
   $HOMEBREW_PREFIX/opt/rustup/bin
-  $HOMEBREW_PREFIX/opt/postgresql@17/bin
+  $HOMEBREW_PREFIX/opt/postgresql@18/bin
   $HOMEBREW_PREFIX/opt/openjdk/bin
   $HOMEBREW_PREFIX/{bin,sbin}
   /usr/{bin,sbin}
