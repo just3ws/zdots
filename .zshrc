@@ -13,6 +13,11 @@ done
 unset conf
 
 # Syntax highlighting should be sourced last to catch all aliases and functions.
+# Load theme-specific styles first.
+if [[ -r "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh" ]]; then
+  source "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh"
+fi
+
 # Prefer Homebrew installed version.
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
   source "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
@@ -24,8 +29,3 @@ bindkey '^E' end-of-line
 bindkey '^K' kill-line
 bindkey '^U' backward-kill-line
 bindkey '^Y' yank
-# The following lines have been added by Docker Desktop to enable Docker CLI completions.
-fpath=(/Users/mike/.docker/completions $fpath)
-autoload -Uz compinit
-compinit
-# End of Docker CLI completions

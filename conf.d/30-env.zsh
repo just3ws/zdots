@@ -8,17 +8,20 @@ export ANSIBLE_COW_SELECTION=random
 export ANSIBLE_NOCOWS=1
 
 export CLICOLOR=1
-_zdots_nord_dircolors_file="${ZDOTDIR}/assets/nord/dir_colors"
-if [[ -r "${_zdots_nord_dircolors_file}" ]]; then
+if [[ "$ZDOTS_THEME" == "nord" ]]; then
+  _zdots_theme_dircolors_file="${ZDOTDIR}/assets/nord/dir_colors"
+fi
+
+if [[ -r "${_zdots_theme_dircolors_file}" ]]; then
   if command -v gdircolors >/dev/null 2>&1; then
-    eval "$(gdircolors -b "${_zdots_nord_dircolors_file}")"
+    eval "$(gdircolors -b "${_zdots_theme_dircolors_file}")"
   elif command -v dircolors >/dev/null 2>&1; then
-    eval "$(dircolors -b "${_zdots_nord_dircolors_file}")"
+    eval "$(dircolors -b "${_zdots_theme_dircolors_file}")"
   fi
 elif command -v vivid >/dev/null 2>&1; then
-  export LS_COLORS="$(vivid generate nord)"
+  export LS_COLORS="$(vivid generate "$ZDOTS_THEME")"
 fi
-unset _zdots_nord_dircolors_file
+unset _zdots_theme_dircolors_file
 export DISABLE_SPRING=true
 export CORRECT_IGNORE='_*'
 export CORRECT_IGNORE_FILE='.*'
@@ -33,12 +36,4 @@ typeset -gi SAVEHIST=999999
 
 # Ensure history directory exists for reliable persistence.
 mkdir -p "${HISTFILE:h}"
-
-# pnpm
-export PNPM_HOME="$HOME/.local/share/pnpm"
-case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
-esac
-# pnpm end
 
