@@ -20,6 +20,7 @@ brew "fd"               # Modern 'find'; search backend for fzf in fzfrc.
 brew "ripgrep"          # Fast text search; used as grep alternative and fzf backend.
 brew "ack"              # Alternative search tool; found in history usage.
 brew "tree"             # Directory tree visualization; used for fzf previews in fzfrc.
+brew "sd"               # Intuitive find & replace CLI (sed alternative); used for refactoring.
 brew "television"       # Modern TUI browser; agent-friendly interface for data navigation.
 
 # ------------------------------------------------------------------------------
