@@ -194,6 +194,30 @@ git config --local core.hooksPath .githooks
 5. Isolate a startup module:
    Move a file from `conf.d/` out of the directory temporarily, then re-run `bin/check`.
 
+## Global Aliases (Pipelining DSL)
+
+The configuration includes "Global Aliases" (`alias -g`) which expand anywhere in a command, enabling a semi-DSL for pipelining:
+
+- `G`: `| grep`
+- `GI`: `| grep -i`
+- `L`: `| less`
+- `H`: `| head`
+- `T`: `| tail`
+- `W`: `| wc -l`
+- `Y`: `| pbcopy`
+- `J`: `| jq`
+
+Usage: `cat logs.txt GI error W` (counts lines containing "error" case-insensitively).
+
+## Service Shortcuts
+
+- `bsl`: `brew services list`
+- `bss`: `brew services start`
+- `bsr`: `brew services restart`
+- `bso`: `brew services stop`
+- `dps`: `docker ps`
+- `dlf`: `docker logs -f`
+
 ## Color Theme
 
 The configuration supports selectable themes via the `ZDOTS_THEME` environment variable (set in `.zshenv`).
