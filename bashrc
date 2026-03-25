@@ -18,14 +18,10 @@ if command -v rtk >/dev/null 2>&1; then
   alias pnpm='rtk pnpm'
 fi
 
-# 3. DSL Aliases (Standard aliases only, Bash lacks -g)
-alias k='clear'
-alias ..='cd ..'
-alias ...='cd ../..'
-alias lg='lazygit'
-alias p='pnpm'
-alias gm='gemini'
-alias cl='claude'
+# 3. Source Unified Aliases
+if [[ -f "$ZDOTDIR/.aliasrc" ]]; then
+  source "$ZDOTDIR/.aliasrc"
+fi
 
 # 4. Prompt (High-signal, minimal)
 PS1='\[\e[32m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]\$ '
