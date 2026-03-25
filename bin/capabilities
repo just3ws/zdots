@@ -1,0 +1,42 @@
+#!/usr/bin/env zsh
+# High-density environment capability card for AI agents.
+# Optimized for token efficiency.
+
+# 1. Core Runtime
+echo "--- ENV ---"
+echo "ZSH: $ZSH_VERSION | OS: $OSTYPE | THEME: ${ZDOTS_THEME:-default}"
+echo "PERF: $([[ -f ~/.cache/zsh/zcompdump-$ZSH_VERSION ]] && stat -f "%Sm" -t "%Y-%m-%d %H:%M" ~/.cache/zsh/zcompdump-$ZSH_VERSION || echo "no-cache")"
+
+# 2. Shell Infrastructure
+echo "\n--- INFRA ---"
+features=()
+(( $+functions[zsh-defer] )) && features+=("defer")
+(( $+functions[z] )) && features+=("zoxide")
+(( $+functions[atuin] )) && features+=("atuin")
+(( $+widgets[fzf-tab-complete] )) && features+=("fzf-tab")
+(( $+widgets[fzf-history-widget] )) && features+=("fzf")
+[[ -n "$LS_COLORS" ]] && features+=("lscolors-cached")
+echo "ACTIVE: ${features[*]}"
+
+# 3. Deferred Plugins
+echo "\n--- PLUGINS (DEFERRED) ---"
+plugins=()
+[[ -n "${HOMEBREW_PREFIX:-}" ]] && {
+  [[ -r "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && plugins+=("autosuggest")
+  [[ -r "$HOMEBREW_PREFIX/opt/zsh-vi-mode/share/zsh-vi-mode/zsh-vi-mode.plugin.zsh" ]] && plugins+=("vi-mode")
+  [[ -r "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && plugins+=("syntax")
+}
+echo "READY: ${plugins[*]}"
+
+# 4. Agent Efficiency Tools
+echo "\n--- AGENT-TOOLS ---"
+atools=()
+for t in rtk repomix tokei ctags sg dasel yq backlog usage; do
+  command -v $t >/dev/null && atools+=($t)
+done
+echo "BIN: ${atools[*]}"
+
+# 5. Pipeline DSL & Shortcuts
+echo "\n--- DSL ---"
+echo "GLOBAL: G, GI, L, W, S, U, Y, J, X"
+echo "CMDS: bsl, bss, bso, dps, dlf, p, fd, fl, k, cl, gm, he, lg, top, bench"
