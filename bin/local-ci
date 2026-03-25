@@ -1,0 +1,120 @@
+#!/usr/bin/env zsh
+# bin/local-ci — Manage Colima & local GitHub Actions (act)
+
+set -eu
+setopt pipefail
+
+REPO_ROOT="${0:A:h:h}"
+cd "$REPO_ROOT"
+
+# Configuration
+CPU=${ZDOTS_CI_CPU:-2}
+MEMORY=${ZDOTS_CI_MEMORY:-4}
+DISK=${ZDOTS_CI_DISK:-60}
+# Proxy macos-latest to an Ubuntu image for local act execution
+IMAGE_MAPPING="macos-latest=catthehacker/ubuntu:act-latest"
+
+usage() {
+  cat <<EOF
+Usage: local-ci <command> [args]
+
+Commands:
+  up       - Start colima and ensure docker context is set
+  down     - Stop colima
+  status   - Check colima and docker status
+  run      - Run act (GitHub Actions locally)
+  clean    - Remove act artifacts and prune docker images
+  restart  - down then up
+  rebuild  - Delete and recreate the colima instance
+
+EOF
+}
+
+check_deps() {
+  local missing=()
+  for cmd in colima docker act; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      missing+=("$cmd")
+    fi
+  done
+  if (( ${#missing[@]} > 0 )); then
+    echo "Error: Missing dependencies: ${missing[*]}" >&2
+    echo "Run 'brew bundle' to install them." >&2
+    exit 1
+  fi
+}
+
+colima_up() {
+  if colima status >/dev/null 2>&1; then
+    echo "Colima is already running."
+  else
+    echo "Starting colima (CPU: $CPU, Memory: ${MEMORY}G, Disk: ${DISK}G)..."
+    colima start --cpu "$CPU" --memory "$MEMORY" --disk "$DISK"
+  fi
+}
+
+colima_down() {
+  if colima status >/dev/null 2>&1; then
+    echo "Stopping colima..."
+    colima stop
+  else
+    echo "Colima is already stopped."
+  fi
+}
+
+colima_status() {
+  echo "--- Colima ---"
+  colima status || echo "Colima is not running."
+  echo "\n--- Docker ---"
+  docker version --format 'Client: {{.Client.Version}}\nServer: {{.Server.Version}}' 2>/dev/null || echo "Docker daemon not reachable."
+}
+
+run_act() {
+  echo "Running GitHub Actions locally via act..."
+  # Use -P to map macos-latest to a Linux image
+  # Socket is now symlinked to /var/run/docker.sock for maximum compatibility
+  act \
+    --container-architecture linux/arm64 \
+    -P "$IMAGE_MAPPING" \
+    "$@"
+}
+
+case "${1:-}" in
+  up)
+    check_deps
+    colima_up
+    ;;
+  down)
+    colima_down
+    ;;
+  status)
+    colima_status
+    ;;
+  run)
+    check_deps
+    shift
+    run_act "$@"
+    ;;
+  clean)
+    echo "Cleaning up..."
+    docker system prune -f
+    ;;
+  restart)
+    colima_down
+    colima_up
+    ;;
+  rebuild)
+    echo "WARNING: This will delete the current colima instance. Proceed? [y/N]"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+      colima delete -f
+      colima_up
+    else
+      echo "Aborted."
+    fi
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
