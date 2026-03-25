@@ -16,8 +16,25 @@ repos:
     hooks:
       - id: gitleaks
 
-  - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.10.0
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.10.0-1
+    hooks:
+      - id: shfmt
+        args: ["-i", "2", "-ci", "-bn"] # 2 spaces, indent cases, binary ops at start
+
+  - repo: local
     hooks:
       - id: shellcheck
-        args: ["--shell=bash"] # Shellcheck fallback
+        name: ShellCheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+        args: ["--shell=bash", "-x"]
+        files: \.(sh|bash|bashrc|bash_profile|aliases\.bash|env\.sh)$
+
+      - id: bin-check
+        name: bin/check
+        entry: ./bin/check
+        language: script
+        pass_filenames: false
+        always_run: true
