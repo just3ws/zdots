@@ -196,9 +196,17 @@ git config --local core.hooksPath .githooks
 
 ## Color Theme
 
-- `LS_COLORS` is generated from the vendored Nord theme file at `assets/nord/dir_colors` via `gdircolors`/`dircolors`.
-- If `dircolors` tooling is unavailable, the config falls back to `vivid generate nord`.
-- BSD `ls -G` fallback exports a Nord-inspired `LSCOLORS` value when GNU `gls` is not installed.
+The configuration supports selectable themes via the `ZDOTS_THEME` environment variable (set in `.zshenv`).
+
+Supported themes:
+- `nord` (default)
+- `dracula`
+
+Theme features:
+- `LS_COLORS` is generated via `vivid generate $ZDOTS_THEME`.
+- For `nord`, the config can also use the vendored theme file at `assets/nord/dir_colors` via `gdircolors`/`dircolors`.
+- `FZF_DEFAULT_OPTS` are automatically adjusted to match the selected theme.
+- BSD `ls -G` fallback exports a theme-inspired `LSCOLORS` value.
 
 ## Roadmap
 
