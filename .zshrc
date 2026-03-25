@@ -16,6 +16,8 @@ unset conf
 # Load theme-specific styles first.
 if [[ -r "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh" ]]; then
   source "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh"
+elif [[ "$ZDOTS_THEME" == dracula-* && -r "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh" ]]; then
+  source "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh"
 fi
 
 # Prefer Homebrew installed version.
