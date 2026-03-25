@@ -223,8 +223,9 @@ Usage: `cat logs.txt GI error W` (counts lines containing "error" case-insensiti
 The configuration supports selectable themes via the `ZDOTS_THEME` environment variable (set in `.zshenv`).
 
 Supported themes:
-- `nord` (default)
+- `nord`
 - `dracula`
+- `dracula-pro` (refined colors from Dracula Pro)
 
 Theme features:
 - `LS_COLORS` is generated via `vivid generate $ZDOTS_THEME`.
