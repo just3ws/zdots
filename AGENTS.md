@@ -6,7 +6,7 @@ This repository is a modular, high-performance Zsh configuration ("Zdots"). All 
 - **Run All Checks:** `make check` (Primary regression suite)
 - **Bootstrap:** `make bootstrap`
 - **Benchmark:** `make bench`
-- **Environment Inquiries:** Run `bin/capabilities` for a summary of features.
+- **Environment Inquiries:** Run `bin/capabilities --json` for a structured, one-turn summary of all available tools, themes, and shell features (highly token efficient).
 
 ## Agent API (Standardized Tasks)
 Always prefer these `make` commands for routine operations:
