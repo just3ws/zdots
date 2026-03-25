@@ -20,13 +20,13 @@ done
 
 errfile="$(mktemp)"
 set +e
-zsh -i -c 'exit' >/dev/null 2>"$errfile"
+zsh -i -x -c 'exit' >/dev/null 2>"$errfile"
 ret=$?
 set -e
 if [[ $ret -ne 0 ]]; then
   echo "DEBUG: zsh -i -c exit failed with ret=$ret" >&2
   echo "check: zsh -i -c exit failed with exit code $ret" >&2
-  [[ -s "$errfile" ]] && cat "$errfile" >&2
+  cat "$errfile" >&2
   rm -f "$errfile"
   exit 1
 fi
