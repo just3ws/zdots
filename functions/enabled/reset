@@ -18,7 +18,7 @@ if [[ -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh" ]]; then
 fi
 
 # Reload the shell for a clean start
-if [[ -o interactive ]]; then
+if [[ -o interactive && "$*" != *--no-reload* ]]; then
   print "Reloading shell..."
   reload
 fi

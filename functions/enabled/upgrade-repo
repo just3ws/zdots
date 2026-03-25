@@ -20,4 +20,4 @@ fi
 
 echo "Cleaning up shell caches..."
 # Purge old completion dumps and zsh-specific caches
-run_cmd reset
+run_cmd reset --no-reload
