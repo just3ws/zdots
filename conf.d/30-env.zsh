@@ -6,6 +6,7 @@ export LDFLAGS="-L$HOMEBREW_PREFIX/opt/jemalloc/lib"
 
 export ANSIBLE_COW_SELECTION=random
 export ANSIBLE_NOCOWS=1
+export HOMEBREW_BAT=1
 
 export CLICOLOR=1
 if [[ "$ZDOTS_THEME" == "nord" ]]; then
