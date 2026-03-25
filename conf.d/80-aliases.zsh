@@ -68,3 +68,8 @@ alias grv='git remote -v'
 # AI Workflow
 command -v claude >/dev/null 2>&1 && alias cl='claude'
 command -v gemini >/dev/null 2>&1 && alias gm='gemini'
+
+# Modern CLI Tools
+command -v lazygit >/dev/null 2>&1 && alias lg='lazygit'
+command -v btm >/dev/null 2>&1 && alias top='btm' && alias htop='btm'
+command -v hyperfine >/dev/null 2>&1 && alias bench='hyperfine'

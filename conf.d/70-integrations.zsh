@@ -8,6 +8,11 @@ if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
 fi
 
+if command -v atuin >/dev/null 2>&1; then
+  # Use --disable-up-arrow if you prefer zsh-history-substring-search for up-arrow
+  eval "$(atuin init zsh --disable-up-arrow)"
+fi
+
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
   source "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 fi
