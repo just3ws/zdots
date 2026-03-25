@@ -19,3 +19,6 @@ ZSH_HIGHLIGHT_STYLES[unknown-token]='fg=#BF616A'         # nord11
 ZSH_HIGHLIGHT_STYLES[bracket-level-1]='fg=#81A1C1'
 ZSH_HIGHLIGHT_STYLES[bracket-level-2]='fg=#88C0D0'
 ZSH_HIGHLIGHT_STYLES[bracket-level-3]='fg=#B48EAD'
+
+# zsh-autosuggestions
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#4C566A'
