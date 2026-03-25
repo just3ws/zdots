@@ -1,0 +1,17 @@
+#!/usr/bin/env zsh
+# upgrade-macos — Check for macOS system and App Store updates.
+
+setopt localoptions errexit pipefail
+dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
+
+run_cmd() {
+  print -r -- "+ $*"
+  [[ "$dry_run" == "1" ]] && return 0
+  "$@"
+}
+
+echo "Checking for system updates (softwareupdate)..."
+run_cmd softwareupdate --list --verbose
+
+# Note: We don't run 'softwareupdate --install' automatically 
+# as it often requires restarts and manual intervention.
