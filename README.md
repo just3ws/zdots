@@ -223,6 +223,12 @@ Usage: `cat logs.txt GI error W` (counts lines containing "error" case-insensiti
 - `k`: `klear`
 - `gup`: `git pull --rebase`
 - `cl`: `claude` / `gm`: `gemini`
+- `lg`: `lazygit` (TUI for Git)
+- `top`/`htop`: `btm` (Modern process monitor)
+- `atuin`: SQLite-backed searchable history (`Ctrl-R`)
+- `jless` / `fx`: Interactive JSON viewers
+- `sg`: `ast-grep` (Structural code search)
+- `bench`: `hyperfine` (Benchmarking)
 
 ## Color Theme
 
