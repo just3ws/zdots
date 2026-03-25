@@ -16,10 +16,14 @@ if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" && ${+functions[p10k]} -e
   PROMPT='%F{33}%n@%m%f %1~ %# '
 fi
 
-# To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
+# To customize prompt, run `p10k configure` or edit the p10k config file.
 [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" ]] || typeset -g POWERLEVEL9K_DISABLE_GITSTATUS=true
-if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" && -f "$ZDOTDIR/.p10k.zsh" ]]; then
-  source "$ZDOTDIR/.p10k.zsh"
+if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" ]]; then
+  if [[ -f "$ZDOTDIR/assets/$ZDOTS_THEME/p10k.zsh" ]]; then
+    source "$ZDOTDIR/assets/$ZDOTS_THEME/p10k.zsh"
+  elif [[ -f "$ZDOTDIR/.p10k.zsh" ]]; then
+    source "$ZDOTDIR/.p10k.zsh"
+  fi
 fi
 
 unset P10K_THEME P10K_THEME_CANDIDATES
