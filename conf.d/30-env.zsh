@@ -48,4 +48,3 @@ typeset -gi SAVEHIST=999999
 
 # Ensure history directory exists for reliable persistence.
 mkdir -p "${HISTFILE:h}"
-

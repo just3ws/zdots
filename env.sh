@@ -40,7 +40,7 @@ if [ -n "${HOMEBREW_PREFIX:-}" ]; then
   export HOMEBREW_NO_INSECURE_REDIRECT=1
   export HOMEBREW_BUNDLE_FILE="$ZDOTDIR/Brewfile"
   export HOMEBREW_BAT=1
-  
+
   # Refine Editor if Neovim is available
   if [ -x "$HOMEBREW_PREFIX/bin/nvim" ]; then
     export EDITOR="$HOMEBREW_PREFIX/bin/nvim"
