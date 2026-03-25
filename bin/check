@@ -69,7 +69,7 @@ assert_ctrl_r_policy() {
   local fallback_bindings
   local fzf_bindings
 
-  fallback_bindings="$(zsh "${shell_args[@]}" -c '
+  fallback_bindings="$(ZDOTS_CHECK_SKIP_FZF=1 zsh "${shell_args[@]}" -c '
     bindkey "^R"
     bindkey -M emacs "^R"
     bindkey -M viins "^R"
@@ -83,12 +83,18 @@ assert_ctrl_r_policy() {
   fzf_bindings="$(zsh "${shell_args[@]}" -c '
     zle -N fzf-history-widget self-insert
     source "$ZDOTDIR/conf.d/70-integrations.zsh"
-    bindkey "^R"
-    bindkey -M emacs "^R"
-    bindkey -M viins "^R"
+    echo "R: $(bindkey "^R")"
+    echo "R-emacs: $(bindkey -M emacs "^R")"
+    echo "R-viins: $(bindkey -M viins "^R")"
+    echo "XR: $(bindkey "^X^R")"
   ')"
-  if [[ "$(grep -c 'fzf-history-widget' <<<"$fzf_bindings")" -ne 3 ]]; then
+  if [[ "$(grep -c 'fzf-history-widget' <<<"$fzf_bindings")" -lt 3 ]]; then
     echo "check: expected ^R fzf bindings in ${mode} mode" >&2
+    echo "$fzf_bindings" >&2
+    exit 1
+  fi
+  if ! grep -q 'fzf-history-widget-accept' <<<"$fzf_bindings"; then
+    echo "check: expected ^X^R fzf binding in ${mode} mode" >&2
     echo "$fzf_bindings" >&2
     exit 1
   fi
