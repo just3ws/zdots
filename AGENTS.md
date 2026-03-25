@@ -94,4 +94,8 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
 
 ## Safety & Quality
 - **Commits:** Use `git absorb` to automatically attribute fixup changes to the correct commit.
-- **Guardrails:** This repository uses `pre-commit` to automate secret scanning (`gitleaks`) and script validation.
+- **Guardrails:** This repository uses `pre-commit` to automate:
+  - **Secret Scanning:** `gitleaks` (prevents accidental secret commits).
+  - **Script Validation:** `shellcheck` (for sh/bash scripts) and `bin/check` (for the full Zsh suite).
+  - **Formatting:** `shfmt` (consistent 2-space indentation for shell scripts).
+  - **Hygiene:** Automatic trailing whitespace and end-of-file cleanup.
