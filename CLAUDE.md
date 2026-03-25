@@ -1,79 +1,31 @@
-# CLAUDE.md
+# CLAUDE.md — Agent Reference for Zdots
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+High-signal guide for AI agents interacting with this repository.
 
-## What This Is
+## Build & Validation
+- **Run All Checks:** `bin/check` (Validates syntax, keybindings, and dependencies)
+- **Bootstrap Environment:** `bin/bootstrap`
+- **Benchmark Performance:** `make bench` or `bench 'zsh -i -c exit'`
 
-Personal zsh dotfiles repo (`just3ws/zdots`). Manages shell configuration, functions, aliases, and utility tooling for a macOS development environment. The owner is a Ruby developer — `bundle exec` and Rails commands are core daily tools, not optimization targets.
+## Repository Guidelines
+- **Shell Startup:** Fast path optimization using `zsh-defer`.
+- **Environment Variables:** Must be defined in `.zshenv`.
+- **Interactive Modules:** Isolated in `conf.d/*.zsh`.
+- **Custom Functions:** Stored in `functions/enabled/` (autoloded).
+- **Aliases:** Global and DSL-like aliases are in `conf.d/80-aliases.zsh`.
 
-## Running Checks
+## Theme & Styles
+- **Primary Theme:** `ZDOTS_THEME=dracula-pro` (refined colors, rounded glyphs).
+- **Sub-variants:** Supports `nord`, `dracula`, and `dracula-pro`.
+- **Prompt:** Powerlevel10k with rounded segment separators (`\uE0B4`).
+- **Styles:** Theme-specific syntax highlighting and autosuggestions in `assets/`.
 
-```shell
-zsh -n .zshenv .zprofile .zshrc .aliasrc .fzf.zsh functions/enabled/*
-zsh -i -c exit
-bin/check
-```
+## Performance Budget
+- **Target Median Startup:** < 0.08s
+- **Optimization Hooks:** `LS_COLORS` cached in `~/.cache/zsh/`, `compinit -C` daily caching.
 
-## Architecture
-
-### Shell Startup Chain
-
-```
-~/.zshenv (symlinked to $ZDOTDIR/.zshenv)
-  → sets XDG paths, core env vars, PATH, HISTFILE
-  → cheap Homebrew prefix detection only
-  → sets minimal fpath for autoload compatibility
-
-~/.config/zsh/.zshrc
-  → p10k instant prompt (must stay at top)
-  → sources modular config in conf.d/*.zsh
-  → prompt + env + mise init + options + key bindings + integrations
-```
-
-### Function Autoloading
-
-Functions live in `functions/enabled/` and are autoloaded via a glob loop in `conf.d/40-completion.zsh`:
-```zsh
-for fn in $ZDOTDIR/functions/enabled/*(.x); do
-  autoload -Uz "$(basename $fn)"
-done
-```
-
-Files must be executable (`chmod +x`). Each file defines a single function matching its filename.
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `.zshenv` | Environment, PATH, minimal fpath bootstrap |
-| `.zshrc` | Thin loader for modular config |
-| `conf.d/*.zsh` | Ordered interactive shell modules |
-| `.aliasrc` | All aliases (directory hashes, git, ruby, utilities) |
-| `Brewfile` | Homebrew dependencies for this config |
-| `fzfrc` | FZF configuration (Dracula theme, ag backend) |
-| `.p10k.zsh` | Powerlevel10k theme (wizard-generated, ~90KB) |
-| `functions/enabled/upgrade` | Master upgrade orchestrator (homebrew → mise) |
-| `bin/bootstrap` | First-time setup script |
-| `bin/check` | Local validation script |
-| `bin/history-import` | Import shell history files into SQLite |
-| `bin/history-analyze` | Build history usage report and recommendations |
-
-### Conventions
-
-- Functions: lowercase, hyphen-separated (`upgrade-homebrew`, `cleanup-homebrew`)
-- Environment vars: `UPPER_SNAKE_CASE`
-- File headers: `# vim:ft=zsh` or `#!/usr/bin/env zsh`
-- XDG Base Directory compliance throughout
-- Editor is always neovim (`$EDITOR`); `vim` and `vi` are aliased to it
-- `klear` is the scrollback-clearing function — used as a prefix before running visible output commands (e.g., `klear ; ruby script.rb`). It is a helper, not an optimization target.
-- GNU coreutils preferred: `gls`, `gdate` (with graceful BSD fallback aliases)
-- Nord colors are sourced from `assets/nord/dir_colors` via `gdircolors`/`dircolors` when available
-- `clobber` is unset — use `>!` to overwrite files
-
-### Deprecation Policy
-
-- A helper/function can be removed when all are true:
-  - No history usage in recent snapshots.
-  - Backing path/config no longer exists.
-  - No remaining internal references/docs depend on it.
-- Removals should be done in a dedicated commit with docs updated in the same PR.
+## Agent Efficiency Tools
+- **Codebase Stats:** `tokei`
+- **Context Packing:** `repomix` (Generate context for LLMs)
+- **Symbol Index:** `universal-ctags` (via `tags` file)
+- **Config Parsing:** `dasel` (JSON/YAML/TOML/XML)

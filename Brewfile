@@ -37,6 +37,9 @@ brew "boxes"            # Draws ASCII boxes around text; occasionally used for b
 # ------------------------------------------------------------------------------
 brew "mise"             # Polyglot runtime manager; replaces asdf; activated in .zprofile and conf.d/90-mise.zsh.
 brew "gh"               # GitHub CLI; provides _gh completion and repo management.
+brew "repomix"          # Packs repository context for AI agents (token efficiency).
+brew "tokei"            # Fast code statistics; provides high-signal project metadata.
+brew "universal-ctags"  # Symbol indexing; allows agents to find definitions quickly.
 brew "ast-grep"         # Structural code search/rewrite (binary 'sg'); used for code refactoring.
 brew "hyperfine"        # Benchmarking tool; aliased to 'bench' for measuring startup/command performance.
 brew "pnpm"             # Fast, disk-efficient package manager; used extensively in TS/JS projects.
@@ -49,6 +52,8 @@ brew "gemini-cli"       # CLI for Gemini AI; aliased to 'gm' in conf.d/80-aliase
 # ------------------------------------------------------------------------------
 brew "shellcheck"       # Bash/sh script linter; used by bin/check to validate repo scripts.
 brew "actionlint"       # GitHub Actions workflow linter; ensures CI stability.
+brew "pre-commit"       # Git hook manager; automates safety and quality checks.
+brew "dasel"            # JSON/YAML/TOML/XML parser; used for agent-friendly config querying.
 brew "sqlite"           # SQLite CLI; used by bin/history-import to manage the history database.
 brew "gitleaks"         # Secret scanner; used to prevent sensitive data commits.
 
