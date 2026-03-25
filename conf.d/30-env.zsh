@@ -34,6 +34,7 @@ elif command -v vivid >/dev/null 2>&1; then
   unset _zdots_lsc_cache
 fi
 unset _zdots_theme_dircolors_file
+# Correctness and behavior
 export DISABLE_SPRING=true
 export CORRECT_IGNORE='_*'
 export CORRECT_IGNORE_FILE='.*'
@@ -41,10 +42,6 @@ export HYPHEN_INSENSITIVE=true
 export KEYTIMEOUT=1
 export WORDCHARS='-*?.[]~=&;!#$%^(){}<>@'
 
-# Re-assert history settings after system zshrc defaults.
-HISTFILE="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/history"
+# History behavior refinements (Base variables in env.sh)
 typeset -gi HISTSIZE=999999
 typeset -gi SAVEHIST=999999
-
-# Ensure history directory exists for reliable persistence.
-mkdir -p "${HISTFILE:h}"

@@ -1,9 +1,12 @@
 #!/usr/bin/env zsh
+# Zdots Bootstrap — Single command system recreation.
+# Handles directory infrastructure, permissions, and toolchain dependencies.
 
 set -euo pipefail
 
 REPO_ROOT="${0:A:h:h}"
 
+# 1. Prerequisites
 if [[ ! -f "$REPO_ROOT/Brewfile" ]]; then
   echo "bootstrap: Brewfile not found at $REPO_ROOT/Brewfile" >&2
   exit 1
@@ -16,54 +19,63 @@ if ! command -v brew >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p \
+# 2. XDG Infrastructure & Security
+# Create core XDG structure with secure permissions (700)
+echo "bootstrap: initializing XDG infrastructure..."
+mkdir -p -m 700 \
   "$HOME/.config" \
-  "$HOME/.config/git" \
   "$HOME/.cache" \
   "$HOME/.local/state" \
   "$HOME/.local/share"
 
+# Create application-specific subdirectories (Prevents home-directory pollution)
+mkdir -p \
+  "$HOME/.config/git" \
+  "$HOME/.config/aws" \
+  "$HOME/.config/npm" \
+  "$HOME/.config/bundle" \
+  "$HOME/.config/python" \
+  "$HOME/.local/state/zsh" \
+  "$HOME/.local/state/less" \
+  "$HOME/.local/state/node" \
+  "$HOME/.local/state/psql" \
+  "$HOME/.local/share/zsh" \
+  "$HOME/.local/share/go" \
+  "$HOME/.local/share/gem" \
+  "$HOME/.local/share/python" \
+  "$HOME/.local/share/pnpm" \
+  "$HOME/.local/share/cargo" \
+  "$HOME/.local/share/rustup" \
+  "$HOME/.local/share/gnupg"
+
+# Initialize required files
 touch "$HOME/.config/git/config" "$HOME/.config/git/ignore"
 
+# 3. Shell Entry Points (Symlinks)
+echo "bootstrap: linking shell entry points..."
+[[ ! -e "$HOME/.zshenv" ]] && ln -s "$REPO_ROOT/.zshenv" "$HOME/.zshenv"
+[[ ! -e "$HOME/.bashrc" ]] && ln -s "$REPO_ROOT/bashrc" "$HOME/.bashrc"
+[[ ! -e "$HOME/.bash_profile" ]] && ln -s "$REPO_ROOT/bash_profile" "$HOME/.bash_profile"
+
+# 4. Git Integration
+echo "bootstrap: configuring git..."
 if [[ ! -e "$HOME/.gitconfig" ]]; then
   cat > "$HOME/.gitconfig" <<'EOF'
 [include]
   path = ~/.config/git/config
 EOF
-  echo "bootstrap: created $HOME/.gitconfig include -> ~/.config/git/config"
 elif ! grep -Fq '.config/git/config' "$HOME/.gitconfig"; then
   {
-    echo
-    echo "[include]"
-    echo "  path = ~/.config/git/config"
+    echo -e "\n[include]\n  path = ~/.config/git/config"
   } >> "$HOME/.gitconfig"
-  echo "bootstrap: appended include for ~/.config/git/config to $HOME/.gitconfig"
-fi
-
-brew bundle --file "$REPO_ROOT/Brewfile"
-
-if [[ ! -e "$HOME/.zshenv" ]]; then
-  ln -s "$REPO_ROOT/.zshenv" "$HOME/.zshenv"
-  echo "bootstrap: linked $HOME/.zshenv -> $REPO_ROOT/.zshenv"
-fi
-
-if [[ ! -e "$HOME/.bashrc" ]]; then
-  ln -s "$REPO_ROOT/bashrc" "$HOME/.bashrc"
-  echo "bootstrap: linked $HOME/.bashrc -> $REPO_ROOT/bashrc"
-fi
-
-if [[ ! -e "$HOME/.bash_profile" ]]; then
-  ln -s "$REPO_ROOT/bash_profile" "$HOME/.bash_profile"
-  echo "bootstrap: linked $HOME/.bash_profile -> $REPO_ROOT/bash_profile"
 fi
 
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  current_hooks_path="$(git -C "$REPO_ROOT" config --local --get core.hooksPath || true)"
-  if [[ "$current_hooks_path" != ".githooks" ]]; then
-    git -C "$REPO_ROOT" config --local core.hooksPath .githooks
-    echo "bootstrap: configured git core.hooksPath -> .githooks"
-  fi
+  git -C "$REPO_ROOT" config --local core.hooksPath .githooks
 fi
 
-echo "bootstrap: complete"
-exec "$SHELL"
+# 5. Toolchain
+echo "bootstrap: installing brew dependencies (this may take a while)..."
+brew bundle --file "$REPO_ROOT/Brewfile"
+
+echo "bootstrap: complete. Restart your shell or run 'exec zsh'."
