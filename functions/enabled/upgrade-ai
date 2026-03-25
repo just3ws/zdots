@@ -18,12 +18,23 @@ fi
 
 # 2. Ollama Models
 if command -v ollama >/dev/null 2>&1; then
-  echo "Updating Ollama library..."
-  # Ollama itself is brew-managed, but models need explicit pulls to update
-  # We'll update the most common base models
-  for model in llama3 qwen2.5 mistral; do
-    run_cmd ollama pull "$model"
-  done
+  echo "Checking Ollama models..."
+  # Only attempt to update if the server is running
+  if ollama list >/dev/null 2>&1; then
+    # Get list of installed models (NAME column, skip header)
+    local models
+    models=$(ollama list | awk 'NR>1 {print $1}')
+    if [[ -n "$models" ]]; then
+      echo "$models" | while read -r model; do
+        echo "Updating Ollama model: $model..."
+        run_cmd ollama pull "$model"
+      done
+    else
+      echo "No Ollama models found to update."
+    fi
+  else
+    echo "Ollama server not running; skipping model updates."
+  fi
 fi
 
 # 3. Fabric
