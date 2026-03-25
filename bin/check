@@ -20,7 +20,7 @@ done
 
 errfile="$(mktemp)"
 set +e
-zsh -i -x -c 'exit' >/dev/null 2>"$errfile"
+zsh -i -c 'exit' >/dev/null 2>"$errfile"
 ret=$?
 set -e
 if [[ $ret -ne 0 ]]; then
