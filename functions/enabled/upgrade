@@ -2,7 +2,11 @@
 # upgrade — Master Orchestrator for Rolling System Upgrades.
 # Central entry point for all sub-upgrade modules.
 
-setopt localoptions errexit pipefail
+# Use localoptions so errexit doesn't leak to the interactive shell.
+setopt localoptions pipefail
+
+# Track status for summary
+typeset -A module_status
 
 # 1. Message Helper (Consistent UI)
 message () {
@@ -19,7 +23,6 @@ message () {
 }
 
 # 2. Execution Helper
-# Runs a function if it exists, otherwise logs skipping.
 run_upgrade_module() {
   local module="$1"
   local name="$2"
@@ -29,9 +32,16 @@ run_upgrade_module() {
   
   if (( $+functions[$module] )); then
     message "$name"
-    "$module"
+    # Run the module and capture exit code without crashing the orchestrator
+    if "$module"; then
+      module_status[$name]="OK"
+    else
+      module_status[$name]="FAILED"
+      echo "Error: $name failed with exit code $?" >&2
+    fi
   else
-    echo "Skipping $name (module $module not found in fpath)"
+    echo "Skipping $name (module $module not found)"
+    module_status[$name]="SKIPPED"
   fi
 }
 
@@ -52,4 +62,12 @@ run_upgrade_module "upgrade-ai"       "AI AGENTS & MODELS"
 # 6. Repo Maintenance
 run_upgrade_module "upgrade-repo"     "REPO HYGIENE"
 
+# 7. Summary Report
+echo
+message 'UPGRADE SUMMARY'
+for name in "${(k)module_status[@]}"; do
+  printf "%-25s : %s\n" "$name" "$module_status[$name]"
+done
+
 message 'UPGRADE DONE'
+
