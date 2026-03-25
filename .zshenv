@@ -9,7 +9,7 @@ export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 
 export ENABLE_LSP_TOOL=1
 export PNPM_HOME="$XDG_DATA_HOME/pnpm"
-export ZDOTS_THEME="${ZDOTS_THEME:-dracula}"
+export ZDOTS_THEME="${ZDOTS_THEME:-dracula-pro}"
 
 # Codex sandbox sessions cannot write under ~/.cache, which causes noisy mise
 # cache warnings on every shim invocation. Keep normal shells on the standard
