@@ -226,6 +226,7 @@ Usage: `cat logs.txt GI error W` (counts lines containing "error" case-insensiti
 - `lg`: `lazygit` (TUI for Git)
 - `top`/`htop`: `btm` (Modern process monitor)
 - `atuin`: SQLite-backed searchable history (`Ctrl-R`)
+- `he`: `history_enquire` (Interactive history cleanup)
 - `jless` / `fx`: Interactive JSON viewers
 - `sg`: `ast-grep` (Structural code search)
 - `bench`: `hyperfine` (Benchmarking)

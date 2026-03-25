@@ -1,5 +1,19 @@
 source "$ZDOTDIR/.aliasrc"
 
+# zsh-defer: Lazy-load heavy integrations to improve startup time.
+if [[ -r "$ZDOTDIR/functions/enabled/zsh-defer.plugin.zsh" ]]; then
+  source "$ZDOTDIR/functions/enabled/zsh-defer.plugin.zsh"
+fi
+
+# Define a helper for deferring when available, otherwise source immediately.
+zdefer() {
+  if (( $+functions[zsh-defer] )); then
+    zsh-defer "$@"
+  else
+    "$@"
+  fi
+}
+
 if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init zsh)"
 fi
@@ -10,26 +24,26 @@ fi
 
 if command -v atuin >/dev/null 2>&1; then
   # Use --disable-up-arrow if you prefer zsh-history-substring-search for up-arrow
-  eval "$(atuin init zsh --disable-up-arrow)"
+  zdefer eval "$(atuin init zsh --disable-up-arrow)"
 fi
 
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
-  source "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+  zdefer source "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 fi
 
 # Zsh Vi Mode
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/opt/zsh-vi-mode/share/zsh-vi-mode/zsh-vi-mode.plugin.zsh" ]]; then
-  source "$HOMEBREW_PREFIX/opt/zsh-vi-mode/share/zsh-vi-mode/zsh-vi-mode.plugin.zsh"
+  zdefer source "$HOMEBREW_PREFIX/opt/zsh-vi-mode/share/zsh-vi-mode/zsh-vi-mode.plugin.zsh"
 fi
 
 # Zsh Autopair
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-autopair/autopair.zsh" ]]; then
-  source "$HOMEBREW_PREFIX/share/zsh-autopair/autopair.zsh"
+  zdefer source "$HOMEBREW_PREFIX/share/zsh-autopair/autopair.zsh"
 fi
 
 # You Should Use (Alias coach)
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-you-should-use/you-should-use.plugin.zsh" ]]; then
-  source "$HOMEBREW_PREFIX/share/zsh-you-should-use/you-should-use.plugin.zsh"
+  zdefer source "$HOMEBREW_PREFIX/share/zsh-you-should-use/you-should-use.plugin.zsh"
 fi
 
 if [[ "$TERM_PROGRAM" == "iTerm.app" && -o interactive && -t 1 && -r "$ZDOTDIR/.iterm2_shell_integration.zsh" ]]; then

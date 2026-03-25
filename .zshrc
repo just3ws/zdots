@@ -15,14 +15,14 @@ unset conf
 # Syntax highlighting should be sourced last to catch all aliases and functions.
 # Load theme-specific styles first.
 if [[ -r "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh" ]]; then
-  source "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh"
+  zdefer source "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh"
 elif [[ "$ZDOTS_THEME" == dracula-* && -r "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh" ]]; then
-  source "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh"
+  zdefer source "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh"
 fi
 
 # Prefer Homebrew installed version.
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
-  source "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+  zdefer source "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 fi
 # Prefer Vi-style editing while keeping a few essential Emacs motions active.
 bindkey -v
