@@ -24,6 +24,11 @@ if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" ]]; then
   elif [[ -f "$ZDOTDIR/.p10k.zsh" ]]; then
     source "$ZDOTDIR/.p10k.zsh"
   fi
+
+  # Load custom color/UI overrides
+  if [[ -f "$ZDOTDIR/assets/$ZDOTS_THEME/p10k-overrides.zsh" ]]; then
+    source "$ZDOTDIR/assets/$ZDOTS_THEME/p10k-overrides.zsh"
+  fi
 fi
 
 unset P10K_THEME P10K_THEME_CANDIDATES
