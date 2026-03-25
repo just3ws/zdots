@@ -14,7 +14,7 @@ export FZF_COMPLETION_TRIGGER='**'
 # In completion menus, use Tab to accept highlighted match and return to prompt.
 export FZF_COMPLETION_OPTS='--bind=tab:accept'
 
-export FZF_CTRL_T_OPTS="--select-1 --exit-0"
+export FZF_CTRL_T_OPTS="--select-1 --exit-0 --preview 'bat -n --color=always {}'"
 
 if command -v tree >/dev/null 2>&1; then
   export FZF_ALT_C_OPTS="--preview 'tree -C {} | head -200'"
