@@ -71,13 +71,20 @@ jobs:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN || github.token }}'
         run: |-
           echo '🔍 Finding unlabeled issues and issues marked for triage...'
-          ISSUES="$(gh issue list \
+          if ! ISSUES="$(gh issue list \
             --state 'open' \
             --search 'no:label label:"status/needs-triage"' \
             --json number,title,body \
             --limit '100' \
-            --repo "${GITHUB_REPOSITORY}"
-          )"
+            --repo "${GITHUB_REPOSITORY}" 2>&1)"; then
+            if [[ "$ISSUES" == *"disabled issues"* ]]; then
+              echo "⚠️ Issues are disabled for this repository. Skipping triage."
+              ISSUES="[]"
+            else
+              echo "❌ Error finding issues: $ISSUES"
+              exit 1
+            fi
+          fi
 
           echo '📝 Setting output for GitHub Actions...'
           echo "issues_to_triage=${ISSUES}" >> "${GITHUB_OUTPUT}"
