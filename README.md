@@ -66,8 +66,9 @@ make bench
 ## Startup Performance Budget
 
 - Metric: median `real` time for `zsh -i -c exit` over 5 runs.
-- Current baseline: `0.03s` (2026-03-02).
+- Current baseline: `0.08s` (2026-03-25).
 - Warning threshold: `0.08s` (`ZDOTS_STARTUP_WARN_THRESHOLD_SEC`).
+- Performance logic: Uses `zsh-defer` for lazy-loading heavy plugins.
 - Refresh cadence: at least quarterly, and after major prompt/plugin/startup changes.
 
 Optional startup timing report during validation (non-blocking warning only):
@@ -204,32 +205,33 @@ The configuration includes "Global Aliases" (`alias -g`) which expand anywhere i
 - `H`: `| head`
 - `T`: `| tail`
 - `W`: `| wc -l`
+- `S`: `| sort`
+- `U`: `| uniq`
 - `Y`: `| pbcopy`
 - `J`: `| jq`
+- `X`: `| xargs`
 
 Usage: `cat logs.txt GI error W` (counts lines containing "error" case-insensitively).
 
-## Service Shortcuts
+## Service & Workflow Shortcuts
 
-- `bsl`: `brew services list`
-- `bss`: `brew services start`
-- `bsr`: `brew services restart`
-- `bso`: `brew services stop`
-- `dps`: `docker ps`
-- `dlf`: `docker logs -f`
-- `p`: `pnpm`
-- `fd`: `fly deploy`
-- `fl`: `fly logs`
-- `k`: `klear`
-- `gup`: `git pull --rebase`
-- `cl`: `claude` / `gm`: `gemini`
+- `bsl`/`bss`/`bso`/`bsr`: `brew services` (list/start/stop/restart)
+- `dps`/`dpa`/`dlf`: `docker` (ps/ps -a/logs -f)
+- `p`/`px`/`pr`/`pi`/`ps`/`pt`/`pv`: `pnpm` (base/dlx/run/install/start/test/verify)
+- `fd`/`fl`/`fs`: `fly` (deploy/logs/status)
+- `fds`/`fdp`: Fly.io project-specific staging/production deployments.
 - `lg`: `lazygit` (TUI for Git)
+- `br`: `broot` (Weighted tree navigation)
 - `top`/`htop`: `btm` (Modern process monitor)
 - `atuin`: SQLite-backed searchable history (`Ctrl-R`)
 - `he`: `history_enquire` (Interactive history cleanup)
-- `jless` / `fx`: Interactive JSON viewers
-- `sg`: `ast-grep` (Structural code search)
+- `ai`: AI Pattern Pipe (e.g., `cat log.txt | ai summarize`)
+- `cl`/`gm`: `claude` / `gemini`
+- `k`: `klear` (High-reset clear)
+- `gup`: `git pull --rebase`
+- `gpfl`: `git push --force-with-lease`
 - `bench`: `hyperfine` (Benchmarking)
+- `path`/`fpath`: Line-by-line path inspection.
 
 ## Color Theme
 
