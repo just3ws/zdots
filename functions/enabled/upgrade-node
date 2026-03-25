@@ -12,8 +12,12 @@ run_cmd() {
 
 if command -v pnpm >/dev/null 2>&1; then
   echo "Updating pnpm itself..."
-  # pnpm self-update is usually managed via mise/brew, but we check globals
-  run_cmd pnpm add -g pnpm
+  # pnpm v10+ requires self-update instead of global add
+  if [[ "$(pnpm --version | cut -d. -f1)" -ge 10 ]]; then
+    run_cmd pnpm self-update
+  else
+    run_cmd pnpm add -g pnpm
+  fi
 
   echo "Updating global pnpm packages..."
   run_cmd pnpm update -g
