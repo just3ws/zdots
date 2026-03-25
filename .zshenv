@@ -11,6 +11,10 @@ export ENABLE_LSP_TOOL=1
 export PNPM_HOME="$XDG_DATA_HOME/pnpm"
 export ZDOTS_THEME="${ZDOTS_THEME:-dracula-pro}"
 
+if [[ -d "$HOMEBREW_PREFIX/opt/openjdk" ]]; then
+  export JAVA_HOME="$HOMEBREW_PREFIX/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
+fi
+
 # Codex sandbox sessions cannot write under ~/.cache, which causes noisy mise
 # cache warnings on every shim invocation. Keep normal shells on the standard
 # XDG cache path and redirect only sandboxed Codex sessions to a writable temp
