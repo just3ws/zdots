@@ -1,20 +1,32 @@
 # Scoped options for function only (won't exit your interactive shell).
 setopt localoptions errexit pipefail
+zmodload zsh/files 2>/dev/null || true
 
 # Purge completion dumps
 if [[ -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh" ]]; then
   print "Purging zcompdump files..."
-  /bin/rm -f -- "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-"*(N)
+  rm -f -- "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-"*(N)
 fi
 
 # Purge compiled Zsh scripts (.zwc)
 print "Purging .zwc files..."
 if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/zsh" ]]; then
-  /bin/rm -f -- ${XDG_CONFIG_HOME:-$HOME/.config}/zsh/**/*.zwc(N)
+  rm -f -- ${XDG_CONFIG_HOME:-$HOME/.config}/zsh/**/*.zwc(N)
 fi
 
 if [[ -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh" ]]; then
-  /bin/rm -f -- ${XDG_CACHE_HOME:-$HOME/.cache}/zsh/**/*.zwc(N)
+  rm -f -- ${XDG_CACHE_HOME:-$HOME/.cache}/zsh/**/*.zwc(N)
+fi
+
+# Re-compile key configuration files for performance
+if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/zsh" ]]; then
+  print "Re-compiling key Zsh configs..."
+  zcompile "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/.zshrc"
+  zcompile "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/.zshenv"
+  zcompile "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/.zprofile"
+  for f in "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/conf.d/"*.zsh(N); do
+    zcompile "$f"
+  done
 fi
 
 # Reload the shell for a clean start
