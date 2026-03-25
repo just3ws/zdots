@@ -1,33 +1,10 @@
-# CLAUDE.md — Agent Reference for Zdots
+# CLAUDE.md
 
-High-signal guide for AI agents interacting with this repository.
+Claude-specific instructions for Zdots.
 
-## Build & Validation
-- **Run All Checks:** `bin/check` (Validates syntax, keybindings, and dependencies)
-- **Bootstrap Environment:** `bin/bootstrap`
-- **Benchmark Performance:** `make bench` or `bench 'zsh -i -c exit'`
+**CRITICAL:** Read [AGENTS.md](AGENTS.md) first for the core architectural guidelines and performance standards.
 
-## Repository Guidelines
-- **Shell Startup:** Fast path optimization using `zsh-defer`.
-- **Environment Variables:** Must be defined in `.zshenv`.
-- **Interactive Modules:** Isolated in `conf.d/*.zsh`.
-- **Custom Functions:** Stored in `functions/enabled/` (autoloded).
-- **Aliases:** Global and DSL-like aliases are in `conf.d/80-aliases.zsh`.
-
-## Theme & Styles
-- **Primary Theme:** `ZDOTS_THEME=dracula-pro` (refined colors, rounded glyphs).
-- **Sub-variants:** Supports `nord`, `dracula`, and `dracula-pro`.
-- **Prompt:** Powerlevel10k with rounded segment separators (`\uE0B4`).
-- **Styles:** Theme-specific syntax highlighting and autosuggestions in `assets/`.
-
-## Performance Budget
-- **Target Median Startup:** < 0.08s
-- **Optimization Hooks:** `LS_COLORS` cached in `~/.cache/zsh/`, `compinit -C` daily caching.
-
-## Agent Efficiency Tools
-- **Codebase Stats:** `tokei`
-- **Context Packing:** `repomix` (Generate context for LLMs)
-- **Token Optimizer:** `rtk` (Proxy commands to minimize output noise)
-- **Task Context:** `backlog-md` (Markdown-native project state)
-- **Symbol Index:** `universal-ctags` (via `tags` file)
-- **Config Parsing:** `dasel` (JSON/YAML/TOML/XML)
+## Claude Context
+- This environment is optimized for `claude-code` via the `cl` alias.
+- When running long commands, prefer `rtk <command>` to keep your context window clean.
+- Use `repomix` to ingest the entire project structure if high-density context is required.
