@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 
-set -exu
+set -eu
 setopt pipefail
 setopt nonomatch
 
@@ -19,10 +19,12 @@ for f in .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabl
 done
 
 errfile="$(mktemp)"
+set +e
 zsh -i -c 'exit' >/dev/null 2>"$errfile"
 ret=$?
+set -e
 if [[ $ret -ne 0 ]]; then
-  echo "DEBUG: ret is $ret, type is ${(t)ret}" >&2
+  echo "DEBUG: zsh -i -c exit failed with ret=$ret" >&2
   echo "check: zsh -i -c exit failed with exit code $ret" >&2
   [[ -s "$errfile" ]] && cat "$errfile" >&2
   rm -f "$errfile"
@@ -37,10 +39,12 @@ fi
 rm -f "$errfile"
 
 errfile="$(mktemp)"
+set +e
 zsh -l -i -c 'exit' >/dev/null 2>"$errfile"
 ret=$?
+set -e
 if [[ $ret -ne 0 ]]; then
-  echo "DEBUG: ret-l is $ret, type is ${(t)ret}" >&2
+  echo "DEBUG: zsh -l -i -c exit failed with ret=$ret" >&2
   echo "check: zsh -l -i -c exit failed with exit code $ret" >&2
   [[ -s "$errfile" ]] && cat "$errfile" >&2
   rm -f "$errfile"
