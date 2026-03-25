@@ -7,7 +7,7 @@ export XDG_CONFIG_HOME="$XDG_ROOT/.config"
 export XDG_STATE_HOME="$XDG_ROOT/.local/state"
 export XDG_CACHE_HOME="$XDG_ROOT/.cache"
 export XDG_DATA_HOME="$XDG_ROOT/.local/share"
-export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
+export ZDOTDIR="${ZDOTDIR:-$XDG_CONFIG_HOME/zsh}"
 
 # 2. XDG Tool Overrides (Force compliance for standard tools)
 export AWS_CONFIG_FILE="$XDG_CONFIG_HOME/aws/config"
