@@ -25,21 +25,12 @@ alias desk='nocorrect ~desk'
 alias xdots='nocorrect ~xdots'
 alias zdots='nocorrect ~zdots'
 
-# Modern DSL Patterns
-alias path='echo $PATH | tr ":" "\n"'
+# Modern DSL Patterns (Zsh-specific fpath)
 alias fpath='echo $fpath | tr " " "\n"'
 
 # Zsh-only CLI tools
 alias he='history_enquire'
 alias bounce='reload'
-
-# Project-specific shorthands (active only in phalanxduel)
-if [[ -f fly.staging.toml ]]; then
-  alias fds='fly deploy --app phalanxduel-staging --config fly.staging.toml'
-fi
-if [[ -f fly.production.toml ]]; then
-  alias fdp='fly deploy --app phalanxduel-production --config fly.production.toml'
-fi
 
 # Zsh Globbing shorthands
 alias prunedirs='rm -d **/*(/^F)'
