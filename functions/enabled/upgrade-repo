@@ -13,6 +13,12 @@ run_cmd() {
 echo "Updating Zdots repository..."
 run_cmd git -C "$ZDOTDIR" pull --rebase
 
+# 2. Update Powerlevel10k if installed via git (fallback for non-brew)
+if [[ -d "$HOME/.local/share/powerlevel10k" ]]; then
+  echo "Updating Powerlevel10k (git)..."
+  run_cmd git -C "$HOME/.local/share/powerlevel10k" pull --rebase
+fi
+
 echo "Refreshing pre-commit hooks..."
 if command -v pre-commit >/dev/null 2>&1; then
   run_cmd pre-commit autoupdate
