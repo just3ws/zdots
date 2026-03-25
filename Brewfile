@@ -64,8 +64,11 @@ brew "mise"             # Polyglot runtime manager; replaces asdf; activated in 
 brew "pnpm"             # Fast package manager; used extensively in TS/JS development.
 brew "uv"               # Extremely fast Python package manager; modern standard for Python.
 brew "gh"               # GitHub CLI; provides _gh completion and repo management.
+# gh extension install dlvhdr/gh-dash (TUI for GitHub PRs/Issues)
+brew "git-absorb"       # Automatic git commit --fixup (Highly efficient for agents).
 brew "flyctl"           # Fly.io CLI (fly); used for cloud deployments via 'fd' aliases.
 brew "hyperfine"        # Benchmarking tool; used by bin/check to enforce performance budget.
+brew "broot"            # Weighted tree navigation and project mapping.
 brew "postgresql@18"    # Postgres client tools; path managed in .zshenv.
 brew "openjdk"          # Java Runtime; JAVA_HOME and path managed in .zshenv.
 

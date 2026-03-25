@@ -27,6 +27,28 @@ if command -v atuin >/dev/null 2>&1; then
   zdefer eval "$(atuin init zsh --disable-up-arrow)"
 fi
 
+if command -v broot >/dev/null 2>&1; then
+  source "$HOMEBREW_PREFIX/etc/bash_completion.d/broot" 2>/dev/null || true
+  alias br='broot'
+fi
+
+# AI Pattern Pipe: Pipe any output into an AI pattern
+# Usage: cat log.txt | ai analyze_logs
+ai() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: <output> | ai <pattern_name>"
+    return 1
+  fi
+  if command -v fabric >/dev/null 2>&1; then
+    fabric --pattern "$1"
+  elif command -v ollama >/dev/null 2>&1; then
+    ollama run "$1"
+  else
+    echo "ai: neither fabric nor ollama found"
+    return 1
+  fi
+}
+
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
   zdefer source "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 fi
