@@ -35,17 +35,24 @@ if [[ -o interactive && -t 1 && -r "$ZDOTDIR/fzfrc" ]]; then
   source "$ZDOTDIR/fzfrc"
 fi
 
+# fzf-tab: replaces zsh completion menu with fzf
+if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/opt/fzf-tab/share/fzf-tab/fzf-tab.zsh" ]]; then
+  source "$HOMEBREW_PREFIX/opt/fzf-tab/share/fzf-tab/fzf-tab.zsh"
+fi
+
 # Machine-local and private overrides.
 [[ -r "$ZDOTDIR/.zshrc.local" ]] && source "$ZDOTDIR/.zshrc.local"
 
-# Keep Tab deterministic: prefer fzf completion when available, otherwise use
-# default expand-or-complete across common interactive keymaps.
+# Let fzf-tab (or standard completion) handle Tab. 
+# Remove the aggressive fzf-completion override to reduce "greediness".
 if [[ -o interactive ]]; then
   if (( ${+widgets[fzf-completion]} )); then
-    bindkey '^I' fzf-completion
-    bindkey -M main '^I' fzf-completion
-    bindkey -M emacs '^I' fzf-completion
-    bindkey -M viins '^I' fzf-completion
+    # Keep fzf-completion available but don't bind to raw Tab.
+    # It can still be used via the trigger (e.g. **<Tab>)
+    bindkey '^I' expand-or-complete
+    bindkey -M main '^I' expand-or-complete
+    bindkey -M emacs '^I' expand-or-complete
+    bindkey -M viins '^I' expand-or-complete
   else
     bindkey '^I' expand-or-complete
     bindkey -M main '^I' expand-or-complete
