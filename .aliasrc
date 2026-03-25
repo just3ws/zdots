@@ -1,135 +1,18 @@
-hash -d desk="$HOME/Desktop"
-hash -d xdots="$HOME/.config"
-hash -d zdots="$ZDOTDIR"
+# .aliasrc — Master Alias Entry Point
 
-hash -d projects="$HOME/projects"
-alias projects='nocorrect ~projects'
-
-alias desk='nocorrect ~desk'
-alias xdots='nocorrect ~xdots'
-alias zdots='nocorrect ~zdots'
-alias vim="$EDITOR"
-alias vi="$EDITOR"
-
-if command -v eza >/dev/null 2>&1; then
-  alias ls='eza --icons --group-directories-first'
-  alias ll='eza -alh --icons --group-directories-first'
-  alias lt='eza --tree --level=2 --icons'
-elif command -v gls >/dev/null 2>&1; then
-  alias ls='command gls --color'
-else
-  # Nord-inspired fallback for BSD ls when GNU ls is unavailable.
-  : "${LSCOLORS:=gxfxcxdxbxegedabagacad}"
-  export LSCOLORS
-  alias ls='command ls -G'
+# 1. Source Common Aliases (Bash & Zsh)
+if [[ -r "${ZDOTDIR}/aliases.bash" ]]; then
+  source "${ZDOTDIR}/aliases.bash"
 fi
 
-if command -v bat >/dev/null 2>&1; then
-  alias cat='bat --paging=never'
-  alias preview='bat'
-else
-  alias preview='open -a Preview'
+# 2. Source Zsh-specific Aliases (Zsh only)
+if [[ -n "${ZSH_VERSION:-}" ]]; then
+  if [[ -r "${ZDOTDIR}/aliases.zsh" ]]; then
+    source "${ZDOTDIR}/aliases.zsh"
+  fi
 fi
 
-if command -v tldr >/dev/null 2>&1; then
-  alias tldr='tldr --color always'
+# 3. Local & Private Overrides
+if [[ -r "${ZDOTDIR}/.aliasrc.local" ]]; then
+  source "${ZDOTDIR}/.aliasrc.local"
 fi
-alias prunedirs='rm -d **/*(/^F)'
-alias wip='git commit -am "WIP"'
-
-# Git aliases
-alias gs='git status --short'
-alias gss='git status --short'
-alias gba='git branch --all'
-alias gco='git checkout '
-alias gfa='git fetch --all --prune'
-alias gwd='git diff --word-diff'
-
-# Utility aliases
-alias b="bundle"
-alias be="b exec"
-alias bu="b update"
-alias bounce='reload'
-alias cwd='pwd | pbcopy'
-alias listening-on='lsof -Pni4 | grep LISTEN'
-
-if command -v gdate >/dev/null 2>&1; then
-  _zdots_date_bin='gdate'
-  _zdots_ts_fmt='%Y-%m-%dT%H.%M.%2N'
-  _zdots_ts_dir_fmt='%Y-%m-%d/%H.%M.%2N'
-else
-  _zdots_date_bin='date'
-  _zdots_ts_fmt='%Y-%m-%dT%H.%M.%S'
-  _zdots_ts_dir_fmt='%Y-%m-%d/%H.%M.%S'
-fi
-
-alias iso8601-local="${_zdots_date_bin} +'%Y-%m-%dT%H:%M:%S%z'"
-alias iso8601-utc="${_zdots_date_bin} -u +'%Y-%m-%dT%H:%M:%SZ'"
-alias timestamp-dir-local="${_zdots_date_bin} +'${_zdots_ts_dir_fmt}'"
-alias timestamp-dir-utc="${_zdots_date_bin} -u +'${_zdots_ts_dir_fmt}'"
-alias timestamp-local="${_zdots_date_bin} +'${_zdots_ts_fmt}'"
-alias timestamp-utc="${_zdots_date_bin} -u +'${_zdots_ts_fmt}'"
-
-unset _zdots_date_bin _zdots_ts_fmt _zdots_ts_dir_fmt
-
-[[ -r "${ZDOTDIR}/.aliasrc.claude" ]] && . "${ZDOTDIR}/.aliasrc.claude"
-[[ -r "${ZDOTDIR}/.aliasrc.local" ]] && . "${ZDOTDIR}/.aliasrc.local"
-# vim:ft=zsh
-#
-# Aliases suggested by Claude based on shell history analysis.
-# Sourced from .aliasrc
-
-# git commit -am was used ~236 times in history with no shorthand.
-# Usage: gcam "Fix the flaky test"
-alias gcam='git commit -am'
-
-# git commit -m appeared ~15 times for commits with staged changes.
-# Usage: gcm "Add migration for users table"
-alias gcm='git commit -m'
-
-# brew uninstall --cask --zap --force appeared ~37 times in full.
-# Usage: brew-nuke firefox visual-studio-code
-alias brew-nuke='brew uninstall --cask --zap --force'
-
-# gem update --system && gem update appeared ~13 times as a chain.
-# Usage: gem-upgrade
-alias gem-upgrade='gem update --system && gem update'
-
-# be rails db:migrate:reset appeared ~12 times, often chained further.
-# Usage: dbreset
-# Usage: dbreset db:seed
-alias dbreset='be rails db:migrate:reset'
-
-# xattr -dr com.apple.quarantine appeared ~4 times for unsigned apps.
-# Usage: unquarantine /Applications/qView.app
-alias unquarantine='xattr -dr com.apple.quarantine'
-
-# find . -type f -iname '...' appeared ~68 times in history.
-# Case-insensitive file search by partial name from current dir or a given path.
-# Usage: ff pronto
-# Usage: ff schema db/
-ff() { find "${2:-.}" -type f -iname "*$1*" }
-
-# docker compose up with full recreate appeared ~6 times with all the flags.
-# Usage: dcup
-# Usage: dcup -d postgres redis  (append extra args)
-alias dcup='docker compose up --force-recreate --remove-orphans --detach'
-
-# docker compose down appeared alongside dcup in the same sessions.
-# Usage: dcdown
-alias dcdown='docker compose down'
-
-# mv Screenshot* ~/Pictures/Screenshots appeared ~7 times with varying globs.
-# Sweeps screenshots off the Desktop in one shot.
-# Usage: screenshots
-screenshots() {
-  local dest="$HOME/Pictures/Screenshots"
-  mkdir -p "$dest"
-  mv "$HOME/Desktop"/Screenshot* "$dest/" 2>/dev/null
-  mv "$HOME/Desktop"/Screen\ Shot* "$dest/" 2>/dev/null
-  echo "Screenshots moved to $dest"
-}
-
-# "vm" mistyped for "vim" appeared a few times in history.
-# Usage: vm file.rb  (just works)
-alias vm='vim'
