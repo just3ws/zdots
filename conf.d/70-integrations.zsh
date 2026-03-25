@@ -1,5 +1,3 @@
-source "$ZDOTDIR/.aliasrc"
-
 # zsh-defer: Lazy-load heavy integrations to improve startup time.
 if [[ -r "$ZDOTDIR/functions/enabled/zsh-defer.plugin.zsh" ]]; then
   source "$ZDOTDIR/functions/enabled/zsh-defer.plugin.zsh"
