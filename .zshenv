@@ -61,13 +61,22 @@ unset _1p_agent_sock
 export HISTSIZE=999999
 export HISTFILE="$XDG_DATA_HOME/zsh/history"
 
+# Language-specific XDG alignment
+export GOPATH="$XDG_DATA_HOME/go"
+export GEM_HOME="$XDG_DATA_HOME/gem"
+export GEM_PATH="$GEM_HOME"
+export PYTHONUSERBASE="$XDG_DATA_HOME/python"
+
 export HOMEBREW_CASK_OPTS='--appdir=/Applications'
 export HOMEBREW_NO_ANALYTICS=1
 export HOMEBREW_NO_INSECURE_REDIRECT=1
+export HOMEBREW_BUNDLE_FILE="$ZDOTDIR/Brewfile"
 
 path=(
   $HOME/.local/bin
   $XDG_DATA_HOME/mise/shims
+  $GOPATH/bin
+  $GEM_HOME/bin
   $HOME/.cargo/bin
   $PNPM_HOME
   $HOMEBREW_PREFIX/opt/rustup/bin
