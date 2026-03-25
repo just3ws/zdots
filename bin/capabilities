@@ -1,13 +1,49 @@
 #!/usr/bin/env zsh
-# High-density environment capability card for AI agents.
-# Optimized for token efficiency.
+# Zdots Capability Discovery API
+# Optimized for high-density AI agent orientation.
+# Use --json for machine-readable structured data.
 
-# 1. Core Runtime
+if [[ "$1" == "--json" ]]; then
+  # High-density JSON discovery (WSDL-style)
+  cat <<JSON
+{
+  "env": { "zsh": "$ZSH_VERSION", "os": "$OSTYPE", "theme": "${ZDOTS_THEME:-default}" },
+  "infra": {
+    "defer": $(( $+functions[zsh-defer] )),
+    "zoxide": $(( $+functions[z] )),
+    "atuin": $(( $+functions[atuin] )),
+    "fzf_tab": $(( $+widgets[fzf-tab-complete] )),
+    "fzf": $(( $+widgets[fzf-history-widget] )),
+    "lscolors": "$([[ -n "$LS_COLORS" ]] && echo "cached")"
+  },
+  "agent_tools": {
+    "context": "repomix",
+    "stats": "tokei",
+    "symbols": "ctags",
+    "refactor": "sd",
+    "structural_search": "sg",
+    "token_optimizer": "rtk",
+    "backlog": "backlog",
+    "bench": "hyperfine",
+    "ai_pipe": "ai"
+  },
+  "dsl": {
+    "pipelines": { "G": "grep", "GI": "grep -i", "L": "less", "W": "wc -l", "Y": "pbcopy", "J": "jq", "X": "xargs" },
+    "shortcuts": {
+      "p": "pnpm", "fd": "fly", "lg": "lazygit", "br": "broot", "he": "history_enquire",
+      "cl": "claude", "gm": "gemini", "bench": "hyperfine", "top": "btm"
+    }
+  },
+  "make": ["check", "map", "stats", "refactor", "context", "search", "tags"]
+}
+JSON
+  exit 0
+fi
+
+# Human-readable / Text-signal fallback
 echo "--- ENV ---"
 echo "ZSH: $ZSH_VERSION | OS: $OSTYPE | THEME: ${ZDOTS_THEME:-default}"
-echo "PERF: $([[ -f ~/.cache/zsh/zcompdump-$ZSH_VERSION ]] && stat -f "%Sm" -t "%Y-%m-%d %H:%M" ~/.cache/zsh/zcompdump-$ZSH_VERSION || echo "no-cache")"
 
-# 2. Shell Infrastructure
 echo "\n--- INFRA ---"
 features=()
 (( $+functions[zsh-defer] )) && features+=("defer")
@@ -15,26 +51,22 @@ features=()
 (( $+functions[atuin] )) && features+=("atuin")
 (( $+widgets[fzf-tab-complete] )) && features+=("fzf-tab")
 (( $+widgets[fzf-history-widget] )) && features+=("fzf")
-[[ -n "$LS_COLORS" ]] && features+=("lscolors-cached")
 echo "ACTIVE: ${features[*]}"
 
-# 3. Agent Efficiency Tools
-echo "\n--- AGENT-TOOLS ---"
+echo "\n--- AGENT TOOLS (Standardized) ---"
 atools=()
-for t in rtk repomix tokei ctags sg dasel yq backlog usage; do
+for t in rtk repomix tokei ctags sg dasel yq backlog usage sd television glow uv; do
   command -v $t >/dev/null && atools+=($t)
 done
 echo "BIN: ${atools[*]}"
 
-# 4. Pipeline DSL (Expansion Context)
-echo "\n--- PIPELINE DSL ---"
-echo "G(| grep), GI(| grep -i), L(| less), W(| wc -l), S(| sort), U(| uniq), Y(| pbcopy), J(| jq), X(| xargs)"
-
-# 5. Command Shortcuts (Expansion Context)
-echo "\n--- SHORTCUTS ---"
+echo "\n--- DSL & PIPELINES ---"
+echo "G(| grep), GI(| grep -i), L(| less), W(| wc -l), Y(| pbcopy), J(| jq), X(| xargs)"
 echo "p(pnpm), pr(run), pi(install), pt(test), pv(verify:all)"
-echo "fd(fly deploy), fl(fly logs), fds(fly staging), fdp(fly production)"
-echo "lg(lazygit), top(btm), bench(hyperfine), he(history_enquire), k(klear)"
-echo "cl(claude), gm(gemini), gup(pull --rebase), gpfl(push --force-with-lease)"
-echo "bsl(brew services list), bss(brew start), bso(brew stop), bsr(brew restart)"
-echo "dps(docker ps), dpa(docker ps -a), di(docker images), dlf(docker logs -f)"
+echo "fd(fly), fl(logs), fds(staging), fdp(production)"
+echo "lg(lazygit), br(broot), he(history_enquire), k(klear)"
+echo "cl(claude), gm(gemini), gup(pull --rebase), gpfl(push --force)"
+echo "bsl(brew services), top(btm), bench(hyperfine), ai(ai pipe)"
+
+echo "\n--- MAKE API ---"
+echo "TARGETS: check, map, stats, refactor, context, search, tags"
