@@ -1,12 +1,21 @@
 #!/usr/bin/env zsh
 
 set -euo pipefail
+setopt nonomatch
 
 REPO_ROOT="${0:A:h:h}"
 cd "$REPO_ROOT"
 SKIP_EXTERNAL="${ZDOTS_CHECK_SKIP_EXTERNAL:-0}"
 
-zsh -n .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*
+for f in .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*; do
+  if [[ -f "$f" ]]; then
+    if ! zsh -n "$f" 2>/dev/null; then
+      echo "check: syntax error in $f" >&2
+      zsh -n "$f" # run again to show error
+      exit 1
+    fi
+  fi
+done
 
 errfile="$(mktemp)"
 zsh -i -c 'exit' >/dev/null 2>"$errfile"
