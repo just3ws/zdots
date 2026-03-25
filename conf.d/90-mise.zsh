@@ -1,5 +1,5 @@
-# Initialize full mise shell integration for interactive shells.
-if [[ -o interactive ]]; then
+# Initialize full mise shell integration.
+if [[ -z "${_ZDOTS_MISE_INITIALIZED:-}" ]]; then
   _zdots_mise_cache="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/mise_activate"
   # Refresh cache if missing or if mise config changed
   if [[ ! -r "$_zdots_mise_cache" || "${XDG_CONFIG_HOME:-$HOME/.config}/mise/config.toml" -nt "$_zdots_mise_cache" ]]; then
@@ -13,6 +13,7 @@ if [[ -o interactive ]]; then
 
   if [[ -r "$_zdots_mise_cache" ]]; then
     source "$_zdots_mise_cache"
+    export _ZDOTS_MISE_INITIALIZED=1
     export MISE_NODE_COREPACK=1
   fi
   unset _zdots_mise_cache
