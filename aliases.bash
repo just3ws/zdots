@@ -1,8 +1,8 @@
 # aliases.bash — Common Aliases and Functions (Bash & Zsh compatible)
 
 # Editors
-alias vim="$EDITOR"
-alias vi="$EDITOR"
+alias vim="\$EDITOR"
+alias vi="\$EDITOR"
 alias vm='vim'
 
 # Modern CLI Tools Fallbacks/Aliases
