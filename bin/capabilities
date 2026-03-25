@@ -18,17 +18,7 @@ features=()
 [[ -n "$LS_COLORS" ]] && features+=("lscolors-cached")
 echo "ACTIVE: ${features[*]}"
 
-# 3. Deferred Plugins
-echo "\n--- PLUGINS (DEFERRED) ---"
-plugins=()
-[[ -n "${HOMEBREW_PREFIX:-}" ]] && {
-  [[ -r "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && plugins+=("autosuggest")
-  [[ -r "$HOMEBREW_PREFIX/opt/zsh-vi-mode/share/zsh-vi-mode/zsh-vi-mode.plugin.zsh" ]] && plugins+=("vi-mode")
-  [[ -r "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && plugins+=("syntax")
-}
-echo "READY: ${plugins[*]}"
-
-# 4. Agent Efficiency Tools
+# 3. Agent Efficiency Tools
 echo "\n--- AGENT-TOOLS ---"
 atools=()
 for t in rtk repomix tokei ctags sg dasel yq backlog usage; do
@@ -36,7 +26,15 @@ for t in rtk repomix tokei ctags sg dasel yq backlog usage; do
 done
 echo "BIN: ${atools[*]}"
 
-# 5. Pipeline DSL & Shortcuts
-echo "\n--- DSL ---"
-echo "GLOBAL: G, GI, L, W, S, U, Y, J, X"
-echo "CMDS: bsl, bss, bso, dps, dlf, p, fd, fl, k, cl, gm, he, lg, top, bench"
+# 4. Pipeline DSL (Expansion Context)
+echo "\n--- PIPELINE DSL ---"
+echo "G(| grep), GI(| grep -i), L(| less), W(| wc -l), S(| sort), U(| uniq), Y(| pbcopy), J(| jq), X(| xargs)"
+
+# 5. Command Shortcuts (Expansion Context)
+echo "\n--- SHORTCUTS ---"
+echo "p(pnpm), pr(run), pi(install), pt(test), pv(verify:all)"
+echo "fd(fly deploy), fl(fly logs), fds(fly staging), fdp(fly production)"
+echo "lg(lazygit), top(btm), bench(hyperfine), he(history_enquire), k(klear)"
+echo "cl(claude), gm(gemini), gup(pull --rebase), gpfl(push --force-with-lease)"
+echo "bsl(brew services list), bss(brew start), bso(brew stop), bsr(brew restart)"
+echo "dps(docker ps), dpa(docker ps -a), di(docker images), dlf(docker logs -f)"
