@@ -1,0 +1,25 @@
+#!/usr/bin/env zsh
+# upgrade-node — Update global pnpm and npm packages.
+
+setopt localoptions errexit pipefail
+dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
+
+run_cmd() {
+  print -r -- "+ $*"
+  [[ "$dry_run" == "1" ]] && return 0
+  "$@"
+}
+
+if command -v pnpm >/dev/null 2>&1; then
+  echo "Updating pnpm itself..."
+  # pnpm self-update is usually managed via mise/brew, but we check globals
+  run_cmd pnpm add -g pnpm
+  
+  echo "Updating global pnpm packages..."
+  run_cmd pnpm update -g
+fi
+
+if command -v npm >/dev/null 2>&1; then
+  echo "Updating global npm packages..."
+  run_cmd npm update -g
+fi

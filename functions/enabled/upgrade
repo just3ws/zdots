@@ -23,11 +23,15 @@ message () {
 run_upgrade_module() {
   local module="$1"
   local name="$2"
+  
+  # Ensure the function is autoloaded if it exists in fpath
+  autoload -Uz "$module" 2>/dev/null || true
+  
   if (( $+functions[$module] )); then
     message "$name"
-    $module
+    "$module"
   else
-    echo "Skipping $name (module $module not found)"
+    echo "Skipping $name (module $module not found in fpath)"
   fi
 }
 
