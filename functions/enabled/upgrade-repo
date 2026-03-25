@@ -1,0 +1,23 @@
+#!/usr/bin/env zsh
+# upgrade-repo — Maintenance for the dotfiles repository itself.
+
+setopt localoptions errexit pipefail
+dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
+
+run_cmd() {
+  print -r -- "+ $*"
+  [[ "$dry_run" == "1" ]] && return 0
+  "$@"
+}
+
+echo "Updating Zdots repository..."
+run_cmd git -C "$ZDOTDIR" pull --rebase
+
+echo "Refreshing pre-commit hooks..."
+if command -v pre-commit >/dev/null 2>&1; then
+  run_cmd pre-commit autoupdate
+fi
+
+echo "Cleaning up shell caches..."
+# Purge old completion dumps and zsh-specific caches
+run_cmd reset
