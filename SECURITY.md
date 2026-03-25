@@ -2,7 +2,7 @@
 
 ## Supported Branch
 
-- `master` is the supported branch for security fixes.
+- `main` is the supported branch for security fixes.
 
 ## Reporting a Vulnerability
 
