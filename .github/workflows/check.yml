@@ -16,7 +16,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Run Fast Sanity Checks
+      - name: 'Environment Info'
+        run: |-
+          zsh --version
+          which zsh
+
+      - name: 'Run Fast Sanity Checks'
         run: ZDOTS_CHECK_SKIP_EXTERNAL=1 ZDOTS_CHECK_REPORT_STARTUP=1 ./bin/check
 
   full:
