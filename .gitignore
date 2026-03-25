@@ -13,3 +13,6 @@ fzfrc.local
 .env
 .env.*
 !.env.example
+
+.gemini/
+gha-creds-*.json
