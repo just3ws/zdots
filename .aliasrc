@@ -30,6 +30,10 @@ if command -v bat >/dev/null 2>&1; then
 else
   alias preview='open -a Preview'
 fi
+
+if command -v tldr >/dev/null 2>&1; then
+  alias tldr='tldr --color always'
+fi
 alias prunedirs='rm -d **/*(/^F)'
 alias wip='git commit -am "WIP"'
 
