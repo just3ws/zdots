@@ -102,6 +102,7 @@ assert_fzf_tab_policy() {
   shift
   local -a shell_args=("$@")
   local widgets_out
+  local tab_binding
 
   widgets_out="$(zsh "${shell_args[@]}" -c '
     zle -l
@@ -109,6 +110,15 @@ assert_fzf_tab_policy() {
 
   if ! grep -q 'fzf-tab-complete' <<<"$widgets_out"; then
     echo "check: expected fzf-tab-complete widget in ${mode} mode" >&2
+    exit 1
+  fi
+
+  tab_binding="$(zsh "${shell_args[@]}" -c '
+    bindkey "^I"
+  ')"
+  if ! grep -q 'expand-or-complete' <<<"$tab_binding"; then
+    echo "check: expected ^I to be bound to expand-or-complete in ${mode} mode" >&2
+    echo "$tab_binding" >&2
     exit 1
   fi
 }
