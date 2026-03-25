@@ -6,6 +6,7 @@ if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" && -r "${XDG_CACHE_HOME:-
 fi
 
 # vim:ft=zsh
+: "${ZDOTDIR:=$HOME/.config/zsh}"
 
 for conf in "$ZDOTDIR"/conf.d/*.zsh(N); do
   source "$conf"
