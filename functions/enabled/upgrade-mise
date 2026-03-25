@@ -1,3 +1,4 @@
+#!/usr/bin/env zsh
 # upgrade-mise — Ensure mise runtimes match global config.
 # Dynamically installs/updates based on ~/.config/mise/config.toml
 
@@ -14,7 +15,11 @@ if command -v mise >/dev/null 2>&1; then
   echo "Updating mise runtimes..."
 
   # 1. mise self-update if not brew-managed
-  if ! brew list mise >/dev/null 2>&1; then
+  if command -v brew >/dev/null 2>&1; then
+    if ! brew list mise >/dev/null 2>&1; then
+      run_cmd mise self-update || true
+    fi
+  else
     run_cmd mise self-update || true
   fi
 
