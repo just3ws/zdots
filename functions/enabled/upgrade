@@ -1,8 +1,10 @@
 #!/usr/bin/env zsh
+# upgrade — Master Orchestrator for Rolling System Upgrades.
+# Central entry point for all sub-upgrade modules.
 
-# Scoped options for function only (won't exit your interactive shell).
 setopt localoptions errexit pipefail
 
+# 1. Message Helper (Consistent UI)
 message () {
   local text="$1"
   local boxes_bin
@@ -11,38 +13,39 @@ message () {
   if [[ -n "$boxes_bin" ]]; then
     echo " $text" | "$boxes_bin" -d shell
   else
-    echo "[$text]"
+    echo "=== $text ==="
   fi
   echo
 }
 
+# 2. Execution Helper
+# Runs a function if it exists, otherwise logs skipping.
+run_upgrade_module() {
+  local module="$1"
+  local name="$2"
+  if (( $+functions[$module] )); then
+    message "$name"
+    $module
+  else
+    echo "Skipping $name (module $module not found)"
+  fi
+}
+
 message 'UPGRADE START'
 
-message 'HOMEBREW'
-upgrade-homebrew
+# 3. Core System & Infrastructure
+run_upgrade_module "upgrade-homebrew" "HOMEBREW & CASKS"
+run_upgrade_module "upgrade-macos"    "MACOS SYSTEM"
 
-message 'MISE'
-upgrade-mise
+# 4. Runtimes & Toolchains
+run_upgrade_module "upgrade-mise"     "MISE RUNTIMES"
+run_upgrade_module "upgrade-rust"     "RUST/CARGO"
+run_upgrade_module "upgrade-node"     "NODE/PNPM GLOBALS"
 
-# message 'MACOS'
-# upgrade-macos
-#
-# message 'VIM PLUGINS'
-# upgrade-vim
-#
-# message 'RUBY'
-# upgrade-ruby
-#
-# message 'PIP3'
-# upgrade-pip3
-#
-# message 'NPM'
-# upgrade-npm
-#
-# message 'CABAL'
-# upgrade-cabal
-#
-# message 'PIP2'
-# upgrade-pip2
+# 5. AI & Special Tools
+run_upgrade_module "upgrade-ai"       "AI AGENTS & MODELS"
+
+# 6. Repo Maintenance
+run_upgrade_module "upgrade-repo"     "REPO HYGIENE"
 
 message 'UPGRADE DONE'
