@@ -87,7 +87,7 @@ window_start="$(( now_epoch - (DAYS * 86400) ))"
 # alias definitions from repo files (normal aliases only)
 tmp_aliases="$(mktemp)"
 {
-  for alias_file in "$ZDOTDIR/.aliasrc" "$ZDOTDIR/.aliasrc.claude" "$ZDOTDIR/.aliasrc.local"; do
+  for alias_file in "$ZDOTDIR/.aliasrc" "$ZDOTDIR/.aliasrc.local"; do
     [[ -r "$alias_file" ]] || continue
     while IFS= read -r line || [[ -n "$line" ]]; do
       if [[ "$line" =~ '^alias[[:space:]]+([A-Za-z0-9_.!+-]+)=' ]]; then
