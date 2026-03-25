@@ -6,6 +6,7 @@ This repository is a modular, high-performance Zsh configuration ("Zdots"). All 
 - **Run All Checks:** `bin/check` (Validates syntax, keybindings, and dependencies)
 - **Bootstrap Environment:** `bin/bootstrap`
 - **Benchmark Performance:** `bench 'zsh -i -c exit'` (Target median startup < 0.08s)
+- **Environment Inquiries:** Run `bin/capabilities` for a one-turn, high-density summary of all available tools, themes, and shell features (highly token efficient).
 
 ## Repository Architecture
 - **Environment Variables:** MUST be defined in `.zshenv`.
