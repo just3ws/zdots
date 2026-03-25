@@ -9,8 +9,11 @@ SKIP_EXTERNAL="${ZDOTS_CHECK_SKIP_EXTERNAL:-0}"
 zsh -n .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*
 
 errfile="$(mktemp)"
-if ! zsh -i -c 'exit' >/dev/null 2>"$errfile"; then
-  echo "check: zsh -i -c exit failed with exit code $?" >&2
+zsh -i -c 'exit' >/dev/null 2>"$errfile"
+ret=$?
+if [[ $ret -ne 0 ]]; then
+  echo "DEBUG: ret is $ret, type is ${(t)ret}" >&2
+  echo "check: zsh -i -c exit failed with exit code $ret" >&2
   [[ -s "$errfile" ]] && cat "$errfile" >&2
   rm -f "$errfile"
   exit 1
@@ -24,8 +27,11 @@ fi
 rm -f "$errfile"
 
 errfile="$(mktemp)"
-if ! zsh -l -i -c 'exit' >/dev/null 2>"$errfile"; then
-  echo "check: zsh -l -i -c exit failed with exit code $?" >&2
+zsh -l -i -c 'exit' >/dev/null 2>"$errfile"
+ret=$?
+if [[ $ret -ne 0 ]]; then
+  echo "DEBUG: ret-l is $ret, type is ${(t)ret}" >&2
+  echo "check: zsh -l -i -c exit failed with exit code $ret" >&2
   [[ -s "$errfile" ]] && cat "$errfile" >&2
   rm -f "$errfile"
   exit 1
