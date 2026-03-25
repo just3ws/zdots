@@ -20,6 +20,10 @@ brew "zoxide"
 brew "zsh-autosuggestions"
 brew "zsh-completions"
 brew "zsh-syntax-highlighting"
+brew "zsh-history-substring-search"
+brew "zsh-autopair"
+brew "zsh-you-should-use"
+brew "zsh-vi-mode"
 
 # Recommended prompt font for Powerlevel10k.
 cask "font-meslo-lg-nerd-font"
