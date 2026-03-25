@@ -31,3 +31,40 @@ fi
 alias help='tldr'
 alias path='echo $PATH | tr ":" "\n"'
 alias fpath='echo $fpath | tr " " "\n"'
+
+# Navigation & UI
+alias k='klear'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# pnpm
+if command -v pnpm >/dev/null 2>&1; then
+  alias p='pnpm'
+  alias px='pnpm dlx'
+  alias pr='pnpm run'
+  alias pi='pnpm install'
+  alias ps='pnpm start'
+  alias pt='pnpm test'
+  alias pv='pnpm verify:all'
+fi
+
+# Fly.io
+if command -v fly >/dev/null 2>&1; then
+  alias fl='fly logs'
+  alias fd='fly deploy'
+  alias fs='fly status'
+  # Project-specific shorthands (active only in phalanxduel)
+  [[ -f fly.staging.toml ]] && alias fds='fly deploy --app phalanxduel-staging --config fly.staging.toml'
+  [[ -f fly.production.toml ]] && alias fdp='fly deploy --app phalanxduel-production --config fly.production.toml'
+fi
+
+# Git Workflow
+alias gup='git pull --rebase'
+alias gpfl='git push --force-with-lease'
+alias gra='git remote add'
+alias grv='git remote -v'
+
+# AI Workflow
+command -v claude >/dev/null 2>&1 && alias cl='claude'
+command -v gemini >/dev/null 2>&1 && alias gm='gemini'

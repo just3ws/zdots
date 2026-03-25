@@ -217,6 +217,12 @@ Usage: `cat logs.txt GI error W` (counts lines containing "error" case-insensiti
 - `bso`: `brew services stop`
 - `dps`: `docker ps`
 - `dlf`: `docker logs -f`
+- `p`: `pnpm`
+- `fd`: `fly deploy`
+- `fl`: `fly logs`
+- `k`: `klear`
+- `gup`: `git pull --rebase`
+- `cl`: `claude` / `gm`: `gemini`
 
 ## Color Theme
 
