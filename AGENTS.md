@@ -3,10 +3,19 @@
 This repository is a modular, high-performance Zsh configuration ("Zdots"). All agents must adhere to the standards and use the tools defined below.
 
 ## Build & Validation
-- **Run All Checks:** `bin/check` (Validates syntax, keybindings, and dependencies)
-- **Bootstrap Environment:** `bin/bootstrap`
-- **Benchmark Performance:** `bench 'zsh -i -c exit'` (Target median startup < 0.08s)
-- **Environment Inquiries:** Run `bin/capabilities` for a one-turn, high-density summary of all available tools, themes, and shell features (highly token efficient).
+- **Run All Checks:** `make check` (Primary regression suite)
+- **Bootstrap:** `make bootstrap`
+- **Benchmark:** `make bench`
+- **Environment Inquiries:** Run `bin/capabilities` for a summary of features.
+
+## Agent API (Standardized Tasks)
+Always prefer these `make` commands for routine operations:
+- **Project Mapping:** `make map` (High-signal tree of project structure)
+- **Codebase Stats:** `make stats` (Lines of code and languages via `tokei`)
+- **Refactoring:** `make refactor OLD='regex' NEW='replacement'` (Safe mass-replacement via `sd`)
+- **Context Packing:** `make context` (Generate `.project-context.md` for LLM via `repomix`)
+- **Structural Search:** `make search QUERY='pattern'` (AST-based search via `sg`)
+- **Symbol Index:** `make tags` (Generate `tags` file for lookups)
 
 ## Repository Architecture
 - **Environment Variables:** MUST be defined in `.zshenv`.

@@ -1,8 +1,12 @@
+# Zdots - Agent & System Management Makefile
 SHELL := /bin/zsh
 ZDOTDIR ?= $(HOME)/.config/zsh
 
-.PHONY: bootstrap check check-fast bench upgrade upgrade-dry
+.PHONY: bootstrap check check-fast bench upgrade upgrade-dry map search refactor context tags stats
 
+# ------------------------------------------------------------------------------
+# CORE & VALIDATION
+# ------------------------------------------------------------------------------
 bootstrap:
 	$(ZDOTDIR)/bin/bootstrap
 
@@ -23,3 +27,36 @@ upgrade:
 
 upgrade-dry:
 	ZDOTDIR="$(ZDOTDIR)" ZDOTS_UPGRADE_DRY_RUN=1 zsh -i -c upgrade
+
+# ------------------------------------------------------------------------------
+# AGENT API (Standardized entry points for AI interactions)
+# ------------------------------------------------------------------------------
+
+# High-signal directory map (ignores noise)
+map:
+	@eza --tree --level=2 --icons --group-directories-first --ignore-glob=".git|node_modules|.iterm2"
+
+# Project stats (languages, LOC)
+stats:
+	@tokei
+
+# Structural search (requires sg/ast-grep)
+search:
+	@if [ -z "$(QUERY)" ]; then echo "Usage: make search QUERY='pattern'"; exit 1; fi
+	@sg -p "$(QUERY)"
+
+# Safe find-and-replace (requires sd)
+# Usage: make refactor OLD='foo' NEW='bar'
+refactor:
+	@if [ -z "$(OLD)" ] || [ -z "$(NEW)" ]; then echo "Usage: make refactor OLD='foo' NEW='bar'"; exit 1; fi
+	@fd -t f -X sd "$(OLD)" "$(NEW)"
+
+# High-density context packing for LLM (requires repomix)
+context:
+	@repomix --output .project-context.md --ignore ".git,node_modules,assets,.iterm2"
+	@echo "Context packed to .project-context.md"
+
+# Symbol indexing
+tags:
+	@ctags -R --exclude=.git --exclude=node_modules .
+	@echo "Tags file generated"
