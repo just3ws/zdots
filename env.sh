@@ -1,7 +1,13 @@
 # env.sh — POSIX-compatible environment core
 # This file is sourced by sh, bash, and zsh.
 
-# 1. XDG Base Directory Specification (Harden & Absolute)
+# 1. Dependency Manifest (Composition Root)
+# Load environment baseline configuration if it exists.
+if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env" ]; then
+  . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env"
+fi
+
+# 2. XDG Base Directory Specification (Harden & Absolute)
 export XDG_ROOT="$HOME"
 export XDG_CONFIG_HOME="$XDG_ROOT/.config"
 export XDG_STATE_HOME="$XDG_ROOT/.local/state"
@@ -9,7 +15,48 @@ export XDG_CACHE_HOME="$XDG_ROOT/.cache"
 export XDG_DATA_HOME="$XDG_ROOT/.local/share"
 export ZDOTDIR="${ZDOTDIR:-$XDG_CONFIG_HOME/zsh}"
 
-# 2. XDG Tool Overrides (Force compliance for standard tools)
+# 3. Session & Trace Identification (W3C Trace Context)
+# Unique ID for the life of this shell session (W3C Trace ID: 32 hex chars).
+if [ -z "${ZDOTS_TRACE_ID:-}" ]; then
+  if command -v openssl >/dev/null 2>&1; then
+    export ZDOTS_TRACE_ID="$(openssl rand -hex 16)"
+  else
+    # Fallback to a timestamp + PID if openssl is missing.
+    export ZDOTS_TRACE_ID="$(date +%s%N | cksum | awk '{print $1}')-$(printf "%x" $$ | xargs printf "%016s" | tr ' ' '0')"
+  fi
+fi
+
+# Initial Span ID for the shell process (W3C Parent ID: 16 hex chars).
+if [ -z "${ZDOTS_SPAN_ID:-}" ]; then
+  if command -v openssl >/dev/null 2>&1; then
+    export ZDOTS_SPAN_ID="$(openssl rand -hex 8)"
+  else
+    export ZDOTS_SPAN_ID="$(printf "%x" $$ | xargs printf "%016s" | tr ' ' '0')"
+  fi
+fi
+
+# W3C Traceparent: 00-<trace-id>-<parent-id>-01 (01 = sampled)
+export TRACEPARENT="00-${ZDOTS_TRACE_ID}-${ZDOTS_SPAN_ID}-01"
+export ZDOTS_SESSION_ID="${ZDOTS_TRACE_ID}"
+
+# 4. Dependency Injection (DI) Helper
+# Loads a service provider implementation.
+zdots_require() {
+  local service_type="$1"
+  local provider="$2"
+  local provider_file="${ZDOTDIR}/providers/${service_type}/${provider}.zsh"
+
+  if [ -r "$provider_file" ]; then
+    . "$provider_file"
+  fi
+}
+
+# Load configured service implementations
+zdots_require pkg "${ZDOTS_SERVICE_PKG_MANAGER:-none}"
+zdots_require node "${ZDOTS_SERVICE_NODE_RUNTIME:-system}"
+zdots_require trace "${ZDOTS_SERVICE_TRACE:-none}"
+
+# 4. XDG Tool Overrides (Force compliance for standard tools)
 export AWS_CONFIG_FILE="$XDG_CONFIG_HOME/aws/config"
 export AWS_SHARED_CREDENTIALS_FILE="$XDG_CONFIG_HOME/aws/credentials"
 export BUNDLE_USER_CONFIG="$XDG_CONFIG_HOME/bundle/config"
@@ -24,7 +71,7 @@ export PSQL_HISTORY="$XDG_STATE_HOME/psql/history"
 export PYTHONSTARTUP="$XDG_CONFIG_HOME/python/pythonrc"
 export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
 
-# 3. General Environment
+# 5. General Environment
 export LANG='en_US.UTF-8'
 export EDITOR='vi'
 export VISUAL="$EDITOR"
@@ -33,15 +80,15 @@ export DOCKER_CLI_HINTS=false
 export ENABLE_LSP_TOOL=1
 export ZDOTS_THEME="${ZDOTS_THEME:-dracula-pro}"
 
-# 4. Language-Specific XDG Alignment
+# 6. Language-Specific XDG Alignment
 export PNPM_HOME="$XDG_DATA_HOME/pnpm"
 export GOPATH="$XDG_DATA_HOME/go"
 export GEM_HOME="$XDG_DATA_HOME/gem"
 export GEM_PATH="$GEM_HOME"
 export PYTHONUSERBASE="$XDG_DATA_HOME/python"
 
-# 5. Homebrew Core Detection
-if [ -z "${HOMEBREW_PREFIX:-}" ]; then
+# 7. Homebrew Core Detection (Legacy Fallback/Overridable)
+if [ -z "${HOMEBREW_PREFIX:-}" ] && [ "$ZDOTS_ENV_PROFILE" != "ci-act" ]; then
   if [ -d /opt/homebrew ]; then
     export HOMEBREW_PREFIX=/opt/homebrew
   elif [ -d /usr/local ]; then
@@ -62,12 +109,12 @@ if [ -n "${HOMEBREW_PREFIX:-}" ]; then
   fi
 fi
 
-# 6. OpenJDK Configuration
+# 8. OpenJDK Configuration
 if [ -d "$HOMEBREW_PREFIX/opt/openjdk" ]; then
   export JAVA_HOME="$HOMEBREW_PREFIX/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
 fi
 
-# 7. Path Construction (POSIX-compliant & Decoupled)
+# 9. Path Construction (SOLID & Decoupled)
 # Helper to append to PATH if directory exists and is not already present.
 _zdots_path_add() {
   case ":$PATH:" in
@@ -79,7 +126,7 @@ _zdots_path_add() {
 # Core system paths first (to ensure basic tools are available)
 PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 
-# Homebrew (if detected)
+# 9a. Legacy/Explicit Overrides (Lower precedence than Service Providers)
 if [ -n "${HOMEBREW_PREFIX:-}" ]; then
   _zdots_path_add "$HOMEBREW_PREFIX/bin"
   _zdots_path_add "$HOMEBREW_PREFIX/sbin"
@@ -87,22 +134,28 @@ if [ -n "${HOMEBREW_PREFIX:-}" ]; then
   _zdots_path_add "$HOMEBREW_PREFIX/opt/postgresql@18/bin"
   _zdots_path_add "$HOMEBREW_PREFIX/opt/rustup/bin"
 fi
-
-# Toolchain Shims & Binaries (Decoupled from specific managers where possible)
 _zdots_path_add "$CARGO_HOME/bin"
 _zdots_path_add "$GEM_HOME/bin"
 _zdots_path_add "$GOPATH/bin"
 _zdots_path_add "$PNPM_HOME"
-_zdots_path_add "$XDG_DATA_HOME/mise/shims"
-_zdots_path_add "$XDG_DATA_HOME/asdf/shims"
 
-# User Binaries (Highest precedence)
+# 9b. Service-based Path Setup (Dependency Injection)
+# We call provider-specific path functions if they were defined by zdots_require.
+# These have HIGHER precedence than legacy overrides.
+if [ -n "$(command -v zdots_pkg_manager_paths)" ]; then
+  zdots_pkg_manager_paths
+fi
+if [ -n "$(command -v zdots_node_runtime_paths)" ]; then
+  zdots_node_runtime_paths
+fi
+
+# 9c. User Binaries (Highest precedence)
 _zdots_path_add "$ZDOTDIR/bin"
 _zdots_path_add "$HOME/.local/bin"
 
 export PATH
 unset -f _zdots_path_add
 
-# 8. History (XDG Compliance: Move to STATE_HOME)
+# 10. History (XDG Compliance: Move to STATE_HOME)
 export HISTSIZE=999999
 export HISTFILE="$XDG_STATE_HOME/zsh/history"

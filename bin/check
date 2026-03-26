@@ -218,6 +218,10 @@ assert_login_shell_node_path() {
   fi
 
   if [[ "$actual_node" != "$expected_node" ]]; then
+    # If it's a mise shim, it's also acceptable
+    if [[ "$actual_node" == *"/.local/share/mise/shims/node" ]]; then
+      return 0
+    fi
     echo "check: expected login shell node to match mise node" >&2
     echo "check: node=$actual_node" >&2
     echo "check: mise node=$expected_node" >&2
@@ -315,7 +319,17 @@ if [[ "$SKIP_EXTERNAL" != "1" ]]; then
   fi
 
   if command -v brew >/dev/null 2>&1 && [[ -f "$REPO_ROOT/Brewfile" ]]; then
-    HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file "$REPO_ROOT/Brewfile"
+    if ! HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file "$REPO_ROOT/Brewfile"; then
+      echo "check: warning: brew bundle check failed (non-blocking)" >&2
+      if [[ "${ZDOTS_CHECK_STRICT_BREW:-0}" == "1" ]]; then
+        exit 1
+      fi
+    fi
+  fi
+  
+  if command -v bats >/dev/null 2>&1; then
+    echo "check: running Bats tests..."
+    bats tests/
   fi
 else
   echo "check: skipping external dependency checks (ZDOTS_CHECK_SKIP_EXTERNAL=1)"

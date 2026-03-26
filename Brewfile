@@ -75,6 +75,7 @@ brew "openjdk"          # Java Runtime; JAVA_HOME and path managed in .zshenv.
 # ------------------------------------------------------------------------------
 # Security, Infrastructure & Validation
 # ------------------------------------------------------------------------------
+brew "bats-core"        # Bash Automated Testing System; core runner.
 brew "shellcheck"       # Bash/sh linter; used by bin/check to validate repo scripts.
 brew "shfmt"            # Shell script formatter.
 brew "actionlint"       # GitHub Actions linter; ensures CI stability.

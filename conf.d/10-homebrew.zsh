@@ -1,25 +1,8 @@
-# Refresh full Homebrew shellenv.
-if [[ -z "${_ZDOTS_BREW_SHELLENV:-}" ]]; then
-  _zdots_brew_cache="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/brew_shellenv"
-  # Refresh cache if missing or if Brewfile changed (heuristic for system change)
-  if [[ ! -r "$_zdots_brew_cache" || "${HOMEBREW_BUNDLE_FILE:-$ZDOTDIR/Brewfile}" -nt "$_zdots_brew_cache" ]]; then
-    mkdir -p "$_zdots_brew_cache:h" 2>/dev/null || true
-    if [[ -x /opt/homebrew/bin/brew ]]; then
-      /opt/homebrew/bin/brew shellenv > "$_zdots_brew_cache" 2>/dev/null || true
-    elif [[ -x /usr/local/bin/brew ]]; then
-      /usr/local/bin/brew shellenv > "$_zdots_brew_cache" 2>/dev/null || true
-    fi
-  fi
+# Interface: Homebrew / Package Manager
+# Depends on zdots_pkg_manager_init provided by the active pkg-manager service.
 
-  if [[ -r "$_zdots_brew_cache" && -s "$_zdots_brew_cache" ]]; then
-    source "$_zdots_brew_cache" || true
-    export _ZDOTS_BREW_SHELLENV=1
-  elif [[ -x /opt/homebrew/bin/brew ]]; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-    export _ZDOTS_BREW_SHELLENV=1
-  elif [[ -x /usr/local/bin/brew ]]; then
-    eval "$(/usr/local/bin/brew shellenv)"
-    export _ZDOTS_BREW_SHELLENV=1
+if [[ -n "$(command -v zdots_pkg_manager_init)" ]]; then
+  if [[ -z "${_ZDOTS_BREW_INITIALIZED:-}" ]]; then
+    zdots_pkg_manager_init
   fi
-  unset _zdots_brew_cache
 fi
