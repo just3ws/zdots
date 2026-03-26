@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@myself'
 created_date: '2026-03-26 14:41'
-updated_date: '2026-03-26 14:53'
+updated_date: '2026-03-26 14:58'
 labels: []
 dependencies: []
 priority: high
@@ -19,10 +19,10 @@ Introduce an explicit configuration mechanism to define the environment baseline
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Create a mechanism for explicit environment baseline declaration (e.g., zdots.env or similar)
-- [ ] #2 Update env.sh to respect the explicit baseline and improve auto-detection for Linux/ACT
-- [ ] #3 Refactor 10-homebrew.zsh and 90-mise.zsh to use variables instead of hardcoded paths
-- [ ] #4 Ensure bin/check passes in minimal/CI environments without Homebrew/Mise when appropriate
+- [x] #1 Create a mechanism for explicit environment baseline declaration (e.g., zdots.env or similar)
+- [x] #2 Update env.sh to respect the explicit baseline and improve auto-detection for Linux/ACT
+- [x] #3 Refactor 10-homebrew.zsh and 90-mise.zsh to use variables instead of hardcoded paths
+- [x] #4 Ensure bin/check passes in minimal/CI environments without Homebrew/Mise when appropriate
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -34,6 +34,12 @@ Introduce an explicit configuration mechanism to define the environment baseline
 4. **Refactor Core Configuration**: Update `conf.d/` scripts to depend on service abstractions rather than concrete paths, applying Dependency Inversion to the shell initialization sequence.
 5. **Validation & CI**: Update `bin/check` to perform contract testing against the declared services, ensuring that the environment satisfies the requirements defined in the manifest.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented Dependency Injection and SOLID principles for environment configuration. Created .zdots.env as a manifest, introduced provider modules in providers/, and refactored env.sh/conf.d to use zdots_require for service loading. Verified that bin/check now passes in simulated Linux/CI environments by explicitly setting ZDOTS_ENV_PROFILE=ci-act.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
