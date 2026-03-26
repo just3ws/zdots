@@ -56,7 +56,7 @@ _zdots_trace_send_otlp() {
     
   # Send asynchronously (background)
   command curl -s -X POST -H "Content-Type: application/json" \
-    -d "$payload" "$OTEL_EXPORTER_OTLP_ENDPOINT/v1/traces" >/dev/null 2>&1 &!
+    -d "$payload" "$OTEL_EXPORTER_OTLP_ENDPOINT/v1/traces" >/dev/null 2>&1 &
 }
 
 # Alias local trace to local provider function

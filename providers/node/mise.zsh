@@ -9,10 +9,11 @@ zdots_node_runtime_init() {
     mkdir -p "$_zdots_mise_cache:h" 2>/dev/null || true
     # Generate the hook without the static PATH export if possible, 
     # or we'll just handle it by ensuring shims are always present.
-    mise activate zsh --shims >! "$_zdots_mise_cache" 2>/dev/null || true
+    rm -f "$_zdots_mise_cache" 2>/dev/null || true
+    mise activate zsh --shims > "$_zdots_mise_cache" 2>/dev/null || true
     # If --shims didn't give us the hook, we fall back to standard but we'll be careful.
-    if [[ ! -s "$_zdots_mise_cache" ]]; then
-      mise activate zsh >! "$_zdots_mise_cache" 2>/dev/null || true
+    if [ ! -s "$_zdots_mise_cache" ]; then
+      mise activate zsh > "$_zdots_mise_cache" 2>/dev/null || true
     fi
   fi
 
