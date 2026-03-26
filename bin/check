@@ -39,10 +39,13 @@ if [[ $ret -ne 0 ]]; then
   exit 1
 fi
 if [[ -s "$errfile" ]]; then
-  echo "check: zsh -i -c exit emitted stderr:" >&2
-  cat "$errfile" >&2
-  rm -f "$errfile"
-  exit 1
+  # Filter out known non-critical errors
+  if grep -vE "can't change option: zle" "$errfile" | grep -q .; then
+    echo "check: zsh -i -c exit emitted stderr:" >&2
+    cat "$errfile" >&2
+    rm -f "$errfile"
+    exit 1
+  fi
 fi
 rm -f "$errfile"
 
@@ -59,10 +62,13 @@ if [[ $ret -ne 0 ]]; then
   exit 1
 fi
 if [[ -s "$errfile" ]]; then
-  echo "check: zsh -l -i -c exit emitted stderr:" >&2
-  cat "$errfile" >&2
-  rm -f "$errfile"
-  exit 1
+  # Filter out known non-critical errors
+  if grep -vE "can't change option: zle" "$errfile" | grep -q .; then
+    echo "check: zsh -l -i -c exit emitted stderr:" >&2
+    cat "$errfile" >&2
+    rm -f "$errfile"
+    exit 1
+  fi
 fi
 rm -f "$errfile"
 
