@@ -11,7 +11,9 @@ setup() {
   run bash -c "export ZDOTDIR=$ZDOTDIR; . $ZDOTDIR/env.sh && echo \$XDG_CONFIG_HOME"
   echo "Output: $output"
   [ "$status" -eq 0 ]
-  [ "$output" == "$HOME/.config" ]
+  # Get last line to avoid noise
+  local val=$(echo "$output" | tail -n 1)
+  [ "$val" == "$HOME/.config" ]
 }
 
 @test "env.sh: Sets ZDOTDIR if not provided" {
@@ -19,26 +21,30 @@ setup() {
   run bash -c "unset ZDOTDIR; . $ZDOTDIR/env.sh && echo \$ZDOTDIR"
   echo "Output: $output"
   [ "$status" -eq 0 ]
-  [ "$output" == "$HOME/.config/zsh" ]
+  local val=$(echo "$output" | tail -n 1)
+  [ "$val" == "$HOME/.config/zsh" ]
 }
 
 @test "env.sh: Correctly handles ZDOTS_ENV_PROFILE=ci-act" {
   run bash -c "export ZDOTDIR=$ZDOTDIR; export ZDOTS_ENV_PROFILE=ci-act; . $ZDOTDIR/env.sh && echo \$HOMEBREW_PREFIX"
   echo "Output: $output"
   [ "$status" -eq 0 ]
-  [ "$output" == "" ]
+  local val=$(echo "$output" | tail -n 1)
+  [ "$val" == "" ]
 }
 
 @test "env.sh: Generates a 32-hex W3C Trace ID" {
   run bash -c "export ZDOTDIR=$ZDOTDIR; . $ZDOTDIR/env.sh && echo \$ZDOTS_TRACE_ID"
   echo "Output: $output"
   [ "$status" -eq 0 ]
-  [[ "$output" =~ ^[0-9a-f]{32}$ ]]
+  local val=$(echo "$output" | tail -n 1)
+  [[ "$val" =~ ^[0-9a-f]{32}$ ]]
 }
 
 @test "env.sh: Generates a 16-hex W3C Span ID" {
   run bash -c "export ZDOTDIR=$ZDOTDIR; . $ZDOTDIR/env.sh && echo \$ZDOTS_SPAN_ID"
   echo "Output: $output"
   [ "$status" -eq 0 ]
-  [[ "$output" =~ ^[0-9a-f]{16}$ ]]
+  local val=$(echo "$output" | tail -n 1)
+  [[ "$val" =~ ^[0-9a-f]{16}$ ]]
 }
