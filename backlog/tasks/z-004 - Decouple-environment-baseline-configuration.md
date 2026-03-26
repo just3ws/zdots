@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@myself'
 created_date: '2026-03-26 14:41'
-updated_date: '2026-03-26 14:58'
+updated_date: '2026-03-26 15:07'
 labels: []
 dependencies: []
 priority: high
@@ -38,7 +38,7 @@ Introduce an explicit configuration mechanism to define the environment baseline
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Implemented Dependency Injection and SOLID principles for environment configuration. Created .zdots.env as a manifest, introduced provider modules in providers/, and refactored env.sh/conf.d to use zdots_require for service loading. Verified that bin/check now passes in simulated Linux/CI environments by explicitly setting ZDOTS_ENV_PROFILE=ci-act.
+Finalized Domain-Driven environment configuration. 1. Introduced .zdots.env as the Composition Root. 2. Implemented modular providers (pkg/apt, pkg/homebrew, node/mise, node/system, python/mise). 3. Created bin/capabilities as a health-check and contract validation tool, now integrated into CI. 4. Verified the system correctly identifies and validates the service contract in both macos and CI profiles.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
