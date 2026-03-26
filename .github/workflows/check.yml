@@ -26,9 +26,18 @@ jobs:
         run: |-
           zsh --version
           which zsh
+          echo "ZDOTS_ENV_PROFILE=${ZDOTS_ENV_PROFILE:-unknown}"
+
+      - name: 'Capabilities Health Check'
+        run: ZDOTS_ENV_PROFILE=ci-act ./bin/capabilities
+
+      - name: 'Verify Observability (Trace)'
+        run: |
+          SID=$(zsh -i -c 'echo $ZDOTS_SESSION_ID')
+          ZDOTS_ENV_PROFILE=ci-act ./bin/trace-verify "$SID" session_start "ci-act"
 
       - name: 'Run Fast Sanity Checks'
-        run: ZDOTS_CHECK_SKIP_EXTERNAL=1 ZDOTS_CHECK_REPORT_STARTUP=1 ./bin/check
+        run: ZDOTS_CHECK_SKIP_EXTERNAL=1 ZDOTS_CHECK_REPORT_STARTUP=1 ZDOTS_ENV_PROFILE=ci-act ./bin/check
 
   full:
     runs-on: macos-latest
