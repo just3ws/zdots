@@ -1,9 +1,11 @@
 ---
 id: Z-007
 title: Implement Bats-core testing framework
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@myself'
 created_date: '2026-03-26 16:20'
+updated_date: '2026-03-26 16:20'
 labels: []
 dependencies: []
 priority: high
@@ -23,6 +25,16 @@ Integrate Bats-core into the repository to provide a standardized, POSIX-complia
 - [ ] #4 Implement Zsh-specific observability tests in Bats
 - [ ] #5 Integrate Bats execution into bin/check and CI pipeline
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. **Framework Installation**: Add `bats-core`, `bats-assert`, and `bats-support` to the `Brewfile` and install them.
+2. **Directory Structure**: Create a `tests/` directory with `setup.bash` to bootstrap the Zdots environment for tests.
+3. **POSIX Contract Testing**: Create `tests/env_posix.bats` to verify that `env.sh` remains compatible with standard `sh` and `bash` while setting expected XDG paths.
+4. **Zsh-Specific Testing**: Create `tests/observability.bats` to test the Zsh-only control plane (Trace ID, Span rotation, Traceparent) by invoking `zsh -i` within Bats.
+5. **Runner Integration**: Update `bin/check` to execute `bats tests/` as part of the primary regression suite.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
