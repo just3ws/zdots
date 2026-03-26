@@ -1,8 +1,9 @@
 ---
 id: Z-004
 title: Decouple environment baseline configuration
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@myself'
 created_date: '2026-03-26 14:41'
 updated_date: '2026-03-26 14:53'
 labels: []
