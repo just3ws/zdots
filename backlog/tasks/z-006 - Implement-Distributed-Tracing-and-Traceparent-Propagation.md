@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@myself'
 created_date: '2026-03-26 15:17'
-updated_date: '2026-03-26 16:04'
+updated_date: '2026-03-26 16:07'
 labels: []
 dependencies: []
 priority: high
@@ -40,6 +40,8 @@ Evolve shell observability into a full distributed tracing control plane. This i
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented W3C-compliant distributed tracing and traceparent propagation. 1. Added 32-hex Trace ID and 16-hex Span ID generation to env.sh. 2. Updated preexec hooks to rotate Span IDs on every command, making the shell session a tree of spans. 3. Introduced a curl wrapper to automatically inject the 'traceparent' header into outgoing requests. 4. Developed an OTLP-compatible provider (providers/trace/otlp.zsh) that asynchronously sends telemetry to a remote collector. 5. Integrated a telemetry toggle (ZDOTS_TELEMETRY_ENABLED) for environmental control.
+
+Aligned telemetry with OpenTelemetry Semantic Conventions. 1. Enriched Resource attributes with process.pid, process.owner, process.executable.name, process.interactive, os.type, and host.name. 2. Updated Span attributes to include process.command_line and semantic naming based on command executable. 3. Enhanced bin/capabilities to report the structured OTel Resource manifest. 4. Verified W3C traceparent rotation and header propagation across multiple interactive commands.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
