@@ -4,6 +4,7 @@ title: Decouple environment baseline configuration
 status: To Do
 assignee: []
 created_date: '2026-03-26 14:41'
+updated_date: '2026-03-26 14:45'
 labels: []
 dependencies: []
 priority: high
@@ -22,6 +23,16 @@ Introduce an explicit configuration mechanism to define the environment baseline
 - [ ] #3 Refactor 10-homebrew.zsh and 90-mise.zsh to use variables instead of hardcoded paths
 - [ ] #4 Ensure bin/check passes in minimal/CI environments without Homebrew/Mise when appropriate
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Define an explicit environment configuration file (`.zdots.env`) that declares the capabilities and requirements of the environment (e.g., `ZDOTS_PKG_MANAGER=homebrew`, `ZDOTS_RUNTIME_MANAGER=mise`).
+2. Modify `.zshenv` and `env.sh` to source this configuration early in the lifecycle, establishing the "Domain" of the current environment.
+3. Introduce a modular "provider" pattern (e.g., `providers/node/mise.zsh`, `providers/node/nvm.zsh`, `providers/pkg/homebrew.zsh`, `providers/pkg/apt.zsh`).
+4. Refactor `conf.d/` scripts to act as interfaces that load the appropriate provider module based on the `.zdots.env` configuration, rather than aggressively searching the filesystem.
+5. Update `bin/check` to validate the environment against its declared configuration, allowing CI to cleanly skip Mac-specific checks.
+<!-- SECTION:PLAN:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
