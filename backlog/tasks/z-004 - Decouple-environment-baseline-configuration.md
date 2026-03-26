@@ -4,7 +4,7 @@ title: Decouple environment baseline configuration
 status: To Do
 assignee: []
 created_date: '2026-03-26 14:41'
-updated_date: '2026-03-26 14:45'
+updated_date: '2026-03-26 14:53'
 labels: []
 dependencies: []
 priority: high
@@ -27,11 +27,11 @@ Introduce an explicit configuration mechanism to define the environment baseline
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-1. Define an explicit environment configuration file (`.zdots.env`) that declares the capabilities and requirements of the environment (e.g., `ZDOTS_PKG_MANAGER=homebrew`, `ZDOTS_RUNTIME_MANAGER=mise`).
-2. Modify `.zshenv` and `env.sh` to source this configuration early in the lifecycle, establishing the "Domain" of the current environment.
-3. Introduce a modular "provider" pattern (e.g., `providers/node/mise.zsh`, `providers/node/nvm.zsh`, `providers/pkg/homebrew.zsh`, `providers/pkg/apt.zsh`).
-4. Refactor `conf.d/` scripts to act as interfaces that load the appropriate provider module based on the `.zdots.env` configuration, rather than aggressively searching the filesystem.
-5. Update `bin/check` to validate the environment against its declared configuration, allowing CI to cleanly skip Mac-specific checks.
+1. **Dependency Manifest (`.zdots.env`)**: Define an explicit "Composition Root" that declares required services (e.g., `ZDOTS_SERVICE_PKG_MANAGER="homebrew"`, `ZDOTS_SERVICE_NODE_RUNTIME="mise"`) and their environment-specific settings.
+2. **Provider Implementation**: Create a `providers/` directory to house concrete implementations of these services, ensuring each follows a standard "interface" (e.g., `init`, `path_setup`, `validation`).
+3. **Dependency Injection Mechanism**: Implement a `zdots_provide` helper in `env.sh` that dynamically loads the configured implementation for a requested service, decoupling the shell from specific tool paths.
+4. **Refactor Core Configuration**: Update `conf.d/` scripts to depend on service abstractions rather than concrete paths, applying Dependency Inversion to the shell initialization sequence.
+5. **Validation & CI**: Update `bin/check` to perform contract testing against the declared services, ensuring that the environment satisfies the requirements defined in the manifest.
 <!-- SECTION:PLAN:END -->
 
 ## Definition of Done
