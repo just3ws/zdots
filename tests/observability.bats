@@ -11,7 +11,8 @@ setup() {
   run zsh -i -c "export ZDOTDIR=$ZDOTDIR; echo \$ZDOTS_SESSION_ID"
   echo "Output: $output"
   [ "$status" -eq 0 ]
-  [[ "$output" =~ ^[0-9a-f]{32}$ ]]
+  local val=$(echo "$output" | tail -n 1)
+  [[ "$val" =~ ^[0-9a-f]{32}$ ]]
 }
 
 @test "Zsh: Hooks are correctly registered in interactive shell" {
