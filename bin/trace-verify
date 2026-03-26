@@ -1,0 +1,38 @@
+#!/usr/bin/env zsh
+# bin/trace-verify — Verify that a session has produced the expected traces.
+
+set -eu
+setopt pipefail
+
+# Usage: bin/trace-verify <session_id> <event_type> [data_substring]
+
+SID="${1:-$ZDOTS_SESSION_ID}"
+EVENT="${2:-session_start}"
+SUBSTRING="${3:-}"
+
+TRACE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
+
+if [[ ! -f "$TRACE_FILE" ]]; then
+  echo "Error: Trace file missing at $TRACE_FILE" >&2
+  exit 1
+fi
+
+# We use grep to find the session and event.
+# Then optionally check the data.
+if [[ -n "$SUBSTRING" ]]; then
+  if grep -q "{\"ts\":.*,\"sid\":\"$SID\",\"event\":\"$EVENT\",\"data\":\".*$SUBSTRING.*\"}" "$TRACE_FILE"; then
+    echo "OK: Found $EVENT for $SID containing '$SUBSTRING'"
+    exit 0
+  else
+    echo "Error: Could not find $EVENT for $SID containing '$SUBSTRING' in $TRACE_FILE" >&2
+    exit 1
+  fi
+else
+  if grep -q "{\"ts\":.*,\"sid\":\"$SID\",\"event\":\"$EVENT\",\"data\":\".*\"}" "$TRACE_FILE"; then
+    echo "OK: Found $EVENT for $SID"
+    exit 0
+  else
+    echo "Error: Could not find $EVENT for $SID in $TRACE_FILE" >&2
+    exit 1
+  fi
+fi

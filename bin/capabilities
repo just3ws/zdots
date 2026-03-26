@@ -1,72 +1,118 @@
 #!/usr/bin/env zsh
-# Zdots Capability Discovery API
-# Optimized for high-density AI agent orientation.
-# Use --json for machine-readable structured data.
+# bin/capabilities — Visual report and health check for environment & services
 
-if [[ "$1" == "--json" ]]; then
-  # High-density JSON discovery (WSDL-style)
-  cat <<JSON
-{
-  "env": { "zsh": "$ZSH_VERSION", "os": "$OSTYPE", "theme": "${ZDOTS_THEME:-default}" },
-  "infra": {
-    "defer": $(( $+functions[zsh-defer] )),
-    "zoxide": $(( $+functions[z] )),
-    "atuin": $(( $+functions[atuin] )),
-    "fzf_tab": $(( $+widgets[fzf-tab-complete] )),
-    "fzf": $(( $+widgets[fzf-history-widget] )),
-    "lscolors": "$([[ -n "$LS_COLORS" ]] && echo "cached")"
-  },
-  "agent_tools": {
-    "context": "repomix",
-    "stats": "tokei",
-    "symbols": "ctags",
-    "refactor": "sd",
-    "structural_search": "sg",
-    "token_optimizer": "rtk",
-    "backlog": "backlog",
-    "bench": "hyperfine",
-    "ai_pipe": "ai"
-  },
-  "dsl": {
-    "pipelines": { "G": "grep", "GI": "grep -i", "L": "less", "W": "wc -l", "Y": "pbcopy", "J": "jq", "X": "xargs" },
-    "shortcuts": {
-      "p": "pnpm", "fd": "fly", "lg": "lazygit", "br": "broot", "he": "history_enquire",
-      "cl": "claude", "gm": "gemini", "bench": "hyperfine", "top": "btm"
-    }
-  },
-  "make": ["check", "map", "stats", "refactor", "context", "search", "tags"]
-}
-JSON
-  exit 0
+set -eu
+setopt pipefail
+
+# Colors
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
+RESET='\033[0m'
+
+echo "${BOLD}Zdots Environment Capabilities Report${RESET}"
+echo "----------------------------------------"
+
+# 1. Identity
+echo "${CYAN}Session ID:${RESET}  ${ZDOTS_SESSION_ID:-<unset>}"
+echo "${CYAN}Profile:${RESET}     ${ZDOTS_ENV_PROFILE:-unknown}"
+echo "${CYAN}OS:${RESET}          $(uname -s) ($(uname -m))"
+echo "${CYAN}CI/ACT:${RESET}      ${ACT:-false} / ${CI:-false}"
+
+# 2. Service Composition (The "Contract")
+echo "\n${BOLD}Service Composition:${RESET}"
+_z_services=(
+  "PKG_MANAGER"
+  "NODE_RUNTIME"
+  "PYTHON_RUNTIME"
+  "TRACE"
+)
+
+errors=0
+for s in $_z_services; do
+  var="ZDOTS_SERVICE_$s"
+  # Use a more direct eval to avoid subshell-induced exit in some zsh versions/configs
+  eval "provider=\${$var:-none}"
+  
+  # Map service names to directory names
+  case "$s" in
+    PKG_MANAGER) service_dir="pkg" ;;
+    NODE_RUNTIME) service_dir="node" ;;
+    PYTHON_RUNTIME) service_dir="python" ;;
+    TRACE) service_dir="trace" ;;
+    *) service_dir=$(echo "$s" | tr '[:upper:]' '[:lower:]' | sed 's/_//g') ;;
+  esac
+  provider_file="$ZDOTDIR/providers/${service_dir}/${provider}.zsh"
+  
+  if [[ "$provider" == "none" ]]; then
+    _status="${YELLOW}∅ none${RESET}"
+  elif [[ -f "$provider_file" ]]; then
+    _status="${GREEN}✓ $provider${RESET}"
+  else
+    _status="${RED}✗ $provider (missing provider file: providers/${service_dir}/${provider}.zsh)${RESET}"
+    ((errors++))
+  fi
+  printf "  %-15s : %b\n" "$s" "$_status"
+done
+unset _z_services _status service_dir
+
+# 3. Path Health
+echo "\n${BOLD}Critical Paths:${RESET}"
+paths=(
+  "ZDOTDIR:$ZDOTDIR"
+  "XDG_CONFIG_HOME:$XDG_CONFIG_HOME"
+  "XDG_STATE_HOME:$XDG_STATE_HOME"
+  "HOMEBREW_PREFIX:${HOMEBREW_PREFIX:-<unset>}"
+)
+
+for p in $paths; do
+  label="${p%%:*}"
+  val="${p#*:}"
+  if [[ -d "$val" ]]; then
+    _p_status="${GREEN}exists${RESET}"
+  else
+    _p_status="${YELLOW}missing${RESET}"
+  fi
+  printf "  %-15s : %-20s [%b]\n" "$label" "$val" "$_p_status"
+done
+unset _p_status
+
+# 4. Observability Health
+echo "\n${BOLD}Observability Health:${RESET}"
+_z_trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
+if [[ -f "$_z_trace_file" ]]; then
+  _z_last_trace="$(tail -n 1 "$_z_trace_file")"
+  echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${GREEN}exists${RESET}]"
+  echo "  ${CYAN}Last Trace:${RESET}   $(echo "$_z_last_trace" | sed 's/.*"ts":"\([^"]*\)".*/\1/')"
+else
+  echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${YELLOW}missing${RESET}]"
 fi
 
-# Human-readable / Text-signal fallback
-echo "--- ENV ---"
-echo "ZSH: $ZSH_VERSION | OS: $OSTYPE | THEME: ${ZDOTS_THEME:-default}"
+# OTel Resource Info
+if [[ -n "${_ZDOTS_OTEL_RESOURCE_JSON:-}" ]]; then
+  echo "  ${CYAN}OTel Resource:${RESET}"
+  echo "$_ZDOTS_OTEL_RESOURCE_JSON" | sed 's/{"key":"\([^"]*\)","value":{"[^"]*":"\([^"]*\)"}}/\n    - \1: \2/g' | sed 's/{"key":"\([^"]*\)","value":{"intValue":\([0-9]*\)}}/\n    - \1: \2/g' | sed 's/{"key":"\([^"]*\)","value":{"boolValue":\([^}]*\)}}/\n    - \1: \2/g' | sed 's/[{}]//g' | sed 's/"attributes":\[//g' | sed 's/\]//g' | sed 's/,,/,/g' | tr ',' '\n'
+fi
+unset _z_trace_file _z_last_trace
 
-echo "\n--- INFRA ---"
-features=()
-(( $+functions[zsh-defer] )) && features+=("defer")
-(( $+functions[z] )) && features+=("zoxide")
-(( $+functions[atuin] )) && features+=("atuin")
-(( $+widgets[fzf-tab-complete] )) && features+=("fzf-tab")
-(( $+widgets[fzf-history-widget] )) && features+=("fzf")
-echo "ACTIVE: ${features[*]}"
-
-echo "\n--- AGENT TOOLS (Standardized) ---"
-atools=()
-for t in rtk repomix tokei ctags sg dasel yq backlog usage sd television glow uv; do
-  command -v $t >/dev/null && atools+=($t)
+# 5. Tool Verification (The "Reality")
+echo "\n${BOLD}Tooling Reality:${RESET}"
+tools=(zsh git brew mise node npm python3)
+for t in $tools; do
+  if path=$(command -v "$t" 2>/dev/null); then
+    printf "  %-15s : %s\n" "$t" "${GREEN}$path${RESET}"
+  else
+    printf "  %-15s : %s\n" "$t" "${YELLOW}not found${RESET}"
+  fi
 done
-echo "BIN: ${atools[*]}"
 
-echo "\n--- DSL & PIPELINES ---"
-echo "G(| grep), GI(| grep -i), L(| less), W(| wc -l), Y(| pbcopy), J(| jq), X(| xargs)"
-echo "p(pnpm), pr(run), pi(install), pt(test), pv(verify:all)"
-echo "fd(fly), fl(logs), fds(staging), fdp(production)"
-echo "lg(lazygit), br(broot), he(history_enquire), k(klear)"
-echo "cl(claude), gm(gemini), gup(pull --rebase), gpfl(push --force)"
-echo "bsl(brew services), top(btm), bench(hyperfine), ai(ai pipe)"
-
-echo "\n--- MAKE API ---"
-echo "TARGETS: check, map, stats, refactor, context, search, tags"
+echo "----------------------------------------"
+if (( errors > 0 )); then
+  echo "${RED}Health Check Failed: $errors service contract violation(s) detected.${RESET}"
+  exit 1
+else
+  echo "${GREEN}Health Check Passed: Service contract is valid.${RESET}"
+  exit 0
+fi
