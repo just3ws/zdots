@@ -194,15 +194,19 @@ assert_pnpm_path() {
   fi
 }
 
-assert_pnpm_path "interactive" -i
-assert_pnpm_path "login+interactive" -l -i
+if [[ "$SKIP_EXTERNAL" != "1" ]]; then
+  assert_pnpm_path "interactive" -i
+  assert_pnpm_path "login+interactive" -l -i
+fi
 
 assert_login_shell_node_path() {
   local actual_node
   local expected_node
 
+  # Only check node if mise is actually available and provides a node version
   expected_node="$(zsh -l -c 'command -v mise >/dev/null 2>&1 && mise which node' 2>/dev/null || true)"
   if [[ -z "$expected_node" ]]; then
+    # mise not available or doesn't provide node; skip this check
     return 0
   fi
 
@@ -221,7 +225,11 @@ assert_login_shell_node_path() {
   fi
 }
 
-assert_login_shell_node_path
+# Only check node path in local development environments
+# Skip in CI/minimal environments without mise or when SKIP_EXTERNAL is set
+if [[ "$SKIP_EXTERNAL" != "1" && -x "$(command -v mise 2>/dev/null || true)" ]]; then
+  assert_login_shell_node_path
+fi
 
 report_startup_timing() {
   local -i runs="${ZDOTS_STARTUP_BENCH_RUNS:-5}"
