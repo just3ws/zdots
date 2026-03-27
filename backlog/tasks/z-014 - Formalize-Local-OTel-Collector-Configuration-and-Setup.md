@@ -1,9 +1,10 @@
 ---
 id: Z-014
 title: Formalize Local OTel Collector Configuration and Setup
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-03-27 16:29'
+updated_date: '2026-03-27 23:49'
 labels: []
 dependencies: []
 priority: medium
@@ -17,9 +18,15 @@ Establish a standardized configuration and setup process for a local OpenTelemet
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Create etc/otel-collector.yaml with standardized span processors
+- [x] #1 Create etc/otel-collector.yaml with standardized span processors
 - [ ] #2 Document setup for otel-desktop-viewer or similar local collector
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Created etc/otel-collector.yaml as a standardized local collector configuration for shell traces.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
