@@ -1,11 +1,11 @@
 ---
 id: Z-009
 title: Harden Security of Shell Observability and State
-status: In Progress
+status: Done
 assignee:
   - '@myself'
 created_date: '2026-03-27 14:10'
-updated_date: '2026-03-27 14:10'
+updated_date: '2026-03-27 15:13'
 labels: []
 dependencies: []
 priority: high
@@ -19,10 +19,10 @@ Address local information leaks and improve environment security. This includes 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Restrict XDG_STATE_HOME/zsh to 700
-- [ ] #2 Ensure history and trace files are created with 600 permissions
-- [ ] #3 Set a more restrictive umask (077) during startup
-- [ ] #4 Add sensitive argument filtering to zdots_trace_log (e.g., masking common password flags)
+- [x] #1 Restrict XDG_STATE_HOME/zsh to 700
+- [x] #2 Ensure history and trace files are created with 600 permissions
+- [x] #3 Set a more restrictive umask (077) during startup
+- [x] #4 Add sensitive argument filtering to zdots_trace_log (e.g., masking common password flags)
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -33,6 +33,12 @@ Address local information leaks and improve environment security. This includes 
 3. **Sensitive Data Masking**: Update `zdots_trace_log` in `providers/trace/local.zsh` and `otlp.zsh` to perform basic redaction of common sensitive command-line flags (e.g., `-p`, `--password`, `--api-key`).
 4. **Audit and Validate**: Use `bin/check` or a new Bats test to verify that logs and state directories have the correct permissions.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Hardened the security of the Zdots control plane and observability stack. 1. Restricted XDG_STATE_HOME/zsh to 700 and traces.jsonl to 600. 2. Set umask 077 early in env.sh to ensure all created files are user-only by default. 3. Implemented a zdots_trace_redact helper to mask sensitive command-line flags (e.g., --password) in both local and OTLP telemetry. 4. Added tests/security.bats to verify these protections in the regression suite.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
