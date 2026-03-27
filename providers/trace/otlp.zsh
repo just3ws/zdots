@@ -24,12 +24,15 @@ zdots_trace_log() {
   local event_type="$1"
   local data="$2"
   
+  # Perform redaction once
+  local redacted_data=$(zdots_trace_redact "$data")
+  
   # 1. Local logging (JSONL)
-  zdots_trace_log_local "$event_type" "$data"
+  zdots_trace_log_local "$event_type" "$redacted_data"
   
   # 2. Remote logging (OTLP) if enabled
   if [[ "${ZDOTS_TELEMETRY_ENABLED:-0}" == "1" ]]; then
-    _zdots_trace_send_otlp "$event_type" "$data"
+    _zdots_trace_send_otlp "$event_type" "$redacted_data"
   fi
 }
 
@@ -62,9 +65,9 @@ _zdots_trace_send_otlp() {
 # Alias local trace to local provider function
 zdots_trace_log_local() {
   local event_type="$1"
-  local data="$2"
+  local redacted_data="$2"
   local timestamp="$(date +%Y-%m-%dT%H:%M:%S%z)"
-  local escaped_data="$(echo "$data" | sed 's/"/\\"/g')"
+  local escaped_data="$(echo "$redacted_data" | sed 's/"/\\"/g')"
   printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
     "$timestamp" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$event_type" "$escaped_data" \
     >> "$_zdots_trace_file"

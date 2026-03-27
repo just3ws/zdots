@@ -1,6 +1,10 @@
 # env.sh — POSIX-compatible environment core
 # This file is sourced by sh, bash, and zsh.
 
+# 0. Security Baseline
+# Ensure files and directories created by the shell are user-only by default.
+umask 077
+
 # 1. Dependency Manifest (Composition Root)
 # Load environment baseline configuration if it exists.
 if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env" ]; then
