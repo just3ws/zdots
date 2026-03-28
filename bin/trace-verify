@@ -29,7 +29,7 @@ fi
 # We use grep to find the session and event.
 # Then optionally check the data.
 if [ -n "$SUBSTRING" ]; then
-  if grep -q "{\"ts\":.*,\"sid\":\"$SID\",\"event\":\"$EVENT\",\"data\":\".*$SUBSTRING.*\"}" "$TRACE_FILE"; then
+  if grep -q "\"sid\":\"$SID\".*\"event\":\"$EVENT\".*\"data\":\".*$SUBSTRING.*\"" "$TRACE_FILE"; then
     echo "OK: Found $EVENT for $SID containing '$SUBSTRING'"
     exit 0
   else
@@ -37,7 +37,7 @@ if [ -n "$SUBSTRING" ]; then
     exit 1
   fi
 else
-  if grep -q "{\"ts\":.*,\"sid\":\"$SID\",\"event\":\"$EVENT\",\"data\":\".*\"}" "$TRACE_FILE"; then
+  if grep -q "\"sid\":\"$SID\".*\"event\":\"$EVENT\"" "$TRACE_FILE"; then
     echo "OK: Found $EVENT for $SID"
     exit 0
   else

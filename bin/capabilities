@@ -68,6 +68,11 @@ done
 # 3. Path Health
 echo ""
 echo "${BOLD}Critical Paths:${RESET}"
+# Provide defaults for XDG variables if not set
+: "${XDG_CONFIG_HOME:=$HOME/.config}"
+: "${XDG_STATE_HOME:=$HOME/.local/state}"
+: "${ZDOTDIR:=$(pwd)}"
+
 # Format: label:path
 _paths="ZDOTDIR:$ZDOTDIR XDG_CONFIG_HOME:$XDG_CONFIG_HOME XDG_STATE_HOME:$XDG_STATE_HOME HOMEBREW_PREFIX:${HOMEBREW_PREFIX:-<unset>}"
 
