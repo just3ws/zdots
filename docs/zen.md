@@ -1,6 +1,6 @@
 ---
 id: zen
-title: The Zen of Zsh
+title: "The Zen of Zsh"
 purpose: Philosophical foundation for the Zdots control plane.
 rationale: Adapts PEP 20 for the unique flexibility and interactive power of the Z shell.
 links:
