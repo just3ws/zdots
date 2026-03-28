@@ -42,30 +42,32 @@ zdots_ai_infer() {
   fi
   export _ZDOTS_AI_SERVER_UP=1
 
-  local response
-  # We pipe through tr to scrub raw control characters that violate JSON spec
-  response=$(jq -nc \
+  # Use a temporary file for the response to avoid shell-level string corruption
+  local tmp_res=$(mktemp)
+  jq -nc \
     --arg model "$ZDOTS_AI_MODEL" \
     --arg prompt "$prompt" \
     --arg system "$system" \
     '{model: $model, prompt: $prompt, system: $system, stream: false}' \
-    | curl -s -X POST "$ZDOTS_AI_ENDPOINT/api/generate" -d @- \
-    | tr -d '\000-\010\013\014\016-\037')
+    | curl -s -X POST "$ZDOTS_AI_ENDPOINT/api/generate" -d @- > "$tmp_res"
 
-  if [[ -z "$response" ]]; then
+  if [[ ! -s "$tmp_res" ]]; then
     echo "ai: error: received empty response from Ollama" >&2
+    rm -f "$tmp_res"
     return 1
   fi
 
   # Check for API-level errors
-  local api_error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null)
+  local api_error=$(jq -r '.error // empty' "$tmp_res" 2>/dev/null)
   if [[ -n "$api_error" ]]; then
     echo "ai: error: $api_error" >&2
     if [[ "$api_error" == *"not found"* ]]; then
       echo "suggestion: run 'ollama pull $ZDOTS_AI_MODEL'" >&2
     fi
+    rm -f "$tmp_res"
     return 1
   fi
 
-  echo "$response" | jq -r '.response // empty'
+  jq -r '.response // empty' "$tmp_res"
+  rm -f "$tmp_res"
 }
