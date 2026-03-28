@@ -1,16 +1,24 @@
 # providers/ai/ollama.zsh — Ollama implementation for local AI inference
 
 zdots_ai_init() {
-  export ZDOTS_AI_MODEL="${ZDOTS_AI_MODEL:-llama3.2:3b}"
+  export ZDOTS_AI_PROFILE="${ZDOTS_AI_PROFILE:-standard}"
   export ZDOTS_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11434}"
+  
+  # Resolve model from central config if yq is available
+  local model="llama3.2:3b" # Fallback
+  if command -v yq >/dev/null 2>&1; then
+    model=$(yq ".profiles.${ZDOTS_AI_PROFILE}.model" "$ZDOTDIR/etc/ai-models.yaml" 2>/dev/null)
+    [[ "$model" == "null" ]] && model="llama3.2:3b"
+  fi
+  export ZDOTS_AI_MODEL="${ZDOTS_AI_MODEL:-$model}"
 
-  # Non-blocking boot-time check for capabilities report
+  # Non-blocking boot-time check
   if curl -s -m 1 "$ZDOTS_AI_ENDPOINT/api/tags" >/dev/null 2>&1; then
     export _ZDOTS_AI_SERVER_UP=1
   else
     export _ZDOTS_AI_SERVER_UP=0
   fi
-
+  
   export _ZDOTS_AI_INITIALIZED=1
 }
 
