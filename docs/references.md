@@ -1,6 +1,6 @@
 ---
 id: references
-title: External References & Zsh Bookmarks
+title: "External References & Zsh Bookmarks"
 purpose: Central repository for external documentation and community resources.
 links:
   - id: readme
