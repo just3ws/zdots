@@ -1,0 +1,27 @@
+# etc/otel-collector.yaml — Standard configuration for local shell observability
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: "localhost:4318"
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
+exporters:
+  # Debug: Output to console
+  logging:
+    verbosity: detailed
+  # Local Storage: Save to local JSON file
+  file:
+    path: "./traces-collected.json"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging, file]

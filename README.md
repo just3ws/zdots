@@ -1,395 +1,114 @@
-# Zdots
+---
+id: readme
+title: Zdots: The Observable Control Plane
+purpose: Primary entry point and system overview for the Zdots environment.
+links:
+  - id: architecture
+    rel: child
+  - id: zen
+    rel: child
+  - id: references
+    rel: child
+---
 
-My Zsh dotfiles.
+# Zdots: The Observable Control Plane
 
-## Installation
+Zdots is a modular, high-performance Zsh environment built on the principles of **Domain-Driven Design (DDD)** and **SOLID** engineering. It evolves the shell from a collection of scripts into a participating node in a distributed observability system.
+
+---
+
+## 🛠 Shell Loading Sequence
+
+The boot sequence is designed for **Resilience** and **Observability**. Every module is wrapped in a circuit breaker to prevent shell collapse.
+
+```mermaid
+sequenceDiagram
+    participant OS as Operating System
+    participant ENV as env.sh (POSIX)
+    participant MAN as .zdots.env (Manifest)
+    participant PRV as providers/ (DI)
+    participant ZSH as .zshrc (Zsh)
+    participant CFG as conf.d/ (Interfaces)
+
+    OS->>ENV: Source .zshenv / env.sh
+    ENV->>MAN: Load Environment Profile
+    MAN-->>ENV: Export ZDOTS_SERVICE_*
+    
+    rect rgb(200, 230, 255)
+    Note over ENV,PRV: Dependency Injection Phase
+    ENV->>PRV: zdots_require <service> <provider>
+    PRV-->>ENV: Inject _init() and _paths()
+    end
+
+    ENV->>ENV: Construct PATH (SOLID precedence)
+    
+    Note over ZSH: Login/Interactive Entry
+    ZSH->>CFG: Source conf.d/*.zsh (via Circuit Breaker)
+    
+    rect rgb(220, 255, 220)
+    Note over CFG,PRV: Interface Implementation
+    CFG->>PRV: Call injected _init()
+    PRV-->>CFG: Service Ready
+    end
+```
+
+---
+
+## ☯️ The Zen of Zsh
+
+Zdots follows a specific philosophy optimized for interactive power and calculated magic.
+
+> *Interactive is better than scripted.*
+> *Implicit is better than explicit (for the fingers).*
+> *Recursive is better than flat (**/*).*
+> *Now is better than never.*
+
+See [docs/zen.md](docs/zen.md) for the full principles.
+
+---
+
+## 🚀 Quick Start
+
+### Installation
 
 ```shell
 cd
 mv -f .zshenv .zshenv.bak
-mkdir -p ~/.local/share/zsh
 git clone git@github.com:just3ws/zdots.git ~/.config/zsh
 ln -s ~/.config/zsh/.zshenv ~/.zshenv
 exec "$SHELL"
 ```
 
-## Quick Start
+### Bootstrap & Validation
 
 ```shell
-~/.config/zsh/bin/bootstrap
-```
-
-or
-
-```shell
+# Install dependencies
 make bootstrap
-```
 
-## Dependencies
-
-```shell
-brew bundle --file ~/.config/zsh/Brewfile
-```
-
-## Validation
-
-```shell
-~/.config/zsh/bin/check
-```
-
-`bin/check` enforces completion path security via `compaudit` by default.
-It validates both interactive startup (`zsh -i`) and login+interactive startup (`zsh -l -i`).
-It validates `^R` history keybinding policy for both fallback and FZF-enabled paths.
-When `shellcheck` is installed, `bin/check` also runs a shellcheck pass for any bash/sh scripts in the repo.
-It also verifies prompt theme availability in normal mode.
-
-Fast sanity mode (skip external dependencies like asdf/Homebrew checks):
-
-```shell
-ZDOTS_CHECK_SKIP_EXTERNAL=1 ~/.config/zsh/bin/check
-```
-
-Secret scan (tracked files):
-
-```shell
-~/.config/zsh/bin/secret-scan
-```
-
-Make targets:
-
-```shell
+# Run the health check and regression suite
 make check
-make check-fast
-make bench
 ```
 
-## Startup Performance Budget
+---
 
-- Metric: median `real` time for `zsh -i -c exit` over 5 runs.
-- Current baseline: `0.08s` (2026-03-25).
-- Warning threshold: `0.08s` (`ZDOTS_STARTUP_WARN_THRESHOLD_SEC`).
-- Performance logic: Uses `zsh-defer` for lazy-loading heavy plugins.
-- Refresh cadence: at least quarterly, and after major prompt/plugin/startup changes.
+## 📊 Core Capabilities
 
-Optional startup timing report during validation (non-blocking warning only):
+- **Modular Providers**: Swap `homebrew` for `apt` or `mise` for `system` runtimes via `.zdots.env`.
+- **Distributed Tracing**: Built-in W3C `traceparent` propagation and OTLP-compatible telemetry.
+- **Circuit Breakers**: Isolated module loading ensures the shell remains functional even if a module fails.
+- **TDD Native**: Verified by a comprehensive **Bats-core** suite for both POSIX and Zsh contracts.
 
-```shell
-ZDOTS_CHECK_REPORT_STARTUP=1 ~/.config/zsh/bin/check
-```
+---
 
-Detailed policy and baseline data:
-- [docs/startup-performance-budget.md](docs/startup-performance-budget.md)
+## 📖 Documentation & References
 
-If validation fails with insecure completion paths:
+- **[docs/architecture.md](docs/architecture.md)**: Deep dive into the provider pattern and control plane.
+- **[docs/zen.md](docs/zen.md)**: Philosophical foundation.
+- **[docs/references.md](docs/references.md)**: Zsh manuals, POSIX standards, and XDG specs.
+- **[backlog/Backlog.md](backlog/Backlog.md)**: Current tasks and architectural decisions (ADRs).
 
-```shell
-zsh -i -c 'autoload -Uz compaudit; compaudit'
-```
+---
 
-Fix each reported path by removing group/other write permissions (example):
+## 🛡 Security
 
-```shell
-chmod g-w /opt/homebrew/share
-```
-
-Temporary bypass (not recommended as a default):
-
-```shell
-ZDOTS_CHECK_STRICT_COMPAUDIT=0 ~/.config/zsh/bin/check
-```
-
-Runtime bypass for completion initialization (not recommended as a default):
-
-```shell
-ZDOTS_COMPLETION_PERMISSIVE=1 exec zsh
-```
-
-## History Analysis Pipeline
-
-Import one or more history files into a SQLite database:
-
-```shell
-~/.config/zsh/bin/history-import \
-  ~/.zsh_history \
-  ~/.bash_history
-```
-
-Generate a Markdown report (defaults to `./reports/history-summary.md`):
-
-```shell
-~/.config/zsh/bin/history-analyze --days 90 --top 25
-```
-
-Useful options:
-
-- `history-import --db <path>` to override the default DB path (`$XDG_STATE_HOME/zdots/history.sqlite3`)
-- `history-import --shell <zsh|bash|fish>` to force shell parsing mode when auto-detection is ambiguous
-- `history-import --prune-days <n>` to prune old rows after import (retention control)
-- `history-import --no-redact` to disable sensitive-value redaction during import
-- `history-analyze --out <path>` to write report to a custom location
-- `history-analyze --quick` to print a short top-command summary to stdout
-
-By default, `history-import` redacts common secret/token/password patterns before writing `raw`/`args` fields.
-
-## Local Overrides
-
-- `~/.config/zsh/.zshrc.local` for machine-specific shell behavior.
-- `~/.config/zsh/.aliasrc.local` for machine-specific aliases/functions.
-- Local override files are intentionally gitignored to reduce accidental secret commits.
-
-## Security
-
-- Review [SECURITY.md](SECURITY.md) for vulnerability reporting guidance.
-- CI runs a dedicated secret scan workflow on push and pull requests.
-
-## Git XDG Config
-
-- Zsh sets `GIT_CONFIG_GLOBAL=$XDG_CONFIG_HOME/git/config`.
-- `bin/bootstrap` creates `~/.config/git/config` and a compatibility include in `~/.gitconfig` for non-zsh environments.
-- `bin/bootstrap` configures local Git hooks with `core.hooksPath=.githooks`.
-- Set identity in the XDG-backed global config with:
-
-```shell
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
-```
-
-## Git Hooks
-
-- This repo versions hooks in `.githooks/`.
-- `pre-push` runs `ZDOTS_CHECK_SKIP_EXTERNAL=1 ./bin/check`.
-- To enable in an existing clone:
-
-```shell
-git config --local core.hooksPath .githooks
-```
-
-## History Defaults
-
-- Default mode (`ZDOTS_SHARE_HISTORY=0`): append-only local history with
-  `inc_append_history_time` enabled.
-- Shared mode (`ZDOTS_SHARE_HISTORY=1`): cross-session history sharing enabled,
-  with `inc_append_history_time` disabled to avoid conflicting write modes.
-
-## Upgrade Safety Controls
-
-- `upgrade-homebrew` runs conservative upgrades by default.
-- Set `ZDOTS_HOMEBREW_AGGRESSIVE=1` to enable `--greedy` upgrades.
-- `upgrade-mise` uses version-track defaults and skips global package-manager upgrades by default.
-- Set `ZDOTS_UPGRADE_GLOBALS=1` to re-enable global `pip`/`npm`/`gem` updates.
-- Set `ZDOTS_UPGRADE_DRY_RUN=1` to print upgrade actions without executing them.
-- Convenience targets:
-  - `make upgrade`
-  - `make upgrade-dry`
-
-## Troubleshooting Runbook
-
-1. Start with a clean shell:
-   `zsh -f`
-2. Validate startup and config:
-   `~/.config/zsh/bin/check`
-3. Check completion path security:
-   `zsh -i -c 'autoload -Uz compaudit; compaudit'`
-4. Rebuild shell caches if needed:
-   `reset`
-5. Isolate a startup module:
-   Move a file from `conf.d/` out of the directory temporarily, then re-run `bin/check`.
-
-## Global Aliases (Pipelining DSL)
-
-The configuration includes "Global Aliases" (`alias -g`) which expand anywhere in a command, enabling a semi-DSL for pipelining:
-
-- `G`: `| grep`
-- `GI`: `| grep -i`
-- `L`: `| less`
-- `H`: `| head`
-- `T`: `| tail`
-- `W`: `| wc -l`
-- `S`: `| sort`
-- `U`: `| uniq`
-- `Y`: `| pbcopy`
-- `J`: `| jq`
-- `X`: `| xargs`
-
-Usage: `cat logs.txt GI error W` (counts lines containing "error" case-insensitively).
-
-## Service & Workflow Shortcuts
-
-- `bsl`/`bss`/`bso`/`bsr`: `brew services` (list/start/stop/restart)
-- `dps`/`dpa`/`dlf`: `docker` (ps/ps -a/logs -f)
-- `p`/`px`/`pr`/`pi`/`ps`/`pt`/`pv`: `pnpm` (base/dlx/run/install/start/test/verify)
-- `fd`/`fl`/`fs`: `fly` (deploy/logs/status)
-- `fds`/`fdp`: Fly.io project-specific staging/production deployments.
-- `lg`: `lazygit` (TUI for Git)
-- `br`: `broot` (Weighted tree navigation)
-- `top`/`htop`: `btm` (Modern process monitor)
-- `atuin`: SQLite-backed searchable history (`Ctrl-R`)
-- `he`: `history_enquire` (Interactive history cleanup)
-- `ai`: AI Pattern Pipe (e.g., `cat log.txt | ai summarize`)
-- `cl`/`gm`: `claude` / `gemini`
-- `k`: `klear` (High-reset clear)
-- `gup`: `git pull --rebase`
-- `gpfl`: `git push --force-with-lease`
-- `bench`: `hyperfine` (Benchmarking)
-- `path`/`fpath`: Line-by-line path inspection.
-
-## Color Theme
-
-The configuration supports selectable themes via the `ZDOTS_THEME` environment variable (set in `.zshenv`).
-
-Supported themes:
-- `nord`
-- `dracula`
-- `dracula-pro` (refined colors from Dracula Pro)
-
-Theme features:
-- `LS_COLORS` is generated via `vivid generate $ZDOTS_THEME`.
-- For `nord`, the config can also use the vendored theme file at `assets/nord/dir_colors` via `gdircolors`/`dircolors`.
-- `FZF_DEFAULT_OPTS` are automatically adjusted to match the selected theme.
-- BSD `ls -G` fallback exports a theme-inspired `LSCOLORS` value.
-
-## Roadmap
-
-- See [TODO.md](TODO.md) for prioritized follow-up work.
-- See [docs/zsh-quality-rubric.md](docs/zsh-quality-rubric.md) for the quality rubric, scorecard, and remediation plan.
-- See [CHANGELOG.md](CHANGELOG.md) for an era-by-era history summary.
-
-## Zsh Bookmarks
-
-### Official
-
-- [Mirror of the Z shell source code repository](https://github.com/zsh-users/zsh)
-- [THE ZSH FAQ](http://www.zsh.org/FAQ/)
-- [THE ZSH WEB PAGE](http://www.zsh.org/)
-- [THE ZSH USERGUIDE](http://zsh.sourceforge.net/Guide/)
-- [THE ZSH WIKI](http://www.zshwiki.org/)
-
-### Homepage
-
-- [Zsh](http://www.zsh.org/)
-
-### Documentation
-
-- [A User's Guide to the Z-Shell](http://zsh.sourceforge.net/Guide/zshguide.html)
-- [A User's Guide to ZSH](http://zsh.sourceforge.net/Guide/)
-- [Table of Contents](http://zsh.sourceforge.net/Intro/intro_toc.html)
-- [Filename Generation](http://zsh.sourceforge.net/Intro/intro_2.html)
-- [A User's Guide to the Z-Shell](http://zsh.sourceforge.net/Guide/zshguide02.html)
-- [Startup Files](http://zsh.sourceforge.net/Intro/intro_3.html)
-- [Z-Shell Frequently-Asked Questions](http://zsh.sourceforge.net/FAQ/)
-- [ZSH - Documentation](http://zsh.sourceforge.net/Doc/)
-- [ZSH - Reference Card](http://zsh.sourceforge.net/Refcard/)
-- [ZSH - THE Z SHELL](http://zsh.sourceforge.net/)
-- [zsh - Browse Files at SourceForge.net](https://sourceforge.net/projects/zsh/files/)
-- [zsh: 12 Conditional Expressions](http://zsh.sourceforge.net/Doc/Release/Conditional-Expressions.html)
-- [zsh: 6 Shell Grammar](http://zsh.sourceforge.net/Doc/Release/Shell-Grammar.html#Alternate-Forms-For-Complex-Commands)
-- [zsh: Table of Contents](http://zsh.sourceforge.net/Doc/Release/zsh_toc.html)
-
-### ZshWiki
-
-- [ZshWiki - examples:aliasdirs](http://zshwiki.org/home/examples/aliasdirs)
-- [ZshWiki - options:history](http://zshwiki.org/home/options/history)
-- [ZshWiki](http://zshwiki.org/home/)
-- [ZshWiki - tutorials](http://zshwiki.org/home/tutorials)
-
-### Others
-
-- [.zshrc (ZSH lazy load) · GitHub](https://gist.github.com/QinMing/364774610afc0e06cc223b467abe83c0)
-- [Ask HN: Share your favourite bash/zsh aliases | Hacker News](https://news.ycombinator.com/item?id=9869231)
-- [From Bash to Z Shell: Conquering the Command Line](http://www.bash2zsh.com/)
-- [GitHub - psprint/zsh-navigation-tools: Curses-based tools for Zsh, e.g. multi-word history searcher](https://github.com/psprint/zsh-navigation-tools)
-- [Master Your Z Shell with These Outrageously Useful Tips - Blog - Reason I Am Here - Nacho Caballero](http://reasoniamhere.com/2014/01/11/outrageously-useful-tips-to-master-your-z-shell/)
-- [Mastering the path_helper utility of MacOSX (DevelopersCorner.MasteringThePathHelper) - XWiki](http://www.softec.lu/site/DevelopersCorner/MasteringThePathHelper)
-- [Micah Elliott: How to Structure a .zshrc](http://micahelliott.com/posts/2016-01-16-how-to-structure-zshrc.html)
-- [My .zshrc file](https://gist.github.com/zanshin/1142739)
-- [No, really. Use Zsh. - IFHO](http://fendrich.se/blog/2012/09/28/no/)
-- [One shell to rule them all... - (think)](http://batsov.com/articles/2011/04/29/one-shell-to-rule-them-all/)
-- [Profiling ZSH startup time | Kevin Burke](https://kev.inburke.com/kevin/profiling-zsh-startup-time/)
-- [Profiling zsh shell scripts — Xebia Blog](http://blog.xebia.com/profiling-zsh-shell-scripts/)
-- [Search · topic:zsh · GitHub](https://github.com/search?q=topic%3Azsh&type=Repositories)
-- [Search · topic:zsh-configuration · GitHub](https://github.com/search?q=topic%3Azsh-configuration&type=Repositories)
-- [Search · topic:zshrc · GitHub](https://github.com/search?q=topic%3Azshrc&type=Repositories)
-- [Speed up zsh compinit by only checking cache once a day. · GitHub](https://gist.github.com/ctechols/ca1035271ad134841284)
-- [Speeding up my ZSH load | Carlos Alexandro Becker](https://carlosbecker.com/posts/speeding-up-zsh/)
-- [Updating Your Shell with Homebrew | John D. Jameson](https://johndjameson.com/blog/updating-your-shell-with-homebrew/)
-- [Use Homebrew zsh Instead of the OS X Default : Rick Cogley Central](https://rick.cogley.info/post/use-homebrew-zsh-instead-of-the-osx-default/)
-- [What does `zstyle` do?](https://unix.stackexchange.com/questions/214657/what-does-zstyle-do)
-- [Why Zsh is Cooler than Your Shell](https://www.slideshare.net/jaguardesignstudio/why-zsh-is-cooler-than-your-shell-16194692)
-- [Writing own completion functions](https://askql.wordpress.com/2011/01/11/zsh-writing-own-completion/)
-- [Z shell - Wikipedia](https://en.wikipedia.org/wiki/Z_shell)
-- [Z shell made easy | TuxRadar Linux](http://www.tuxradar.com/content/z-shell-made-easy)
-- [ZSH-LOVERS(1)](https://grml.org/zsh/zsh-lovers.html)
-- [Zsh Configuration From the Ground Up - Zanshin.net](http://zanshin.net/2013/02/02/zsh-configuration-from-the-ground-up/)
-- [Zsh Tips, Tricks and Examples by zzapper](http://www.rayninfo.co.uk/tips/zshtips.html)
-- [Zsh Workshop: Table of Contents](https://www-s.acm.illinois.edu/workshops/zsh/toc.html)
-- [Zsh/Bash startup files loading order (.bashrc, .zshrc etc.) | The Lumber Room](https://shreevatsa.wordpress.com/2008/03/30/zshbash-startup-files-loading-order-bashrc-zshrc-etc/)
-- [chris blogs: 10 new zsh tricks you may not know...](http://chneukirchen.org/blog/archive/2012/02/10-new-zsh-tricks-you-may-not-know.html)
-- [per directory zsh config (Example)](https://coderwall.com/p/a3xreg/per-directory-zsh-config)
-- [reload all running zsh instances - Super User](https://superuser.com/questions/852912/reload-all-running-zsh-instances)
-- [the8/terminal-app.zsh: OSX 10.11(El Capitan) Terminal.app and Zsh integration using new status escape codes and a dash of Emoji to make your terminal shine.](https://github.com/the8/terminal-app.zsh)
-- [zsh-syntax-highlighting/INSTALL.md at master · zsh-users/zsh-syntax-highlighting · GitHub](https://github.com/zsh-users/zsh-syntax-highlighting/blob/master/INSTALL.md)
-
-### StackExchange
-
-- [Functions digest is NOT treated the same as a directory of function files!](https://unix.stackexchange.com/questions/306122/functions-digest-is-not-treated-the-same-as-a-directory-of-function-files)
-- [How to define and load your own shell function in zsh - Unix & Linux Stack Exchange](https://unix.stackexchange.com/questions/33255/how-to-define-and-load-your-own-shell-function-in-zsh)
-- [shell - Why zsh and ksh93 chose to be non-compliant in pattern matching? - Unix & Linux Stack Exchange](http://unix.stackexchange.com/questions/265431/why-zsh-and-ksh93-chose-to-be-non-compliant-in-pattern-matching/265446)
-
-### zsh-users
-
-- [zsh-users · GitHub](https://github.com/zsh-users)
-- [zsh-users/zsh: Mirror of the Z shell source code repository.](https://github.com/zsh-users/zsh)
-- [zsh-users](https://github.com/zsh-users)
-- [GitHub - zsh-users/zsh: Mirror of the Z shell source code repository.](https://github.com/zsh-users/zsh)
-
-### dotfiles
-
-- [GitHub - stephenmckinney/dotfiles: Config files for ack, gem, git, irb, iterm2, pry, rails, rspec, rvm, tmux, zsh with a focus on Ruby and Rails development. Solarized ALL the things.](https://github.com/stephenmckinney/dotfiles)
-- [dotfiles/config.zsh at master · Drakirus/dotfiles · GitHub](https://github.com/Drakirus/dotfiles/blob/master/zsh/config.zsh#L7)
-- [http://pages.cs.wisc.edu/~arumuga/dotfiles/.zshrc](http://pages.cs.wisc.edu/~arumuga/dotfiles/.zshrc)
-- [ryanb/dotfiles: config files for zsh, bash, completions, gem, git, irb, rails](https://github.com/ryanb/dotfiles)
-- [spicycode/ze-best-zsh-config: Ze Best ZSH Config](https://github.com/spicycode/ze-best-zsh-config)
-- [voku/dotfiles: dotfiles for Bash / ZSH / Git Bash (Windows) / Cygwin (Windows) / Bash on Ubuntu on Windows](https://github.com/voku/dotfiles)
-- [GitHub - dotphiles/dotzsh: A community driven framework for zsh](https://github.com/dotphiles/dotzsh)
-- [.zsh/aliases at master · robertklep/.zsh](https://github.com/robertklep/.zsh/blob/master/aliases)
-
-
-### Frameworks
-
-- [Eriner/zim: ZIM - Zsh IMproved](https://github.com/Eriner/zim)
-- [GitHub - sorin-ionescu/prezto: The configuration framework for Zsh](https://github.com/sorin-ionescu/prezto)
-- [GitHub - zimframework/zim: ZIM - Zsh IMproved](https://github.com/zimframework/zim)
-- [How Zim Works (part 1) – Eriner](https://eriner.me/2015/12/29/How-Zim-Works-pt-1/)
-- [Migrating from Prezto to Zim (Zsh IMproved) · Linuxious](https://linuxious.com/2015/12/26/migrating-from-prezto-to-zim-zsh-improved/)
-- [Troubleshooting · robbyrussell/oh-my-zsh Wiki](https://github.com/robbyrussell/oh-my-zsh/wiki/Troubleshooting)
-- [Why Oh My Zsh is completely broken](https://archive.zhimingwang.org/blog/2015-05-03-why-oh-my-zsh-is-completely-broken.html)
-- [prezto/runcoms at master · sorin-ionescu/prezto](https://github.com/sorin-ionescu/prezto/tree/master/runcoms)
-- [The “Nano-Framework” For Adding Scripts To Your .{bash/zsh}rc Files](https://hackernoon.com/the-nano-framework-for-adding-scripts-to-your-bash-zsh-rc-files-df2732e3463#.3zhvolv8t)
-
-### Prompts
-
-- [Customize your zsh prompt](http://richard-zhao.com/blog/2015/08/26/zsh-prompt/)
-- [How to Customize Your Command Prompt](https://code.tutsplus.com/tutorials/how-to-customize-your-command-prompt--net-24083)
-- [My Extravagant Zsh Prompt](http://stevelosh.com/blog/2010/02/my-extravagant-zsh-prompt/)
-- [Prompt Expansion](http://zsh.sourceforge.net/Doc/Release/Prompt-Expansion.html)
-- [Prompting](http://zsh.sourceforge.net/Intro/intro_14.html)
-- [arialdomartini/oh-my-git: An opinionated git prompt for bash and zsh](https://github.com/arialdomartini/oh-my-git)
-- [sindresorhus/pure: Pretty, minimal and fast ZSH prompt](https://github.com/sindresorhus/pure)
-
-### vcs_info
-
-- [Customize your ZSH prompt with vcs_info](http://arjanvandergaag.nl/blog/customize-zsh-prompt-with-vcs-info.html)
-- [GIT INFO IN YOUR ZSH PROMPT](http://eseth.org/2010/git-in-zsh.html)
-- [Git info in your ZSH Prompt](http://briancarper.net/blog/570.html)
-- [My very own Zsh prompt](http://matija.suklje.name/my-very-own-zsh-prompt)
-- [vcs_info-examples](https://github.com/zsh-users/zsh/blob/master/Misc/vcs_info-examples)
-
-### Async
-
-- [zsh-async](https://github.com/mafredri/zsh-async)
-- [Asynchronous RPROMPT?](https://unix.stackexchange.com/questions/91087/asynchronous-rprompt)
-- [An Asynchronous Shell Prompt](http://www.anishathalye.com/2015/02/07/an-asynchronous-shell-prompt/)
-
-### unsorted
-- http://zshwiki.org/home/zle/vi-mode
-- http://zshwiki.org/home/zle/bindkeys#why_isn_t_control-r_working_anymore
+Zdots enforces a strict security baseline including `umask 077` and automatic argument redaction in trace logs. See [SECURITY.md](SECURITY.md) for details.
