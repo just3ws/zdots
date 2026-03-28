@@ -38,9 +38,9 @@ zdots_ai_infer() {
   fi
   export _ZDOTS_AI_SERVER_UP=1
 
-  # Use OpenAI-compatible chat completions endpoint (standard in llama.cpp v1.7+)
-  local response
-  response=$(jq -nc \
+  # Use a temporary file for the response
+  local tmp_res=$(mktemp)
+  jq -nc \
     --arg model "$ZDOTS_AI_MODEL" \
     --arg system "$system" \
     --arg user "$prompt" \
@@ -55,20 +55,22 @@ zdots_ai_infer() {
     }' \
     | curl -s -X POST "$ZDOTS_AI_ENDPOINT/v1/chat/completions" \
       -H "Content-Type: application/json" \
-      -d @- \
-    | tr -d '\000-\010\013\014\016-\037')
+      -d @- > "$tmp_res"
     
-  if [[ -z "$response" ]]; then
+  if [[ ! -s "$tmp_res" ]]; then
     echo "ai: error: received empty response from llama.cpp" >&2
+    rm -f "$tmp_res"
     return 1
   fi
 
   # Check for errors in the response
-  local api_error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
+  local api_error=$(jq -r '.error.message // empty' "$tmp_res" 2>/dev/null)
   if [[ -n "$api_error" ]]; then
     echo "ai: error: $api_error" >&2
+    rm -f "$tmp_res"
     return 1
   fi
 
-  echo "$response" | jq -r '.choices[0].message.content // empty'
+  jq -r '.choices[0].message.content // empty' "$tmp_res"
+  rm -f "$tmp_res"
 }
