@@ -1,6 +1,6 @@
 ---
 id: architecture
-title: Zdots Architecture: Modular Control Plane
+title: "Zdots Architecture: Modular Control Plane"
 purpose: Core architectural documentation for the Zdots environment.
 rationale: Defines the SOLID/DDD principles applied to the shell to ensure long-term maintainability and observability.
 links:

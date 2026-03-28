@@ -1,6 +1,6 @@
 ---
 id: readme
-title: Zdots: The Observable Control Plane
+title: "Zdots: The Observable Control Plane"
 purpose: Primary entry point and system overview for the Zdots environment.
 links:
   - id: architecture
