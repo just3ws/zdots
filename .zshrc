@@ -8,8 +8,9 @@ fi
 # vim:ft=zsh
 : "${ZDOTDIR:=$HOME/.config/zsh}"
 
+# Load modules using the Circuit Breaker
 for conf in "$ZDOTDIR"/conf.d/*.zsh(N); do
-  source "$conf"
+  zdots_safe_source "$conf"
 done
 unset conf
 

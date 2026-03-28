@@ -30,19 +30,27 @@ if command -v broot >/dev/null 2>&1; then
   alias br='broot'
 fi
 
-# AI Pattern Pipe: Pipe any output into an AI pattern
-# Usage: cat log.txt | ai analyze_logs
+# AI Pattern Pipe: Pipe any output into local AI for inference/parsing.
+# Usage: cat log.txt | ai "Find all unique error codes"
 ai() {
   if [[ -z "$1" ]]; then
-    echo "Usage: <output> | ai <pattern_name>"
+    echo "Usage: <output> | ai <prompt>"
     return 1
   fi
-  if command -v fabric >/dev/null 2>&1; then
-    fabric --pattern "$1"
-  elif command -v ollama >/dev/null 2>&1; then
-    ollama run "$1"
+  
+  local input
+  if [[ ! -t 0 ]]; then
+    input=$(cat)
+  fi
+
+  if [[ -n "$(command -v zdots_ai_infer)" ]]; then
+    if [[ -n "$input" ]]; then
+      zdots_ai_infer "Data: $input\n\nTask: $1"
+    else
+      zdots_ai_infer "$1"
+    fi
   else
-    echo "ai: neither fabric nor ollama found"
+    echo "ai: error: no AI inference provider configured or initialized" >&2
     return 1
   fi
 }

@@ -51,7 +51,30 @@ zdots_require() {
   local provider_file="${ZDOTDIR}/providers/${service_type}/${provider}.zsh"
 
   if [ -r "$provider_file" ]; then
-    . "$provider_file"
+    zdots_safe_source "$provider_file"
+  fi
+}
+
+# 5. Circuit Breaker (The Submarine Standard)
+# Safely sources a file, catching errors and preventing shell collapse.
+zdots_safe_source() {
+  local file="$1"
+  if [ ! -r "$file" ]; then
+    return 1
+  fi
+
+  # Attempt to source in a subshell-like protected way if possible,
+  # but for standard POSIX env.sh we just source directly and rely 
+  # on 'set +e' to prevent collapse.
+  if . "$file"; then
+    return 0
+  else
+    local status=$?
+    echo "zdots: warning: failed to source $file (exit $status)" >&2
+    if [ -n "$(command -v zdots_trace_log)" ]; then
+      zdots_trace_log "error" "source_failure=$file, status=$status"
+    fi
+    return $status
   fi
 }
 
@@ -59,6 +82,7 @@ zdots_require() {
 zdots_require pkg "${ZDOTS_SERVICE_PKG_MANAGER:-none}"
 zdots_require node "${ZDOTS_SERVICE_NODE_RUNTIME:-system}"
 zdots_require trace "${ZDOTS_SERVICE_TRACE:-none}"
+zdots_require ai "${ZDOTS_SERVICE_AI:-none}"
 
 # 4. XDG Tool Overrides (Force compliance for standard tools)
 export AWS_CONFIG_FILE="$XDG_CONFIG_HOME/aws/config"
