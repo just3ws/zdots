@@ -101,12 +101,15 @@ if [ -f "$_z_trace_file" ]; then
 else
   echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${YELLOW}missing${RESET}]"
 fi
-
 # OTel Resource Info
 if [ -n "${_ZDOTS_OTEL_RESOURCE_JSON:-}" ]; then
   echo "  ${CYAN}OTel Resource:${RESET}"
-  # Simple pretty-print for the JSON resource
-  echo "$_ZDOTS_OTEL_RESOURCE_JSON" | sed 's/{"key":"\([^"]*\)","value":{"[^"]*":"\([^"]*\)"}}/\n    - \1: \2/g' | sed 's/{"key":"\([^"]*\)","value":{"intValue":\([0-9]*\)}}/\n    - \1: \2/g' | sed 's/{"key":"\([^"]*\)","value":{"boolValue":\([^}]*\)}}/\n    - \1: \2/g' | sed 's/[{}]//g' | sed 's/"attributes":\[//g' | sed 's/\]//g' | sed 's/,,/,/g' | tr ',' '\n'
+  if command -v jq >/dev/null 2>&1; then
+    echo "$_ZDOTS_OTEL_RESOURCE_JSON" | jq -r '.attributes[] | "    - \(.key): \(.value | to_entries[0].value)"'
+  else
+    # Fallback if jq is missing (less pretty)
+    echo "$_ZDOTS_OTEL_RESOURCE_JSON" | sed 's/[{}]//g' | tr ',' '\n'
+  fi
 fi
 
 # AI Service Info
@@ -119,13 +122,14 @@ if [ -n "${ZDOTS_SERVICE_AI:-}" ] && [ "$ZDOTS_SERVICE_AI" != "none" ]; then
       _m_status="[missing]"
     fi
   fi
-  echo "  ${CYAN}AI Service:${RESET}    $ZDOTS_SERVICE_AI [model: ${ZDOTS_AI_MODEL:-unknown} $_m_status]"
+  printf "  %bAI Service:%b    %s [model: %s %s]\n" "$CYAN" "$RESET" "$ZDOTS_SERVICE_AI" "${ZDOTS_AI_MODEL:-unknown}" "$_m_status"
   if [ "${_ZDOTS_AI_SERVER_UP:-0}" = "1" ]; then
-    echo "  ${CYAN}AI Server:${RESET}     ${GREEN}online${RESET}"
+    printf "  %bAI Server:%b     %bonline%b\n" "$CYAN" "$RESET" "$GREEN" "$RESET"
   else
-    echo "  ${CYAN}AI Server:${RESET}     ${YELLOW}offline/unavailable${RESET}"
+    printf "  %bAI Server:%b     %boffline/unavailable%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
   fi
 fi
+unset _z_trace_file _z_last_trace
 
 # 5. Tool Verification (The "Reality")
 echo ""
@@ -134,11 +138,12 @@ _tools="zsh git brew mise node npm python3"
 for t in $_tools; do
   _path=$(command -v "$t" 2>/dev/null)
   if [ -n "$_path" ]; then
-    printf "  %-15s : %s\n" "$t" "${GREEN}$_path${RESET}"
+    printf "  %-15s : %b%s%b\n" "$t" "$GREEN" "$_path" "$RESET"
   else
-    printf "  %-15s : %s\n" "$t" "${YELLOW}not found${RESET}"
+    printf "  %-15s : %bnot found%b\n" "$t" "$YELLOW" "$RESET"
   fi
 done
+
 
 echo "----------------------------------------"
 if [ "$errors" -gt 0 ]; then
