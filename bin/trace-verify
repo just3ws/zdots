@@ -1,25 +1,34 @@
-#!/usr/bin/env zsh
-# bin/trace-verify — Verify that a session has produced the expected traces.
+#!/usr/bin/env sh
+# bin/trace-verify — Contract testing for the shell control plane.
+#
+# RATIONALE:
+# Standard shell testing verifies output (STDOUT). Control plane testing verifies 
+# behavior (Events). This tool allows Zdots to use TDD principles by querying 
+# the underlying OTel JSONL trace stream to confirm that specific shell events 
+# (session_start, exec, chdir) actually occurred with the correct metadata.
+#
+# PURPOSE:
+# 1. Provide an automated way to verify shell activity in CI.
+# 2. Support regression testing for observability hooks.
 
 set -eu
-setopt pipefail
 
 # Usage: bin/trace-verify <session_id> <event_type> [data_substring]
 
-SID="${1:-$ZDOTS_SESSION_ID}"
+SID="${1:-${ZDOTS_SESSION_ID:-}}"
 EVENT="${2:-session_start}"
 SUBSTRING="${3:-}"
 
 TRACE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
 
-if [[ ! -f "$TRACE_FILE" ]]; then
+if [ ! -f "$TRACE_FILE" ]; then
   echo "Error: Trace file missing at $TRACE_FILE" >&2
   exit 1
 fi
 
 # We use grep to find the session and event.
 # Then optionally check the data.
-if [[ -n "$SUBSTRING" ]]; then
+if [ -n "$SUBSTRING" ]; then
   if grep -q "{\"ts\":.*,\"sid\":\"$SID\",\"event\":\"$EVENT\",\"data\":\".*$SUBSTRING.*\"}" "$TRACE_FILE"; then
     echo "OK: Found $EVENT for $SID containing '$SUBSTRING'"
     exit 0
