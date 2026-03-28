@@ -26,8 +26,9 @@ setup() {
 }
 
 @test "Security: Sensitive command-line arguments are redacted" {
-  # We test the redaction helper directly
-  run zsh -i -c "export ZDOTDIR=$ZDOTDIR; zdots_trace_redact 'mysql --password secret_pass -e select'"
+  # We test the redaction helper directly.
+  # We use single quotes for the command string to avoid shell expansion issues.
+  run zsh -i -c 'zdots_trace_redact "mysql --password secret_pass -e select"'
   echo "Output: $output"
   [ "$status" -eq 0 ]
   local val=$(echo "$output" | tail -n 1)
