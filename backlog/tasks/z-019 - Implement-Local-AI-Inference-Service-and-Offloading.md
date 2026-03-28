@@ -4,7 +4,7 @@ title: Implement Local AI Inference Service and Offloading
 status: Done
 assignee: []
 created_date: '2026-03-28 00:38'
-updated_date: '2026-03-28 00:41'
+updated_date: '2026-03-28 02:26'
 labels: []
 dependencies: []
 priority: high
@@ -28,7 +28,7 @@ Introduce a modular AI service provider to handle local inference tasks (e.g., l
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Introduced a modular local AI inference service. 1. Created providers/ai/ directory with ollama and remote (Pi/OpenCode) providers. 2. Refactored the 'ai' pipe function to use the injected zdots_ai_infer service, allowing for seamless offloading of log parsing and data reduction. 3. Integrated AI service health into the bin/capabilities report, including model version and server status. 4. Implemented conf.d/95-ai.zsh as the interface layer.
+Solidified the common interface for AI providers. 1. Implemented providers/ai/llama-cpp.zsh using the OpenAI-compatible standard. 2. Verified that the 'ai' command in conf.d remains provider-agnostic. 3. Ensured all providers (Ollama, llama.cpp, Remote) implement the exact same zdots_ai_init and zdots_ai_infer contract, fulfilling the requirement for maximum flexibility.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
