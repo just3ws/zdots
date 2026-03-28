@@ -43,12 +43,34 @@ ai() {
     input=$(cat)
   fi
 
+  # Instrument AI call with OTel span
+  local span_name="ai.infer"
+  local start_time=$(date +%s%N)
+  
   if [[ -n "$(command -v zdots_ai_infer)" ]]; then
+    local output
     if [[ -n "$input" ]]; then
-      zdots_ai_infer "Data: $input\n\nTask: $1"
+      output=$(zdots_ai_infer "Data: $input\n\nTask: $1")
     else
-      zdots_ai_infer "$1"
+      output=$(zdots_ai_infer "$1")
     fi
+    local status=$?
+    
+    # Send span asynchronously
+    if command -v otel-cli >/dev/null 2>&1; then
+      (
+        otel-cli span \
+          --name "$span_name" \
+          --attrs "model=${ZDOTS_AI_MODEL:-unknown},provider=${ZDOTS_SERVICE_AI:-none}" \
+          --force-trace-id "$ZDOTS_TRACE_ID" \
+          --force-span-id "$ZDOTS_SPAN_ID" \
+          $( [[ $status -ne 0 ]] && echo "--status error" ) \
+          >/dev/null 2>&1
+      ) &!
+    fi
+    
+    echo "$output"
+    return $status
   else
     echo "ai: error: no AI inference provider configured or initialized" >&2
     return 1

@@ -55,7 +55,8 @@ zdots_ai_infer() {
     }' \
     | curl -s -X POST "$ZDOTS_AI_ENDPOINT/v1/chat/completions" \
       -H "Content-Type: application/json" \
-      -d @-)
+      -d @- \
+    | tr -d '\000-\010\013\014\016-\037')
     
   if [[ -z "$response" ]]; then
     echo "ai: error: received empty response from llama.cpp" >&2
@@ -63,11 +64,11 @@ zdots_ai_infer() {
   fi
 
   # Check for errors in the response
-  local api_error=$(echo "$response" | jq -r '.error.message // empty')
+  local api_error=$(echo "$response" | jq -r '.error.message // empty' 2>/dev/null)
   if [[ -n "$api_error" ]]; then
     echo "ai: error: $api_error" >&2
     return 1
   fi
 
-  echo "$response" | jq -r '.choices[0].message.content'
+  echo "$response" | jq -r '.choices[0].message.content // empty'
 }

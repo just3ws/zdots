@@ -155,8 +155,23 @@ for t in $_tools; do
   fi
 done
 
-
 echo "----------------------------------------"
+
+# 6. Self-Reporting (OTel Platform Node)
+if command -v otel-cli >/dev/null 2>&1; then
+  _status="unset"
+  [ "$errors" -eq 0 ] && _status="ok" || _status="error"
+
+  (
+    otel-cli span \
+      --name "platform.health" \
+      --attrs "profile=${ZDOTS_ENV_PROFILE:-unknown},os=$(uname -s),disk.avail=$_avail,ai.status=${_ZDOTS_AI_SERVER_UP:-0}" \
+      --force-trace-id "${ZDOTS_TRACE_ID:-00000000000000000000000000000000}" \
+      --status "$_status" \
+      >/dev/null 2>&1
+  ) &
+fi
+
 if [ "$errors" -gt 0 ]; then
   echo "${RED}Health Check Failed: $errors service contract violation(s) detected.${RESET}"
   exit 1
@@ -164,3 +179,4 @@ else
   echo "${GREEN}Health Check Passed: Service contract is valid.${RESET}"
   exit 0
 fi
+
