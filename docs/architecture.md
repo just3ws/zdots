@@ -76,6 +76,17 @@ The system uses a **Composition Root** (`.zdots.env`) to map abstract services t
 | `PKG_MANAGER` | `homebrew`, `apt`, `none` | Path setup, `brew shellenv`, package caching. |
 | `NODE_RUNTIME` | `mise`, `system` | Toolchain shims, version management. |
 | `TRACE` | `otlp`, `local`, `none` | Session ID, Span rotation, Telemetry export. |
+| `AI` | `ollama`, `llama-cpp`, `remote` | Local inference, log parsing, data reduction. |
+
+---
+
+## 4. Service Interface Contracts
+
+Each service type must implement a standard set of functions to ensure **Liskov Substitution**:
+
+### AI Service Contract
+- **`zdots_ai_init()`**: Initializes model metadata and performs a non-blocking health check on the inference server.
+- **`zdots_ai_infer(prompt, system_prompt)`**: The primary execution engine. It takes a prompt and optional system context and returns raw text.
 
 ---
 
