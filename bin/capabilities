@@ -141,8 +141,8 @@ echo ""
 echo "${BOLD}Tooling Reality:${RESET}"
 _tools="zsh git brew mise node npm python3"
 for t in $_tools; do
-  _path=$(command -v "$t" 2>/dev/null)
-  if [ -n "$_path" ]; then
+  # Use a more robust way to check command that doesn't trigger set -e
+  if _path=$(command -v "$t" 2>/dev/null); then
     printf "  %-15s : %b%s%b\n" "$t" "$GREEN" "$_path" "$RESET"
   else
     printf "  %-15s : %bnot found%b\n" "$t" "$YELLOW" "$RESET"
