@@ -80,9 +80,10 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
 
 **Agent Instructions:**
 - **Discovery:** Run `backlog tasks` to see the current task list and status.
-- **Context:** Read individual tasks in the `backlog/` directory for deep requirements.
-- **Updates:** After completing a task, update its status via the `backlog` CLI or by editing the Markdown file directly.
-- **Standard:** Prefer `backlog` commands for high-level status and manual Markdown edits for detailed notes.
+- **Context:** Use `backlog task <id>` to read deep requirements.
+- **Updates:** **MUST** use the `backlog` CLI for ALL status updates and note additions.
+- **Standard**: Follow the **CRITICAL** guidelines below to ensure metadata remains synchronized.
+
 
 ## Tooling Standards
 - **History:** `atuin` (SQLite) with `history_enquire` (`he`) for maintenance.
