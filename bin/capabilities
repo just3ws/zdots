@@ -94,9 +94,8 @@ for p in $_paths; do
 done
 
 # Disk Space Check
-_avail=$(df -h / | tail -n 1 | awk '{print $(NF-2)}')
+_avail=$(df -h / | tail -n 1 | awk '{print $(NF-2)}' || echo "unknown")
 echo "  ${CYAN}Disk Available:${RESET}  $_avail"
-unset _p_status _avail
 
 # 4. Observability Health
 echo ""
@@ -140,7 +139,6 @@ if [ -n "${ZDOTS_SERVICE_AI:-}" ] && [ "$ZDOTS_SERVICE_AI" != "none" ]; then
     printf "  %bAI Server:%b     %boffline/unavailable%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
   fi
 fi
-unset _z_trace_file _z_last_trace
 
 # 5. Tool Verification (The "Reality")
 echo ""
@@ -171,6 +169,9 @@ if command -v otel-cli >/dev/null 2>&1; then
       >/dev/null 2>&1
   ) &
 fi
+
+# Cleanup
+unset _avail _p_status _z_services _z_state_dir _z_trace_file _z_last_trace _ts _m_status _tools _path _status
 
 if [ "$errors" -gt 0 ]; then
   echo "${RED}Health Check Failed: $errors service contract violation(s) detected.${RESET}"
