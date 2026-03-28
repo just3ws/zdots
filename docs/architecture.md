@@ -101,9 +101,40 @@ Every shell session is a root span in a distributed trace.
     - `curl`: Wrapper automatically injects the `traceparent` header.
 4. **Export**: The `otlp` provider sends JSONL logs to a local collector asynchronously.
 
+## 5. Hybrid Observability Routing
+
+Zdots implements a tiered telemetry routing system to ensure high performance on the host and centralized storage in the control plane.
+
+```mermaid
+graph TD
+    Shell[Shell / Spans] -->|OTLP HTTP :4318| BMC[Bare Metal OTel Collector]
+    Apps[Local Apps / Agents] -->|OTLP :4318| BMC
+    
+    subgraph Host
+        BMC
+    end
+    
+    subgraph Colima / Docker
+        LGTM[LGTM Stack]
+        Loki[Loki - Logs]
+        Tempo[Tempo - Traces]
+        Grafana[Grafana - UI]
+    end
+    
+    BMC -->|OTLP :4418| LGTM
+    LGTM --> Loki
+    LGTM --> Tempo
+    Grafana --> Loki
+    Grafana --> Tempo
+```
+
+1. **Bare Metal Collector (BMC)**: Runs directly on the host. It acts as a high-performance buffer and router. It is the primary "Ground Truth" for local traces.
+2. **LGTM Stack**: A bundled observability hub (Loki, Grafana, Tempo, Mimir) running in Colima.
+3. **Multi-hop Routing**: BMC forwards all collected spans to the LGTM stack via mapped ports (4417/4418), allowing for long-term storage and advanced visualization in Grafana.
+
 ---
 
-## 5. CI/CD Lifecycle & Contract Validation
+## 6. CI/CD Lifecycle & Contract Validation
 
 Zdots uses a tiered validation strategy to ensure environmental stability.
 
