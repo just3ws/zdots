@@ -1,9 +1,10 @@
 ---
 id: Z-021
 title: Optimize Disk Footprint for AI and Observability
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-03-28 02:27'
+updated_date: '2026-03-28 02:28'
 labels: []
 dependencies: []
 priority: high
@@ -17,11 +18,17 @@ Address the 'finite disk space' constraint, especially for Raspberry Pi nodes. T
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Implement model presence check and 'smart pull' in AI providers
-- [ ] #2 Add disk-space warnings to capabilities report
-- [ ] #3 Implement trace log rotation and compression
-- [ ] #4 Define 'constrained' model profiles in etc/ai-models.yaml (e.g., < 2GB)
+- [x] #1 Implement model presence check and 'smart pull' in AI providers
+- [x] #2 Add disk-space warnings to capabilities report
+- [x] #3 Implement trace log rotation and compression
+- [x] #4 Define 'constrained' model profiles in etc/ai-models.yaml (e.g., < 2GB)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Optimized Zdots for finite disk space environments. 1. Implemented model presence checks in the Ollama provider to warn if a large model is missing. 2. Added a live Disk Available check to bin/capabilities. 3. Implemented a 10MB log rotation bulkhead for the OTel JSONL traces. 4. Defined an ultra-lightweight 'constrained' AI profile using qwen2.5-coder:1.5b (~1GB) for Raspberry Pi nodes.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
