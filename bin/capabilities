@@ -82,6 +82,11 @@ for p in $_paths; do
   printf "  %-15s : %-20s [%b]\n" "$label" "$val" "$_p_status"
 done
 
+# Disk Space Check
+_avail=$(df -h / | tail -n 1 | awk '{print $(NF-2)}')
+echo "  ${CYAN}Disk Available:${RESET}  $_avail"
+unset _p_status _avail
+
 # 4. Observability Health
 echo ""
 echo "${BOLD}Observability Health:${RESET}"
@@ -106,7 +111,15 @@ fi
 
 # AI Service Info
 if [ -n "${ZDOTS_SERVICE_AI:-}" ] && [ "$ZDOTS_SERVICE_AI" != "none" ]; then
-  echo "  ${CYAN}AI Service:${RESET}    $ZDOTS_SERVICE_AI [model: ${ZDOTS_AI_MODEL:-unknown}]"
+  _m_status=""
+  if [ "${_ZDOTS_AI_SERVER_UP:-0}" = "1" ]; then
+    if [ "${_ZDOTS_AI_MODEL_PRESENT:-0}" = "1" ]; then
+      _m_status="[present]"
+    else
+      _m_status="[missing]"
+    fi
+  fi
+  echo "  ${CYAN}AI Service:${RESET}    $ZDOTS_SERVICE_AI [model: ${ZDOTS_AI_MODEL:-unknown} $_m_status]"
   if [ "${_ZDOTS_AI_SERVER_UP:-0}" = "1" ]; then
     echo "  ${CYAN}AI Server:${RESET}     ${GREEN}online${RESET}"
   else
