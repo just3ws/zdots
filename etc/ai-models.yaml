@@ -1,0 +1,30 @@
+# etc/ai-models.yaml — Central AI model configuration and "base images"
+
+# Recommended Base Images for 2026
+# - qwen3-coder:7b: The "Gold Standard" for CLI/Coding accuracy.
+# - deepseek-v3.2-lite: Best for reasoning and step-by-step logic.
+# - phi-4-mini: Best for ultra-lightweight/Edge performance.
+
+profiles:
+  standard:
+    model: "qwen3-coder:7b"
+    description: "Balanced performance for general coding and shell logic."
+    parameters:
+      temperature: 0.2
+      num_ctx: 32768
+
+  parser:
+    model: "phi-4-mini"
+    description: "Optimized for high-throughput log parsing and data reduction."
+    parameters:
+      temperature: 0.0
+      num_ctx: 8192
+
+  reasoning:
+    model: "deepseek-r1-distill-qwen:7b"
+    description: "Deep thinking mode for complex bug analysis."
+    parameters:
+      temperature: 0.6
+      num_ctx: 16384
+
+default_profile: "standard"
