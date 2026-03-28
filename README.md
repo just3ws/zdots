@@ -95,8 +95,19 @@ make check
 
 - **Modular Providers**: Swap `homebrew` for `apt` or `mise` for `system` runtimes via `.zdots.env`.
 - **Distributed Tracing**: Built-in W3C `traceparent` propagation and OTLP-compatible telemetry.
+- **Hybrid Observability Hub**: High-performance local routing via a bare metal collector forwarding to a central LGTM stack in Colima.
+
+```mermaid
+graph LR
+    Shell[Shell / Spans] -->|OTLP| BMC[Bare Metal Collector]
+    Apps[Apps / Agents] -->|OTLP| BMC
+    BMC -->|Forward| LGTM[LGTM Stack in Colima]
+    LGTM --> UI[Grafana :3000]
+```
+
 - **Circuit Breakers**: Isolated module loading ensures the shell remains functional even if a module fails.
 - **TDD Native**: Verified by a comprehensive **Bats-core** suite for both POSIX and Zsh contracts.
+
 
 ---
 

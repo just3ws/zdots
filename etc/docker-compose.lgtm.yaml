@@ -1,0 +1,22 @@
+# etc/docker-compose.lgtm.yaml — Central Observability Hub (LGTM Stack)
+# Rationale: This stack provides a unified destination for all system telemetry.
+# By running in Colima, it stays isolated yet accessible to host-based services.
+
+services:
+  lgtm:
+    image: grafana/otel-lgtm:0.8.1
+    container_name: zdots-lgtm
+    restart: unless-stopped
+    ports:
+      - "3000:3000"     # Grafana
+      - "4417:4317"     # OTLP gRPC (Exposed as 4417 to avoid conflict with bare metal)
+      - "4418:4318"     # OTLP HTTP (Exposed as 4418)
+      - "3100:3100"     # Loki (Logs)
+    environment:
+      - OTEL_METRIC_EXPORT_INTERVAL=5000
+    volumes:
+      - lgtm-data:/data
+
+volumes:
+  lgtm-data:
+    driver: local
