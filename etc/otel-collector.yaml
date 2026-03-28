@@ -18,10 +18,15 @@ exporters:
   # Local Storage: Save to local JSON file
   file:
     path: "./traces-collected.json"
+  # Central Hub: Forward to LGTM stack in Colima
+  otlp/lgtm:
+    endpoint: "localhost:4418"
+    tls:
+      insecure: true
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, file]
+      exporters: [logging, file, otlp/lgtm]

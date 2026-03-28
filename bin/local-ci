@@ -19,10 +19,11 @@ usage() {
 Usage: local-ci <command> [args]
 
 Commands:
-  up       - Start colima and ensure docker context is set
-  down     - Stop colima
-  status   - Check colima and docker status
+  up       - Start colima and observability stack
+  down     - Stop colima and observability stack
+  status   - Check colima, docker, and otel status
   run      - Run act (GitHub Actions locally)
+  otel     - Manage observability stack (up|down|logs)
   clean    - Remove act artifacts and prune docker images
   restart  - down then up
   rebuild  - Delete and recreate the colima instance
@@ -51,9 +52,13 @@ colima_up() {
     echo "Starting colima (CPU: $CPU, Memory: ${MEMORY}G, Disk: ${DISK}G)..."
     colima start --cpu "$CPU" --memory "$MEMORY" --disk "$DISK"
   fi
+  # Automatically start OTEL stack
+  otel_up
 }
 
 colima_down() {
+  # Stop OTEL stack first
+  otel_down
   if colima status >/dev/null 2>&1; then
     echo "Stopping colima..."
     colima stop
@@ -62,11 +67,28 @@ colima_down() {
   fi
 }
 
+otel_up() {
+  echo "Starting Central Observability Hub (LGTM)..."
+  docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" up -d
+}
+
+otel_down() {
+  echo "Stopping Central Observability Hub (LGTM)..."
+  docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" down
+}
+
+otel_status() {
+  echo "--- Observability Hub ---"
+  docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" ps
+}
+
 colima_status() {
   echo "--- Colima ---"
   colima status || echo "Colima is not running."
   echo "\n--- Docker ---"
   docker version --format 'Client: {{.Client.Version}}\nServer: {{.Server.Version}}' 2>/dev/null || echo "Docker daemon not reachable."
+  echo ""
+  otel_status
 }
 
 run_act() {
@@ -94,6 +116,17 @@ case "${1:-}" in
     check_deps
     shift
     run_act "$@"
+    ;;
+  otel)
+    check_deps
+    shift
+    case "${1:-status}" in
+      up) otel_up ;;
+      down) otel_down ;;
+      status) otel_status ;;
+      logs) docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" logs -f ;;
+      *) echo "Unknown otel command: $1" ;;
+    esac
     ;;
   clean)
     echo "Cleaning up..."
