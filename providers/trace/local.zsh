@@ -28,14 +28,6 @@ zdots_trace_init() {
   export _ZDOTS_TRACE_INITIALIZED=1
 }
 
-# zdots_trace_redact DATA
-# Returns redacted data masking common secrets.
-zdots_trace_redact() {
-  local data="$1"
-  # Basic Redaction: Masking values after common password/secret flags
-  echo "$data" | sed -E 's/(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]:]+[^[:space:]]+/\1 [REDACTED]/gI'
-}
-
 # zdots_trace_log EVENT_TYPE DATA
 # Logs a structured event to the trace file with basic redaction.
 zdots_trace_log() {

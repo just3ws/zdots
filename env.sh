@@ -39,11 +39,21 @@ if [ -z "${ZDOTS_SPAN_ID:-}" ]; then
   fi
 fi
 
-# W3C Traceparent: 00-<trace-id>-<parent-id>-01 (01 = sampled)
+# W3C Traceparent: 00-${ZDOTS_TRACE_ID}-${ZDOTS_SPAN_ID}-01 (01 = sampled)
 export TRACEPARENT="00-${ZDOTS_TRACE_ID}-${ZDOTS_SPAN_ID}-01"
 export ZDOTS_SESSION_ID="${ZDOTS_TRACE_ID}"
 
-# 4. Dependency Injection (DI) Helper
+# 4. Observability Utilities (Core)
+# zdots_trace_redact DATA
+# Returns redacted data masking common secrets. (POSIX-compliant)
+zdots_trace_redact() {
+  local data="$1"
+  # Basic Redaction: Masking values after common password/secret flags
+  # We use a portable sed pattern.
+  echo "$data" | sed -E 's/(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]:]+[^[:space:]]+/\1 [REDACTED]/g'
+}
+
+# 5. Dependency Injection (DI) Helper
 # Loads a service provider implementation.
 zdots_require() {
   local service_type="$1"
