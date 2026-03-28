@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env zsh
 # ---
 # id: history-analyze
 # title: "Zdots History Analysis Engine"
@@ -7,7 +7,10 @@
 # ---
 # bin/history-analyze — High-performance shell activity analyzer.
 
-set -eu
+# 1. Boot Environment (Establish Control Plane Context)
+if [[ -r "${ZDOTDIR:-$HOME/.config/zsh}/.zshenv" ]]; then
+  source "${ZDOTDIR:-$HOME/.config/zsh}/.zshenv"
+fi
 
 # Configuration
 TRACE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
@@ -23,43 +26,50 @@ Options:
 EOF
 }
 
-# 1. Primal Analysis (Core sh/grep)
+# 2. Primal Analysis (Core grep/awk)
 analyze_basic() {
-  _limit="$1"
-  echo "--- Basic Shell Activity (Last $_limit events) ---"
+  local limit="$1"
+  print -P "%B--- Basic Shell Activity (Last $limit events) ---%b"
   
   # Top 10 Commands
   echo ""
   echo "Top 10 Commands:"
-  grep '"event":"exec"' "$TRACE_FILE" | tail -n "$_limit" | \
+  grep '"event":"exec"' "$TRACE_FILE" | tail -n "$limit" | \
     sed 's/.*"data":"\([^"]*\)".*/\1/' | \
     sort | uniq -c | sort -nr | head -n 10
 }
 
-# 2. AI-Powered Data Reduction (The "Dream")
+# 3. AI-Powered Data Reduction (The "Dream")
 analyze_ai() {
-  _limit="$1"
-  # We check for the function, not the command, as it's provided by Zsh
-  if ! command -v zdots_ai_infer >/dev/null 2>&1; then
-    echo "history-analyze: error: AI service not found. Run in Zsh or check .zdots.env" >&2
+  local limit="$1"
+  
+  # Ensure AI service is initialized
+  if [[ -n "$(command -v zdots_ai_init)" ]]; then
+    zdots_ai_init
+  fi
+
+  # Check if AI service is provided by the control plane
+  if [[ -z "$(command -v zdots_ai_infer)" ]]; then
+    echo "history-analyze: error: AI service provider not found." >&2
+    echo "Check ZDOTS_SERVICE_AI in .zdots.env" >&2
     return 1
   fi
 
-  echo "history-analyze: reducing data via local AI..."
+  echo "history-analyze: reducing data via local AI (${ZDOTS_AI_MODEL:-unknown})..."
   
   # Extract relevant exec traces for AI consumption
-  _data=$(grep '"event":"exec"' "$TRACE_FILE" | tail -n "$_limit" | sed 's/.*"data":"\([^"]*\)".*/\1/')
+  local data=$(grep '"event":"exec"' "$TRACE_FILE" | tail -n "$limit" | sed 's/.*"data":"\([^"]*\)".*/\1/')
   
-  _system_prompt="You are a shell performance expert. Analyze the provided command history and suggest exactly 3 optimizations (e.g., new aliases, tools to defer, or security warnings). Be extremely concise."
+  local system_prompt="You are a shell performance expert. Analyze the provided command history and suggest exactly 3 optimizations (e.g., new aliases, tools to defer, or security warnings). Be extremely concise. Respond in Markdown bullets."
   
-  zdots_ai_infer "Command History:\n$_data" "$_system_prompt"
+  zdots_ai_infer "Command History:\n$data" "$system_prompt"
 }
 
 # Main
 LIMIT=500
 USE_AI=0
 
-while [ $# -gt 0 ]; do
+while [[ $# -gt 0 ]]; do
   case "$1" in
     --ai) USE_AI=1 ;;
     --limit) LIMIT="$2"; shift ;;
@@ -69,13 +79,13 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-if [ ! -f "$TRACE_FILE" ]; then
+if [[ ! -f "$TRACE_FILE" ]]; then
   echo "history-analyze: error: trace file not found at $TRACE_FILE" >&2
   exit 1
 fi
 
 analyze_basic "$LIMIT"
 
-if [ "$USE_AI" -eq 1 ]; then
+if [[ "$USE_AI" == "1" ]]; then
   analyze_ai "$LIMIT"
 fi
