@@ -4,6 +4,7 @@ title: Enhance Documentation with Meta-Discovery and Wiki Structure
 status: To Do
 assignee: []
 created_date: '2026-03-27 16:18'
+updated_date: '2026-03-28 17:23'
 labels: []
 dependencies: []
 priority: high
@@ -17,10 +18,16 @@ Restructure documentation into a Wiki-style format with YAML frontmatter for met
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Add YAML frontmatter to all .md files
-- [ ] #2 Move architecture diagrams to README.md
-- [ ] #3 Create docs/references.md with links to POSIX, XDG, and Shell manuals
+- [x] #1 Add YAML frontmatter to all .md files
+- [x] #2 Move architecture diagrams to README.md
+- [x] #3 Create docs/references.md with links to POSIX, XDG, and Shell manuals
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Wiki structure established with YAML frontmatter. README restructured with sequence diagrams.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
