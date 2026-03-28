@@ -28,18 +28,26 @@ CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
 RESET='\033[0m'
 
-echo "${BOLD}Zdots Environment Capabilities Report${RESET}"
-echo "----------------------------------------"
+OUTPUT_FORMAT="text"
+if [ "${1:-}" = "--json" ]; then
+  OUTPUT_FORMAT="json"
+fi
 
-# 1. Identity
-echo "${CYAN}Session ID:${RESET}  ${ZDOTS_SESSION_ID:-<unset>}"
-echo "${CYAN}Profile:${RESET}     ${ZDOTS_ENV_PROFILE:-unknown}"
-echo "${CYAN}OS:${RESET}          $(uname -s) ($(uname -m))"
-echo "${CYAN}CI/ACT:${RESET}      ${ACT:-false} / ${CI:-false}"
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo "${BOLD}Zdots Environment Capabilities Report${RESET}"
+  echo "----------------------------------------"
 
-# 2. Service Composition (The "Contract")
-echo ""
-echo "${BOLD}Service Composition:${RESET}"
+  # 1. Identity
+  echo "${CYAN}Session ID:${RESET}  ${ZDOTS_SESSION_ID:-<unset>}"
+  echo "${CYAN}Profile:${RESET}     ${ZDOTS_ENV_PROFILE:-unknown}"
+  echo "${CYAN}OS:${RESET}          $(uname -s) ($(uname -m))"
+  echo "${CYAN}CI/ACT:${RESET}      ${ACT:-false} / ${CI:-false}"
+fi
+
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo ""
+  echo "${BOLD}Service Composition:${RESET}"
+fi
 _z_services="PKG_MANAGER NODE_RUNTIME PYTHON_RUNTIME TRACE AI"
 
 errors=0
@@ -68,12 +76,15 @@ for s in $_z_services; do
     _status="${RED}✗ $provider (missing provider file: providers/${service_dir}/${provider}.zsh)${RESET}"
     errors=$((errors + 1))
   fi
-  printf "  %-15s : %b\n" "$s" "$_status"
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    printf "  %-15s : %b\n" "$s" "$_status"
+  fi
 done
 
-# 3. Path Health
-echo ""
-echo "${BOLD}Critical Paths:${RESET}"
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo ""
+  echo "${BOLD}Critical Paths:${RESET}"
+fi
 # Provide defaults for XDG variables if not set
 : "${XDG_CONFIG_HOME:=$HOME/.config}"
 : "${XDG_STATE_HOME:=$HOME/.local/state}"
@@ -90,35 +101,48 @@ for p in $_paths; do
   else
     _p_status="${YELLOW}missing${RESET}"
   fi
-  printf "  %-15s : %-20s [%b]\n" "$label" "$val" "$_p_status"
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    printf "  %-15s : %-20s [%b]\n" "$label" "$val" "$_p_status"
+  fi
 done
 
 # Disk Space Check
 _avail=$(df -h / | tail -n 1 | awk '{print $(NF-2)}' || echo "unknown")
-echo "  ${CYAN}Disk Available:${RESET}  $_avail"
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo "  ${CYAN}Disk Available:${RESET}  $_avail"
+fi
 
 # 4. Observability Health
-echo ""
-echo "${BOLD}Observability Health:${RESET}"
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo ""
+  echo "${BOLD}Observability Health:${RESET}"
+fi
 _z_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
 _z_trace_file="${_z_state_dir}/traces.jsonl"
+_ts="unknown"
 if [ -f "$_z_trace_file" ]; then
   _z_last_trace="$(tail -n 1 "$_z_trace_file")"
-  echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${GREEN}exists${RESET}]"
   # Extract timestamp via sed
   _ts=$(echo "$_z_last_trace" | sed 's/.*"ts":"\([^"]*\)".*/\1/')
-  echo "  ${CYAN}Last Trace:${RESET}   $_ts"
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${GREEN}exists${RESET}]"
+    echo "  ${CYAN}Last Trace:${RESET}   $_ts"
+  fi
 else
-  echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${YELLOW}missing${RESET}]"
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${YELLOW}missing${RESET}]"
+  fi
 fi
 # OTel Resource Info
 if [ -n "${_ZDOTS_OTEL_RESOURCE_JSON:-}" ]; then
-  echo "  ${CYAN}OTel Resource:${RESET}"
-  if command -v jq >/dev/null 2>&1; then
-    echo "$_ZDOTS_OTEL_RESOURCE_JSON" | jq -r '.attributes[] | "    - \(.key): \(.value | to_entries[0].value)"'
-  else
-    # Fallback if jq is missing (less pretty)
-    echo "$_ZDOTS_OTEL_RESOURCE_JSON" | sed 's/[{}]//g' | tr ',' '\n'
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    echo "  ${CYAN}OTel Resource:${RESET}"
+    if command -v jq >/dev/null 2>&1; then
+      echo "$_ZDOTS_OTEL_RESOURCE_JSON" | jq -r '.attributes[] | "    - \(.key): \(.value | to_entries[0].value)"'
+    else
+      # Fallback if jq is missing (less pretty)
+      echo "$_ZDOTS_OTEL_RESOURCE_JSON" | sed 's/[{}]//g' | tr ',' '\n'
+    fi
   fi
 fi
 
@@ -132,28 +156,75 @@ if [ -n "${ZDOTS_SERVICE_AI:-}" ] && [ "$ZDOTS_SERVICE_AI" != "none" ]; then
       _m_status="[missing]"
     fi
   fi
-  printf "  %bAI Service:%b    %s [model: %s %s]\n" "$CYAN" "$RESET" "$ZDOTS_SERVICE_AI" "${ZDOTS_AI_MODEL:-unknown}" "$_m_status"
-  if [ "${_ZDOTS_AI_SERVER_UP:-0}" = "1" ]; then
-    printf "  %bAI Server:%b     %bonline%b\n" "$CYAN" "$RESET" "$GREEN" "$RESET"
-  else
-    printf "  %bAI Server:%b     %boffline/unavailable%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    printf "  %bAI Service:%b    %s [model: %s %s]\n" "$CYAN" "$RESET" "$ZDOTS_SERVICE_AI" "${ZDOTS_AI_MODEL:-unknown}" "$_m_status"
+    if [ "${_ZDOTS_AI_SERVER_UP:-0}" = "1" ]; then
+      printf "  %bAI Server:%b     %bonline%b\n" "$CYAN" "$RESET" "$GREEN" "$RESET"
+    else
+      printf "  %bAI Server:%b     %boffline/unavailable%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
+    fi
   fi
 fi
 
 # 5. Tool Verification (The "Reality")
-echo ""
-echo "${BOLD}Tooling Reality:${RESET}"
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo ""
+  echo "${BOLD}Tooling Reality:${RESET}"
+fi
 _tools="zsh git brew mise node npm python3"
 for t in $_tools; do
   # Use a more robust way to check command that doesn't trigger set -e
   if _path=$(command -v "$t" 2>/dev/null); then
-    printf "  %-15s : %b%s%b\n" "$t" "$GREEN" "$_path" "$RESET"
+    if [ "$OUTPUT_FORMAT" = "text" ]; then
+      printf "  %-15s : %b%s%b\n" "$t" "$GREEN" "$_path" "$RESET"
+    fi
   else
-    printf "  %-15s : %bnot found%b\n" "$t" "$YELLOW" "$RESET"
+    if [ "$OUTPUT_FORMAT" = "text" ]; then
+      printf "  %-15s : %bnot found%b\n" "$t" "$YELLOW" "$RESET"
+    fi
   fi
 done
 
-echo "----------------------------------------"
+if [ "$OUTPUT_FORMAT" = "json" ]; then
+  if command -v jq >/dev/null 2>&1; then
+    jq -n \
+      --arg sid "${ZDOTS_SESSION_ID:-}" \
+      --arg profile "${ZDOTS_ENV_PROFILE:-unknown}" \
+      --arg os "$(uname -s)" \
+      --arg arch "$(uname -m)" \
+      --arg disk "$_avail" \
+      --arg ai_status "${_ZDOTS_AI_SERVER_UP:-0}" \
+      --arg ai_model "${ZDOTS_AI_MODEL:-unknown}" \
+      --arg ai_present "${_ZDOTS_AI_MODEL_PRESENT:-0}" \
+      --arg trace_file "$_z_trace_file" \
+      --arg last_trace "$_ts" \
+      --arg errors "$errors" \
+      '{
+        session_id: $sid,
+        profile: $profile,
+        os: $os,
+        arch: $arch,
+        disk_available: $disk,
+        ai: {
+          status: ($ai_status | tonumber),
+          model: $ai_model,
+          present: ($ai_present | tonumber)
+        },
+        observability: {
+          trace_file: $trace_file,
+          last_trace: $last_trace
+        },
+        health_errors: ($errors | tonumber)
+      }'
+  else
+    printf '{"session_id":"%s","profile":"%s","os":"%s","health_errors":%d}\n' \
+      "${ZDOTS_SESSION_ID:-}" "${ZDOTS_ENV_PROFILE:-unknown}" "$(uname -s)" "$errors"
+  fi
+fi
+
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo "----------------------------------------"
+fi
 
 # 6. Self-Reporting (OTel Platform Node)
 if command -v otel-cli >/dev/null 2>&1; then
