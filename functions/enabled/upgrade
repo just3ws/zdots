@@ -59,7 +59,8 @@ run_upgrade_module "upgrade-node"     "NODE/PNPM GLOBALS"
 # 5. AI & Special Tools
 run_upgrade_module "upgrade-ai"       "AI AGENTS & MODELS"
 
-# 6. Repo Maintenance
+# 6. Repo & Terminal Maintenance
+run_upgrade_module "upgrade-iterm"    "ITERM2 INTEGRATION"
 run_upgrade_module "upgrade-repo"     "REPO HYGIENE"
 
 # 7. Summary Report

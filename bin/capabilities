@@ -1,8 +1,18 @@
-#!/usr/bin/env zsh
-# bin/capabilities — Visual report and health check for environment & services
+#!/usr/bin/env sh
+# bin/capabilities — High-signal environment health and contract validator.
+#
+# RATIONALE:
+# In a modular shell environment with dynamic providers (DDD/SOLID), it is easy 
+# to lose track of what implementation is active. This tool provides an upfront 
+# "Ground Truth" report, ensuring the environment matches its manifest (.zdots.env).
+# It is used as the first gate in CI to fail fast if the environment is misconfigured.
+#
+# PURPOSE:
+# 1. Validate service provider existence (Contract Testing).
+# 2. Report on observability health (OTel resource and trace files).
+# 3. Verify path precedence and tool availability.
 
 set -eu
-setopt pipefail
 
 # Colors
 BOLD='\033[1m'
@@ -22,19 +32,15 @@ echo "${CYAN}OS:${RESET}          $(uname -s) ($(uname -m))"
 echo "${CYAN}CI/ACT:${RESET}      ${ACT:-false} / ${CI:-false}"
 
 # 2. Service Composition (The "Contract")
-echo "\n${BOLD}Service Composition:${RESET}"
-_z_services=(
-  "PKG_MANAGER"
-  "NODE_RUNTIME"
-  "PYTHON_RUNTIME"
-  "TRACE"
-  "AI"
-)
+echo ""
+echo "${BOLD}Service Composition:${RESET}"
+_z_services="PKG_MANAGER NODE_RUNTIME PYTHON_RUNTIME TRACE AI"
 
 errors=0
 for s in $_z_services; do
   var="ZDOTS_SERVICE_$s"
-  # Use a more direct eval to avoid subshell-induced exit in some zsh versions/configs
+  provider=""
+  service_dir=""
   eval "provider=\${$var:-none}"
   
   # Map service names to directory names
@@ -46,82 +52,83 @@ for s in $_z_services; do
     AI) service_dir="ai" ;;
     *) service_dir=$(echo "$s" | tr '[:upper:]' '[:lower:]' | sed 's/_//g') ;;
   esac
-  provider_file="$ZDOTDIR/providers/${service_dir}/${provider}.zsh"
+  provider_file="${ZDOTDIR}/providers/${service_dir}/${provider}.zsh"
   
-  if [[ "$provider" == "none" ]]; then
+  if [ "$provider" = "none" ]; then
     _status="${YELLOW}∅ none${RESET}"
-  elif [[ -f "$provider_file" ]]; then
+  elif [ -f "$provider_file" ]; then
     _status="${GREEN}✓ $provider${RESET}"
   else
     _status="${RED}✗ $provider (missing provider file: providers/${service_dir}/${provider}.zsh)${RESET}"
-    ((errors++))
+    errors=$((errors + 1))
   fi
   printf "  %-15s : %b\n" "$s" "$_status"
 done
-unset _z_services _status service_dir
 
 # 3. Path Health
-echo "\n${BOLD}Critical Paths:${RESET}"
-paths=(
-  "ZDOTDIR:$ZDOTDIR"
-  "XDG_CONFIG_HOME:$XDG_CONFIG_HOME"
-  "XDG_STATE_HOME:$XDG_STATE_HOME"
-  "HOMEBREW_PREFIX:${HOMEBREW_PREFIX:-<unset>}"
-)
+echo ""
+echo "${BOLD}Critical Paths:${RESET}"
+# Format: label:path
+_paths="ZDOTDIR:$ZDOTDIR XDG_CONFIG_HOME:$XDG_CONFIG_HOME XDG_STATE_HOME:$XDG_STATE_HOME HOMEBREW_PREFIX:${HOMEBREW_PREFIX:-<unset>}"
 
-for p in $paths; do
+for p in $_paths; do
   label="${p%%:*}"
   val="${p#*:}"
-  if [[ -d "$val" ]]; then
+  if [ -d "$val" ]; then
     _p_status="${GREEN}exists${RESET}"
   else
     _p_status="${YELLOW}missing${RESET}"
   fi
   printf "  %-15s : %-20s [%b]\n" "$label" "$val" "$_p_status"
 done
-unset _p_status
 
 # 4. Observability Health
-echo "\n${BOLD}Observability Health:${RESET}"
-_z_trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
-if [[ -f "$_z_trace_file" ]]; then
+echo ""
+echo "${BOLD}Observability Health:${RESET}"
+_z_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+_z_trace_file="${_z_state_dir}/traces.jsonl"
+if [ -f "$_z_trace_file" ]; then
   _z_last_trace="$(tail -n 1 "$_z_trace_file")"
   echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${GREEN}exists${RESET}]"
-  echo "  ${CYAN}Last Trace:${RESET}   $(echo "$_z_last_trace" | sed 's/.*"ts":"\([^"]*\)".*/\1/')"
+  # Extract timestamp via sed
+  _ts=$(echo "$_z_last_trace" | sed 's/.*"ts":"\([^"]*\)".*/\1/')
+  echo "  ${CYAN}Last Trace:${RESET}   $_ts"
 else
   echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${YELLOW}missing${RESET}]"
 fi
 
 # OTel Resource Info
-if [[ -n "${_ZDOTS_OTEL_RESOURCE_JSON:-}" ]]; then
+if [ -n "${_ZDOTS_OTEL_RESOURCE_JSON:-}" ]; then
   echo "  ${CYAN}OTel Resource:${RESET}"
+  # Simple pretty-print for the JSON resource
   echo "$_ZDOTS_OTEL_RESOURCE_JSON" | sed 's/{"key":"\([^"]*\)","value":{"[^"]*":"\([^"]*\)"}}/\n    - \1: \2/g' | sed 's/{"key":"\([^"]*\)","value":{"intValue":\([0-9]*\)}}/\n    - \1: \2/g' | sed 's/{"key":"\([^"]*\)","value":{"boolValue":\([^}]*\)}}/\n    - \1: \2/g' | sed 's/[{}]//g' | sed 's/"attributes":\[//g' | sed 's/\]//g' | sed 's/,,/,/g' | tr ',' '\n'
 fi
 
 # AI Service Info
-if [[ -n "${ZDOTS_SERVICE_AI:-}" && "$ZDOTS_SERVICE_AI" != "none" ]]; then
+if [ -n "${ZDOTS_SERVICE_AI:-}" ] && [ "$ZDOTS_SERVICE_AI" != "none" ]; then
   echo "  ${CYAN}AI Service:${RESET}    $ZDOTS_SERVICE_AI [model: ${ZDOTS_AI_MODEL:-unknown}]"
-  if [[ "${_ZDOTS_AI_SERVER_UP:-0}" == "1" ]]; then
+  if [ "${_ZDOTS_AI_SERVER_UP:-0}" = "1" ]; then
     echo "  ${CYAN}AI Server:${RESET}     ${GREEN}online${RESET}"
   else
     echo "  ${CYAN}AI Server:${RESET}     ${YELLOW}offline/unavailable${RESET}"
   fi
 fi
-unset _z_trace_file _z_last_trace
 
 # 5. Tool Verification (The "Reality")
-echo "\n${BOLD}Tooling Reality:${RESET}"
-tools=(zsh git brew mise node npm python3)
-for t in $tools; do
-  if path=$(command -v "$t" 2>/dev/null); then
-    printf "  %-15s : %s\n" "$t" "${GREEN}$path${RESET}"
+echo ""
+echo "${BOLD}Tooling Reality:${RESET}"
+_tools="zsh git brew mise node npm python3"
+for t in $_tools; do
+  _path=$(command -v "$t" 2>/dev/null)
+  if [ -n "$_path" ]; then
+    printf "  %-15s : %s\n" "$t" "${GREEN}$_path${RESET}"
   else
     printf "  %-15s : %s\n" "$t" "${YELLOW}not found${RESET}"
   fi
 done
 
 echo "----------------------------------------"
-if (( errors > 0 )); then
+if [ "$errors" -gt 0 ]; then
   echo "${RED}Health Check Failed: $errors service contract violation(s) detected.${RESET}"
   exit 1
 else

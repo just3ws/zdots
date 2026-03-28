@@ -1,0 +1,26 @@
+#!/usr/bin/env zsh
+# upgrade-iterm — Automatically update iTerm2 shell integration and utilities.
+
+setopt localoptions errexit pipefail
+dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
+
+run_cmd() {
+  print -r -- "+ $*"
+  [[ "$dry_run" == "1" ]] && return 0
+  "$@"
+}
+
+echo "Updating iTerm2 shell integration..."
+# The standard installer handles downloading and linking
+if [[ "$dry_run" == "0" ]]; then
+  curl -L https://iterm2.com/shell_integration/install_shell_integration.sh | bash
+else
+  echo "+ curl -L https://iterm2.com/shell_integration/install_shell_integration.sh | bash"
+fi
+
+# Update utilities in .iterm2/
+if [[ -d "$ZDOTDIR/.iterm2" ]]; then
+  echo "Updating iTerm2 utilities..."
+  # We can't easily bulk-download utilities without a list, but we can update the core integration script
+  run_cmd curl -s -L https://iterm2.com/shell_integration/zsh -o "$ZDOTDIR/.iterm2_shell_integration.zsh"
+fi

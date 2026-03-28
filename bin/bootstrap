@@ -1,13 +1,13 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env sh
 # Zdots Bootstrap — Single command system recreation.
 # Handles directory infrastructure, permissions, and toolchain dependencies.
 
-set -euo pipefail
+set -eu
 
-REPO_ROOT="${0:A:h:h}"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # 1. Prerequisites
-if [[ ! -f "$REPO_ROOT/Brewfile" ]]; then
+if [ ! -f "$REPO_ROOT/Brewfile" ]; then
   echo "bootstrap: Brewfile not found at $REPO_ROOT/Brewfile" >&2
   exit 1
 fi
@@ -20,13 +20,11 @@ if ! command -v brew >/dev/null 2>&1; then
 fi
 
 # 2. XDG Infrastructure & Security
-# Create core XDG structure with secure permissions (700)
+# Create core XDG structure
 echo "bootstrap: initializing XDG infrastructure..."
-mkdir -p -m 700 \
-  "$HOME/.config" \
-  "$HOME/.cache" \
-  "$HOME/.local/state" \
-  "$HOME/.local/share"
+mkdir -p "$HOME/.config" "$HOME/.cache" "$HOME/.local/state" "$HOME/.local/share"
+# Ensure secure permissions (700)
+chmod 700 "$HOME/.config" "$HOME/.cache" "$HOME/.local/state" "$HOME/.local/share"
 
 # Create application-specific subdirectories (Prevents home-directory pollution)
 mkdir -p \
@@ -53,20 +51,22 @@ touch "$HOME/.config/git/config" "$HOME/.config/git/ignore"
 
 # 3. Shell Entry Points (Symlinks)
 echo "bootstrap: linking shell entry points..."
-[[ ! -e "$HOME/.zshenv" ]] && ln -s "$REPO_ROOT/.zshenv" "$HOME/.zshenv"
-[[ ! -e "$HOME/.bashrc" ]] && ln -s "$REPO_ROOT/bashrc" "$HOME/.bashrc"
-[[ ! -e "$HOME/.bash_profile" ]] && ln -s "$REPO_ROOT/bash_profile" "$HOME/.bash_profile"
+if [ ! -e "$HOME/.zshenv" ]; then ln -s "$REPO_ROOT/.zshenv" "$HOME/.zshenv"; fi
+if [ ! -e "$HOME/.bashrc" ]; then ln -s "$REPO_ROOT/bashrc" "$HOME/.bashrc"; fi
+if [ ! -e "$HOME/.bash_profile" ]; then ln -s "$REPO_ROOT/bash_profile" "$HOME/.bash_profile"; fi
 
 # 4. Git Integration
 echo "bootstrap: configuring git..."
-if [[ ! -e "$HOME/.gitconfig" ]]; then
+if [ ! -e "$HOME/.gitconfig" ]; then
   cat > "$HOME/.gitconfig" <<'EOF'
 [include]
   path = ~/.config/git/config
 EOF
 elif ! grep -Fq '.config/git/config' "$HOME/.gitconfig"; then
   {
-    echo -e "\n[include]\n  path = ~/.config/git/config"
+    echo ""
+    echo "[include]"
+    echo "  path = ~/.config/git/config"
   } >> "$HOME/.gitconfig"
 fi
 
