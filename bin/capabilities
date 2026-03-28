@@ -28,6 +28,7 @@ _z_services=(
   "NODE_RUNTIME"
   "PYTHON_RUNTIME"
   "TRACE"
+  "AI"
 )
 
 errors=0
@@ -42,6 +43,7 @@ for s in $_z_services; do
     NODE_RUNTIME) service_dir="node" ;;
     PYTHON_RUNTIME) service_dir="python" ;;
     TRACE) service_dir="trace" ;;
+    AI) service_dir="ai" ;;
     *) service_dir=$(echo "$s" | tr '[:upper:]' '[:lower:]' | sed 's/_//g') ;;
   esac
   provider_file="$ZDOTDIR/providers/${service_dir}/${provider}.zsh"
@@ -94,6 +96,16 @@ fi
 if [[ -n "${_ZDOTS_OTEL_RESOURCE_JSON:-}" ]]; then
   echo "  ${CYAN}OTel Resource:${RESET}"
   echo "$_ZDOTS_OTEL_RESOURCE_JSON" | sed 's/{"key":"\([^"]*\)","value":{"[^"]*":"\([^"]*\)"}}/\n    - \1: \2/g' | sed 's/{"key":"\([^"]*\)","value":{"intValue":\([0-9]*\)}}/\n    - \1: \2/g' | sed 's/{"key":"\([^"]*\)","value":{"boolValue":\([^}]*\)}}/\n    - \1: \2/g' | sed 's/[{}]//g' | sed 's/"attributes":\[//g' | sed 's/\]//g' | sed 's/,,/,/g' | tr ',' '\n'
+fi
+
+# AI Service Info
+if [[ -n "${ZDOTS_SERVICE_AI:-}" && "$ZDOTS_SERVICE_AI" != "none" ]]; then
+  echo "  ${CYAN}AI Service:${RESET}    $ZDOTS_SERVICE_AI [model: ${ZDOTS_AI_MODEL:-unknown}]"
+  if [[ "${_ZDOTS_AI_SERVER_UP:-0}" == "1" ]]; then
+    echo "  ${CYAN}AI Server:${RESET}     ${GREEN}online${RESET}"
+  else
+    echo "  ${CYAN}AI Server:${RESET}     ${YELLOW}offline/unavailable${RESET}"
+  fi
 fi
 unset _z_trace_file _z_last_trace
 
