@@ -38,4 +38,17 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
       command curl "$@"
     fi
   }
+
+  # Heartbeat Span (Inspired by the Star Wars Saga 'Pulse')
+  if command -v otel-cli >/dev/null 2>&1; then
+    # Send a backgrounded heartbeat span
+    (
+      otel-cli span \
+        --name "shell.heartbeat" \
+        --attrs "profile=${ZDOTS_ENV_PROFILE:-unknown},os=$(uname -s)" \
+        --force-trace-id "$ZDOTS_TRACE_ID" \
+        --force-span-id "$ZDOTS_SPAN_ID" \
+        >/dev/null 2>&1
+    ) &!
+  fi
 fi
