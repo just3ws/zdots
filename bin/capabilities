@@ -1,4 +1,10 @@
 #!/usr/bin/env sh
+# ---
+# id: capabilities
+# title: "Zdots Capabilities Report"
+# purpose: High-signal environment health and contract validator.
+# rationale: Provides an upfront Ground Truth report to ensure the environment matches its manifest and is safe for operation.
+# ---
 # bin/capabilities — High-signal environment health and contract validator.
 #
 # RATIONALE:

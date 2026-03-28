@@ -30,3 +30,11 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [debug, file, otlp/lgtm]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug, otlp/lgtm]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug, otlp/lgtm]
