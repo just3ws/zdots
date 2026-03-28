@@ -34,6 +34,7 @@ brew "universal-ctags"  # Symbol indexing; allows agents to find definitions wit
 brew "ast-grep"         # Structural code search (sg); used for complex refactoring by agents.
 brew "fabric-ai"        # AI workflow pattern executor.
 brew "ollama"           # Local LLM runner for private AI interactions.
+brew "otel-cli"         # OpenTelemetry CLI; useful for ad-hoc shell spans.
 brew "gemini-cli"       # Google Gemini AI CLI; aliased to 'gm' in conf.d/80-aliases.zsh.
 brew "usage"            # CLI specification tool; helps agents understand CLI parameters.
 
@@ -82,6 +83,8 @@ brew "actionlint"       # GitHub Actions linter; ensures CI stability.
 brew "act"              # Run GitHub Actions locally for rapid iteration.
 brew "colima"           # Container runtime (lightweight CLI-driven alternative to Docker Desktop).
 brew "docker"           # Docker CLI client.
+brew "docker-compose"   # Docker Compose V2 plugin.
+brew "docker-compose-langserver" # LSP for Docker Compose.
 brew "pre-commit"       # Git hook manager; automates safety and quality checks.
 brew "gitleaks"         # Secret scanner; prevents sensitive data leaks.
 brew "trufflehog"       # Advanced secret scanner; deep historical scanning.

@@ -1,0 +1,112 @@
+#!/usr/bin/env sh
+# bin/otel-collector — Manage the bare-metal OpenTelemetry Collector.
+#
+# RATIONALE:
+# To maintain high shell performance, we use a local bare-metal collector 
+# on the host. It receives OTLP spans from the shell and apps, buffers them, 
+# and forwards them to the heavier LGTM stack running in Colima.
+#
+# PURPOSE:
+# 1. Automate installation of the official otelcol-contrib binary.
+# 2. Manage the lifecycle (start/stop/status) of the host collector.
+# 3. Link host telemetry to the Colima observability hub.
+
+set -eu
+
+VERSION="0.148.0"
+DISTRO="otelcol-contrib"
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+[ "$ARCH" = "x86_64" ] && ARCH="amd64"
+[ "$ARCH" = "aarch64" ] && ARCH="arm64"
+
+INSTALL_DIR="${HOME}/.local/bin"
+BINARY="${INSTALL_DIR}/${DISTRO}"
+CONFIG_FILE="${ZDOTDIR:-$(pwd)}/etc/otel-collector.yaml"
+LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.log"
+PID_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
+
+usage() {
+  cat <<EOF
+Usage: otel-collector <command>
+
+Commands:
+  install - Download and install the OTel Collector binary
+  start   - Start the collector in the background
+  stop    - Stop the collector
+  status  - Check if the collector is running
+  logs    - Tail the collector logs
+EOF
+}
+
+install_otel() {
+  echo "otel-collector: installing version v${VERSION} for ${OS}/${ARCH}..."
+  mkdir -p "$INSTALL_DIR"
+  
+  URL="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${VERSION}/${DISTRO}_${VERSION}_${OS}_${ARCH}.tar.gz"
+  TMP_DIR=$(mktemp -d)
+  
+  if curl -L "$URL" -o "${TMP_DIR}/otel.tar.gz"; then
+    tar -xzf "${TMP_DIR}/otel.tar.gz" -C "$TMP_DIR"
+    mv "${TMP_DIR}/${DISTRO}" "$BINARY"
+    chmod +x "$BINARY"
+    echo "otel-collector: installed to $BINARY"
+  else
+    echo "otel-collector: error: failed to download binary from $URL" >&2
+    exit 1
+  fi
+  rm -rf "$TMP_DIR"
+}
+
+start_otel() {
+  if [ ! -x "$BINARY" ]; then
+    echo "otel-collector: error: binary not found. Run 'otel-collector install' first." >&2
+    exit 1
+  fi
+
+  if status_otel >/dev/null 2>&1; then
+    echo "otel-collector: already running."
+    return 0
+  fi
+
+  echo "otel-collector: starting with config $CONFIG_FILE..."
+  mkdir -p "$(dirname "$LOG_FILE")"
+  
+  # Start in background and save PID
+  nohup "$BINARY" --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
+  echo $! > "$PID_FILE"
+  echo "otel-collector: started (PID: $(cat "$PID_FILE"))"
+}
+
+stop_otel() {
+  if [ -f "$PID_FILE" ]; then
+    PID=$(cat "$PID_FILE")
+    echo "otel-collector: stopping PID $PID..."
+    kill "$PID" 2>/dev/null || true
+    rm -f "$PID_FILE"
+    echo "otel-collector: stopped."
+  else
+    echo "otel-collector: not running (no PID file)."
+  fi
+}
+
+status_otel() {
+  if [ -f "$PID_FILE" ]; then
+    PID=$(cat "$PID_FILE")
+    if kill -0 "$PID" 2>/dev/null; then
+      echo "otel-collector: running (PID: $PID)"
+      return 0
+    fi
+  fi
+  echo "otel-collector: not running."
+  return 1
+}
+
+case "${1:-}" in
+  install) install_otel ;;
+  start)   start_otel ;;
+  stop)    stop_otel ;;
+  status)  status_otel ;;
+  logs)    tail -f "$LOG_FILE" ;;
+  *)       usage; exit 1 ;;
+esac

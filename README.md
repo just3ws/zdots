@@ -85,6 +85,13 @@ exec "$SHELL"
 # Install dependencies
 make bootstrap
 
+# 1. Start the LGTM Hub (Colima)
+./bin/local-ci up
+
+# 2. Install and Start the Host Collector
+./bin/otel-collector install
+./bin/otel-collector start
+
 # Run the health check and regression suite
 make check
 ```
