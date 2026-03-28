@@ -43,12 +43,14 @@ zdots_ai_infer() {
   export _ZDOTS_AI_SERVER_UP=1
 
   local response
+  # We pipe through tr to scrub raw control characters that violate JSON spec
   response=$(jq -nc \
     --arg model "$ZDOTS_AI_MODEL" \
     --arg prompt "$prompt" \
     --arg system "$system" \
     '{model: $model, prompt: $prompt, system: $system, stream: false}' \
-    | curl -s -X POST "$ZDOTS_AI_ENDPOINT/api/generate" -d @-)
+    | curl -s -X POST "$ZDOTS_AI_ENDPOINT/api/generate" -d @- \
+    | tr -d '\000-\010\013\014\016-\037')
 
   if [[ -z "$response" ]]; then
     echo "ai: error: received empty response from Ollama" >&2
@@ -56,7 +58,7 @@ zdots_ai_infer() {
   fi
 
   # Check for API-level errors
-  local api_error=$(echo "$response" | jq -r '.error // empty')
+  local api_error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null)
   if [[ -n "$api_error" ]]; then
     echo "ai: error: $api_error" >&2
     if [[ "$api_error" == *"not found"* ]]; then
@@ -65,5 +67,5 @@ zdots_ai_infer() {
     return 1
   fi
 
-  echo "$response" | jq -r '.response'
+  echo "$response" | jq -r '.response // empty'
 }
