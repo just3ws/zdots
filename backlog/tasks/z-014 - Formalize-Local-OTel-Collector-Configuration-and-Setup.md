@@ -1,10 +1,10 @@
 ---
 id: Z-014
 title: Formalize Local OTel Collector Configuration and Setup
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-03-27 16:29'
-updated_date: '2026-03-27 23:49'
+updated_date: '2026-03-28 17:23'
 labels: []
 dependencies: []
 priority: medium
@@ -25,7 +25,7 @@ Establish a standardized configuration and setup process for a local OpenTelemet
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Created etc/otel-collector.yaml as a standardized local collector configuration for shell traces.
+Standardized etc/otel-collector.yaml and bridged host telemetry to the Colima hub.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
