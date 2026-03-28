@@ -12,8 +12,8 @@ processors:
     send_batch_size: 1024
 
 exporters:
-  # Debug: Output to console
-  logging:
+  # Debug: Output to console (Replaces deprecated 'logging')
+  debug:
     verbosity: detailed
   # Local Storage: Save to local JSON file
   file:
@@ -29,4 +29,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, file, otlp/lgtm]
+      exporters: [debug, file, otlp/lgtm]
