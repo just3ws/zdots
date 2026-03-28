@@ -9,6 +9,8 @@ links:
     rel: child
   - id: references
     rel: child
+  - id: saga
+    rel: child
 ---
 
 # Zdots: The Observable Control Plane
@@ -122,6 +124,7 @@ graph LR
 
 - **[docs/architecture.md](docs/architecture.md)**: Deep dive into the provider pattern and control plane.
 - **[docs/zen.md](docs/zen.md)**: Philosophical foundation.
+- **[SAGA.md](SAGA.md)**: The narrative chronology of the repository's evolution.
 - **[docs/references.md](docs/references.md)**: Zsh manuals, POSIX standards, and XDG specs.
 - **[backlog/Backlog.md](backlog/Backlog.md)**: Current tasks and architectural decisions (ADRs).
 

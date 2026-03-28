@@ -1,4 +1,10 @@
 #!/usr/bin/env sh
+# ---
+# id: trace-verify
+# title: "Zdots Trace Verification Utility"
+# purpose: Contract testing for the shell control plane.
+# rationale: Verification of shell behavior (events) using the OTel JSONL trace stream.
+# ---
 # bin/trace-verify — Contract testing for the shell control plane.
 #
 # RATIONALE:
