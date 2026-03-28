@@ -9,6 +9,16 @@ zdots_trace_init() {
   fi
   chmod 700 "$_zdots_trace_file:h" 2>/dev/null || true
   
+  # Simple Log Rotation (prevent infinite growth)
+  # Max size: ~10MB
+  if [[ -f "$_zdots_trace_file" ]]; then
+    # stat -f%z for BSD/Mac, stat -c%s for Linux
+    local size=$(stat -f %z "$_zdots_trace_file" 2>/dev/null || stat -c %s "$_zdots_trace_file" 2>/dev/null || echo 0)
+    if (( size > 10485760 )); then
+      mv -f "$_zdots_trace_file" "$_zdots_trace_file.old" 2>/dev/null || true
+    fi
+  fi
+
   # Ensure restricted file (600)
   if [[ ! -f "$_zdots_trace_file" ]]; then
     touch "$_zdots_trace_file"
