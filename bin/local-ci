@@ -33,15 +33,29 @@ EOF
 
 check_deps() {
   local missing=()
-  for cmd in colima docker act; do
+  for cmd in colima docker; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
       missing+=("$cmd")
     fi
   done
+  
+  # Check for compose specifically (either plugin or standalone)
+  if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
+    missing+=("docker-compose")
+  fi
+
   if (( ${#missing[@]} > 0 )); then
     echo "Error: Missing dependencies: ${missing[*]}" >&2
     echo "Run 'brew bundle' to install them." >&2
     exit 1
+  fi
+}
+
+_compose() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose "$@"
+  else
+    docker-compose "$@"
   fi
 }
 
@@ -69,17 +83,17 @@ colima_down() {
 
 otel_up() {
   echo "Starting Central Observability Hub (LGTM)..."
-  docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" up -d
+  _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" up -d
 }
 
 otel_down() {
   echo "Stopping Central Observability Hub (LGTM)..."
-  docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" down
+  _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" down
 }
 
 otel_status() {
   echo "--- Observability Hub ---"
-  docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" ps
+  _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" ps
 }
 
 colima_status() {
@@ -124,7 +138,7 @@ case "${1:-}" in
       up) otel_up ;;
       down) otel_down ;;
       status) otel_status ;;
-      logs) docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" logs -f ;;
+      logs) _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" logs -f ;;
       *) echo "Unknown otel command: $1" ;;
     esac
     ;;
