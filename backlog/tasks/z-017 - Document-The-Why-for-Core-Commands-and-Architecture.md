@@ -4,7 +4,7 @@ title: Document 'The Why' for Core Commands and Architecture
 status: Done
 assignee: []
 created_date: '2026-03-27 18:17'
-updated_date: '2026-03-28 00:48'
+updated_date: '2026-03-29 03:09'
 labels: []
 dependencies: []
 priority: high
@@ -31,5 +31,5 @@ Added Rationale and Purpose headers to all core bin/ utilities and docs/architec
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
+- [x] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
 <!-- DOD:END -->
