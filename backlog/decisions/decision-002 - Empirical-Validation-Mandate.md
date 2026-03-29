@@ -28,3 +28,11 @@ Adopt a strict project standard where all shell modifications MUST be verified w
 
 **Negative:**
 - **Higher Friction**: Development takes slightly longer due to the mandatory testing phase.
+
+## Enforcement (added 2026-03-28)
+
+This decision is now enforced through the Task Completion Protocol in AGENTS.md and the Definition of Done defaults in backlog/config.yml. Specifically:
+
+- `make check` must pass before any task is marked Done (output captured as evidence)
+- Milestone gates formalize the verification scope for each project phase
+- The protocol applies to all agents (human and AI) without exception
