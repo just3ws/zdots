@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@myself'
 created_date: '2026-03-27 14:10'
-updated_date: '2026-03-27 15:13'
+updated_date: '2026-03-29 03:09'
 labels: []
 dependencies: []
 priority: high
@@ -42,5 +42,5 @@ Hardened the security of the Zdots control plane and observability stack. 1. Res
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
+- [x] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
 <!-- DOD:END -->
