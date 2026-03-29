@@ -88,6 +88,21 @@ zdots_safe_source() {
   fi
 }
 
+# 5b. Provider Timeout Protection
+# Wraps external commands with a timeout to prevent shell startup from hanging.
+# Uses timeout/gtimeout when available; falls back to running without timeout.
+ZDOTS_PROVIDER_TIMEOUT="${ZDOTS_PROVIDER_TIMEOUT:-3}"
+
+zdots_cmd_timeout() {
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$ZDOTS_PROVIDER_TIMEOUT" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$ZDOTS_PROVIDER_TIMEOUT" "$@"
+  else
+    "$@"
+  fi
+}
+
 # Load configured service implementations
 zdots_require pkg "${ZDOTS_SERVICE_PKG_MANAGER:-none}"
 zdots_require node "${ZDOTS_SERVICE_NODE_RUNTIME:-system}"

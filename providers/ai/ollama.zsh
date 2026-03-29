@@ -16,7 +16,7 @@ zdots_ai_init() {
   if curl -s -m 1 "$ZDOTS_AI_ENDPOINT/api/tags" >/dev/null 2>&1; then
     export _ZDOTS_AI_SERVER_UP=1
     # Check if model is pulled
-    if ollama list 2>/dev/null | grep -q "$ZDOTS_AI_MODEL"; then
+    if zdots_cmd_timeout ollama list 2>/dev/null | grep -q "$ZDOTS_AI_MODEL"; then
       export _ZDOTS_AI_MODEL_PRESENT=1
     else
       export _ZDOTS_AI_MODEL_PRESENT=0
