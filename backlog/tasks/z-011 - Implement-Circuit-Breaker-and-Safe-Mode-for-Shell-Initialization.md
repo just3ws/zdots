@@ -4,8 +4,9 @@ title: Implement Circuit Breaker and 'Safe Mode' for Shell Initialization
 status: Done
 assignee: []
 created_date: '2026-03-27 16:24'
-updated_date: '2026-03-29 03:05'
+updated_date: '2026-03-29 03:13'
 labels: []
+milestone: m-0
 dependencies: []
 priority: high
 ---
