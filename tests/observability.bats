@@ -11,7 +11,9 @@ setup() {
   run zsh -i -c 'echo $ZDOTS_SESSION_ID'
   echo "Output: $output"
   [ "$status" -eq 0 ]
-  local val=$(echo "$output" | tail -n 1)
+  # Strip ANSI/OSC escape sequences (iTerm2 shell integration injects these)
+  local val
+  val=$(echo "$output" | sed $'s/\x1b\][^\x07]*\x07//g; s/\x1b\\[[0-9;]*[a-zA-Z]//g' | grep -Eo '[0-9a-f]{32}' | tail -n 1)
   [[ "$val" =~ ^[0-9a-f]{32}$ ]]
 }
 

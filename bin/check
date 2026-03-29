@@ -4,6 +4,13 @@ set -eu
 setopt pipefail
 setopt nonomatch
 
+# Strip ANSI/OSC escape sequences from captured shell output.
+# iTerm2 shell integration injects OSC 1337 sequences that pollute
+# output captured via `zsh -i -c '...'`.
+_strip_escapes() {
+  sed $'s/\x1b\][^\x07]*\x07//g; s/\x1b\\[[0-9;]*[a-zA-Z]//g'
+}
+
 REPO_ROOT="${0:A:h:h}"
 cd "$REPO_ROOT"
 # In some CI environments, ZDOTDIR might already be set or workspace might be nested.
@@ -80,7 +87,7 @@ assert_history_mode() {
   flags="$(ZDOTS_SHARE_HISTORY="$share_flag" zsh -i -c '
     [[ -o share_history ]] && echo "share:on" || echo "share:off"
     [[ -o inc_append_history_time ]] && echo "inc_append_history_time:on" || echo "inc_append_history_time:off"
-  ')"
+  ' | _strip_escapes)"
 
   echo "DEBUG: assert_history_mode mode=$mode share_flag=$share_flag flags:\n$flags" >&2
 
@@ -119,7 +126,7 @@ assert_ctrl_r_policy() {
     bindkey "^R"
     bindkey -M emacs "^R"
     bindkey -M viins "^R"
-  ')"
+  ' | _strip_escapes)"
   if [[ "$(grep -c 'history-incremental-search-backward' <<<"$fallback_bindings")" -ne 3 ]]; then
     echo "check: expected ^R fallback bindings in ${mode} mode" >&2
     echo "$fallback_bindings" >&2
@@ -133,7 +140,7 @@ assert_ctrl_r_policy() {
     echo "R-emacs: $(bindkey -M emacs "^R")"
     echo "R-viins: $(bindkey -M viins "^R")"
     echo "XR: $(bindkey "^X^R")"
-  ')"
+  ' | _strip_escapes)"
   if [[ "$(grep -c 'fzf-history-widget' <<<"$fzf_bindings")" -lt 3 ]]; then
     echo "check: expected ^R fzf bindings in ${mode} mode" >&2
     echo "$fzf_bindings" >&2
@@ -166,7 +173,7 @@ assert_fzf_tab_policy() {
 
   widgets_out="$(zsh "${shell_args[@]}" -c '
     zle -l
-  ')"
+  ' | _strip_escapes)"
 
   if ! grep -q 'fzf-tab-complete' <<<"$widgets_out"; then
     echo "check: expected fzf-tab-complete widget in ${mode} mode" >&2
@@ -179,7 +186,7 @@ assert_fzf_tab_policy() {
 
   tab_binding="$(zsh "${shell_args[@]}" -c '
     bindkey "^I"
-  ')"
+  ' | _strip_escapes)"
   if ! grep -q 'expand-or-complete' <<<"$tab_binding"; then
     echo "check: expected ^I to be bound to expand-or-complete in ${mode} mode" >&2
     echo "$tab_binding" >&2
@@ -204,7 +211,7 @@ assert_pnpm_path() {
       [[ "$entry" == "$PNPM_HOME" ]] && (( count++ ))
     done
     echo "$count"
-  ')"
+  ' | _strip_escapes)"
 
   if [[ "$pnpm_count" -gt 1 ]]; then
     echo "check: expected at most one PNPM_HOME PATH entry in ${mode} mode, got ${pnpm_count}" >&2
@@ -314,7 +321,7 @@ if ! zsh -i -c 'command -v mise >/dev/null 2>&1 && mise --version >/dev/null 2>&
   fi
 fi
 
-compaudit_out="$(zsh -i -c 'autoload -Uz compaudit; compaudit 2>/dev/null' || true)"
+compaudit_out="$(zsh -i -c 'autoload -Uz compaudit; compaudit 2>/dev/null' | _strip_escapes || true)"
 if [[ -n "$compaudit_out" ]]; then
   echo "check: insecure completion paths detected by compaudit:" >&2
   print -r -- "$compaudit_out" >&2
@@ -348,6 +355,8 @@ if [[ "$SKIP_EXTERNAL" != "1" ]]; then
   if command -v bats >/dev/null 2>&1; then
     echo "check: running Bats tests..."
     bats tests/
+  else
+    echo "check: warning: bats not found — skipping Bats tests (install via: brew install bats-core)" >&2
   fi
 else
   echo "check: skipping external dependency checks (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
