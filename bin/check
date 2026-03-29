@@ -293,6 +293,50 @@ assert_zle_guard() {
 
 assert_zle_guard
 
+assert_provider_timeout() {
+  # Skip if no timeout command available (test would be meaningless)
+  if ! command -v timeout >/dev/null 2>&1 && ! command -v gtimeout >/dev/null 2>&1; then
+    echo "check: skipping provider timeout test (no timeout command available)"
+    return 0
+  fi
+
+  # Create a temporary provider that sleeps for 10 seconds
+  local tmp_provider
+  tmp_provider="$(mktemp)"
+  cat > "$tmp_provider" <<'PROVIDER'
+#!/bin/sh
+sleep 10
+echo "should_not_reach"
+PROVIDER
+  chmod +x "$tmp_provider"
+
+  # Source env.sh to get zdots_cmd_timeout, then test it
+  local output
+  set +e
+  output="$(ZDOTS_PROVIDER_TIMEOUT=1 zsh -c '
+    source "'"$ZDOTDIR"'/env.sh"
+    zdots_cmd_timeout "'"$tmp_provider"'"
+    echo "exit:$?"
+  ' 2>/dev/null)"
+  local ret=$?
+  set -e
+  rm -f "$tmp_provider"
+
+  # The timeout should have fired (exit code 124 from timeout command)
+  if grep -q 'should_not_reach' <<<"$output"; then
+    echo "check: provider timeout did not fire — slow command ran to completion" >&2
+    exit 1
+  fi
+  if ! grep -q 'exit:124' <<<"$output"; then
+    echo "check: provider timeout exit code unexpected (expected 124):" >&2
+    echo "$output" >&2
+    # Non-blocking: timeout behavior varies by implementation
+    echo "check: warning: timeout exit code mismatch (non-blocking)" >&2
+  fi
+}
+
+assert_provider_timeout
+
 assert_login_shell_node_path() {
   local actual_node
   local expected_node

@@ -8,13 +8,13 @@ zdots_python_runtime_init() {
   if [[ -z "${_ZDOTS_MISE_INITIALIZED:-}" ]]; then
     if [[ ! -r "$_zdots_mise_cache" || "${XDG_CONFIG_HOME:-$HOME/.config}/mise/config.toml" -nt "$_zdots_mise_cache" ]]; then
       mkdir -p "$_zdots_mise_cache:h" 2>/dev/null || true
-      mise activate zsh > "$_zdots_mise_cache" 2>/dev/null || true
+      zdots_cmd_timeout mise activate zsh > "$_zdots_mise_cache" 2>/dev/null || true
     fi
 
     if [[ -r "$_zdots_mise_cache" && -s "$_zdots_mise_cache" ]]; then
       source "$_zdots_mise_cache" || true
     else
-      eval "$(mise activate zsh)"
+      eval "$(zdots_cmd_timeout mise activate zsh)"
     fi
     export _ZDOTS_MISE_INITIALIZED=1
   fi

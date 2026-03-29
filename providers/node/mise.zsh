@@ -11,12 +11,12 @@ zdots_node_runtime_init() {
     # or we'll just handle it by ensuring shims are always present.
     # Use a temporary file to avoid redirection clobber issues in some shells.
     local tmp_cache="$_zdots_mise_cache.tmp.$$"
-    if mise activate zsh --shims > "$tmp_cache" 2>/dev/null; then
+    if zdots_cmd_timeout mise activate zsh --shims > "$tmp_cache" 2>/dev/null; then
       mv -f "$tmp_cache" "$_zdots_mise_cache" 2>/dev/null || true
     fi
     # If --shims didn't give us the hook, we fall back to standard but we'll be careful.
     if [ ! -s "$_zdots_mise_cache" ]; then
-      if mise activate zsh > "$tmp_cache" 2>/dev/null; then
+      if zdots_cmd_timeout mise activate zsh > "$tmp_cache" 2>/dev/null; then
         mv -f "$tmp_cache" "$_zdots_mise_cache" 2>/dev/null || true
       fi
     fi
@@ -26,7 +26,7 @@ zdots_node_runtime_init() {
   if [[ -r "$_zdots_mise_cache" && -s "$_zdots_mise_cache" ]]; then
     source "$_zdots_mise_cache" || true
   else
-    eval "$(mise activate zsh)"
+    eval "$(zdots_cmd_timeout mise activate zsh)"
   fi
   
   export MISE_NODE_COREPACK=1
