@@ -1,4 +1,4 @@
-if [[ -o interactive ]]; then
+if [[ -o interactive && -o zle ]]; then
   bindkey '^P' up-line-or-history
   bindkey '^N' down-line-or-history
 

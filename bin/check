@@ -270,6 +270,27 @@ assert_safe_mode() {
 
 assert_safe_mode
 
+assert_zle_guard() {
+  local errfile
+  errfile="$(mktemp)"
+  set +e
+  zsh -c 'source "$ZDOTDIR/.zshrc"' >/dev/null 2>"$errfile"
+  local ret=$?
+  set -e
+  # Non-interactive sourcing may fail (expected) — we care about ZLE errors specifically
+  local stripped
+  stripped="$(_strip_escapes <"$errfile")"
+  if grep -qi "can't change option: zle\|zle: not available" <<<"$stripped"; then
+    echo "check: ZLE widget errors in non-ZLE context (guards insufficient):" >&2
+    cat "$errfile" >&2
+    rm -f "$errfile"
+    exit 1
+  fi
+  rm -f "$errfile"
+}
+
+assert_zle_guard
+
 assert_login_shell_node_path() {
   local actual_node
   local expected_node
