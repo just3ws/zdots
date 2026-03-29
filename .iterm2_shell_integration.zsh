@@ -2,12 +2,12 @@
 # modify it under the terms of the GNU General Public License
 # as published by the Free Software Foundation; either version 2
 # of the License, or (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -112,7 +112,7 @@ if [[ -o interactive ]]; then
       ITERM2_SHOULD_DECORATE_PROMPT=""
 
       # Add our escape sequences just before the prompt is shown.
-      # Use ITERM2_SQUELCH_MARK for people who can't mdoify PS1 directly, like powerlevel9k users.
+      # Use ITERM2_SQUELCH_MARK for people who can't modify PS1 directly, like powerlevel9k users.
       # This is gross but I had a heck of a time writing a correct if statetment for zsh 5.0.2.
       local PREFIX=""
       if [[ $PS1 == *"$(iterm2_prompt_mark)"* ]]; then
@@ -176,4 +176,3 @@ if [[ -o interactive ]]; then
     printf "\033]1337;ShellIntegrationVersion=14;shell=zsh\007"
   fi
 fi
-alias imgcat=${ZDOTDIR}/.iterm2/imgcat;alias imgls=${ZDOTDIR}/.iterm2/imgls;alias it2api=${ZDOTDIR}/.iterm2/it2api;alias it2attention=${ZDOTDIR}/.iterm2/it2attention;alias it2check=${ZDOTDIR}/.iterm2/it2check;alias it2copy=${ZDOTDIR}/.iterm2/it2copy;alias it2dl=${ZDOTDIR}/.iterm2/it2dl;alias it2getvar=${ZDOTDIR}/.iterm2/it2getvar;alias it2git=${ZDOTDIR}/.iterm2/it2git;alias it2setcolor=${ZDOTDIR}/.iterm2/it2setcolor;alias it2setkeylabel=${ZDOTDIR}/.iterm2/it2setkeylabel;alias it2tip=${ZDOTDIR}/.iterm2/it2tip;alias it2ul=${ZDOTDIR}/.iterm2/it2ul;alias it2universion=${ZDOTDIR}/.iterm2/it2universion;alias it2profile=${ZDOTDIR}/.iterm2/it2profile

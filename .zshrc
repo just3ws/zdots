@@ -33,3 +33,6 @@ bindkey '^E' end-of-line
 bindkey '^K' kill-line
 bindkey '^U' backward-kill-line
 bindkey '^Y' yank
+
+test -e "${ZDOTDIR}/.iterm2_shell_integration.zsh" && source "${ZDOTDIR}/.iterm2_shell_integration.zsh" || true
+

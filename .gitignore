@@ -16,3 +16,6 @@ fzfrc.local
 
 .gemini/
 gha-creds-*.json
+
+# Ephemeral telemetry data
+traces-collected.json
