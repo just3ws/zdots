@@ -4,8 +4,9 @@ title: Implement Local AI Inference Service and Offloading
 status: Done
 assignee: []
 created_date: '2026-03-28 00:38'
-updated_date: '2026-03-29 03:10'
+updated_date: '2026-03-29 03:13'
 labels: []
+milestone: m-2
 dependencies: []
 priority: high
 ---
