@@ -4,8 +4,9 @@ title: Optimize Disk Footprint for AI and Observability
 status: Done
 assignee: []
 created_date: '2026-03-28 02:27'
-updated_date: '2026-03-29 03:10'
+updated_date: '2026-03-29 03:13'
 labels: []
+milestone: m-2
 dependencies: []
 priority: high
 ---
