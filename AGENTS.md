@@ -101,6 +101,36 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
   - **Formatting:** `shfmt` (consistent 2-space indentation for shell scripts).
   - **Hygiene:** Automatic trailing whitespace and end-of-file cleanup.
 
+## Task Completion Protocol
+
+This protocol applies to every agent — Claude, Gemini, or the human at the keyboard. There are no exceptions.
+
+### No task is Done until:
+
+1. **Every acceptance criterion is checked.** Each check references evidence: command output, file path, or test result. "I believe it works" is not evidence.
+2. **`make check` passes.** Output is captured in the commit message or task notes.
+3. **All Definition of Done items are checked.** Use `backlog task edit <id> --check-dod <n>` for each.
+4. **A Final Summary is written.** Describes what changed, why, and how it was verified. Use `backlog task edit <id> --final-summary "..."`.
+5. **All related changes are committed.** `git status` is clean for files touched by this task.
+
+### No milestone closes until:
+
+1. All assigned tasks satisfy the five conditions above.
+2. The milestone gate condition is verified with captured output.
+3. `SAGA.md` is updated to record the passage — what was learned, what was earned.
+
+### One task at a time.
+
+A task is claimed by setting it In Progress and assigning yourself. No new task starts while another is In Progress for the same milestone.
+
+### Milestones
+
+| Milestone | Gate |
+|-----------|------|
+| Interchangeable Parts | `make check` exits 0. All assigned tasks fully verified. No uncommitted functional changes on main. |
+| Radical Observability | Milestone 1 closed. `bin/trace-verify` passes. Heartbeat spans emitted and verifiable. LGTM stack receives live traces. |
+| Engineered Intelligence | Milestones 1-2 closed. `bin/history-analyze --ai` produces actionable output. AI providers respond to health checks. |
+
 <!-- BACKLOG.MD GUIDELINES START -->
 # Instructions for the usage of Backlog.md CLI Tool
 
