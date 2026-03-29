@@ -4,7 +4,7 @@ title: Implement Central LGTM Stack and Hybrid OTel Routing
 status: Done
 assignee: []
 created_date: '2026-03-28 04:16'
-updated_date: '2026-03-28 04:17'
+updated_date: '2026-03-29 03:10'
 labels: []
 dependencies: []
 priority: high
@@ -30,7 +30,13 @@ Evolve shell observability into a system-wide control plane. This involves runni
 Implemented the central LGTM observability hub. 1. Created etc/docker-compose.lgtm.yaml for the Grafana/Loki/Tempo stack. 2. Integrated stack management into bin/local-ci (up, down, status, logs). 3. Configured the bare metal OTel collector (etc/otel-collector.yaml) to forward spans to the Colima hub. 4. Documented the hybrid multi-hop routing architecture in docs/architecture.md.
 <!-- SECTION:NOTES:END -->
 
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Deployed a central Grafana LGTM stack via etc/docker-compose.lgtm.yaml, integrated lifecycle management into bin/local-ci, configured bare-metal OTel collector to forward to the Colima hub, and documented the hybrid Host → Collector → Colima → LGTM routing in docs/architecture.md.
+<!-- SECTION:FINAL_SUMMARY:END -->
+
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
+- [x] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
 <!-- DOD:END -->
