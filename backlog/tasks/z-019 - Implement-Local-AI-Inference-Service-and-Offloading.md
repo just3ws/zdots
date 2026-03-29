@@ -4,7 +4,7 @@ title: Implement Local AI Inference Service and Offloading
 status: Done
 assignee: []
 created_date: '2026-03-28 00:38'
-updated_date: '2026-03-28 02:26'
+updated_date: '2026-03-29 03:08'
 labels: []
 dependencies: []
 priority: high
@@ -22,7 +22,7 @@ Introduce a modular AI service provider to handle local inference tasks (e.g., l
 - [x] #2 Implement providers/ai/ollama.zsh and providers/ai/llama-cpp.zsh
 - [x] #3 Implement providers/ai/remote.zsh for Pi/OpenCode integration
 - [x] #4 Refactor 'ai' alias to use injected zdots_ai_infer service
-- [ ] #5 Update bin/history-analyze to use local AI for initial data reduction
+- [x] #5 Update bin/history-analyze to use local AI for initial data reduction
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -33,5 +33,5 @@ Solidified the common interface for AI providers. 1. Implemented providers/ai/ll
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
+- [x] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
 <!-- DOD:END -->
