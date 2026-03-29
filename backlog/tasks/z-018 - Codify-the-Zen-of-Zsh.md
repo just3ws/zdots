@@ -4,8 +4,9 @@ title: Codify the Zen of Zsh
 status: Done
 assignee: []
 created_date: '2026-03-28 00:34'
-updated_date: '2026-03-29 03:09'
+updated_date: '2026-03-29 03:13'
 labels: []
+milestone: m-0
 dependencies: []
 priority: medium
 ---
