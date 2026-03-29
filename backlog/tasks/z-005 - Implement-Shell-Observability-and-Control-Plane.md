@@ -4,8 +4,9 @@ title: Implement Shell Observability and Control Plane
 status: Done
 assignee: []
 created_date: '2026-03-26 15:07'
-updated_date: '2026-03-29 03:09'
+updated_date: '2026-03-29 03:13'
 labels: []
+milestone: m-1
 dependencies: []
 priority: high
 ---
