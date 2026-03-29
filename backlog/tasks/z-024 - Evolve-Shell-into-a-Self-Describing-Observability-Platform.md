@@ -4,7 +4,7 @@ title: Evolve Shell into a Self-Describing Observability Platform
 status: Done
 assignee: []
 created_date: '2026-03-28 04:56'
-updated_date: '2026-03-28 05:47'
+updated_date: '2026-03-29 03:10'
 labels: []
 dependencies: []
 priority: high
@@ -30,7 +30,13 @@ Expand the OTel control plane to support advanced integrations and prepare for G
 Evolved Zdots into a self-describing observability platform. 1. Implemented automatic Error Tracing via precmd hooks. 2. Enriched heartbeat spans with system health metadata (Load Average). 3. Turned bin/capabilities into a self-reporting platform node that sends 'platform.health' spans. 4. Developed the 'Platform Discovery Spec' (docs/platform-discovery.md) to standardize how Gemini and other agents integrate with the control plane.
 <!-- SECTION:NOTES:END -->
 
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Evolved Zdots into a self-describing observability platform: automatic error spans on non-zero exits, system health attributes (load, RAM) on heartbeat spans, OTel integration in upgrade/bootstrap workflows, and docs/platform-discovery.md spec for future Gemini integration.
+<!-- SECTION:FINAL_SUMMARY:END -->
+
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
+- [x] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
 <!-- DOD:END -->
