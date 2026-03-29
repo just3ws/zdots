@@ -19,7 +19,6 @@ Implement a 'Bulkhead' pattern for shell initialization. If a specific module (c
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 Wrap conf.d sourcing in a protective 'try/catch' style helper
-- [ ] #2 Implement ZDOTS_SAFE_MODE to bypass heavy integrations
 <!-- AC:END -->
 
 ## Implementation Notes
