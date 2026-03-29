@@ -100,11 +100,11 @@ if [[ "$TERM_PROGRAM" == "iTerm.app" && -o interactive && -t 1 && -r "$ZDOTDIR/.
   source "$ZDOTDIR/.iterm2_shell_integration.zsh"
 fi
 
-if [[ -o interactive && "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/.fzf.zsh" ]]; then
+if [[ -o interactive && -o zle && "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/.fzf.zsh" ]]; then
   source "$ZDOTDIR/.fzf.zsh"
 fi
 
-if [[ -o interactive && "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/fzfrc" ]]; then
+if [[ -o interactive && -o zle && "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/fzfrc" ]]; then
   source "$ZDOTDIR/fzfrc"
 fi
 
@@ -118,7 +118,7 @@ fi
 
 # Let fzf-tab (or standard completion) handle Tab.
 # Remove the aggressive fzf-completion override to reduce "greediness".
-if [[ -o interactive ]]; then
+if [[ -o interactive && -o zle ]]; then
   if (( ${+widgets[fzf-completion]} )); then
     # Keep fzf-completion available but don't bind to raw Tab.
     # It can still be used via the trigger (e.g. **<Tab>)
@@ -136,7 +136,7 @@ fi
 
 # Keep ^R deterministic: prefer fzf history when available, otherwise use
 # built-in incremental history search across keymaps.
-if [[ -o interactive ]]; then
+if [[ -o interactive && -o zle ]]; then
   if (( ${+widgets[fzf-history-widget]} )); then
     bindkey '^R' fzf-history-widget
     bindkey -M emacs '^R' fzf-history-widget
@@ -157,9 +157,11 @@ fi
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-history-substring-search/zsh-history-substring-search.zsh" ]]; then
   source "$HOMEBREW_PREFIX/share/zsh-history-substring-search/zsh-history-substring-search.zsh"
   # Bind arrow keys
-  bindkey '^[[A' history-substring-search-up
-  bindkey '^[[B' history-substring-search-down
-  # Bind j/k for vi-mode (integrated with zsh-vi-mode)
-  zvm_after_init_commands+=('bindkey -M vicmd "k" history-substring-search-up')
-  zvm_after_init_commands+=('bindkey -M vicmd "j" history-substring-search-down')
+  if [[ -o interactive && -o zle ]]; then
+    bindkey '^[[A' history-substring-search-up
+    bindkey '^[[B' history-substring-search-down
+    # Bind j/k for vi-mode (integrated with zsh-vi-mode)
+    zvm_after_init_commands+=('bindkey -M vicmd "k" history-substring-search-up')
+    zvm_after_init_commands+=('bindkey -M vicmd "j" history-substring-search-down')
+  fi
 fi
