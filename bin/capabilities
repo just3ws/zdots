@@ -112,6 +112,36 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo "  ${CYAN}Disk Available:${RESET}  $_avail"
 fi
 
+# Terminal State
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo ""
+  echo "${BOLD}Terminal State:${RESET}"
+
+  # stdin/stdout/stderr TTY status
+  if [ -t 0 ]; then _tty_stdin="${GREEN}yes${RESET}"; else _tty_stdin="${YELLOW}no${RESET}"; fi
+  if [ -t 1 ]; then _tty_stdout="${GREEN}yes${RESET}"; else _tty_stdout="${YELLOW}no${RESET}"; fi
+  if [ -t 2 ]; then _tty_stderr="${GREEN}yes${RESET}"; else _tty_stderr="${YELLOW}no${RESET}"; fi
+  printf "  %-15s : %b\n" "stdin TTY" "$_tty_stdin"
+  printf "  %-15s : %b\n" "stdout TTY" "$_tty_stdout"
+  printf "  %-15s : %b\n" "stderr TTY" "$_tty_stderr"
+
+  printf "  %-15s : %b%s%b\n" "TERM" "$CYAN" "${TERM:-unset}" "$RESET"
+  printf "  %-15s : %b%s%b\n" "TERM_PROGRAM" "$CYAN" "${TERM_PROGRAM:-unset}" "$RESET"
+
+  # Multiplexer detection
+  _mux="none"
+  if [ -n "${TMUX:-}" ]; then
+    _mux="tmux"
+  else
+    case "${TERM:-}" in
+      screen*|tmux*) _mux="screen/tmux (TERM)" ;;
+    esac
+  fi
+  printf "  %-15s : %b%s%b\n" "Multiplexer" "$CYAN" "$_mux" "$RESET"
+
+  printf "  %-15s : %b%sx%s%b\n" "Dimensions" "$CYAN" "${LINES:-?}" "${COLUMNS:-?}" "$RESET"
+fi
+
 # 4. Observability Health
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo ""
@@ -186,6 +216,19 @@ for t in $_tools; do
 done
 
 if [ "$OUTPUT_FORMAT" = "json" ]; then
+  # Compute TTY status for JSON
+  _json_stdin_tty="false"; [ -t 0 ] && _json_stdin_tty="true"
+  _json_stdout_tty="false"; [ -t 1 ] && _json_stdout_tty="true"
+  _json_stderr_tty="false"; [ -t 2 ] && _json_stderr_tty="true"
+  _json_mux="none"
+  if [ -n "${TMUX:-}" ]; then
+    _json_mux="tmux"
+  else
+    case "${TERM:-}" in
+      screen*|tmux*) _json_mux="screen/tmux" ;;
+    esac
+  fi
+
   if command -v jq >/dev/null 2>&1; then
     jq -n \
       --arg sid "${ZDOTS_SESSION_ID:-}" \
@@ -199,12 +242,29 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg trace_file "$_z_trace_file" \
       --arg last_trace "$_ts" \
       --arg errors "$errors" \
+      --arg stdin_tty "$_json_stdin_tty" \
+      --arg stdout_tty "$_json_stdout_tty" \
+      --arg stderr_tty "$_json_stderr_tty" \
+      --arg term "${TERM:-unset}" \
+      --arg term_program "${TERM_PROGRAM:-unset}" \
+      --arg multiplexer "$_json_mux" \
+      --arg lines "${LINES:-?}" \
+      --arg columns "${COLUMNS:-?}" \
       '{
         session_id: $sid,
         profile: $profile,
         os: $os,
         arch: $arch,
         disk_available: $disk,
+        terminal: {
+          stdin_tty: ($stdin_tty == "true"),
+          stdout_tty: ($stdout_tty == "true"),
+          stderr_tty: ($stderr_tty == "true"),
+          term: $term,
+          term_program: $term_program,
+          multiplexer: $multiplexer,
+          dimensions: ($lines + "x" + $columns)
+        },
         ai: {
           status: ($ai_status | tonumber),
           model: $ai_model,
@@ -242,7 +302,7 @@ if command -v otel-cli >/dev/null 2>&1; then
 fi
 
 # Cleanup
-unset _avail _p_status _z_services _z_state_dir _z_trace_file _z_last_trace _ts _m_status _tools _path _status
+unset _avail _p_status _z_services _z_state_dir _z_trace_file _z_last_trace _ts _m_status _tools _path _status _tty_stdin _tty_stdout _tty_stderr _mux _json_stdin_tty _json_stdout_tty _json_stderr_tty _json_mux
 
 if [ "$errors" -gt 0 ]; then
   echo "${RED}Health Check Failed: $errors service contract violation(s) detected.${RESET}"
