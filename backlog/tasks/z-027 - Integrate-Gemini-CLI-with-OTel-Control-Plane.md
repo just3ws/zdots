@@ -4,7 +4,9 @@ title: Integrate Gemini CLI with OTel Control Plane
 status: To Do
 assignee: []
 created_date: '2026-03-28 17:23'
+updated_date: '2026-03-29 03:13'
 labels: []
+milestone: m-2
 dependencies: []
 priority: high
 ---
