@@ -1,10 +1,10 @@
 ---
 id: Z-016
 title: Formalize TTY State and Capability Discovery
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-03-27 17:59'
-updated_date: '2026-03-29 03:13'
+updated_date: '2026-03-29 16:39'
 labels: []
 milestone: m-0
 dependencies: []
@@ -19,9 +19,9 @@ Improve shell resilience by formalizing how the environment detects and adapts t
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Implement bin/capabilities check for TTY state
-- [ ] #2 Refine ZLE widget loading to be TTY-aware
-- [ ] #3 Document terminal capability discovery logic
+- [ ] #1 Add TTY state section to bin/capabilities reporting stdin/stdout/stderr TTY status, TERM, TERM_PROGRAM, multiplexer detection, and terminal dimensions
+- [ ] #2 Guard ZLE widget operations in conf.d/60-bindings.zsh and conf.d/70-integrations.zsh with [[ -o zle ]] checks for defense-in-depth beyond [[ -o interactive ]]
+- [ ] #3 Document terminal capability discovery patterns in docs/terminal-capabilities.md covering detection hierarchy, guard patterns, and when to use each
 <!-- AC:END -->
 
 ## Definition of Done
