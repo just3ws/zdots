@@ -224,6 +224,49 @@ if [[ "$SKIP_EXTERNAL" != "1" ]]; then
   assert_pnpm_path "login+interactive" -l -i
 fi
 
+assert_safe_mode() {
+  local errfile
+  errfile="$(mktemp)"
+  set +e
+  ZDOTS_SAFE_MODE=1 zsh -i -c 'exit' >/dev/null 2>"$errfile"
+  local ret=$?
+  set -e
+  if [[ $ret -ne 0 ]]; then
+    echo "check: safe mode shell failed with exit code $ret" >&2
+    cat "$errfile" >&2
+    rm -f "$errfile"
+    exit 1
+  fi
+  # Filter known non-critical output: zle option warning and the SAFE MODE diagnostic itself
+  if [[ -s "$errfile" ]]; then
+    if _strip_escapes <"$errfile" | grep -vE "can't change option: zle|zdots: SAFE MODE" | grep -q .; then
+      echo "check: safe mode shell emitted unexpected stderr:" >&2
+      cat "$errfile" >&2
+      rm -f "$errfile"
+      exit 1
+    fi
+  fi
+  rm -f "$errfile"
+
+  # Verify essential modules loaded (check for observability trace ID)
+  local trace_check
+  trace_check="$(ZDOTS_SAFE_MODE=1 zsh -i -c 'echo "TRACE:${ZDOTS_TRACE_ID:-missing}"' 2>/dev/null | _strip_escapes)"
+  if ! grep -q 'TRACE:' <<<"$trace_check" || grep -q 'TRACE:missing' <<<"$trace_check"; then
+    echo "check: safe mode shell missing trace ID (essential modules not loaded)" >&2
+    exit 1
+  fi
+
+  # Verify non-essential modules were skipped (check that ZDOTS_SAFE_MODE message appeared)
+  local safe_msg
+  safe_msg="$(ZDOTS_SAFE_MODE=1 zsh -i -c 'exit' 2>&1 | _strip_escapes)"
+  if ! grep -q 'SAFE MODE' <<<"$safe_msg"; then
+    echo "check: safe mode did not emit diagnostic message" >&2
+    exit 1
+  fi
+}
+
+assert_safe_mode
+
 assert_login_shell_node_path() {
   local actual_node
   local expected_node
