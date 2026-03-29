@@ -237,14 +237,25 @@ assert_safe_mode() {
     rm -f "$errfile"
     exit 1
   fi
-  # Filter known non-critical output: zle option warning and the SAFE MODE diagnostic itself
+  # Filter known non-critical output and verify diagnostic message appeared
   if [[ -s "$errfile" ]]; then
-    if _strip_escapes <"$errfile" | grep -vE "can't change option: zle|zdots: SAFE MODE" | grep -q .; then
+    local stripped_stderr
+    stripped_stderr="$(_strip_escapes <"$errfile")"
+    if grep -vE "can't change option: zle|zdots: SAFE MODE" <<<"$stripped_stderr" | grep -q .; then
       echo "check: safe mode shell emitted unexpected stderr:" >&2
       cat "$errfile" >&2
       rm -f "$errfile"
       exit 1
     fi
+    if ! grep -q 'SAFE MODE' <<<"$stripped_stderr"; then
+      echo "check: safe mode did not emit diagnostic message" >&2
+      rm -f "$errfile"
+      exit 1
+    fi
+  else
+    echo "check: safe mode did not emit diagnostic message (empty stderr)" >&2
+    rm -f "$errfile"
+    exit 1
   fi
   rm -f "$errfile"
 
@@ -253,14 +264,6 @@ assert_safe_mode() {
   trace_check="$(ZDOTS_SAFE_MODE=1 zsh -i -c 'echo "TRACE:${ZDOTS_TRACE_ID:-missing}"' 2>/dev/null | _strip_escapes)"
   if ! grep -q 'TRACE:' <<<"$trace_check" || grep -q 'TRACE:missing' <<<"$trace_check"; then
     echo "check: safe mode shell missing trace ID (essential modules not loaded)" >&2
-    exit 1
-  fi
-
-  # Verify non-essential modules were skipped (check that ZDOTS_SAFE_MODE message appeared)
-  local safe_msg
-  safe_msg="$(ZDOTS_SAFE_MODE=1 zsh -i -c 'exit' 2>&1 | _strip_escapes)"
-  if ! grep -q 'SAFE MODE' <<<"$safe_msg"; then
-    echo "check: safe mode did not emit diagnostic message" >&2
     exit 1
   fi
 }
