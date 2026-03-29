@@ -9,22 +9,31 @@ fi
 : "${ZDOTDIR:=$HOME/.config/zsh}"
 
 # Load modules using the Circuit Breaker
+if [[ "${ZDOTS_SAFE_MODE:-0}" == "1" ]]; then
+  print -P "%F{yellow}zdots: SAFE MODE — loading essential modules only (05-60)%f" >&2
+fi
 for conf in "$ZDOTDIR"/conf.d/*.zsh(N); do
+  if [[ "${ZDOTS_SAFE_MODE:-0}" == "1" && "${conf:t}" == [7-9]* ]]; then
+    continue
+  fi
   zdots_safe_source "$conf"
 done
 unset conf
 
 # Syntax highlighting should be sourced last to catch all aliases and functions.
 # Load theme-specific styles first.
-if [[ -r "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh" ]]; then
-  zdefer source "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh"
-elif [[ "$ZDOTS_THEME" == dracula-* && -r "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh" ]]; then
-  zdefer source "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh"
-fi
+# zdefer is provided by 70-integrations.zsh; skip in safe mode.
+if [[ "${ZDOTS_SAFE_MODE:-0}" != "1" ]]; then
+  if [[ -r "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh" ]]; then
+    zdefer source "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh"
+  elif [[ "$ZDOTS_THEME" == dracula-* && -r "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh" ]]; then
+    zdefer source "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh"
+  fi
 
-# Prefer Homebrew installed version.
-if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
-  zdefer source "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+  # Prefer Homebrew installed version.
+  if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
+    zdefer source "$HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+  fi
 fi
 # Prefer Vi-style editing while keeping a few essential Emacs motions active.
 bindkey -v
