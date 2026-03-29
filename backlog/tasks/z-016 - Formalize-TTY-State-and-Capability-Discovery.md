@@ -4,7 +4,9 @@ title: Formalize TTY State and Capability Discovery
 status: To Do
 assignee: []
 created_date: '2026-03-27 17:59'
+updated_date: '2026-03-29 03:13'
 labels: []
+milestone: m-0
 dependencies: []
 priority: medium
 ---
