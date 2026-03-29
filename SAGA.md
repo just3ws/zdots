@@ -26,6 +26,18 @@ This era marked the shift from configuration to **Mastery**. We gave the shell a
 
 ---
 
+### Interlude: The Regrounding
+**"Earned, Not Declared"**
+
+Between the Originals and the Sequels, the project paused to face an uncomfortable truth: the practice had not kept pace with the ambition. Twenty-one tasks were marked Done with unchecked criteria. The regression suite was broken. Milestones existed only in narrative, never in the backlog.
+
+The Regrounding was five steps: Get Clean, Get Green, Get Honest, Get Structured, Get Disciplined. Each step was verified before the next could begin. The recovery itself modeled the discipline it restored.
+
+*   **The Lesson**: A system that describes rigor but does not practice it is more fragile than one that makes no claims at all.
+*   **The Gate**: No task is Done without evidence. No milestone closes without verification. The practice is the same regardless of who does the work.
+
+---
+
 ### III. The Sequel Trilogy: The Era of Autonomy
 **"Engineered Intelligence"**
 
