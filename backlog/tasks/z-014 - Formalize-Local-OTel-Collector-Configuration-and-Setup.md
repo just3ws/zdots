@@ -4,8 +4,9 @@ title: Formalize Local OTel Collector Configuration and Setup
 status: Done
 assignee: []
 created_date: '2026-03-27 16:29'
-updated_date: '2026-03-29 03:10'
+updated_date: '2026-03-29 03:13'
 labels: []
+milestone: m-1
 dependencies: []
 priority: medium
 ---
