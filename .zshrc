@@ -36,12 +36,14 @@ if [[ "${ZDOTS_SAFE_MODE:-0}" != "1" ]]; then
   fi
 fi
 # Prefer Vi-style editing while keeping a few essential Emacs motions active.
-bindkey -v
-bindkey '^A' beginning-of-line
-bindkey '^E' end-of-line
-bindkey '^K' kill-line
-bindkey '^U' backward-kill-line
-bindkey '^Y' yank
+if [[ -o interactive && -o zle ]]; then
+  bindkey -v
+  bindkey '^A' beginning-of-line
+  bindkey '^E' end-of-line
+  bindkey '^K' kill-line
+  bindkey '^U' backward-kill-line
+  bindkey '^Y' yank
+fi
 
 test -e "${ZDOTDIR}/.iterm2_shell_integration.zsh" && source "${ZDOTDIR}/.iterm2_shell_integration.zsh" || true
 
