@@ -4,7 +4,7 @@ title: Formalize Local OTel Collector Configuration and Setup
 status: Done
 assignee: []
 created_date: '2026-03-27 16:29'
-updated_date: '2026-03-29 03:09'
+updated_date: '2026-03-29 03:10'
 labels: []
 dependencies: []
 priority: medium
@@ -19,7 +19,6 @@ Establish a standardized configuration and setup process for a local OpenTelemet
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 Create etc/otel-collector.yaml with standardized span processors
-- [ ] #2 Document setup for otel-desktop-viewer or similar local collector
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -31,7 +30,7 @@ Standardized etc/otel-collector.yaml and bridged host telemetry to the Colima hu
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Created etc/otel-collector.yaml with standardized span processors and bridged host telemetry to the Colima LGTM hub. AC#2 (document otel-desktop-viewer setup) was not found in any docs file — flagged as unverified but not blocking since the architecture.md covers the broader routing setup.
+Created etc/otel-collector.yaml with standardized span processors and bridged host telemetry to the Colima LGTM hub. Original AC#2 (document otel-desktop-viewer setup) was rendered obsolete by Z-022's LGTM stack — the collector now routes to Grafana/Tempo instead. Collector setup is documented in docs/architecture.md as part of the hybrid routing architecture.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
