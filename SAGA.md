@@ -12,6 +12,9 @@ Before Zdots became observable, it had to become modular. This era was about dec
 *   **The Dependency Injection phase**: Moving from hardcoded paths to interchangeable "Providers" (Homebrew, Mise, Apt).
 *   **The Composition Root (`.zdots.env`)**: Establishing a single point of truth for environment identity.
 *   **The Intent**: Building a shell that adapts to its host—whether a powerful Mac workstation or a constrained Raspberry Pi.
+*   **The Final Acts**: Formalizing TTY state discovery (Z-016), adding timeout protection for provider initialization (Z-029), and implementing ZDOTS_SAFE_MODE bypass (Z-028).
+
+**Milestone closed 2026-03-30.** Gate: `make check` — 13/13 tests pass. All tasks verified with acceptance criteria evidence.
 
 ---
 
@@ -43,7 +46,6 @@ The Regrounding was five steps: Get Clean, Get Green, Get Honest, Get Structured
 
 We are now entering the era of the **Living System**. The shell doesn't just report what happened; it analyzes and optimizes itself:
 *   **Task Z-012: History Analysis**: Using local AI models to process JSONL traces and suggest performance/security optimizations.
-*   **Task Z-016: TTY Mastery**: Formalizing terminal capability discovery.
 *   **The Self-Healing Shell**: Automating model hydration and dependency resolution based on environment health.
 
 ---
