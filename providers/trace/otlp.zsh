@@ -7,8 +7,8 @@ zdots_require trace local
 
 zdots_trace_init() {
   # Endpoint for OTLP/HTTP collector
-  export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}"
-  export OTEL_SERVICE_NAME="${OTEL_SERVICE_NAME:-zdots-shell}"
+  OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}"
+  OTEL_SERVICE_NAME="${OTEL_SERVICE_NAME:-zdots-shell}"
 
   # Resource Attributes (OTEL_RESOURCE_ATTRIBUTES)
   # Standard: process.pid, process.owner, os.type, host.name
@@ -77,5 +77,5 @@ _zdots_trace_send_otlp() {
 
   # Send asynchronously (background)
   command curl -s -X POST -H "Content-Type: application/json" \
-    -d "$payload" "$OTEL_EXPORTER_OTLP_ENDPOINT/v1/traces" >/dev/null 2>&1 &
+    -d "$payload" "$OTEL_EXPORTER_OTLP_ENDPOINT/v1/traces" >/dev/null 2>&1 &!
 }
