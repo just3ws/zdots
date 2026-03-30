@@ -1,14 +1,15 @@
 # providers/trace/local.zsh — Local JSONL trace provider
 
-zdots_trace_init() {
+# File setup extracted so otlp.zsh can reuse without function-overwrite conflicts.
+_zdots_trace_file_init() {
   _zdots_trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
-  
+
   # Ensure restricted directory (700)
   if [[ ! -d "$_zdots_trace_file:h" ]]; then
     mkdir -p "$_zdots_trace_file:h"
   fi
   chmod 700 "$_zdots_trace_file:h" 2>/dev/null || true
-  
+
   # Simple Log Rotation (prevent infinite growth)
   # Max size: ~10MB
   if [[ -f "$_zdots_trace_file" ]]; then
@@ -24,8 +25,11 @@ zdots_trace_init() {
     touch "$_zdots_trace_file"
   fi
   chmod 600 "$_zdots_trace_file" 2>/dev/null || true
-  
-  export _ZDOTS_TRACE_INITIALIZED=1
+}
+
+zdots_trace_init() {
+  _zdots_trace_file_init
+  _ZDOTS_TRACE_INITIALIZED=1
 }
 
 # zdots_trace_log EVENT_TYPE DATA
