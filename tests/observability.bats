@@ -41,3 +41,15 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"traceparent: \$TRACEPARENT"* ]]
 }
+
+@test "Zsh: OTEL_SERVICE_NAME is not exported to child processes" {
+  # Child processes should not inherit the shell's service name.
+  # env(1) runs as a child process and prints its environment.
+  # Use env -i to start from a clean environment so we test only what zdots sets,
+  # not what the parent shell already exported.
+  run env -i HOME="$HOME" ZDOTDIR="$ZDOTDIR" TERM=xterm-256color \
+    zsh -i -c 'env | grep "^OTEL_SERVICE_NAME=" || echo "NOT_EXPORTED"'
+  echo "Output: $output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"NOT_EXPORTED"* ]]
+}
