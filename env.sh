@@ -141,6 +141,7 @@ export GOPATH="$XDG_DATA_HOME/go"
 export GEM_HOME="$XDG_DATA_HOME/gem"
 export GEM_PATH="$GEM_HOME"
 export PYTHONUSERBASE="$XDG_DATA_HOME/python"
+export BUN_INSTALL="$HOME/.bun"
 
 # 7. Homebrew Core Detection (Legacy Fallback/Overridable)
 if [ -z "${HOMEBREW_PREFIX:-}" ] && [ "$ZDOTS_ENV_PROFILE" != "ci-act" ]; then
@@ -193,6 +194,9 @@ _zdots_path_add "$CARGO_HOME/bin"
 _zdots_path_add "$GEM_HOME/bin"
 _zdots_path_add "$GOPATH/bin"
 _zdots_path_add "$PNPM_HOME"
+_zdots_path_add "$BUN_INSTALL/bin"
+_zdots_path_add "$HOME/.lmstudio/bin"
+_zdots_path_add "$XDG_CONFIG_HOME/ollama/bin"
 
 # 9b. Service-based Path Setup (Dependency Injection)
 # We call provider-specific path functions if they were defined by zdots_require.
@@ -207,6 +211,7 @@ fi
 # 9c. User Binaries (Highest precedence)
 _zdots_path_add "$ZDOTDIR/bin"
 _zdots_path_add "$HOME/.local/bin"
+_zdots_path_add "$HOME/.antigravity/antigravity/bin"
 
 export PATH
 unset -f _zdots_path_add

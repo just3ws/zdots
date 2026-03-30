@@ -31,6 +31,7 @@ alias fpath='echo $fpath | tr " " "\n"'
 # Zsh-only CLI tools
 alias he='history_enquire'
 alias bounce='reload'
+alias claude-mem='bun "$HOME/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs"'
 
 # Zsh Globbing shorthands
 alias prunedirs='rm -d **/*(/^F)'
