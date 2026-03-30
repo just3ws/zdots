@@ -30,7 +30,7 @@ zdots_node_runtime_init() {
   fi
   
   export MISE_NODE_COREPACK=1
-  export _ZDOTS_MISE_INITIALIZED=1
+  _ZDOTS_MISE_INITIALIZED=1
   unset _zdots_mise_cache
 }
 

@@ -16,10 +16,10 @@ zdots_python_runtime_init() {
     else
       eval "$(zdots_cmd_timeout mise activate zsh)"
     fi
-    export _ZDOTS_MISE_INITIALIZED=1
+    _ZDOTS_MISE_INITIALIZED=1
   fi
   unset _zdots_mise_cache
-  export _ZDOTS_PYTHON_MISE_INITIALIZED=1
+  _ZDOTS_PYTHON_MISE_INITIALIZED=1
 }
 
 zdots_python_runtime_paths() {
