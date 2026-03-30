@@ -21,7 +21,7 @@ zdots_pkg_manager_init() {
   export HOMEBREW_BUNDLE_FILE="${HOMEBREW_BUNDLE_FILE:-$ZDOTDIR/Brewfile}"
   export HOMEBREW_BAT=1
   
-  export _ZDOTS_BREW_INITIALIZED=1
+  _ZDOTS_BREW_INITIALIZED=1
 }
 
 # Path setup (Liskov Substitution: Same interface for path manipulation)

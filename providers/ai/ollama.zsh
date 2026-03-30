@@ -1,5 +1,10 @@
 # providers/ai/ollama.zsh — Ollama implementation for local AI inference
 
+# Source Ollama environment configuration (host, context length, etc.)
+if [[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/ollama/env.zsh" ]]; then
+  source "${XDG_CONFIG_HOME:-$HOME/.config}/ollama/env.zsh"
+fi
+
 zdots_ai_init() {
   export ZDOTS_AI_PROFILE="${ZDOTS_AI_PROFILE:-standard}"
   export ZDOTS_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11434}"
@@ -26,7 +31,7 @@ zdots_ai_init() {
     export _ZDOTS_AI_MODEL_PRESENT=0
   fi
   
-  export _ZDOTS_AI_INITIALIZED=1
+  _ZDOTS_AI_INITIALIZED=1
 }
 
 # zdots_ai_infer PROMPT [SYSTEM_PROMPT]

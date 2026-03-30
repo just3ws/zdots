@@ -21,7 +21,7 @@ zdots_ai_init() {
     export _ZDOTS_AI_SERVER_UP=0
   fi
   
-  export _ZDOTS_AI_INITIALIZED=1
+  _ZDOTS_AI_INITIALIZED=1
 }
 
 # zdots_ai_infer PROMPT [SYSTEM_PROMPT]
