@@ -7,7 +7,7 @@ zdots_require trace local
 
 zdots_trace_init() {
   # Endpoint for OTLP/HTTP collector
-  OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}"
+  OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://127.0.0.1:4318}"
   OTEL_SERVICE_NAME="${OTEL_SERVICE_NAME:-zdots-shell}"
 
   # Resource Attributes (OTEL_RESOURCE_ATTRIBUTES)
