@@ -23,6 +23,7 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
         (
           OTEL_SERVICE_NAME="$OTEL_SERVICE_NAME" \
           OTEL_EXPORTER_OTLP_ENDPOINT="$OTEL_EXPORTER_OTLP_ENDPOINT" \
+          OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
           otel-cli span \
             --name "command.error" \
             --attrs "status=$last_status,command=$ZDOTS_LAST_COMMAND" \
@@ -73,6 +74,7 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
     (
       OTEL_SERVICE_NAME="$OTEL_SERVICE_NAME" \
       OTEL_EXPORTER_OTLP_ENDPOINT="$OTEL_EXPORTER_OTLP_ENDPOINT" \
+      OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
       otel-cli span \
         --name "shell.heartbeat" \
         --attrs "profile=${ZDOTS_ENV_PROFILE:-unknown},os=$(uname -s),sys.load_avg=$load_avg" \

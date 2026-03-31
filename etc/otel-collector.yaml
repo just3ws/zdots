@@ -1,20 +1,87 @@
-# etc/otel-collector.yaml — Standard configuration for local shell observability
+# etc/otel-collector.yaml — Full-context local observability collector
+#
+# Architecture: Bare-metal collector on host → LGTM stack in Colima
+# Receives: OTLP push (apps), host metrics, container stats, log files
+# Exports:  Debug log, local file (rotated), LGTM (gRPC)
 
 receivers:
+  # Application telemetry (traces, metrics, logs via OTLP/HTTP)
   otlp:
     protocols:
       http:
         endpoint: "127.0.0.1:4318"
 
+  # System metrics: CPU, memory, disk, network, load, processes
+  hostmetrics:
+    collection_interval: 15s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      disk:
+      filesystem:
+      load:
+      network:
+      paging:
+      # process scraper omitted: macOS sandboxing prevents reading system PIDs
+      processes:
+
+  # Container metrics: per-container CPU, memory, network, block I/O
+  docker_stats:
+    endpoint: "unix:///var/run/docker.sock"
+    collection_interval: 15s
+    provide_per_core_cpu_metrics: false
+
+  # Tail log files into Loki
+  # Filelog receiver: uncomment and add application log paths as needed.
+  # Do NOT include otel-collector.log — creates a feedback loop with debug exporter.
+  # filelog:
+  #   include:
+  #     - "/path/to/app.log"
+  #   start_at: end
+
 processors:
+  # Standard batching for all signals
   batch:
     timeout: 1s
     send_batch_size: 1024
 
+  # Enrich all telemetry with host metadata
+  resourcedetection:
+    detectors: [system]
+    system:
+      hostname_sources: ["os"]
+      resource_attributes:
+        host.name:
+          enabled: true
+        host.arch:
+          enabled: true
+        os.type:
+          enabled: true
+        os.description:
+          enabled: true
+
+connectors:
+  # Generate RED metrics (rate, errors, duration) from trace spans
+  spanmetrics:
+    histogram:
+      explicit:
+        buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 5s, 10s]
+    dimensions:
+      - name: event.type
+    exemplars:
+      enabled: true
+    metrics_flush_interval: 5s
+
 exporters:
-  # Debug: Output to console (Replaces deprecated 'logging')
+  # Debug: Output to console
   debug:
-    verbosity: detailed
+    verbosity: basic
   # Local Storage: Save to XDG-compliant location with rotation
   file:
     path: "${env:HOME}/.local/state/zsh/collector-traces.json"
@@ -29,15 +96,18 @@ exporters:
 
 service:
   pipelines:
+    # Traces from apps → spanmetrics connector → LGTM
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [debug, file, otlp/lgtm]
+      processors: [resourcedetection, batch]
+      exporters: [debug, file, otlp/lgtm, spanmetrics]
+    # Metrics from apps + host + containers + spanmetrics
     metrics:
-      receivers: [otlp]
-      processors: [batch]
+      receivers: [otlp, hostmetrics, docker_stats, spanmetrics]
+      processors: [resourcedetection, batch]
       exporters: [debug, otlp/lgtm]
+    # Logs from apps + log files
     logs:
       receivers: [otlp]
-      processors: [batch]
+      processors: [resourcedetection, batch]
       exporters: [debug, otlp/lgtm]
