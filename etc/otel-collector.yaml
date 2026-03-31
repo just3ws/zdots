@@ -23,7 +23,7 @@ exporters:
       max_backups: 3
   # Central Hub: Forward to LGTM stack in Colima (gRPC → container :4317)
   otlp/lgtm:
-    endpoint: "localhost:4417"
+    endpoint: "127.0.0.1:4417"
     tls:
       insecure: true
 
