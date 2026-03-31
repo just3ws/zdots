@@ -4,7 +4,7 @@
 
 services:
   lgtm:
-    image: grafana/otel-lgtm:0.8.1
+    image: grafana/otel-lgtm:0.22.1
     container_name: zdots-lgtm
     restart: unless-stopped
     ports:
