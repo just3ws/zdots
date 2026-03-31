@@ -15,9 +15,12 @@ exporters:
   # Debug: Output to console (Replaces deprecated 'logging')
   debug:
     verbosity: detailed
-  # Local Storage: Save to local JSON file
+  # Local Storage: Save to XDG-compliant location with rotation
   file:
-    path: "./traces-collected.json"
+    path: "${env:HOME}/.local/state/zsh/collector-traces.json"
+    rotation:
+      max_megabytes: 10
+      max_backups: 3
   # Central Hub: Forward to LGTM stack in Colima (gRPC → container :4317)
   otlp/lgtm:
     endpoint: "localhost:4417"
