@@ -68,8 +68,11 @@ cargo run
 ```bash
 OTEL_SERVICE_NAME=my-script \
 OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 \
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
 otel-cli span --name "deploy.run" --attrs "env=staging,version=1.2.3"
 ```
+
+> **Note:** otel-cli defaults to gRPC. You must set `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` since this collector only exposes an HTTP receiver.
 
 ### Using curl (Manual / Testing)
 
@@ -253,17 +256,38 @@ curl -X POST http://127.0.0.1:4318/v1/logs \
 
 ## What Happens to Your Telemetry
 
-The collector routes all signals through a batch processor, then to three exporters:
+The collector enriches all signals with host metadata (`host.name`, `host.arch`, `os.type`) via `resourcedetection`, then batches and routes them:
 
 ```
 Your App ──OTLP/HTTP──→ Collector (127.0.0.1:4318)
+                            │
+Host Metrics ──────────────→│  (CPU, memory, disk, network — every 15s)
+Docker Stats ──────────────→│  (per-container CPU, memory, I/O — every 15s)
+                            │
                             ├──→ Debug (collector log file)
-                            ├──→ File  (collector-traces.json, 10MB rotation)
-                            └──→ LGTM  (gRPC → 127.0.0.1:4417)
-                                    ├──→ Tempo (traces)
-                                    ├──→ Loki (logs)
-                                    └──→ Prometheus (metrics)
+                            │
+                            ├──→ Traces ──→ File (collector-traces.json, 10MB rotation)
+                            │          └──→ LGTM → Tempo
+                            │          └──→ Span Metrics (auto-generates RED metrics)
+                            │
+                            ├──→ Metrics ──→ LGTM → Prometheus
+                            │
+                            └──→ Logs ─────→ LGTM → Loki
+
+                            LGTM: gRPC → 127.0.0.1:4417
 ```
+
+### Active Collection (No App Changes Required)
+
+The collector automatically scrapes:
+- **Host metrics**: CPU utilization, memory utilization, disk, filesystem, load average, network I/O, paging, and process counts (every 15s)
+- **Docker container stats**: per-container CPU, memory, network, and block I/O via the Docker socket (every 15s)
+
+These appear in Grafana → Prometheus without any application instrumentation.
+
+### Span Metrics (Automatic RED Metrics)
+
+The `spanmetrics` connector automatically derives **Rate**, **Error rate**, and **Duration** histogram metrics from every trace span. These metrics appear in Prometheus with no additional instrumentation — if you send traces, you get metrics for free.
 
 ## Viewing Your Data
 
@@ -278,7 +302,7 @@ Your App ──OTLP/HTTP──→ Collector (127.0.0.1:4318)
 | Component | Managed by | Auto-starts | Auto-restarts |
 |-----------|-----------|-------------|---------------|
 | OTel Collector | launchd (`com.zdots.otel-collector`) | Yes (login) | Yes (`KeepAlive`) |
-| Colima + Docker | brew services | Yes (login) | Yes |
+| Colima + Docker | `local-ci up` / `colima start` | Manual | No |
 | LGTM container | Docker (`restart: unless-stopped`) | With Docker | Yes |
 
 ### Manual Controls
