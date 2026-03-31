@@ -16,13 +16,14 @@ Set `OTEL_SERVICE_NAME` to your application's identity (e.g., `phalanx-server`, 
 
 ## Endpoints
 
-The collector accepts **OTLP/HTTP** on port `4318` for all three signal types:
+The collector accepts both **OTLP/gRPC** (port `4317`) and **OTLP/HTTP** (port `4318`):
 
-| Signal  | URL                                | Destination        |
-|---------|------------------------------------|--------------------|
-| Traces  | `http://127.0.0.1:4318/v1/traces`  | Tempo via Grafana  |
-| Metrics | `http://127.0.0.1:4318/v1/metrics` | Prometheus         |
-| Logs    | `http://127.0.0.1:4318/v1/logs`    | Loki               |
+| Protocol | Port | Use with |
+|----------|------|----------|
+| gRPC     | `127.0.0.1:4317` | otel-cli, Go SDKs (default), gRPC-native clients |
+| HTTP     | `127.0.0.1:4318` | curl, most SDK auto-instrumentation, browser-based clients |
+
+Both ports accept all three signal types (traces, metrics, logs) and route to the same destinations (Tempo, Prometheus, Loki).
 
 ---
 
@@ -67,12 +68,11 @@ cargo run
 
 ```bash
 OTEL_SERVICE_NAME=my-script \
-OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 \
-OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317 \
 otel-cli span --name "deploy.run" --attrs "env=staging,version=1.2.3"
 ```
 
-> **Note:** otel-cli defaults to gRPC. You must set `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` since this collector only exposes an HTTP receiver.
+> **Note:** otel-cli defaults to gRPC, so point it at port `4317`. SDK-based apps typically use HTTP on port `4318`.
 
 ### Using curl (Manual / Testing)
 
@@ -259,7 +259,8 @@ curl -X POST http://127.0.0.1:4318/v1/logs \
 The collector enriches all signals with host metadata (`host.name`, `host.arch`, `os.type`) via `resourcedetection`, then batches and routes them:
 
 ```
-Your App ──OTLP/HTTP──→ Collector (127.0.0.1:4318)
+Your App ──OTLP/gRPC──→ Collector (127.0.0.1:4317)
+        ──OTLP/HTTP──→          (127.0.0.1:4318)
                             │
 Host Metrics ──────────────→│  (CPU, memory, disk, network — every 15s)
 Docker Stats ──────────────→│  (per-container CPU, memory, I/O — every 15s)
@@ -299,22 +300,37 @@ The `spanmetrics` connector automatically derives **Rate**, **Error rate**, and 
 
 ## Lifecycle
 
+The collector is managed as a macOS `launchd` service for reliability and persistence.
+
 | Component | Managed by | Auto-starts | Auto-restarts |
 |-----------|-----------|-------------|---------------|
-| OTel Collector | launchd (`com.zdots.otel-collector`) | Yes (login) | Yes (`KeepAlive`) |
+| OTel Collector | `bin/otel-collector` (`launchd`) | Yes (login) | Yes (`KeepAlive`) |
 | Colima + Docker | `local-ci up` / `colima start` | Manual | No |
 | LGTM container | Docker (`restart: unless-stopped`) | With Docker | Yes |
 
-### Manual Controls
+### Management Commands
+
+Always use the wrapper script for consistent service management:
 
 ```bash
-# Collector
-launchctl stop com.zdots.otel-collector    # stop
-launchctl start com.zdots.otel-collector   # start
-tail -f ~/.local/state/zsh/otel-collector.log  # logs
-
-# LGTM stack
-local-ci otel down    # stop
-local-ci otel up      # start
-local-ci otel logs    # logs
+bin/otel-collector status    # Check if running and get PID
+bin/otel-collector stop      # Stop the background service
+bin/otel-collector start     # Start the background service
+bin/otel-collector restart   # Restart (useful after config changes)
+bin/otel-collector validate  # Verify etc/otel-collector.yaml syntax
+bin/otel-collector logs      # Tail the collector logs
 ```
+
+## Validation
+
+To verify the collector is correctly receiving and processing telemetry:
+
+1. **Check Status**: `bin/otel-collector status`
+2. **Send Test Span**:
+   ```bash
+   OTEL_SERVICE_NAME=zdots-test \
+   OTEL_EXPORTER_OTLP_ENDPOINT=127.0.0.1:4317 \
+   otel-cli span --name "test-operation"
+   ```
+3. **Verify in Logs**: `bin/otel-collector logs` should show "info Traces" with "spans: 1".
+4. **Verify in File**: Check `~/.local/state/zsh/collector-traces.json` for the `zdots-test` entry.
