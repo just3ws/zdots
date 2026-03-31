@@ -125,7 +125,7 @@ export PYTHONSTARTUP="$XDG_CONFIG_HOME/python/pythonrc"
 export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
 
 # 5. General Environment
-OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"
+OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
 OTEL_SERVICE_NAME="zdots-shell"
 export LANG='en_US.UTF-8'
 export EDITOR='vi'
