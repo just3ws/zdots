@@ -11,7 +11,13 @@ receivers:
       grpc:
         endpoint: "127.0.0.1:4317"
       http:
-        endpoint: "127.0.0.1:4318"
+        endpoint: "0.0.0.0:4318"
+        cors:
+          allowed_origins:
+            - http://127.0.0.1:5173
+            - http://127.0.0.1:3003
+            - http://localhost:5173
+            - http://localhost:3003
 
   # System metrics: CPU, memory, disk, network, load, processes
   hostmetrics:

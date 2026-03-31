@@ -16,14 +16,46 @@ Set `OTEL_SERVICE_NAME` to your application's identity (e.g., `phalanx-server`, 
 
 ## Endpoints
 
-The collector accepts both **OTLP/gRPC** (port `4317`) and **OTLP/HTTP** (port `4318`):
+The collector accepts both **OTLP/gRPC** (port `4317`) and **OTLP/HTTP** (port `4318`).
 
-| Protocol | Port | Use with |
-|----------|------|----------|
-| gRPC     | `127.0.0.1:4317` | otel-cli, Go SDKs (default), gRPC-native clients |
-| HTTP     | `127.0.0.1:4318` | curl, most SDK auto-instrumentation, browser-based clients |
+### Architecture & Port Mapping
 
-Both ports accept all three signal types (traces, metrics, logs) and route to the same destinations (Tempo, Prometheus, Loki).
+To prevent collisions between the host-level collector and the LGTM stack running in Colima/Docker, we use a tiered port strategy:
+
+| Component | Layer | OTLP gRPC | OTLP HTTP | Purpose |
+|-----------|-------|-----------|-----------|---------|
+| **Host Collector** | Bare Metal | `4317` | `4318` | Primary ingest for apps & shell |
+| **LGTM Hub** | Container | `4417` | `4418` | Final destination (Loki/Tempo) |
+
+**Note:** The Host Collector listens on `0.0.0.0:4318` (wildcard) for HTTP to ensure browser-based applications can reach it from any local origin.
+
+### CORS Support (Browser Apps)
+
+The OTLP/HTTP receiver is configured with CORS enabled to allow direct trace export from browser-based tools:
+- **Game Client:** `http://127.0.0.1:5173`
+- **Admin Console:** `http://127.0.0.1:3003`
+- **Localhost variants:** `http://localhost:5173`, `http://localhost:3003`
+
+---
+
+## Lifecycle & Management
+
+The collector is managed as a macOS `launchd` service. Always use the provided wrapper script for consistent management:
+
+```bash
+bin/otel-collector status    # Check if running and get PID
+bin/otel-collector stop      # Stop the background service
+bin/otel-collector start     # Start and register with launchd
+bin/otel-collector restart   # Stop and start (required after config changes)
+bin/otel-collector validate  # Verify etc/otel-collector.yaml syntax
+bin/otel-collector logs      # Tail the collector logs (~/.local/state/zsh/otel-collector.log)
+```
+
+| Component | Managed by | Auto-starts | Auto-restarts |
+|-----------|-----------|-------------|---------------|
+| OTel Collector | `bin/otel-collector` | Yes (login) | Yes (`KeepAlive`) |
+| Colima + Docker | `local-ci up` | Manual | No |
+| LGTM container | Docker | With Docker | Yes |
 
 ---
 
