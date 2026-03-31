@@ -337,6 +337,19 @@ PROVIDER
 
 assert_provider_timeout
 
+assert_otel_collector() {
+  if [[ "$SKIP_EXTERNAL" == "1" ]]; then
+    return 0
+  fi
+
+  if ! "$ZDOTDIR/bin/otel-collector" status >/dev/null 2>&1; then
+    echo "check: OTel collector is not running" >&2
+    exit 1
+  fi
+}
+
+assert_otel_collector
+
 assert_login_shell_node_path() {
   local actual_node
   local expected_node

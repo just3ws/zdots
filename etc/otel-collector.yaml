@@ -5,9 +5,11 @@
 # Exports:  Debug log, local file (rotated), LGTM (gRPC)
 
 receivers:
-  # Application telemetry (traces, metrics, logs via OTLP/HTTP)
+  # Application telemetry (traces, metrics, logs via OTLP gRPC + HTTP)
   otlp:
     protocols:
+      grpc:
+        endpoint: "127.0.0.1:4317"
       http:
         endpoint: "127.0.0.1:4318"
 

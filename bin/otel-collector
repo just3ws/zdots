@@ -25,18 +25,31 @@ BINARY="${INSTALL_DIR}/${DISTRO}"
 CONFIG_FILE="${ZDOTDIR:-$(pwd)}/etc/otel-collector.yaml"
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.log"
 PID_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
+PLIST_LABEL="com.zdots.otel-collector"
+PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 
 usage() {
   cat <<EOF
 Usage: otel-collector <command>
 
 Commands:
-  install - Download and install the OTel Collector binary
-  start   - Start the collector in the background
-  stop    - Stop the collector
-  status  - Check if the collector is running
+  install - Download binary and register macOS service
+  start   - Start the service via launchctl
+  stop    - Stop the service via launchctl
+  restart - Restart the service (reload config)
+  status  - Check service status via launchctl
+  validate - Validate the collector configuration
   logs    - Tail the collector logs
 EOF
+}
+
+validate_otel() {
+  if [ ! -x "$BINARY" ]; then
+    echo "otel-collector: error: binary not found. Run 'otel-collector install' first." >&2
+    exit 1
+  fi
+  echo "otel-collector: validating config $CONFIG_FILE..."
+  "$BINARY" validate --config "$CONFIG_FILE"
 }
 
 install_otel() {
@@ -50,12 +63,49 @@ install_otel() {
     tar -xzf "${TMP_DIR}/otel.tar.gz" -C "$TMP_DIR"
     mv "${TMP_DIR}/${DISTRO}" "$BINARY"
     chmod +x "$BINARY"
-    echo "otel-collector: installed to $BINARY"
+    echo "otel-collector: installed binary to $BINARY"
   else
     echo "otel-collector: error: failed to download binary from $URL" >&2
     exit 1
   fi
   rm -rf "$TMP_DIR"
+
+  # Register service if on macOS
+  if [ "$OS" = "darwin" ]; then
+    echo "otel-collector: registering macOS service..."
+    mkdir -p "$(dirname "$PLIST_FILE")"
+    cat > "$PLIST_FILE" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${PLIST_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${BINARY}</string>
+        <string>--config</string>
+        <string>${CONFIG_FILE}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${LOG_FILE}</string>
+    <key>StandardErrorPath</key>
+    <string>${LOG_FILE}</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${HOME}</string>
+    </dict>
+</dict>
+</plist>
+EOF
+    echo "otel-collector: service registered at $PLIST_FILE"
+    echo "otel-collector: to enable, run 'otel-collector start'"
+  fi
 }
 
 start_otel() {
@@ -64,49 +114,58 @@ start_otel() {
     exit 1
   fi
 
-  if status_otel >/dev/null 2>&1; then
-    echo "otel-collector: already running."
-    return 0
+  if [ "$OS" = "darwin" ]; then
+    echo "otel-collector: starting service ${PLIST_LABEL}..."
+    launchctl load -w "$PLIST_FILE"
+  else
+    # Fallback for non-macOS (legacy behavior)
+    echo "otel-collector: starting manually (PID file fallback)..."
+    mkdir -p "$(dirname "$LOG_FILE")"
+    nohup "$BINARY" --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
+    echo $! > "$PID_FILE"
   fi
-
-  echo "otel-collector: starting with config $CONFIG_FILE..."
-  mkdir -p "$(dirname "$LOG_FILE")"
-  
-  # Start in background and save PID
-  nohup "$BINARY" --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
-  echo $! > "$PID_FILE"
-  echo "otel-collector: started (PID: $(cat "$PID_FILE"))"
 }
 
 stop_otel() {
-  if [ -f "$PID_FILE" ]; then
-    PID=$(cat "$PID_FILE")
-    echo "otel-collector: stopping PID $PID..."
-    kill "$PID" 2>/dev/null || true
-    rm -f "$PID_FILE"
-    echo "otel-collector: stopped."
+  if [ "$OS" = "darwin" ]; then
+    echo "otel-collector: stopping service ${PLIST_LABEL}..."
+    launchctl unload -w "$PLIST_FILE" 2>/dev/null || true
   else
-    echo "otel-collector: not running (no PID file)."
+    if [ -f "$PID_FILE" ]; then
+      PID=$(cat "$PID_FILE")
+      kill "$PID" 2>/dev/null || true
+      rm -f "$PID_FILE"
+    fi
   fi
 }
 
 status_otel() {
-  if [ -f "$PID_FILE" ]; then
-    PID=$(cat "$PID_FILE")
-    if kill -0 "$PID" 2>/dev/null; then
-      echo "otel-collector: running (PID: $PID)"
+  if [ "$OS" = "darwin" ]; then
+    if launchctl list "$PLIST_LABEL" >/dev/null 2>&1; then
+      PID=$(launchctl list "$PLIST_LABEL" | grep -i '"PID"' | awk '{print $3}' | tr -d ';')
+      echo "otel-collector: running via launchd (PID: ${PID:-unknown})"
+      return 0
+    else
+      echo "otel-collector: not running (launchd)."
+      return 1
+    fi
+  else
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+      echo "otel-collector: running (PID: $(cat "$PID_FILE"))"
       return 0
     fi
+    echo "otel-collector: not running."
+    return 1
   fi
-  echo "otel-collector: not running."
-  return 1
 }
 
 case "${1:-}" in
   install) install_otel ;;
   start)   start_otel ;;
   stop)    stop_otel ;;
+  restart) stop_otel; start_otel ;;
   status)  status_otel ;;
+  validate) validate_otel ;;
   logs)    tail -f "$LOG_FILE" ;;
   *)       usage; exit 1 ;;
 esac
