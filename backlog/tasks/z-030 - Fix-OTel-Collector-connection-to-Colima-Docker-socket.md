@@ -1,9 +1,11 @@
 ---
 id: Z-030
 title: Fix OTel Collector connection to Colima Docker socket
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@gemini-cli'
 created_date: '2026-04-03 22:23'
+updated_date: '2026-04-03 22:23'
 labels: []
 milestone: 'm-1: Radical Observability'
 dependencies: []
