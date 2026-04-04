@@ -38,7 +38,7 @@ check_deps() {
       missing+=("$cmd")
     fi
   done
-  
+
   # Check for compose specifically (either plugin or standalone)
   if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
     missing+=("docker-compose")
@@ -64,7 +64,7 @@ colima_up() {
     echo "Colima is already running."
   else
     echo "Starting colima (CPU: $CPU, Memory: ${MEMORY}G, Disk: ${DISK}G)..."
-    colima start --cpu "$CPU" --memory "$MEMORY" --disk "$DISK"
+    colima start --cpu "$CPU" --memory "$MEMORY" --disk "$DISK" --very-verbose
   fi
   # Automatically start OTEL stack
   otel_up
@@ -75,7 +75,7 @@ colima_down() {
   otel_down
   if colima status >/dev/null 2>&1; then
     echo "Stopping colima..."
-    colima stop
+    colima stop --very-verbose
   else
     echo "Colima is already stopped."
   fi
@@ -98,7 +98,7 @@ otel_status() {
 
 colima_status() {
   echo "--- Colima ---"
-  colima status || echo "Colima is not running."
+  colima status --very-verbose || echo "Colima is not running."
   echo "\n--- Docker ---"
   docker version --format 'Client: {{.Client.Version}}\nServer: {{.Server.Version}}' 2>/dev/null || echo "Docker daemon not reachable."
   echo ""
@@ -108,9 +108,13 @@ colima_status() {
 run_act() {
   echo "Running GitHub Actions locally via act..."
   # Use -P to map macos-latest to a Linux image
-  # Socket is now symlinked to /var/run/docker.sock for maximum compatibility
+  # Set DOCKER_HOST for the act process to find the Colima socket
+  # Use --container-daemon-socket - to disable bind mounting the socket inside containers,
+  # which avoids permission/mounting issues with the Colima socket path.
+  DOCKER_HOST="unix://${HOME}/.config/colima/default/docker.sock" \
   act \
     --container-architecture linux/arm64 \
+    --container-daemon-socket - \
     -P "$IMAGE_MAPPING" \
     "$@"
 }
@@ -154,7 +158,7 @@ case "${1:-}" in
     echo "WARNING: This will delete the current colima instance. Proceed? [y/N]"
     read -r response
     if [[ "$response" =~ ^[Yy]$ ]]; then
-      colima delete -f
+      colima delete -f --very-verbose
       colima_up
     else
       echo "Aborted."

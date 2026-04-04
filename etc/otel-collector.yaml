@@ -41,7 +41,7 @@ receivers:
 
   # Container metrics: per-container CPU, memory, network, block I/O
   docker_stats:
-    endpoint: "unix:///var/run/docker.sock"
+    endpoint: "unix://${env:HOME}/.config/colima/default/docker.sock"
     collection_interval: 15s
     provide_per_core_cpu_metrics: false
 
@@ -101,8 +101,15 @@ exporters:
     endpoint: "127.0.0.1:4417"
     tls:
       insecure: true
+    retry_on_failure:
+      enabled: true
+    sending_queue:
+      enabled: true
 
 service:
+  telemetry:
+    logs:
+      level: debug
   pipelines:
     # Traces from apps → spanmetrics connector → LGTM
     traces:
