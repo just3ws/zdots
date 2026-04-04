@@ -42,12 +42,8 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
     local cmd="$1"
     export ZDOTS_LAST_COMMAND="$cmd"
     
-    # Rotate Span ID for the new command (Span)
-    if command -v openssl >/dev/null 2>&1; then
-      export ZDOTS_SPAN_ID="$(openssl rand -hex 8)"
-    else
-      export ZDOTS_SPAN_ID="$(date +%s%N | cksum | awk '{print $1}')"
-    fi
+    # Rotate Span ID for the new command (Span) — Zsh built-in, no forks
+    printf -v ZDOTS_SPAN_ID '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM
     export TRACEPARENT="00-${ZDOTS_TRACE_ID}-${ZDOTS_SPAN_ID}-01"
     
     zdots_trace_log "exec" "$cmd"
@@ -66,8 +62,13 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
 
   # Heartbeat Span (Inspired by the Star Wars Saga 'Pulse')
   if command -v otel-cli >/dev/null 2>&1; then
-    # Capture system health (Load Average)
-    local load_avg=$(uptime | awk -F'load averages: ' '{ print $2 }' | awk '{ print $1 }' || echo "unknown")
+    # Capture system health (Load Average) — prefer /proc/loadavg on Linux, sysctl on macOS
+    local load_avg
+    if [[ -r /proc/loadavg ]]; then
+      read -r load_avg _ < /proc/loadavg
+    else
+      load_avg="$(sysctl -n vm.loadavg 2>/dev/null)" && load_avg="${load_avg##\{ }" && load_avg="${load_avg%% *}" || load_avg="unknown"
+    fi
     
     # Send a backgrounded heartbeat span
     (

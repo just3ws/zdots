@@ -6,13 +6,16 @@
 zdots_require trace local
 
 zdots_trace_init() {
+  # Load zsh/datetime for $EPOCHSECONDS, $EPOCHREALTIME, and strftime (no-fork timestamps)
+  zmodload zsh/datetime 2>/dev/null || true
+
   # Endpoint for OTLP/HTTP collector
   OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://127.0.0.1:4318}"
   OTEL_SERVICE_NAME="${OTEL_SERVICE_NAME:-zdots-shell}"
 
   # Resource Attributes (OTEL_RESOURCE_ATTRIBUTES)
   # Standard: process.pid, process.owner, os.type, host.name
-  local os_type="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  local os_raw; os_raw="$(uname -s)"; local os_type="${os_raw:l}"
   local shell_name="${SHELL:t}"
   local is_interactive="false"; [[ -o interactive ]] && is_interactive="true"
 
@@ -50,8 +53,10 @@ _zdots_trace_log_local() {
   [[ -n "$_zdots_trace_file" ]] || return 0
   local event_type="$1"
   local redacted_data="$2"
-  local timestamp="$(date +%Y-%m-%dT%H:%M:%S%z)"
-  local escaped_data="$(echo "$redacted_data" | sed 's/"/\\"/g')"
+  # strftime from zsh/datetime — no fork
+  local timestamp; strftime -s timestamp '%Y-%m-%dT%H:%M:%S%z' $EPOCHSECONDS
+  # Escape double quotes via parameter expansion — no fork
+  local escaped_data="${redacted_data//\"/\\\"}"
   printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
     "$timestamp" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$event_type" "$escaped_data" \
     >> "$_zdots_trace_file"
@@ -68,12 +73,25 @@ _zdots_trace_send_otlp() {
     span_name="${cmd_line%% *}" # First word of command
   fi
 
-  # Start/End times (nanoseconds since epoch)
-  local start_time_nano=$(date +%s000000000)
+  # Nanosecond timestamps via $EPOCHREALTIME (zsh/datetime) — no fork.
+  # EPOCHREALTIME is "seconds.fractional"; normalize fractional to exactly 6 digits
+  # (microseconds) then append 000 to get nanoseconds.
+  local epoch_rt="$EPOCHREALTIME"
+  local epoch_secs="${epoch_rt%.*}"
+  local epoch_frac="${epoch_rt#*.}"
+  epoch_frac="${epoch_frac[1,6]}"                                   # truncate to max 6 digits
+  while [[ ${#epoch_frac} -lt 6 ]]; do epoch_frac+="0"; done       # pad to exactly 6
+  local start_time_nano="${epoch_secs}${epoch_frac}000"
+  local end_time_nano=$(( start_time_nano + 1000000 ))              # +1 ms minimum duration
 
-  # OTLP Trace Payload (W3C Trace ID must be 16 bytes hex, Span ID 8 bytes hex)
-  local payload=$(printf '{"resourceSpans":[{"resource":%s,"scopeSpans":[{"spans":[{"traceId":"%s","spanId":"%s","name":"%s","startTimeUnixNano":"%s","endTimeUnixNano":"%s","attributes":[{"key":"process.command_line","value":{"stringValue":"%s"}},{"key":"event.type","value":{"stringValue":"%s"}}]}]}]}]}' \
-    "$_ZDOTS_OTEL_RESOURCE_JSON" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$span_name" "$start_time_nano" "$start_time_nano" "$cmd_line" "$event_name")
+  # JSON-escape command line and event name to prevent payload corruption
+  local safe_cmd="${cmd_line//\\/\\\\}"; safe_cmd="${safe_cmd//\"/\\\"}"
+  local safe_span="${span_name//\\/\\\\}"; safe_span="${safe_span//\"/\\\"}"
+  local safe_event="${event_name//\\/\\\\}"; safe_event="${safe_event//\"/\\\"}"
+
+  # OTLP Trace Payload — kind:1 = SPAN_KIND_INTERNAL
+  local payload=$(printf '{"resourceSpans":[{"resource":%s,"scopeSpans":[{"spans":[{"traceId":"%s","spanId":"%s","name":"%s","kind":1,"startTimeUnixNano":"%s","endTimeUnixNano":"%s","attributes":[{"key":"process.command_line","value":{"stringValue":"%s"}},{"key":"event.type","value":{"stringValue":"%s"}}]}]}]}]}' \
+    "$_ZDOTS_OTEL_RESOURCE_JSON" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$safe_span" "$start_time_nano" "$end_time_nano" "$safe_cmd" "$safe_event")
 
   # Send asynchronously (background)
   command curl -s -X POST -H "Content-Type: application/json" \
