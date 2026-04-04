@@ -21,6 +21,13 @@ zdots_pkg_manager_init() {
   export HOMEBREW_BUNDLE_FILE="${HOMEBREW_BUNDLE_FILE:-$ZDOTDIR/Brewfile}"
   export HOMEBREW_BAT=1
   
+  # GitHub API Token (Homebrew-specific or shared fallback)
+  if [[ -n "${HOMEBREW_GITHUB_API_TOKEN:-}" ]]; then
+    export HOMEBREW_GITHUB_API_TOKEN="$HOMEBREW_GITHUB_API_TOKEN"
+  elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    export HOMEBREW_GITHUB_API_TOKEN="$GITHUB_TOKEN"
+  fi
+  
   _ZDOTS_BREW_INITIALIZED=1
 }
 
