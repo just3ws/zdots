@@ -11,6 +11,12 @@ if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env" ]; then
   . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env"
 fi
 
+# 1b. Secrets (Ignored by Git)
+# Sensitive environment variables (API keys, tokens).
+if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.secrets" ]; then
+  . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.secrets"
+fi
+
 # 2. XDG Base Directory Specification (Harden & Absolute)
 export XDG_ROOT="$HOME"
 export XDG_CONFIG_HOME="$XDG_ROOT/.config"

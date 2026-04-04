@@ -3,6 +3,12 @@
 zdots_node_runtime_init() {
   command -v mise >/dev/null || return 1
 
+  # GitHub API Token (Mise-specific or shared fallback)
+  # This is used by mise to download plugins and bypass rate limits.
+  if [[ -n "${MISE_GITHUB_TOKEN:-}" ]]; then
+    export GITHUB_TOKEN="$MISE_GITHUB_TOKEN"
+  fi
+
   # Use a more stable cache for the hook only, avoiding the static PATH snapshot
   _zdots_mise_cache="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/mise_hook"
   if [[ ! -r "$_zdots_mise_cache" || "${XDG_CONFIG_HOME:-$HOME/.config}/mise/config.toml" -nt "$_zdots_mise_cache" ]]; then
