@@ -144,8 +144,6 @@ export ZDOTS_THEME="${ZDOTS_THEME:-dracula-pro}"
 # 6. Language-Specific XDG Alignment
 export PNPM_HOME="$XDG_DATA_HOME/pnpm"
 export GOPATH="$XDG_DATA_HOME/go"
-export GEM_HOME="$XDG_DATA_HOME/gem"
-export GEM_PATH="$GEM_HOME"
 export PYTHONUSERBASE="$XDG_DATA_HOME/python"
 export BUN_INSTALL="$HOME/.bun"
 
@@ -197,7 +195,6 @@ if [ -n "${HOMEBREW_PREFIX:-}" ]; then
   _zdots_path_add "$HOMEBREW_PREFIX/opt/rustup/bin"
 fi
 _zdots_path_add "$CARGO_HOME/bin"
-_zdots_path_add "$GEM_HOME/bin"
 _zdots_path_add "$GOPATH/bin"
 _zdots_path_add "$PNPM_HOME"
 _zdots_path_add "$BUN_INSTALL/bin"
