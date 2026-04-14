@@ -1,0 +1,422 @@
+#!/usr/bin/env bash
+# bin/llama-server — Manage the local llama.cpp inference server.
+#
+# RATIONALE:
+# llama.cpp is the primary local AI runtime. This script installs the binary
+# via Homebrew, manages the launchd service lifecycle, and handles model
+# storage on a storage-constrained 256GB primary drive.
+#
+# MODEL STORAGE:
+# Models default to $ZDOTS_AI_MODELS_DIR (~/.local/share/llama-cpp/models).
+# Override to an external drive: export ZDOTS_AI_MODELS_DIR=/Volumes/SSD/llama
+#
+# HARDWARE DEFAULTS:
+# Tuned for Apple Silicon M4, 16GB unified memory:
+#   --n-gpu-layers 99   (full Metal offload)
+#   --ctx-size 32768    (from active profile, ~2GB KV cache for 7B Q4)
+#   --parallel 2        (two decode slots; drop to 1 if OOM)
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+CONFIG_FILE="$ZDOTDIR/etc/ai-models.yaml"
+MODELS_DIR="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
+LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/llama-server.log"
+PLIST_LABEL="com.zdots.llama-server"
+PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
+AI_PROFILE="${ZDOTS_AI_PROFILE:-standard}"
+
+_has_yq() { command -v yq >/dev/null 2>&1; }
+
+_yq_get() {
+  yq "$1" "$CONFIG_FILE" 2>/dev/null
+}
+
+usage() {
+  cat <<EOF
+Usage: llama-server <command> [options]
+
+Commands:
+  install           Install llama.cpp via Homebrew and register launchd service
+  start             Start inference server via launchd
+  stop              Stop inference server
+  restart           Stop then start
+  status            Show launchd status and health endpoint
+  health            Quick health check (exit 0 = up, exit 1 = down)
+  logs              Tail the server log
+  model-list        List downloaded models and disk usage
+  model-download    Download the active profile's model from HuggingFace
+  model-switch <p>  Print instructions to switch active profile
+  model-prune       Delete models NOT matching the active profile (reclaim disk)
+  df                Show model directory disk usage summary
+
+Environment:
+  ZDOTS_AI_PROFILE      Active profile (default: standard)
+  ZDOTS_AI_MODELS_DIR   Model storage root (default: ~/.local/share/llama-cpp/models)
+EOF
+}
+
+_binary() {
+  if [[ -n "${HOMEBREW_PREFIX:-}" && -x "$HOMEBREW_PREFIX/bin/llama-server" ]]; then
+    echo "$HOMEBREW_PREFIX/bin/llama-server"
+  elif command -v llama-server >/dev/null 2>&1; then
+    command -v llama-server
+  fi
+}
+
+_require_binary() {
+  local bin; bin=$(_binary)
+  if [[ -z "$bin" ]]; then
+    echo "llama-server: error: llama.cpp not installed. Run 'llama-server install'." >&2
+    exit 1
+  fi
+  echo "$bin"
+}
+
+_require_yq() {
+  if ! _has_yq; then
+    echo "llama-server: error: yq required for YAML parsing. Run: brew install yq" >&2
+    exit 1
+  fi
+}
+
+_profile_field() {
+  local field="$1" default="${2:-}"
+  local val
+  if _has_yq; then
+    val=$(_yq_get ".profiles.${AI_PROFILE}.${field}")
+    [[ "$val" == "null" ]] && val="$default"
+  else
+    val="$default"
+  fi
+  echo "$val"
+}
+
+_server_field() {
+  local field="$1" default="${2:-}"
+  local val
+  if _has_yq; then
+    val=$(_yq_get ".server.${field}")
+    [[ "$val" == "null" ]] && val="$default"
+  else
+    val="$default"
+  fi
+  echo "$val"
+}
+
+_active_model_file() {
+  if _has_yq; then
+    local file; file=$(_yq_get ".profiles.${AI_PROFILE}.model_file")
+    [[ "$file" != "null" && -n "$file" ]] && echo "$file" && return
+  fi
+  # Fallback: first gguf in models dir
+  find "$MODELS_DIR" -maxdepth 1 -name '*.gguf' 2>/dev/null | head -1 | xargs -I{} basename {} 2>/dev/null || true
+}
+
+_active_model_path() {
+  local file; file=$(_active_model_file)
+  [[ -n "$file" ]] && echo "$MODELS_DIR/$file" || echo ""
+}
+
+_endpoint() {
+  local host port
+  host=$(_server_field host "127.0.0.1")
+  port=$(_server_field port "8080")
+  echo "http://${host}:${port}"
+}
+
+install_llama() {
+  local bin; bin=$(_binary)
+  if [[ -n "$bin" ]]; then
+    local ver; ver=$(llama-server --version 2>/dev/null | head -1 || echo "version unknown")
+    echo "llama-server: llama.cpp already installed ($ver)"
+  else
+    echo "llama-server: installing llama.cpp via Homebrew..."
+    brew install llama.cpp
+  fi
+  mkdir -p "$MODELS_DIR"
+  echo "llama-server: model directory: $MODELS_DIR"
+
+  if [[ ! -f "$PLIST_FILE" ]]; then
+    _register_plist
+  else
+    echo "llama-server: launchd plist already registered at $PLIST_FILE"
+  fi
+}
+
+_register_plist() {
+  local bin; bin=$(_require_binary)
+  local model_path; model_path=$(_active_model_path)
+  local host port ctx_size n_gpu_layers parallel batch_size
+
+  if [[ -z "$model_path" || ! -f "$model_path" ]]; then
+    echo "llama-server: warning: active model not found — plist will use placeholder path." >&2
+    echo "  Run 'llama-server model-download' then re-run 'llama-server install'." >&2
+    model_path="${MODELS_DIR}/model.gguf"
+  fi
+
+  host=$(_server_field host "127.0.0.1")
+  port=$(_server_field port "8080")
+  ctx_size=$(_profile_field ctx_size "4096")
+  n_gpu_layers=$(_profile_field n_gpu_layers "99")
+  parallel=$(_server_field parallel "2")
+  batch_size=$(_server_field batch_size "512")
+
+  echo "llama-server: registering launchd service..."
+  mkdir -p "$(dirname "$PLIST_FILE")" "$(dirname "$LOG_FILE")"
+
+  cat > "$PLIST_FILE" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${PLIST_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${bin}</string>
+        <string>--host</string>
+        <string>${host}</string>
+        <string>--port</string>
+        <string>${port}</string>
+        <string>--model</string>
+        <string>${model_path}</string>
+        <string>--ctx-size</string>
+        <string>${ctx_size}</string>
+        <string>--n-gpu-layers</string>
+        <string>${n_gpu_layers}</string>
+        <string>--parallel</string>
+        <string>${parallel}</string>
+        <string>--batch-size</string>
+        <string>${batch_size}</string>
+        <string>--log-file</string>
+        <string>${LOG_FILE}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${LOG_FILE}</string>
+    <key>StandardErrorPath</key>
+    <string>${LOG_FILE}</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${HOME}</string>
+        <key>ZDOTDIR</key>
+        <string>${ZDOTDIR}</string>
+        <key>ZDOTS_AI_PROFILE</key>
+        <string>${AI_PROFILE}</string>
+        <key>ZDOTS_AI_MODELS_DIR</key>
+        <string>${MODELS_DIR}</string>
+    </dict>
+</dict>
+</plist>
+EOF
+  echo "llama-server: service registered at $PLIST_FILE"
+  echo "llama-server: run 'llama-server start' to activate"
+}
+
+start_llama() {
+  if [[ ! -f "$PLIST_FILE" ]]; then
+    echo "llama-server: plist not found. Run 'llama-server install' first." >&2
+    exit 1
+  fi
+  echo "llama-server: starting ${PLIST_LABEL}..."
+  launchctl load -w "$PLIST_FILE"
+}
+
+stop_llama() {
+  if [[ -f "$PLIST_FILE" ]]; then
+    echo "llama-server: stopping ${PLIST_LABEL}..."
+    launchctl unload -w "$PLIST_FILE" 2>/dev/null || true
+  else
+    echo "llama-server: no plist found; nothing to stop."
+  fi
+}
+
+status_llama() {
+  local endpoint; endpoint=$(_endpoint)
+
+  if launchctl list "$PLIST_LABEL" >/dev/null 2>&1; then
+    local pid; pid=$(launchctl list "$PLIST_LABEL" | awk '/"PID"/{gsub(/;/,"",$3); print $3}')
+    echo "llama-server: launchd  running (PID: ${pid:-unknown})"
+  else
+    echo "llama-server: launchd  not running"
+  fi
+
+  if curl -sf -m 2 "${endpoint}/health" >/dev/null 2>&1; then
+    echo "llama-server: health   OK (${endpoint}/health)"
+    # Show loaded model name from /v1/models
+    local model_id
+    # shellcheck disable=SC2016
+    model_id=$(curl -sf -m 2 "${endpoint}/v1/models" 2>/dev/null | awk -F'"' '/"id"/{print $4; exit}' 2>/dev/null || true)
+    [[ -n "$model_id" ]] && echo "llama-server: model    $model_id"
+  else
+    echo "llama-server: health   unreachable (${endpoint})"
+  fi
+
+  echo "llama-server: profile  ${AI_PROFILE}"
+  echo "llama-server: models   ${MODELS_DIR}"
+
+  local model_path; model_path=$(_active_model_path)
+  if [[ -n "$model_path" && -f "$model_path" ]]; then
+    local size; size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
+    echo "llama-server: active   $(basename "$model_path") (${size})"
+  else
+    echo "llama-server: active   not downloaded (run 'llama-server model-download')"
+  fi
+}
+
+health_llama() {
+  local endpoint; endpoint=$(_endpoint)
+  curl -sf -m 3 "${endpoint}/health" >/dev/null 2>&1
+}
+
+model_list() {
+  local count=0
+  while IFS= read -r -d '' f; do
+    if [[ $count -eq 0 ]]; then
+      echo "Downloaded models in $MODELS_DIR:"
+      echo ""
+    fi
+    local size name active marker
+    size=$(du -sh "$f" 2>/dev/null | cut -f1)
+    name=$(basename "$f")
+    active=$(_active_model_file)
+    marker=""
+    [[ "$name" == "$active" ]] && marker=" [active:${AI_PROFILE}]"
+    printf "  %s  %s%s\n" "$size" "$name" "$marker"
+    count=$((count + 1))
+  done < <(find "$MODELS_DIR" -maxdepth 1 -name '*.gguf' -print0 2>/dev/null)
+
+  if [[ $count -eq 0 ]]; then
+    echo "llama-server: no models in $MODELS_DIR"
+    return 0
+  fi
+
+  echo ""
+  echo "Total:"
+  du -sh "$MODELS_DIR" 2>/dev/null | cut -f1 | xargs -I{} echo "  {}"
+}
+
+model_download() {
+  _require_yq
+  local hf_repo model_file size_gb dest url
+  hf_repo=$(_profile_field hf_repo "")
+  model_file=$(_profile_field model_file "")
+  size_gb=$(_profile_field size_gb "?")
+
+  if [[ -z "$hf_repo" || "$hf_repo" == "null" || -z "$model_file" || "$model_file" == "null" ]]; then
+    echo "llama-server: error: no hf_repo or model_file for profile '${AI_PROFILE}'" >&2
+    exit 1
+  fi
+
+  dest="$MODELS_DIR/$model_file"
+  if [[ -f "$dest" ]]; then
+    local size; size=$(du -sh "$dest" | cut -f1)
+    echo "llama-server: $model_file already downloaded ($size). Skipping."
+    return 0
+  fi
+
+  url="https://huggingface.co/${hf_repo}/resolve/main/${model_file}"
+  mkdir -p "$MODELS_DIR"
+  echo "llama-server: downloading ${model_file} (~${size_gb}GB)..."
+  echo "llama-server: source: ${url}"
+  echo "llama-server: dest:   ${dest}"
+  echo ""
+  curl -L --progress-bar --continue-at - -o "$dest" "$url"
+  echo ""
+  local actual; actual=$(du -sh "$dest" | cut -f1)
+  echo "llama-server: downloaded $model_file ($actual)"
+}
+
+model_switch() {
+  local new_profile="${1:-}"
+  if [[ -z "$new_profile" ]]; then
+    echo "Usage: llama-server model-switch <profile>" >&2
+    if _has_yq; then
+      echo "Available profiles:" >&2
+      _yq_get ".profiles | keys | .[]" | sed 's/^/  /' >&2
+    fi
+    exit 1
+  fi
+
+  if _has_yq; then
+    local check; check=$(_yq_get ".profiles.${new_profile}.model_file")
+    if [[ "$check" == "null" ]]; then
+      echo "llama-server: error: unknown profile '${new_profile}'" >&2
+      exit 1
+    fi
+  fi
+
+  echo "llama-server: to switch to '${new_profile}':"
+  echo ""
+  echo "  1. Set in .zdots.env:"
+  echo "       export ZDOTS_AI_PROFILE=${new_profile}"
+  echo ""
+  echo "  2. Download model:"
+  echo "       ZDOTS_AI_PROFILE=${new_profile} llama-server model-download"
+  echo ""
+  echo "  3. Re-register and restart:"
+  echo "       ZDOTS_AI_PROFILE=${new_profile} llama-server install"
+  echo "       llama-server restart"
+}
+
+model_prune() {
+  if [[ ! -d "$MODELS_DIR" ]]; then
+    echo "llama-server: no model directory to prune."
+    return 0
+  fi
+
+  local active; active=$(_active_model_file)
+  if [[ -z "$active" ]]; then
+    echo "llama-server: cannot determine active model; aborting prune." >&2
+    exit 1
+  fi
+
+  local pruned=0
+  while IFS= read -r -d '' f; do
+    local name; name=$(basename "$f")
+    [[ "$name" == "$active" ]] && continue
+    local size; size=$(du -sh "$f" 2>/dev/null | cut -f1)
+    echo "llama-server: removing $name ($size)"
+    rm -f "$f"
+    pruned=$((pruned + 1))
+  done < <(find "$MODELS_DIR" -maxdepth 1 -name '*.gguf' -print0 2>/dev/null)
+
+  if [[ $pruned -eq 0 ]]; then
+    echo "llama-server: nothing to prune — only active model present."
+  else
+    echo "llama-server: pruned $pruned model(s). Disk reclaimed."
+    df -h "$MODELS_DIR" 2>/dev/null | tail -1 || true
+  fi
+}
+
+df_llama() {
+  echo "=== llama.cpp model storage ==="
+  if [[ -d "$MODELS_DIR" ]]; then
+    du -sh "$MODELS_DIR" 2>/dev/null
+    echo ""
+    model_list
+  else
+    echo "  $MODELS_DIR does not exist yet."
+  fi
+}
+
+case "${1:-}" in
+  install)        install_llama ;;
+  start)          start_llama ;;
+  stop)           stop_llama ;;
+  restart)        stop_llama; sleep 1; start_llama ;;
+  status)         status_llama ;;
+  health)         health_llama ;;
+  logs)           mkdir -p "$(dirname "$LOG_FILE")"; tail -f "$LOG_FILE" ;;
+  model-list)     model_list ;;
+  model-download) model_download ;;
+  model-switch)   model_switch "${2:-}" ;;
+  model-prune)    model_prune ;;
+  df)             df_llama ;;
+  *)              usage; exit 1 ;;
+esac
