@@ -199,7 +199,6 @@ _zdots_path_add "$GOPATH/bin"
 _zdots_path_add "$PNPM_HOME"
 _zdots_path_add "$BUN_INSTALL/bin"
 _zdots_path_add "$HOME/.lmstudio/bin"
-_zdots_path_add "$XDG_CONFIG_HOME/ollama/bin"
 
 # 9b. Service-based Path Setup (Dependency Injection)
 # We call provider-specific path functions if they were defined by zdots_require.
