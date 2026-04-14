@@ -33,11 +33,36 @@ fi
 # AI Pattern Pipe: Pipe any output into local AI for inference/parsing.
 # Usage: cat log.txt | ai "Find all unique error codes"
 ai() {
-  if [[ -z "$1" ]]; then
-    echo "Usage: <output> | ai <prompt>"
-    return 1
+  if [[ -z "$1" || "$1" == "--help" || "$1" == "-h" ]]; then
+    local _ai_server_status
+    _ai_server_status=$(llama-server health 2>/dev/null && echo "up" || echo "down — run: ai-start")
+    cat <<EOF
+Usage:
+  ai <prompt>                    Direct prompt
+  <command> | ai <prompt>        Pipe command output into AI
+  ai <prompt> < file             Redirect file into AI
+
+Examples:
+  ai "What does SIGPIPE mean?"
+  git diff | ai "Write a commit message"
+  cat error.log | ai "Find the root cause"
+  history-analyze --ai           AI-powered shell history analysis
+
+Runtime:  llama.cpp (local, ${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080})
+Model:    ${ZDOTS_AI_MODEL:-unknown}   [profile: ${ZDOTS_AI_PROFILE:-standard}]
+Status:   ${_ai_server_status}
+
+Manage:
+  ai-status    llama-server status
+  ai-start     start inference server
+  ai-stop      stop inference server
+  ai-logs      tail server log
+  llama-server model-download    download/update model
+  llama-server model-prune       reclaim disk (remove non-active GGUFs)
+EOF
+    return 0
   fi
-  
+
   local input
   if [[ ! -t 0 ]]; then
     input=$(cat)

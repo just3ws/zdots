@@ -25,13 +25,14 @@ zdots_ai_init() {
 
   # Resolve active model file from central config (metadata/reporting only —
   # llama.cpp server loads the model from a path set at start time).
+  # Set model metadata from yaml. Provider owns this — overwrites stale exports
+  # from previous sessions (e.g. old Ollama model names).
   local model_file="unknown"
-  if command -v yq >/dev/null 2>&1; then
-    local cfg="${ZDOTDIR:-$HOME/.config/zsh}/etc/ai-models.yaml"
-    model_file=$(yq ".profiles.${ZDOTS_AI_PROFILE}.model_file" "$cfg" 2>/dev/null)
-    [[ "$model_file" == "null" ]] && model_file="unknown"
+  if command -v yq >/dev/null 2>&1 && [[ -r "$_cfg" ]]; then
+    model_file=$(yq ".profiles.${ZDOTS_AI_PROFILE}.model_file" "$_cfg" 2>/dev/null)
+    [[ "$model_file" == "null" || -z "$model_file" ]] && model_file="unknown"
   fi
-  export ZDOTS_AI_MODEL="${ZDOTS_AI_MODEL:-${model_file%%.gguf}}"
+  export ZDOTS_AI_MODEL="${model_file%%.gguf}"
 
   # Non-blocking boot-time health check. We do NOT block startup — set a
   # flag in the background so the first explicit `ai` call does a live check.
