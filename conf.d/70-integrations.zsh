@@ -54,8 +54,8 @@ ai() {
     else
       output=$(zdots_ai_infer "$1")
     fi
-    local status=$?
-    
+    local _ai_status=$?
+
     # Send span asynchronously
     if command -v otel-cli >/dev/null 2>&1; then
       (
@@ -64,13 +64,13 @@ ai() {
           --attrs "model=${ZDOTS_AI_MODEL:-unknown},provider=${ZDOTS_SERVICE_AI:-none}" \
           --force-trace-id "$ZDOTS_TRACE_ID" \
           --force-span-id "$ZDOTS_SPAN_ID" \
-          $( [[ $status -ne 0 ]] && echo "--status error" ) \
+          $( [[ $_ai_status -ne 0 ]] && echo "--status error" ) \
           >/dev/null 2>&1
       ) &!
     fi
-    
+
     echo "$output"
-    return $status
+    return $_ai_status
   else
     echo "ai: error: no AI inference provider configured or initialized" >&2
     return 1
