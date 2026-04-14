@@ -15,7 +15,8 @@ zdots_trace_init() {
 
   # Resource Attributes (OTEL_RESOURCE_ATTRIBUTES)
   # Standard: process.pid, process.owner, os.type, host.name
-  local os_raw; os_raw="$(uname -s)"; local os_type="${os_raw:l}"
+  # $OSTYPE is a Zsh built-in (e.g. "darwin24.5.0", "linux-gnu") — no fork.
+  local os_type="${${OSTYPE%%[0-9.]*}:l}"
   local shell_name="${SHELL:t}"
   local is_interactive="false"; [[ -o interactive ]] && is_interactive="true"
 
