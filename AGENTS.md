@@ -89,9 +89,50 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
 - **History:** `atuin` (SQLite) with `history_enquire` (`he`) for maintenance.
 - **Search:** `fzf` + `fzf-tab` integration.
 - **File System:** `zoxide` (`z`), `eza` (aliased to `ls`), and `broot` (`br`) for weighted tree navigation.
-- **AI Integration:** Use the `ai` function to pipe command output into patterns (e.g., `cat logs.txt | ai summarize`).
+- **AI Integration:** Use the `ai` function to pipe command output into patterns (e.g., `cat logs.txt | ai summarize`). Full guide: `docs/llama-cpp.md`.
 - **Data Handling:** `jless`/`fx` for interactive JSON exploration.
 - **GitHub:** Use `gh dash` for a full overview of PRs and Issues.
+
+## Local AI Runtime — llama.cpp
+
+Primary runtime. Server must be running for `ai` function to work.
+
+```sh
+llama-server status          # check launchd state + health + active model
+llama-server install         # first-time: brew install + register launchd plist
+llama-server model-download  # download active profile GGUF from HuggingFace
+llama-server start           # start (auto-starts on login once registered)
+ai "prompt"                  # direct inference
+cat file | ai "task"         # pipe inference
+history-analyze --ai         # AI-powered shell history analysis
+```
+
+**Provider:** `providers/ai/llama-cpp.zsh` — OpenAI-compat API on `http://127.0.0.1:8080`.
+**Config:** `etc/ai-models.yaml` — GGUF filenames, HuggingFace repos, Metal GPU layers.
+**Full guide:** `docs/llama-cpp.md`
+
+**Hardware context:** M4 MBA, 16GB RAM, 256GB primary disk.
+- One active GGUF at a time. Prune stale models: `llama-server model-prune`.
+- Default model: Qwen2.5-Coder-7B Q4_K_M (~4.7GB, `standard` profile).
+- If OOM: reduce `--parallel` to 1 in `etc/ai-models.yaml`, or switch to `constrained` profile.
+
+## Storage Hygiene — Docker / Colima / Models
+
+Container runtime: Colima (replaces OrbStack). LGTM stack runs inside.
+
+```sh
+docker-df                    # show Docker disk consumption
+docker-reclaim               # dry run: show what would be freed
+docker-reclaim -f            # execute: prune containers/images/volumes/cache + fstrim
+llama-server df              # show model directory size
+llama-server model-prune     # delete non-active GGUFs
+```
+
+**Full guide:** `docs/storage-hygiene.md`
+
+**Critical:** `docker-reclaim -f` runs `fstrim` inside the Colima VM. Without this,
+`docker system prune` frees space inside the VM but the disk image on the macOS
+host does not shrink. Always use `docker-reclaim` instead of raw `docker system prune`.
 
 ## Safety & Quality
 - **Commits:** Use `git absorb` to automatically attribute fixup changes to the correct commit.
