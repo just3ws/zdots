@@ -86,9 +86,9 @@ Models are GGUF files in `$ZDOTS_AI_MODELS_DIR`
 **Policy:** One active model at a time. Prune aggressively.
 
 ```sh
-llama-server df            # show model directory size and contents
-llama-server model-list    # list downloaded models; marks active
-llama-server model-prune   # delete all except active model
+llama-ctl df            # show model directory size and contents
+llama-ctl model-list    # list downloaded models; marks active
+llama-ctl model-prune   # delete all except active model
 ```
 
 ### External storage
@@ -100,7 +100,7 @@ If primary disk is low, point models at an external SSD:
 export ZDOTS_AI_MODELS_DIR=/Volumes/External/llama-models
 ```
 
-All `llama-server` commands respect this variable.
+All `llama-ctl` commands respect this variable.
 
 ### Model sizes (active profiles)
 
@@ -113,8 +113,8 @@ All `llama-server` commands respect this variable.
 When disk is critically low: switch to `constrained` profile + prune.
 
 ```sh
-ZDOTS_AI_PROFILE=constrained llama-server model-download
-llama-server model-prune     # removes standard/reasoning GGUFs
+ZDOTS_AI_PROFILE=constrained llama-ctl model-download
+llama-ctl model-prune     # removes standard/reasoning GGUFs
 ```
 
 ---
@@ -126,19 +126,19 @@ When `df -h /` shows less than 20GB free:
 ```sh
 # 1. See what's using space
 docker-df
-llama-server df
+llama-ctl df
 
 # 2. Reclaim Docker (biggest win)
 docker-reclaim -f
 
 # 3. Reclaim stale models
-llama-server model-prune
+llama-ctl model-prune
 
 # 4. If still tight: switch to constrained AI profile
-ZDOTS_AI_PROFILE=constrained llama-server model-download
-llama-server model-prune
+ZDOTS_AI_PROFILE=constrained llama-ctl model-download
+llama-ctl model-prune
 # Update .zdots.env: export ZDOTS_AI_PROFILE=constrained
-# llama-server install && llama-server restart
+# llama-ctl install && llama-ctl restart
 
 # 5. Nuclear Docker option (destroys all containers/volumes including LGTM):
 # docker-reclaim -f  (already done above; step 2 is already aggressive)

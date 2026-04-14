@@ -35,7 +35,7 @@ fi
 ai() {
   if [[ -z "$1" || "$1" == "--help" || "$1" == "-h" ]]; then
     local _ai_server_status
-    _ai_server_status=$(llama-server health 2>/dev/null && echo "up" || echo "down — run: ai-start")
+    _ai_server_status=$(llama-ctl health 2>/dev/null && echo "up" || echo "down — run: ai-start")
     cat <<EOF
 Usage:
   ai <prompt>                    Direct prompt
