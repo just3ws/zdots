@@ -3,10 +3,11 @@ id: Z-031
 title: >-
   Z-031 - Optimize shell performance by eliminating redundant forking in
   observability hooks
-status: To Do
+status: In Progress
 assignee:
   - mike
 created_date: '2026-04-04 15:15'
+updated_date: '2026-04-14 21:19'
 labels: []
 dependencies: []
 priority: high
