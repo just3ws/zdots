@@ -28,7 +28,12 @@ export ZDOTDIR="${ZDOTDIR:-$XDG_CONFIG_HOME/zsh}"
 # 3. Session & Trace Identification (W3C Trace Context)
 # Unique ID for the life of this shell session (W3C Trace ID: 32 hex chars).
 if [ -z "${ZDOTS_TRACE_ID:-}" ]; then
-  if command -v openssl >/dev/null 2>&1; then
+  if [ -n "${ZSH_VERSION:-}" ]; then
+    # Zsh: printf -v is a builtin — no fork. 8x $RANDOM = 128-bit entropy.
+    printf -v ZDOTS_TRACE_ID '%04x%04x%04x%04x%04x%04x%04x%04x' \
+      $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM
+    export ZDOTS_TRACE_ID
+  elif command -v openssl >/dev/null 2>&1; then
     export ZDOTS_TRACE_ID="$(openssl rand -hex 16)"
   else
     # Fallback to a timestamp + PID if openssl is missing.
@@ -38,7 +43,11 @@ fi
 
 # Initial Span ID for the shell process (W3C Parent ID: 16 hex chars).
 if [ -z "${ZDOTS_SPAN_ID:-}" ]; then
-  if command -v openssl >/dev/null 2>&1; then
+  if [ -n "${ZSH_VERSION:-}" ]; then
+    # Zsh: printf -v is a builtin — no fork. 4x $RANDOM = 64-bit entropy.
+    printf -v ZDOTS_SPAN_ID '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM
+    export ZDOTS_SPAN_ID
+  elif command -v openssl >/dev/null 2>&1; then
     export ZDOTS_SPAN_ID="$(openssl rand -hex 8)"
   else
     export ZDOTS_SPAN_ID="$(printf "%x" $$ | xargs printf "%016s" | tr ' ' '0')"
@@ -54,9 +63,16 @@ export ZDOTS_SESSION_ID="${ZDOTS_TRACE_ID}"
 # Returns redacted data masking common secrets. (POSIX-compliant)
 zdots_trace_redact() {
   local data="$1"
-  # Basic Redaction: Masking values after common password/secret flags
-  # We use a portable sed pattern.
-  echo "$data" | sed -E 's/(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]:]+[^[:space:]]+/\1 [REDACTED]/g'
+  # Zsh path: parameter expansion with extended glob — zero forks.
+  # Falls back to echo|sed for bash/sh contexts.
+  if [ -n "${ZSH_VERSION:-}" ]; then
+    setopt local_options extended_glob
+    # (X b) enables backrefs; ${match[1]} = captured flag name.
+    data="${data//(#b)(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]:]##[^[:space:]]##/${match[1]} [REDACTED]}"
+    echo "$data"
+  else
+    echo "$data" | sed -E 's/(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]:]+[^[:space:]]+/\1 [REDACTED]/g'
+  fi
 }
 
 # 5. Dependency Injection (DI) Helper
