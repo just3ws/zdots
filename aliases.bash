@@ -97,11 +97,11 @@ fi
 # AI Workflow
 if command -v claude >/dev/null 2>&1; then alias cl='claude'; fi
 if command -v gemini >/dev/null 2>&1; then alias gm='gemini'; fi
-if command -v llama-server >/dev/null 2>&1; then
-  alias ai-status='llama-server status'
-  alias ai-start='llama-server start'
-  alias ai-stop='llama-server stop'
-  alias ai-logs='llama-server logs'
+if command -v llama-ctl >/dev/null 2>&1; then
+  alias ai-status='llama-ctl status'
+  alias ai-start='llama-ctl start'
+  alias ai-stop='llama-ctl stop'
+  alias ai-logs='llama-ctl logs'
 fi
 
 # Colima / Docker storage hygiene (256GB primary — prune aggressively)

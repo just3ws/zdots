@@ -56,7 +56,7 @@ zdots_ai_infer() {
   # Live reachability check (short timeout — fail fast, do not hang the shell)
   if ! curl -sf -m 2 "$ZDOTS_AI_ENDPOINT/health" >/dev/null 2>&1; then
     echo "ai: llama.cpp server not responding at $ZDOTS_AI_ENDPOINT" >&2
-    echo "    Start it with: llama-server start" >&2
+    echo "    Start it with: llama-ctl start" >&2
     export _ZDOTS_AI_SERVER_UP=0
     return 1
   fi

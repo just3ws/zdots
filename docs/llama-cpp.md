@@ -2,9 +2,9 @@
 
 `llama.cpp` is the primary local inference runtime. All AI features in Zdots
 (`ai` function, `history-analyze --ai`, `?` shell assistant) route through a
-local `llama-server` process via its OpenAI-compatible API on port 8080.
+local `llama-server` binary process via its OpenAI-compatible API on port 8080.
 
-Managed by `bin/llama-server`. Supervised by launchd. Configuration lives in
+Managed by `bin/llama-ctl`. Supervised by launchd. Configuration lives in
 `etc/ai-models.yaml`. Provider wired via `ZDOTS_SERVICE_AI=llama-cpp` in
 `.zdots.env`.
 
@@ -13,11 +13,11 @@ Managed by `bin/llama-server`. Supervised by launchd. Configuration lives in
 ## First-Time Setup
 
 ```sh
-llama-server install         # brew install llama.cpp + register launchd plist
-llama-server model-download  # download active profile's GGUF from HuggingFace
-llama-server install         # re-register plist now that model path is real
-llama-server start           # start via launchd (auto-starts on login after this)
-llama-server status          # verify
+llama-ctl install         # brew install llama.cpp + register launchd plist
+llama-ctl model-download  # download active profile's GGUF from HuggingFace
+llama-ctl install         # re-register plist now that model path is real
+llama-ctl start           # start via launchd (auto-starts on login after this)
+llama-ctl status          # verify
 ```
 
 After `start`, the server runs automatically on every login. No manual restart needed.
@@ -28,21 +28,21 @@ After `start`, the server runs automatically on every login. No manual restart n
 
 | Command | What it does |
 |---|---|
-| `llama-server install` | Install binary (Homebrew) + register launchd plist |
-| `llama-server start` | Load launchd service (`RunAtLoad + KeepAlive`) |
-| `llama-server stop` | Unload launchd service |
-| `llama-server restart` | Stop, wait 1s, start |
-| `llama-server status` | launchd state + health endpoint + active model |
-| `llama-server health` | Exit 0 if server up, exit 1 if down |
-| `llama-server logs` | `tail -f` the server log |
+| `llama-ctl install` | Install binary (Homebrew) + register launchd plist |
+| `llama-ctl start` | Load launchd service (`RunAtLoad + KeepAlive`) |
+| `llama-ctl stop` | Unload launchd service |
+| `llama-ctl restart` | Stop, wait 1s, start |
+| `llama-ctl status` | launchd state + health endpoint + active model |
+| `llama-ctl health` | Exit 0 if server up, exit 1 if down |
+| `llama-ctl logs` | `tail -f` the server log |
 
 ### Shell Aliases
 
 ```sh
-ai-start    # llama-server start
-ai-stop     # llama-server stop
-ai-status   # llama-server status
-ai-logs     # llama-server logs
+ai-start    # llama-ctl start
+ai-stop     # llama-ctl stop
+ai-status   # llama-ctl status
+ai-logs     # llama-ctl logs
 ```
 
 ---
@@ -57,23 +57,23 @@ stale GGUFs must be pruned.
 
 | Command | What it does |
 |---|---|
-| `llama-server model-download` | Download active profile's GGUF from HuggingFace |
-| `llama-server model-list` | Show downloaded GGUFs and sizes; marks active model |
-| `llama-server model-prune` | Delete all GGUFs except the active model |
-| `llama-server model-switch <profile>` | Print steps to switch to a different profile |
-| `llama-server df` | Disk usage summary for model directory |
+| `llama-ctl model-download` | Download active profile's GGUF from HuggingFace |
+| `llama-ctl model-list` | Show downloaded GGUFs and sizes; marks active model |
+| `llama-ctl model-prune` | Delete all GGUFs except the active model |
+| `llama-ctl model-switch <profile>` | Print steps to switch to a different profile |
+| `llama-ctl df` | Disk usage summary for model directory |
 
 ### Switching Profiles
 
 ```sh
 # Example: switch to the constrained profile (1B model, ~1GB)
-ZDOTS_AI_PROFILE=constrained llama-server model-download
+ZDOTS_AI_PROFILE=constrained llama-ctl model-download
 # Update .zdots.env: ZDOTS_AI_PROFILE=constrained
 # Re-register plist and restart:
-ZDOTS_AI_PROFILE=constrained llama-server install
-llama-server restart
+ZDOTS_AI_PROFILE=constrained llama-ctl install
+llama-ctl restart
 # Prune old model:
-llama-server model-prune
+llama-ctl model-prune
 ```
 
 ### External Model Storage
@@ -126,7 +126,7 @@ Every call emits an OTel span to the local collector (service: `zdots-shell`).
 ## Health Check
 
 ```sh
-llama-server health && echo "up" || echo "down"
+llama-ctl health && echo "up" || echo "down"
 # or check the raw endpoint:
 curl -sf http://127.0.0.1:8080/health
 # list loaded model:
@@ -143,7 +143,7 @@ down, the first explicit `ai` call fails fast with a clear message:
 
 ```
 ai: llama.cpp server not responding at http://127.0.0.1:8080
-    Start it with: llama-server start
+    Start it with: llama-ctl start
 ```
 
 ---
@@ -159,11 +159,11 @@ upgrade-ai   # updates binary (brew upgrade llama.cpp) + re-downloads GGUF if mi
 
 ## Agent Notes
 
-- Binary not yet installed: `llama-server install` required before any inference.
-- Model not yet downloaded: `llama-server model-download` required before `llama-server install`.
-- Server must be running for `ai` function to work. Check with `llama-server health`.
+- Binary not yet installed: `llama-ctl install` required before any inference.
+- Model not yet downloaded: `llama-ctl model-download` required before `llama-ctl install`.
+- Server must be running for `ai` function to work. Check with `llama-ctl health`.
 - `ZDOTS_SERVICE_AI=llama-cpp` is the composition root — changing this in `.zdots.env` switches the entire AI subsystem.
-- Never run Ollama and llama-server on port 8080 simultaneously. They conflict.
+- Never run Ollama and the llama-server binary on port 8080 simultaneously. They conflict.
 - If server OOMs: reduce `--parallel` to 1 or switch to `constrained` profile.
 - Log file: `~/.local/state/zsh/llama-server.log`
 - Plist: `~/Library/LaunchAgents/com.zdots.llama-server.plist`
