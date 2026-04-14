@@ -1,37 +1,49 @@
-# etc/ai-models.yaml — Central AI model configuration and "base images"
-
-# Recommended Base Images for 2026
-# - qwen3-coder:7b: The "Gold Standard" for CLI/Coding accuracy.
-# - deepseek-v3.2-lite: Best for reasoning and step-by-step logic.
-# - phi-4-mini: Best for ultra-lightweight/Edge performance.
+# etc/ai-models.yaml — llama.cpp model registry
+#
+# Hardware target: Apple Silicon M4, 16GB unified memory, 256GB primary storage.
+# Storage discipline: keep ONE active model per profile. Delete unused GGUFs.
+# Override model storage path via ZDOTS_AI_MODELS_DIR in .zdots.env.
+#
+# Field definitions:
+#   model_file   — GGUF filename on disk (under ZDOTS_AI_MODELS_DIR)
+#   hf_repo      — HuggingFace repo slug (bartowski quantizations preferred)
+#   size_gb      — approximate disk footprint
+#   ctx_size     — recommended --ctx-size for llama-server
+#   n_gpu_layers — Metal GPU layers (99 = all; M4 can offload full 7B)
+#   description  — usage guidance
 
 profiles:
   standard:
-    model: "qwen2.5-coder:7b"
-    description: "Stable gold standard for general coding and shell logic."
-    parameters:
-      temperature: 0.2
-      num_ctx: 32768
-
-  parser:
-    model: "phi-4-mini"
-    description: "Optimized for high-throughput log parsing and data reduction."
-    parameters:
-      temperature: 0.0
-      num_ctx: 8192
+    model_file: "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf"
+    hf_repo: "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF"
+    size_gb: 4.7
+    ctx_size: 32768
+    n_gpu_layers: 99
+    description: "Primary coding/shell assistant. Fits M4 16GB with room for system."
 
   reasoning:
-    model: "deepseek-r1-distill-qwen:7b"
-    description: "Deep thinking mode for complex bug analysis."
-    parameters:
-      temperature: 0.6
-      num_ctx: 16384
+    model_file: "Qwen2.5-7B-Instruct-Q4_K_M.gguf"
+    hf_repo: "bartowski/Qwen2.5-7B-Instruct-GGUF"
+    size_gb: 4.7
+    ctx_size: 16384
+    n_gpu_layers: 99
+    description: "General reasoning. Use when coding context is not needed."
 
   constrained:
-    model: "qwen2.5-coder:1.5b"
-    description: "Ultra-lightweight (< 1GB) for constrained hardware like Raspberry Pi."
-    parameters:
-      temperature: 0.2
-      num_ctx: 4096
+    model_file: "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf"
+    hf_repo: "bartowski/Qwen2.5-Coder-1.5B-Instruct-GGUF"
+    size_gb: 1.0
+    ctx_size: 4096
+    n_gpu_layers: 99
+    description: "Ultra-lightweight. For Raspberry Pi or when primary disk is low."
 
 default_profile: "standard"
+
+# llama-server startup defaults (M4 / 16GB tuning)
+server:
+  host: "127.0.0.1"
+  port: 8080
+  # Parallel decode slots. 2 is safe for 16GB; drop to 1 if OOM.
+  parallel: 2
+  # Continuous batching batch size.
+  batch_size: 512

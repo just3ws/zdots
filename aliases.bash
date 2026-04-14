@@ -1,5 +1,8 @@
 # aliases.bash — Common Aliases and Functions (Bash & Zsh compatible)
 
+# Ruby
+alias be="bundle exec"
+
 # Editors
 # shellcheck disable=SC2139
 alias vim="$EDITOR"
@@ -94,6 +97,23 @@ fi
 # AI Workflow
 if command -v claude >/dev/null 2>&1; then alias cl='claude'; fi
 if command -v gemini >/dev/null 2>&1; then alias gm='gemini'; fi
+if command -v llama-server >/dev/null 2>&1; then
+  alias ai-status='llama-server status'
+  alias ai-start='llama-server start'
+  alias ai-stop='llama-server stop'
+  alias ai-logs='llama-server logs'
+fi
+
+# Colima / Docker storage hygiene (256GB primary — prune aggressively)
+if command -v colima >/dev/null 2>&1; then
+  alias colima-status='colima status'
+  # Safe prune: stopped containers, unused networks, dangling images, build cache
+  alias docker-prune='docker system prune -f && docker buildx prune -f'
+  # Aggressive prune: also removes ALL unused images (not just dangling)
+  alias docker-prune-all='docker system prune -af --volumes && docker buildx prune -af'
+  # Disk summary: show what Docker is consuming inside the Colima VM
+  alias docker-df='docker system df'
+fi
 
 # Modern DSL Patterns
 alias path='echo $PATH | tr ":" "\n"'

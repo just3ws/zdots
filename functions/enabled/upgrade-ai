@@ -1,5 +1,8 @@
 #!/usr/bin/env zsh
-# upgrade-ai — Update AI agents, CLI tools, and local models.
+# upgrade-ai — Update AI tools and manage llama.cpp GGUF models.
+#
+# Storage policy (M4 MBA 256GB): download updated GGUF, verify it, then
+# prune old versions. Never accumulate stale GGUFs silently.
 
 setopt localoptions errexit pipefail
 dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
@@ -16,29 +19,74 @@ if command -v claude >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
   run_cmd npm install -g @anthropic-ai/claude-code
 fi
 
-# 2. Ollama Models
-if command -v ollama >/dev/null 2>&1; then
-  echo "Checking Ollama models..."
-  # Only attempt to update if the server is running
-  if ollama list >/dev/null 2>&1; then
-    # Get list of installed models (NAME column, skip header)
-    local models
-    models=$(ollama list | awk 'NR>1 {print $1}' | sed '/^[[:space:]]*$/d')
-    if [[ -n "$models" ]]; then
-      echo "$models" | while read -r model; do
-        [[ -z "$model" ]] && continue
-        echo "Updating Ollama model: $model..."
-        run_cmd ollama pull "$model"
-      done
-    else
-      echo "No Ollama models found to update."
-    fi
-  else
-    echo "Ollama server not running; skipping model updates."
-  fi
+# 2. llama.cpp binary (via Homebrew)
+if command -v llama-server >/dev/null 2>&1; then
+  echo "Updating llama.cpp..."
+  run_cmd brew upgrade llama.cpp 2>/dev/null || echo "  (already at latest)"
+elif brew list llama.cpp >/dev/null 2>&1; then
+  echo "Updating llama.cpp..."
+  run_cmd brew upgrade llama.cpp 2>/dev/null || echo "  (already at latest)"
+else
+  echo "llama.cpp not installed via Homebrew — skipping (run: llama-server install)"
 fi
 
-# 3. Fabric
+# 3. llama.cpp active model refresh
+# Re-download the active profile's model only if a newer version is available
+# (HuggingFace doesn't version GGUFs, so we compare file sizes as a proxy).
+AI_PROFILE="${ZDOTS_AI_PROFILE:-standard}"
+MODELS_DIR="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+CONFIG_FILE="$ZDOTDIR/etc/ai-models.yaml"
+
+if command -v yq >/dev/null 2>&1 && [[ -f "$CONFIG_FILE" ]]; then
+  model_file=$(yq ".profiles.${AI_PROFILE}.model_file" "$CONFIG_FILE" 2>/dev/null)
+  hf_repo=$(yq ".profiles.${AI_PROFILE}.hf_repo" "$CONFIG_FILE" 2>/dev/null)
+  size_gb=$(yq ".profiles.${AI_PROFILE}.size_gb" "$CONFIG_FILE" 2>/dev/null)
+
+  if [[ -n "$model_file" && "$model_file" != "null" && -n "$hf_repo" && "$hf_repo" != "null" ]]; then
+    dest="$MODELS_DIR/$model_file"
+    url="https://huggingface.co/${hf_repo}/resolve/main/${model_file}"
+
+    echo "Active model: $model_file (~${size_gb}GB)"
+
+    if [[ ! -f "$dest" ]]; then
+      echo "Model not present — downloading..."
+      if [[ "$dry_run" != "1" ]]; then
+        mkdir -p "$MODELS_DIR"
+        curl -L --progress-bar -o "$dest" "$url"
+        echo "Downloaded: $model_file"
+      else
+        echo "  [dry-run] would download $url -> $dest"
+      fi
+    else
+      local_size=$(du -sh "$dest" | cut -f1)
+      echo "Model present ($local_size) — no re-download needed."
+      echo "  To force a fresh copy: rm $dest && upgrade-ai"
+    fi
+
+    # Prune: remove any other GGUFs in the models dir to reclaim space.
+    # On a 256GB drive, stale 4-5GB files matter.
+    pruned=0
+    for f in "$MODELS_DIR"/*.gguf(N); do
+      [[ "$(basename "$f")" != "$model_file" ]] || continue
+      sz=$(du -sh "$f" | cut -f1)
+      echo "Pruning stale model: $(basename "$f") ($sz)"
+      if [[ "$dry_run" != "1" ]]; then
+        rm -f "$f"
+        pruned=$((pruned + 1))
+      else
+        echo "  [dry-run] would remove $f"
+      fi
+    done
+    [[ $pruned -gt 0 ]] && echo "Pruned $pruned stale model(s)."
+  else
+    echo "upgrade-ai: could not resolve model for profile '${AI_PROFILE}' — skipping model step."
+  fi
+else
+  echo "upgrade-ai: yq not available or config missing — skipping llama.cpp model step."
+fi
+
+# 4. Fabric (pattern library)
 if command -v fabric >/dev/null 2>&1; then
   echo "Updating Fabric patterns..."
   run_cmd fabric --update
