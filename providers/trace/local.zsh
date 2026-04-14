@@ -28,6 +28,8 @@ _zdots_trace_file_init() {
 }
 
 zdots_trace_init() {
+  # Load zsh/datetime for strftime and EPOCHSECONDS — no-fork timestamps.
+  zmodload zsh/datetime 2>/dev/null || true
   _zdots_trace_file_init
   _ZDOTS_TRACE_INITIALIZED=1
 }
@@ -36,16 +38,16 @@ zdots_trace_init() {
 # Logs a structured event to the trace file with basic redaction.
 zdots_trace_log() {
   [[ "${_ZDOTS_TRACE_INITIALIZED:-0}" == "1" ]] || return 0
-  
+
   local event_type="$1"
   local data="$2"
-  local timestamp="$(date +%Y-%m-%dT%H:%M:%S%z)"
-  
+  # strftime from zsh/datetime — no fork
+  local timestamp; strftime -s timestamp '%Y-%m-%dT%H:%M:%S%z' $EPOCHSECONDS
+
   local redacted_data=$(zdots_trace_redact "$data")
-  
-  # Minimal JSON construction for portability
-  local escaped_data="$(echo "$redacted_data" | sed 's/"/\\"/g')"
-  
+  # Escape double quotes via parameter expansion — no fork
+  local escaped_data="${redacted_data//\"/\\\"}"
+
   printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
     "$timestamp" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$event_type" "$escaped_data" \
     >> "$_zdots_trace_file"
