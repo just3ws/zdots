@@ -57,11 +57,14 @@ EOF
 }
 
 _binary() {
-  if [[ -n "${HOMEBREW_PREFIX:-}" && -x "$HOMEBREW_PREFIX/bin/llama-server" ]]; then
-    echo "$HOMEBREW_PREFIX/bin/llama-server"
-  elif command -v llama-server >/dev/null 2>&1; then
-    command -v llama-server
+  # Only check the Homebrew-installed binary explicitly. Never use `command -v
+  # llama-server` — our own script lives in $ZDOTDIR/bin/llama-server (higher
+  # PATH precedence than Homebrew) and would resolve circularly.
+  local prefix="${HOMEBREW_PREFIX:-/opt/homebrew}"
+  if [[ -x "$prefix/bin/llama-server" ]]; then
+    echo "$prefix/bin/llama-server"
   fi
+  # Returns empty string if not installed.
 }
 
 _require_binary() {
@@ -128,7 +131,7 @@ _endpoint() {
 install_llama() {
   local bin; bin=$(_binary)
   if [[ -n "$bin" ]]; then
-    local ver; ver=$(llama-server --version 2>/dev/null | head -1 || echo "version unknown")
+    local ver; ver=$("$bin" --version 2>/dev/null | head -1 || echo "version unknown")
     echo "llama-server: llama.cpp already installed ($ver)"
   else
     echo "llama-server: installing llama.cpp via Homebrew..."
@@ -137,11 +140,12 @@ install_llama() {
   mkdir -p "$MODELS_DIR"
   echo "llama-server: model directory: $MODELS_DIR"
 
-  if [[ ! -f "$PLIST_FILE" ]]; then
-    _register_plist
-  else
-    echo "llama-server: launchd plist already registered at $PLIST_FILE"
+  # Always (re-)register plist. Model path may have changed since last install.
+  # Unload first if already loaded so the updated plist takes effect.
+  if [[ -f "$PLIST_FILE" ]]; then
+    launchctl unload -w "$PLIST_FILE" 2>/dev/null || true
   fi
+  _register_plist
 }
 
 _register_plist() {
@@ -250,8 +254,10 @@ status_llama() {
     echo "llama-server: health   OK (${endpoint}/health)"
     # Show loaded model name from /v1/models
     local model_id
-    # shellcheck disable=SC2016
-    model_id=$(curl -sf -m 2 "${endpoint}/v1/models" 2>/dev/null | awk -F'"' '/"id"/{print $4; exit}' 2>/dev/null || true)
+    if command -v jq >/dev/null 2>&1; then
+      model_id=$(curl -sf -m 2 "${endpoint}/v1/models" 2>/dev/null | \
+        jq -r '.data[0].id // empty' 2>/dev/null || true)
+    fi
     [[ -n "$model_id" ]] && echo "llama-server: model    $model_id"
   else
     echo "llama-server: health   unreachable (${endpoint})"
