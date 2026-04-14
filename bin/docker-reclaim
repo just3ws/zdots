@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# bin/docker-reclaim — Reclaim disk space from Docker and Colima.
+#
+# WHY fstrim:
+# docker system prune frees blocks INSIDE the Colima VM disk image. Without
+# fstrim, the qemu/vz disk image on the macOS host does NOT shrink — the freed
+# blocks are just marked available but still occupy host filesystem space.
+# fstrim signals the VM to discard those freed blocks, returning them to macOS.
+#
+# SAFETY:
+# Default: dry run. Pass -f to execute. No data loss without the flag.
+
+set -euo pipefail
+
+FORCE=false
+if [[ "${1:-}" == "-f" ]]; then
+  FORCE=true
+fi
+
+if [[ "$FORCE" != "true" ]]; then
+  echo "docker-reclaim: dry run — shows what would be reclaimed."
+  echo ""
+  echo "Current usage:"
+  docker system df 2>/dev/null || echo "  (docker not reachable)"
+  echo ""
+  echo "Colima status:"
+  colima status 2>/dev/null | grep -E 'runtime|disk|cpu|memory' || echo "  (colima not running)"
+  echo ""
+  echo "To reclaim, run with force flag:"
+  echo "  docker-reclaim -f"
+  exit 0
+fi
+
+echo "docker-reclaim: reclaiming Docker resources..."
+
+# 1. Prune containers, networks, dangling images
+docker system prune -f
+
+# 2. Prune build cache (often the largest consumer — 7GB+ common)
+docker builder prune -af
+
+# 3. Prune all unused images (not just dangling)
+docker image prune -af
+
+# 4. Prune unused volumes (data volumes — confirm first if unsure)
+docker volume prune -f
+
+echo ""
+echo "docker-reclaim: Docker-level reclaim complete. Current usage:"
+docker system df
+
+# 5. Colima pruning + TRIM
+# colima prune removes unused instances/snapshots.
+# fstrim tells the VM to discard freed blocks, which shrinks the
+# qcow2/vz disk image on the macOS host filesystem.
+if command -v colima >/dev/null 2>&1; then
+  echo ""
+  echo "docker-reclaim: pruning Colima..."
+  yes | colima prune 2>/dev/null || true
+
+  echo "docker-reclaim: running fstrim inside Colima VM..."
+  echo "  (releases freed blocks from VM disk image back to macOS host)"
+  colima ssh -- sudo fstrim -av 2>/dev/null || \
+    echo "  fstrim failed or not supported — disk image may not shrink on host"
+fi
+
+echo ""
+echo "docker-reclaim: done."
