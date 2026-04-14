@@ -98,10 +98,10 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
 Primary runtime. Server must be running for `ai` function to work.
 
 ```sh
-llama-server status          # check launchd state + health + active model
-llama-server install         # first-time: brew install + register launchd plist
-llama-server model-download  # download active profile GGUF from HuggingFace
-llama-server start           # start (auto-starts on login once registered)
+llama-ctl status          # check launchd state + health + active model
+llama-ctl install         # first-time: brew install + register launchd plist
+llama-ctl model-download  # download active profile GGUF from HuggingFace
+llama-ctl start           # start (auto-starts on login once registered)
 ai "prompt"                  # direct inference
 cat file | ai "task"         # pipe inference
 history-analyze --ai         # AI-powered shell history analysis
@@ -112,7 +112,7 @@ history-analyze --ai         # AI-powered shell history analysis
 **Full guide:** `docs/llama-cpp.md`
 
 **Hardware context:** M4 MBA, 16GB RAM, 256GB primary disk.
-- One active GGUF at a time. Prune stale models: `llama-server model-prune`.
+- One active GGUF at a time. Prune stale models: `llama-ctl model-prune`.
 - Default model: Qwen2.5-Coder-7B Q4_K_M (~4.7GB, `standard` profile).
 - If OOM: reduce `--parallel` to 1 in `etc/ai-models.yaml`, or switch to `constrained` profile.
 
@@ -124,8 +124,8 @@ Container runtime: Colima (replaces OrbStack). LGTM stack runs inside.
 docker-df                    # show Docker disk consumption
 docker-reclaim               # dry run: show what would be freed
 docker-reclaim -f            # execute: prune containers/images/volumes/cache + fstrim
-llama-server df              # show model directory size
-llama-server model-prune     # delete non-active GGUFs
+llama-ctl df              # show model directory size
+llama-ctl model-prune     # delete non-active GGUFs
 ```
 
 **Full guide:** `docs/storage-hygiene.md`
