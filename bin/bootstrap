@@ -78,4 +78,15 @@ fi
 echo "bootstrap: installing brew dependencies (this may take a while)..."
 brew bundle --file "$REPO_ROOT/Brewfile"
 
+# 6. AI Model Hydration
+# Download the active profile's GGUF model if not already present.
+# Skipped silently if llama-ctl is not yet available (e.g. brew bundle failed).
+if command -v llama-ctl >/dev/null 2>&1; then
+  echo "bootstrap: hydrating AI model (profile: ${ZDOTS_AI_PROFILE:-standard})..."
+  llama-ctl hydrate || echo "bootstrap: warning: model hydration failed (non-blocking)"
+else
+  echo "bootstrap: llama-ctl not found — skipping AI model hydration."
+  echo "           Run 'llama-ctl install && llama-ctl hydrate' after brew bundle."
+fi
+
 echo "bootstrap: complete. Restart your shell or run 'exec zsh'."
