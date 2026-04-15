@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# bin/colima-autostart — Start Colima and dependent services at login.
+# Managed by launchd: com.zdots.colima-autostart
+
+set -eu
+
+REPO_ROOT="${0:A:h:h}"
+LOG="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/colima-autostart.log"
+mkdir -p "$(dirname "$LOG")"
+
+log() { printf '[%s] %s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$*" >> "$LOG"; }
+
+log "colima-autostart: begin"
+
+# 1. Start Colima if not already running
+if colima status >/dev/null 2>&1; then
+  log "Colima already running"
+else
+  log "Starting Colima..."
+  colima start \
+    --cpu "${ZDOTS_CI_CPU:-2}" \
+    --memory "${ZDOTS_CI_MEMORY:-4}" \
+    --disk "${ZDOTS_CI_DISK:-60}" 2>>"$LOG" || {
+    log "ERROR: colima start failed (exit $?)"
+    exit 1
+  }
+  log "Colima started"
+fi
+
+# 2. Wait for Docker socket to be ready (up to 30s)
+socket="$HOME/.config/colima/default/docker.sock"
+for i in $(seq 1 30); do
+  [ -S "$socket" ] && break
+  sleep 1
+done
+if [ ! -S "$socket" ]; then
+  log "ERROR: Docker socket not available after 30s"
+  exit 1
+fi
+log "Docker socket ready"
+
+# 3. Start LGTM observability stack
+log "Starting LGTM stack..."
+docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" up -d >>"$LOG" 2>&1 \
+  && log "LGTM stack started" \
+  || log "WARNING: LGTM stack start failed (non-fatal)"
+
+log "colima-autostart: done"
