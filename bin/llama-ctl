@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bin/llama-server — Manage the local llama.cpp inference server.
+# bin/llama-ctl — Manage the local llama.cpp inference server.
 #
 # RATIONALE:
 # llama.cpp is the primary local AI runtime. This script installs the binary
@@ -34,7 +34,7 @@ _yq_get() {
 
 usage() {
   cat <<EOF
-Usage: llama-server <command> [options]
+Usage: llama-ctl <command> [options]
 
 Commands:
   install           Install llama.cpp via Homebrew and register launchd service
@@ -46,6 +46,7 @@ Commands:
   logs              Tail the server log
   model-list        List downloaded models and disk usage
   model-download    Download the active profile's model from HuggingFace
+  hydrate           Ensure active model is present (idempotent alias for model-download)
   model-switch <p>  Print instructions to switch active profile
   model-prune       Delete models NOT matching the active profile (reclaim disk)
   df                Show model directory disk usage summary
@@ -70,7 +71,7 @@ _binary() {
 _require_binary() {
   local bin; bin=$(_binary)
   if [[ -z "$bin" ]]; then
-    echo "llama-server: error: llama.cpp not installed. Run 'llama-server install'." >&2
+    echo "llama-ctl: error: llama.cpp not installed. Run 'llama-ctl install'." >&2
     exit 1
   fi
   echo "$bin"
@@ -78,7 +79,7 @@ _require_binary() {
 
 _require_yq() {
   if ! _has_yq; then
-    echo "llama-server: error: yq required for YAML parsing. Run: brew install yq" >&2
+    echo "llama-ctl: error: yq required for YAML parsing. Run: brew install yq" >&2
     exit 1
   fi
 }
@@ -132,13 +133,13 @@ install_llama() {
   local bin; bin=$(_binary)
   if [[ -n "$bin" ]]; then
     local ver; ver=$("$bin" --version 2>/dev/null | head -1 || echo "version unknown")
-    echo "llama-server: llama.cpp already installed ($ver)"
+    echo "llama-ctl: llama.cpp already installed ($ver)"
   else
-    echo "llama-server: installing llama.cpp via Homebrew..."
+    echo "llama-ctl: installing llama.cpp via Homebrew..."
     brew install llama.cpp
   fi
   mkdir -p "$MODELS_DIR"
-  echo "llama-server: model directory: $MODELS_DIR"
+  echo "llama-ctl: model directory: $MODELS_DIR"
 
   # Always (re-)register plist. Model path may have changed since last install.
   # Unload first if already loaded so the updated plist takes effect.
@@ -154,8 +155,8 @@ _register_plist() {
   local host port ctx_size n_gpu_layers parallel batch_size
 
   if [[ -z "$model_path" || ! -f "$model_path" ]]; then
-    echo "llama-server: warning: active model not found — plist will use placeholder path." >&2
-    echo "  Run 'llama-server model-download' then re-run 'llama-server install'." >&2
+    echo "llama-ctl: warning: active model not found — plist will use placeholder path." >&2
+    echo "  Run 'llama-ctl model-download' then re-run 'llama-ctl install'." >&2
     model_path="${MODELS_DIR}/model.gguf"
   fi
 
@@ -166,7 +167,7 @@ _register_plist() {
   parallel=$(_server_field parallel "2")
   batch_size=$(_server_field batch_size "512")
 
-  echo "llama-server: registering launchd service..."
+  echo "llama-ctl: registering launchd service..."
   mkdir -p "$(dirname "$PLIST_FILE")" "$(dirname "$LOG_FILE")"
 
   cat > "$PLIST_FILE" <<EOF
@@ -218,25 +219,25 @@ _register_plist() {
 </dict>
 </plist>
 EOF
-  echo "llama-server: service registered at $PLIST_FILE"
-  echo "llama-server: run 'llama-server start' to activate"
+  echo "llama-ctl: service registered at $PLIST_FILE"
+  echo "llama-ctl: run 'llama-ctl start' to activate"
 }
 
 start_llama() {
   if [[ ! -f "$PLIST_FILE" ]]; then
-    echo "llama-server: plist not found. Run 'llama-server install' first." >&2
+    echo "llama-ctl: plist not found. Run 'llama-ctl install' first." >&2
     exit 1
   fi
-  echo "llama-server: starting ${PLIST_LABEL}..."
+  echo "llama-ctl: starting ${PLIST_LABEL}..."
   launchctl load -w "$PLIST_FILE"
 }
 
 stop_llama() {
   if [[ -f "$PLIST_FILE" ]]; then
-    echo "llama-server: stopping ${PLIST_LABEL}..."
+    echo "llama-ctl: stopping ${PLIST_LABEL}..."
     launchctl unload -w "$PLIST_FILE" 2>/dev/null || true
   else
-    echo "llama-server: no plist found; nothing to stop."
+    echo "llama-ctl: no plist found; nothing to stop."
   fi
 }
 
@@ -245,33 +246,33 @@ status_llama() {
 
   if launchctl list "$PLIST_LABEL" >/dev/null 2>&1; then
     local pid; pid=$(launchctl list "$PLIST_LABEL" | awk '/"PID"/{gsub(/;/,"",$3); print $3}')
-    echo "llama-server: launchd  running (PID: ${pid:-unknown})"
+    echo "llama-ctl: launchd  running (PID: ${pid:-unknown})"
   else
-    echo "llama-server: launchd  not running"
+    echo "llama-ctl: launchd  not running"
   fi
 
   if curl -sf -m 2 "${endpoint}/health" >/dev/null 2>&1; then
-    echo "llama-server: health   OK (${endpoint}/health)"
+    echo "llama-ctl: health   OK (${endpoint}/health)"
     # Show loaded model name from /v1/models
     local model_id
     if command -v jq >/dev/null 2>&1; then
       model_id=$(curl -sf -m 2 "${endpoint}/v1/models" 2>/dev/null | \
         jq -r '.data[0].id // empty' 2>/dev/null || true)
     fi
-    [[ -n "$model_id" ]] && echo "llama-server: model    $model_id"
+    [[ -n "$model_id" ]] && echo "llama-ctl: model    $model_id"
   else
-    echo "llama-server: health   unreachable (${endpoint})"
+    echo "llama-ctl: health   unreachable (${endpoint})"
   fi
 
-  echo "llama-server: profile  ${AI_PROFILE}"
-  echo "llama-server: models   ${MODELS_DIR}"
+  echo "llama-ctl: profile  ${AI_PROFILE}"
+  echo "llama-ctl: models   ${MODELS_DIR}"
 
   local model_path; model_path=$(_active_model_path)
   if [[ -n "$model_path" && -f "$model_path" ]]; then
     local size; size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
-    echo "llama-server: active   $(basename "$model_path") (${size})"
+    echo "llama-ctl: active   $(basename "$model_path") (${size})"
   else
-    echo "llama-server: active   not downloaded (run 'llama-server model-download')"
+    echo "llama-ctl: active   not downloaded (run 'llama-ctl model-download')"
   fi
 }
 
@@ -298,7 +299,7 @@ model_list() {
   done < <(find "$MODELS_DIR" -maxdepth 1 -name '*.gguf' -print0 2>/dev/null)
 
   if [[ $count -eq 0 ]]; then
-    echo "llama-server: no models in $MODELS_DIR"
+    echo "llama-ctl: no models in $MODELS_DIR"
     return 0
   fi
 
@@ -315,33 +316,33 @@ model_download() {
   size_gb=$(_profile_field size_gb "?")
 
   if [[ -z "$hf_repo" || "$hf_repo" == "null" || -z "$model_file" || "$model_file" == "null" ]]; then
-    echo "llama-server: error: no hf_repo or model_file for profile '${AI_PROFILE}'" >&2
+    echo "llama-ctl: error: no hf_repo or model_file for profile '${AI_PROFILE}'" >&2
     exit 1
   fi
 
   dest="$MODELS_DIR/$model_file"
   if [[ -f "$dest" ]]; then
     local size; size=$(du -sh "$dest" | cut -f1)
-    echo "llama-server: $model_file already downloaded ($size). Skipping."
+    echo "llama-ctl: $model_file already downloaded ($size). Skipping."
     return 0
   fi
 
   url="https://huggingface.co/${hf_repo}/resolve/main/${model_file}"
   mkdir -p "$MODELS_DIR"
-  echo "llama-server: downloading ${model_file} (~${size_gb}GB)..."
-  echo "llama-server: source: ${url}"
-  echo "llama-server: dest:   ${dest}"
+  echo "llama-ctl: downloading ${model_file} (~${size_gb}GB)..."
+  echo "llama-ctl: source: ${url}"
+  echo "llama-ctl: dest:   ${dest}"
   echo ""
   curl -L --progress-bar --continue-at - -o "$dest" "$url"
   echo ""
   local actual; actual=$(du -sh "$dest" | cut -f1)
-  echo "llama-server: downloaded $model_file ($actual)"
+  echo "llama-ctl: downloaded $model_file ($actual)"
 }
 
 model_switch() {
   local new_profile="${1:-}"
   if [[ -z "$new_profile" ]]; then
-    echo "Usage: llama-server model-switch <profile>" >&2
+    echo "Usage: llama-ctl model-switch <profile>" >&2
     if _has_yq; then
       echo "Available profiles:" >&2
       _yq_get ".profiles | keys | .[]" | sed 's/^/  /' >&2
@@ -352,33 +353,33 @@ model_switch() {
   if _has_yq; then
     local check; check=$(_yq_get ".profiles.${new_profile}.model_file")
     if [[ "$check" == "null" ]]; then
-      echo "llama-server: error: unknown profile '${new_profile}'" >&2
+      echo "llama-ctl: error: unknown profile '${new_profile}'" >&2
       exit 1
     fi
   fi
 
-  echo "llama-server: to switch to '${new_profile}':"
+  echo "llama-ctl: to switch to '${new_profile}':"
   echo ""
   echo "  1. Set in .zdots.env:"
   echo "       export ZDOTS_AI_PROFILE=${new_profile}"
   echo ""
   echo "  2. Download model:"
-  echo "       ZDOTS_AI_PROFILE=${new_profile} llama-server model-download"
+  echo "       ZDOTS_AI_PROFILE=${new_profile} llama-ctl model-download"
   echo ""
   echo "  3. Re-register and restart:"
-  echo "       ZDOTS_AI_PROFILE=${new_profile} llama-server install"
-  echo "       llama-server restart"
+  echo "       ZDOTS_AI_PROFILE=${new_profile} llama-ctl install"
+  echo "       llama-ctl restart"
 }
 
 model_prune() {
   if [[ ! -d "$MODELS_DIR" ]]; then
-    echo "llama-server: no model directory to prune."
+    echo "llama-ctl: no model directory to prune."
     return 0
   fi
 
   local active; active=$(_active_model_file)
   if [[ -z "$active" ]]; then
-    echo "llama-server: cannot determine active model; aborting prune." >&2
+    echo "llama-ctl: cannot determine active model; aborting prune." >&2
     exit 1
   fi
 
@@ -387,15 +388,15 @@ model_prune() {
     local name; name=$(basename "$f")
     [[ "$name" == "$active" ]] && continue
     local size; size=$(du -sh "$f" 2>/dev/null | cut -f1)
-    echo "llama-server: removing $name ($size)"
+    echo "llama-ctl: removing $name ($size)"
     rm -f "$f"
     pruned=$((pruned + 1))
   done < <(find "$MODELS_DIR" -maxdepth 1 -name '*.gguf' -print0 2>/dev/null)
 
   if [[ $pruned -eq 0 ]]; then
-    echo "llama-server: nothing to prune — only active model present."
+    echo "llama-ctl: nothing to prune — only active model present."
   else
-    echo "llama-server: pruned $pruned model(s). Disk reclaimed."
+    echo "llama-ctl: pruned $pruned model(s). Disk reclaimed."
     df -h "$MODELS_DIR" 2>/dev/null | tail -1 || true
   fi
 }
@@ -421,6 +422,7 @@ case "${1:-}" in
   logs)           mkdir -p "$(dirname "$LOG_FILE")"; tail -f "$LOG_FILE" ;;
   model-list)     model_list ;;
   model-download) model_download ;;
+  hydrate)        model_download ;;
   model-switch)   model_switch "${2:-}" ;;
   model-prune)    model_prune ;;
   df)             df_llama ;;
