@@ -1,3 +1,14 @@
+---
+id: llama-cpp
+title: "llama.cpp — Local AI Runtime"
+purpose: Lifecycle management and usage guide for the llama.cpp inference server.
+links:
+  - id: storage-hygiene
+    rel: related
+  - id: readme
+    rel: parent
+---
+
 # llama.cpp — Local AI Runtime
 
 `llama.cpp` is the primary local inference runtime. All AI features in Zdots
