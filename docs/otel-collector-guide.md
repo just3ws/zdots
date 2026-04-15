@@ -1,3 +1,14 @@
+---
+id: otel-collector-guide
+title: "Connecting to the Local OTel Collector"
+purpose: Setup guide for routing telemetry from local applications to the LGTM stack.
+links:
+  - id: architecture
+    rel: related
+  - id: readme
+    rel: parent
+---
+
 # Connecting to the Local OTel Collector
 
 This machine runs a bare-metal OpenTelemetry Collector (`otelcol-contrib`) that accepts telemetry from any local application and forwards it to a central LGTM (Loki, Grafana, Tempo, Mimir) stack.

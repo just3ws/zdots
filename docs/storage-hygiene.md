@@ -1,3 +1,14 @@
+---
+id: storage-hygiene
+title: "Storage Hygiene — Docker, Colima, and LLM Models"
+purpose: Runbook for reclaiming disk on the 256GB primary drive via Docker pruning, fstrim, and model management.
+links:
+  - id: llama-cpp
+    rel: related
+  - id: readme
+    rel: parent
+---
+
 # Storage Hygiene — Docker, Colima, and LLM Models
 
 256GB primary disk. Storage discipline is not optional.

@@ -1,3 +1,14 @@
+---
+id: startup-performance-budget
+title: "Startup Performance Budget"
+purpose: Documents shell startup time targets and profiling methodology.
+links:
+  - id: zsh-quality-rubric
+    rel: related
+  - id: readme
+    rel: parent
+---
+
 # Startup Performance Budget
 
 Assessed on: 2026-03-02
