@@ -1,3 +1,14 @@
+---
+id: zsh-quality-rubric
+title: "Zsh Configuration Quality Rubric"
+purpose: Scoring rubric for evaluating Zsh configuration quality and standards compliance.
+links:
+  - id: startup-performance-budget
+    rel: related
+  - id: readme
+    rel: parent
+---
+
 # Zsh Configuration Quality Rubric
 
 Assessed on: 2026-03-02

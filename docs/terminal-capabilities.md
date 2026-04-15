@@ -1,3 +1,14 @@
+---
+id: terminal-capabilities
+title: "Terminal Capability Discovery"
+purpose: Documents how Zdots detects and adapts to terminal capabilities at startup.
+links:
+  - id: architecture
+    rel: related
+  - id: readme
+    rel: parent
+---
+
 # Terminal Capability Discovery
 
 How Zdots detects and adapts to terminal capabilities.
