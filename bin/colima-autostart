@@ -29,9 +29,11 @@ fi
 
 # 2. Wait for Docker socket to be ready (up to 30s)
 socket="$HOME/.config/colima/default/docker.sock"
-for i in $(seq 1 30); do
+i=0
+while [ "$i" -lt 30 ]; do
   [ -S "$socket" ] && break
   sleep 1
+  i=$((i + 1))
 done
 if [ ! -S "$socket" ]; then
   log "ERROR: Docker socket not available after 30s"
@@ -41,8 +43,10 @@ log "Docker socket ready"
 
 # 3. Start LGTM observability stack
 log "Starting LGTM stack..."
-docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" up -d >>"$LOG" 2>&1 \
-  && log "LGTM stack started" \
-  || log "WARNING: LGTM stack start failed (non-fatal)"
+if docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" up -d >>"$LOG" 2>&1; then
+  log "LGTM stack started"
+else
+  log "WARNING: LGTM stack start failed (non-fatal)"
+fi
 
 log "colima-autostart: done"
