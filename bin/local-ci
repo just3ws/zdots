@@ -22,6 +22,7 @@ Commands:
   up       - Start colima and observability stack
   down     - Stop colima and observability stack
   status   - Check colima, docker, and otel status
+  logs     - Tail LGTM stack logs (pass service name to filter)
   run      - Run act (GitHub Actions locally)
   otel     - Manage observability stack (up|down|logs)
   clean    - Remove act artifacts and prune docker images
@@ -129,6 +130,10 @@ case "${1:-}" in
     ;;
   status)
     colima_status
+    ;;
+  logs)
+    shift
+    _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" logs -f "$@"
     ;;
   run)
     check_deps

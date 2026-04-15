@@ -96,9 +96,10 @@ exporters:
     rotation:
       max_megabytes: 10
       max_backups: 3
-  # Central Hub: Forward to LGTM stack in Colima (gRPC → container :4317)
-  otlp/lgtm:
-    endpoint: "127.0.0.1:4417"
+  # Central Hub: Forward to LGTM stack in Colima (HTTP → container :4318)
+  # Note: gRPC (4417) is unreliable through Colima port forwarding; OTLP HTTP works.
+  otlphttp/lgtm:
+    endpoint: "http://127.0.0.1:4418"
     tls:
       insecure: true
     retry_on_failure:
@@ -115,14 +116,14 @@ service:
     traces:
       receivers: [otlp]
       processors: [resourcedetection, batch]
-      exporters: [debug, file, otlp/lgtm, spanmetrics]
+      exporters: [debug, file, otlphttp/lgtm, spanmetrics]
     # Metrics from apps + host + containers + spanmetrics
     metrics:
       receivers: [otlp, hostmetrics, docker_stats, spanmetrics]
       processors: [resourcedetection, batch]
-      exporters: [debug, otlp/lgtm]
+      exporters: [debug, otlphttp/lgtm]
     # Logs from apps + log files
     logs:
       receivers: [otlp]
       processors: [resourcedetection, batch]
-      exporters: [debug, otlp/lgtm]
+      exporters: [debug, otlphttp/lgtm]
