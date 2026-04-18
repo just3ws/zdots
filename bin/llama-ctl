@@ -556,9 +556,11 @@ validate_llama() {
     exit 1
   fi
   printf 'llama-ctl: validating %s...\n' "$CONFIG_FILE" >&2
-  yq eval '.' "$CONFIG_FILE" > /dev/null \
-    && printf 'llama-ctl: config OK\n' \
-    || { printf 'llama-ctl: error: invalid YAML\n' >&2; exit 1; }
+  if yq eval '.' "$CONFIG_FILE" > /dev/null; then
+    printf 'llama-ctl: config OK\n'
+  else
+    printf 'llama-ctl: error: invalid YAML\n' >&2; exit 1
+  fi
   # Check required top-level keys
   for key in profiles server default_profile; do
     local val; val=$(yq ".$key" "$CONFIG_FILE" 2>/dev/null)
