@@ -74,7 +74,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
 export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
 ```
 
-Grafana: `http://127.0.0.1:3000` (admin/admin) — available when `local-ci up` is running.
+Grafana: `http://127.0.0.1:3000` (admin/admin) — available when `local-ci start` is running.
 
 ---
 
@@ -86,7 +86,7 @@ Grafana: `http://127.0.0.1:3000` (admin/admin) — available when `local-ci up` 
 | Local AI inference | `ai-query` (scripts), `ai` (interactive zsh), `llama-ctl` | [docs/llama-cpp.md](docs/llama-cpp.md) |
 | Shell history intelligence | `history-analyze` | — |
 | Distributed tracing (OTel) | automatic on every command | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
-| LGTM observability stack | `local-ci up` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
+| LGTM observability stack | `local-ci start` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | Docker / Colima management | `colima-*`, `docker-reclaim` | [docs/storage-hygiene.md](docs/storage-hygiene.md) |
 | Secret scanning | `secret-scan` | — |
 | Startup performance | `bench` | [docs/startup-performance-budget.md](docs/startup-performance-budget.md) |
@@ -125,7 +125,7 @@ llama-ctl status          # verify
 ### Observability stack (first time)
 
 ```sh
-local-ci up               # start Colima + LGTM stack (Grafana, Loki, Tempo, Mimir)
+local-ci start               # start Colima + LGTM stack (Grafana, Loki, Tempo, Mimir)
 otel-collector install    # install bare-metal otelcol-contrib binary
 otel-collector start      # start host collector (forwards spans to LGTM)
 ```
@@ -289,7 +289,7 @@ from any shell context — no interactive zsh environment required.
 aggressively. See [docs/storage-hygiene.md](docs/storage-hygiene.md).
 
 ```sh
-llama-ctl df              # model storage usage
+llama-ctl model-df        # model storage usage
 llama-ctl model-prune     # permanently delete non-active GGUFs — confirm before running
 docker-reclaim            # dry run: show what would be freed
 docker-reclaim -f         # DESTRUCTIVE: prune containers/images/volumes/cache + fstrim

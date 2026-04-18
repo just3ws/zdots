@@ -4,100 +4,159 @@
 # Run this command first. It checks what is actually running right now and
 # tells you exactly how to use every service on this machine. No assumptions.
 #
-# Usage:
-#   agent-guide           Human-readable output
-#   agent-guide --plain   Strip ANSI codes (pipe-friendly, agent-safe)
-#
 # Safe to call from any bash context — no interactive zsh required.
 
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# Output helpers
-# ---------------------------------------------------------------------------
-PLAIN=false
-[[ "${1:-}" == "--plain" ]] && PLAIN=true
+# SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
+trap '' PIPE
 
-_bold() { $PLAIN && printf '%s' "$*" || printf '\033[1m%s\033[0m' "$*"; }
-_ok()   { $PLAIN && printf '[UP]   %s' "$*" || printf '\033[0;32m[UP]  \033[0m %s' "$*"; }
-_down() { $PLAIN && printf '[DOWN] %s' "$*" || printf '\033[0;31m[DOWN]\033[0m %s' "$*"; }
-_warn() { $PLAIN && printf '[WARN] %s' "$*" || printf '\033[0;33m[WARN]\033[0m %s' "$*"; }
-_head() { printf '\n'; _bold "$*"; printf '\n'; printf '%*s\n' "${#*}" '' | tr ' ' '-'; }
+usage() {
+  cat <<EOF
+Usage: agent-guide [--json]
+
+Options:
+  --json      Emit a JSON object with service status and connection info
+  -h, --help  Show this help
+
+With no options: human-readable guide with live service status.
+With --json: machine-readable JSON suitable for jq filtering.
+EOF
+}
 
 # ---------------------------------------------------------------------------
-# Live status probes
+# Argument parsing
+# ---------------------------------------------------------------------------
+JSON=false
+for arg in "$@"; do
+  case "$arg" in
+    --json)     JSON=true ;;
+    -h|--help)  usage; exit 0 ;;
+    *)          printf 'agent-guide: unknown option: %s\n' "$arg" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
+# Live status probes (all silent — results stored in variables)
 # ---------------------------------------------------------------------------
 AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
-AI_MODEL="${ZDOTS_AI_MODEL:-local}"
 OTEL_ENDPOINT="http://127.0.0.1:4318"
 GRAFANA_URL="http://127.0.0.1:3000"
 
-# llama.cpp
 AI_UP=false
 AI_MODEL_ID="unknown"
 if curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; then
   AI_UP=true
   AI_MODEL_ID=$(curl -sf -m 2 "${AI_ENDPOINT}/v1/models" 2>/dev/null \
-    | jq -r '.data[0].id // "local"' 2>/dev/null || echo "local")
+    | jq -r '.data[0].id // "local"' 2>/dev/null || printf 'local')
 fi
 
-# otelcol — "PID" key only present when process is actively running
 OTEL_UP=false
 if launchctl list com.zdots.otel-collector 2>/dev/null | grep -q '"PID"'; then
   OTEL_UP=true
 fi
 
-# Colima (LGTM stack host)
 COLIMA_UP=false
 if colima status 2>&1 | grep -q "is running"; then
   COLIMA_UP=true
 fi
 
-# Grafana (LGTM stack)
 GRAFANA_UP=false
 if curl -sf -m 2 "${GRAFANA_URL}/api/health" >/dev/null 2>&1; then
   GRAFANA_UP=true
 fi
 
 # ---------------------------------------------------------------------------
-# Output
+# JSON output mode
+# ---------------------------------------------------------------------------
+if $JSON; then
+  printf '{
+  "services": {
+    "llama_cpp":  {"up": %s, "endpoint": "%s", "model": "%s",  "start": "llama-ctl start"},
+    "otelcol":    {"up": %s, "endpoint": "%s",                 "start": "otel-collector start"},
+    "colima":     {"up": %s,                                    "start": "local-ci start"},
+    "grafana":    {"up": %s, "url":      "%s",                 "start": "local-ci start"}
+  },
+  "ai": {
+    "inference_command": "ai-query",
+    "endpoint": "%s",
+    "model": "%s",
+    "subprocess_safe": true,
+    "interactive_only": ["ai", "ai-start", "ai-stop", "ai-status", "ai-logs"]
+  },
+  "otel": {
+    "otlp_http_endpoint": "%s",
+    "otlp_grpc_endpoint": "grpc://127.0.0.1:4317",
+    "protocol": "http/protobuf",
+    "grafana_url": "%s",
+    "grafana_credentials": "admin/admin"
+  },
+  "env": {
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "%s",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf"
+  },
+  "docs": {
+    "ai":   "docs/llama-cpp.md",
+    "otel": "docs/otel-collector-guide.md",
+    "agents": "AGENTS.md"
+  }
+}\n' \
+    "$AI_UP"      "$AI_ENDPOINT"   "$AI_MODEL_ID" \
+    "$OTEL_UP"    "$OTEL_ENDPOINT" \
+    "$COLIMA_UP" \
+    "$GRAFANA_UP" "$GRAFANA_URL" \
+    "$AI_ENDPOINT" "$AI_MODEL_ID" \
+    "$OTEL_ENDPOINT" "$GRAFANA_URL" \
+    "$OTEL_ENDPOINT"
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Human-readable output helpers
+# ---------------------------------------------------------------------------
+_bold() { printf '\033[1m%s\033[0m' "$*"; }
+_ok()   { printf '\033[0;32m[UP]  \033[0m %s' "$*"; }
+_down() { printf '\033[0;31m[DOWN]\033[0m %s' "$*"; }
+_head() { printf '\n'; _bold "$*"; printf '\n'; printf '%*s\n' "${#*}" '' | tr ' ' '-'; }
+
+# ---------------------------------------------------------------------------
+# Human-readable output
 # ---------------------------------------------------------------------------
 _bold "=== Zdots Agent Guide ==="
 printf '\nThis machine is the central hub for AI inference and OTel observability.\n'
 printf 'Run this command any time to get current status and usage instructions.\n'
+printf 'For machine-readable output: agent-guide --json\n'
 
-# --- Status Summary --------------------------------------------------------
 _head "Live Service Status"
 
 if $AI_UP; then
   printf '%s  model=%s  endpoint=%s\n' "$(_ok "llama.cpp (AI inference)")" "$AI_MODEL_ID" "$AI_ENDPOINT"
 else
   printf '%s  endpoint=%s\n' "$(_down "llama.cpp (AI inference)")" "$AI_ENDPOINT"
-  printf '         Start with: llama-ctl start\n'
+  printf '         start with: llama-ctl start\n'
 fi
 
 if $OTEL_UP; then
-  printf '%s  http=%s  grpc=%s\n' "$(_ok "otelcol-contrib (OTel collector)")" "http://127.0.0.1:4318" "grpc://127.0.0.1:4317"
+  printf '%s  http=%s  grpc=grpc://127.0.0.1:4317\n' "$(_ok "otelcol-contrib (OTel collector)")" "$OTEL_ENDPOINT"
 else
   printf '%s\n' "$(_down "otelcol-contrib (OTel collector)")"
-  printf '         Start with: otel-collector start\n'
+  printf '         start with: otel-collector start\n'
 fi
 
 if $COLIMA_UP; then
   printf '%s\n' "$(_ok "Colima (container runtime)")"
 else
   printf '%s\n' "$(_down "Colima (container runtime)")"
-  printf '         Start with: local-ci up\n'
+  printf '         start with: local-ci start\n'
 fi
 
 if $GRAFANA_UP; then
   printf '%s  %s  (admin/admin)\n' "$(_ok "LGTM stack (Grafana/Loki/Tempo/Mimir)")" "$GRAFANA_URL"
 else
   printf '%s\n' "$(_down "LGTM stack (Grafana/Loki/Tempo/Mimir)")"
-  printf '         Start with: local-ci up\n'
+  printf '         start with: local-ci start\n'
 fi
 
-# --- AI Inference ----------------------------------------------------------
 _head "AI Inference — llama.cpp"
 
 cat <<EOF
@@ -115,20 +174,13 @@ SUBPROCESS / AGENT USE — preferred method:
            -e/--endpoint URL  override server URL
 
 DIRECT HTTP — works from any context, no tooling required:
-  # Health check
   curl -sf -m 2 ${AI_ENDPOINT}/health
-
-  # Chat completion
-  curl -s ${AI_ENDPOINT}/v1/chat/completions \\
-    -H "Content-Type: application/json" \\
+  curl -s ${AI_ENDPOINT}/v1/chat/completions \
+    -H "Content-Type: application/json" \
     -d '{"model":"local","messages":[{"role":"user","content":"Hello"}],"stream":false}'
-
-  # Text embeddings
-  curl -s ${AI_ENDPOINT}/v1/embeddings \\
-    -H "Content-Type: application/json" \\
+  curl -s ${AI_ENDPOINT}/v1/embeddings \
+    -H "Content-Type: application/json" \
     -d '{"model":"local","input":"text to embed"}'
-
-  # Prometheus metrics
   curl -s ${AI_ENDPOINT}/metrics
 
 DO NOT USE from scripts/agents — interactive zsh only:
@@ -137,13 +189,16 @@ DO NOT USE from scripts/agents — interactive zsh only:
 
 SERVICE MANAGEMENT:
   llama-ctl status          check launchd state + health + active model
+  llama-ctl status --json   same, as JSON
   llama-ctl start           start server
   llama-ctl stop            stop server
   llama-ctl restart         restart server
-  llama-ctl logs            tail server log
   llama-ctl health          exits 0=up, 1=down
+  llama-ctl health --json   same, as JSON
+  llama-ctl logs            tail server log
   llama-ctl install         install + register launchd plist (first-time setup)
   llama-ctl model-download  download active profile GGUF from HuggingFace
+  llama-ctl validate        validate etc/ai-models.yaml
 
 HARDWARE LIMITS (M4 MBA, 16GB RAM, 256GB disk):
   One active GGUF at a time. If OOM, switch to constrained profile:
@@ -152,7 +207,6 @@ HARDWARE LIMITS (M4 MBA, 16GB RAM, 256GB disk):
   Full guide:  docs/llama-cpp.md
 EOF
 
-# --- OTel / LGTM -----------------------------------------------------------
 _head "Observability — OTel + LGTM Stack"
 
 cat <<EOF
@@ -172,31 +226,35 @@ GRAFANA:  ${GRAFANA_URL}  (login: admin / admin)
   - Metrics → Mimir (includes RED metrics auto-derived from traces)
 
 VERIFY CONNECTIVITY:
-  # Send a test trace
-  curl -sf ${OTEL_ENDPOINT}/v1/traces \\
-    -H "Content-Type: application/json" \\
+  curl -sf ${OTEL_ENDPOINT}/v1/traces \
+    -H "Content-Type: application/json" \
     -d '{"resourceSpans":[]}'
 
 COLLECTOR MANAGEMENT:
-  otel-collector status     check if collector is running
-  otel-collector start      start host collector
-  otel-collector stop       stop host collector
-  otel-collector restart    restart (picks up config changes)
-  otel-collector validate   validate etc/otel-collector.yaml
-  otel-collector logs       tail collector log
-  otel-collector install    first-time: install otelcol-contrib binary
+  otel-collector status           check if collector is running
+  otel-collector status --json    same, as JSON
+  otel-collector start            start host collector
+  otel-collector stop             stop host collector
+  otel-collector restart          restart (picks up config changes)
+  otel-collector health           exits 0=up, 1=down
+  otel-collector health --json    same, as JSON
+  otel-collector validate         validate etc/otel-collector.yaml
+  otel-collector logs             tail collector log
+  otel-collector install          first-time: install otelcol-contrib binary
 
 LGTM STACK MANAGEMENT:
-  local-ci up               start Colima + LGTM stack
-  local-ci down             stop LGTM stack
-  local-ci status           check stack status
-  local-ci logs             tail LGTM logs
-  local-ci restart          down then up
+  local-ci start                  start Colima + LGTM stack
+  local-ci stop                   stop LGTM stack
+  local-ci status                 check stack status
+  local-ci status --json          same, as JSON
+  local-ci health                 exits 0=up, 1=down
+  local-ci health --json          same, as JSON
+  local-ci logs                   tail LGTM logs
+  local-ci restart                stop then start
 
 Full guide: docs/otel-collector-guide.md
 EOF
 
-# --- Destructive Commands --------------------------------------------------
 _head "Destructive Commands — Confirm Before Running"
 
 cat <<EOF
@@ -206,18 +264,17 @@ without first reviewing a dry run or getting explicit user confirmation.
   docker-reclaim            DRY RUN — shows what would be freed (safe)
   docker-reclaim -f         DESTRUCTIVE: prunes all containers, images,
                             volumes, build cache, then runs fstrim in Colima VM.
-                            Freed host disk space is not returned without fstrim,
-                            but this flag deletes data permanently.
 
   llama-ctl model-prune     DESTRUCTIVE: permanently deletes all GGUFs except
                             the currently active profile's model file.
                             Downloads are ~4.7GB and take time to restore.
 
-  llama-ctl df              safe: shows model directory disk usage (read-only)
+  llama-ctl model-df        safe: shows model directory disk usage (read-only)
   docker-df                 safe: shows Docker disk usage (read-only)
+  local-ci prune            DRY RUN — shows what Docker prune would free (safe)
+  local-ci prune -f         DESTRUCTIVE: executes Docker prune
 EOF
 
-# --- Quick Reference -------------------------------------------------------
 _head "Quick Reference"
 
 cat <<EOF

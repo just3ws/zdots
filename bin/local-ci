@@ -1,117 +1,222 @@
 #!/usr/bin/env zsh
-# bin/local-ci — Manage Colima & local GitHub Actions (act)
+# bin/local-ci — Manage the Colima + LGTM observability stack and local CI.
+#
+# RATIONALE:
+# Colima provides the container runtime. The LGTM stack (Grafana, Loki, Tempo,
+# Mimir) runs inside Colima via Docker Compose and is the central observability
+# hub for this machine. This script manages their combined lifecycle.
+#
+# GRAMMAR:
+# Service lifecycle verbs are consistent with llama-ctl and otel-collector:
+#   start / stop / restart / status / health / logs / install (n/a here)
+# Additional commands unique to this service:
+#   prune   — reclaim Docker space (dry-run first; -f to execute)
+#   rebuild — delete and recreate the Colima VM (destructive)
+#   run     — run GitHub Actions locally via act
 
-set -eu
-setopt pipefail
+set -euo pipefail
+
+# SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
+trap '' PIPE
 
 REPO_ROOT="${0:A:h:h}"
 cd "$REPO_ROOT"
 
-# Configuration
 CPU=${ZDOTS_CI_CPU:-2}
 MEMORY=${ZDOTS_CI_MEMORY:-4}
 DISK=${ZDOTS_CI_DISK:-60}
-# Proxy macos-latest to an Ubuntu image for local act execution
+COMPOSE_FILE="$REPO_ROOT/etc/docker-compose.lgtm.yaml"
+GRAFANA_URL="http://127.0.0.1:3000"
 IMAGE_MAPPING="macos-latest=catthehacker/ubuntu:act-latest"
 
-usage() {
-  cat <<EOF
-Usage: local-ci <command> [args]
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
 
-Commands:
-  up       - Start colima and observability stack
-  down     - Stop colima and observability stack
-  status   - Check colima, docker, and otel status
-  logs     - Tail LGTM stack logs (pass service name to filter)
-  run      - Run act (GitHub Actions locally)
-  otel     - Manage observability stack (up|down|logs)
-  clean    - Remove act artifacts and prune docker images
-  restart  - down then up
-  rebuild  - Delete and recreate the colima instance
-
-EOF
+_die() {
+  printf 'local-ci: error: %s\n' "$*" >&2
+  exit 1
 }
 
-check_deps() {
-  local missing=()
-  for cmd in colima docker; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
-      missing+=("$cmd")
-    fi
-  done
-
-  # Check for compose specifically (either plugin or standalone)
-  if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
-    missing+=("docker-compose")
-  fi
-
-  if (( ${#missing[@]} > 0 )); then
-    echo "Error: Missing dependencies: ${missing[*]}" >&2
-    echo "Run 'brew bundle' to install them." >&2
-    exit 1
-  fi
-}
+# Progress messages go to STDERR — keeps STDOUT clean for data/JSON output.
+_info() { printf 'local-ci: %s\n' "$*" >&2; }
 
 _compose() {
   if docker compose version >/dev/null 2>&1; then
     docker compose "$@"
-  else
+  elif command -v docker-compose >/dev/null 2>&1; then
     docker-compose "$@"
+  else
+    _die "docker compose not found. Run: brew bundle"
   fi
 }
 
-colima_up() {
-  if colima status >/dev/null 2>&1; then
-    echo "Colima is already running."
+_check_deps() {
+  local missing=()
+  for cmd in colima docker; do
+    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+  done
+  if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
+    missing+=("docker-compose")
+  fi
+  (( ${#missing[@]} == 0 )) || _die "missing dependencies: ${missing[*]}. Run: brew bundle"
+}
+
+_grafana_healthy() {
+  curl -sf -m 3 "${GRAFANA_URL}/api/health" >/dev/null 2>&1
+}
+
+_colima_running() {
+  colima status >/dev/null 2>&1
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand implementations
+# ---------------------------------------------------------------------------
+
+usage() {
+  cat <<EOF
+Usage: local-ci <command> [--json]
+
+Service Lifecycle:
+  start     Start Colima and the LGTM observability stack
+  stop      Stop the LGTM stack and Colima
+  restart   stop then start
+  status    Show Colima, Docker, and LGTM stack status
+  health    Exit 0 if Grafana is reachable, exit 1 otherwise
+  logs      Tail LGTM stack logs (optional: service name to filter)
+
+Maintenance:
+  prune     Prune Docker containers, images, and build cache (dry run by default)
+  prune -f  Execute prune — DESTRUCTIVE, permanent
+  rebuild   Delete and recreate the Colima VM — DESTRUCTIVE
+
+CI:
+  run [args]  Run GitHub Actions locally via act
+
+Options:
+  --json    Output status/health as JSON (valid for status, health)
+  -h, --help  Show this help
+
+Environment:
+  ZDOTS_CI_CPU     vCPUs for Colima  (default: 2)
+  ZDOTS_CI_MEMORY  RAM in GB         (default: 4)
+  ZDOTS_CI_DISK    Disk in GB        (default: 60)
+EOF
+}
+
+cmd_start() {
+  _check_deps
+  if _colima_running; then
+    _info "Colima already running"
   else
-    echo "Starting colima (CPU: $CPU, Memory: ${MEMORY}G, Disk: ${DISK}G)..."
+    _info "starting Colima (CPU: ${CPU}, Memory: ${MEMORY}G, Disk: ${DISK}G)..."
     colima start --cpu "$CPU" --memory "$MEMORY" --disk "$DISK" --very-verbose
   fi
-  # Automatically start OTEL stack
-  otel_up
+  _info "starting LGTM stack..."
+  _compose -f "$COMPOSE_FILE" up -d
+  _info "done. Grafana: ${GRAFANA_URL} (admin/admin)"
 }
 
-colima_down() {
-  # Stop OTEL stack first
-  otel_down
-  if colima status >/dev/null 2>&1; then
-    echo "Stopping colima..."
+cmd_stop() {
+  _info "stopping LGTM stack..."
+  _compose -f "$COMPOSE_FILE" down 2>/dev/null || true
+  if _colima_running; then
+    _info "stopping Colima..."
     colima stop --very-verbose
   else
-    echo "Colima is already stopped."
+    _info "Colima already stopped"
   fi
 }
 
-otel_up() {
-  echo "Starting Central Observability Hub (LGTM)..."
-  _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" up -d
+cmd_status() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local colima_up=false docker_up=false grafana_up=false
+
+  _colima_running  && colima_up=true  || true
+  docker info >/dev/null 2>&1 && docker_up=true || true
+  _grafana_healthy && grafana_up=true || true
+
+  if $json; then
+    # Emit structured JSON to STDOUT; suppress compose stderr noise.
+    local containers
+    containers=$(_compose -f "$COMPOSE_FILE" ps --format json 2>/dev/null || printf '[]')
+    printf '{"colima":%s,"docker":%s,"grafana":%s,"grafana_url":"%s","lgtm_containers":%s}\n' \
+      "$colima_up" "$docker_up" "$grafana_up" "$GRAFANA_URL" "$containers"
+    return
+  fi
+
+  printf '--- Colima ---\n'
+  colima status --very-verbose 2>/dev/null || printf 'not running\n'
+  printf '\n--- Docker ---\n'
+  docker version --format 'Client: {{.Client.Version}}\nServer: {{.Server.Version}}' 2>/dev/null \
+    || printf 'daemon not reachable\n'
+  printf '\n--- LGTM Stack ---\n'
+  _compose -f "$COMPOSE_FILE" ps 2>/dev/null || printf '(stack not running)\n'
+  printf '\n--- Grafana ---\n'
+  if $grafana_up; then
+    printf 'reachable at %s (admin/admin)\n' "$GRAFANA_URL"
+  else
+    printf 'not reachable (start with: local-ci start)\n'
+  fi
 }
 
-otel_down() {
-  echo "Stopping Central Observability Hub (LGTM)..."
-  _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" down
+cmd_health() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  if _grafana_healthy; then
+    $json && printf '{"healthy":true,"grafana_url":"%s"}\n' "$GRAFANA_URL"
+    return 0
+  else
+    $json && printf '{"healthy":false,"grafana_url":"%s"}\n' "$GRAFANA_URL"
+    return 1
+  fi
 }
 
-otel_status() {
-  echo "--- Observability Hub ---"
-  _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" ps
+cmd_logs() {
+  # Clean exit on interrupt — tail -f runs forever by design.
+  trap 'exit 0' INT TERM
+  _compose -f "$COMPOSE_FILE" logs -f "$@"
 }
 
-colima_status() {
-  echo "--- Colima ---"
-  colima status --very-verbose || echo "Colima is not running."
-  echo "\n--- Docker ---"
-  docker version --format 'Client: {{.Client.Version}}\nServer: {{.Server.Version}}' 2>/dev/null || echo "Docker daemon not reachable."
-  echo ""
-  otel_status
+cmd_prune() {
+  local force=false
+  [[ "${1:-}" == "-f" ]] && force=true
+
+  if ! $force; then
+    printf 'local-ci prune: dry run — pass -f to execute.\n'
+    printf '\nDocker disk usage:\n'
+    docker system df 2>/dev/null || printf '  (docker not reachable)\n'
+    printf '\nTo prune, run:\n'
+    printf '  local-ci prune -f\n'
+    return 0
+  fi
+
+  _info "pruning Docker containers, images, build cache..."
+  docker system prune -f
+  docker builder prune -f
+  printf '\nDocker disk usage after prune:\n'
+  docker system df
 }
 
-run_act() {
-  echo "Running GitHub Actions locally via act..."
-  # Use -P to map macos-latest to a Linux image
-  # Set DOCKER_HOST for the act process to find the Colima socket
-  # Use --container-daemon-socket - to disable bind mounting the socket inside containers,
-  # which avoids permission/mounting issues with the Colima socket path.
+cmd_rebuild() {
+  printf 'local-ci: WARNING: deletes the current Colima VM. Proceed? [y/N] ' >&2
+  local response
+  read -r response
+  if [[ "$response" =~ ^[Yy]$ ]]; then
+    colima delete -f --very-verbose
+    cmd_start
+  else
+    _info "aborted"
+  fi
+}
+
+cmd_run() {
+  _check_deps
+  _info "running GitHub Actions locally via act..."
   DOCKER_HOST="unix://${HOME}/.config/colima/default/docker.sock" \
   act \
     --container-architecture linux/arm64 \
@@ -120,57 +225,21 @@ run_act() {
     "$@"
 }
 
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
 case "${1:-}" in
-  up)
-    check_deps
-    colima_up
-    ;;
-  down)
-    colima_down
-    ;;
-  status)
-    colima_status
-    ;;
-  logs)
-    shift
-    _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" logs -f "$@"
-    ;;
-  run)
-    check_deps
-    shift
-    run_act "$@"
-    ;;
-  otel)
-    check_deps
-    shift
-    case "${1:-status}" in
-      up) otel_up ;;
-      down) otel_down ;;
-      status) otel_status ;;
-      logs) _compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" logs -f ;;
-      *) echo "Unknown otel command: $1" ;;
-    esac
-    ;;
-  clean)
-    echo "Cleaning up..."
-    docker system prune -f
-    ;;
-  restart)
-    colima_down
-    colima_up
-    ;;
-  rebuild)
-    echo "WARNING: This will delete the current colima instance. Proceed? [y/N]"
-    read -r response
-    if [[ "$response" =~ ^[Yy]$ ]]; then
-      colima delete -f --very-verbose
-      colima_up
-    else
-      echo "Aborted."
-    fi
-    ;;
-  *)
-    usage
-    exit 1
-    ;;
+  start)        cmd_start ;;
+  stop)         cmd_stop ;;
+  restart)      cmd_stop; cmd_start ;;
+  status)       shift; cmd_status "${@}" ;;
+  health)       shift; cmd_health "${@}" ;;
+  logs)         shift; cmd_logs "${@}" ;;
+  prune)        shift; cmd_prune "${@}" ;;
+  rebuild)      cmd_rebuild ;;
+  run)          shift; cmd_run "${@}" ;;
+  -h|--help)    usage; exit 0 ;;
+  "")           usage >&2; exit 1 ;;
+  *)            printf 'local-ci: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
 esac

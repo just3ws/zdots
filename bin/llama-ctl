@@ -31,6 +31,9 @@
 
 set -euo pipefail
 
+# SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
+trap '' PIPE
+
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 CONFIG_FILE="$ZDOTDIR/etc/ai-models.yaml"
 MODELS_DIR="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
@@ -56,7 +59,7 @@ _yq_get() {
 
 usage() {
   cat <<EOF
-Usage: llama-ctl <command> [options]
+Usage: llama-ctl <command> [--json]
 
 Service Lifecycle:
   install           Install llama.cpp (Homebrew), write launchd plist, and
@@ -64,23 +67,26 @@ Service Lifecycle:
                     Re-run after any change to etc/ai-models.yaml.
   start             Load launchd service (RunAtLoad + KeepAlive)
   stop              Unload launchd service
-  restart           Stop, wait 1s, start
+  restart           stop, wait 1s, start
   status            launchd state + health endpoint + active model name
   health            Exit 0 if server is up, exit 1 if down
   logs              tail -f the server log
+  validate          Validate etc/ai-models.yaml (requires yq)
 
 Model Management:
   model-list        List downloaded GGUFs with disk sizes; marks active model
   model-download    Download active profile's GGUF from HuggingFace (resumable)
-  hydrate           Alias for model-download
   model-switch <p>  Print step-by-step instructions to switch to profile <p>
-  model-prune       Delete all GGUFs except the active profile's model
-  df                Disk usage summary for the model directory
+  model-prune       Delete all GGUFs except the active profile's model — DESTRUCTIVE
+  model-df          Disk usage summary for the model directory
+
+Options:
+  --json      Output status/health as JSON (valid for status, health)
+  -h, --help  Show this help
 
 Config:
   etc/ai-models.yaml   Model profiles (model_file, ctx_size, n_gpu_layers, ...)
                        and server flags (batch sizes, KV cache, embeddings, ...)
-  default_profile      Fallback profile when ZDOTS_AI_PROFILE is unset
 
 Environment:
   ZDOTS_AI_PROFILE      Active profile; overrides default_profile from yaml
@@ -166,13 +172,13 @@ install_llama() {
   local bin; bin=$(_binary)
   if [[ -n "$bin" ]]; then
     local ver; ver=$("$bin" --version 2>&1 | grep '^version:' || echo "version unknown")
-    echo "llama-ctl: llama.cpp already installed ($ver)"
+    printf 'llama-ctl: llama.cpp already installed (%s)\n' "$ver" >&2
   else
-    echo "llama-ctl: installing llama.cpp via Homebrew..."
+    printf 'llama-ctl: installing llama.cpp via Homebrew...\n' >&2
     brew install llama.cpp
   fi
   mkdir -p "$MODELS_DIR"
-  echo "llama-ctl: model directory: $MODELS_DIR"
+  printf 'llama-ctl: model directory: %s\n' "$MODELS_DIR" >&2
 
   # Always (re-)register plist. Model path may have changed since last install.
   # Unload first if already loaded so the updated plist takes effect.
@@ -185,11 +191,11 @@ install_llama() {
   # model-download first — starting with a missing model causes a crash loop.
   local _mp; _mp=$(_active_model_path)
   if [[ -n "$_mp" && -f "$_mp" ]]; then
-    echo "llama-ctl: loading service..."
+    printf 'llama-ctl: loading service...\n' >&2
     launchctl load -w "$PLIST_FILE"
-    echo "llama-ctl: server started"
+    printf 'llama-ctl: server started\n' >&2
   else
-    echo "llama-ctl: model not found — run 'llama-ctl model-download' then 'llama-ctl start'"
+    printf 'llama-ctl: model not found — run '"'"'llama-ctl model-download'"'"' then '"'"'llama-ctl start'"'"'\n' >&2
   fi
 }
 
@@ -256,7 +262,7 @@ _register_plist() {
 "
   fi
 
-  echo "llama-ctl: registering launchd service..."
+  printf 'llama-ctl: registering launchd service...\n' >&2
   mkdir -p "$(dirname "$PLIST_FILE")" "$(dirname "$LOG_FILE")"
 
   cat > "$PLIST_FILE" <<EOF
@@ -314,65 +320,103 @@ ${extra_args}    </array>
 </dict>
 </plist>
 EOF
-  echo "llama-ctl: service registered at $PLIST_FILE"
+  printf 'llama-ctl: service registered at %s\n' "$PLIST_FILE" >&2
 }
 
 start_llama() {
   if [[ ! -f "$PLIST_FILE" ]]; then
-    echo "llama-ctl: plist not found. Run 'llama-ctl install' first." >&2
+    printf 'llama-ctl: error: plist not found. Run '"'"'llama-ctl install'"'"' first.\n' >&2
     exit 1
   fi
-  echo "llama-ctl: starting ${PLIST_LABEL}..."
+  printf 'llama-ctl: starting %s...\n' "$PLIST_LABEL" >&2
   launchctl load -w "$PLIST_FILE"
 }
 
 stop_llama() {
   if [[ -f "$PLIST_FILE" ]]; then
-    echo "llama-ctl: stopping ${PLIST_LABEL}..."
+    printf 'llama-ctl: stopping %s...\n' "$PLIST_LABEL" >&2
     launchctl unload -w "$PLIST_FILE" 2>/dev/null || true
   else
-    echo "llama-ctl: no plist found; nothing to stop."
+    printf 'llama-ctl: no plist found; nothing to stop.\n' >&2
   fi
 }
 
 status_llama() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
   local endpoint; endpoint=$(_endpoint)
+  local launchd_running=false pid="" server_healthy=false model_id="" model_file="" model_size=""
 
   if launchctl list "$PLIST_LABEL" >/dev/null 2>&1; then
-    local pid; pid=$(launchctl list "$PLIST_LABEL" | awk '/"PID"/{gsub(/;/,"",$3); print $3}')
-    echo "llama-ctl: launchd  running (PID: ${pid:-unknown})"
-  else
-    echo "llama-ctl: launchd  not running"
+    pid=$(launchctl list "$PLIST_LABEL" 2>/dev/null | awk '/"PID"/{gsub(/;/,"",$3); print $3}')
+    [[ -n "$pid" ]] && launchd_running=true
   fi
 
   if curl -sf -m 2 "${endpoint}/health" >/dev/null 2>&1; then
-    echo "llama-ctl: health   OK (${endpoint}/health)"
-    # Show loaded model name from /v1/models
-    local model_id
+    server_healthy=true
     if command -v jq >/dev/null 2>&1; then
-      model_id=$(curl -sf -m 2 "${endpoint}/v1/models" 2>/dev/null | \
-        jq -r '.data[0].id // empty' 2>/dev/null || true)
+      model_id=$(curl -sf -m 2 "${endpoint}/v1/models" 2>/dev/null \
+        | jq -r '.data[0].id // empty' 2>/dev/null || true)
     fi
-    [[ -n "$model_id" ]] && echo "llama-ctl: model    $model_id"
-  else
-    echo "llama-ctl: health   unreachable (${endpoint})"
   fi
-
-  echo "llama-ctl: profile  ${AI_PROFILE}"
-  echo "llama-ctl: models   ${MODELS_DIR}"
 
   local model_path; model_path=$(_active_model_path)
   if [[ -n "$model_path" && -f "$model_path" ]]; then
-    local size; size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
-    echo "llama-ctl: active   $(basename "$model_path") (${size})"
+    model_file=$(basename "$model_path")
+    model_size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
+  fi
+
+  if $json; then
+    local j_pid j_model_id j_model_file j_model_size
+    j_pid="${pid:-null}"
+    j_model_id="${model_id:+"\"$model_id\""}"
+    j_model_id="${j_model_id:-null}"
+    j_model_file="${model_file:+"\"$model_file\""}"
+    j_model_file="${j_model_file:-null}"
+    j_model_size="${model_size:+"\"$model_size\""}"
+    j_model_size="${j_model_size:-null}"
+    printf '{"launchd":%s,"pid":%s,"healthy":%s,"model_id":%s,"profile":"%s","endpoint":"%s","model_file":%s,"model_size":%s}\n' \
+      "$launchd_running" "$j_pid" "$server_healthy" "$j_model_id" \
+      "$AI_PROFILE" "$endpoint" "$j_model_file" "$j_model_size"
+    return
+  fi
+
+  if $launchd_running; then
+    printf 'llama-ctl: launchd  running (PID: %s)\n' "${pid:-unknown}"
   else
-    echo "llama-ctl: active   not downloaded (run 'llama-ctl model-download')"
+    printf 'llama-ctl: launchd  not running\n'
+  fi
+
+  if $server_healthy; then
+    printf 'llama-ctl: health   OK (%s/health)\n' "$endpoint"
+    [[ -n "$model_id" ]] && printf 'llama-ctl: model    %s\n' "$model_id"
+  else
+    printf 'llama-ctl: health   unreachable (%s)\n' "$endpoint"
+  fi
+
+  printf 'llama-ctl: profile  %s\n' "$AI_PROFILE"
+  printf 'llama-ctl: models   %s\n' "$MODELS_DIR"
+
+  if [[ -n "$model_file" ]]; then
+    printf 'llama-ctl: active   %s (%s)\n' "$model_file" "$model_size"
+  else
+    printf 'llama-ctl: active   not downloaded (run '"'"'llama-ctl model-download'"'"')\n'
   fi
 }
 
 health_llama() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
   local endpoint; endpoint=$(_endpoint)
-  curl -sf -m 3 "${endpoint}/health" >/dev/null 2>&1
+  if curl -sf -m 3 "${endpoint}/health" >/dev/null 2>&1; then
+    $json && printf '{"healthy":true,"endpoint":"%s"}\n' "$endpoint"
+    return 0
+  else
+    $json && printf '{"healthy":false,"endpoint":"%s"}\n' "$endpoint"
+    return 1
+  fi
 }
 
 model_list() {
@@ -495,15 +539,47 @@ model_prune() {
   fi
 }
 
-df_llama() {
-  echo "=== llama.cpp model storage ==="
+model_df() {
+  printf '=== llama.cpp model storage ===\n'
   if [[ -d "$MODELS_DIR" ]]; then
     du -sh "$MODELS_DIR" 2>/dev/null
-    echo ""
+    printf '\n'
     model_list
   else
-    echo "  $MODELS_DIR does not exist yet."
+    printf '  %s does not exist yet.\n' "$MODELS_DIR"
   fi
+}
+
+validate_llama() {
+  if ! _has_yq; then
+    printf 'llama-ctl: error: yq required. Run: brew install yq\n' >&2
+    exit 1
+  fi
+  printf 'llama-ctl: validating %s...\n' "$CONFIG_FILE" >&2
+  yq eval '.' "$CONFIG_FILE" > /dev/null \
+    && printf 'llama-ctl: config OK\n' \
+    || { printf 'llama-ctl: error: invalid YAML\n' >&2; exit 1; }
+  # Check required top-level keys
+  for key in profiles server default_profile; do
+    local val; val=$(yq ".$key" "$CONFIG_FILE" 2>/dev/null)
+    if [[ "$val" == "null" || -z "$val" ]]; then
+      printf 'llama-ctl: error: missing required key: %s\n' "$key" >&2
+      exit 1
+    fi
+  done
+  printf 'llama-ctl: profile "%s" — ' "$AI_PROFILE"
+  local mf; mf=$(_profile_field model_file "")
+  if [[ -n "$mf" && "$mf" != "null" ]]; then
+    printf 'model_file: %s\n' "$mf"
+  else
+    printf 'WARNING: no model_file for this profile\n' >&2
+  fi
+}
+
+logs_llama() {
+  trap 'exit 0' INT TERM
+  mkdir -p "$(dirname "$LOG_FILE")"
+  tail -f "$LOG_FILE"
 }
 
 case "${1:-}" in
@@ -511,14 +587,16 @@ case "${1:-}" in
   start)          start_llama ;;
   stop)           stop_llama ;;
   restart)        stop_llama; sleep 1; start_llama ;;
-  status)         status_llama ;;
-  health)         health_llama ;;
-  logs)           mkdir -p "$(dirname "$LOG_FILE")"; tail -f "$LOG_FILE" ;;
+  status)         shift; status_llama "${@}" ;;
+  health)         shift; health_llama "${@}" ;;
+  logs)           logs_llama ;;
+  validate)       validate_llama ;;
   model-list)     model_list ;;
   model-download) model_download ;;
-  hydrate)        model_download ;;
   model-switch)   model_switch "${2:-}" ;;
   model-prune)    model_prune ;;
-  df)             df_llama ;;
-  *)              usage; exit 1 ;;
+  model-df)       model_df ;;
+  -h|--help)      usage; exit 0 ;;
+  "")             usage >&2; exit 1 ;;
+  *)              printf 'llama-ctl: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
 esac
