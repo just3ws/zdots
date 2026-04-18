@@ -96,6 +96,7 @@ if $JSON; then
     "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf"
   },
   "docs": {
+    "platform_control": "zdots-ctl check / up / down / reset / status",
     "ai":   "docs/llama-cpp.md",
     "otel": "docs/otel-collector-guide.md",
     "agents": "AGENTS.md"
@@ -124,8 +125,21 @@ _head() { printf '\n'; _bold "$*"; printf '\n'; printf '%*s\n' "${#*}" '' | tr '
 # ---------------------------------------------------------------------------
 _bold "=== Zdots Agent Guide ==="
 printf '\nThis machine is the central hub for AI inference and OTel observability.\n'
-printf 'Run this command any time to get current status and usage instructions.\n'
 printf 'For machine-readable output: agent-guide --json\n'
+
+_head "Platform Control — zdots-ctl"
+
+cat <<'EOF'
+zdots-ctl is the single command to manage the full Zdots platform.
+
+  zdots-ctl check        deep diagnostic: tools, configs, health, OTel, disk
+  zdots-ctl status       live aggregate status of all services
+  zdots-ctl up           start all services in dependency order (idempotent)
+  zdots-ctl down         stop all services cleanly
+  zdots-ctl reset        full platform restart (down + up)
+  zdots-ctl install      first-time setup on a new workstation
+  zdots-ctl status --json  machine-readable JSON
+EOF
 
 _head "Live Service Status"
 
@@ -133,28 +147,28 @@ if $AI_UP; then
   printf '%s  model=%s  endpoint=%s\n' "$(_ok "llama.cpp (AI inference)")" "$AI_MODEL_ID" "$AI_ENDPOINT"
 else
   printf '%s  endpoint=%s\n' "$(_down "llama.cpp (AI inference)")" "$AI_ENDPOINT"
-  printf '         start with: llama-ctl start\n'
 fi
 
 if $OTEL_UP; then
   printf '%s  http=%s  grpc=grpc://127.0.0.1:4317\n' "$(_ok "otelcol-contrib (OTel collector)")" "$OTEL_ENDPOINT"
 else
   printf '%s\n' "$(_down "otelcol-contrib (OTel collector)")"
-  printf '         start with: otel-collector start\n'
 fi
 
 if $COLIMA_UP; then
   printf '%s\n' "$(_ok "Colima (container runtime)")"
 else
   printf '%s\n' "$(_down "Colima (container runtime)")"
-  printf '         start with: local-ci start\n'
 fi
 
 if $GRAFANA_UP; then
   printf '%s  %s  (admin/admin)\n' "$(_ok "LGTM stack (Grafana/Loki/Tempo/Mimir)")" "$GRAFANA_URL"
 else
   printf '%s\n' "$(_down "LGTM stack (Grafana/Loki/Tempo/Mimir)")"
-  printf '         start with: local-ci start\n'
+fi
+
+if ! $AI_UP || ! $OTEL_UP || ! $COLIMA_UP || ! $GRAFANA_UP; then
+  printf '\n  To bring everything up: zdots-ctl up\n'
 fi
 
 _head "AI Inference — llama.cpp"
@@ -284,6 +298,11 @@ Environment variables (set by providers/ai/llama-cpp.zsh in interactive zsh):
 
 Override at call time:
   ZDOTS_AI_ENDPOINT=http://other:8080 ai-query "prompt"
+
+Platform control:
+  zdots-ctl check                deep diagnostic (run when something is wrong)
+  zdots-ctl up / down / reset    start / stop / restart the full platform
+  zdots-ctl status --json        machine-readable aggregate status
 
 Detailed documentation:
   docs/llama-cpp.md              Complete llama-ctl + API reference

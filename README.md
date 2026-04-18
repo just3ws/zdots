@@ -27,22 +27,29 @@ This machine serves as the **central hub for both AI inference and OTel observab
 
 ## Start Here
 
-Two commands give you a complete orientation. Run them before anything else.
+Three commands give you a complete orientation. Run them before anything else.
 
 ```sh
+# Deep platform health check — tools, configs, services, OTel pipeline, disk
+zdots-ctl check
+
 # Live status of all services + copy-paste usage guide for AI and OTel
-agent-guide --plain
+agent-guide
 
 # Environment health: validates providers, tools, disk, AI model, OTel state
 capabilities --json
 ```
 
-Both are in `bin/` which is on `$PATH` for every shell — interactive or not, zsh or bash.
+All three are in `bin/` which is on `$PATH` for every shell — interactive or not, zsh or bash.
 
 | Command | What it tells you |
 |---|---|
-| `agent-guide --plain` | Which services are up/down, how to call them, what not to break |
+| `zdots-ctl check` | Deep diagnostic across all layers — actionable fix hints |
+| `zdots-ctl status` | Quick live probe of all four services |
+| `agent-guide` | Which services are up/down, how to call them, what not to break |
 | `capabilities --json` | Whether the environment is correctly wired and healthy |
+
+**To bring the full platform up from cold:** `zdots-ctl up`
 
 Full agent standards and workflow: [AGENTS.md](AGENTS.md)
 
@@ -50,9 +57,9 @@ Full agent standards and workflow: [AGENTS.md](AGENTS.md)
 
 ## Agent / Script Usage
 
-> If you are an AI agent or running from a bash subprocess, run `agent-guide --plain` first.
-> It will tell you the current service status and exact usage patterns. The summary below is
-> a quick reference only.
+> If you are an AI agent or running from a bash subprocess, run `zdots-ctl check` then
+> `agent-guide` first. They will tell you platform health and exact usage patterns.
+> The summary below is a quick reference only.
 
 **AI inference** — the `ai` zsh function is **interactive-shell-only**. Use `ai-query` instead:
 
@@ -82,7 +89,8 @@ Grafana: `http://127.0.0.1:3000` (admin/admin) — available when `local-ci star
 
 | Capability | Entry Point | Doc |
 |---|---|---|
-| **Orientation (run first)** | `agent-guide --plain`, `capabilities --json` | [AGENTS.md](AGENTS.md) |
+| **Platform control** | `zdots-ctl up/down/reset/check/status` | [AGENTS.md](AGENTS.md) |
+| **Orientation (run first)** | `zdots-ctl check`, `agent-guide`, `capabilities --json` | [AGENTS.md](AGENTS.md) |
 | Local AI inference | `ai-query` (scripts), `ai` (interactive zsh), `llama-ctl` | [docs/llama-cpp.md](docs/llama-cpp.md) |
 | Shell history intelligence | `history-analyze` | — |
 | Distributed tracing (OTel) | automatic on every command | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
