@@ -164,9 +164,9 @@ llama-ctl validate        # validate etc/ai-models.yaml
 
 ### Inference from Agent / Script Context
 
-> **IMPORTANT:** The `ai` zsh function and `ai-start/stop/status/logs` aliases require an
-> **interactive zsh session**. They are NOT available from bash subprocesses, agent sandboxes,
-> or Claude Code's Bash tool. Always use `ai-query` or direct HTTP calls instead.
+> **IMPORTANT:** The `ai` zsh function requires an **interactive zsh session**.
+> It is NOT available from bash subprocesses, agent sandboxes, or Claude Code's Bash tool.
+> Always use `ai-query` or direct HTTP calls instead.
 
 ```sh
 # Pre-flight check (always do this before inference)
