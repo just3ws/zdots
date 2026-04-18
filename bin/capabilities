@@ -20,6 +20,9 @@
 
 set -eu
 
+# SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
+trap '' PIPE
+
 # Colors
 BOLD='\033[1m'
 GREEN='\033[0;32m'
