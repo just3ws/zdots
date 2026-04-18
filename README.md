@@ -252,6 +252,7 @@ from any shell context — no interactive zsh environment required.
 
 | Script | Purpose |
 |---|---|
+| `zdots-ctl` | Platform orchestrator: `up/down/reset/install/status/check` — single command to manage the full stack |
 | `agent-guide` | Live service status + complete usage guidance for AI agents and scripts — run this first |
 | `llama-ctl` | Full lifecycle manager for llama.cpp: install, start/stop/restart, model download, profile switching |
 | `ai-query` | AI inference from any context (subprocess-safe `ai` equivalent) |
