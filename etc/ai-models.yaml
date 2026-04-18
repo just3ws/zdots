@@ -37,6 +37,14 @@ profiles:
     n_gpu_layers: 99
     description: "Ultra-lightweight. For Raspberry Pi or when primary disk is low."
 
+  embed:
+    model_file: "nomic-embed-text-v1.5.Q8_0.gguf"
+    hf_repo: "nomic-ai/nomic-embed-text-v1.5-GGUF"
+    size_gb: 0.27
+    ctx_size: 2048
+    n_gpu_layers: 99
+    description: "Dedicated text embeddings. 274MB. For RAG/semantic search pipelines."
+
 default_profile: "standard"
 
 # llama-server startup defaults (M4 / 16GB tuning)
@@ -45,5 +53,41 @@ server:
   port: 8080
   # Parallel decode slots. 2 is safe for 16GB; drop to 1 if OOM.
   parallel: 2
-  # Continuous batching batch size.
-  batch_size: 512
+  # Logical maximum batch size: upper bound on tokens per scheduling cycle.
+  # Must be >= longest single input (embedding chunk, long prompt). 2048
+  # covers typical RAG payloads; the old default of 512 caused "input too
+  # large" errors for embedding requests.
+  batch_size: 2048
+  # Physical maximum batch size: tokens dispatched per Metal kernel call.
+  # Must be <= batch_size. 512 is the llama.cpp default and works well for
+  # autoregressive decode. Raise to match batch_size only if you see
+  # throughput bottlenecks on prompt ingestion.
+  ubatch_size: 512
+  # KV cache quantization. q8_0 halves cache memory vs the f16 default with
+  # negligible quality loss. At ctx_size=32768 x parallel=2 on a 7B model,
+  # this saves ~1GB of unified memory.
+  cache_type_k: q8_0
+  cache_type_v: q8_0
+  # Prompt prefix cache reuse. Reuses the KV cache across requests that share
+  # a common prefix — every `ai` shell call sends the same system prompt, so
+  # this eliminates redundant prefill work after the first call.
+  # Value is the minimum matching prefix length in tokens to trigger reuse.
+  cache_reuse: 256
+  # Cap generation length per request. Prevents a runaway prompt from
+  # occupying a slot indefinitely. 2048 is generous for shell assistant use.
+  # Set to -1 to remove the cap.
+  n_predict: 2048
+  # Stable API-facing model name. Integrations use this value in the `model`
+  # field of requests. Decouples callers from the GGUF filename so switching
+  # profiles (e.g. standard → reasoning) doesn't break anything.
+  alias: "local"
+  # Enable /v1/embeddings endpoint (OpenAI-compatible). Required by RAG and
+  # semantic-search integrations. pooling controls how token vectors are
+  # combined: "mean" is the correct default for most embedding models.
+  embeddings: true
+  pooling: mean
+  # Flash Attention: ~2-4x KV cache memory reduction on Apple Silicon.
+  # Speeds up longer-context inference; safe to enable on M4.
+  flash_attn: true
+  # Prometheus metrics at /metrics. Scraped by otelcol for the LGTM stack.
+  metrics: true

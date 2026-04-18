@@ -6,15 +6,28 @@
 # via Homebrew, manages the launchd service lifecycle, and handles model
 # storage on a storage-constrained 256GB primary drive.
 #
+# CONFIG:
+# All server flags and model profiles are driven by etc/ai-models.yaml.
+# Edit that file, then run `llama-ctl install` to regenerate the plist and
+# restart the server. No manual plist editing required.
+#
 # MODEL STORAGE:
 # Models default to $ZDOTS_AI_MODELS_DIR (~/.local/share/llama-cpp/models).
 # Override to an external drive: export ZDOTS_AI_MODELS_DIR=/Volumes/SSD/llama
 #
-# HARDWARE DEFAULTS:
-# Tuned for Apple Silicon M4, 16GB unified memory:
-#   --n-gpu-layers 99   (full Metal offload)
-#   --ctx-size 32768    (from active profile, ~2GB KV cache for 7B Q4)
-#   --parallel 2        (two decode slots; drop to 1 if OOM)
+# HARDWARE TUNING (M4 16GB — from etc/ai-models.yaml):
+#   --n-gpu-layers 99       full Metal offload; all layers on GPU
+#   --ctx-size 32768        ~2GB KV cache for 7B Q4 at q8_0 quantization
+#   --parallel 2            two concurrent decode slots
+#   --batch-size 2048       logical batch; covers long embedding inputs
+#   --ubatch-size 512       physical Metal kernel dispatch size
+#   --cache-type-k q8_0     KV cache K: half the memory of f16
+#   --cache-type-v q8_0     KV cache V: half the memory of f16
+#   --cache-reuse 256       prefix KV reuse across requests (system prompt)
+#   --predict 2048          per-request generation cap; prevents slot starvation
+#   --flash-attn on         2-4x KV cache reduction on Apple Silicon
+#   --embeddings            /v1/embeddings endpoint (OpenAI-compatible)
+#   --metrics               Prometheus metrics at /metrics
 
 set -euo pipefail
 
@@ -24,7 +37,16 @@ MODELS_DIR="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cp
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/llama-server.log"
 PLIST_LABEL="com.zdots.llama-server"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
-AI_PROFILE="${ZDOTS_AI_PROFILE:-standard}"
+# Read default_profile from yaml so the yaml is the single source of truth.
+# Inline the yq check — _has_yq() is not yet defined at this point.
+_default_profile() {
+  if command -v yq >/dev/null 2>&1 && [[ -r "$CONFIG_FILE" ]]; then
+    local p; p=$(yq ".default_profile" "$CONFIG_FILE" 2>/dev/null)
+    [[ -n "$p" && "$p" != "null" ]] && echo "$p" && return
+  fi
+  echo "standard"
+}
+AI_PROFILE="${ZDOTS_AI_PROFILE:-$(_default_profile)}"
 
 _has_yq() { command -v yq >/dev/null 2>&1; }
 
@@ -36,24 +58,35 @@ usage() {
   cat <<EOF
 Usage: llama-ctl <command> [options]
 
-Commands:
-  install           Install llama.cpp via Homebrew and register launchd service
-  start             Start inference server via launchd
-  stop              Stop inference server
-  restart           Stop then start
-  status            Show launchd status and health endpoint
-  health            Quick health check (exit 0 = up, exit 1 = down)
-  logs              Tail the server log
-  model-list        List downloaded models and disk usage
-  model-download    Download the active profile's model from HuggingFace
-  hydrate           Ensure active model is present (idempotent alias for model-download)
-  model-switch <p>  Print instructions to switch active profile
-  model-prune       Delete models NOT matching the active profile (reclaim disk)
-  df                Show model directory disk usage summary
+Service Lifecycle:
+  install           Install llama.cpp (Homebrew), write launchd plist, and
+                    auto-start the server if the active model is present.
+                    Re-run after any change to etc/ai-models.yaml.
+  start             Load launchd service (RunAtLoad + KeepAlive)
+  stop              Unload launchd service
+  restart           Stop, wait 1s, start
+  status            launchd state + health endpoint + active model name
+  health            Exit 0 if server is up, exit 1 if down
+  logs              tail -f the server log
+
+Model Management:
+  model-list        List downloaded GGUFs with disk sizes; marks active model
+  model-download    Download active profile's GGUF from HuggingFace (resumable)
+  hydrate           Alias for model-download
+  model-switch <p>  Print step-by-step instructions to switch to profile <p>
+  model-prune       Delete all GGUFs except the active profile's model
+  df                Disk usage summary for the model directory
+
+Config:
+  etc/ai-models.yaml   Model profiles (model_file, ctx_size, n_gpu_layers, ...)
+                       and server flags (batch sizes, KV cache, embeddings, ...)
+  default_profile      Fallback profile when ZDOTS_AI_PROFILE is unset
 
 Environment:
-  ZDOTS_AI_PROFILE      Active profile (default: standard)
-  ZDOTS_AI_MODELS_DIR   Model storage root (default: ~/.local/share/llama-cpp/models)
+  ZDOTS_AI_PROFILE      Active profile; overrides default_profile from yaml
+                        (default: value of .default_profile in etc/ai-models.yaml)
+  ZDOTS_AI_MODELS_DIR   Model storage root
+                        (default: \${XDG_DATA_HOME:-~/.local/share}/llama-cpp/models)
 EOF
 }
 
@@ -132,7 +165,7 @@ _endpoint() {
 install_llama() {
   local bin; bin=$(_binary)
   if [[ -n "$bin" ]]; then
-    local ver; ver=$("$bin" --version 2>/dev/null | head -1 || echo "version unknown")
+    local ver; ver=$("$bin" --version 2>&1 | grep '^version:' || echo "version unknown")
     echo "llama-ctl: llama.cpp already installed ($ver)"
   else
     echo "llama-ctl: installing llama.cpp via Homebrew..."
@@ -147,12 +180,25 @@ install_llama() {
     launchctl unload -w "$PLIST_FILE" 2>/dev/null || true
   fi
   _register_plist
+
+  # Auto-reload if the model is present. If not, the user needs to run
+  # model-download first — starting with a missing model causes a crash loop.
+  local _mp; _mp=$(_active_model_path)
+  if [[ -n "$_mp" && -f "$_mp" ]]; then
+    echo "llama-ctl: loading service..."
+    launchctl load -w "$PLIST_FILE"
+    echo "llama-ctl: server started"
+  else
+    echo "llama-ctl: model not found — run 'llama-ctl model-download' then 'llama-ctl start'"
+  fi
 }
 
 _register_plist() {
   local bin; bin=$(_require_binary)
   local model_path; model_path=$(_active_model_path)
-  local host port ctx_size n_gpu_layers parallel batch_size
+  local host port ctx_size n_gpu_layers parallel batch_size ubatch_size
+  local cache_type_k cache_type_v n_predict cache_reuse alias
+  local embeddings pooling flash_attn metrics
 
   if [[ -z "$model_path" || ! -f "$model_path" ]]; then
     echo "llama-ctl: warning: active model not found — plist will use placeholder path." >&2
@@ -165,7 +211,50 @@ _register_plist() {
   ctx_size=$(_profile_field ctx_size "4096")
   n_gpu_layers=$(_profile_field n_gpu_layers "99")
   parallel=$(_server_field parallel "2")
-  batch_size=$(_server_field batch_size "512")
+  batch_size=$(_server_field batch_size "2048")
+  ubatch_size=$(_server_field ubatch_size "512")
+  cache_type_k=$(_server_field cache_type_k "f16")
+  cache_type_v=$(_server_field cache_type_v "f16")
+  n_predict=$(_server_field n_predict "-1")
+  cache_reuse=$(_server_field cache_reuse "0")
+  alias=$(_server_field alias "")
+  embeddings=$(_server_field embeddings "false")
+  pooling=$(_server_field pooling "mean")
+  flash_attn=$(_server_field flash_attn "false")
+  metrics=$(_server_field metrics "false")
+
+  # Build optional flag lines for the plist ProgramArguments array.
+  local extra_args=""
+  if [[ "$embeddings" == "true" ]]; then
+    extra_args="${extra_args}        <string>--embeddings</string>
+        <string>--pooling</string>
+        <string>${pooling}</string>
+"
+  fi
+  if [[ "$flash_attn" == "true" ]]; then
+    extra_args="${extra_args}        <string>--flash-attn</string>
+        <string>on</string>
+"
+  fi
+  if [[ "$metrics" == "true" ]]; then
+    extra_args="${extra_args}        <string>--metrics</string>
+"
+  fi
+  if [[ "$n_predict" != "-1" && -n "$n_predict" ]]; then
+    extra_args="${extra_args}        <string>--predict</string>
+        <string>${n_predict}</string>
+"
+  fi
+  if [[ "$cache_reuse" != "0" && -n "$cache_reuse" ]]; then
+    extra_args="${extra_args}        <string>--cache-reuse</string>
+        <string>${cache_reuse}</string>
+"
+  fi
+  if [[ -n "$alias" && "$alias" != "null" ]]; then
+    extra_args="${extra_args}        <string>--alias</string>
+        <string>${alias}</string>
+"
+  fi
 
   echo "llama-ctl: registering launchd service..."
   mkdir -p "$(dirname "$PLIST_FILE")" "$(dirname "$LOG_FILE")"
@@ -194,13 +283,19 @@ _register_plist() {
         <string>${parallel}</string>
         <string>--batch-size</string>
         <string>${batch_size}</string>
-        <string>--log-file</string>
-        <string>${LOG_FILE}</string>
-    </array>
+        <string>--ubatch-size</string>
+        <string>${ubatch_size}</string>
+        <string>--cache-type-k</string>
+        <string>${cache_type_k}</string>
+        <string>--cache-type-v</string>
+        <string>${cache_type_v}</string>
+${extra_args}    </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
     <key>StandardOutPath</key>
     <string>${LOG_FILE}</string>
     <key>StandardErrorPath</key>
@@ -220,7 +315,6 @@ _register_plist() {
 </plist>
 EOF
   echo "llama-ctl: service registered at $PLIST_FILE"
-  echo "llama-ctl: run 'llama-ctl start' to activate"
 }
 
 start_llama() {

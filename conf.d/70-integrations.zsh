@@ -53,12 +53,15 @@ Model:    ${ZDOTS_AI_MODEL:-unknown}   [profile: ${ZDOTS_AI_PROFILE:-standard}]
 Status:   ${_ai_server_status}
 
 Manage:
-  ai-status    llama-server status
-  ai-start     start inference server
-  ai-stop      stop inference server
-  ai-logs      tail server log
-  llama-server model-download    download/update model
-  llama-server model-prune       reclaim disk (remove non-active GGUFs)
+  ai-status              llama-ctl status
+  ai-start               start inference server
+  ai-stop                stop inference server
+  ai-logs                tail server log
+  llama-ctl model-download    download/update model
+  llama-ctl model-prune       reclaim disk (remove non-active GGUFs)
+
+Agent/subprocess use (works outside interactive shell):
+  ai-query <prompt>      bin/ai-query — same inference, any shell context
 EOF
     return 0
   fi
