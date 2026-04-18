@@ -6,25 +6,48 @@ This repository is a modular, high-performance Zsh configuration ("Zdots"). All 
 
 ## START HERE — Run These First
 
-Before doing anything else, run both orientation commands. They tell you what is
+Before doing anything else, run the orientation commands. They tell you what is
 actually available and running right now — no assumptions, no stale docs.
 
 ```bash
-# 1. Live service status + complete usage guide (AI inference, OTel, destructive warnings)
-#    Works from any bash context. Use --plain for pipe-safe, ANSI-free output.
-agent-guide --plain
+# 1. Deep platform health check — tools, configs, services, OTel pipeline, disk
+zdots-ctl check
 
-# 2. Environment health report — validates service contracts, checks tooling,
+# 2. Live service status + complete usage guide (AI inference, OTel, destructive warnings)
+agent-guide
+
+# 3. Environment health report — validates service contracts, checks tooling,
 #    reports disk, AI model status, OTel trace state. Structured JSON for agents.
 capabilities --json
 ```
 
-Both commands are in `bin/` which is on `$PATH` for every shell on this machine
+All three commands are in `bin/` which is on `$PATH` for every shell on this machine
 (added by `env.sh` via `.zshenv` — no interactive zsh required).
 
 **When to re-run:**
-- `agent-guide --plain` — before any task touching AI inference or observability
+- `zdots-ctl check` — when anything seems broken; gives actionable fix hints
+- `zdots-ctl status` — quick live probe of all four services
+- `agent-guide` — before any task touching AI inference or observability
 - `capabilities --json` — when debugging missing tools, broken providers, or health failures
+
+## Platform Control — zdots-ctl
+
+`zdots-ctl` is the **single authoritative command** for managing the full Zdots platform.
+Use it instead of calling individual service managers for orchestration tasks.
+
+```bash
+zdots-ctl up           # start all services in dependency order (idempotent)
+zdots-ctl down         # stop all services cleanly
+zdots-ctl reset        # full platform restart (down + up)
+zdots-ctl install      # first-time setup on a new workstation
+zdots-ctl status       # live aggregate status [--json]
+zdots-ctl check        # deep diagnostic: tools, configs, health, OTel, disk
+```
+
+Dependency order (enforced by `up`):
+1. Colima + LGTM stack (`local-ci start`)
+2. otel-collector (`otel-collector start`)
+3. AI server (`llama-ctl start`)
 
 ---
 
