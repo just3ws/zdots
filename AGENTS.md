@@ -89,32 +89,127 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
 - **History:** `atuin` (SQLite) with `history_enquire` (`he`) for maintenance.
 - **Search:** `fzf` + `fzf-tab` integration.
 - **File System:** `zoxide` (`z`), `eza` (aliased to `ls`), and `broot` (`br`) for weighted tree navigation.
-- **AI Integration:** Use the `ai` function to pipe command output into patterns (e.g., `cat logs.txt | ai summarize`). Full guide: `docs/llama-cpp.md`.
+- **AI Integration:** Use `ai-query` to pipe command output into inference from any bash context (e.g., `cat logs.txt | ai-query "summarize"`). The `ai` zsh function requires an interactive shell — do not use it from scripts or agent tools. Full guide: `docs/llama-cpp.md`.
 - **Data Handling:** `jless`/`fx` for interactive JSON exploration.
 - **GitHub:** Use `gh dash` for a full overview of PRs and Issues.
 
-## Local AI Runtime — llama.cpp
+## Local AI Runtime — llama.cpp (Central Hub)
 
-Primary runtime. Server must be running for `ai` function to work.
+This machine is the **primary AI inference hub** for this environment. The llama.cpp server
+runs as a launchd service (auto-start on login), exposes an OpenAI-compatible HTTP API on
+port 8080, and serves both chat completions and text embeddings.
+
+### Service Management
 
 ```sh
 llama-ctl status          # check launchd state + health + active model
-llama-ctl install         # first-time: brew install + register launchd plist
+llama-ctl install         # first-time: brew install + register launchd plist (auto-starts)
 llama-ctl model-download  # download active profile GGUF from HuggingFace
-llama-ctl start           # start (auto-starts on login once registered)
-ai "prompt"                  # direct inference
-cat file | ai "task"         # pipe inference
+llama-ctl start           # start server
+llama-ctl stop            # stop server
+llama-ctl restart         # restart server
+llama-ctl logs            # tail server log
+llama-ctl health          # quick health check (exits 0 = up, 1 = down)
+```
+
+### Inference from Agent / Script Context
+
+> **IMPORTANT:** The `ai` zsh function and `ai-start/stop/status/logs` aliases require an
+> **interactive zsh session**. They are NOT available from bash subprocesses, agent sandboxes,
+> or Claude Code's Bash tool. Always use `ai-query` or direct HTTP calls instead.
+
+```sh
+# Pre-flight check (always do this before inference)
+llama-ctl health || { echo "Start with: llama-ctl start"; exit 1; }
+
+# Subprocess-safe inference (works from any bash context)
+ai-query "What does SIGPIPE mean?"
+git diff | ai-query "Write a commit message"
+cat error.log | ai-query "Find the root cause"
+
+# Direct HTTP (no zsh environment required)
+curl -sf http://127.0.0.1:8080/health
+curl -s http://127.0.0.1:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"local","messages":[{"role":"user","content":"Hello"}],"stream":false}'
+
+# Interactive shell only
 history-analyze --ai         # AI-powered shell history analysis
 ```
 
-**Provider:** `providers/ai/llama-cpp.zsh` — OpenAI-compat API on `http://127.0.0.1:8080`.
-**Config:** `etc/ai-models.yaml` — GGUF filenames, HuggingFace repos, Metal GPU layers.
+### API Endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Health check — exits 0 when ready |
+| `GET /v1/models` | List loaded models |
+| `POST /v1/chat/completions` | Chat inference (model: `"local"`) |
+| `POST /v1/completions` | Text completion |
+| `POST /v1/embeddings` | Text embeddings (model: `"local"`) |
+| `GET /metrics` | Prometheus metrics |
+
+**Provider:** `providers/ai/llama-cpp.zsh` — sets `ZDOTS_AI_ENDPOINT` and `ZDOTS_AI_MODEL`.
+**Config:** `etc/ai-models.yaml` — GGUF filenames, HuggingFace repos, server flags, model profiles.
 **Full guide:** `docs/llama-cpp.md`
 
 **Hardware context:** M4 MBA, 16GB RAM, 256GB primary disk.
-- One active GGUF at a time. Prune stale models: `llama-ctl model-prune`.
+- One active GGUF at a time. ⚠️ `llama-ctl model-prune` **permanently deletes** non-active GGUFs — confirm before running.
 - Default model: Qwen2.5-Coder-7B Q4_K_M (~4.7GB, `standard` profile).
 - If OOM: reduce `--parallel` to 1 in `etc/ai-models.yaml`, or switch to `constrained` profile.
+
+## Observability — OTel + LGTM Stack (Central Hub)
+
+This machine is the **central observability hub** for this environment. Every shell command
+emits an OTel span. The bare-metal `otelcol-contrib` host collector forwards telemetry to a
+local LGTM stack (Grafana, Loki, Tempo, Mimir) running in Colima.
+
+```
+Shell / ai-query / local apps
+        |
+        v OTLP (http/protobuf, port 4318)
+  otelcol-contrib (host, bare-metal)
+        |
+        v forward
+  LGTM stack in Colima (ports 4417/4418)
+        |
+        v
+  Grafana :3000  (http://127.0.0.1:3000, admin/admin)
+  Loki           (logs)
+  Tempo          (traces)
+  Mimir          (metrics + RED metrics auto-derived from traces)
+```
+
+### Collector Management (bare-metal host process)
+
+```sh
+otel-collector status     # check if collector is running
+otel-collector start      # start host collector
+otel-collector stop       # stop host collector
+otel-collector restart    # restart collector
+otel-collector validate   # validate etc/otel-collector.yaml
+otel-collector logs       # tail collector log
+otel-collector install    # first-time: install otelcol-contrib binary
+```
+
+### LGTM Stack Management (Colima/Docker)
+
+```sh
+local-ci up               # start Colima + LGTM stack
+local-ci down             # stop LGTM stack
+local-ci status           # check stack status
+local-ci logs             # tail stack logs
+```
+
+### Connecting Local Apps
+
+```sh
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+```
+
+**Full guide:** `docs/otel-collector-guide.md` — SDK examples (Node, Python, Go, Rust), curl examples, pipeline details.
+
+---
 
 ## Storage Hygiene — Docker / Colima / Models
 
@@ -130,9 +225,10 @@ llama-ctl model-prune     # delete non-active GGUFs
 
 **Full guide:** `docs/storage-hygiene.md`
 
-**Critical:** `docker-reclaim -f` runs `fstrim` inside the Colima VM. Without this,
-`docker system prune` frees space inside the VM but the disk image on the macOS
-host does not shrink. Always use `docker-reclaim` instead of raw `docker system prune`.
+**Critical:** `docker-reclaim -f` **permanently destroys** containers, images, volumes, and
+build cache, then runs `fstrim` inside the Colima VM. Without `fstrim`, freed space inside
+the VM does not reclaim disk on the macOS host. Always use `docker-reclaim` (dry-run first)
+instead of raw `docker system prune`. ⚠️ Pass `-f` only when you have confirmed the dry-run output.
 
 ## Safety & Quality
 - **Commits:** Use `git absorb` to automatically attribute fixup changes to the correct commit.

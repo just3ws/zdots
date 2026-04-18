@@ -19,6 +19,43 @@ tracing, shell history intelligence, and lifecycle management for local
 services — all wired together through a provider-based dependency injection
 system.
 
+This machine serves as the **central hub for both AI inference and OTel observability**:
+- **AI hub:** llama.cpp runs as a launchd service (port 8080), OpenAI-compatible API, embeddings enabled.
+- **Observability hub:** bare-metal `otelcol-contrib` forwards all telemetry to a local LGTM stack in Colima.
+
+---
+
+## Agent / Script Usage
+
+> If you are an AI agent or running from a bash subprocess, read this section first.
+
+**AI inference** — the `ai` zsh function is **interactive-shell-only**. Use `ai-query` instead:
+
+```sh
+# Pre-flight
+llama-ctl health || echo "Start with: llama-ctl start"
+
+# Inference from any bash context
+ai-query "What does SIGPIPE mean?"
+git diff | ai-query "Write a commit message"
+
+# Direct HTTP (no tooling required)
+curl -s http://127.0.0.1:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"local","messages":[{"role":"user","content":"Hello"}],"stream":false}'
+```
+
+**OTel / LGTM** — connect any local app:
+
+```sh
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+```
+
+Grafana: `http://127.0.0.1:3000` (admin/admin) — available when `local-ci up` is running.
+
+Full agent guidance: [AGENTS.md](AGENTS.md)
+
 ---
 
 ## Capabilities at a Glance
@@ -206,7 +243,7 @@ from any shell context — no interactive zsh environment required.
 | `bootstrap` | First-time dependency installation |
 | `secret-scan` | High-signal secret and credential leak detector |
 | `trace-verify` | OTel trace contract testing for the shell control plane |
-| `docker-reclaim` | Docker/Colima disk reclaim: prune images, volumes, build cache, fstrim |
+| `docker-reclaim` | Docker/Colima disk reclaim: prune images, volumes, build cache, fstrim — **dry run by default; `-f` is destructive and permanent** |
 | `colima-autostart` | launchd plist registration for Colima boot persistence |
 | `history-import` | Import and normalize shell history from external sources |
 
@@ -231,8 +268,9 @@ aggressively. See [docs/storage-hygiene.md](docs/storage-hygiene.md).
 
 ```sh
 llama-ctl df              # model storage usage
-llama-ctl model-prune     # delete non-active GGUFs
-docker-reclaim            # prune Docker/Colima (dry run by default; pass -f)
+llama-ctl model-prune     # permanently delete non-active GGUFs — confirm before running
+docker-reclaim            # dry run: show what would be freed
+docker-reclaim -f         # DESTRUCTIVE: prune containers/images/volumes/cache + fstrim
 ```
 
 ---
