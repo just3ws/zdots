@@ -45,3 +45,8 @@ links:
 | **Variety** | One obvious way to do it. | Every user has a unique `.zshrc`. |
 | **Complexity** | Simple is better than complex. | Complex one-liners are a badge of honor. |
 | **Focus** | Readability and maintenance. | Speed and interactive efficiency. |
+
+---
+
+*For Agnieszka — who gave her name to this machine, her patience to its keeper,*
+*and twenty-five years to someone who really should close the laptop more often.*
