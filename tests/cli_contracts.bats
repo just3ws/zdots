@@ -72,6 +72,11 @@ _grafana_up() {
   [ "$status" -eq 0 ]
 }
 
+@test "zdots-ctl: --help exits 0" {
+  run "$BIN/zdots-ctl" --help
+  [ "$status" -eq 0 ]
+}
+
 # --help output must go to STDOUT (not STDERR) so it can be piped/paged.
 @test "llama-ctl: --help output goes to stdout" {
   stdout=$("$BIN/llama-ctl" --help 2>/dev/null)
@@ -390,4 +395,48 @@ _grafana_up() {
   echo "$output" | jq -e '.ai'       >/dev/null
   echo "$output" | jq -e '.otel'     >/dev/null
   echo "$output" | jq -e '.env'      >/dev/null
+}
+
+@test "zdots-ctl: unknown subcommand exits 1" {
+  run "$BIN/zdots-ctl" not-a-real-command
+  [ "$status" -eq 1 ]
+}
+
+@test "zdots-ctl: no arguments exits 1" {
+  run "$BIN/zdots-ctl"
+  [ "$status" -eq 1 ]
+}
+
+@test "zdots-ctl: status output goes to stdout" {
+  stdout=$("$BIN/zdots-ctl" status 2>/dev/null)
+  [ -n "$stdout" ]
+}
+
+@test "zdots-ctl: status --json produces valid JSON" {
+  run "$BIN/zdots-ctl" status --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq . >/dev/null
+}
+
+@test "zdots-ctl: status --json contains expected keys" {
+  run "$BIN/zdots-ctl" status --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.colima'         >/dev/null
+  echo "$output" | jq -e '.lgtm'           >/dev/null
+  echo "$output" | jq -e '.otel_collector' >/dev/null
+  echo "$output" | jq -e '.ai_server'      >/dev/null
+}
+
+@test "zdots-ctl: check exits 0 when platform healthy" {
+  if ! curl -sf -m 2 http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
+    skip "LGTM stack not running"
+  fi
+  run "$BIN/zdots-ctl" check
+  [ "$status" -eq 0 ]
+}
+
+@test "zdots-ctl: no broken pipe error when output truncated" {
+  noise=$(bash -c '"$1" --help 2>&1 | head -1 >/dev/null; exit 0' _ "$BIN/zdots-ctl")
+  [[ "$noise" != *"Broken pipe"* ]]
+  [[ "$noise" != *"write error"* ]]
 }

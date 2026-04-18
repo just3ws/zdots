@@ -1,0 +1,410 @@
+#!/usr/bin/env bash
+# bin/zdots-ctl — Zdots platform orchestrator and health checker
+#
+# Brings the entire local platform up or down in dependency order,
+# validates each step, and provides a single break-glass reset command.
+# Also runs a "brew doctor"-style deep environment check.
+#
+# Dependency order (up):
+#   1. Colima (VM)
+#      └── LGTM stack (docker-compose in Colima)
+#            └── otel-collector (bare-metal, forwards to LGTM)
+#   2. llama-ctl / AI server (independent, launchd)
+
+set -euo pipefail
+trap '' PIPE
+
+BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+OTLP_ENDPOINT="http://127.0.0.1:4318"
+GRAFANA_URL="http://127.0.0.1:3000"
+WAIT_TIMEOUT="${ZDOTS_BOOT_TIMEOUT:-90}"
+
+# ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
+
+_info()    { printf 'zdots-ctl: %s\n'       "$*" >&2; }
+_ok()      { printf 'zdots-ctl: [ok]  %s\n' "$*" >&2; }
+_warn()    { printf 'zdots-ctl: [!!]  %s\n' "$*" >&2; }
+_die()     { printf 'zdots-ctl: [err] %s\n' "$*" >&2; exit 1; }
+_section() { printf '\nzdots-ctl: ── %s ──\n' "$*" >&2; }
+
+# check subcommand report helpers — write to STDOUT so output is pipeable
+_pass() { printf '  [PASS] %s\n'      "$*"; }
+_fail() { printf '  [FAIL] %s\n'      "$*"; }
+_chkwarn() { printf '  [WARN] %s\n'   "$*"; }
+_fix()  { printf '         fix: %s\n' "$*"; }
+
+# ---------------------------------------------------------------------------
+# Live probes
+# ---------------------------------------------------------------------------
+
+_ai_up()      { curl -sf -m 2 "${AI_ENDPOINT}/health"    >/dev/null 2>&1; }
+_otel_up()    { launchctl list com.zdots.otel-collector   2>/dev/null | grep -q '"PID"'; }
+_grafana_up() { curl -sf -m 2 "${GRAFANA_URL}/api/health" >/dev/null 2>&1; }
+_colima_up()  { colima status >/dev/null 2>&1; }
+
+_wait_for() {
+  local label="$1" url="$2" timeout="${3:-$WAIT_TIMEOUT}"
+  local elapsed=0
+  printf 'zdots-ctl: waiting for %s' "$label" >&2
+  while ! curl -sf -m 2 "$url" >/dev/null 2>&1; do
+    if [[ $elapsed -ge $timeout ]]; then
+      printf '\n' >&2
+      _die "timed out after ${timeout}s waiting for ${label} (${url})"
+    fi
+    printf '.' >&2
+    sleep 3
+    elapsed=$((elapsed + 3))
+  done
+  printf ' ready\n' >&2
+}
+
+# ---------------------------------------------------------------------------
+# Lifecycle commands
+# ---------------------------------------------------------------------------
+
+cmd_up() {
+  _section "Bringing platform up"
+
+  # 1. Colima + LGTM stack
+  if _grafana_up; then
+    _ok "LGTM stack already up (Grafana reachable)"
+  else
+    _info "starting LGTM stack (Colima + Grafana/Loki/Tempo/Mimir)..."
+    "$BIN/local-ci" start
+    _wait_for "Grafana" "${GRAFANA_URL}/api/health"
+    _ok "LGTM stack up"
+  fi
+
+  # 2. otel-collector (needs LGTM to forward to)
+  if _otel_up; then
+    _ok "otel-collector already running"
+  else
+    _info "starting otel-collector..."
+    "$BIN/otel-collector" start
+    sleep 2
+    if _otel_up; then
+      _ok "otel-collector up"
+    else
+      _warn "otel-collector did not start — run: otel-collector install"
+    fi
+  fi
+
+  # 3. AI server (independent)
+  if _ai_up; then
+    _ok "AI server already up"
+  else
+    _info "starting AI server..."
+    "$BIN/llama-ctl" start
+    _wait_for "AI server" "${AI_ENDPOINT}/health" 60
+    _ok "AI server up"
+  fi
+
+  _section "Platform status"
+  cmd_status
+}
+
+cmd_down() {
+  _section "Bringing platform down"
+  # Reverse dependency order
+  _info "stopping otel-collector..."
+  "$BIN/otel-collector" stop 2>/dev/null || true
+  _info "stopping AI server..."
+  "$BIN/llama-ctl" stop 2>/dev/null || true
+  _info "stopping LGTM stack and Colima..."
+  "$BIN/local-ci" stop 2>/dev/null || true
+  _ok "platform down"
+}
+
+cmd_reset() {
+  _section "Resetting platform"
+  cmd_down
+  sleep 2
+  cmd_up
+}
+
+cmd_install() {
+  _section "Installing platform (first-time setup)"
+  _info "installing llama.cpp..."
+  "$BIN/llama-ctl" install
+  _info "installing otel-collector..."
+  "$BIN/otel-collector" install
+  _section "Starting platform"
+  cmd_up
+  _section "Validating environment"
+  "$BIN/capabilities"
+}
+
+cmd_status() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local lgtm_up ai_up otel_up colima_up
+  _grafana_up && lgtm_up=true   || lgtm_up=false
+  _ai_up      && ai_up=true     || ai_up=false
+  _otel_up    && otel_up=true   || otel_up=false
+  _colima_up  && colima_up=true || colima_up=false
+
+  if $json; then
+    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"grafana_url":"%s","ai_endpoint":"%s","otlp_endpoint":"%s"}\n' \
+      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" \
+      "$GRAFANA_URL" "$AI_ENDPOINT" "$OTLP_ENDPOINT"
+    return
+  fi
+
+  local tick cross
+  tick='✓' cross='✗'
+  _sym() { [[ "$1" == "true" ]] && printf '%s' "$tick" || printf '%s' "$cross"; }
+
+  printf 'zdots-ctl: platform status\n'
+  printf '  %-20s %s  %s\n' "colima"         "$(_sym "$colima_up")" "$([ "$colima_up" = true ] && echo up || echo down)"
+  printf '  %-20s %s  %s\n' "LGTM stack"     "$(_sym "$lgtm_up")"  "$GRAFANA_URL"
+  printf '  %-20s %s  %s\n' "otel-collector" "$(_sym "$otel_up")"  "$OTLP_ENDPOINT"
+  printf '  %-20s %s  %s\n' "AI server"      "$(_sym "$ai_up")"    "$AI_ENDPOINT"
+
+  if [[ "$lgtm_up" == false || "$ai_up" == false || "$otel_up" == false ]]; then
+    printf '\nzdots-ctl: to start all: zdots-ctl up\n'
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# check — "brew doctor" / ":checkhealth" style deep diagnostic
+# ---------------------------------------------------------------------------
+#
+# Each check is independent. Output goes to STDOUT for piping.
+# Exits 0 if all checks pass or warn; exits 1 if any check fails.
+
+cmd_check() {
+  local errors=0 warnings=0
+
+  _chk_pass() { _pass "$1"; }
+  _chk_warn() { _chkwarn "$1"; warnings=$((warnings + 1)); }
+  _chk_fail() { _fail "$1"; errors=$((errors + 1)); }
+
+  printf 'zdots-ctl check — %s\n\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+
+  # ── Required tools ─────────────────────────────────────────────────────────
+  printf 'Required tools\n'
+  for tool in brew git curl jq yq colima docker llama-server otelcol-contrib; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      _chk_pass "$tool  $(command -v "$tool")"
+    else
+      _chk_fail "$tool  not found"
+      _fix "brew install $tool"
+    fi
+  done
+
+  # ── Config files ───────────────────────────────────────────────────────────
+  printf '\nConfig files\n'
+
+  _check_file() {
+    local label="$1" path="$2" fix="$3"
+    if [[ -f "$path" ]]; then
+      _chk_pass "$label  $path"
+    else
+      _chk_fail "$label  missing: $path"
+      [[ -n "$fix" ]] && _fix "$fix"
+    fi
+  }
+
+  _check_file "ai-models.yaml"      "$ZDOTDIR/etc/ai-models.yaml"         ""
+  _check_file "otel-collector.yaml" "$ZDOTDIR/etc/otel-collector.yaml"    ""
+  _check_file "docker-compose.lgtm" "$ZDOTDIR/etc/docker-compose.lgtm.yaml" ""
+
+  local llama_plist="$HOME/Library/LaunchAgents/com.zdots.llama-server.plist"
+  local otel_plist="$HOME/Library/LaunchAgents/com.zdots.otel-collector.plist"
+  if [[ -f "$llama_plist" ]]; then
+    _chk_pass "llama-server plist  $llama_plist"
+  else
+    _chk_warn "llama-server plist  not registered"
+    _fix "llama-ctl install"
+  fi
+  if [[ -f "$otel_plist" ]]; then
+    _chk_pass "otel-collector plist  $otel_plist"
+  else
+    _chk_warn "otel-collector plist  not registered"
+    _fix "otel-collector install"
+  fi
+
+  # ── YAML validity ──────────────────────────────────────────────────────────
+  printf '\nConfig validity\n'
+  if command -v yq >/dev/null 2>&1; then
+    local f
+    for f in "$ZDOTDIR/etc/ai-models.yaml" "$ZDOTDIR/etc/otel-collector.yaml"; do
+      if [[ -f "$f" ]]; then
+        if yq eval '.' "$f" >/dev/null 2>&1; then
+          _chk_pass "$(basename "$f")  valid YAML"
+        else
+          _chk_fail "$(basename "$f")  invalid YAML"
+          _fix "yq eval . $f"
+        fi
+      fi
+    done
+  else
+    _chk_warn "yq not available — skipping YAML validation"
+    _fix "brew install yq"
+  fi
+
+  # ── Model storage ──────────────────────────────────────────────────────────
+  printf '\nModel storage\n'
+  local models_dir="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
+  if [[ -d "$models_dir" ]]; then
+    local model_count
+    model_count=$(find "$models_dir" -name "*.gguf" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$model_count" -gt 0 ]]; then
+      _chk_pass "models dir  $models_dir ($model_count GGUF file(s))"
+    else
+      _chk_warn "models dir exists but no .gguf files found"
+      _fix "llama-ctl model-download"
+    fi
+  else
+    _chk_warn "models dir not found: $models_dir"
+    _fix "llama-ctl model-download  (will create dir)"
+  fi
+
+  # Disk space warning (storage-constrained machine)
+  local avail_kb
+  avail_kb=$(df -k / 2>/dev/null | tail -1 | awk '{print $4}')
+  local avail_gb=$(( avail_kb / 1024 / 1024 ))
+  if [[ $avail_gb -lt 5 ]]; then
+    _chk_fail "disk available: ${avail_gb}GB — critically low"
+    _fix "llama-ctl model-prune && docker-reclaim -f"
+  elif [[ $avail_gb -lt 15 ]]; then
+    _chk_warn "disk available: ${avail_gb}GB — getting low"
+    _fix "docker-reclaim  (dry run first)"
+  else
+    _chk_pass "disk available: ${avail_gb}GB"
+  fi
+
+  # ── Service health ─────────────────────────────────────────────────────────
+  printf '\nService health\n'
+
+  if _colima_up; then
+    _chk_pass "Colima  running"
+  else
+    _chk_warn "Colima  not running"
+    _fix "zdots-ctl up"
+  fi
+
+  if _grafana_up; then
+    _chk_pass "LGTM stack  Grafana reachable ($GRAFANA_URL)"
+  else
+    _chk_warn "LGTM stack  Grafana unreachable"
+    _fix "zdots-ctl up"
+  fi
+
+  if _otel_up; then
+    _chk_pass "otel-collector  running"
+  else
+    _chk_warn "otel-collector  not running"
+    _fix "zdots-ctl up"
+  fi
+
+  if _ai_up; then
+    _chk_pass "AI server  reachable ($AI_ENDPOINT)"
+  else
+    _chk_warn "AI server  unreachable"
+    _fix "zdots-ctl up"
+  fi
+
+  # ── OTel pipeline smoke test ───────────────────────────────────────────────
+  printf '\nOTel pipeline\n'
+  if _otel_up; then
+    # Send a minimal OTLP payload; a 2xx response means the pipeline is accepting spans
+    local otlp_code
+    otlp_code=$(curl -s -o /dev/null -w '%{http_code}' -m 3 \
+      -X POST "${OTLP_ENDPOINT}/v1/traces" \
+      -H 'Content-Type: application/json' \
+      -d '{"resourceSpans":[]}' 2>/dev/null || echo "000")
+    if [[ "$otlp_code" == "200" ]]; then
+      _chk_pass "OTLP endpoint  accepting spans ($OTLP_ENDPOINT/v1/traces)"
+    else
+      _chk_warn "OTLP endpoint  responded $otlp_code (expected 200)"
+      _fix "otel-collector logs  — check for pipeline errors"
+    fi
+  else
+    _chk_warn "OTLP pipeline  skipped (collector not running)"
+    _fix "zdots-ctl up"
+  fi
+
+  # ── Trace file ────────────────────────────────────────────────────────────
+  printf '\nShell traces\n'
+  local trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
+  if [[ -f "$trace_file" ]]; then
+    local line_count
+    line_count=$(wc -l < "$trace_file" | tr -d ' ')
+    _chk_pass "trace file  $trace_file ($line_count entries)"
+  else
+    _chk_warn "trace file  not found: $trace_file"
+    _fix "open a new shell session to start tracing"
+  fi
+
+  # ── Summary ───────────────────────────────────────────────────────────────
+  printf '\n'
+  if [[ $errors -eq 0 && $warnings -eq 0 ]]; then
+    printf 'zdots-ctl check: all checks passed\n'
+  elif [[ $errors -eq 0 ]]; then
+    printf 'zdots-ctl check: passed with %d warning(s)\n' "$warnings"
+  else
+    printf 'zdots-ctl check: %d failure(s), %d warning(s)\n' "$errors" "$warnings"
+  fi
+
+  [[ $errors -eq 0 ]]
+}
+
+# ---------------------------------------------------------------------------
+# Usage
+# ---------------------------------------------------------------------------
+
+usage() {
+  cat <<EOF
+Usage: zdots-ctl <command> [options]
+
+Platform Lifecycle:
+  up        Start all services in dependency order (idempotent)
+  down      Stop all services cleanly (reverse dependency order)
+  reset     down + up — full platform restart
+  install   First-time setup: install binaries, register launchd agents, start
+
+Diagnostics:
+  check     Deep environment check — tools, configs, services, disk, OTel pipeline
+  status    Live service status (quick)
+  status --json  Same as JSON
+
+Dependency order (up):
+  1. Colima + LGTM stack  (local-ci start)
+  2. otel-collector       (otel-collector start)
+  3. AI server            (llama-ctl start)
+
+Environment:
+  ZDOTS_BOOT_TIMEOUT   Seconds to wait per service health check (default: 90)
+  ZDOTS_AI_ENDPOINT    AI server base URL (default: http://127.0.0.1:8080)
+
+Options:
+  -h, --help    Show this help
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
+case "${1:-}" in
+  up)        cmd_up ;;
+  down)      cmd_down ;;
+  reset)     cmd_reset ;;
+  install)   cmd_install ;;
+  check)     cmd_check ;;
+  status)    shift; cmd_status "${@}" ;;
+  -h|--help) usage; exit 0 ;;
+  "")        usage >&2; exit 1 ;;
+  *)         printf 'zdots-ctl: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+esac
