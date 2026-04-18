@@ -150,13 +150,16 @@ port 8080, and serves both chat completions and text embeddings.
 
 ```sh
 llama-ctl status          # check launchd state + health + active model
+llama-ctl status --json   # same, as JSON (pipe to jq)
 llama-ctl install         # first-time: brew install + register launchd plist (auto-starts)
 llama-ctl model-download  # download active profile GGUF from HuggingFace
 llama-ctl start           # start server
 llama-ctl stop            # stop server
 llama-ctl restart         # restart server
-llama-ctl logs            # tail server log
-llama-ctl health          # quick health check (exits 0 = up, 1 = down)
+llama-ctl logs            # tail server log (clean exit on Ctrl-C)
+llama-ctl health          # quick health check (exits 0=up, 1=down)
+llama-ctl health --json   # same, as JSON
+llama-ctl validate        # validate etc/ai-models.yaml
 ```
 
 ### Inference from Agent / Script Context
@@ -229,22 +232,31 @@ Shell / ai-query / local apps
 ### Collector Management (bare-metal host process)
 
 ```sh
-otel-collector status     # check if collector is running
-otel-collector start      # start host collector
-otel-collector stop       # stop host collector
-otel-collector restart    # restart collector
-otel-collector validate   # validate etc/otel-collector.yaml
-otel-collector logs       # tail collector log
-otel-collector install    # first-time: install otelcol-contrib binary
+otel-collector status           # check if collector is running
+otel-collector status --json    # same, as JSON (pipe to jq)
+otel-collector start            # start host collector
+otel-collector stop             # stop host collector
+otel-collector restart          # restart (picks up config changes)
+otel-collector health           # exits 0=up, 1=down
+otel-collector health --json    # same, as JSON
+otel-collector validate         # validate etc/otel-collector.yaml
+otel-collector logs             # tail collector log (clean exit on Ctrl-C)
+otel-collector install          # first-time: install otelcol-contrib binary
 ```
 
 ### LGTM Stack Management (Colima/Docker)
 
 ```sh
-local-ci up               # start Colima + LGTM stack
-local-ci down             # stop LGTM stack
-local-ci status           # check stack status
-local-ci logs             # tail stack logs
+local-ci start                  # start Colima + LGTM stack
+local-ci stop                   # stop LGTM stack
+local-ci restart                # stop then start
+local-ci status                 # check stack status
+local-ci status --json          # same, as JSON (pipe to jq)
+local-ci health                 # exits 0=up, 1=down
+local-ci health --json          # same, as JSON
+local-ci logs                   # tail LGTM stack logs (clean exit on Ctrl-C)
+local-ci prune                  # dry run: show what Docker prune would free
+local-ci prune -f               # DESTRUCTIVE: execute Docker prune
 ```
 
 ### Connecting Local Apps
@@ -265,9 +277,9 @@ Container runtime: Colima (replaces OrbStack). LGTM stack runs inside.
 ```sh
 docker-df                    # show Docker disk consumption
 docker-reclaim               # dry run: show what would be freed
-docker-reclaim -f            # execute: prune containers/images/volumes/cache + fstrim
-llama-ctl df              # show model directory size
-llama-ctl model-prune     # delete non-active GGUFs
+docker-reclaim -f            # DESTRUCTIVE: prune containers/images/volumes/cache + fstrim
+llama-ctl model-df           # show model directory size
+llama-ctl model-prune        # DESTRUCTIVE: delete non-active GGUFs
 ```
 
 **Full guide:** `docs/storage-hygiene.md`

@@ -23,6 +23,9 @@
 
 set -euo pipefail
 
+# SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
+trap '' PIPE
+
 ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
 MODEL="${ZDOTS_AI_MODEL:-local}"
 SYSTEM="You are a helpful shell assistant. Concisely parse the provided data."

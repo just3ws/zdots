@@ -1,17 +1,19 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # bin/otel-collector — Manage the bare-metal OpenTelemetry Collector.
 #
 # RATIONALE:
-# To maintain high shell performance, we use a local bare-metal collector 
-# on the host. It receives OTLP spans from the shell and apps, buffers them, 
+# To maintain high shell performance, we use a local bare-metal collector
+# on the host. It receives OTLP spans from the shell and apps, buffers them,
 # and forwards them to the heavier LGTM stack running in Colima.
 #
-# PURPOSE:
-# 1. Automate installation of the official otelcol-contrib binary.
-# 2. Manage the lifecycle (start/stop/status) of the host collector.
-# 3. Link host telemetry to the Colima observability hub.
+# GRAMMAR:
+# Service lifecycle verbs are consistent with llama-ctl and local-ci:
+#   install / start / stop / restart / status / health / logs / validate
 
-set -eu
+set -euo pipefail
+
+# SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
+trap '' PIPE
 
 VERSION="0.148.0"
 DISTRO="otelcol-contrib"
@@ -24,57 +26,67 @@ INSTALL_DIR="${HOME}/.local/bin"
 BINARY="${INSTALL_DIR}/${DISTRO}"
 CONFIG_FILE="${ZDOTDIR:-$(pwd)}/etc/otel-collector.yaml"
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.log"
-PID_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
 PLIST_LABEL="com.zdots.otel-collector"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
+OTLP_ENDPOINT="http://127.0.0.1:4318"
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+_die()  { printf 'otel-collector: error: %s\n' "$*" >&2; exit 1; }
+_info() { printf 'otel-collector: %s\n' "$*" >&2; }
 
 usage() {
   cat <<EOF
-Usage: otel-collector <command>
+Usage: otel-collector <command> [--json]
 
-Commands:
-  install - Download binary and register macOS service
-  start   - Start the service via launchctl
-  stop    - Stop the service via launchctl
-  restart - Restart the service (reload config)
-  status  - Check service status via launchctl
-  validate - Validate the collector configuration
-  logs    - Tail the collector logs
+Service Lifecycle:
+  install   Download binary and register macOS launchd service
+  start     Load and start the launchd service
+  stop      Unload and stop the service
+  restart   stop then start (picks up config changes)
+  status    Show service state and process info
+  health    Exit 0 if collector endpoint is reachable, exit 1 otherwise
+  logs      Tail the collector log
+  validate  Validate etc/otel-collector.yaml
+
+Options:
+  --json      Output status/health as JSON (valid for status, health)
+  -h, --help  Show this help
+
+Environment:
+  ZDOTDIR  Repository root (config file: \$ZDOTDIR/etc/otel-collector.yaml)
 EOF
 }
 
-validate_otel() {
-  if [ ! -x "$BINARY" ]; then
-    echo "otel-collector: error: binary not found. Run 'otel-collector install' first." >&2
-    exit 1
-  fi
-  echo "otel-collector: validating config $CONFIG_FILE..."
-  "$BINARY" validate --config "$CONFIG_FILE"
-}
+# ---------------------------------------------------------------------------
+# Subcommand implementations
+# ---------------------------------------------------------------------------
 
-install_otel() {
-  echo "otel-collector: installing version v${VERSION} for ${OS}/${ARCH}..."
+cmd_install() {
+  _info "installing v${VERSION} for ${OS}/${ARCH}..."
   mkdir -p "$INSTALL_DIR"
-  
-  URL="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${VERSION}/${DISTRO}_${VERSION}_${OS}_${ARCH}.tar.gz"
-  TMP_DIR=$(mktemp -d)
-  
-  if curl -L "$URL" -o "${TMP_DIR}/otel.tar.gz"; then
-    tar -xzf "${TMP_DIR}/otel.tar.gz" -C "$TMP_DIR"
-    mv "${TMP_DIR}/${DISTRO}" "$BINARY"
-    chmod +x "$BINARY"
-    echo "otel-collector: installed binary to $BINARY"
-  else
-    echo "otel-collector: error: failed to download binary from $URL" >&2
-    exit 1
-  fi
-  rm -rf "$TMP_DIR"
 
-  # Register service if on macOS
+  local url tmp_dir
+  url="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${VERSION}/${DISTRO}_${VERSION}_${OS}_${ARCH}.tar.gz"
+  tmp_dir=$(mktemp -d)
+  trap 'rm -rf "$tmp_dir"' EXIT
+
+  if curl -L "$url" -o "${tmp_dir}/otel.tar.gz"; then
+    tar -xzf "${tmp_dir}/otel.tar.gz" -C "$tmp_dir"
+    mv "${tmp_dir}/${DISTRO}" "$BINARY"
+    chmod +x "$BINARY"
+    _info "installed binary to $BINARY"
+  else
+    _die "failed to download binary from $url"
+  fi
+
   if [ "$OS" = "darwin" ]; then
-    echo "otel-collector: registering macOS service..."
+    _info "registering macOS launchd service..."
     mkdir -p "$(dirname "$PLIST_FILE")"
-    cat > "$PLIST_FILE" <<EOF
+    mkdir -p "$(dirname "$LOG_FILE")"
+    cat > "$PLIST_FILE" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -102,70 +114,111 @@ install_otel() {
     </dict>
 </dict>
 </plist>
-EOF
-    echo "otel-collector: service registered at $PLIST_FILE"
-    echo "otel-collector: to enable, run 'otel-collector start'"
+PLIST
+    _info "service registered at $PLIST_FILE"
+    _info "run 'otel-collector start' to enable"
   fi
 }
 
-start_otel() {
-  if [ ! -x "$BINARY" ]; then
-    echo "otel-collector: error: binary not found. Run 'otel-collector install' first." >&2
-    exit 1
-  fi
-
+cmd_start() {
+  [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
+  _info "starting ${PLIST_LABEL}..."
   if [ "$OS" = "darwin" ]; then
-    echo "otel-collector: starting service ${PLIST_LABEL}..."
     launchctl load -w "$PLIST_FILE"
   else
-    # Fallback for non-macOS (legacy behavior)
-    echo "otel-collector: starting manually (PID file fallback)..."
     mkdir -p "$(dirname "$LOG_FILE")"
-    nohup "$BINARY" --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
-    echo $! > "$PID_FILE"
+    nohup "$BINARY" --config "$CONFIG_FILE" >> "$LOG_FILE" 2>&1 &
+    printf '%s\n' "$!" > "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
   fi
 }
 
-stop_otel() {
+cmd_stop() {
+  _info "stopping ${PLIST_LABEL}..."
   if [ "$OS" = "darwin" ]; then
-    echo "otel-collector: stopping service ${PLIST_LABEL}..."
     launchctl unload -w "$PLIST_FILE" 2>/dev/null || true
   else
-    if [ -f "$PID_FILE" ]; then
-      PID=$(cat "$PID_FILE")
-      kill "$PID" 2>/dev/null || true
-      rm -f "$PID_FILE"
+    local pid_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
+    if [ -f "$pid_file" ]; then
+      kill "$(cat "$pid_file")" 2>/dev/null || true
+      rm -f "$pid_file"
     fi
   fi
 }
 
-status_otel() {
+cmd_status() {
+  local json=false
+  [ "${1:-}" = "--json" ] && json=true
+
+  local running=false pid=""
   if [ "$OS" = "darwin" ]; then
     if launchctl list "$PLIST_LABEL" >/dev/null 2>&1; then
-      PID=$(launchctl list "$PLIST_LABEL" | grep -i '"PID"' | awk '{print $3}' | tr -d ';')
-      echo "otel-collector: running via launchd (PID: ${PID:-unknown})"
-      return 0
-    else
-      echo "otel-collector: not running (launchd)."
-      return 1
+      pid=$(launchctl list "$PLIST_LABEL" 2>/dev/null \
+        | grep '"PID"' | awk '{print $3}' | tr -d ';' || true)
+      [ -n "$pid" ] && running=true
     fi
   else
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-      echo "otel-collector: running (PID: $(cat "$PID_FILE"))"
-      return 0
+    local pid_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
+    if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+      pid=$(cat "$pid_file")
+      running=true
     fi
-    echo "otel-collector: not running."
+  fi
+
+  if $json; then
+    printf '{"running":%s,"pid":%s,"otlp_endpoint":"%s","log_file":"%s"}\n' \
+      "$running" "${pid:-null}" "$OTLP_ENDPOINT" "$LOG_FILE"
+    return
+  fi
+
+  if $running; then
+    printf 'otel-collector: running (PID: %s)\n' "${pid:-unknown}"
+  else
+    printf 'otel-collector: not running\n'
+  fi
+  printf 'otel-collector: endpoint  %s\n' "$OTLP_ENDPOINT"
+  printf 'otel-collector: log       %s\n' "$LOG_FILE"
+}
+
+cmd_health() {
+  local json=false
+  [ "${1:-}" = "--json" ] && json=true
+
+  if curl -sf -m 3 "${OTLP_ENDPOINT}/v1/traces" \
+       -H "Content-Type: application/json" \
+       -d '{"resourceSpans":[]}' >/dev/null 2>&1; then
+    $json && printf '{"healthy":true,"endpoint":"%s"}\n' "$OTLP_ENDPOINT"
+    return 0
+  else
+    $json && printf '{"healthy":false,"endpoint":"%s"}\n' "$OTLP_ENDPOINT"
     return 1
   fi
 }
 
+cmd_logs() {
+  trap 'exit 0' INT TERM
+  tail -f "$LOG_FILE"
+}
+
+cmd_validate() {
+  [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
+  _info "validating $CONFIG_FILE..."
+  "$BINARY" validate --config "$CONFIG_FILE"
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
 case "${1:-}" in
-  install) install_otel ;;
-  start)   start_otel ;;
-  stop)    stop_otel ;;
-  restart) stop_otel; start_otel ;;
-  status)  status_otel ;;
-  validate) validate_otel ;;
-  logs)    tail -f "$LOG_FILE" ;;
-  *)       usage; exit 1 ;;
+  install)   cmd_install ;;
+  start)     cmd_start ;;
+  stop)      cmd_stop ;;
+  restart)   cmd_stop; cmd_start ;;
+  status)    shift; cmd_status "${@}" ;;
+  health)    shift; cmd_health "${@}" ;;
+  logs)      cmd_logs ;;
+  validate)  cmd_validate ;;
+  -h|--help) usage; exit 0 ;;
+  "")        usage >&2; exit 1 ;;
+  *)         printf 'otel-collector: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
 esac
