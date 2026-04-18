@@ -2,11 +2,36 @@
 
 This repository is a modular, high-performance Zsh configuration ("Zdots"). All agents must adhere to the standards and use the tools defined below. It also provides an AI-friendly Bash bridge (`~/.bashrc`) for consistency across shell environments.
 
+---
+
+## START HERE — Run These First
+
+Before doing anything else, run both orientation commands. They tell you what is
+actually available and running right now — no assumptions, no stale docs.
+
+```bash
+# 1. Live service status + complete usage guide (AI inference, OTel, destructive warnings)
+#    Works from any bash context. Use --plain for pipe-safe, ANSI-free output.
+agent-guide --plain
+
+# 2. Environment health report — validates service contracts, checks tooling,
+#    reports disk, AI model status, OTel trace state. Structured JSON for agents.
+capabilities --json
+```
+
+Both commands are in `bin/` which is on `$PATH` for every shell on this machine
+(added by `env.sh` via `.zshenv` — no interactive zsh required).
+
+**When to re-run:**
+- `agent-guide --plain` — before any task touching AI inference or observability
+- `capabilities --json` — when debugging missing tools, broken providers, or health failures
+
+---
+
 ## Build & Validation
 - **Run All Checks:** `make check` (Primary regression suite)
 - **Bootstrap:** `make bootstrap`
 - **Benchmark:** `make bench`
-- **Environment Inquiries:** Run `capabilities --json` for a structured, one-turn summary of all available tools, themes, and shell features (highly token efficient).
 
 ## Agent API (Standardized Tasks)
 Always prefer these `make` commands for routine operations:
@@ -93,10 +118,25 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
 - **Data Handling:** `jless`/`fx` for interactive JSON exploration.
 - **GitHub:** Use `gh dash` for a full overview of PRs and Issues.
 
-## Services Quick Start
+## Orientation Tools
 
-Run `agent-guide` from any bash context for live service status and copy-paste usage examples.
-It checks what is actually running right now and tells you exactly how to interact with each service.
+| Command | Purpose | Output |
+|---|---|---|
+| `agent-guide --plain` | Live status of all four services + copy-paste usage for AI and OTel | Plain text, agent-safe |
+| `capabilities --json` | Environment contract validation: providers, tools, disk, AI model, OTel traces | JSON |
+| `capabilities` | Same as above, human-readable with colour | Terminal text |
+
+`agent-guide` covers: AI inference endpoint, `ai-query` examples, direct HTTP patterns, OTel connection
+vars, service management commands, destructive command warnings, and doc pointers — all in one output.
+
+`capabilities --json` covers: session identity, service provider wiring, tool presence, disk space,
+AI server status, OTel trace file state, and a pass/fail health verdict.
+
+Run them together at session start:
+
+```bash
+agent-guide --plain && capabilities --json
+```
 
 ---
 
