@@ -82,7 +82,7 @@ if $JSON; then
     "endpoint": "%s",
     "model": "%s",
     "subprocess_safe": true,
-    "interactive_only": ["ai", "ai-start", "ai-stop", "ai-status", "ai-logs"]
+    "interactive_only": ["ai"]
   },
   "otel": {
     "otlp_http_endpoint": "%s",
@@ -185,7 +185,6 @@ DIRECT HTTP — works from any context, no tooling required:
 
 DO NOT USE from scripts/agents — interactive zsh only:
   ai "prompt"          # requires interactive zsh session
-  ai-start / ai-stop   # requires interactive zsh session
 
 SERVICE MANAGEMENT:
   llama-ctl status          check launchd state + health + active model
