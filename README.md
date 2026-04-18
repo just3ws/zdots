@@ -25,16 +25,38 @@ This machine serves as the **central hub for both AI inference and OTel observab
 
 ---
 
+## Start Here
+
+Two commands give you a complete orientation. Run them before anything else.
+
+```sh
+# Live status of all services + copy-paste usage guide for AI and OTel
+agent-guide --plain
+
+# Environment health: validates providers, tools, disk, AI model, OTel state
+capabilities --json
+```
+
+Both are in `bin/` which is on `$PATH` for every shell — interactive or not, zsh or bash.
+
+| Command | What it tells you |
+|---|---|
+| `agent-guide --plain` | Which services are up/down, how to call them, what not to break |
+| `capabilities --json` | Whether the environment is correctly wired and healthy |
+
+Full agent standards and workflow: [AGENTS.md](AGENTS.md)
+
+---
+
 ## Agent / Script Usage
 
-> If you are an AI agent or running from a bash subprocess, read this section first.
+> If you are an AI agent or running from a bash subprocess, run `agent-guide --plain` first.
+> It will tell you the current service status and exact usage patterns. The summary below is
+> a quick reference only.
 
 **AI inference** — the `ai` zsh function is **interactive-shell-only**. Use `ai-query` instead:
 
 ```sh
-# Pre-flight
-llama-ctl health || echo "Start with: llama-ctl start"
-
 # Inference from any bash context
 ai-query "What does SIGPIPE mean?"
 git diff | ai-query "Write a commit message"
@@ -54,22 +76,21 @@ export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
 
 Grafana: `http://127.0.0.1:3000` (admin/admin) — available when `local-ci up` is running.
 
-Full agent guidance: [AGENTS.md](AGENTS.md)
-
 ---
 
 ## Capabilities at a Glance
 
 | Capability | Entry Point | Doc |
 |---|---|---|
-| Local AI inference | `ai`, `ai-query`, `llama-ctl` | [docs/llama-cpp.md](docs/llama-cpp.md) |
+| **Orientation (run first)** | `agent-guide --plain`, `capabilities --json` | [AGENTS.md](AGENTS.md) |
+| Local AI inference | `ai-query` (scripts), `ai` (interactive zsh), `llama-ctl` | [docs/llama-cpp.md](docs/llama-cpp.md) |
 | Shell history intelligence | `history-analyze` | — |
 | Distributed tracing (OTel) | automatic on every command | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | LGTM observability stack | `local-ci up` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | Docker / Colima management | `colima-*`, `docker-reclaim` | [docs/storage-hygiene.md](docs/storage-hygiene.md) |
 | Secret scanning | `secret-scan` | — |
 | Startup performance | `bench` | [docs/startup-performance-budget.md](docs/startup-performance-budget.md) |
-| Environment validation | `capabilities` | — |
+| Environment health | `capabilities` | — |
 
 ---
 
