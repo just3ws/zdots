@@ -48,5 +48,5 @@ links:
 
 ---
 
-*For Aneta — who gave her name to this machine, her patience to its keeper,*
+*For Aneta Łucja Hall, née Zalewska — who gave her name to this machine, her patience to its keeper,*
 *and twenty-five years to someone who really should close the laptop more often.*
