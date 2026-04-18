@@ -153,9 +153,8 @@ ai-query "What does SIGPIPE mean?"
 git diff | ai-query "Write a commit message"
 ```
 
-> **Agent/subprocess note:** The `ai` function and `ai-start/stop/status/logs`
-> aliases require an interactive zsh session. Use `ai-query` or call the HTTP
-> API directly from non-interactive contexts (scripts, CI, Claude Code's Bash
+> **Agent/subprocess note:** The `ai` function requires an interactive zsh session.
+> Use `ai-query` or call the HTTP API directly from non-interactive contexts (scripts, CI, Claude Code's Bash
 > tool).
 
 ### Model profiles (`etc/ai-models.yaml`)

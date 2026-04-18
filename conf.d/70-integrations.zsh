@@ -35,7 +35,7 @@ fi
 ai() {
   if [[ -z "$1" || "$1" == "--help" || "$1" == "-h" ]]; then
     local _ai_server_status
-    _ai_server_status=$(llama-ctl health 2>/dev/null && echo "up" || echo "down — run: ai-start")
+    _ai_server_status=$(llama-ctl health 2>/dev/null && echo "up" || echo "down — run: llama-ctl start")
     cat <<EOF
 Usage:
   ai <prompt>                    Direct prompt
@@ -53,12 +53,12 @@ Model:    ${ZDOTS_AI_MODEL:-unknown}   [profile: ${ZDOTS_AI_PROFILE:-standard}]
 Status:   ${_ai_server_status}
 
 Manage:
-  ai-status              llama-ctl status
-  ai-start               start inference server
-  ai-stop                stop inference server
-  ai-logs                tail server log
-  llama-ctl model-download    download/update model
-  llama-ctl model-prune       reclaim disk (remove non-active GGUFs)
+  llama-ctl status               server status
+  llama-ctl start                start inference server
+  llama-ctl stop                 stop inference server
+  llama-ctl logs                 tail server log
+  llama-ctl model-download       download/update model
+  llama-ctl model-prune          reclaim disk (remove non-active GGUFs)
 
 Agent/subprocess use (works outside interactive shell):
   ai-query <prompt>      bin/ai-query — same inference, any shell context

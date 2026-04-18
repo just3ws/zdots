@@ -57,13 +57,13 @@ a fresh plist from `etc/ai-models.yaml`, then loads the service — but only if
 the active model file exists. If the model is missing it prints instructions
 instead of starting, which would otherwise trigger a crash loop.
 
-**Shell aliases:**
+**Service management:**
 
 ```sh
-ai-start    # llama-ctl start
-ai-stop     # llama-ctl stop
-ai-status   # llama-ctl status
-ai-logs     # llama-ctl logs
+llama-ctl start
+llama-ctl stop
+llama-ctl status
+llama-ctl logs
 ```
 
 ### Model Management
@@ -308,15 +308,6 @@ history-analyze --ai --limit 200
 ai --help    # show runtime info, model, server status
 ```
 
-Shell aliases (defined in `aliases.bash`, require `llama-ctl` on PATH):
-
-```sh
-ai-start     # llama-ctl start
-ai-stop      # llama-ctl stop
-ai-status    # llama-ctl status
-ai-logs      # llama-ctl logs
-```
-
 Every `ai` call emits an OTel span to the local collector (service: `zdots-shell`).
 
 If the server is down, `ai` fails fast:
@@ -455,9 +446,8 @@ server:
 
 ## Agent Notes
 
-- **Calling AI from a subprocess/agent:** Do NOT use the `ai` zsh function or
-  `ai-start`/`ai-stop`/`ai-status`/`ai-logs` aliases — these are shell
-  functions/aliases that require an interactive zsh session. Use instead:
+- **Calling AI from a subprocess/agent:** Do NOT use the `ai` zsh function —
+  it requires an interactive zsh session. Use instead:
   - `ai-query <prompt>` — the subprocess-safe bash script in `bin/`
   - `curl` directly to `http://127.0.0.1:8080/v1/chat/completions`
   - `llama-ctl <command>` — the lifecycle script works from any bash context
