@@ -93,6 +93,13 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
 - **Data Handling:** `jless`/`fx` for interactive JSON exploration.
 - **GitHub:** Use `gh dash` for a full overview of PRs and Issues.
 
+## Services Quick Start
+
+Run `agent-guide` from any bash context for live service status and copy-paste usage examples.
+It checks what is actually running right now and tells you exactly how to interact with each service.
+
+---
+
 ## Local AI Runtime — llama.cpp (Central Hub)
 
 This machine is the **primary AI inference hub** for this environment. The llama.cpp server
