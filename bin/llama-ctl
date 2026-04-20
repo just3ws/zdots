@@ -20,7 +20,7 @@
 #   --ctx-size 32768        ~2GB KV cache for 7B Q4 at q8_0 quantization
 #   --parallel 2            two concurrent decode slots
 #   --batch-size 2048       logical batch; covers long embedding inputs
-#   --ubatch-size 512       physical Metal kernel dispatch size
+#   --ubatch-size 2048      physical Metal kernel dispatch size; must match batch-size for embeddings
 #   --cache-type-k q8_0     KV cache K: half the memory of f16
 #   --cache-type-v q8_0     KV cache V: half the memory of f16
 #   --cache-reuse 256       prefix KV reuse across requests (system prompt)
@@ -72,6 +72,7 @@ Service Lifecycle:
   health            Exit 0 if server is up, exit 1 if down
   logs              tail -f the server log
   validate          Validate etc/ai-models.yaml (requires yq)
+  config            Dump all resolved server configuration values
 
 Model Management:
   model-list        List downloaded GGUFs with disk sizes; marks active model
@@ -81,7 +82,7 @@ Model Management:
   model-df          Disk usage summary for the model directory
 
 Options:
-  --json      Output status/health as JSON (valid for status, health)
+  --json      Output as JSON (valid for status, health, config)
   -h, --help  Show this help
 
 Config:
@@ -584,6 +585,104 @@ logs_llama() {
   tail -f "$LOG_FILE"
 }
 
+# config_dump — print all resolved server configuration values.
+#
+# Outputs the fully-resolved parameters that llama-server is (or would be)
+# started with: endpoint, model, context size, batch limits, KV cache policy,
+# embedding settings, etc.  Other tools can read this to plan their own
+# behaviour — for example an embedding client can read batch_size and
+# ubatch_size to know the maximum safe input length without trial-and-error.
+#
+# Usage:
+#   llama-ctl config           # human-readable key: value pairs
+#   llama-ctl config --json    # machine-readable JSON
+config_dump() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local host port ctx_size n_gpu_layers parallel batch_size ubatch_size
+  local cache_type_k cache_type_v n_predict cache_reuse srv_alias
+  local embeddings pooling flash_attn metrics
+  local model_file model_path endpoint
+
+  host=$(_server_field host "127.0.0.1")
+  port=$(_server_field port "8080")
+  ctx_size=$(_profile_field ctx_size "4096")
+  n_gpu_layers=$(_profile_field n_gpu_layers "99")
+  parallel=$(_server_field parallel "2")
+  batch_size=$(_server_field batch_size "2048")
+  ubatch_size=$(_server_field ubatch_size "512")
+  cache_type_k=$(_server_field cache_type_k "f16")
+  cache_type_v=$(_server_field cache_type_v "f16")
+  n_predict=$(_server_field n_predict "-1")
+  cache_reuse=$(_server_field cache_reuse "0")
+  srv_alias=$(_server_field alias "")
+  embeddings=$(_server_field embeddings "false")
+  pooling=$(_server_field pooling "mean")
+  flash_attn=$(_server_field flash_attn "false")
+  metrics=$(_server_field metrics "false")
+  model_file=$(_active_model_file)
+  model_path=$(_active_model_path)
+  endpoint=$(_endpoint)
+
+  if $json; then
+    local emb_j flash_j metrics_j
+    emb_j=$(   [[ "$embeddings" == "true" ]] && echo "true" || echo "false")
+    flash_j=$(  [[ "$flash_attn" == "true" ]] && echo "true" || echo "false")
+    metrics_j=$([[ "$metrics"   == "true" ]] && echo "true" || echo "false")
+    printf '{\n'
+    printf '  "profile":      "%s",\n' "$AI_PROFILE"
+    printf '  "endpoint":     "%s",\n' "$endpoint"
+    printf '  "host":         "%s",\n' "$host"
+    printf '  "port":         %s,\n'   "$port"
+    printf '  "model_file":   "%s",\n' "${model_file:-}"
+    printf '  "model_path":   "%s",\n' "${model_path:-}"
+    printf '  "alias":        "%s",\n' "${srv_alias:-}"
+    printf '  "ctx_size":     %s,\n'   "$ctx_size"
+    printf '  "n_gpu_layers": %s,\n'   "$n_gpu_layers"
+    printf '  "parallel":     %s,\n'   "$parallel"
+    printf '  "batch_size":   %s,\n'   "$batch_size"
+    printf '  "ubatch_size":  %s,\n'   "$ubatch_size"
+    printf '  "cache_type_k": "%s",\n' "$cache_type_k"
+    printf '  "cache_type_v": "%s",\n' "$cache_type_v"
+    printf '  "n_predict":    %s,\n'   "$n_predict"
+    printf '  "cache_reuse":  %s,\n'   "$cache_reuse"
+    printf '  "embeddings":   %s,\n'   "$emb_j"
+    printf '  "pooling":      "%s",\n' "$pooling"
+    printf '  "flash_attn":   %s,\n'   "$flash_j"
+    printf '  "metrics":      %s,\n'   "$metrics_j"
+    printf '  "_discovery": {\n'
+    printf '    "model_name_rule":    "Always use alias in API calls — never model_file",\n'
+    printf '    "max_embed_tokens":   %s,\n'  "$ubatch_size"
+    printf '    "mcp_server":         "%s/bin/llama-mcp",\n'  "$ZDOTDIR"
+    printf '    "caps_command":       "%s/bin/llama-caps --json",\n' "$ZDOTDIR"
+    printf '    "caps_md_command":    "%s/bin/llama-caps --md",\n'   "$ZDOTDIR"
+    printf '    "validate_command":   "ruby %s/tests/llama_integration.rb --quick",\n' "$ZDOTDIR"
+    printf '    "ruby_llm_kwargs":    {"assume_model_exists": true, "provider": "openai"},\n'
+    printf '    "plist_staleness":    "Run llama-ctl install after any yaml change"\n'
+    printf '  }\n'
+    printf '}\n'
+  else
+    printf '%-16s %s\n' "profile:"      "$AI_PROFILE"
+    printf '%-16s %s\n' "endpoint:"     "$endpoint"
+    printf '%-16s %s\n' "model_file:"   "${model_file:-(not set)}"
+    printf '%-16s %s\n' "alias:"        "${srv_alias:-(none)}"
+    printf '%-16s %s\n' "ctx_size:"     "$ctx_size"
+    printf '%-16s %s\n' "n_gpu_layers:" "$n_gpu_layers"
+    printf '%-16s %s\n' "parallel:"     "$parallel"
+    printf '%-16s %s\n' "batch_size:"   "$batch_size"
+    printf '%-16s %s\n' "ubatch_size:"  "$ubatch_size"
+    printf '%-16s %s\n' "cache_type_k:" "$cache_type_k"
+    printf '%-16s %s\n' "cache_type_v:" "$cache_type_v"
+    printf '%-16s %s\n' "n_predict:"    "$n_predict"
+    printf '%-16s %s\n' "cache_reuse:"  "$cache_reuse"
+    printf '%-16s %s\n' "embeddings:"   "$embeddings"
+    printf '%-16s %s\n' "pooling:"      "$pooling"
+    printf '%-16s %s\n' "flash_attn:"   "$flash_attn"
+    printf '%-16s %s\n' "metrics:"      "$metrics"
+  fi
+}
+
 case "${1:-}" in
   install)        install_llama ;;
   start)          start_llama ;;
@@ -593,6 +692,7 @@ case "${1:-}" in
   health)         shift; health_llama "${@}" ;;
   logs)           logs_llama ;;
   validate)       validate_llama ;;
+  config)         shift; config_dump "${@}" ;;
   model-list)     model_list ;;
   model-download) model_download ;;
   model-switch)   model_switch "${2:-}" ;;

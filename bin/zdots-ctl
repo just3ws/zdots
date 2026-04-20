@@ -315,6 +315,31 @@ cmd_check() {
     _fix "zdots-ctl up"
   fi
 
+  # ── AI integration smoke test ──────────────────────────────────────────────
+  printf '\nAI integration\n'
+  local _ruby_bin; _ruby_bin=$(command -v ruby 2>/dev/null || true)
+  local _llama_test="$ZDOTDIR/tests/llama_integration.rb"
+  if [[ -z "$_ruby_bin" ]]; then
+    _chk_warn "ruby not found — AI integration test skipped"
+    _fix "mise install ruby  (or brew install ruby)"
+  elif [[ ! -f "$_llama_test" ]]; then
+    _chk_warn "AI integration test not found: $_llama_test"
+  elif ! "$_ruby_bin" -e 'require "ruby_llm"' >/dev/null 2>&1; then
+    _chk_warn "ruby_llm gem not available — AI integration test skipped"
+    _fix "gem install ruby_llm"
+  elif ! _ai_up; then
+    _chk_warn "AI integration test skipped (server not running)"
+    _fix "zdots-ctl up"
+  else
+    local _ai_out
+    if _ai_out=$(timeout 60 "$_ruby_bin" "$_llama_test" --quick 2>/dev/null); then
+      _chk_pass "AI integration  chat + embeddings verified via RubyLLM"
+    else
+      _chk_fail "AI integration  RubyLLM × llama.cpp test failed"
+      _fix "ruby $ZDOTDIR/tests/llama_integration.rb  (full output)"
+    fi
+  fi
+
   # ── OTel pipeline smoke test ───────────────────────────────────────────────
   printf '\nOTel pipeline\n'
   if _otel_up; then

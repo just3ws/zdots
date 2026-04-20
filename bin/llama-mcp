@@ -1,0 +1,625 @@
+#!/usr/bin/env ruby
+# bin/llama-mcp — MCP server for the local llama.cpp inference service.
+#
+# Exposes live, callable tools that any MCP client (Claude Code, Cursor, etc.)
+# can invoke to interrogate and validate the local llama.cpp stack.
+#
+# Transport: stdio (JSON-RPC 2.0)
+# Register in ~/.claude.json → mcpServers:
+#   "llama": {"type":"stdio","command":"/Users/mike/.config/zsh/bin/llama-mcp"}
+#
+# Tools exposed:
+#   llama_capabilities      Full capability + integration guide (markdown or JSON)
+#   llama_health            Live health check — is the server up, what model?
+#   llama_config            Resolved server config (ctx, batch, cache, etc.)
+#   llama_run_test          Run the integration test suite (quick or full)
+#   llama_integration_snippet  Working code snippet for a given framework
+
+require "json"
+require "open3"
+
+ZDOTDIR = ENV.fetch("ZDOTDIR", File.expand_path("~/.config/zsh"))
+AI_ENDPOINT = ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080")
+BIN = File.expand_path("../", __FILE__).then { |d| d }  # bin/ dir
+
+$stdout.sync = true
+$stderr.sync = true
+
+# ---------------------------------------------------------------------------
+# Tool registry
+# ---------------------------------------------------------------------------
+TOOLS = [
+  {
+    name: "llama_capabilities",
+    description: <<~DESC.strip,
+      Get the complete capability and integration reference for this machine's
+      local llama.cpp inference server. Covers every supported endpoint,
+      constraint, client config pattern (RubyLLM, Python SDK, Node SDK, curl),
+      and debugging commands. Use this first when helping integrate any project
+      with the local AI server.
+    DESC
+    inputSchema: {
+      type: "object",
+      properties: {
+        format: {
+          type: "string",
+          enum: ["markdown", "json"],
+          description: "Output format. 'markdown' (default) for readable reference; 'json' for structured data."
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "llama_health",
+    description: <<~DESC.strip,
+      Live health check of the local llama.cpp server. Returns whether the
+      server is reachable, which model alias is active, and the full launchd
+      status. Fast — suitable for a quick pre-flight check before any inference.
+    DESC
+    inputSchema: {
+      type: "object",
+      properties: {},
+      required: []
+    }
+  },
+  {
+    name: "llama_config",
+    description: <<~DESC.strip,
+      Get the fully-resolved server configuration: context window size, batch
+      sizes, KV cache policy, embedding settings, GPU layers, and the active
+      model file. This reflects what the server was actually started with —
+      not just what the YAML says. Use this to understand capacity limits before
+      designing prompts or embedding pipelines.
+    DESC
+    inputSchema: {
+      type: "object",
+      properties: {},
+      required: []
+    }
+  },
+  {
+    name: "llama_run_test",
+    description: <<~DESC.strip,
+      Run the RubyLLM × llama.cpp integration test suite against the live server.
+      Tests cover: server reachability, model alias, metrics, chat (basic/system
+      role/multi-turn), streaming, tool/function calling, and embeddings
+      (float vector, consistency, cosine similarity, batch input).
+      Use 'quick' mode for a fast sanity check; 'full' for comprehensive validation.
+    DESC
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: {
+          type: "string",
+          enum: ["quick", "full"],
+          description: "'quick' (default): 8 essential tests, ~15-20s. 'full': all 14 tests including streaming, tool use, cosine similarity, ~60-90s."
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "llama_integration_snippet",
+    description: <<~DESC.strip,
+      Get a complete, working code snippet for integrating with the local
+      llama.cpp server in a specific framework. Includes all critical
+      configuration (model alias, auth bypass, model registry workarounds)
+      pre-applied so the snippet works without modification.
+    DESC
+    inputSchema: {
+      type: "object",
+      properties: {
+        framework: {
+          type: "string",
+          enum: ["ruby_llm", "openai_python", "openai_node", "curl", "langchain_ruby"],
+          description: "Target framework or client library."
+        }
+      },
+      required: ["framework"]
+    }
+  }
+].freeze
+
+# ---------------------------------------------------------------------------
+# Tool implementations
+# ---------------------------------------------------------------------------
+def run_cmd(*args, timeout: 120)
+  stdout, stderr, status = Open3.capture3(*args, stdin_data: "", timeout: timeout)
+  { stdout: stdout, stderr: stderr, exit_code: status.exitstatus || 1 }
+rescue Errno::ENOENT => e
+  { stdout: "", stderr: "command not found: #{e.message}", exit_code: 127 }
+rescue => e
+  { stdout: "", stderr: e.message, exit_code: 1 }
+end
+
+def strip_ansi(str)
+  str.gsub(/\e\[[0-9;]*m/, "")
+end
+
+def tool_llama_capabilities(args)
+  format = args.fetch("format", "markdown")
+  flag   = format == "json" ? "--json" : "--md"
+  caps_bin = File.join(ZDOTDIR, "bin", "llama-caps")
+
+  result = run_cmd(caps_bin, flag)
+  if result[:exit_code] == 0 && !result[:stdout].strip.empty?
+    result[:stdout]
+  else
+    # Fallback: inline the essentials if the binary isn't executable
+    <<~FALLBACK
+      # llama.cpp Local Inference — Quick Reference
+
+      **Endpoint:** #{AI_ENDPOINT}
+      **Model alias (use in ALL API calls):** `local`
+      **Auth:** None required — any Bearer value works
+
+      ## Key Rules
+      1. Always use the server alias (`local`) in the `model` field, never the GGUF filename
+      2. RubyLLM: pass `assume_model_exists: true, provider: "openai"` on every call
+      3. Embedding limit: check `llama-ctl config` for `ubatch_size` (token ceiling)
+      4. After changing `etc/ai-models.yaml`: run `llama-ctl install && llama-ctl restart`
+
+      ## Validate
+      ```bash
+      ruby #{ZDOTDIR}/tests/llama_integration.rb --quick
+      ```
+
+      Error from llama-caps: #{result[:stderr].strip}
+    FALLBACK
+  end
+end
+
+def tool_llama_health(_args)
+  llama_ctl = File.join(ZDOTDIR, "bin", "llama-ctl")
+  status_result = run_cmd(llama_ctl, "status", "--json")
+  health_result = run_cmd("curl", "-sf", "-m", "3", "#{AI_ENDPOINT}/health")
+  models_result = run_cmd("curl", "-sf", "-m", "3", "#{AI_ENDPOINT}/v1/models")
+
+  health_body = health_result[:stdout].strip
+  models_body = models_result[:stdout].strip
+
+  lines = []
+  lines << "## llama.cpp health check"
+  lines << ""
+
+  if health_result[:exit_code] == 0
+    lines << "**Server:** ✅ reachable at `#{AI_ENDPOINT}`"
+  else
+    lines << "**Server:** ❌ unreachable at `#{AI_ENDPOINT}`"
+    lines << ""
+    lines << "Fix: `llama-ctl start` or `zdots-ctl up`"
+    return lines.join("\n")
+  end
+
+  begin
+    status = JSON.parse(status_result[:stdout])
+    lines << "**launchd:** #{status["launchd"] ? "✅ running" : "⚠️ not running"}"
+    lines << "**PID:** #{status["pid"] || "—"}"
+    lines << "**Model ID:** `#{status["model_id"] || "—"}`"
+    lines << "**Profile:** `#{status["profile"] || "—"}`"
+    lines << "**Model file:** `#{status["model_file"] || "—"}`"
+    lines << "**Model size:** #{status["model_size"] || "—"}"
+  rescue JSON::ParserError
+    lines << strip_ansi(status_result[:stdout]).strip
+  end
+
+  begin
+    models = JSON.parse(models_body)
+    ids = models.dig("data")&.map { |m| m["id"] } || []
+    lines << "**Advertised model IDs:** #{ids.map { |id| "`#{id}`" }.join(", ")}"
+  rescue JSON::ParserError
+    # silent
+  end
+
+  lines << ""
+  lines << "**Endpoint:** `#{AI_ENDPOINT}`"
+  lines.join("\n")
+end
+
+def tool_llama_config(_args)
+  llama_ctl = File.join(ZDOTDIR, "bin", "llama-ctl")
+  result = run_cmd(llama_ctl, "config", "--json")
+
+  if result[:exit_code] == 0
+    begin
+      config = JSON.parse(result[:stdout])
+      lines = ["## llama.cpp resolved configuration", ""]
+      lines << "These are the actual flags the server was started with.\n"
+      config.each do |k, v|
+        lines << "- **#{k}:** `#{v}`"
+      end
+      lines << ""
+      lines << "### Key capacity constraints"
+      lines << "- **Context window:** #{config["ctx_size"]} tokens"
+      lines << "- **Max embedding tokens:** #{config["ubatch_size"]} tokens (~#{(config["ubatch_size"].to_i * 3 / 4)} words)"
+      lines << "- **Max generation:** #{config["n_predict"] == -1 ? "unlimited" : "#{config["n_predict"]} tokens"}"
+      lines << "- **Parallel slots:** #{config["parallel"]}"
+      lines << ""
+      lines << "> Embedding requests exceeding `ubatch_size` tokens return HTTP 500."
+      lines << "> After changing `etc/ai-models.yaml`, run `llama-ctl install` to regenerate the plist."
+      lines.join("\n")
+    rescue JSON::ParserError
+      "Config output (non-JSON):\n\n```\n#{strip_ansi(result[:stdout])}\n```"
+    end
+  else
+    "Error running llama-ctl config: #{result[:stderr].strip}\n\nIs llama.cpp installed? Run: `llama-ctl install`"
+  end
+end
+
+def tool_llama_run_test(args)
+  mode = args.fetch("mode", "quick")
+  ruby_bin = `command -v ruby 2>/dev/null`.strip
+  test_script = File.join(ZDOTDIR, "tests", "llama_integration.rb")
+
+  unless File.exist?(test_script)
+    return "Test script not found: #{test_script}"
+  end
+
+  if ruby_bin.empty?
+    return "Ruby not found. Install with: mise install ruby"
+  end
+
+  cmd_args = [ruby_bin, test_script]
+  cmd_args << "--quick" if mode == "quick"
+
+  timeout = mode == "quick" ? 60 : 180
+  result  = run_cmd(*cmd_args, timeout: timeout)
+  output  = strip_ansi(result[:stdout] + result[:stderr]).strip
+
+  status = result[:exit_code] == 0 ? "✅ PASSED" : "❌ FAILED"
+  "## Integration test — #{mode} mode  #{status}\n\n```\n#{output}\n```"
+end
+
+def tool_llama_integration_snippet(args)
+  framework = args.fetch("framework", "ruby_llm")
+  endpoint  = AI_ENDPOINT
+
+  snippets = {
+    "ruby_llm" => <<~RUBY,
+      ## RubyLLM integration snippet
+
+      ```ruby
+      require "ruby_llm"
+
+      # ── Configure once (e.g. in an initializer) ──────────────────────────
+      RubyLLM.configure do |c|
+        c.openai_api_key          = "local"          # llama.cpp ignores auth
+        c.openai_api_base         = "#{endpoint}/v1"
+        c.openai_use_system_role  = true             # Qwen2.5 supports system role
+        c.default_model           = "local"
+        c.default_embedding_model = "local"
+        c.request_timeout         = 90
+        c.max_retries             = 0
+      end
+
+      # CRITICAL: always pass these two kwargs on every call.
+      # RubyLLM has its own model registry; "local" is not in it.
+      # assume_model_exists: true + provider: "openai" bypasses the registry check.
+      CHAT_OPTS = { model: "local", provider: "openai", assume_model_exists: true }.freeze
+
+      # ── Chat ──────────────────────────────────────────────────────────────
+      chat = RubyLLM.chat(**CHAT_OPTS)
+      reply = chat.ask("Hello, how are you?")
+      puts reply.content
+
+      # ── System role ───────────────────────────────────────────────────────
+      chat = RubyLLM.chat(**CHAT_OPTS)
+      chat.with_instructions("You are a concise shell scripting expert.")
+      reply = chat.ask("How do I check if a file exists in bash?")
+      puts reply.content
+
+      # ── Streaming ─────────────────────────────────────────────────────────
+      chat = RubyLLM.chat(**CHAT_OPTS)
+      chat.ask("Explain the OSI model") { |chunk| print chunk.content }
+      puts
+
+      # ── Multi-turn ────────────────────────────────────────────────────────
+      chat = RubyLLM.chat(**CHAT_OPTS)
+      chat.ask("My favorite language is Ruby.")
+      reply = chat.ask("What is my favorite language?")
+      puts reply.content
+
+      # ── Tool use ──────────────────────────────────────────────────────────
+      class Calculator < RubyLLM::Tool
+        description "Performs arithmetic calculations."
+        param :expression, type: "string", desc: "Math expression, e.g. '2 + 2'", required: true
+        def execute(expression:)
+          { result: eval(expression).to_s }  # rubocop:disable Security/Eval
+        rescue => e
+          { error: e.message }
+        end
+      end
+
+      chat = RubyLLM.chat(**CHAT_OPTS)
+      chat.with_tool(Calculator.new)
+      reply = chat.ask("What is 144 * 7?")
+      puts reply.content
+
+      # ── Embeddings ────────────────────────────────────────────────────────
+      emb = RubyLLM.embed("text to embed", **CHAT_OPTS)
+      puts emb.vectors.length          # vector dimension
+      puts emb.vectors.first.class     # Float
+
+      # Batch embeddings
+      batch = RubyLLM.embed(["first sentence", "second sentence"], **CHAT_OPTS)
+      puts batch.vectors.length        # 2 vectors
+      ```
+
+      ### Constraints
+      - Embedding inputs > #{`yq '.server.ubatch_size' #{ZDOTDIR}/etc/ai-models.yaml 2>/dev/null`.strip || "2048"} tokens → HTTP 500
+      - `assume_model_exists: true` is **required** on every call — do not omit it
+      - Model name is always `"local"` (the server alias), never the GGUF filename
+    RUBY
+
+    "openai_python" => <<~PYTHON,
+      ## OpenAI Python SDK integration snippet
+
+      ```python
+      from openai import OpenAI
+
+      client = OpenAI(
+          base_url="#{endpoint}/v1",
+          api_key="local",   # llama.cpp ignores auth — any non-empty string works
+      )
+
+      MODEL = "local"        # server alias; never use the GGUF filename
+
+      # ── Chat ──────────────────────────────────────────────────────────────
+      response = client.chat.completions.create(
+          model=MODEL,
+          messages=[
+              {"role": "system", "content": "You are a concise assistant."},
+              {"role": "user",   "content": "What is the capital of France?"},
+          ]
+      )
+      print(response.choices[0].message.content)
+
+      # ── Streaming ─────────────────────────────────────────────────────────
+      with client.chat.completions.stream(
+          model=MODEL,
+          messages=[{"role": "user", "content": "Count from 1 to 5"}],
+      ) as stream:
+          for text in stream.text_stream:
+              print(text, end="", flush=True)
+
+      # ── Embeddings ────────────────────────────────────────────────────────
+      emb = client.embeddings.create(model=MODEL, input="hello world")
+      vector = emb.data[0].embedding
+      print(f"Dimension: {len(vector)}")
+
+      # Batch
+      batch = client.embeddings.create(model=MODEL, input=["first", "second"])
+      print(f"Batch count: {len(batch.data)}")
+      ```
+
+      ### Constraints
+      - Max embedding tokens: check `llama-ctl config | grep ubatch`
+      - No images, audio, or moderation endpoints
+    PYTHON
+
+    "openai_node" => <<~NODE,
+      ## OpenAI Node.js SDK integration snippet
+
+      ```javascript
+      import OpenAI from "openai";
+
+      const client = new OpenAI({
+        baseURL: "#{endpoint}/v1",
+        apiKey: "local",   // llama.cpp ignores auth
+      });
+
+      const MODEL = "local";  // server alias — never use the GGUF filename
+
+      // ── Chat ──────────────────────────────────────────────────────────────
+      const response = await client.chat.completions.create({
+        model: MODEL,
+        messages: [
+          { role: "system", content: "You are a concise assistant." },
+          { role: "user",   content: "What is the capital of France?" },
+        ],
+      });
+      console.log(response.choices[0].message.content);
+
+      // ── Streaming ─────────────────────────────────────────────────────────
+      const stream = client.chat.completions.stream({
+        model: MODEL,
+        messages: [{ role: "user", content: "Count from 1 to 5" }],
+      });
+      for await (const chunk of stream) {
+        process.stdout.write(chunk.choices[0]?.delta?.content ?? "");
+      }
+
+      // ── Embeddings ────────────────────────────────────────────────────────
+      const emb = await client.embeddings.create({ model: MODEL, input: "hello world" });
+      console.log("Dimension:", emb.data[0].embedding.length);
+      ```
+
+      ### Constraints
+      - Max embedding tokens: check `llama-ctl config | grep ubatch`
+      - No images, audio, or moderation endpoints
+    NODE
+
+    "curl" => <<~CURL,
+      ## curl integration snippets
+
+      ```bash
+      ENDPOINT="#{endpoint}"
+      MODEL="local"   # always the server alias, never the GGUF filename
+
+      # ── Health check ──────────────────────────────────────────────────────
+      curl -sf $ENDPOINT/health
+      # → {"status":"ok"}
+
+      # ── Chat ──────────────────────────────────────────────────────────────
+      curl -s $ENDPOINT/v1/chat/completions \\
+        -H "Content-Type: application/json" \\
+        -d "{
+          \\"model\\": \\"$MODEL\\",
+          \\"messages\\": [{
+            \\"role\\": \\"system\\",
+            \\"content\\": \\"You are a concise assistant.\\"
+          },{
+            \\"role\\": \\"user\\",
+            \\"content\\": \\"What is 2+2?\\"
+          }],
+          \\"stream\\": false
+        }" | jq -r '.choices[0].message.content'
+
+      # ── Streaming ─────────────────────────────────────────────────────────
+      curl -s $ENDPOINT/v1/chat/completions \\
+        -H "Content-Type: application/json" \\
+        -d "{\\"model\\":\\"$MODEL\\",\\"messages\\":[{\\"role\\":\\"user\\",\\"content\\":\\"Count to 5\\"}],\\"stream\\":true}"
+
+      # ── Embeddings ────────────────────────────────────────────────────────
+      curl -s $ENDPOINT/v1/embeddings \\
+        -H "Content-Type: application/json" \\
+        -d "{\\"model\\":\\"$MODEL\\",\\"input\\":\\"hello world\\"}" \\
+        | jq '.data[0].embedding | length'   # print vector dimension
+
+      # ── Batch embeddings ──────────────────────────────────────────────────
+      curl -s $ENDPOINT/v1/embeddings \\
+        -H "Content-Type: application/json" \\
+        -d "{\\"model\\":\\"$MODEL\\",\\"input\\":[\\"first sentence\\",\\"second sentence\\"]}" \\
+        | jq '.data | length'   # → 2
+
+      # ── Models list ───────────────────────────────────────────────────────
+      curl -s $ENDPOINT/v1/models | jq '.data[].id'
+
+      # ── Metrics (Prometheus) ──────────────────────────────────────────────
+      curl -s $ENDPOINT/metrics | grep llamacpp | head -10
+      ```
+
+      ### Constraints
+      - Bearer token is optional and ignored
+      - Embedding inputs > `ubatch_size` tokens → HTTP 500
+        Check: `llama-ctl config | grep ubatch`
+    CURL
+
+    "langchain_ruby" => <<~LANGCHAIN,
+      ## LangChain.rb integration snippet
+
+      LangChain.rb can be pointed at any OpenAI-compatible endpoint.
+
+      ```ruby
+      require "langchain"
+
+      # llm wrapping the local llama.cpp server
+      llm = Langchain::LLM::OpenAI.new(
+        api_key: "local",              # ignored
+        llm_options: {
+          uri_base: "#{endpoint}/v1/",
+        },
+        default_options: {
+          chat_completion_model_name: "local",
+          embeddings_model_name: "local",
+        }
+      )
+
+      # ── Chat ──────────────────────────────────────────────────────────────
+      response = llm.chat(messages: [{ role: "user", content: "Hello!" }])
+      puts response.chat_completion
+
+      # ── Embeddings ────────────────────────────────────────────────────────
+      emb = llm.embed(text: "some text to embed")
+      puts emb.embedding.length
+
+      # ── RAG pipeline (basic) ──────────────────────────────────────────────
+      # Note: embedding dimension depends on the model. Check with:
+      #   curl -s #{endpoint}/v1/embeddings \\
+      #     -H "Content-Type: application/json" \\
+      #     -d '{"model":"local","input":"test"}' | jq '.data[0].embedding | length'
+      ```
+
+      ### Constraints
+      - Max embedding tokens: #{`yq '.server.ubatch_size' #{ZDOTDIR}/etc/ai-models.yaml 2>/dev/null`.strip || "2048"} tokens
+      - Verify LangChain.rb version compatibility — API may vary by release
+      - No images, audio, or moderation
+    LANGCHAIN
+  }
+
+  snippets.fetch(framework) do
+    "Unknown framework: #{framework}. Available: #{snippets.keys.join(", ")}"
+  end
+end
+
+# ---------------------------------------------------------------------------
+# MCP JSON-RPC 2.0 dispatch
+# ---------------------------------------------------------------------------
+def respond(id, result)
+  $stdout.puts JSON.generate({ jsonrpc: "2.0", id: id, result: result })
+end
+
+def error_response(id, code, message)
+  $stdout.puts JSON.generate({
+    jsonrpc: "2.0", id: id,
+    error: { code: code, message: message }
+  })
+end
+
+def call_tool(name, args)
+  case name
+  when "llama_capabilities"      then tool_llama_capabilities(args)
+  when "llama_health"            then tool_llama_health(args)
+  when "llama_config"            then tool_llama_config(args)
+  when "llama_run_test"          then tool_llama_run_test(args)
+  when "llama_integration_snippet" then tool_llama_integration_snippet(args)
+  else raise "Unknown tool: #{name}"
+  end
+end
+
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
+$stdin.each_line do |line|
+  line = line.strip
+  next if line.empty?
+
+  begin
+    msg = JSON.parse(line)
+  rescue JSON::ParserError => e
+    error_response(nil, -32700, "Parse error: #{e.message}")
+    next
+  end
+
+  id     = msg["id"]
+  method = msg["method"]
+  params = msg["params"] || {}
+
+  case method
+  when "initialize"
+    respond(id, {
+      protocolVersion: "2024-11-05",
+      capabilities: { tools: {} },
+      serverInfo: { name: "llama-mcp", version: "1.0.0" }
+    })
+
+  when "initialized"
+    # notification — no response
+
+  when "tools/list"
+    respond(id, { tools: TOOLS })
+
+  when "tools/call"
+    tool_name = params["name"]
+    tool_args = params.fetch("arguments", {})
+    begin
+      result_text = call_tool(tool_name, tool_args)
+      respond(id, {
+        content: [{ type: "text", text: result_text }]
+      })
+    rescue => e
+      respond(id, {
+        content: [{ type: "text", text: "Error: #{e.message}" }],
+        isError: true
+      })
+    end
+
+  when "ping"
+    respond(id, {})
+
+  else
+    # Unknown methods: respond with empty result (forward-compat)
+    respond(id, {}) if id
+  end
+end

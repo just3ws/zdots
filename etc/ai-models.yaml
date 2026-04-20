@@ -55,14 +55,22 @@ server:
   parallel: 2
   # Logical maximum batch size: upper bound on tokens per scheduling cycle.
   # Must be >= longest single input (embedding chunk, long prompt). 2048
-  # covers typical RAG payloads; the old default of 512 caused "input too
-  # large" errors for embedding requests.
+  # covers typical RAG payloads up to ~1500 words.
   batch_size: 2048
   # Physical maximum batch size: tokens dispatched per Metal kernel call.
-  # Must be <= batch_size. 512 is the llama.cpp default and works well for
-  # autoregressive decode. Raise to match batch_size only if you see
-  # throughput bottlenecks on prompt ingestion.
-  ubatch_size: 512
+  # Must be <= batch_size.
+  #
+  # EMBEDDING CONSTRAINT: for /v1/embeddings requests, the entire input
+  # sequence must fit within a single ubatch — llama.cpp cannot chunk an
+  # embedding across multiple physical dispatches because mean/cls pooling
+  # requires all token vectors to be present simultaneously. If input tokens
+  # exceed ubatch_size, llama-server returns HTTP 500:
+  #   "input (N tokens) is too large to process. increase the physical batch size"
+  #
+  # Set to match batch_size so embedding inputs up to 2048 tokens succeed.
+  # The llama.cpp default of 512 breaks any embedding request > 512 tokens
+  # (roughly > 380 words).
+  ubatch_size: 2048
   # KV cache quantization. q8_0 halves cache memory vs the f16 default with
   # negligible quality loss. At ctx_size=32768 x parallel=2 on a 7B model,
   # this saves ~1GB of unified memory.
