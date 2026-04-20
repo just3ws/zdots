@@ -1,8 +1,8 @@
 # Zdots - Agent & System Management Makefile
-SHELL := /bin/zsh
+SHELL := /bin/sh
 ZDOTDIR ?= $(HOME)/.config/zsh
 
-.PHONY: bootstrap check check-fast bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean
+.PHONY: bootstrap check check-fast test health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean
 
 # ------------------------------------------------------------------------------
 # CORE & VALIDATION
@@ -10,11 +10,20 @@ ZDOTDIR ?= $(HOME)/.config/zsh
 bootstrap:
 	$(ZDOTDIR)/bin/bootstrap
 
+# Shell integrity: zsh syntax, bats suite, shellcheck, startup timing
 check:
 	$(ZDOTDIR)/bin/check
 
 check-fast:
 	ZDOTS_CHECK_SKIP_EXTERNAL=1 $(ZDOTDIR)/bin/check
+
+# Bats test suite only — fast, no service checks, no startup timing
+test:
+	bats $(ZDOTDIR)/tests/
+
+# Platform health: services, AI integration, disk (zdots-ctl check)
+health:
+	$(ZDOTDIR)/bin/zdots-ctl check
 
 bench:
 	@for i in 1 2 3 4 5; do \
