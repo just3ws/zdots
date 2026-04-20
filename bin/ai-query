@@ -262,7 +262,6 @@ if [[ "$HAS_STDIN" == "true" ]]; then
   # Capture scan output; aiq_scan prints findings + SCORE line to stdout
   set +e
   SCAN_OUTPUT=$(aiq_scan "$RAW_TMP" 2>/dev/null)
-  SCAN_EXIT=$?
   set -e
 
   RISK_SCORE=$(printf '%s\n' "$SCAN_OUTPUT" \
@@ -292,7 +291,6 @@ elif [[ -n "$TASK" ]]; then
   printf '%s\n' "$TASK" > "$local_task_tmp"
   set +e
   SCAN_OUTPUT=$(aiq_scan "$local_task_tmp" 2>/dev/null)
-  SCAN_EXIT=$?
   set -e
   RISK_SCORE=$(printf '%s\n' "$SCAN_OUTPUT" \
     | grep '^SCORE:' | tail -1 | sed 's/SCORE:\([0-9]*\).*/\1/' || printf '0')
@@ -354,8 +352,6 @@ fi
 # ---------------------------------------------------------------------------
 # Submit and sanitize output
 # ---------------------------------------------------------------------------
-RESP_TMP=$(_mktmp)
-
 set +e
 RAW_RESPONSE=$(aiq_submit "$SYS_TMP" "$USER_TMP" "$ENDPOINT" "$MODEL" "$TIMEOUT")
 SUBMIT_EXIT=$?
