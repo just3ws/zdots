@@ -1,0 +1,40 @@
+# .aider.conf.yml — Aider defaults tuned for local Qwen2.5-Coder-7B Q4_K_M.
+#
+# Context budget breakdown (32k total):
+#   system prompt      ~1k
+#   repo map           ~2k  (map-tokens)
+#   chat history       ~6k  (max-chat-history-tokens)
+#   file content       ~20k (headroom for files you /add)
+#   output             ~2k  (n_predict ceiling from llama.cpp)
+#
+# Ground rules for working within a 7B context:
+#   - /add only the specific files you're editing — never the whole repo
+#   - /drop files when done with them
+#   - /clear when starting a new task (don't carry stale history)
+#   - Prefer targeted single-file instructions over multi-file requests
+
+model: openai/local
+weak-model: openai/local
+
+# Repo map: keep it small — the 7B model gets confused by large maps.
+# 2048 tokens is enough to show the shape of the repo without overwhelming context.
+map-tokens: 2048
+
+# Chat history: trim aggressively. History older than ~6k tokens isn't helping.
+max-chat-history-tokens: 6000
+
+# Edit format: diff is the most context-efficient format for small models.
+# "whole" sends the entire file on every edit — wasteful at small context sizes.
+edit-format: diff
+
+# Don't auto-commit — review diffs from a 7B model before committing.
+auto-commits: false
+
+# Suppress model registry warning (openai/local is intentionally not in aider's cloud list).
+show-model-warnings: false
+
+# Don't check for aider updates on every launch — managed by uv.
+check-update: false
+
+# Don't send analytics.
+analytics: false
