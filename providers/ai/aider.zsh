@@ -19,25 +19,27 @@ zdots_aider_init() {
   local _endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
 
   export AIDER_OPENAI_API_BASE="${_endpoint}/v1"
-  export AIDER_OPENAI_API_KEY="local"          # llama.cpp ignores the key; any non-empty value works
-  export AIDER_MODEL="openai/local"            # "openai/" prefix = OpenAI-compatible provider
-  export AIDER_WEAK_MODEL="openai/local"       # used for commit messages and summarisation
+  export AIDER_OPENAI_API_KEY="local"   # llama.cpp ignores the key; any non-empty value works
 
-  # Disable aider's update check and analytics — we manage versions via uv.
-  export AIDER_NO_CHECK_UPDATE=1
-  export AIDER_ANALYTICS=false
+  # Point aider at the model metadata file so it knows the real context window
+  # (32768 tokens for the standard profile). Without this aider reports "0 of 0"
+  # and cannot budget tokens correctly, causing premature context exhaustion.
+  export AIDER_MODEL_METADATA_FILE="${HOME}/.aider.model.metadata.json"
 
-  # Sensible defaults for local inference:
-  #   - no-auto-commits: local models can produce noisy diffs; review before commit
-  #   - max-chat-history-tokens: keep context tight for 7B model (8k is comfortable)
-  #   - no-show-model-warnings: the "local" alias is intentionally not in aider's cloud registry
-  export AIDER_AUTO_COMMITS=false
-  export AIDER_MAX_CHAT_HISTORY_TOKENS=8000
-  export AIDER_SHOW_MODEL_WARNINGS=false
+  # Per-repo defaults (edit-format, map-tokens, history limits, etc.) live in
+  # .aider.conf.yml in ZDOTDIR. Aider reads it automatically when launched
+  # from that directory; zaider() sets AIDER_CONFIG to ensure it's always found.
+  export AIDER_CONFIG="${ZDOTDIR}/.aider.conf.yml"
 }
 
 # zaider — launch aider wired to local llama.cpp, from any directory.
 # Always call zdots_aider_init first so env vars reflect current endpoint.
+#
+# Workflow tips for 7B context limits:
+#   /add file.rb      — add only the file you're editing
+#   /drop file.rb     — drop it when done to free context
+#   /clear            — wipe history when starting a new task
+#   /tokens           — show current token usage breakdown
 zaider() {
   zdots_aider_init
   aider "$@"
