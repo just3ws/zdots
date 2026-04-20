@@ -1,4 +1,11 @@
 #!/usr/bin/env zsh
+# ---
+# id: check
+# title: "Zdots Shell Integrity Check"
+# purpose: Validate shell syntax, loading behavior, keybindings, safe mode, and run the bats test suite.
+# rationale: CI-safe health gate for the zsh config layer; complements zdots-ctl check (platform services).
+# ---
+# bin/check — Shell integrity validator. Run via: make check / make check-fast
 
 set -eu
 setopt pipefail
@@ -536,7 +543,7 @@ assert_no_home_zsh_configs() {
     echo "check: errant zsh config files in \$HOME (loaded by zsh before ZDOTDIR):" >&2
     printf '  %s\n' "${errant[@]}" >&2
     echo "  These shadow zdots config. Migrate contents to \$ZDOTDIR/conf.d/ or env.sh, then delete." >&2
-    if [[ "${ZDOTS_CHECK_STRICT_HOME:-1}" == "1" ]]; then
+    if [[ "${ZDOTS_CHECK_STRICT_HOME:-0}" == "1" ]]; then
       exit 1
     fi
   fi

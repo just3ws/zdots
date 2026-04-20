@@ -1,6 +1,11 @@
 #!/usr/bin/env sh
-# Zdots Bootstrap — Single command system recreation.
-# Handles directory infrastructure, permissions, and toolchain dependencies.
+# ---
+# id: bootstrap
+# title: "Zdots Bootstrap"
+# purpose: Single-command system recreation on a new machine.
+# rationale: Idempotent setup for XDG dirs, shell symlinks, git config, Homebrew packages, AI stack, and ruby_llm gem.
+# ---
+# bin/bootstrap — First-time setup. Run via: make bootstrap
 
 set -eu
 
