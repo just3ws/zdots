@@ -6,7 +6,7 @@
 #
 # Transport: stdio (JSON-RPC 2.0)
 # Register in ~/.claude.json → mcpServers:
-#   "llama": {"type":"stdio","command":"/Users/mike/.config/zsh/bin/llama-mcp"}
+#   "llama": {"type":"stdio","command":"${ZDOTDIR}/bin/llama-mcp","env":{"PATH":"..."}}
 #
 # Tools exposed:
 #   llama_capabilities      Full capability + integration guide (markdown or JSON)

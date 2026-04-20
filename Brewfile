@@ -33,7 +33,7 @@ brew "tokei"            # Blazingly fast code stats; provides project metadata t
 brew "universal-ctags"  # Symbol indexing; allows agents to find definitions without deep scans.
 brew "ast-grep"         # Structural code search (sg); used for complex refactoring by agents.
 brew "fabric-ai"        # AI workflow pattern executor.
-brew "ollama"           # Local LLM runner for private AI interactions.
+brew "llama.cpp"        # Local LLM inference server; OpenAI-compatible API on :8080.
 brew "otel-cli"         # OpenTelemetry CLI; useful for ad-hoc shell spans.
 brew "gemini-cli"       # Google Gemini AI CLI; aliased to 'gm' in conf.d/80-aliases.zsh.
 brew "usage"            # CLI specification tool; helps agents understand CLI parameters.
