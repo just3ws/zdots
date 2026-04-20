@@ -51,6 +51,13 @@ alias zlogs='llama-ctl logs'                          # tail llama.cpp server lo
 alias zlogs-otel='otel-collector logs'                # tail OTel collector log
 alias zlogs-ci='local-ci logs'                        # tail LGTM stack log
 
+# AI Recipes (pre-built scenarios — run with no args for usage)
+alias zmorning='recipes/morning'                      # daily briefing: health + history + suggestions
+alias zstandup='recipes/standup'                      # git history → standup summary
+alias zpre-push='recipes/pre-push'                    # review unpushed commits before pushing
+alias zcommit-recipe='recipes/commit'                 # review staged diff → generate message → commit
+alias zlog-errors='recipes/log-errors'                # triage service log errors with AI
+
 # AI Shell Intelligence (local model via ai-query)
 alias zcommit='commit-msg'                            # draft commit message from staged diff
 alias zreview='diff-review'                           # review staged diff for issues

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# recipes/standup — Generate a standup summary from git history.
+#
+# Scenario: Monday morning. What did you ship last week across all repos?
+#
+# What this does:
+#   1. Scans git log in the current repo (and optionally ~/projects/*)
+#   2. Compresses with rtk if available
+#   3. Asks the local model to write a standup-style summary
+#
+# Usage:
+#   recipes/standup              # current repo, commits since yesterday
+#   recipes/standup --week       # current repo, commits since last Monday
+#   recipes/standup --all        # all repos under ~/projects/, since yesterday
+#   recipes/standup --since "3 days ago"  # custom time range
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+AI_QUERY="${ZDOTDIR}/bin/ai-query"
+
+SINCE="yesterday"
+ALL_REPOS=false
+for arg in "$@"; do
+  case "$arg" in
+    --week)   SINCE="last monday" ;;
+    --all)    ALL_REPOS=true ;;
+    --since)  shift; SINCE="$1" ;;
+    --help)
+      sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+  esac
+done
+
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+  printf 'recipe/standup: llama.cpp is not running.\n  Start with: llama-ctl start\n' >&2
+  exit 1
+fi
+
+AUTHOR=$(git config user.name 2>/dev/null || echo "")
+AUTHOR_FLAG=""
+[[ -n "$AUTHOR" ]] && AUTHOR_FLAG="--author=$AUTHOR"
+
+collect_log() {
+  local repo="$1"
+  local label="$2"
+  local log
+  log=$(git -C "$repo" log \
+    --since="$SINCE" \
+    --oneline \
+    --no-merges \
+    ${AUTHOR_FLAG:+"$AUTHOR_FLAG"} 2>/dev/null) || return 0
+  [[ -z "$log" ]] && return 0
+  printf '# %s\n%s\n\n' "$label" "$log"
+}
+
+printf '\033[1m── Git Activity since "%s" ──────────────────\033[0m\n' "$SINCE"
+
+LOG=""
+if $ALL_REPOS; then
+  for repo in "$HOME/projects"/*/; do
+    [[ -d "$repo/.git" ]] || continue
+    name=$(basename "$repo")
+    entry=$(collect_log "$repo" "$name")
+    LOG="${LOG}${entry}"
+  done
+  # Include current repo if not under ~/projects/
+  CWD=$(pwd)
+  if [[ "$CWD" != "$HOME/projects/"* ]] && git rev-parse --git-dir >/dev/null 2>&1; then
+    entry=$(collect_log "$CWD" "$(basename "$CWD") (current)")
+    LOG="${LOG}${entry}"
+  fi
+else
+  if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    printf 'recipe/standup: not in a git repo. Use --all to scan ~/projects/\n' >&2
+    exit 1
+  fi
+  LOG=$(collect_log "$(pwd)" "$(basename "$(pwd)")")
+fi
+
+if [[ -z "$LOG" ]]; then
+  printf '(no commits found since "%s")\n' "$SINCE"
+  exit 0
+fi
+
+printf '%s\n\n' "$LOG"
+
+PROMPT="Write a standup update from this git commit log.
+Format:
+  Yesterday / This week:
+  - <bullet per meaningful piece of work, grouped by theme not by commit>
+  Next:
+  - <infer what likely comes next based on the work pattern>
+
+Rules:
+- Merge similar commits into one bullet
+- Use plain language, not commit message jargon
+- Keep it under 10 bullets total
+- Output only the standup text, no preamble"
+
+printf '\033[1m── Standup Summary ─────────────────────────────\033[0m\n'
+if command -v rtk >/dev/null 2>&1; then
+  printf '%s' "$LOG" | rtk | "$AI_QUERY" --mode safe-extract "$PROMPT"
+else
+  printf '%s' "$LOG" | "$AI_QUERY" --mode safe-extract "$PROMPT"
+fi
