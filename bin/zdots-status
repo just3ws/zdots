@@ -1,0 +1,325 @@
+#!/usr/bin/env bash
+# bin/zdots-status — Live TUI dashboard for Zdots platform health.
+#
+# Paints a self-refreshing panel in the alternate screen showing service
+# status, shell environment, home-dir warnings, and storage at a glance.
+#
+# Usage: zdots-status [--once] [--interval N]
+#   --once        Draw once and exit (no live refresh)
+#   --interval N  Refresh every N seconds (default: 5)
+#   -h, --help    Show this help
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+GRAFANA_URL="http://127.0.0.1:3000"
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+ONCE=false
+INTERVAL=5
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --once)          ONCE=true ;;
+    --interval)      shift; INTERVAL="${1:?--interval requires N}" ;;
+    --interval=*)    INTERVAL="${1#--interval=}" ;;
+    -h|--help)
+      sed -n '2,8p' "$0" | sed 's/^# \?//'
+      exit 0 ;;
+    *) printf 'zdots-status: unknown option: %s\n' "$1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+# ---------------------------------------------------------------------------
+# Terminal capability check
+# ---------------------------------------------------------------------------
+if ! command -v tput >/dev/null 2>&1 || ! tput cols >/dev/null 2>&1; then
+  printf 'zdots-status: terminal does not support tput — use --once or redirect to a tty\n' >&2
+  ONCE=true
+fi
+
+# ---------------------------------------------------------------------------
+# Color / formatting helpers
+# ---------------------------------------------------------------------------
+_esc()  { printf '\033[%sm' "$1"; }
+RESET=$(_esc 0)
+BOLD=$(_esc 1)
+DIM=$(_esc 2)
+GREEN=$(_esc '0;32')
+RED=$(_esc '0;31')
+YELLOW=$(_esc '0;33')
+CYAN=$(_esc '0;36')
+
+_up()   { printf '%s%-6s%s' "$GREEN"  "[UP]"   "$RESET"; }
+_down() { printf '%s%-6s%s' "$RED"    "[DOWN]" "$RESET"; }
+_warn() { printf '%s%-6s%s' "$YELLOW" "[WARN]" "$RESET"; }
+_pass() { printf '%s%-6s%s' "$GREEN"  "[OK]"   "$RESET"; }
+
+# Pad/truncate a string to an exact field width
+_field() {
+  local width="$1" str="$2"
+  printf '%-*s' "$width" "${str:0:$width}"
+}
+
+# Horizontal rule using terminal width
+_rule() {
+  local char="${1:-─}" width
+  width=$(tput cols 2>/dev/null || echo 72)
+  printf '%s' "$DIM"
+  printf '%*s' "$width" '' | tr ' ' "$char"
+  printf '%s\n' "$RESET"
+}
+
+# Section header
+_section() {
+  printf '\n%s%s%s\n' "$BOLD$CYAN" "$1" "$RESET"
+  _rule '─'
+}
+
+# ---------------------------------------------------------------------------
+# Service probes (all fast — 2s timeout)
+# ---------------------------------------------------------------------------
+probe_services() {
+  AI_UP=false; AI_MODEL="unknown"
+  OTEL_UP=false
+  COLIMA_UP=false
+  GRAFANA_UP=false
+
+  if curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; then
+    AI_UP=true
+    AI_MODEL=$(curl -sf -m 2 "${AI_ENDPOINT}/v1/models" 2>/dev/null \
+      | jq -r '.data[0].id // "local"' 2>/dev/null || printf 'local')
+  fi
+
+  if launchctl list com.zdots.otel-collector 2>/dev/null | grep -q '"PID"'; then
+    OTEL_UP=true
+  fi
+
+  if colima status 2>&1 | grep -q "is running"; then
+    COLIMA_UP=true
+  fi
+
+  if curl -sf -m 2 "${GRAFANA_URL}/api/health" >/dev/null 2>&1; then
+    GRAFANA_UP=true
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Storage probe (cached — only re-runs every 60s)
+# ---------------------------------------------------------------------------
+_DISK_CACHE=""
+_DISK_TS=0
+
+probe_storage() {
+  local now; now=$(date +%s)
+  if (( now - _DISK_TS < 60 )) && [[ -n "$_DISK_CACHE" ]]; then
+    return
+  fi
+  _DISK_TS=$now
+
+  MODEL_DISK=""
+  MODEL_COUNT=0
+  DOCKER_DISK=""
+
+  if command -v llama-ctl >/dev/null 2>&1; then
+    local models_dir
+    models_dir="$(llama-ctl config --json 2>/dev/null \
+      | jq -r '.models_dir // empty' 2>/dev/null || true)"
+    if [[ -n "$models_dir" && -d "$models_dir" ]]; then
+      MODEL_DISK=$(du -sh "$models_dir" 2>/dev/null | cut -f1 || echo "?")
+      MODEL_COUNT=$(find "$models_dir" -maxdepth 1 -name '*.gguf' 2>/dev/null | wc -l | tr -d ' ')
+    fi
+  fi
+
+  if command -v docker >/dev/null 2>&1 && $COLIMA_UP; then
+    DOCKER_DISK=$(docker system df --format '{{.Size}}' 2>/dev/null \
+      | awk '{sum+=$1} END{print sum"B"}' || echo "?")
+    # simpler: just total line
+    DOCKER_DISK=$(docker system df 2>/dev/null \
+      | awk '/^Local Volumes/{v=$4} /^Images/{i=$4} END{print i" images, "v" volumes"}' \
+      || echo "unavailable")
+  fi
+
+  _DISK_CACHE="done"
+}
+
+# ---------------------------------------------------------------------------
+# Home-dir warnings
+# ---------------------------------------------------------------------------
+probe_home() {
+  HOME_WARNINGS=()
+  for f in .zshrc .zprofile .zlogin .zlogout; do
+    [[ -f "$HOME/$f" ]] && HOME_WARNINGS+=("$HOME/$f") || true
+  done
+}
+
+# ---------------------------------------------------------------------------
+# Shell info (static — read once)
+# ---------------------------------------------------------------------------
+probe_shell() {
+  SHELL_ZDOTDIR="${ZDOTDIR}"
+  STARTUP_MS=""
+  if command -v /usr/bin/time >/dev/null 2>&1; then
+    local real
+    real=$({ /usr/bin/time -p env ZDOTDIR="$ZDOTDIR" HOME="$HOME" \
+      zsh -i -c exit >/dev/null; } 2>&1 | awk '$1=="real"{print $2}') || true
+    if [[ -n "$real" ]]; then
+      STARTUP_MS=$(awk -v r="$real" 'BEGIN{printf "%dms", r*1000}')
+    fi
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Draw the dashboard
+# ---------------------------------------------------------------------------
+draw() {
+  local cols now host
+  cols=$(tput cols 2>/dev/null || echo 72)
+  now=$(date '+%Y-%m-%d %H:%M:%S')
+  host=$(hostname -s 2>/dev/null || echo localhost)
+
+  # Header bar
+  local title="  zdots-status"
+  local rhs="${host}  ${now}  "
+  local gap=$(( cols - ${#title} - ${#rhs} ))
+  (( gap < 1 )) && gap=1 || true
+  printf '%s%s%s%*s%s%s%s\n' \
+    "$BOLD" "$title" "$RESET" \
+    "$gap" "" \
+    "$DIM" "$rhs" "$RESET"
+  _rule '═'
+
+  # ── Services ──────────────────────────────────────────────────────────
+  _section "Services"
+  local w=20  # label column width
+
+  if $AI_UP; then
+    printf '  %s  %s  %smodel=%s%s  %s%s%s\n' \
+      "$(_up)" "$(_field $w "llama.cpp")" \
+      "$DIM" "$AI_MODEL" "$RESET" \
+      "$DIM" "$AI_ENDPOINT" "$RESET"
+  else
+    printf '  %s  %s  %sllama-ctl start%s\n' \
+      "$(_down)" "$(_field $w "llama.cpp")" "$DIM" "$RESET"
+  fi
+
+  if $OTEL_UP; then
+    printf '  %s  %s  %s:4318 (http)  :4317 (grpc)%s\n' \
+      "$(_up)" "$(_field $w "otelcol-contrib")" "$DIM" "$RESET"
+  else
+    printf '  %s  %s  %sotel-collector start%s\n' \
+      "$(_down)" "$(_field $w "otelcol-contrib")" "$DIM" "$RESET"
+  fi
+
+  if $COLIMA_UP; then
+    printf '  %s  %s\n' "$(_up)" "$(_field $w "Colima")"
+  else
+    printf '  %s  %s  %slocal-ci start%s\n' \
+      "$(_down)" "$(_field $w "Colima")" "$DIM" "$RESET"
+  fi
+
+  if $GRAFANA_UP; then
+    printf '  %s  %s  %s%s%s\n' \
+      "$(_up)" "$(_field $w "LGTM / Grafana")" "$DIM" "$GRAFANA_URL" "$RESET"
+  else
+    printf '  %s  %s  %slocal-ci start%s\n' \
+      "$(_down)" "$(_field $w "LGTM / Grafana")" "$DIM" "$RESET"
+  fi
+
+  # ── Shell ─────────────────────────────────────────────────────────────
+  _section "Shell"
+  printf '  %s  %s\n' "$(_pass)" "ZDOTDIR  $SHELL_ZDOTDIR"
+  if [[ -n "$STARTUP_MS" ]]; then
+    local budget=80
+    local ms_val
+    ms_val=$(echo "$STARTUP_MS" | tr -d 'ms')
+    if (( ms_val > budget )); then
+      printf '  %s  startup  %s%s%s  (budget %dms)\n' \
+        "$(_warn)" "$YELLOW" "$STARTUP_MS" "$RESET" "$budget"
+    else
+      printf '  %s  startup  %s\n' "$(_pass)" "$STARTUP_MS"
+    fi
+  fi
+
+  # ── Home-dir warnings ─────────────────────────────────────────────────
+  if (( ${#HOME_WARNINGS[@]} > 0 )); then
+    _section "Home Directory Warnings"
+    for f in "${HOME_WARNINGS[@]}"; do
+      printf '  %s  %s%s%s\n' \
+        "$(_warn)" "$YELLOW" "$f" "$RESET"
+      printf '         %sloaded by zsh before ZDOTDIR — may shadow zdots config%s\n' \
+        "$DIM" "$RESET"
+    done
+    printf '\n  %sRun: cat %s  then migrate or delete%s\n' \
+      "$DIM" "${HOME_WARNINGS[0]}" "$RESET"
+  fi
+
+  # ── Storage ───────────────────────────────────────────────────────────
+  if [[ -n "$MODEL_DISK" || -n "$DOCKER_DISK" ]]; then
+    _section "Storage"
+    [[ -n "$MODEL_DISK" ]] && \
+      printf '  %s  AI models  %s  (%s GGUF)\n' \
+        "$(_pass)" "$MODEL_DISK" "$MODEL_COUNT"
+    [[ -n "$DOCKER_DISK" ]] && \
+      printf '  %s  Docker     %s\n' "$(_pass)" "$DOCKER_DISK"
+  fi
+
+  # ── Footer ────────────────────────────────────────────────────────────
+  printf '\n'
+  _rule '─'
+  if $ONCE; then
+    printf '  %szdots-status%s\n' "$DIM" "$RESET"
+  else
+    printf '  %srefreshing every %ds  •  q to quit%s\n' \
+      "$DIM" "$INTERVAL" "$RESET"
+  fi
+
+  printf '\033[J'   # erase from cursor to end of screen — clears stale content
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+# Static one-shot mode
+if $ONCE || ! tput smcup >/dev/null 2>&1; then
+  probe_services
+  probe_storage
+  probe_home
+  probe_shell
+  draw
+  exit 0
+fi
+
+# Live mode: alternate screen
+tput smcup
+tput civis   # hide cursor
+
+_cleanup() {
+  tput cvvis 2>/dev/null || true  # show cursor
+  tput rmcup 2>/dev/null || true  # restore screen
+}
+trap _cleanup EXIT INT TERM
+
+# Run startup probes (shell timing is slow — do it once)
+probe_shell
+probe_home
+
+while true; do
+  probe_services
+  probe_storage
+
+  tput cup 0 0
+  draw
+
+  # Wait for keypress or timeout
+  if read -r -s -n 1 -t "$INTERVAL" key 2>/dev/null; then
+    [[ "$key" == "q" || "$key" == "Q" ]] && break
+    # r = force refresh immediately
+    [[ "$key" == "r" || "$key" == "R" ]] && { _DISK_TS=0; continue; }
+  fi
+done

@@ -1,4 +1,11 @@
 #!/usr/bin/env zsh
+# ---
+# id: history-import
+# title: "Zdots History Import"
+# purpose: Import shell history from zsh, bash, atuin, or fish into the local SQLite history database.
+# rationale: Centralises history data for analysis by history-analyze and agents.
+# ---
+# bin/history-import — Shell history ingestion into SQLite.
 
 set -euo pipefail
 
