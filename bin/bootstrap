@@ -78,15 +78,46 @@ fi
 echo "bootstrap: installing brew dependencies (this may take a while)..."
 brew bundle --file "$REPO_ROOT/Brewfile"
 
-# 6. AI Model Hydration
-# Download the active profile's GGUF model if not already present.
-# Skipped silently if llama-ctl is not yet available (e.g. brew bundle failed).
-if command -v llama-ctl >/dev/null 2>&1; then
-  echo "bootstrap: hydrating AI model (profile: ${ZDOTS_AI_PROFILE:-standard})..."
-  llama-ctl hydrate || echo "bootstrap: warning: model hydration failed (non-blocking)"
+# 6. AI Stack Setup
+# Install launchd service + download active profile GGUF.
+# llama.cpp is installed via brew bundle above; this registers the plist and fetches the model.
+if command -v llama-server >/dev/null 2>&1; then
+  if command -v llama-ctl >/dev/null 2>&1; then
+    echo "bootstrap: registering llama.cpp launchd service..."
+    llama-ctl install || echo "bootstrap: warning: llama-ctl install failed (non-blocking)"
+    echo "bootstrap: downloading AI model (profile: ${ZDOTS_AI_PROFILE:-standard}, ~4.7 GB)..."
+    llama-ctl model-download || echo "bootstrap: warning: model download failed — run 'llama-ctl model-download' manually"
+    echo "bootstrap: re-registering plist with model path..."
+    llama-ctl install || true
+  fi
 else
-  echo "bootstrap: llama-ctl not found — skipping AI model hydration."
-  echo "           Run 'llama-ctl install && llama-ctl hydrate' after brew bundle."
+  echo "bootstrap: llama-server not found — skipping AI setup."
+  echo "           Run: llama-ctl install && llama-ctl model-download && llama-ctl install"
+fi
+
+# 7. Ruby gems for AI integration tests
+# ruby_llm is required by tests/llama_integration.rb and zdots-ctl check.
+# Ruby is managed by mise; shims may not be active yet in this sh context.
+_ruby_bin=""
+if command -v ruby >/dev/null 2>&1; then
+  _ruby_bin="ruby"
+elif [ -x "$HOME/.local/share/mise/shims/ruby" ]; then
+  _ruby_bin="$HOME/.local/share/mise/shims/ruby"
+fi
+
+if [ -n "$_ruby_bin" ]; then
+  _gem_bin="$(dirname "$_ruby_bin")/gem"
+  if ! [ -x "$_gem_bin" ]; then _gem_bin="gem"; fi
+  if ! "$_ruby_bin" -e 'require "ruby_llm"' >/dev/null 2>&1; then
+    echo "bootstrap: installing ruby_llm gem..."
+    "$_gem_bin" install ruby_llm --no-document \
+      || echo "bootstrap: warning: ruby_llm install failed — run 'gem install ruby_llm' after mise activates ruby"
+  else
+    echo "bootstrap: ruby_llm gem already installed."
+  fi
+else
+  echo "bootstrap: ruby not found — skipping gem install."
+  echo "           After mise activates ruby, run: gem install ruby_llm"
 fi
 
 echo "bootstrap: complete. Restart your shell or run 'exec zsh'."

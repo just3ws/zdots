@@ -159,19 +159,41 @@ exec "$SHELL"
 ### Bootstrap
 
 ```sh
-make bootstrap          # install Homebrew packages and tooling
+make bootstrap          # install Homebrew packages, AI stack, and ruby_llm gem
 make check              # capabilities check + test suite
 ```
 
-### Local AI (first time)
+`make bootstrap` handles: Homebrew packages (including `llama.cpp`), launchd plist registration, GGUF model download (~4.7 GB), and `ruby_llm` gem install. The AI steps are non-blocking — if the model download is slow, everything else still completes.
+
+### Local AI (first time or manual)
+
+`make bootstrap` runs these automatically. If you need to run them manually:
 
 ```sh
-llama-ctl install         # brew install llama.cpp + register launchd service
+llama-ctl install         # register launchd plist (llama.cpp already installed via brew)
 llama-ctl model-download  # download active profile GGUF (~4.7 GB)
 llama-ctl install         # re-register plist with model path; auto-starts server
 llama-ctl status          # verify
 ruby tests/llama_integration.rb --quick  # confirm end-to-end
 ```
+
+### Claude Code MCP server (new machine)
+
+The `llama-mcp` MCP server is registered per-machine in `~/.claude.json` (not committed to the repo). Add it manually once after bootstrap:
+
+```json
+"llama": {
+  "type": "stdio",
+  "command": "/Users/YOU/.config/zsh/bin/llama-mcp",
+  "env": {
+    "ZDOTDIR": "/Users/YOU/.config/zsh",
+    "ZDOTS_AI_ENDPOINT": "http://127.0.0.1:8080",
+    "PATH": "/Users/YOU/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin"
+  }
+}
+```
+
+Then restart Claude Code. The MCP tools (`llama_capabilities`, `llama_health`, `llama_config`, `llama_run_test`, `llama_integration_snippet`) will be available natively in your session.
 
 ### Observability stack (first time)
 
