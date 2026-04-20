@@ -35,3 +35,14 @@ alias claude-mem='bun "$HOME/.claude/plugins/marketplaces/thedotmack/plugin/scri
 
 # Zsh Globbing shorthands
 alias prunedirs='rm -d **/*(/^F)'
+
+# Zdots Platform Control (z* prefix — work from any directory)
+alias zstatus='zdots-status'                          # live TUI dashboard
+alias zcheck='make -C "${ZDOTDIR}" check-fast'        # shell integrity (fast)
+alias zcheck-full='make -C "${ZDOTDIR}" check'        # shell integrity (full)
+alias ztest='make -C "${ZDOTDIR}" test'               # bats suite only
+alias zhealth='zdots-ctl check'                       # platform + service health
+alias zup='zdots-ctl up'                              # start all services
+alias zdown='zdots-ctl down'                          # stop all services
+alias zreset='zdots-ctl reset'                        # full platform restart
+alias zmake='make -C "${ZDOTDIR}"'                    # any make target from anywhere
