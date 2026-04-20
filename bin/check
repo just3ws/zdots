@@ -20,7 +20,6 @@ if [[ "$PWD" == */.config/zsh ]]; then
 else
   export ZDOTDIR="${ZDOTDIR:-$REPO_ROOT}"
 fi
-echo "DEBUG: bin/check ZDOTDIR=$ZDOTDIR" >&2
 SKIP_EXTERNAL="${ZDOTS_CHECK_SKIP_EXTERNAL:-0}"
 
 for f in .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*; do
@@ -39,7 +38,6 @@ zsh -i -c 'exit' >/dev/null 2>"$errfile"
 ret=$?
 set -e
 if [[ $ret -ne 0 ]]; then
-  echo "DEBUG: zsh -i -c exit failed with ret=$ret" >&2
   echo "check: zsh -i -c exit failed with exit code $ret" >&2
   cat "$errfile" >&2
   rm -f "$errfile"
@@ -62,7 +60,6 @@ zsh -l -i -c 'exit' >/dev/null 2>"$errfile"
 ret=$?
 set -e
 if [[ $ret -ne 0 ]]; then
-  echo "DEBUG: zsh -l -i -c exit failed with ret=$ret" >&2
   echo "check: zsh -l -i -c exit failed with exit code $ret" >&2
   [[ -s "$errfile" ]] && cat "$errfile" >&2
   rm -f "$errfile"
@@ -88,8 +85,6 @@ assert_history_mode() {
     [[ -o share_history ]] && echo "share:on" || echo "share:off"
     [[ -o inc_append_history_time ]] && echo "inc_append_history_time:on" || echo "inc_append_history_time:off"
   ' | _strip_escapes)"
-
-  echo "DEBUG: assert_history_mode mode=$mode share_flag=$share_flag flags:\n$flags" >&2
 
   if [[ "$share_flag" == "1" ]]; then
     if ! grep -qx 'share:on' <<<"$flags"; then
@@ -506,6 +501,22 @@ if [[ -f "$HOME/.zshenv" && "${ZDOTS_CHECK_VERIFY_BOOTSTRAP:-1}" == "1" ]]; then
     echo "check: warning: ~/.zshenv may not be using zdots bootstrap/source-of-truth" >&2
   fi
 fi
+
+assert_no_home_zsh_configs() {
+  local -a errant=()
+  for f in .zshrc .zprofile .zlogin .zlogout; do
+    [[ -f "$HOME/$f" ]] && errant+=("$HOME/$f")
+  done
+  if (( ${#errant[@]} > 0 )); then
+    echo "check: errant zsh config files in \$HOME (loaded by zsh before ZDOTDIR):" >&2
+    printf '  %s\n' "${errant[@]}" >&2
+    echo "  These shadow zdots config. Migrate contents to \$ZDOTDIR/conf.d/ or env.sh, then delete." >&2
+    if [[ "${ZDOTS_CHECK_STRICT_HOME:-1}" == "1" ]]; then
+      exit 1
+    fi
+  fi
+}
+assert_no_home_zsh_configs
 
 if [[ "${ZDOTS_CHECK_REPORT_STARTUP:-0}" == "1" ]]; then
   report_startup_timing

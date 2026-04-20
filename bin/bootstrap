@@ -55,6 +55,18 @@ if [ ! -e "$HOME/.zshenv" ]; then ln -s "$REPO_ROOT/.zshenv" "$HOME/.zshenv"; fi
 if [ ! -e "$HOME/.bashrc" ]; then ln -s "$REPO_ROOT/bashrc" "$HOME/.bashrc"; fi
 if [ ! -e "$HOME/.bash_profile" ]; then ln -s "$REPO_ROOT/bash_profile" "$HOME/.bash_profile"; fi
 
+# Warn about zsh config files in $HOME that load before ZDOTDIR.
+# Tools like nvm, conda, and Homebrew installers commonly append to ~/.zshrc
+# or ~/.zprofile, silently shadowing zdots config.
+for _f in .zshrc .zprofile .zlogin .zlogout; do
+  if [ -f "$HOME/$_f" ]; then
+    echo "bootstrap: WARNING: $HOME/$_f exists and will be loaded by zsh before ZDOTDIR."
+    echo "           Migrate its contents to \$ZDOTDIR/conf.d/ or env.sh, then delete it."
+    echo "           Run 'make check' to surface this as a blocking error after migration."
+  fi
+done
+unset _f
+
 # 4. Git Integration
 echo "bootstrap: configuring git..."
 if [ ! -e "$HOME/.gitconfig" ]; then
