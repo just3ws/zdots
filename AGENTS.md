@@ -137,7 +137,7 @@ This repository uses `backlog-md` (binary `backlog`) for task management. It is 
 - **History:** `atuin` (SQLite) with `history_enquire` (`he`) for maintenance.
 - **Search:** `fzf` + `fzf-tab` integration.
 - **File System:** `zoxide` (`z`), `eza` (aliased to `ls`), and `broot` (`br`) for weighted tree navigation.
-- **AI Integration:** Use `ai-query` to pipe command output into inference from any bash context (e.g., `cat logs.txt | ai-query "summarize"`). The `ai` zsh function requires an interactive shell — do not use it from scripts or agent tools. Full guide: `docs/llama-cpp.md`.
+- **AI Integration:** Four tools, distinct roles — see "AI Tool Selection" section below. Quick ref: `ai-query` for subprocess-safe inference (`cat logs.txt | ai-query "summarize"`); `zaider` for interactive code editing; `ai` for interactive shell only; `rtk` to compress noisy output before piping to any LLM. Full guide: `docs/llama-cpp.md`, `docs/aider.md`.
 - **Data Handling:** `jless`/`fx` for interactive JSON exploration.
 - **GitHub:** Use `gh dash` for a full overview of PRs and Issues.
 
@@ -229,6 +229,51 @@ history-analyze --ai         # AI-powered shell history analysis
 - One active GGUF at a time. ⚠️ `llama-ctl model-prune` **permanently deletes** non-active GGUFs — confirm before running.
 - Default model: Qwen2.5-Coder-7B Q4_K_M (~4.7GB, `standard` profile).
 - If OOM: reduce `--parallel` to 1 in `etc/ai-models.yaml`, or switch to `constrained` profile.
+
+## AI Tool Selection
+
+Pick the right tool for the task. These are not interchangeable.
+
+| Tool | When to use | When NOT to use |
+|---|---|---|
+| **Claude Code** (`cl`) | Multi-file changes, architectural decisions, deep reasoning, tasks requiring broad repo context | Single-file edits, interactive polish, anything a local 7B model handles |
+| **`zaider` (aider)** | Focused single-file edits, writing tests, targeted refactors, commit message drafting — interactive | Multi-file coordinated changes, complex reasoning, anything requiring external API knowledge |
+| **`ai-query`** | Pipe command output to inference from any bash/script context; subprocess-safe (CI, agent tools, scripts) | Interactive conversation; it's one-shot only |
+| **`ai`** (zsh function) | Interactive conversational inference at the prompt | Scripts, agent sandboxes, Claude Code's Bash tool — requires interactive zsh |
+| **`rtk`** | Preprocess high-volume command output before feeding to any LLM (`cmd \| rtk \| ai-query`) | Wrapping tools that manage their own context (aider, Claude Code) — RTK cannot intercept internal pipelines |
+
+### Decision tree
+
+```
+Need to edit code?
+  ├─ Multiple files or complex reasoning? → Claude Code
+  └─ Single file, focused task?           → zaider
+
+Need LLM analysis of command output?
+  ├─ In a script or agent context?        → ai-query
+  ├─ Interactive shell, conversational?   → ai (zsh function)
+  └─ Output is large/noisy?              → cmd | rtk | ai-query
+
+Need to reduce token noise before any LLM?
+  └─ cmd | rtk | <tool>                  → rtk (stdout layer only)
+```
+
+### RTK scope boundary
+
+RTK works at the **CLI stdout layer** — it preprocesses text before it enters an LLM. It cannot intercept tools that build their own context internally (aider reads files via `/add` and manages a repo map; Claude Code has its own context window). The correct pattern is always:
+
+```sh
+# Works: pipe command output through rtk before ai-query
+git log | rtk | ai-query "summarize changes"
+cat error.log | rtk | ai-query "find root cause"
+
+# Does not work: rtk wrapping an interactive tool
+rtk zaider    # wraps aider's TUI, not its inference context
+```
+
+For aider specifically: use `rtk read <file>` or `rtk git log` *before* opening `zaider` to decide what to `/add`. See `docs/aider.md` for details.
+
+---
 
 ## Observability — OTel + LGTM Stack (Central Hub)
 

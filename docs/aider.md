@@ -94,6 +94,35 @@ OpenCode has documented tool-calling compatibility issues with Qwen2.5 models (e
 
 Pi (`badlogic/pi-mono`) is an alternative with no reported local model issues, but is less mature. Aider is the established choice with the deepest local model integration surface.
 
+## RTK integration
+
+**Short answer: RTK and aider have no direct integration point.**
+
+RTK (`cmd | rtk | LLM`) operates at the CLI stdout layer — it preprocesses text before it enters an LLM context window. Aider manages its own context pipeline internally: it reads files via `/add`, builds the repo map, maintains chat history, and sends everything to the model in one structured request. There is no stdin hook or plugin interface to inject RTK into that pipeline.
+
+**What doesn't work:**
+```sh
+rtk zaider   # ❌ RTK wraps the entire aider process — output is aider's TUI, not inference content
+```
+
+**What does work — adjacent workflows:**
+
+```sh
+# Understand a large file before deciding to /add it
+rtk read path/to/big-file.rb     # compressed view → decide if it's worth adding
+
+# Compressed git log before drafting a commit message in aider
+rtk git log --oneline -20        # read the output, then open zaider
+
+# Summarize a noisy error log before pasting it into aider's chat
+cat error.log | rtk | pbcopy    # compressed → paste into aider with /add or inline
+
+# Pipeline: use rtk with ai-query instead of aider for analysis-only tasks
+git diff | rtk | ai-query "Write a commit message"
+```
+
+**Rule of thumb:** Use RTK + `ai-query` for analysis pipelines. Use `zaider` for interactive editing sessions where you control what enters context with `/add` and `/drop`.
+
 ## See also
 
 - `bin/llama-ctl` — model profile switching
