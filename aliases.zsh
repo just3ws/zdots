@@ -38,6 +38,7 @@ alias prunedirs='rm -d **/*(/^F)'
 
 # Zdots Platform Control (z* prefix — work from any directory)
 alias zstatus='zdots-status'                          # live TUI dashboard
+# zaider is a shell function defined in providers/ai/aider.zsh (sourced by 95-ai.zsh)
 alias zcheck='make -C "${ZDOTDIR}" check-fast'        # shell integrity (fast)
 alias zcheck-full='make -C "${ZDOTDIR}" check'        # shell integrity (full)
 alias ztest='make -C "${ZDOTDIR}" test'               # bats suite only
