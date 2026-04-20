@@ -1,5 +1,11 @@
 #!/usr/bin/env zsh
-# bench — Performance benchmarking suite for Zdots
+# ---
+# id: bench
+# title: "Zdots Startup Benchmark"
+# purpose: Measure shell startup latency across cold and warm runs.
+# rationale: Guards against conf.d module bloat by surfacing regressions against the 80ms performance budget.
+# ---
+# bin/bench — Shell startup performance benchmarking suite.
 
 # Use scoped options
 setopt localoptions errexit pipefail
