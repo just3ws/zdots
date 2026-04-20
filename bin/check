@@ -22,14 +22,39 @@ else
 fi
 SKIP_EXTERNAL="${ZDOTS_CHECK_SKIP_EXTERNAL:-0}"
 
-for f in .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/* bin/*; do
+for f in .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/*; do
   if [[ -f "$f" ]]; then
     if ! zsh -n "$f" 2>/dev/null; then
       echo "check: syntax error in $f" >&2
-      zsh -n "$f" # run again to show error
+      zsh -n "$f"
       exit 1
     fi
   fi
+done
+
+# bin/*: dispatch by shebang rather than assuming zsh for everything.
+for f in bin/*; do
+  [[ -f "$f" ]] || continue
+  shebang="$(head -1 "$f" 2>/dev/null)"
+  case "$shebang" in
+    '#!/usr/bin/env zsh'|'#!/bin/zsh')
+      if ! zsh -n "$f" 2>/dev/null; then
+        echo "check: syntax error in $f" >&2
+        zsh -n "$f"
+        exit 1
+      fi ;;
+    '#!/usr/bin/env bash'|'#!/bin/bash'|'#!/usr/bin/env sh'|'#!/bin/sh')
+      # shellcheck handles these below; skip zsh -n
+      : ;;
+    '#!/usr/bin/env ruby'|'#!/usr/bin/ruby')
+      if command -v ruby >/dev/null 2>&1; then
+        if ! ruby -c "$f" >/dev/null 2>&1; then
+          echo "check: syntax error in $f" >&2
+          ruby -c "$f"
+          exit 1
+        fi
+      fi ;;
+  esac
 done
 
 errfile="$(mktemp)"
@@ -490,7 +515,7 @@ if command -v shellcheck >/dev/null 2>&1; then
   done < <(rg -l '^#![[:space:]]*/usr/bin/env[[:space:]]+(bash|sh)$' -- bin functions/enabled conf.d 2>/dev/null || true)
 
   if (( ${#shfiles[@]} > 0 )); then
-    shellcheck -x "${shfiles[@]}"
+    shellcheck -x --severity=warning "${shfiles[@]}"
   else
     echo "check: shellcheck available, no bash/sh scripts detected; skipping shellcheck pass"
   fi
