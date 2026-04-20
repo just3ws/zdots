@@ -95,6 +95,17 @@ if $JSON; then
     "OTEL_EXPORTER_OTLP_ENDPOINT": "%s",
     "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf"
   },
+  "ai_caps": {
+    "text":     "llama-caps",
+    "json":     "llama-caps --json",
+    "markdown": "llama-caps --md",
+    "note":     "Full capability + integration guide for the local llama.cpp server"
+  },
+  "mcp": {
+    "server":   "llama-mcp",
+    "tools":    ["llama_capabilities","llama_health","llama_config","llama_run_test","llama_integration_snippet"],
+    "note":     "Registered in ~/.claude.json; available natively in Claude Code sessions"
+  },
   "docs": {
     "platform_control": "zdots-ctl check / up / down / reset / status",
     "ai":   "docs/llama-cpp.md",
@@ -176,6 +187,21 @@ _head "AI Inference — llama.cpp"
 cat <<EOF
 Endpoint:  ${AI_ENDPOINT}
 Model ID:  ${AI_MODEL_ID}  (always use "local" as the model name in API calls)
+
+CAPABILITY DISCOVERY — start here when integrating or debugging:
+  llama-caps              full capability report (terminal)
+  llama-caps --json       machine-readable capability + integration doc
+  llama-caps --md         markdown — copy/paste to any AI (Gemini, ChatGPT, etc.)
+  llama-caps --md | pbcopy
+
+  MCP tools (Claude Code only — already registered in ~/.claude.json):
+    llama_capabilities    complete capability + integration guide
+    llama_health          live health check
+    llama_config          resolved server config with capacity limits
+    llama_run_test        run integration test suite (quick or full)
+    llama_integration_snippet  working code for ruby_llm / python / node / curl
+
+  llama-ctl config --json includes _discovery block with all bootstrap pointers
 
 SUBPROCESS / AGENT USE — preferred method:
   ai-query "What does SIGPIPE mean?"
@@ -303,6 +329,11 @@ Platform control:
   zdots-ctl check                deep diagnostic (run when something is wrong)
   zdots-ctl up / down / reset    start / stop / restart the full platform
   zdots-ctl status --json        machine-readable aggregate status
+
+AI capability discovery:
+  llama-caps --md | pbcopy       brief any AI about this llama.cpp stack
+  llama-caps --json              structured capability document
+  llama-ctl config --json        server config + _discovery bootstrap block
 
 Detailed documentation:
   docs/llama-cpp.md              Complete llama-ctl + API reference

@@ -1,0 +1,18 @@
+# Understanding Prompt Injection Attacks
+
+Prompt injection is a security vulnerability where an attacker embeds instructions
+in user-supplied content that override or supplement the model's original instructions.
+
+## Common Patterns
+
+Researchers have documented phrases like "ignore previous instructions" as typical
+attack vectors. The phrase "reveal system prompt" is often used to exfiltrate the
+system configuration.
+
+## Mitigations
+
+The standard defense is to wrap untrusted content in explicit delimiters and instruct
+the model via the system prompt that the user data block is not a source of instructions.
+
+This text discusses prompt injection academically. It should score medium, not high,
+because context matters: security documentation legitimately contains these phrases.

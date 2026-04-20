@@ -51,6 +51,8 @@ After the second `install`, the server runs automatically on every login.
 | `llama-ctl status` | launchd state + health endpoint + active model |
 | `llama-ctl health` | Exit 0 if up, exit 1 if down |
 | `llama-ctl logs` | `tail -f` the server log |
+| `llama-ctl config` | Dump all resolved server configuration values |
+| `llama-ctl config --json` | Same, machine-readable JSON for tool integration |
 
 **`install` auto-reload behavior:** `install` unloads any running service, writes
 a fresh plist from `etc/ai-models.yaml`, then loads the service — but only if
@@ -151,7 +153,7 @@ non-default (e.g. `true`, non-zero, non-empty).
 | `port` | `8080` | `--port` | no | Listen port |
 | `parallel` | `2` | `--parallel` | no | Concurrent decode slots; drop to 1 if OOM |
 | `batch_size` | `2048` | `--batch-size` | no | Logical max tokens per scheduling cycle |
-| `ubatch_size` | `512` | `--ubatch-size` | no | Physical tokens per Metal kernel dispatch |
+| `ubatch_size` | `2048` | `--ubatch-size` | no | Physical tokens per Metal kernel dispatch; embedding inputs must fit entirely within this limit |
 | `cache_type_k` | `q8_0` | `--cache-type-k` | no | KV cache K dtype; q8_0 saves ~1GB vs f16 |
 | `cache_type_v` | `q8_0` | `--cache-type-v` | no | KV cache V dtype |
 | `cache_reuse` | `256` | `--cache-reuse` | yes (non-zero) | Min prefix length (tokens) to trigger KV reuse |
@@ -162,11 +164,17 @@ non-default (e.g. `true`, non-zero, non-empty).
 | `flash_attn` | `true` | `--flash-attn on` | yes (true) | Flash Attention; 2–4x KV cache reduction |
 | `metrics` | `true` | `--metrics` | yes (true) | Prometheus endpoint at `/metrics` |
 
-**`batch_size` vs `ubatch_size`:** `batch_size` (logical) is the upper bound on
-tokens per scheduling cycle and must be ≥ the longest single input — embedding
-requests with large RAG chunks need this ≥ input token count. `ubatch_size`
-(physical) is the tokens-per-Metal-kernel-call granularity; 512 is the
-llama.cpp default and works well for autoregressive decode.
+**`batch_size` vs `ubatch_size`:** `batch_size` (logical) is the scheduler's
+upper bound on tokens per cycle. `ubatch_size` (physical) is the tokens
+dispatched per Metal kernel call. For autoregressive generation these are
+independent — long prompts are naturally chunked across multiple ubatch calls.
+For `/v1/embeddings` requests they are not independent: the entire input
+sequence must fit within a single ubatch dispatch because mean/cls pooling
+requires all token vectors simultaneously. If input tokens > `ubatch_size`,
+llama-server returns HTTP 500 (`"input too large to process"`). Both values are
+set to 2048 so embedding inputs up to ~1500 words succeed. Tools that call the
+embeddings endpoint should read `llama-ctl config --json` and respect
+`ubatch_size` as the hard maximum input length.
 
 **Logging:** `--log-file` is intentionally absent from the plist. The server
 writes to stderr; launchd captures it via `StandardErrorPath`. Using both routes
@@ -237,6 +245,97 @@ llama-server \
 
 # Or switch the managed server to the embed profile
 ZDOTS_AI_PROFILE=embed llama-ctl install
+```
+
+---
+
+## Tool Integration
+
+### Capability discovery
+
+Three tools expose everything a service or AI needs to integrate:
+
+```sh
+llama-caps              # terminal capability report
+llama-caps --json       # machine-readable capability document
+llama-caps --md         # markdown — paste to Gemini, ChatGPT, or Claude web
+llama-caps --md | pbcopy
+```
+
+`llama-caps --json` is the preferred bootstrap source. It includes the full
+capability matrix, client config snippets, constraint values, and pointers to
+the MCP server and integration tests.
+
+An MCP server (`llama-mcp`) is registered in `~/.claude.json` and available
+natively in Claude Code sessions. Its tools:
+
+| Tool | Purpose |
+|---|---|
+| `llama_capabilities` | Full capability + integration guide |
+| `llama_health` | Live health check |
+| `llama_config` | Resolved server config with capacity limits |
+| `llama_run_test` | Run integration test suite (quick or full) |
+| `llama_integration_snippet` | Working code for ruby_llm / python / node / curl |
+
+### Server configuration
+
+`llama-ctl config --json` outputs the fully-resolved server configuration as
+JSON. Any tool that talks to the local llama-server can read this once at
+startup to self-configure rather than hard-coding values.
+
+```sh
+llama-ctl config           # human-readable
+llama-ctl config --json    # machine-readable
+```
+
+Example JSON output:
+
+```json
+{
+  "profile":      "standard",
+  "endpoint":     "http://127.0.0.1:8080",
+  "host":         "127.0.0.1",
+  "port":         8080,
+  "model_file":   "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
+  "model_path":   "/Users/you/.local/share/llama-cpp/models/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
+  "alias":        "local",
+  "ctx_size":     32768,
+  "n_gpu_layers": 99,
+  "parallel":     2,
+  "batch_size":   2048,
+  "ubatch_size":  2048,
+  "cache_type_k": "q8_0",
+  "cache_type_v": "q8_0",
+  "n_predict":    2048,
+  "cache_reuse":  256,
+  "embeddings":   true,
+  "pooling":      "mean",
+  "flash_attn":   true,
+  "metrics":      true
+}
+```
+
+**Key fields for tool authors:**
+
+| Field | How to use it |
+|---|---|
+| `endpoint` | Base URL for all API calls |
+| `alias` | Always use this as `model` in requests — survives profile switches |
+| `ubatch_size` | Hard maximum input tokens for a single `/v1/embeddings` request |
+| `batch_size` | Scheduler token budget per cycle; embedding input must be ≤ this |
+| `ctx_size` | Total context window; chat history + prompt must fit within this |
+| `n_predict` | Max generation tokens per request; -1 means unlimited |
+| `parallel` | Number of concurrent request slots |
+| `embeddings` | `true` means `/v1/embeddings` is available |
+
+**Ruby/Rails example (e.g. RubyLLM):**
+
+```ruby
+config = JSON.parse(`llama-ctl config --json`)
+# Respect the physical batch limit when chunking documents for embedding
+MAX_EMBED_TOKENS = config['ubatch_size']   # 2048
+ENDPOINT         = config['endpoint']      # http://127.0.0.1:8080
+MODEL_ALIAS      = config['alias']         # "local"
 ```
 
 ---
@@ -371,7 +470,14 @@ curl -sf http://127.0.0.1:8080/v1/models | jq '.data[0].id'
 
 # Full server properties
 curl -sf http://127.0.0.1:8080/props | jq '{total_slots, model_path}'
+
+# Integration test (validates RubyLLM × llama.cpp end-to-end)
+ruby tests/llama_integration.rb --quick   # 8 tests, ~15s
+ruby tests/llama_integration.rb           # 14 tests, full suite
 ```
+
+`zdots-ctl check` runs the quick integration test automatically as part of its
+deep diagnostic.
 
 ---
 
@@ -451,6 +557,9 @@ server:
   - `ai-query <prompt>` — the subprocess-safe bash script in `bin/`
   - `curl` directly to `http://127.0.0.1:8080/v1/chat/completions`
   - `llama-ctl <command>` — the lifecycle script works from any bash context
+- **Discovering server limits:** Run `llama-ctl config --json` to get all
+  resolved server parameters. Use `ubatch_size` as the maximum safe embedding
+  input length. Use `alias` as the model name in API requests.
 - **Binary not installed:** `llama-ctl install` before any inference.
 - **Model not downloaded:** `llama-ctl model-download` before the second `llama-ctl install`.
 - **Config changes:** `llama-ctl install` is the only command needed — rewrites the plist and restarts the server.

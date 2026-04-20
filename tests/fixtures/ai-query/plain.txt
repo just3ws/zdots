@@ -1,0 +1,10 @@
+This is ordinary plain text content.
+It discusses a simple topic: how to write readable shell scripts.
+
+Key points:
+- Use meaningful variable names
+- Quote all expansions
+- Prefer local variables in functions
+- Keep functions small and focused
+
+This content should score low risk.
