@@ -47,3 +47,10 @@ alias zup='zdots-ctl up'                              # start all services
 alias zdown='zdots-ctl down'                          # stop all services
 alias zreset='zdots-ctl reset'                        # full platform restart
 alias zmake='make -C "${ZDOTDIR}"'                    # any make target from anywhere
+
+# AI Shell Intelligence (local model via ai-query)
+alias zcommit='commit-msg'                            # draft commit message from staged diff
+alias zreview='diff-review'                           # review staged diff for issues
+alias zhistory='history-analyze'                      # shell history frequency report
+alias zhistory-ai='history-analyze --ai'              # + AI optimization suggestions
+alias zaliases='alias-suggest'                        # suggest aliases from history
