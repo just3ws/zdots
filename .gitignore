@@ -20,4 +20,7 @@ gha-creds-*.json
 
 # Ephemeral telemetry data
 traces-collected.json
-.aider*
+# Aider session files (chat history, tags cache) — but NOT .aider.conf.yml
+.aider.chat*
+.aider.tags.cache*
+.aider.input.history
