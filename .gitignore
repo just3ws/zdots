@@ -20,3 +20,4 @@ gha-creds-*.json
 
 # Ephemeral telemetry data
 traces-collected.json
+.aider*
