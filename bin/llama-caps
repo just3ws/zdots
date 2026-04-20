@@ -50,7 +50,6 @@ done
 HEALTH_STATUS="unreachable"
 MODEL_ALIAS=""
 MODEL_FILE=""
-MODEL_FAMILY=""
 CONTEXT_WINDOW=""
 PARALLEL_SLOTS=""
 BATCH_SIZE=""
@@ -93,6 +92,7 @@ MAX_EMBED_WORDS=$(( ${MAX_EMBED_TOKENS:-512} * 3 / 4 ))
 # ---------------------------------------------------------------------------
 if [[ "$FORMAT" == "json" ]]; then
   _bool() { [[ "$1" == "true" ]] && echo "true" || echo "false"; }
+  # shellcheck disable=SC1078,SC1079  # false positives: '' quoting inside jq program string
   jq -n \
     --arg ts         "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
     --arg endpoint   "$AI_ENDPOINT" \
@@ -497,7 +497,8 @@ printf '\n%s\n\n' "$(date '+%Y-%m-%d %H:%M')"
 
 printf '%s\n' "$(printf '─%.0s' {1..60})"
 printf '  %-22s %s\n' "endpoint:"   "$AI_ENDPOINT"
-printf '  %-22s %s\n' "status:"     "$([ "$HEALTH_STATUS" = "ok" ] && _g "ok" || _r "$HEALTH_STATUS")"
+if [ "$HEALTH_STATUS" = "ok" ]; then _status_str="$(_g "ok")"; else _status_str="$(_r "$HEALTH_STATUS")"; fi
+printf '  %-22s %s\n' "status:"     "$_status_str"
 printf '  %-22s %s\n' "model alias (use this):" "$(_c "${MODEL_ALIAS:-local}")"
 printf '  %-22s %s\n' "model file (disk only):" "${MODEL_FILE:-(unknown)}"
 printf '  %-22s %s\n' "profile:"    "${SERVER_PROFILE:-standard}"
