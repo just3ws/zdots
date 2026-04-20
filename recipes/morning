@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# recipes/morning — Morning shell intelligence briefing.
+#
+# Scenario: Start of day. Get a read on your shell patterns and alias gaps
+#           without opening a browser or checking Slack.
+#
+# What this does:
+#   1. Platform health snapshot (services up/down)
+#   2. Top commands from atuin history (last 7 days)
+#   3. AI-generated workflow suggestions
+#   4. Alias candidates from repeated long commands
+#
+# Usage:
+#   recipes/morning              # full briefing
+#   recipes/morning --quick      # health + top commands only (no AI)
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+HISTORY_ANALYZE="${ZDOTDIR}/bin/history-analyze"
+ALIAS_SUGGEST="${ZDOTDIR}/bin/alias-suggest"
+
+QUICK=false
+for arg in "$@"; do
+  case "$arg" in
+    --quick) QUICK=true ;;
+    --help)
+      sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+  esac
+done
+
+_header() { printf '\n\033[1m── %s \033[0m\n' "$1"; }
+_ok()     { printf '  \033[32m✓\033[0m %s\n' "$1"; }
+_warn()   { printf '  \033[33m!\033[0m %s\n' "$1"; }
+_err()    { printf '  \033[31m✗\033[0m %s\n' "$1"; }
+
+AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+AI_UP=false
+curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1 && AI_UP=true
+
+# 1. Platform health
+_header "Platform Health"
+
+if $AI_UP; then
+  MODEL=$(curl -sf -m 2 "${AI_ENDPOINT}/v1/models" 2>/dev/null \
+    | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
+  _ok "llama.cpp up — model: $MODEL"
+else
+  _err "llama.cpp down  (llama-ctl start)"
+fi
+
+if curl -sf -m 2 "http://127.0.0.1:4318/" >/dev/null 2>&1; then
+  _ok "OTel collector up"
+else
+  _warn "OTel collector down  (otel-collector start)"
+fi
+
+if curl -sf -m 3 "http://127.0.0.1:3000/api/health" >/dev/null 2>&1; then
+  _ok "Grafana / LGTM up"
+else
+  _warn "Grafana / LGTM down  (local-ci start)"
+fi
+
+# Check for errant home dir zsh files
+ERRANT=()
+for f in .zshrc .zprofile .zlogin .zlogout; do
+  [[ -f "$HOME/$f" ]] && ERRANT+=("$HOME/$f") || true
+done
+if (( ${#ERRANT[@]} > 0 )); then
+  _warn "errant zsh files in \$HOME: ${ERRANT[*]}"
+fi
+
+# 2. Command frequency (always runs)
+_header "Top Commands — last 500"
+if command -v atuin >/dev/null 2>&1; then
+  atuin search --limit 500 --cmd-only -- "" 2>/dev/null \
+    | sort | uniq -c | sort -rn | head -12 \
+    | awk '{printf "  %5d  %s\n", $1, $2}'
+else
+  _warn "atuin not found"
+fi
+
+$QUICK && exit 0
+
+# AI sections require running model
+if ! $AI_UP; then
+  printf '\n(AI sections skipped — llama.cpp is down)\n'
+  exit 0
+fi
+
+# 3. AI workflow suggestions
+_header "Workflow Suggestions"
+"$HISTORY_ANALYZE" --ai --limit 500 2>/dev/null | grep -v "^$" | grep "^-\|^\*" || true
+
+# 4. Alias candidates
+_header "Alias Candidates"
+CANDIDATES=$("$ALIAS_SUGGEST" --limit 1000 --min-count 3 --min-len 28 2>/dev/null || true)
+if [[ -n "$CANDIDATES" ]]; then
+  printf '%s\n' "$CANDIDATES"
+else
+  printf '  (no strong candidates — history may be short or commands already aliased)\n'
+fi
