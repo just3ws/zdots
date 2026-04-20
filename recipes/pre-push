@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# recipes/pre-push — Review all unpushed commits before pushing.
+#
+# Scenario: You're about to push a branch. Review everything that hasn't
+#           landed on the remote yet — not just the last staged diff.
+#
+# What this does:
+#   1. Shows all commits ahead of origin/<branch>
+#   2. Runs diff-review across the full unpushed diff
+#   3. Shows a risk summary before you decide to push
+#
+# Usage:
+#   recipes/pre-push             # review vs origin/<current branch>
+#   recipes/pre-push main        # review vs origin/main explicitly
+#   recipes/pre-push --push      # review then git push if no blockers found
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+DIFF_REVIEW="${ZDOTDIR}/bin/diff-review"
+
+BASE=""
+AUTO_PUSH=false
+for arg in "$@"; do
+  case "$arg" in
+    --push) AUTO_PUSH=true ;;
+    --help)
+      sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    -*) printf 'pre-push: unknown option: %s\n' "$arg" >&2; exit 1 ;;
+    *)  BASE="$arg" ;;
+  esac
+done
+
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+  printf 'recipe/pre-push: llama.cpp is not running.\n  Start with: llama-ctl start\n' >&2
+  exit 1
+fi
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  printf 'recipe/pre-push: not in a git repo.\n' >&2; exit 1
+fi
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+REMOTE_BASE="${BASE:-origin/${BRANCH}}"
+
+# Verify remote ref exists
+if ! git rev-parse --verify "$REMOTE_BASE" >/dev/null 2>&1; then
+  printf 'recipe/pre-push: remote ref "%s" not found.\n' "$REMOTE_BASE"
+  printf '  (new branch? nothing to compare against yet)\n'
+  exit 0
+fi
+
+COMMITS=$(git log --oneline "${REMOTE_BASE}..HEAD" 2>/dev/null)
+if [[ -z "$COMMITS" ]]; then
+  printf 'recipe/pre-push: already up to date with %s — nothing to push.\n' "$REMOTE_BASE"
+  exit 0
+fi
+
+COUNT=$(printf '%s\n' "$COMMITS" | wc -l | tr -d ' ')
+
+printf '\033[1m── Unpushed Commits (%s) → %s\033[0m\n' "$COUNT" "$REMOTE_BASE"
+printf '%s\n' "$COMMITS" | awk '{printf "  %s\n", $0}'
+printf '\n'
+
+printf '\033[1m── Diff Review (%s commits) ──────────────────\033[0m\n' "$COUNT"
+DIFF=$(git diff "${REMOTE_BASE}..HEAD" 2>/dev/null)
+REVIEW=$(printf '%s' "$DIFF" | "$DIFF_REVIEW" 2>&1) || true
+printf '%s\n\n' "$REVIEW"
+
+# Determine if blockers found
+HAS_BUGS=false
+printf '%s' "$REVIEW" | grep -qi "^\- \[BUG\]\|^\- \[RISK\]" && HAS_BUGS=true || true
+
+if $HAS_BUGS; then
+  printf '\033[33mWarning: bugs or risks flagged above.\033[0m\n'
+  if $AUTO_PUSH; then
+    printf 'recipe/pre-push: --push skipped due to flagged issues.\n' >&2
+    exit 1
+  else
+    printf 'Push anyway? [y/N] '
+    read -r reply
+    [[ "$reply" =~ ^[Yy]$ ]] || { printf 'Aborted.\n'; exit 0; }
+  fi
+fi
+
+if $AUTO_PUSH; then
+  git push
+else
+  printf 'Ready to push %s commit(s) to %s.\n' "$COUNT" "$REMOTE_BASE"
+  printf 'Run: git push\n'
+fi

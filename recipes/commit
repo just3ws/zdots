@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# recipes/commit — Full AI-assisted commit workflow.
+#
+# Scenario: You have staged changes and want a reviewed, well-described commit.
+#
+# What this does:
+#   1. Shows what's staged
+#   2. Runs diff-review — flags bugs, risks, and issues
+#   3. Generates a commit message via commit-msg
+#   4. Asks for confirmation before committing
+#
+# Usage:
+#   recipes/commit              # interactive: review → confirm → commit
+#   recipes/commit --skip-review  # skip diff-review, go straight to message
+#   recipes/commit --yes          # non-interactive: review + auto-commit if clean
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+COMMIT_MSG="${ZDOTDIR}/bin/commit-msg"
+DIFF_REVIEW="${ZDOTDIR}/bin/diff-review"
+
+SKIP_REVIEW=false
+AUTO_YES=false
+for arg in "$@"; do
+  case "$arg" in
+    --skip-review) SKIP_REVIEW=true ;;
+    --yes)         AUTO_YES=true ;;
+    --help)
+      sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+  esac
+done
+
+# Pre-flight
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+  printf 'recipe/commit: llama.cpp is not running.\n  Start with: llama-ctl start\n' >&2
+  exit 1
+fi
+
+STAGED=$(git diff --staged --stat 2>/dev/null)
+if [[ -z "$STAGED" ]]; then
+  printf 'recipe/commit: nothing staged.\n  Stage files first: git add <files>\n' >&2
+  exit 1
+fi
+
+printf '\033[1m── Staged Changes ──────────────────────────────\033[0m\n'
+printf '%s\n\n' "$STAGED"
+
+# Step 1: Review
+if ! $SKIP_REVIEW; then
+  printf '\033[1m── Diff Review ─────────────────────────────────\033[0m\n'
+  REVIEW=$("$DIFF_REVIEW" 2>&1) || true
+  printf '%s\n\n' "$REVIEW"
+
+  if [[ "$REVIEW" != "LGTM"* ]] && ! $AUTO_YES; then
+    printf 'Issues found. Proceed anyway? [y/N] '
+    read -r reply
+    [[ "$reply" =~ ^[Yy]$ ]] || { printf 'Aborted.\n'; exit 0; }
+    printf '\n'
+  fi
+fi
+
+# Step 2: Generate commit message
+printf '\033[1m── Commit Message ──────────────────────────────\033[0m\n'
+MSG=$("$COMMIT_MSG")
+printf '%s\n\n' "$MSG"
+
+# Step 3: Confirm and commit
+if $AUTO_YES; then
+  git commit -m "$MSG"
+else
+  printf 'Commit with this message? [Y/n/e(dit)] '
+  read -r reply
+  case "${reply:-y}" in
+    [Yy]*) git commit -m "$MSG" ;;
+    [Ee]*) git commit -e -m "$MSG" ;;
+    *)     printf 'Aborted.\n'; exit 0 ;;
+  esac
+fi
