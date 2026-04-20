@@ -1,91 +1,174 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # ---
 # id: history-analyze
-# title: "Zdots History Analysis Engine"
-# purpose: Analyzes shell activity to suggest performance and security optimizations.
-# rationale: Uses local AI models to process raw JSONL traces, reducing data before sending to frontier models or Grafana.
+# title: "Shell Activity Analyzer"
+# purpose: Analyze shell command history for patterns, inefficiencies, and alias candidates.
+# rationale: Pulls from atuin (full history) and the OTel trace file (exit codes, timing).
+#            Local AI via ai-query suggests optimizations without sending data to cloud models.
 # ---
-# bin/history-analyze — High-performance shell activity analyzer.
+# bin/history-analyze — Analyze shell history for insights and optimization opportunities.
+#
+# Usage:
+#   history-analyze                   # basic frequency report (no AI)
+#   history-analyze --ai              # + AI optimization suggestions
+#   history-analyze --aliases         # + alias candidates for long repeated commands
+#   history-analyze --failures        # + commands that frequently fail (exit ≠ 0)
+#   history-analyze --limit N         # limit to last N history entries (default: 500)
+#   history-analyze --help
 
-# 1. Boot Environment (Establish Control Plane Context)
-if [[ -r "${ZDOTDIR:-$HOME/.config/zsh}/.zshenv" ]]; then
-  source "${ZDOTDIR:-$HOME/.config/zsh}/.zshenv"
-fi
+set -euo pipefail
+trap '' PIPE
 
-# Configuration
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+AI_QUERY="${ZDOTDIR}/bin/ai-query"
 TRACE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
 
 usage() {
   cat <<EOF
-Usage: history-analyze [options]
+Usage: history-analyze [--ai] [--aliases] [--failures] [--limit N] [--help]
+
+Analyze shell command history for patterns, inefficiencies, and alias candidates.
 
 Options:
-  --ai      Use local AI to generate optimizations from history
-  --limit N Limit analysis to the last N events (default: 500)
-  --help    Show this message
+  --ai        AI-generated optimization suggestions (requires llama.cpp running)
+  --aliases   Suggest aliases for long, frequently-typed commands
+  --failures  Show commands that exit non-zero most often (from OTel trace file)
+  --limit N   History entries to analyze (default: 500; applies to atuin queries)
+  --help      Show this message
+
+Data sources:
+  atuin       Full command history (used for frequency, alias, and AI analysis)
+  OTel traces $TRACE_FILE (used for --failures; requires active OTel pipeline)
 EOF
 }
 
-# 2. Primal Analysis (Core grep/awk)
-analyze_basic() {
-  local limit="$1"
-  print -P "%B--- Basic Shell Activity (Last $limit events) ---%b"
-  
-  # Top 10 Commands
-  echo ""
-  echo "Top 10 Commands:"
-  grep '"event":"exec"' "$TRACE_FILE" | tail -n "$limit" | \
-    sed 's/.*"data":"\([^"]*\)".*/\1/' | \
-    sort | uniq -c | sort -nr | head -n 10
-}
-
-# 3. AI-Powered Data Reduction (The "Dream")
-analyze_ai() {
-  local limit="$1"
-  
-  # Ensure AI service is initialized
-  if [[ -n "$(command -v zdots_ai_init)" ]]; then
-    zdots_ai_init
-  fi
-
-  # Check if AI service is provided by the control plane
-  if [[ -z "$(command -v zdots_ai_infer)" ]]; then
-    echo "history-analyze: error: AI service provider not found." >&2
-    echo "Check ZDOTS_SERVICE_AI in .zdots.env" >&2
-    return 1
-  fi
-
-  echo "history-analyze: reducing data via local AI (${ZDOTS_AI_MODEL:-unknown})..."
-  
-  # Extract relevant exec traces for AI consumption
-  local data=$(grep '"event":"exec"' "$TRACE_FILE" | tail -n "$limit" | sed 's/.*"data":"\([^"]*\)".*/\1/')
-  
-  local system_prompt="You are a shell performance expert. Analyze the provided command history and suggest exactly 3 optimizations (e.g., new aliases, tools to defer, or security warnings). Be extremely concise. Respond in Markdown bullets."
-  
-  zdots_ai_infer "Command History:\n$data" "$system_prompt"
-}
-
-# Main
+OPT_AI=false
+OPT_ALIASES=false
+OPT_FAILURES=false
 LIMIT=500
-USE_AI=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --ai) USE_AI=1 ;;
-    --limit) LIMIT="$2"; shift ;;
-    --help) usage; exit 0 ;;
-    *) usage; exit 1 ;;
+    --ai)       OPT_AI=true ;;
+    --aliases)  OPT_ALIASES=true ;;
+    --failures) OPT_FAILURES=true ;;
+    --limit)    LIMIT="$2"; shift ;;
+    --help)     usage; exit 0 ;;
+    *) printf 'history-analyze: unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
   esac
   shift
 done
 
-if [[ ! -f "$TRACE_FILE" ]]; then
-  echo "history-analyze: error: trace file not found at $TRACE_FILE" >&2
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+_header() { printf '\n\033[1m%s\033[0m\n' "$1"; }
+_ai_check() {
+  if [[ ! -x "$AI_QUERY" ]]; then
+    printf 'history-analyze: ai-query not found at %s\n' "$AI_QUERY" >&2; return 1
+  fi
+  if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+    printf 'history-analyze: llama.cpp is not running. Start with: llama-ctl start\n' >&2; return 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# 1. Basic frequency report (always runs)
+# ---------------------------------------------------------------------------
+if ! command -v atuin >/dev/null 2>&1; then
+  printf 'history-analyze: atuin not found — install with: brew install atuin\n' >&2
   exit 1
 fi
 
-analyze_basic "$LIMIT"
+_header "Top Commands (last $LIMIT)"
+atuin search --limit "$LIMIT" --cmd-only -- "" 2>/dev/null \
+  | sort | uniq -c | sort -rn | head -20 \
+  | awk '{printf "  %5d  %s\n", $1, $2}'
 
-if [[ "$USE_AI" == "1" ]]; then
-  analyze_ai "$LIMIT"
+_header "Unique Commands Used"
+COUNT=$(atuin search --limit "$LIMIT" --cmd-only -- "" 2>/dev/null | sort -u | wc -l | tr -d ' ')
+printf '  %s distinct commands in last %s entries\n' "$COUNT" "$LIMIT"
+
+# ---------------------------------------------------------------------------
+# 2. Failure analysis from OTel trace file
+# ---------------------------------------------------------------------------
+if $OPT_FAILURES; then
+  _header "Frequently Failing Commands (exit ≠ 0)"
+  if [[ ! -f "$TRACE_FILE" ]]; then
+    printf '  OTel trace file not found: %s\n' "$TRACE_FILE"
+    printf '  (requires active OTel pipeline — check: otel-collector status)\n'
+  else
+    # Extract exec events with non-zero exit codes
+    grep '"event":"exec"' "$TRACE_FILE" 2>/dev/null \
+      | grep -v '"exit":0\b\|"exit":"0"' \
+      | sed 's/.*"data":"\([^"]*\)".*/\1/' \
+      | sort | uniq -c | sort -rn | head -15 \
+      | awk '{printf "  %5d  %s\n", $1, $2}' \
+      || printf '  (no failures found in trace file)\n'
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Alias suggestions
+# ---------------------------------------------------------------------------
+if $OPT_ALIASES; then
+  _header "Alias Candidates (long commands, run ≥3 times)"
+  if ! _ai_check; then
+    # Fallback: heuristic only, no AI
+    atuin search --limit "$LIMIT" --cmd-only -- "" 2>/dev/null \
+      | awk 'length > 35' \
+      | sort | uniq -c | sort -rn \
+      | awk '$1 >= 3 {printf "  %5d  %s\n", $1, substr($0, index($0,$2))}' \
+      | head -15
+  else
+    CANDIDATES=$(atuin search --limit "$LIMIT" --cmd-only -- "" 2>/dev/null \
+      | awk 'length > 35' \
+      | sort | uniq -c | sort -rn \
+      | awk '$1 >= 3 {print $1, substr($0, index($0,$2))}' \
+      | head -20)
+
+    if [[ -z "$CANDIDATES" ]]; then
+      printf '  (no candidates found — try --limit with a larger value)\n'
+    else
+      PROMPT="Suggest concise zsh aliases for these frequently-typed shell commands.
+Each line is: <count> <command>
+Rules:
+- Only suggest aliases for commands that are genuinely worth shortening
+- Alias name: short (2-6 chars), mnemonic, no conflicts with common tools
+- Format each suggestion as: alias <name>='<command>'  # <what it does>
+- Skip commands that are already short or that vary too much to alias
+- Output only the alias lines, nothing else"
+
+      printf '%s' "$CANDIDATES" | "$AI_QUERY" --mode safe-extract "$PROMPT"
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 4. AI optimization suggestions
+# ---------------------------------------------------------------------------
+if $OPT_AI; then
+  _header "AI Optimization Suggestions"
+  if ! _ai_check; then exit 1; fi
+
+  HISTORY=$(atuin search --limit "$LIMIT" --cmd-only -- "" 2>/dev/null \
+    | sort | uniq -c | sort -rn | head -40)
+
+  PROMPT="You are a shell productivity expert analyzing a developer's command history.
+The data shows: <count> <command> sorted by frequency.
+
+Suggest exactly 3-5 concrete improvements. For each:
+- One sentence explaining what the developer is doing and why it could be better
+- One concrete action (new alias, shell function, tool to try, config change)
+
+Focus on: repetition that aliases would eliminate, long pipelines worth wrapping,
+missing tools (fzf, eza, zoxide, etc.), or patterns suggesting a workflow gap.
+Be specific — reference the actual commands from the data.
+Output as markdown bullets."
+
+  if command -v rtk >/dev/null 2>&1; then
+    printf '%s' "$HISTORY" | rtk | "$AI_QUERY" --mode safe-extract "$PROMPT"
+  else
+    printf '%s' "$HISTORY" | "$AI_QUERY" --mode safe-extract "$PROMPT"
+  fi
 fi

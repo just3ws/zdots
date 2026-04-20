@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# ---
+# id: alias-suggest
+# title: "AI Alias Suggester"
+# purpose: Scan atuin history for repeated long commands and suggest zsh aliases.
+# rationale: Focused alias-discovery tool; complements history-analyze --aliases
+#            with deeper analysis (directory context, command clustering, existing
+#            alias deduplication) and formatted output ready to paste into aliases.zsh.
+# ---
+# bin/alias-suggest — Suggest new aliases from your actual command history.
+#
+# Usage:
+#   alias-suggest                  # analyze last 1000 commands, suggest aliases
+#   alias-suggest --limit N        # use N history entries
+#   alias-suggest --min-count N    # only commands run ≥ N times (default: 3)
+#   alias-suggest --min-len N      # only commands longer than N chars (default: 30)
+#   alias-suggest --dry-run        # show raw candidates without AI
+#   alias-suggest --help
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+AI_QUERY="${ZDOTDIR}/bin/ai-query"
+
+usage() {
+  cat <<EOF
+Usage: alias-suggest [--limit N] [--min-count N] [--min-len N] [--dry-run] [--help]
+
+Scan command history for repeated long commands and suggest zsh aliases.
+Output is formatted for direct inclusion in aliases.zsh.
+
+Options:
+  --limit N       History entries to scan (default: 1000)
+  --min-count N   Minimum repetitions to qualify (default: 3)
+  --min-len N     Minimum command length to qualify (default: 30)
+  --dry-run       Print raw candidates (count + command) without AI inference
+  --help          Show this message
+EOF
+}
+
+LIMIT=1000
+MIN_COUNT=3
+MIN_LEN=30
+DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --limit)     LIMIT="$2"; shift ;;
+    --min-count) MIN_COUNT="$2"; shift ;;
+    --min-len)   MIN_LEN="$2"; shift ;;
+    --dry-run)   DRY_RUN=true ;;
+    --help)      usage; exit 0 ;;
+    *) printf 'alias-suggest: unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+  esac
+  shift
+done
+
+if ! command -v atuin >/dev/null 2>&1; then
+  printf 'alias-suggest: atuin not found — install with: brew install atuin\n' >&2
+  exit 1
+fi
+
+# Pull history, filter by length and frequency
+CANDIDATES=$(atuin search --limit "$LIMIT" --cmd-only -- "" 2>/dev/null \
+  | awk -v minlen="$MIN_LEN" 'length > minlen' \
+  | sort | uniq -c | sort -rn \
+  | awk -v mincount="$MIN_COUNT" '$1 >= mincount {print}' \
+  | head -30)
+
+if [[ -z "$CANDIDATES" ]]; then
+  printf 'alias-suggest: no candidates found.\n'
+  printf 'Try: --limit %d --min-count 2 --min-len 20\n' "$((LIMIT * 2))"
+  exit 0
+fi
+
+if $DRY_RUN; then
+  printf 'Alias candidates (count  command):\n\n'
+  printf '%s\n' "$CANDIDATES"
+  exit 0
+fi
+
+# Require ai-query
+if [[ ! -x "$AI_QUERY" ]]; then
+  printf 'alias-suggest: ai-query not found at %s\n' "$AI_QUERY" >&2
+  exit 1
+fi
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+  printf 'alias-suggest: llama.cpp is not running. Start with: llama-ctl start\n' >&2
+  exit 1
+fi
+
+# Load existing aliases for deduplication context
+EXISTING=$(grep -h "^alias " \
+  "${ZDOTDIR}/aliases.zsh" \
+  "${ZDOTDIR}"/conf.d/*.zsh 2>/dev/null \
+  | sed "s/alias //" | cut -d= -f1 | sort -u | tr '\n' ' ')
+
+PROMPT="Suggest zsh aliases for these frequently-typed commands.
+Each input line is: <count> <command>  (count = times run recently)
+
+Existing aliases (do not reuse these names): $EXISTING
+
+Rules:
+- Only suggest aliases where the shortening is genuinely valuable
+- Alias name: 2-8 chars, lowercase, mnemonic, no conflict with existing names above
+- Skip commands that vary too much per invocation to alias meaningfully
+- Skip commands that are already short (< 15 chars after the program name)
+- Prefer grouping related commands under a common prefix (e.g. dc=docker-compose)
+- Format output as valid zsh — one alias per line, ready to paste into aliases.zsh:
+    alias <name>='<command>'  # <one-line description>
+- Add a blank line between thematically unrelated groups
+- Output only the alias declarations, no preamble, no markdown"
+
+if command -v rtk >/dev/null 2>&1; then
+  printf '%s' "$CANDIDATES" | rtk | "$AI_QUERY" --mode safe-extract "$PROMPT"
+else
+  printf '%s' "$CANDIDATES" | "$AI_QUERY" --mode safe-extract "$PROMPT"
+fi

@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# ---
+# id: diff-review
+# title: "AI Diff Reviewer"
+# purpose: Flag bugs, risks, and issues in staged or arbitrary diffs before committing.
+# rationale: Quick pre-commit sanity check using the local model. Catches obvious
+#            problems (hardcoded values, unhandled errors, missing cases) without
+#            requiring a round-trip to a frontier model.
+# ---
+# bin/diff-review — Review a diff for issues before committing.
+#
+# Usage:
+#   diff-review                    # review staged changes (git diff --staged)
+#   diff-review HEAD~1             # review last commit (git diff HEAD~1..HEAD)
+#   diff-review main..feature      # review a branch diff
+#   git diff | diff-review         # pipe any diff in via stdin
+#   diff-review --help
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+AI_QUERY="${ZDOTDIR}/bin/ai-query"
+
+usage() {
+  cat <<EOF
+Usage: diff-review [<rev-range>] [--help]
+       <command producing diff> | diff-review
+
+Review a diff for bugs, risks, and issues using the local AI model.
+
+Arguments:
+  <rev-range>   Any valid git revision range passed to git diff (e.g. HEAD~1,
+                main..feature). Defaults to staged changes (git diff --staged).
+
+Stdin mode: if stdin is not a terminal, reads the diff from stdin.
+
+Options:
+  --help    Show this message
+
+The diff is compressed with rtk before inference if rtk is available.
+EOF
+}
+
+# Require ai-query
+if [[ ! -x "$AI_QUERY" ]]; then
+  printf 'diff-review: ai-query not found at %s\n' "$AI_QUERY" >&2
+  exit 1
+fi
+
+# Require llama.cpp
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+  printf 'diff-review: llama.cpp is not running. Start with: llama-ctl start\n' >&2
+  exit 1
+fi
+
+for arg in "$@"; do
+  case "$arg" in
+    --help) usage; exit 0 ;;
+  esac
+done
+
+# Acquire diff: stdin → rev-range arg → staged
+if [[ ! -t 0 ]]; then
+  DIFF=$(cat)
+elif [[ $# -gt 0 ]]; then
+  DIFF=$(git diff "$@" 2>/dev/null)
+else
+  DIFF=$(git diff --staged 2>/dev/null)
+fi
+
+if [[ -z "$DIFF" ]]; then
+  printf 'diff-review: diff is empty — nothing to review.\n' >&2
+  exit 0
+fi
+
+PROMPT="Review this diff as a thorough code reviewer. Be terse.
+
+Flag only real issues in these categories (skip categories with no issues):
+- BUGS: logic errors, off-by-one, wrong conditions, broken error handling
+- RISKS: hardcoded credentials/paths/values, unsafe shell patterns, SQL/command injection
+- MISSING: obvious missing cases, missing error checks, untested branches
+- STYLE: naming inconsistency, dead code left in, misleading comments
+
+Format each issue as a single bullet: - [CATEGORY] file:line — description
+If the diff looks clean, respond with exactly: LGTM
+
+Output only the review, nothing else."
+
+if command -v rtk >/dev/null 2>&1; then
+  printf '%s' "$DIFF" | rtk | "$AI_QUERY" --mode safe-extract "$PROMPT"
+else
+  printf '%s' "$DIFF" | "$AI_QUERY" --mode safe-extract "$PROMPT"
+fi
