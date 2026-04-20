@@ -1,0 +1,5 @@
+Normal text before escape sequences.
+This line has [31mred text[0m and [1mbold[0m content.
+]0;EVIL TITLE OSC title-set attempt.
+Cursor movement: [2J[H attempt.
+Normal text after escape sequences.

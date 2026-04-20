@@ -1,0 +1,560 @@
+#!/usr/bin/env bash
+# bin/llama-caps — Capability report for the local llama.cpp inference service.
+#
+# Emits a structured document describing every endpoint, capability, constraint,
+# and client integration pattern for this machine's llama.cpp setup.
+#
+# Use this to brief any AI assistant on the local inference stack:
+#   llama-caps --md   | pbcopy          # paste into Gemini / ChatGPT / etc.
+#   llama-caps --json | jq .            # pipe into other tools
+#   llama-caps                          # human-readable terminal report
+#
+# The MCP server (llama-mcp) exposes these same facts as live callable tools
+# directly to Claude Code — no copy-paste needed.
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+CONFIG_FILE="$ZDOTDIR/etc/ai-models.yaml"
+
+# ---------------------------------------------------------------------------
+# Format flag
+# ---------------------------------------------------------------------------
+FORMAT="text"
+for arg in "$@"; do
+  case "$arg" in
+    --json) FORMAT="json" ;;
+    --md|--markdown) FORMAT="md" ;;
+    -h|--help)
+      cat <<'EOF'
+Usage: llama-caps [--json | --md]
+
+  (no flag)   Human-readable terminal report
+  --json      Machine-readable JSON capability document
+  --md        Markdown — copy to any AI chat (pbcopy, etc.)
+
+Examples:
+  llama-caps                # terminal
+  llama-caps --md | pbcopy  # brief Gemini/ChatGPT/Claude about this stack
+  llama-caps --json | jq .capabilities
+EOF
+      exit 0 ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
+# Live probes (silent failures → capabilities marked unavailable)
+# ---------------------------------------------------------------------------
+HEALTH_STATUS="unreachable"
+MODEL_ALIAS=""
+MODEL_FILE=""
+MODEL_FAMILY=""
+CONTEXT_WINDOW=""
+PARALLEL_SLOTS=""
+BATCH_SIZE=""
+UBATCH_SIZE=""
+CACHE_TYPE_K=""
+CACHE_TYPE_V=""
+N_PREDICT=""
+EMBEDDINGS_ENABLED=""
+FLASH_ATTN=""
+METRICS_ENABLED=""
+SERVER_PROFILE=""
+
+if curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; then
+  HEALTH_STATUS="ok"
+fi
+
+if command -v yq >/dev/null 2>&1 && [[ -r "$CONFIG_FILE" ]]; then
+  _profile=$(yq '.default_profile' "$CONFIG_FILE" 2>/dev/null || echo "standard")
+  SERVER_PROFILE="${ZDOTS_AI_PROFILE:-$_profile}"
+  MODEL_ALIAS=$(yq '.server.alias // "local"'           "$CONFIG_FILE" 2>/dev/null || echo "local")
+  MODEL_FILE=$(yq ".profiles.${SERVER_PROFILE}.model_file" "$CONFIG_FILE" 2>/dev/null || echo "")
+  CONTEXT_WINDOW=$(yq ".profiles.${SERVER_PROFILE}.ctx_size" "$CONFIG_FILE" 2>/dev/null || echo "")
+  PARALLEL_SLOTS=$(yq '.server.parallel'                "$CONFIG_FILE" 2>/dev/null || echo "2")
+  BATCH_SIZE=$(yq '.server.batch_size'                  "$CONFIG_FILE" 2>/dev/null || echo "2048")
+  UBATCH_SIZE=$(yq '.server.ubatch_size'                "$CONFIG_FILE" 2>/dev/null || echo "512")
+  CACHE_TYPE_K=$(yq '.server.cache_type_k'              "$CONFIG_FILE" 2>/dev/null || echo "f16")
+  CACHE_TYPE_V=$(yq '.server.cache_type_v'              "$CONFIG_FILE" 2>/dev/null || echo "f16")
+  N_PREDICT=$(yq '.server.n_predict'                    "$CONFIG_FILE" 2>/dev/null || echo "-1")
+  EMBEDDINGS_ENABLED=$(yq '.server.embeddings'          "$CONFIG_FILE" 2>/dev/null || echo "false")
+  FLASH_ATTN=$(yq '.server.flash_attn'                  "$CONFIG_FILE" 2>/dev/null || echo "false")
+  METRICS_ENABLED=$(yq '.server.metrics'                "$CONFIG_FILE" 2>/dev/null || echo "false")
+fi
+
+# Derive max embedding bytes from ubatch_size (rough: 1 token ≈ 4 chars)
+MAX_EMBED_TOKENS="${UBATCH_SIZE:-512}"
+MAX_EMBED_WORDS=$(( ${MAX_EMBED_TOKENS:-512} * 3 / 4 ))
+
+# ---------------------------------------------------------------------------
+# JSON output
+# ---------------------------------------------------------------------------
+if [[ "$FORMAT" == "json" ]]; then
+  _bool() { [[ "$1" == "true" ]] && echo "true" || echo "false"; }
+  jq -n \
+    --arg ts         "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+    --arg endpoint   "$AI_ENDPOINT" \
+    --arg health     "$HEALTH_STATUS" \
+    --arg alias      "${MODEL_ALIAS:-local}" \
+    --arg model_file "${MODEL_FILE:-}" \
+    --arg profile    "${SERVER_PROFILE:-standard}" \
+    --arg ctx        "${CONTEXT_WINDOW:-32768}" \
+    --arg parallel   "${PARALLEL_SLOTS:-2}" \
+    --arg batch      "${BATCH_SIZE:-2048}" \
+    --arg ubatch     "${UBATCH_SIZE:-512}" \
+    --arg cache_k    "${CACHE_TYPE_K:-f16}" \
+    --arg cache_v    "${CACHE_TYPE_V:-f16}" \
+    --arg n_predict  "${N_PREDICT:--1}" \
+    --argjson emb    "$(_bool "${EMBEDDINGS_ENABLED:-false}")" \
+    --argjson flash  "$(_bool "${FLASH_ATTN:-false}")" \
+    --argjson metrics "$(_bool "${METRICS_ENABLED:-false}")" \
+    --arg max_embed_tokens "${MAX_EMBED_TOKENS}" \
+    '{
+      "$schema": "zdots/llama-caps/v1",
+      "generated_at": $ts,
+      "server": {
+        "endpoint": $endpoint,
+        "health": $health,
+        "model_alias": $alias,
+        "model_file": $model_file,
+        "profile": $profile,
+        "note": "Always use model_alias in API calls, never the GGUF filename"
+      },
+      "config": {
+        "context_window": ($ctx | tonumber),
+        "parallel_slots": ($parallel | tonumber),
+        "batch_size": ($batch | tonumber),
+        "ubatch_size": ($ubatch | tonumber),
+        "cache_type_k": $cache_k,
+        "cache_type_v": $cache_v,
+        "max_generation_tokens": ($n_predict | tonumber),
+        "flash_attention": $flash
+      },
+      "capabilities": {
+        "chat": {
+          "supported": true,
+          "endpoint": "POST /v1/chat/completions",
+          "streaming": true,
+          "system_role": true,
+          "tool_use": true,
+          "multi_turn": true,
+          "model_field": $alias
+        },
+        "embeddings": {
+          "supported": $emb,
+          "endpoint": "POST /v1/embeddings",
+          "batch_input": true,
+          "max_tokens": ($max_embed_tokens | tonumber),
+          "note": "ubatch_size is the hard token ceiling per request; exceeding it returns HTTP 500. Run llama-ctl install after changing ubatch_size in ai-models.yaml."
+        },
+        "models_list": {
+          "supported": true,
+          "endpoint": "GET /v1/models",
+          "note": "Returns model_alias as the id, not the GGUF filename"
+        },
+        "health_check": {
+          "supported": true,
+          "endpoint": "GET /health",
+          "response": "{\"status\":\"ok\"}"
+        },
+        "prometheus_metrics": {
+          "supported": $metrics,
+          "endpoint": "GET /metrics",
+          "format": "prometheus text"
+        },
+        "images": {
+          "supported": false,
+          "reason": "llama-server does not implement /v1/images/generations"
+        },
+        "audio_transcription": {
+          "supported": false,
+          "reason": "No Whisper model loaded; requires a separate server instance with an audio model"
+        },
+        "moderation": {
+          "supported": false,
+          "reason": "OpenAI-proprietary endpoint not implemented by llama-server"
+        }
+      },
+      "constraints": {
+        "auth": "None — Bearer token is accepted but ignored. Any non-empty string works.",
+        "model_name_rule": "Use the server alias ('"'"'local'"'"') in ALL API calls. Never use the GGUF filename. The alias is set via server.alias in etc/ai-models.yaml.",
+        "plist_staleness": "llama-server reads flags from its launchd plist at start time. Changes to ai-models.yaml require llama-ctl install to regenerate the plist, then a server restart.",
+        "max_embedding_tokens": ($max_embed_tokens | tonumber),
+        "max_generation_tokens": ($n_predict | tonumber),
+        "context_window": ($ctx | tonumber),
+        "parallel_slots": ($parallel | tonumber)
+      },
+      "client_integration": {
+        "ruby_llm": {
+          "gem": "ruby_llm",
+          "configure": {
+            "openai_api_key": "<any string — ignored>",
+            "openai_api_base": ($endpoint + "/v1"),
+            "openai_use_system_role": true,
+            "default_model": $alias,
+            "default_embedding_model": $alias
+          },
+          "per_call_kwargs": {
+            "model": $alias,
+            "provider": "openai",
+            "assume_model_exists": true
+          },
+          "critical_note": "RubyLLM validates model IDs against its internal registry of cloud models. The local alias is not in that registry. Pass assume_model_exists: true AND provider: \"openai\" on EVERY chat/embed call or you will get ModelNotFoundError."
+        },
+        "openai_python_sdk": {
+          "base_url": ($endpoint + "/v1"),
+          "api_key": "<any string>",
+          "model": $alias
+        },
+        "openai_node_sdk": {
+          "baseURL": ($endpoint + "/v1"),
+          "apiKey": "<any string>",
+          "model": $alias
+        },
+        "raw_http": {
+          "base_url": $endpoint,
+          "required_headers": {
+            "Content-Type": "application/json"
+          },
+          "optional_headers": {
+            "Authorization": "Bearer local"
+          }
+        }
+      },
+      "example_requests": {
+        "health": ("curl -sf " + $endpoint + "/health"),
+        "chat": ("curl -s " + $endpoint + "/v1/chat/completions -H \"Content-Type: application/json\" -d ''{\"model\":\"" + $alias + "\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"stream\":false}''"),
+        "chat_streaming": ("curl -s " + $endpoint + "/v1/chat/completions -H \"Content-Type: application/json\" -d ''{\"model\":\"" + $alias + "\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"stream\":true}''"),
+        "embed": ("curl -s " + $endpoint + "/v1/embeddings -H \"Content-Type: application/json\" -d ''{\"model\":\"" + $alias + "\",\"input\":\"text to embed\"}''"),
+        "models": ("curl -s " + $endpoint + "/v1/models"),
+        "metrics": ("curl -s " + $endpoint + "/metrics | head -20")
+      },
+      "management": {
+        "validate": "ruby tests/llama_integration.rb --quick",
+        "full_test": "ruby tests/llama_integration.rb",
+        "status": "llama-ctl status",
+        "config": "llama-ctl config",
+        "logs": "llama-ctl logs",
+        "restart": "llama-ctl restart",
+        "after_yaml_change": "llama-ctl install && llama-ctl restart"
+      }
+    }'
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Markdown output — designed to brief any AI assistant
+# ---------------------------------------------------------------------------
+if [[ "$FORMAT" == "md" ]]; then
+  cat <<MARKDOWN
+# llama.cpp Local Inference — Capability Reference
+
+> Generated: $(date -u '+%Y-%m-%d %H:%M UTC')
+> Machine: $(uname -n) · $(uname -m)
+> Server: ${AI_ENDPOINT}  · Status: **${HEALTH_STATUS}**
+
+## Quick Facts
+
+| Field | Value |
+|---|---|
+| Endpoint | \`${AI_ENDPOINT}\` |
+| **Model name for API calls** | \`${MODEL_ALIAS:-local}\` ← always use this |
+| Model file on disk | \`${MODEL_FILE:-unknown}\` ← never use this in API calls |
+| Profile | \`${SERVER_PROFILE:-standard}\` |
+| Context window | ${CONTEXT_WINDOW:-32768} tokens |
+| Parallel slots | ${PARALLEL_SLOTS:-2} |
+| Max embedding tokens | ${MAX_EMBED_TOKENS} (~${MAX_EMBED_WORDS} words) |
+| Auth | None required (any Bearer value works) |
+
+---
+
+## Supported Capabilities
+
+### ✅ Chat completions
+\`\`\`
+POST ${AI_ENDPOINT}/v1/chat/completions
+Content-Type: application/json
+
+{"model":"${MODEL_ALIAS:-local}","messages":[{"role":"user","content":"Hello"}],"stream":false}
+\`\`\`
+- System role supported (use \`{"role":"system","content":"..."}\`)
+- Streaming supported (\`"stream":true\` → Server-Sent Events)
+- Tool/function calling supported (Qwen2.5 model with Jinja template)
+- Multi-turn: include full message history in the \`messages\` array
+
+### ✅ Embeddings
+\`\`\`
+POST ${AI_ENDPOINT}/v1/embeddings
+Content-Type: application/json
+
+{"model":"${MODEL_ALIAS:-local}","input":"text to embed"}
+{"model":"${MODEL_ALIAS:-local}","input":["batch","of","strings"]}
+\`\`\`
+- **Hard limit: ${MAX_EMBED_TOKENS} tokens per request** (~${MAX_EMBED_WORDS} words)
+- Exceeding the limit returns HTTP 500: "input (N tokens) is too large to process"
+- Batch input (array of strings) is supported
+
+### ✅ Models list
+\`\`\`
+GET ${AI_ENDPOINT}/v1/models
+\`\`\`
+Returns \`{"data":[{"id":"${MODEL_ALIAS:-local}","..."}]}\` — the alias, not the filename.
+
+### ✅ Health check
+\`\`\`
+GET ${AI_ENDPOINT}/health
+→ {"status":"ok"}
+\`\`\`
+
+### ✅ Prometheus metrics
+\`\`\`
+GET ${AI_ENDPOINT}/metrics
+\`\`\`
+
+### ❌ Not supported
+- \`POST /v1/images/generations\` — not implemented by llama-server
+- Audio transcription — no Whisper model loaded
+- Moderation endpoint — OpenAI-proprietary
+
+---
+
+## Critical Rules — Read Before Integrating
+
+### 1. Model name = alias, never the filename
+The server advertises itself as **\`${MODEL_ALIAS:-local}\`** (set by \`server.alias\` in \`etc/ai-models.yaml\`).
+Always use this alias in the \`model\` field of every API request.
+The GGUF filename (\`${MODEL_FILE:-...}\`) is only for disk/download operations.
+
+### 2. Auth: anything goes
+llama.cpp ignores the Authorization header. Set \`api_key\` to any non-empty string in your SDK.
+
+### 3. Embedding token ceiling
+Requests with more than **${MAX_EMBED_TOKENS} tokens** return HTTP 500.
+This is controlled by \`server.ubatch_size\` in \`etc/ai-models.yaml\`.
+After changing it, run \`llama-ctl install\` to regenerate the launchd plist.
+
+### 4. Plist staleness
+The running server reads its flags from a launchd plist generated at install time.
+YAML changes are **not** live-reloaded. After any change to \`etc/ai-models.yaml\`:
+\`\`\`bash
+llama-ctl install   # regenerates plist
+llama-ctl restart   # applies it
+\`\`\`
+
+---
+
+## Framework Integration
+
+### RubyLLM (ruby_llm gem)
+
+\`\`\`ruby
+RubyLLM.configure do |c|
+  c.openai_api_key          = "local"              # ignored by llama.cpp
+  c.openai_api_base         = "${AI_ENDPOINT}/v1"
+  c.openai_use_system_role  = true
+  c.default_model           = "${MODEL_ALIAS:-local}"
+  c.default_embedding_model = "${MODEL_ALIAS:-local}"
+  c.request_timeout         = 90
+  c.max_retries             = 0
+end
+
+# CRITICAL: every chat/embed call needs these two kwargs
+# RubyLLM has an internal model registry; "local" is not in it.
+# assume_model_exists: true bypasses the check.
+chat = RubyLLM.chat(model: "${MODEL_ALIAS:-local}", provider: "openai", assume_model_exists: true)
+reply = chat.ask("Hello!")
+
+# Embeddings
+emb = RubyLLM.embed("some text", model: "${MODEL_ALIAS:-local}", provider: "openai", assume_model_exists: true)
+puts emb.vectors.length
+
+# Streaming
+chat.ask("Tell me a story") { |chunk| print chunk.content }
+
+# Tool use
+class MyTool < RubyLLM::Tool
+  description "Does something useful"
+  param :input, type: "string", desc: "The input", required: true
+  def execute(input:) = { result: input.upcase }
+end
+chat.with_tool(MyTool.new)
+\`\`\`
+
+### OpenAI Python SDK
+
+\`\`\`python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="${AI_ENDPOINT}/v1",
+    api_key="local",          # ignored
+)
+
+# Chat
+response = client.chat.completions.create(
+    model="${MODEL_ALIAS:-local}",
+    messages=[{"role": "user", "content": "Hello"}]
+)
+print(response.choices[0].message.content)
+
+# Embeddings
+emb = client.embeddings.create(
+    model="${MODEL_ALIAS:-local}",
+    input="text to embed"
+)
+print(len(emb.data[0].embedding))
+\`\`\`
+
+### OpenAI Node.js SDK
+
+\`\`\`javascript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "${AI_ENDPOINT}/v1",
+  apiKey: "local",            // ignored
+});
+
+// Chat
+const response = await client.chat.completions.create({
+  model: "${MODEL_ALIAS:-local}",
+  messages: [{ role: "user", content: "Hello" }],
+});
+console.log(response.choices[0].message.content);
+\`\`\`
+
+### Raw curl
+
+\`\`\`bash
+# Chat
+curl -s ${AI_ENDPOINT}/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"${MODEL_ALIAS:-local}","messages":[{"role":"user","content":"Hi"}]}'
+
+# Embed
+curl -s ${AI_ENDPOINT}/v1/embeddings \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"${MODEL_ALIAS:-local}","input":"hello world"}'
+
+# Streaming
+curl -s ${AI_ENDPOINT}/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"${MODEL_ALIAS:-local}","messages":[{"role":"user","content":"Count to 5"}],"stream":true}'
+\`\`\`
+
+---
+
+## Debugging
+
+\`\`\`bash
+llama-ctl status          # launchd state + health + active model
+llama-ctl logs            # tail server log (startup errors, OOM, etc.)
+llama-ctl config          # full resolved config (what the server actually started with)
+llama-ctl health          # exits 0=up, 1=down
+
+# Run the full integration test suite
+ruby tests/llama_integration.rb           # all 14 tests
+ruby tests/llama_integration.rb --quick   # 8 fast tests (used by zdots-ctl check)
+
+# Debug raw RubyLLM HTTP traffic
+RUBYLLM_DEBUG=true ruby your_script.rb
+\`\`\`
+
+---
+
+## Management
+
+\`\`\`bash
+llama-ctl start           # start server
+llama-ctl stop            # stop server
+llama-ctl restart         # restart (does NOT reload yaml — run install first)
+llama-ctl install         # regenerate plist from yaml + restart
+llama-ctl model-download  # download active profile GGUF from HuggingFace
+llama-ctl model-list      # show downloaded GGUFs with sizes
+llama-ctl validate        # validate etc/ai-models.yaml syntax
+\`\`\`
+
+Config source of truth: \`etc/ai-models.yaml\`
+Integration tests: \`tests/llama_integration.rb\`
+MARKDOWN
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Text output (default) — terminal report
+# ---------------------------------------------------------------------------
+_b() { printf '\033[1m%s\033[0m' "$*"; }
+_g() { printf '\033[0;32m%s\033[0m' "$*"; }
+_r() { printf '\033[0;31m%s\033[0m' "$*"; }
+_y() { printf '\033[0;33m%s\033[0m' "$*"; }
+_c() { printf '\033[0;36m%s\033[0m' "$*"; }
+
+printf '\n'
+_b "llama.cpp capability report"
+printf '\n%s\n\n' "$(date '+%Y-%m-%d %H:%M')"
+
+printf '%s\n' "$(printf '─%.0s' {1..60})"
+printf '  %-22s %s\n' "endpoint:"   "$AI_ENDPOINT"
+printf '  %-22s %s\n' "status:"     "$([ "$HEALTH_STATUS" = "ok" ] && _g "ok" || _r "$HEALTH_STATUS")"
+printf '  %-22s %s\n' "model alias (use this):" "$(_c "${MODEL_ALIAS:-local}")"
+printf '  %-22s %s\n' "model file (disk only):" "${MODEL_FILE:-(unknown)}"
+printf '  %-22s %s\n' "profile:"    "${SERVER_PROFILE:-standard}"
+printf '%s\n' "$(printf '─%.0s' {1..60})"
+
+printf '\n'
+_b "Capabilities"
+printf '\n'
+
+_cap() {
+  local ok="$1" label="$2" detail="$3"
+  if [[ "$ok" == "true" ]]; then
+    printf '  %s  %-30s %s\n' "$(_g "✓")" "$label" "$(_c "$detail")"
+  else
+    printf '  %s  %-30s %s\n' "$(_r "✗")" "$label" "$detail"
+  fi
+}
+
+_cap "true"  "Chat completions"         "POST /v1/chat/completions"
+_cap "true"  "Streaming (SSE)"          "stream:true"
+_cap "true"  "System role"              "role:system supported"
+_cap "true"  "Tool/function calling"    "Qwen2.5 + jinja template"
+_cap "true"  "Multi-turn conversation"  "full history in messages[]"
+_cap "${EMBEDDINGS_ENABLED:-false}" "Embeddings" "POST /v1/embeddings  (max ${MAX_EMBED_TOKENS} tokens)"
+_cap "true"  "Models list"              "GET /v1/models"
+_cap "true"  "Health check"             "GET /health"
+_cap "${METRICS_ENABLED:-false}" "Prometheus metrics" "GET /metrics"
+_cap "false" "Image generation"         "not implemented by llama-server"
+_cap "false" "Audio transcription"      "no Whisper model loaded"
+_cap "false" "Moderation"               "OpenAI-proprietary endpoint"
+
+printf '\n'
+_b "Constraints"
+printf '\n'
+printf '  %-28s %s\n' "context window:"     "${CONTEXT_WINDOW:-32768} tokens"
+printf '  %-28s %s\n' "max embed tokens:"   "${MAX_EMBED_TOKENS} tokens (~${MAX_EMBED_WORDS} words)"
+printf '  %-28s %s\n' "max generation:"     "${N_PREDICT:--1} tokens (-1 = unlimited)"
+printf '  %-28s %s\n' "parallel slots:"     "${PARALLEL_SLOTS:-2}"
+printf '  %-28s %s\n' "KV cache:"           "${CACHE_TYPE_K:-f16}/${CACHE_TYPE_V:-f16}"
+printf '  %-28s %s\n' "auth:"               "none (any Bearer value accepted)"
+
+printf '\n'
+_b "Integration rules"
+printf '\n'
+printf '  1. Model name: always use alias %s — never the GGUF filename\n' "$(_c "${MODEL_ALIAS:-local}")"
+printf '  2. RubyLLM: pass %s on every call\n' "$(_c "assume_model_exists: true, provider: \"openai\"")"
+printf '  3. Embeddings: inputs > %s tokens → HTTP 500\n' "${MAX_EMBED_TOKENS}"
+printf '  4. YAML changes: run %s to apply\n' "$(_c "llama-ctl install && llama-ctl restart")"
+
+printf '\n'
+_b "Outputs"
+printf '\n'
+printf '  llama-caps --json   machine-readable JSON capability document\n'
+printf '  llama-caps --md     Markdown — paste into any AI chat\n'
+printf '\n'
+_b "Validation"
+printf '\n'
+printf '  ruby tests/llama_integration.rb --quick   8 tests, fast\n'
+printf '  ruby tests/llama_integration.rb            14 tests, full\n'
+printf '\n'
