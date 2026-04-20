@@ -47,6 +47,9 @@ alias zup='zdots-ctl up'                              # start all services
 alias zdown='zdots-ctl down'                          # stop all services
 alias zreset='zdots-ctl reset'                        # full platform restart
 alias zmake='make -C "${ZDOTDIR}"'                    # any make target from anywhere
+alias zlogs='llama-ctl logs'                          # tail llama.cpp server log
+alias zlogs-otel='otel-collector logs'                # tail OTel collector log
+alias zlogs-ci='local-ci logs'                        # tail LGTM stack log
 
 # AI Shell Intelligence (local model via ai-query)
 alias zcommit='commit-msg'                            # draft commit message from staged diff
