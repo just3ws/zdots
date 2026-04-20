@@ -70,56 +70,58 @@ fi
 # JSON output mode
 # ---------------------------------------------------------------------------
 if $JSON; then
-  printf '{
-  "services": {
-    "llama_cpp":  {"up": %s, "endpoint": "%s", "model": "%s",  "start": "llama-ctl start"},
-    "otelcol":    {"up": %s, "endpoint": "%s",                 "start": "otel-collector start"},
-    "colima":     {"up": %s,                                    "start": "local-ci start"},
-    "grafana":    {"up": %s, "url":      "%s",                 "start": "local-ci start"}
-  },
-  "ai": {
-    "inference_command": "ai-query",
-    "endpoint": "%s",
-    "model": "%s",
-    "subprocess_safe": true,
-    "interactive_only": ["ai"]
-  },
-  "otel": {
-    "otlp_http_endpoint": "%s",
-    "otlp_grpc_endpoint": "grpc://127.0.0.1:4317",
-    "protocol": "http/protobuf",
-    "grafana_url": "%s",
-    "grafana_credentials": "admin/admin"
-  },
-  "env": {
-    "OTEL_EXPORTER_OTLP_ENDPOINT": "%s",
-    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf"
-  },
-  "ai_caps": {
-    "text":     "llama-caps",
-    "json":     "llama-caps --json",
-    "markdown": "llama-caps --md",
-    "note":     "Full capability + integration guide for the local llama.cpp server"
-  },
-  "mcp": {
-    "server":   "llama-mcp",
-    "tools":    ["llama_capabilities","llama_health","llama_config","llama_run_test","llama_integration_snippet"],
-    "note":     "Registered in ~/.claude.json; available natively in Claude Code sessions"
-  },
-  "docs": {
-    "platform_control": "zdots-ctl check / up / down / reset / status",
-    "ai":   "docs/llama-cpp.md",
-    "otel": "docs/otel-collector-guide.md",
-    "agents": "AGENTS.md"
-  }
-}\n' \
-    "$AI_UP"      "$AI_ENDPOINT"   "$AI_MODEL_ID" \
-    "$OTEL_UP"    "$OTEL_ENDPOINT" \
-    "$COLIMA_UP" \
-    "$GRAFANA_UP" "$GRAFANA_URL" \
-    "$AI_ENDPOINT" "$AI_MODEL_ID" \
-    "$OTEL_ENDPOINT" "$GRAFANA_URL" \
-    "$OTEL_ENDPOINT"
+  jq -n \
+    --argjson ai_up      "$AI_UP" \
+    --arg     ai_ep      "$AI_ENDPOINT" \
+    --arg     ai_model   "$AI_MODEL_ID" \
+    --argjson otel_up    "$OTEL_UP" \
+    --arg     otel_ep    "$OTEL_ENDPOINT" \
+    --argjson colima_up  "$COLIMA_UP" \
+    --argjson grafana_up "$GRAFANA_UP" \
+    --arg     grafana_url "$GRAFANA_URL" \
+    '{
+      services: {
+        llama_cpp: { up: $ai_up,      endpoint: $ai_ep,      model: $ai_model, start: "llama-ctl start" },
+        otelcol:   { up: $otel_up,    endpoint: $otel_ep,                       start: "otel-collector start" },
+        colima:    { up: $colima_up,                                             start: "local-ci start" },
+        grafana:   { up: $grafana_up, url: $grafana_url,                        start: "local-ci start" }
+      },
+      ai: {
+        inference_command: "ai-query",
+        endpoint:          $ai_ep,
+        model:             $ai_model,
+        subprocess_safe:   true,
+        interactive_only:  ["ai"]
+      },
+      otel: {
+        otlp_http_endpoint:  $otel_ep,
+        otlp_grpc_endpoint:  "grpc://127.0.0.1:4317",
+        protocol:            "http/protobuf",
+        grafana_url:         $grafana_url,
+        grafana_credentials: "admin/admin"
+      },
+      env: {
+        OTEL_EXPORTER_OTLP_ENDPOINT: $otel_ep,
+        OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+      },
+      ai_caps: {
+        text:     "llama-caps",
+        json:     "llama-caps --json",
+        markdown: "llama-caps --md",
+        note:     "Full capability + integration guide for the local llama.cpp server"
+      },
+      mcp: {
+        server: "llama-mcp",
+        tools:  ["llama_capabilities","llama_health","llama_config","llama_run_test","llama_integration_snippet"],
+        note:   "Registered in ~/.claude.json; available natively in Claude Code sessions"
+      },
+      docs: {
+        platform_control: "zdots-ctl check / up / down / reset / status",
+        ai:               "docs/llama-cpp.md",
+        otel:             "docs/otel-collector-guide.md",
+        agents:           "AGENTS.md"
+      }
+    }'
   exit 0
 fi
 
