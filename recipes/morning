@@ -52,7 +52,7 @@ else
   _err "llama.cpp down  (llama-ctl start)"
 fi
 
-if curl -sf -m 2 "http://127.0.0.1:4318/" >/dev/null 2>&1; then
+if "${ZDOTDIR}/bin/otel-collector" health >/dev/null 2>&1; then
   _ok "OTel collector up"
 else
   _warn "OTel collector down  (otel-collector start)"
