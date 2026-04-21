@@ -122,9 +122,13 @@ PLIST
 
 cmd_start() {
   [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
-  _info "starting ${PLIST_LABEL}..."
   if [ "$OS" = "darwin" ]; then
-    launchctl load -w "$PLIST_FILE"
+    if launchctl print "gui/$(id -u)/${PLIST_LABEL}" >/dev/null 2>&1; then
+      _info "${PLIST_LABEL} is already running"
+      return 0
+    fi
+    _info "starting ${PLIST_LABEL}..."
+    launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
   else
     mkdir -p "$(dirname "$LOG_FILE")"
     nohup "$BINARY" --config "$CONFIG_FILE" >> "$LOG_FILE" 2>&1 &
@@ -135,7 +139,7 @@ cmd_start() {
 cmd_stop() {
   _info "stopping ${PLIST_LABEL}..."
   if [ "$OS" = "darwin" ]; then
-    launchctl unload -w "$PLIST_FILE" 2>/dev/null || true
+    launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
   else
     local pid_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
     if [ -f "$pid_file" ]; then
