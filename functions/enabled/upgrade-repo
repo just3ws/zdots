@@ -21,7 +21,7 @@ fi
 
 echo "Refreshing pre-commit hooks..."
 if command -v pre-commit >/dev/null 2>&1; then
-  run_cmd pre-commit autoupdate
+  (cd "$ZDOTDIR" && run_cmd pre-commit autoupdate)
 fi
 
 echo "Cleaning up shell caches..."

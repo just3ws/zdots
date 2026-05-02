@@ -12,9 +12,13 @@ run_cmd() {
 
 if command -v pnpm >/dev/null 2>&1; then
   echo "Updating pnpm itself..."
-  # pnpm v10+ requires self-update instead of global add
+  # pnpm v10+ requires self-update or corepack if managed by it
   if [[ "$(pnpm --version | cut -d. -f1)" -ge 10 ]]; then
-    run_cmd pnpm self-update
+    if corepack pnpm --version >/dev/null 2>&1; then
+      run_cmd corepack prepare pnpm@latest --activate
+    else
+      run_cmd pnpm self-update
+    fi
   else
     run_cmd pnpm add -g pnpm
   fi
