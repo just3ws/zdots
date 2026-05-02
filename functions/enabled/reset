@@ -4,18 +4,30 @@ zmodload zsh/files 2>/dev/null || true
 
 # Purge completion dumps
 if [[ -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh" ]]; then
-  print "Purging zcompdump files..."
-  rm -f -- "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-"*(N)
+  local -a dumps
+  dumps=( "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-"*(N) )
+  if (( $#dumps )); then
+    print "Purging zcompdump files..."
+    rm -f -- $dumps
+  fi
 fi
 
 # Purge compiled Zsh scripts (.zwc)
-print "Purging .zwc files..."
+local -a zwc_files
 if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/zsh" ]]; then
-  rm -f -- ${XDG_CONFIG_HOME:-$HOME/.config}/zsh/**/*.zwc(N)
+  zwc_files=( ${XDG_CONFIG_HOME:-$HOME/.config}/zsh/**/*.zwc(N) )
+  if (( $#zwc_files )); then
+    print "Purging .zwc files (config)..."
+    rm -f -- $zwc_files
+  fi
 fi
 
 if [[ -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh" ]]; then
-  rm -f -- ${XDG_CACHE_HOME:-$HOME/.cache}/zsh/**/*.zwc(N)
+  zwc_files=( ${XDG_CACHE_HOME:-$HOME/.cache}/zsh/**/*.zwc(N) )
+  if (( $#zwc_files )); then
+    print "Purging .zwc files (cache)..."
+    rm -f -- $zwc_files
+  fi
 fi
 
 # Re-compile key configuration files for performance
