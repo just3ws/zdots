@@ -2,6 +2,13 @@
 
 This changelog summarizes the historical evolution of this repository from existing commit history.
 
+## May 2026 - SOTA AI Upgrade
+
+- Upgraded local inference stack to May 2026 State-of-the-Art models (Qwen 2.5 Coder, DeepSeek V3, Nomic Embed v2 MoE).
+- Enhanced `llama-ctl` to support authenticated downloads via `HUGGINGFACE_TOKEN`.
+- Optimized Aider for local SOTA with `architect` mode and low-load `laid` command.
+- Updated documentation and validation suites for new model capabilities.
+
 ## 2026 (36 commits) - Hardening + Modernization
 
 - Modularized startup and removed legacy helper stack.
