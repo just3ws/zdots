@@ -40,16 +40,22 @@ MODELS_DIR="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cp
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/llama-server.log"
 PLIST_LABEL="com.zdots.llama-server"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
-# Read default_profile from yaml so the yaml is the single source of truth.
-# Inline the yq check — _has_yq() is not yet defined at this point.
-_default_profile() {
-  if command -v yq >/dev/null 2>&1 && [[ -r "$CONFIG_FILE" ]]; then
-    local p; p=$(yq ".default_profile" "$CONFIG_FILE" 2>/dev/null)
-    [[ -n "$p" && "$p" != "null" ]] && echo "$p" && return
-  fi
-  echo "standard"
-}
-AI_PROFILE="${ZDOTS_AI_PROFILE:-$(_default_profile)}"
+META_LIB="$ZDOTDIR/lib/metadata.bash"
+
+SVC_NAME="llama-server"
+# Source the lifecycle engine
+# shellcheck source=lib/lifecycle.bash
+source "${ZDOTDIR}/lib/lifecycle.bash"
+
+# Resolve all AI configuration via the unified metadata service.
+# This populates ZDOTS_AI_* variables.
+if [[ -f "$META_LIB" ]]; then
+  eval "$(bash "$META_LIB" env ai)"
+fi
+
+# Use the resolved values
+AI_PROFILE="${ZDOTS_AI_ACTIVE_PROFILE:-standard}"
+AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
 
 _has_yq() { command -v yq >/dev/null 2>&1; }
 
@@ -126,32 +132,23 @@ _require_yq() {
 
 _profile_field() {
   local field="$1" default="${2:-}"
-  local val
-  if _has_yq; then
-    val=$(_yq_get ".profiles.${AI_PROFILE}.${field}")
-    [[ "$val" == "null" ]] && val="$default"
-  else
-    val="$default"
-  fi
-  echo "$val"
+  local var_name
+  var_name="ZDOTS_AI_$(echo "$field" | tr '[:lower:]' '[:upper:]')"
+  # Use indirect expansion for Bash
+  echo "${!var_name:-$default}"
 }
 
 _server_field() {
   local field="$1" default="${2:-}"
-  local val
-  if _has_yq; then
-    val=$(_yq_get ".server.${field}")
-    [[ "$val" == "null" ]] && val="$default"
-  else
-    val="$default"
-  fi
-  echo "$val"
+  local var_name
+  var_name="ZDOTS_AI_$(echo "$field" | tr '[:lower:]' '[:upper:]')"
+  echo "${!var_name:-$default}"
 }
 
 _active_model_file() {
-  if _has_yq; then
-    local file; file=$(_yq_get ".profiles.${AI_PROFILE}.model_file")
-    [[ "$file" != "null" && -n "$file" ]] && echo "$file" && return
+  if [[ -n "${ZDOTS_AI_MODEL_FILE:-}" ]]; then
+    echo "$ZDOTS_AI_MODEL_FILE"
+    return
   fi
   # Fallback: first gguf in models dir
   find "$MODELS_DIR" -maxdepth 1 -name '*.gguf' 2>/dev/null | head -1 | xargs -I{} basename {} 2>/dev/null || true
@@ -325,104 +322,69 @@ EOF
 }
 
 start_llama() {
-  if [[ ! -f "$PLIST_FILE" ]]; then
-    printf 'llama-ctl: error: plist not found. Run '"'"'llama-ctl install'"'"' first.\n' >&2
+  local bin; bin=$(_binary)
+  if [[ -z "$bin" ]]; then
+    printf 'llama-ctl: error: llama.cpp not installed — run: llama-ctl install\n' >&2
     exit 1
   fi
-  if launchctl print "gui/$(id -u)/${PLIST_LABEL}" >/dev/null 2>&1; then
-    printf 'llama-ctl: %s is already running\n' "$PLIST_LABEL" >&2
-    return 0
+  local _mp; _mp=$(_active_model_path)
+  if [[ -z "$_mp" || ! -f "$_mp" ]]; then
+    printf 'llama-ctl: error: model not found — run '"'"'llama-ctl model-download'"'"' then '"'"'llama-ctl start'"'"'\n' >&2
+    exit 1
   fi
-  printf 'llama-ctl: starting %s...\n' "$PLIST_LABEL" >&2
-  launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
+  zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
 }
 
 stop_llama() {
-  if [[ -f "$PLIST_FILE" ]]; then
-    printf 'llama-ctl: stopping %s...\n' "$PLIST_LABEL" >&2
-    launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
-  else
-    printf 'llama-ctl: no plist found; nothing to stop.\n' >&2
-  fi
+  zdots_svc_launchd_stop "$PLIST_LABEL"
 }
 
 status_llama() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local endpoint; endpoint=$(_endpoint)
-  local launchd_running=false pid="" server_healthy=false model_id="" model_file="" model_size=""
-
-  if launchctl list "$PLIST_LABEL" >/dev/null 2>&1; then
-    pid=$(launchctl list "$PLIST_LABEL" 2>/dev/null | awk '/"PID"/{gsub(/;/,"",$3); print $3}')
-    [[ -n "$pid" ]] && launchd_running=true
-  fi
-
-  if curl -sf -m 2 "${endpoint}/health" >/dev/null 2>&1; then
-    server_healthy=true
-    if command -v jq >/dev/null 2>&1; then
-      model_id=$(curl -sf -m 2 "${endpoint}/v1/models" 2>/dev/null \
-        | jq -r '.data[0].id // empty' 2>/dev/null || true)
-    fi
-  fi
-
-  local model_path; model_path=$(_active_model_path)
-  if [[ -n "$model_path" && -f "$model_path" ]]; then
-    model_file=$(basename "$model_path")
-    model_size=$(du -sh "$model_path" 2>/dev/null | cut -f1)
-  fi
+  local state running pid
+  state=$(zdots_svc_launchd_status "$PLIST_LABEL")
+  running=$(echo "$state" | awk '{print $1}')
+  pid=$(echo "$state" | awk '{print $2}')
 
   if $json; then
-    local j_pid j_model_id j_model_file j_model_size
-    j_pid="${pid:-null}"
-    j_model_id="${model_id:+"\"$model_id\""}"
-    j_model_id="${j_model_id:-null}"
-    j_model_file="${model_file:+"\"$model_file\""}"
-    j_model_file="${j_model_file:-null}"
-    j_model_size="${model_size:+"\"$model_size\""}"
-    j_model_size="${j_model_size:-null}"
-    printf '{"launchd":%s,"pid":%s,"healthy":%s,"model_id":%s,"profile":"%s","endpoint":"%s","model_file":%s,"model_size":%s}\n' \
-      "$launchd_running" "$j_pid" "$server_healthy" "$j_model_id" \
-      "$AI_PROFILE" "$endpoint" "$j_model_file" "$j_model_size"
+    printf '{"running":%s,"pid":%s,"endpoint":"%s","active_model":"%s"}\n' \
+      "$running" "${pid:-null}" "$AI_ENDPOINT" "$(_active_model_file)"
     return
   fi
 
-  if $launchd_running; then
-    printf 'llama-ctl: launchd  running (PID: %s)\n' "${pid:-unknown}"
+  if [[ "$running" == "true" ]]; then
+    printf 'llama-ctl: running (PID: %s)\n' "${pid:-unknown}"
+    if zdots_svc_health_check_url "${AI_ENDPOINT}/health"; then
+      printf 'llama-ctl: health   OK (%s/health)\n' "$AI_ENDPOINT"
+    else
+      printf 'llama-ctl: health   loading... (%s)\n' "$AI_ENDPOINT"
+    fi
   else
-    printf 'llama-ctl: launchd  not running\n'
+    printf 'llama-ctl: not running\n'
+    if [[ -f "$PLIST_FILE" ]]; then
+      printf 'llama-ctl: launchd  registered (%s)\n' "$PLIST_LABEL"
+    fi
   fi
-
-  if $server_healthy; then
-    printf 'llama-ctl: health   OK (%s/health)\n' "$endpoint"
-    [[ -n "$model_id" ]] && printf 'llama-ctl: model    %s\n' "$model_id"
-  else
-    printf 'llama-ctl: health   unreachable (%s)\n' "$endpoint"
-  fi
-
   printf 'llama-ctl: profile  %s\n' "$AI_PROFILE"
   printf 'llama-ctl: models   %s\n' "$MODELS_DIR"
-
-  if [[ -n "$model_file" ]]; then
-    printf 'llama-ctl: active   %s (%s)\n' "$model_file" "$model_size"
-  else
-    printf 'llama-ctl: active   not downloaded (run '"'"'llama-ctl model-download'"'"')\n'
-  fi
+  printf 'llama-ctl: active   %s\n' "$(_active_model_file)"
 }
 
 health_llama() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local endpoint; endpoint=$(_endpoint)
-  if curl -sf -m 3 "${endpoint}/health" >/dev/null 2>&1; then
-    $json && printf '{"healthy":true,"endpoint":"%s"}\n' "$endpoint"
+  if zdots_svc_health_check_url "${AI_ENDPOINT}/health"; then
+    $json && printf '{"healthy":true,"endpoint":"%s"}\n' "$AI_ENDPOINT"
     return 0
   else
-    $json && printf '{"healthy":false,"endpoint":"%s"}\n' "$endpoint"
+    $json && printf '{"healthy":false,"endpoint":"%s"}\n' "$AI_ENDPOINT"
     return 1
   fi
 }
+
 
 model_list() {
   local count=0

@@ -7,32 +7,16 @@ zdots_ai_init() {
   export ZDOTS_AI_PROFILE="${ZDOTS_AI_PROFILE:-standard}"
   export ZDOTS_AI_MODELS_DIR="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
 
-  # Resolve endpoint from yaml config so bin/llama-server and this provider
-  # always agree. Provider owns this value — overrides any stale export from
-  # a previous session (e.g. ZDOTS_AI_ENDPOINT=11434 left from Ollama era).
-  # To use a custom port: set ZDOTS_AI_ENDPOINT in .zdots.secrets, which loads
-  # AFTER this provider initialises and will win on next shell start.
-  local _cfg="${ZDOTDIR:-$HOME/.config/zsh}/etc/ai-models.yaml"
-  local _host="127.0.0.1" _port="8080"
-  if command -v yq >/dev/null 2>&1 && [[ -r "$_cfg" ]]; then
-    local _h _p
-    _h=$(yq ".server.host" "$_cfg" 2>/dev/null)
-    _p=$(yq ".server.port" "$_cfg" 2>/dev/null)
-    [[ "$_h" != "null" && -n "$_h" ]] && _host="$_h"
-    [[ "$_p" != "null" && -n "$_p" ]] && _port="$_p"
+  # Use the unified metadata service to resolve configuration.
+  # This populates ZDOTS_AI_HOST, ZDOTS_AI_PORT, ZDOTS_AI_MODEL_FILE, etc.
+  local _meta_script="${ZDOTDIR:-$HOME/.config/zsh}/lib/metadata.bash"
+  if [[ -f "$_meta_script" ]]; then
+    eval "$(bash "$_meta_script" env ai)"
   fi
-  export ZDOTS_AI_ENDPOINT="http://${_host}:${_port}"
 
-  # Resolve active model file from central config (metadata/reporting only —
-  # llama.cpp server loads the model from a path set at start time).
-  # Set model metadata from yaml. Provider owns this — overwrites stale exports
-  # from previous sessions (e.g. old Ollama model names).
-  local model_file="unknown"
-  if command -v yq >/dev/null 2>&1 && [[ -r "$_cfg" ]]; then
-    model_file=$(yq ".profiles.${ZDOTS_AI_PROFILE}.model_file" "$_cfg" 2>/dev/null)
-    [[ "$model_file" == "null" || -z "$model_file" ]] && model_file="unknown"
-  fi
-  export ZDOTS_AI_MODEL="${model_file%%.gguf}"
+  # Ensure stable variables are set for the provider interface
+  export ZDOTS_AI_ENDPOINT="http://${ZDOTS_AI_HOST:-127.0.0.1}:${ZDOTS_AI_PORT:-8080}"
+  export ZDOTS_AI_MODEL="${ZDOTS_AI_MODEL_FILE%%.gguf}"
 
   # Non-blocking boot-time health check. We do NOT block startup — set a
   # flag in the background so the first explicit `ai` call does a live check.
