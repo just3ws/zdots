@@ -46,6 +46,7 @@ The Regrounding was five steps: Get Clean, Get Green, Get Honest, Get Structured
 
 We are now entering the era of the **Living System**. The shell doesn't just report what happened; it analyzes and optimizes itself:
 *   **Task Z-012: History Analysis**: Using local AI models to process JSONL traces and suggest performance/security optimizations.
+*   **The May 2026 SOTA Upgrade**: Transitioning the entire inference stack to May 2026 State-of-the-Art models (Qwen 3 Coder, DeepSeek V3, Nomic v2 MoE) while hardening `llama-ctl` for authenticated downloads.
 *   **The Self-Healing Shell**: Automating model hydration and dependency resolution based on environment health.
 
 ---

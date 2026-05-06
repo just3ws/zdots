@@ -29,7 +29,8 @@ restarts on crash with a 10-second throttle.
 
 ```sh
 llama-ctl install         # brew install llama.cpp; write plist (no model yet — won't start)
-llama-ctl model-download  # download active profile's GGUF from HuggingFace (~4.7GB)
+# Add HUGGINGFACE_TOKEN to .zdots.env or .env for gated downloads
+llama-ctl model-download  # download active profile's GGUF (~4.7GB)
 llama-ctl install         # re-register plist with real model path; auto-starts server
 llama-ctl status          # verify
 ```
@@ -72,7 +73,7 @@ llama-ctl logs
 
 | Command | What it does |
 |---|---|
-| `llama-ctl model-download` | Download active profile's GGUF from HuggingFace (curl, resumable) |
+| `llama-ctl model-download` | Download active profile's GGUF from HuggingFace. Supports `HUGGINGFACE_TOKEN`. |
 | `llama-ctl hydrate` | Alias for `model-download` |
 | `llama-ctl model-list` | List downloaded GGUFs with sizes; marks active model |
 | `llama-ctl model-switch <p>` | Print step-by-step instructions to switch to profile `<p>` |
@@ -136,10 +137,10 @@ Each entry under `profiles:` defines a named model configuration.
 
 | Profile | Model | Size | `ctx_size` | Use |
 |---|---|---|---|---|
-| `standard` | Qwen2.5-Coder-7B-Instruct Q4_K_M | ~4.7GB | 32768 | Primary: coding, shell assistant |
-| `reasoning` | Qwen2.5-7B-Instruct Q4_K_M | ~4.7GB | 16384 | General reasoning |
-| `constrained` | Qwen2.5-Coder-1.5B-Instruct Q4_K_M | ~1.0GB | 4096 | Low memory / Raspberry Pi |
-| `embed` | nomic-embed-text-v1.5 Q8_0 | ~274MB | 2048 | Dedicated text embeddings |
+| `standard` | qwen2.5-coder-7b-instruct-q4_k_m.gguf | ~4.7GB | 32768 | Verified 2026 SOTA Coding |
+| `reasoning` | DeepSeek-V3-Q4_K_M.gguf | ~4.8GB | 16384 | Verified 2026 SOTA Reasoning |
+| `constrained` | qwen2.5-coder-1.5b-instruct-q4_k_m.gguf | ~1.1GB | 8192 | Low memory / background tasks |
+| `embed` | nomic-embed-text-v2-moe.Q8_0.gguf | ~512MB | 512 | SOTA MoE Embeddings |
 
 ### Server Fields
 

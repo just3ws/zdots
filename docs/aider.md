@@ -5,7 +5,8 @@ Aider is a terminal-based AI pair programming tool wired to the local llama.cpp 
 ## Orientation
 
 ```sh
-zaider                     # launch in current repo (auto-commits off)
+zaider                     # launch in current repo (architect mode enabled)
+laid                       # "Low-load Aider" — runs with lower CPU priority
 zaider path/to/file.rb     # open with a specific file already in context
 zaider --message "..."     # one-shot non-interactive edit
 zdots-status               # confirm llama.cpp is UP before starting
@@ -18,13 +19,36 @@ zdots-status               # confirm llama.cpp is UP before starting
 | Variable | Value | Notes |
 |---|---|---|
 | `AIDER_OPENAI_API_BASE` | `$ZDOTS_AI_ENDPOINT/v1` | Derived from active llama.cpp provider |
-| `AIDER_OPENAI_API_KEY` | `local` | Ignored by llama.cpp; must be non-empty |
+| `AIDER_OPENAI_API_KEY` | `local` | Ignored by llama.cpp; any value works |
 | `AIDER_MODEL` | `openai/local` | `openai/` prefix = OpenAI-compatible endpoint |
-| `AIDER_AUTO_COMMITS` | `false` | Review diffs before committing |
-| `AIDER_MAX_CHAT_HISTORY_TOKENS` | `8000` | Tight context for 7B model |
-| `AIDER_SHOW_MODEL_WARNINGS` | `false` | Suppresses unknown-model registry warning |
+| `AIDER_AUTO_COMMITS` | `false` | Review plans/diffs before committing |
+| `AIDER_CONFIG` | `$ZDOTDIR/.aider.conf.yml` | Shared config for all repos |
 
-The endpoint is always consistent with `$ZDOTS_AI_ENDPOINT` — change the llama.cpp server address in one place and both `ai-query` and `zaider` update automatically.
+## Load Management: `laid` vs `zaider`
+
+Running a 7B model locally on a dev machine can cause UI stutter. We provide two ways to manage this:
+
+*   **`zaider`**: Standard execution. Use this when you want maximum speed and aren't doing heavy work elsewhere.
+*   **`laid` (Low-load Aider)**: Runs with `nice -n 19` and limits internal mapping to 2 threads. Use this when your IDE, browser, or build commands are the priority.
+
+## Capability boundaries (May 2026 SOTA)
+
+The active model (**Qwen3-Coder-7B Q4_K_M**) is a frontier-level coding model for its size.
+
+**Works well:**
+- **Architect Mode**: It can plan its own multi-file edits and self-correct.
+- Single-file and scoped multi-file edits.
+- Complex refactors where "thinking" is required.
+- Generating tests and documentation.
+
+**Edit Format:**
+We default to **`edit-format: architect`** in `.aider.conf.yml`. This leverages the model's reasoning capabilities to plan changes before applying them, which is significantly more reliable for local 7B models than pure diff-based editing.
+
+## Repo Mapping with Nomic v2
+
+We use **Nomic Embed Text v2 (MoE)** for the repository map. This model is significantly better at semantic retrieval than v1.5, allowing Aider to find relevant context in your repo even with a tight 2048-token map limit.
+
+## See also
 
 ## Sourcing the provider
 
