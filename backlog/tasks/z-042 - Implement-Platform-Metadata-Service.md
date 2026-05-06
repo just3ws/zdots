@@ -20,11 +20,13 @@ Currently, configuration knowledge is scattered across llama-ctl, zdots-ctl, and
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Create lib/metadata.bash as a deep module for resolving YAML configuration.
-- [ ] #2 Support merging default_profile with active profile overrides.
-- [ ] #3 Provide a --json output for machine-readable discovery.
-- [ ] #4 Eliminate redundant yq parsing in consumers by providing a single cached/resolved view.
+- [x] #1 Create lib/metadata.bash as a deep module for resolving YAML configuration.
+- [x] #2 Support merging default_profile with active profile overrides.
+- [x] #3 Provide a --json output for machine-readable discovery.
+- [x] #4 Eliminate redundant yq parsing in consumers by providing a single cached/resolved view.
 <!-- AC:END -->
+
+
 
 ## Final Summary
 
@@ -49,9 +51,9 @@ Verification:
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
-- [ ] #4 Unit tests for profile merging and hardware target resolution.
-- [ ] #5 Performance benchmark: metadata resolution < 5ms.
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
+- [x] #4 Unit tests for profile merging and hardware target resolution.
+- [x] #5 Performance benchmark: metadata resolution < 5ms.
 <!-- DOD:END -->
