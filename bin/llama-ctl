@@ -476,7 +476,16 @@ model_download() {
   echo "llama-ctl: source: ${url}"
   echo "llama-ctl: dest:   ${dest}"
   echo ""
-  curl -L --progress-bar --continue-at - -o "$dest" "$url"
+
+  # Support authenticated downloads if a token is present in the environment
+  local auth_header=()
+  local token="${HUGGINGFACE_TOKEN:-${HF_TOKEN:-}}"
+  if [[ -n "$token" ]]; then
+    echo "llama-ctl: using HuggingFace token for authentication"
+    auth_header=(-H "Authorization: Bearer $token")
+  fi
+
+  curl -L --progress-bar "${auth_header[@]}" --continue-at - -o "$dest" "$url"
   echo ""
   local actual; actual=$(du -sh "$dest" | cut -f1)
   echo "llama-ctl: downloaded $model_file ($actual)"
