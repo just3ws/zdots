@@ -1,9 +1,11 @@
 ---
 id: Z-046
 title: Refactor Service Lifecycle for OTel and AI
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@gemini-cli'
 created_date: '2026-05-06 06:12'
+updated_date: '2026-05-06 06:47'
 labels: []
 milestone: m-3
 dependencies:
