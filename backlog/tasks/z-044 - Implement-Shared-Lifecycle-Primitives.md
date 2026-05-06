@@ -4,10 +4,11 @@ title: Implement Shared Lifecycle Primitives
 status: To Do
 assignee: []
 created_date: '2026-05-06 06:11'
+updated_date: '2026-05-06 06:12'
 labels: []
 milestone: m-3
 dependencies:
-  - Z-040
+  - Z-042
 priority: high
 ---
 
