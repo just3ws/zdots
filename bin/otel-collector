@@ -30,6 +30,11 @@ PLIST_LABEL="com.zdots.otel-collector"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 OTLP_ENDPOINT="http://127.0.0.1:4318"
 
+SVC_NAME="otel-collector"
+# Source the lifecycle engine
+# shellcheck source=lib/lifecycle.bash
+source "${ZDOTDIR:-$(pwd)}/lib/lifecycle.bash"
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -123,29 +128,17 @@ PLIST
 cmd_start() {
   [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
   if [ "$OS" = "darwin" ]; then
-    if launchctl print "gui/$(id -u)/${PLIST_LABEL}" >/dev/null 2>&1; then
-      _info "${PLIST_LABEL} is already running"
-      return 0
-    fi
-    _info "starting ${PLIST_LABEL}..."
-    launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
+    zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
   else
-    mkdir -p "$(dirname "$LOG_FILE")"
-    nohup "$BINARY" --config "$CONFIG_FILE" >> "$LOG_FILE" 2>&1 &
-    printf '%s\n' "$!" > "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
+    zdots_svc_pid_start "$BINARY --config $CONFIG_FILE" "$LOG_FILE" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
   fi
 }
 
 cmd_stop() {
-  _info "stopping ${PLIST_LABEL}..."
   if [ "$OS" = "darwin" ]; then
-    launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
+    zdots_svc_launchd_stop "$PLIST_LABEL"
   else
-    local pid_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
-    if [ -f "$pid_file" ]; then
-      kill "$(cat "$pid_file")" 2>/dev/null || true
-      rm -f "$pid_file"
-    fi
+    zdots_svc_pid_stop "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
   fi
 }
 
@@ -153,20 +146,14 @@ cmd_status() {
   local json=false
   [ "${1:-}" = "--json" ] && json=true
 
-  local running=false pid=""
+  local running pid state
   if [ "$OS" = "darwin" ]; then
-    if launchctl list "$PLIST_LABEL" >/dev/null 2>&1; then
-      pid=$(launchctl list "$PLIST_LABEL" 2>/dev/null \
-        | grep '"PID"' | awk '{print $3}' | tr -d ';' || true)
-      [ -n "$pid" ] && running=true
-    fi
+    state=$(zdots_svc_launchd_status "$PLIST_LABEL")
   else
-    local pid_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
-    if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
-      pid=$(cat "$pid_file")
-      running=true
-    fi
+    state=$(zdots_svc_pid_status "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid")
   fi
+  running=$(echo "$state" | awk '{print $1}')
+  pid=$(echo "$state" | awk '{print $2}')
 
   if $json; then
     printf '{"running":%s,"pid":%s,"otlp_endpoint":"%s","log_file":"%s"}\n' \
@@ -174,7 +161,7 @@ cmd_status() {
     return
   fi
 
-  if $running; then
+  if [[ "$running" == "true" ]]; then
     printf 'otel-collector: running (PID: %s)\n' "${pid:-unknown}"
   else
     printf 'otel-collector: not running\n'
@@ -187,9 +174,7 @@ cmd_health() {
   local json=false
   [ "${1:-}" = "--json" ] && json=true
 
-  if curl -sf -m 3 "${OTLP_ENDPOINT}/v1/traces" \
-       -H "Content-Type: application/json" \
-       -d '{"resourceSpans":[]}' >/dev/null 2>&1; then
+  if zdots_svc_health_check_url "${OTLP_ENDPOINT}/v1/traces" "POST" '{"resourceSpans":[]}'; then
     $json && printf '{"healthy":true,"endpoint":"%s"}\n' "$OTLP_ENDPOINT"
     return 0
   else
