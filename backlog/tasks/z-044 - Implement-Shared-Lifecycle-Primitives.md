@@ -1,10 +1,11 @@
 ---
 id: Z-044
 title: Implement Shared Lifecycle Primitives
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@gemini-cli'
 created_date: '2026-05-06 06:11'
-updated_date: '2026-05-06 06:12'
+updated_date: '2026-05-06 06:41'
 labels: []
 milestone: m-3
 dependencies:
