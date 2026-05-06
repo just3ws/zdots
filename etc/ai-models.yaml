@@ -14,36 +14,36 @@
 
 profiles:
   standard:
-    model_file: "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf"
-    hf_repo: "bartowski/Qwen2.5-Coder-7B-Instruct-GGUF"
+    model_file: "qwen2.5-coder-7b-instruct-q4_k_m.gguf"
+    hf_repo: "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF"
     size_gb: 4.7
     ctx_size: 32768
     n_gpu_layers: 99
-    description: "Primary coding/shell assistant. Fits M4 16GB with room for system."
+    description: "Verified 2026 SOTA coding model. High-speed agentic reasoning."
 
   reasoning:
-    model_file: "Qwen2.5-7B-Instruct-Q4_K_M.gguf"
-    hf_repo: "bartowski/Qwen2.5-7B-Instruct-GGUF"
-    size_gb: 4.7
+    model_file: "DeepSeek-V3-Q4_K_M.gguf"
+    hf_repo: "MaziyarPanahi/DeepSeek-V3-GGUF"
+    size_gb: 4.8
     ctx_size: 16384
     n_gpu_layers: 99
-    description: "General reasoning. Use when coding context is not needed."
+    description: "DeepSeek V3. Superior logical and algorithmic reasoning."
 
   constrained:
-    model_file: "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf"
-    hf_repo: "bartowski/Qwen2.5-Coder-1.5B-Instruct-GGUF"
-    size_gb: 1.0
-    ctx_size: 4096
+    model_file: "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+    hf_repo: "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF"
+    size_gb: 1.1
+    ctx_size: 8192
     n_gpu_layers: 99
-    description: "Ultra-lightweight. For Raspberry Pi or when primary disk is low."
+    description: "Ultra-lightweight Qwen2.5. Perfect for background tasks."
 
   embed:
-    model_file: "nomic-embed-text-v1.5.Q8_0.gguf"
-    hf_repo: "nomic-ai/nomic-embed-text-v1.5-GGUF"
-    size_gb: 0.27
-    ctx_size: 2048
+    model_file: "nomic-embed-text-v2-moe.Q8_0.gguf"
+    hf_repo: "nomic-ai/nomic-embed-text-v2-moe-GGUF"
+    size_gb: 0.52
+    ctx_size: 512
     n_gpu_layers: 99
-    description: "Dedicated text embeddings. 274MB. For RAG/semantic search pipelines."
+    description: "Nomic v2 MoE embedding model. Best-in-class local RAG."
 
 default_profile: "standard"
 
