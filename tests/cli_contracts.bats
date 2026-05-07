@@ -336,10 +336,10 @@ _grafana_up() {
   if ! _ai_up; then skip "llama.cpp not running"; fi
   run "$BIN/llama-ctl" status --json
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.launchd' >/dev/null
-  echo "$output" | jq -e '.healthy' >/dev/null
-  echo "$output" | jq -e '.profile' >/dev/null
-  echo "$output" | jq -e '.endpoint' >/dev/null
+  echo "$output" | jq -e 'has("launchd")' >/dev/null
+  echo "$output" | jq -e 'has("healthy")' >/dev/null
+  echo "$output" | jq -e 'has("profile")' >/dev/null
+  echo "$output" | jq -e 'has("endpoint")' >/dev/null
 }
 
 @test "otel-collector: status --json produces valid JSON" {
@@ -421,10 +421,10 @@ _grafana_up() {
 @test "zdots-ctl: status --json contains expected keys" {
   run "$BIN/zdots-ctl" status --json
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.colima'         >/dev/null
-  echo "$output" | jq -e '.lgtm'           >/dev/null
-  echo "$output" | jq -e '.otel_collector' >/dev/null
-  echo "$output" | jq -e '.ai_server'      >/dev/null
+  echo "$output" | jq -e 'has("colima")'         >/dev/null
+  echo "$output" | jq -e 'has("lgtm")'           >/dev/null
+  echo "$output" | jq -e 'has("otel_collector")' >/dev/null
+  echo "$output" | jq -e 'has("ai_server")'      >/dev/null
 }
 
 @test "zdots-ctl: check exits 0 when platform healthy" {
