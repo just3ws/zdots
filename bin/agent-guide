@@ -81,10 +81,11 @@ if $JSON; then
     --arg     grafana_url "$GRAFANA_URL" \
     '{
       services: {
-        llama_cpp: { up: $ai_up,      endpoint: $ai_ep,      model: $ai_model, start: "llama-ctl start" },
-        otelcol:   { up: $otel_up,    endpoint: $otel_ep,                       start: "otel-collector start" },
-        colima:    { up: $colima_up,                                             start: "local-ci start" },
-        grafana:   { up: $grafana_up, url: $grafana_url,                        start: "local-ci start" }
+        llama_cpp:   { up: $ai_up,      endpoint: $ai_ep,      model: $ai_model, start: "llama-ctl start" },
+        whisper_cpp: { up: true,                                                 start: "whisper-ctl install" },
+        otelcol:     { up: $otel_up,    endpoint: $otel_ep,                       start: "otel-collector start" },
+        colima:      { up: $colima_up,                                             start: "local-ci start" },
+        grafana:     { up: $grafana_up, url: $grafana_url,                        start: "local-ci start" }
       },
       ai: {
         inference_command: "ai-query",
@@ -246,6 +247,23 @@ HARDWARE LIMITS (M4 MBA, 16GB RAM, 256GB disk):
     ZDOTS_AI_PROFILE=constrained llama-ctl install
   Full config: etc/ai-models.yaml
   Full guide:  docs/llama-cpp.md
+EOF
+
+_head "Transcription — whisper.cpp"
+
+cat <<EOF
+High-performance local audio-to-text.
+
+MANAGEMENT:
+  whisper-ctl install         install binary via Homebrew
+  whisper-ctl model-download  download active profile's model (e.g. large-v3-turbo)
+  whisper-ctl model-list      list downloaded models
+
+USAGE:
+  whisper-ctl transcribe <file>    transcribe audio to text
+  recipes/transcribe <file>        transcribe + AI summary (with action items)
+
+Models are stored in: \${XDG_DATA_HOME:-~/.local/share}/whisper-cpp/models
 EOF
 
 _head "Observability — OTel + LGTM Stack"
