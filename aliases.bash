@@ -66,7 +66,7 @@ if command -v pnpm >/dev/null 2>&1; then
   alias p='pnpm'
   alias px='pnpm dlx'
   alias pr='pnpm run'
-  alias pi='pnpm install'
+  alias pinstall='pnpm install'
   alias ps='pnpm start'
   alias pt='pnpm test'
   alias pv='pnpm verify:all'
