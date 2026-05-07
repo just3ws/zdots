@@ -24,7 +24,7 @@ Before Zdots became observable, it had to become modular. This era was about dec
 This era marked the shift from configuration to **Mastery**. We gave the shell a heartbeat and a voice:
 *   **W3C Distributed Tracing**: Generating and propagating `traceparent` headers for every command.
 *   **The Hybrid OTel Bridge**: Routing host-based telemetry through a Bare Metal Collector to a central LGTM stack in Colima.
-*   **The AI Offloader**: Introducing local LLM providers (Ollama, llama.cpp) to handle log parsing and data reduction.
+*   **The AI Offloader**: Introducing local LLM providers (llama.cpp) to handle log parsing and data reduction.
 *   **The Circuit Breaker**: Implementing the "Submarine Standard" to ensure system stability even during a component failure.
 
 ---
@@ -47,6 +47,7 @@ The Regrounding was five steps: Get Clean, Get Green, Get Honest, Get Structured
 We are now entering the era of the **Living System**. The shell doesn't just report what happened; it analyzes and optimizes itself:
 *   **Task Z-012: History Analysis**: Using local AI models to process JSONL traces and suggest performance/security optimizations.
 *   **The May 2026 SOTA Upgrade**: Transitioning the entire inference stack to May 2026 State-of-the-Art models (Qwen 3 Coder, DeepSeek V3, Nomic v2 MoE) while hardening `llama-ctl` for authenticated downloads.
+*   **The Transcription Engine**: Integrating `whisper.cpp` to provide a coherent local interface for high-accuracy audio-to-text workflows.
 *   **The Self-Healing Shell**: Automating model hydration and dependency resolution based on environment health.
 
 ---

@@ -44,3 +44,14 @@ zaider() {
   zdots_aider_init
   aider "$@"
 }
+
+# laid — "Low-load Aider". Runs with lower CPU priority and tighter 
+# thread limits to prevent stalling your IDE/Browser on a dev machine.
+laid() {
+  zdots_aider_init
+  
+  # 1. 'nice -n 19' ensures the OS prioritizes your IDE/Browser/Builds.
+  # 2. 'OMP_NUM_THREADS' and 'GGML_NUM_THREADS' prevents Aider's internal
+  #    processes (like mapping) from saturating all CPU cores.
+  OMP_NUM_THREADS=2 GGML_NUM_THREADS=2 nice -n 19 aider "$@"
+}
