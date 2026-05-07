@@ -349,8 +349,11 @@ status_llama() {
   pid=$(echo "$state" | awk '{print $2}')
 
   if $json; then
-    printf '{"running":%s,"pid":%s,"endpoint":"%s","active_model":"%s"}\n' \
-      "$running" "${pid:-null}" "$AI_ENDPOINT" "$(_active_model_file)"
+    local healthy
+    zdots_svc_health_check_url "${AI_ENDPOINT}/health" && healthy=true || healthy=false
+    printf '{"running":%s,"pid":%s,"endpoint":"%s","active_model":"%s","healthy":%s,"launchd":%s,"profile":"%s"}\n' \
+      "$running" "${pid:-null}" "$AI_ENDPOINT" "$(_active_model_file)" "$healthy" \
+      "$([[ -f "$PLIST_FILE" ]] && echo true || echo false)" "$AI_PROFILE"
     return
   fi
 
