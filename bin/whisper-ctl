@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# bin/whisper-ctl — Manage local whisper.cpp transcription.
+#
+# RATIONALE:
+# High-performance local transcription with whisper.cpp. Handles model
+# management and provides a clean interface for audio-to-text workflows.
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+META_LIB="$ZDOTDIR/lib/metadata.bash"
+MODELS_DIR="${ZDOTS_WHISPER_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/whisper-cpp/models}"
+
+# Resolve configuration
+if [[ -f "$META_LIB" ]]; then
+  eval "$(bash "$META_LIB" env whisper)"
+fi
+
+PROFILE="${ZDOTS_WHISPER_ACTIVE_PROFILE:-standard}"
+MODEL_FILE="${ZDOTS_WHISPER_MODEL_FILE:-}"
+
+usage() {
+  cat <<EOF
+Usage: whisper-ctl <command> [args]
+
+Commands:
+  install           Install whisper.cpp via Homebrew
+  model-download    Download active profile's model from HuggingFace
+  model-list        List downloaded models
+  transcribe <file> Transcribe an audio file to text
+  config            Show resolved configuration
+
+Options:
+  -h, --help        Show this help
+EOF
+}
+
+_binary() {
+  local prefix="${HOMEBREW_PREFIX:-/opt/homebrew}"
+  if [[ -x "$prefix/bin/whisper-cli" ]]; then
+    echo "$prefix/bin/whisper-cli"
+  fi
+}
+
+cmd_install() {
+  if [[ -n "$(_binary)" ]]; then
+    echo "whisper-ctl: whisper.cpp already installed."
+  else
+    brew install whisper.cpp
+  fi
+  mkdir -p "$MODELS_DIR"
+}
+
+cmd_download() {
+  local repo="${ZDOTS_WHISPER_HF_REPO:-}"
+  local file="${ZDOTS_WHISPER_MODEL_FILE:-}"
+  
+  if [[ -z "$repo" || -z "$file" ]]; then
+    echo "whisper-ctl: error: no model configured for profile '$PROFILE'" >&2
+    exit 1
+  fi
+
+  local dest="$MODELS_DIR/$file"
+  if [[ -f "$dest" ]]; then
+    echo "whisper-ctl: $file already exists. Skipping."
+    return
+  fi
+
+  local url="https://huggingface.co/${repo}/resolve/main/models/${file}"
+  # Note: whisper.cpp models are often in a 'models' subfolder on HF
+  # If not, we may need to adjust the URL pattern.
+  
+  echo "whisper-ctl: downloading $file..."
+  mkdir -p "$MODELS_DIR"
+  
+  local auth_header=()
+  local token="${HUGGINGFACE_TOKEN:-${HF_TOKEN:-}}"
+  if [[ -n "$token" ]]; then
+    auth_header=(-H "Authorization: Bearer $token")
+  fi
+
+  curl -L --progress-bar "${auth_header[@]}" -o "$dest" "$url"
+  echo "whisper-ctl: downloaded $file"
+}
+
+cmd_transcribe() {
+  local audio="${1:-}"
+  if [[ -z "$audio" ]]; then
+    echo "Usage: whisper-ctl transcribe <audio_file>" >&2
+    exit 1
+  fi
+
+  local bin; bin=$(_binary)
+  if [[ -z "$bin" ]]; then
+    echo "whisper-ctl: error: whisper-cli not found. Run 'whisper-ctl install'." >&2
+    exit 1
+  fi
+
+  local model_path="$MODELS_DIR/$MODEL_FILE"
+  if [[ ! -f "$model_path" ]]; then
+    echo "whisper-ctl: error: model not found at $model_path. Run 'whisper-ctl model-download'." >&2
+    exit 1
+  fi
+
+  echo "whisper-ctl: transcribing $audio..." >&2
+  "$bin" -m "$model_path" -f "$audio" -otxt
+}
+
+case "${1:-}" in
+  install)        cmd_install ;;
+  model-download) cmd_download ;;
+  model-list)     ls -lh "$MODELS_DIR" ;;
+  transcribe)     shift; cmd_transcribe "$@" ;;
+  config)         bash "$META_LIB" dump whisper ;;
+  -h|--help)      usage; exit 0 ;;
+  *)              usage >&2; exit 1 ;;
+esac
