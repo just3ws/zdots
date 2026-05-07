@@ -11,7 +11,12 @@ setup_environment() {
   # (Fallback to assuming they are in the PATH if not found in /opt/homebrew)
   local brew_prefix="${HOMEBREW_PREFIX:-/opt/homebrew}"
   
-  if [ -f "$brew_prefix/lib/bats-support/load.bash" ]; then
+  # Load Bats helpers — prioritize local tests/helpers for CI stability
+  if [ -f "$REPO_ROOT/tests/helpers/bats-support/load.bash" ]; then
+    load "$REPO_ROOT/tests/helpers/bats-support/load.bash"
+    load "$REPO_ROOT/tests/helpers/bats-assert/load.bash"
+    load "$REPO_ROOT/tests/helpers/bats-file/load.bash"
+  elif [ -f "$brew_prefix/lib/bats-support/load.bash" ]; then
     load "$brew_prefix/lib/bats-support/load.bash"
     load "$brew_prefix/lib/bats-assert/load.bash"
     load "$brew_prefix/lib/bats-file/load.bash"
