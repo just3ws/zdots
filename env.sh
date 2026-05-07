@@ -130,6 +130,7 @@ zdots_require pkg "${ZDOTS_SERVICE_PKG_MANAGER:-none}"
 zdots_require node "${ZDOTS_SERVICE_NODE_RUNTIME:-system}"
 zdots_require trace "${ZDOTS_SERVICE_TRACE:-none}"
 zdots_require ai "${ZDOTS_SERVICE_AI:-none}"
+zdots_require whisper "${ZDOTS_SERVICE_WHISPER:-none}"
 
 # 4. XDG Tool Overrides (Force compliance for standard tools)
 export AWS_CONFIG_FILE="$XDG_CONFIG_HOME/aws/config"

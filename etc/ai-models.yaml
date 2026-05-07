@@ -45,7 +45,21 @@ profiles:
     n_gpu_layers: 99
     description: "Nomic v2 MoE embedding model. Best-in-class local RAG."
 
+whisper_profiles:
+  standard:
+    model_file: "ggml-large-v3-turbo.bin"
+    hf_repo: "ggerganov/whisper.cpp"
+    size_gb: 1.5
+    description: "High-accuracy transcription. Optimized for speed/quality balance."
+
+  light:
+    model_file: "ggml-small.en.bin"
+    hf_repo: "ggerganov/whisper.cpp"
+    size_gb: 0.5
+    description: "Fast, English-only transcription for background tasks."
+
 default_profile: "standard"
+default_whisper_profile: "standard"
 
 # llama-server startup defaults (M4 / 16GB tuning)
 server:

@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# recipes/transcribe — Intelligent audio transcription and summarization.
+#
+# Scenario: You have an audio recording (meeting, voice note) and want a
+#           clean transcript and an AI-generated summary.
+#
+# What this does:
+#   1. Transcribes audio via whisper-ctl (local)
+#   2. Pipes transcript to ai-query for cleanup/summarization
+#   3. Saves both raw and summarized versions to ~/Downloads or current dir.
+#
+# Usage:
+#   recipes/transcribe recording.mp3
+#   recipes/transcribe recording.wav --summary-only
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+WHISPER_CTL="${ZDOTDIR}/bin/whisper-ctl"
+AI_QUERY="${ZDOTDIR}/bin/ai-query"
+
+usage() {
+  cat <<EOF
+Usage: recipes/transcribe <audio_file> [--summary-only]
+
+Transcribes and summarizes audio files using local SOTA models.
+
+Options:
+  --summary-only   Output only the AI summary, not the raw transcript.
+  -h, --help       Show this help
+EOF
+}
+
+AUDIO_FILE=""
+SUMMARY_ONLY=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --summary-only) SUMMARY_ONLY=true ;;
+    -h|--help)      usage; exit 0 ;;
+    *) AUDIO_FILE="$arg" ;;
+  esac
+done
+
+if [[ -z "$AUDIO_FILE" ]]; then
+  usage; exit 1
+fi
+
+# Pre-flight
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+  printf 'recipe/transcribe: llama.cpp is not running (required for summary).\n' >&2
+  exit 1
+fi
+
+# 1. Transcribe
+printf '── Transcribing %s ...\n' "$AUDIO_FILE" >&2
+RAW_TXT="${AUDIO_FILE}.txt"
+"$WHISPER_CTL" transcribe "$AUDIO_FILE" > /dev/null
+
+if [[ ! -f "$RAW_TXT" ]]; then
+  printf 'recipe/transcribe: transcription failed.\n' >&2
+  exit 1
+fi
+
+# 2. Summarize
+printf '── Summarizing transcript ...\n' >&2
+SUMMARY=$(cat "$RAW_TXT" | "$AI_QUERY" "Clean up this transcript and provide a concise executive summary with action items.")
+
+# 3. Output
+if $SUMMARY_ONLY; then
+  printf '%s\n' "$SUMMARY"
+else
+  printf '\n\033[1m── Summary ─────────────────────────────────────\033[0m\n'
+  printf '%s\n\n' "$SUMMARY"
+  printf '\033[1m── Raw Transcript ──────────────────────────────\033[0m\n'
+  cat "$RAW_TXT"
+fi
+
+printf '\n(Transcript saved to %s)\n' "$RAW_TXT" >&2
