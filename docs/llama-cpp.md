@@ -565,7 +565,6 @@ server:
 - **Model not downloaded:** `llama-ctl model-download` before the second `llama-ctl install`.
 - **Config changes:** `llama-ctl install` is the only command needed — rewrites the plist and restarts the server.
 - **Composition root:** `ZDOTS_SERVICE_AI=llama-cpp` in `.zdots.env`. Changing this switches the entire AI subsystem.
-- **Port conflict:** Never run Ollama and the Homebrew `llama-server` on port 8080 simultaneously.
 - **OOM:** Reduce `parallel: 1` or switch to `constrained` profile.
 - **Default profile:** `default_profile` in yaml is authoritative when `ZDOTS_AI_PROFILE` is not exported.
 - **Model name in API calls:** Always use `model: "local"` (the alias). Survives profile switches.

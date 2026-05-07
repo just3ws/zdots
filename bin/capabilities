@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 # ---
 # id: capabilities
+if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env" ]; then 
+  . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env" 
+fi
 # title: "Zdots Capabilities Report"
 # purpose: High-signal environment health and contract validator.
 # rationale: Provides an upfront Ground Truth report to ensure the environment matches its manifest and is safe for operation.
@@ -51,7 +54,7 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo ""
   echo "${BOLD}Service Composition:${RESET}"
 fi
-_z_services="PKG_MANAGER NODE_RUNTIME PYTHON_RUNTIME TRACE AI"
+_z_services="PKG_MANAGER NODE_RUNTIME PYTHON_RUNTIME TRACE AI WHISPER"
 
 errors=0
 for s in $_z_services; do
@@ -67,6 +70,7 @@ for s in $_z_services; do
     PYTHON_RUNTIME) service_dir="python" ;;
     TRACE) service_dir="trace" ;;
     AI) service_dir="ai" ;;
+    WHISPER) service_dir="ai" ;;
     *) service_dir=$(echo "$s" | tr '[:upper:]' '[:lower:]' | sed 's/_//g') ;;
   esac
   provider_file="${ZDOTDIR}/providers/${service_dir}/${provider}.zsh"

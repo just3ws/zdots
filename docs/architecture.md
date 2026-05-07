@@ -76,7 +76,8 @@ The system uses a **Composition Root** (`.zdots.env`) to map abstract services t
 | `PKG_MANAGER` | `homebrew`, `apt`, `none` | Path setup, `brew shellenv`, package caching. |
 | `NODE_RUNTIME` | `mise`, `system` | Toolchain shims, version management. |
 | `TRACE` | `otlp`, `local`, `none` | Session ID, Span rotation, Telemetry export. |
-| `AI` | `ollama`, `llama-cpp`, `remote` | Local inference, log parsing, data reduction. |
+| `AI` | `llama-cpp`, `remote` | Local inference, log parsing, data reduction. |
+| `WHISPER` | `whisper-cpp`, `none` | Local audio transcription and meeting notes. |
 
 ---
 
