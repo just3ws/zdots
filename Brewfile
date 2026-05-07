@@ -34,6 +34,7 @@ brew "universal-ctags"  # Symbol indexing; allows agents to find definitions wit
 brew "ast-grep"         # Structural code search (sg); used for complex refactoring by agents.
 brew "fabric-ai"        # AI workflow pattern executor.
 brew "llama.cpp"        # Local LLM inference server; OpenAI-compatible API on :8080.
+brew "whisper.cpp"      # High-performance inference of OpenAI's Whisper ASR models.
 brew "otel-cli"         # OpenTelemetry CLI; useful for ad-hoc shell spans.
 brew "gemini-cli"       # Google Gemini AI CLI; aliased to 'gm' in conf.d/80-aliases.zsh.
 brew "usage"            # CLI specification tool; helps agents understand CLI parameters.
