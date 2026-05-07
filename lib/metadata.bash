@@ -51,6 +51,19 @@ zdots_meta_resolve_yaml() {
       fi
       echo "$val"
     fi
+  elif [[ "$service" == "whisper" ]]; then
+    # Unified ai-models.yaml but different top-level key
+    local file; file=$(_zdots_meta_get_file ai)
+    local profile="${ZDOTS_WHISPER_PROFILE:-}"
+    if [[ -z "$profile" || "$profile" == "null" ]]; then
+      profile=$(yq ".default_whisper_profile" "$file" 2>/dev/null)
+    fi
+
+    if [[ -z "$path" ]]; then
+      yq -o json ".whisper_profiles.${profile} | .active_profile = \"${profile}\"" "$file" 2>/dev/null
+    else
+      yq ".whisper_profiles.${profile}.${path}" "$file" 2>/dev/null
+    fi
   else
     if [[ -z "$path" ]]; then
       yq -o json "." "$file" 2>/dev/null

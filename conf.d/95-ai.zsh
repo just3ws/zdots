@@ -7,6 +7,10 @@ if [[ -n "$(command -v zdots_ai_init)" ]]; then
   fi
 fi
 
+if [[ -n "$(command -v zdots_whisper_init)" ]]; then
+  zdots_whisper_init
+fi
+
 # Aider sidecar — wires aider to the active llama.cpp endpoint.
 # Provides the zaider() function; does not affect the ZDOTS_SERVICE_AI chain.
 if [[ -r "$ZDOTDIR/providers/ai/aider.zsh" ]]; then
