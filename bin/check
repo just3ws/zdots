@@ -113,7 +113,7 @@ assert_history_mode() {
   local share_flag="$2"
   local flags
 
-  flags="$(ZDOTS_SHARE_HISTORY="$share_flag" zsh -i -c '
+  flags="$(ZDOTS_CHECK_ZLE=1 ZDOTS_SHARE_HISTORY="$share_flag" zsh -i -c '
     [[ -o share_history ]] && echo "share:on" || echo "share:off"
     [[ -o inc_append_history_time ]] && echo "inc_append_history_time:on" || echo "inc_append_history_time:off"
   ' | _strip_escapes)"
@@ -160,7 +160,7 @@ assert_ctrl_r_policy() {
     exit 1
   fi
 
-  fzf_bindings="$(zsh "${shell_args[@]}" -c '
+  fzf_bindings="$(ZDOTS_CHECK_ZLE=1 zsh "${shell_args[@]}" -c '
     zle -N fzf-history-widget self-insert
     source "$ZDOTDIR/conf.d/70-integrations.zsh"
     echo "R: $(bindkey "^R")"
@@ -198,7 +198,7 @@ assert_fzf_tab_policy() {
   local widgets_out
   local tab_binding
 
-  widgets_out="$(zsh "${shell_args[@]}" -c '
+  widgets_out="$(ZDOTS_CHECK_ZLE=1 zsh "${shell_args[@]}" -c '
     zle -l
   ' | _strip_escapes)"
 

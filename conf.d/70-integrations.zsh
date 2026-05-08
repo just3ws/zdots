@@ -128,16 +128,23 @@ if [[ "$TERM_PROGRAM" == "iTerm.app" && -o interactive && -t 1 && -r "$ZDOTDIR/.
   source "$ZDOTDIR/.iterm2_shell_integration.zsh"
 fi
 
-if [[ -o interactive && -o zle && "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/.fzf.zsh" ]]; then
+# ZLE-safe guard: prevent noise in non-TTY command execution (zsh -c)
+# but allow verification in bin/check.
+_is_zle_safe() {
+  [[ -o interactive && -o zle ]] || return 1
+  [[ -z "${ZSH_EXECUTION_STRING:-}" || "${ZDOTS_CHECK_ZLE:-0}" == "1" ]]
+}
+
+if _is_zle_safe && [[ "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/.fzf.zsh" ]]; then
   source "$ZDOTDIR/.fzf.zsh"
 fi
 
-if [[ -o interactive && -o zle && "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/fzfrc" ]]; then
+if _is_zle_safe && [[ "${ZDOTS_CHECK_SKIP_FZF:-0}" != "1" && -r "$ZDOTDIR/fzfrc" ]]; then
   source "$ZDOTDIR/fzfrc"
 fi
 
 # fzf-tab: replaces zsh completion menu with fzf
-if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/opt/fzf-tab/share/fzf-tab/fzf-tab.zsh" ]]; then
+if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/opt/fzf-tab/share/fzf-tab/fzf-tab.zsh" ]] && _is_zle_safe; then
   source "$HOMEBREW_PREFIX/opt/fzf-tab/share/fzf-tab/fzf-tab.zsh"
 fi
 
@@ -146,7 +153,7 @@ fi
 
 # Let fzf-tab (or standard completion) handle Tab.
 # Remove the aggressive fzf-completion override to reduce "greediness".
-if [[ -o interactive && -o zle ]]; then
+if _is_zle_safe; then
   if (( ${+widgets[fzf-completion]} )); then
     # Keep fzf-completion available but don't bind to raw Tab.
     # It can still be used via the trigger (e.g. **<Tab>)
@@ -164,7 +171,7 @@ fi
 
 # Keep ^R deterministic: prefer fzf history when available, otherwise use
 # built-in incremental history search across keymaps.
-if [[ -o interactive && -o zle ]]; then
+if _is_zle_safe; then
   if (( ${+widgets[fzf-history-widget]} )); then
     bindkey '^R' fzf-history-widget
     bindkey -M emacs '^R' fzf-history-widget
@@ -185,7 +192,7 @@ fi
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-history-substring-search/zsh-history-substring-search.zsh" ]]; then
   source "$HOMEBREW_PREFIX/share/zsh-history-substring-search/zsh-history-substring-search.zsh"
   # Bind arrow keys
-  if [[ -o interactive && -o zle ]]; then
+  if _is_zle_safe; then
     bindkey '^[[A' history-substring-search-up
     bindkey '^[[B' history-substring-search-down
     # Bind j/k for vi-mode (integrated with zsh-vi-mode)
