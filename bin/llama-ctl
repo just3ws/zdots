@@ -46,6 +46,9 @@ SVC_NAME="llama-server"
 # Source the lifecycle engine
 # shellcheck source=lib/lifecycle.bash
 source "${ZDOTDIR}/lib/lifecycle.bash"
+# Source the model store
+# shellcheck source=lib/model-store.bash
+source "${ZDOTDIR}/lib/model-store.bash"
 
 # Resolve all AI configuration via the unified metadata service.
 # This populates ZDOTS_AI_* variables.
@@ -348,42 +351,16 @@ model_list() {
 
 model_download() {
   _require_yq
-  local hf_repo model_file size_gb dest url
+  local hf_repo model_file
   hf_repo=$(_profile_field hf_repo "")
   model_file=$(_profile_field model_file "")
-  size_gb=$(_profile_field size_gb "?")
 
   if [[ -z "$hf_repo" || "$hf_repo" == "null" || -z "$model_file" || "$model_file" == "null" ]]; then
     echo "llama-ctl: error: no hf_repo or model_file for profile '${AI_PROFILE}'" >&2
     exit 1
   fi
 
-  dest="$MODELS_DIR/$model_file"
-  if [[ -f "$dest" ]]; then
-    local size; size=$(du -sh "$dest" | cut -f1)
-    echo "llama-ctl: $model_file already downloaded ($size). Skipping."
-    return 0
-  fi
-
-  url="https://huggingface.co/${hf_repo}/resolve/main/${model_file}"
-  mkdir -p "$MODELS_DIR"
-  echo "llama-ctl: downloading ${model_file} (~${size_gb}GB)..."
-  echo "llama-ctl: source: ${url}"
-  echo "llama-ctl: dest:   ${dest}"
-  echo ""
-
-  # Support authenticated downloads if a token is present in the environment
-  local auth_header=()
-  local token="${HUGGINGFACE_TOKEN:-${HF_TOKEN:-}}"
-  if [[ -n "$token" ]]; then
-    echo "llama-ctl: using HuggingFace token for authentication"
-    auth_header=(-H "Authorization: Bearer $token")
-  fi
-
-  curl -L --progress-bar "${auth_header[@]}" --continue-at - -o "$dest" "$url"
-  echo ""
-  local actual; actual=$(du -sh "$dest" | cut -f1)
-  echo "llama-ctl: downloaded $model_file ($actual)"
+  zdots_model_download "$hf_repo" "$model_file" "$MODELS_DIR"
 }
 
 model_switch() {
@@ -419,33 +396,13 @@ model_switch() {
 }
 
 model_prune() {
-  if [[ ! -d "$MODELS_DIR" ]]; then
-    echo "llama-ctl: no model directory to prune."
-    return 0
-  fi
-
   local active; active=$(_active_model_file)
   if [[ -z "$active" ]]; then
     echo "llama-ctl: cannot determine active model; aborting prune." >&2
     exit 1
   fi
 
-  local pruned=0
-  while IFS= read -r -d '' f; do
-    local name; name=$(basename "$f")
-    [[ "$name" == "$active" ]] && continue
-    local size; size=$(du -sh "$f" 2>/dev/null | cut -f1)
-    echo "llama-ctl: removing $name ($size)"
-    rm -f "$f"
-    pruned=$((pruned + 1))
-  done < <(find "$MODELS_DIR" -maxdepth 1 -name '*.gguf' -print0 2>/dev/null)
-
-  if [[ $pruned -eq 0 ]]; then
-    echo "llama-ctl: nothing to prune — only active model present."
-  else
-    echo "llama-ctl: pruned $pruned model(s). Disk reclaimed."
-    df -h "$MODELS_DIR" 2>/dev/null | tail -1 || true
-  fi
+  zdots_model_prune "$MODELS_DIR" "$active" "*.gguf"
 }
 
 model_df() {
