@@ -1,9 +1,10 @@
 ---
 id: Z-048
 title: 'feat(arch): implement declarative service lifecycle module'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-05-08 00:59'
+updated_date: '2026-05-08 01:00'
 labels: []
 milestone: m-4
 dependencies: []
