@@ -90,14 +90,13 @@ printf '── Transcribing with Whisper (%s) ...\n' "$WHISPER_PROFILE" >&2
 # We ensure the model is downloaded first.
 ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" model-download >&2
 
-# We call whisper-cli directly or through whisper-ctl if we add a 'raw' mode.
-# For now, we'll use whisper-ctl transcribe and then move the files.
-# But whisper-ctl transcribe only outputs .txt. 
-# We need ALL formats, so we'll call the binary resolved by whisper-ctl.
+# We call whisper-cli directly to get ALL formats.
 WHISPER_BIN=$("$WHISPER_CTL" config | jq -r '.binary // empty')
 [[ -z "$WHISPER_BIN" ]] && WHISPER_BIN="/opt/homebrew/bin/whisper-cli"
-WHISPER_MODEL_DIR=$("$WHISPER_CTL" config | jq -r '.models_dir')
-WHISPER_MODEL_FILE=$("$WHISPER_CTL" config | jq -r '.model_file')
+
+# Resolve model path using the specific profile
+WHISPER_MODEL_DIR=$(ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" config | jq -r '.models_dir')
+WHISPER_MODEL_FILE=$(ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" config | jq -r '.model_file')
 MODEL_PATH="${WHISPER_MODEL_DIR}/${WHISPER_MODEL_FILE}"
 
 "$WHISPER_BIN" \

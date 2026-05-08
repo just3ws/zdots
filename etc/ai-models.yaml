@@ -50,18 +50,21 @@ whisper_profiles:
     model_file: "ggml-large-v3-turbo.bin"
     hf_repo: "ggerganov/whisper.cpp"
     size_gb: 1.5
+    url_prefix: "models/"
     description: "High-accuracy transcription. Optimized for speed/quality balance."
 
   max-accuracy:
     model_file: "ggml-large-v3.bin"
     hf_repo: "ggerganov/whisper.cpp"
     size_gb: 3.1
+    url_prefix: ""
     description: "Absolute highest precision available. Slower than turbo, but superior for complex audio."
 
   light:
     model_file: "ggml-small.en.bin"
     hf_repo: "ggerganov/whisper.cpp"
     size_gb: 0.5
+    url_prefix: "models/"
     description: "Fast, English-only transcription for background tasks."
 
 default_profile: "standard"
