@@ -227,98 +227,31 @@ _register_plist() {
   flash_attn=$(_server_field flash_attn "false")
   metrics=$(_server_field metrics "false")
 
-  # Build optional flag lines for the plist ProgramArguments array.
-  local extra_args=""
-  if [[ "$embeddings" == "true" ]]; then
-    extra_args="${extra_args}        <string>--embeddings</string>
-        <string>--pooling</string>
-        <string>${pooling}</string>
-"
-  fi
-  if [[ "$flash_attn" == "true" ]]; then
-    extra_args="${extra_args}        <string>--flash-attn</string>
-        <string>on</string>
-"
-  fi
-  if [[ "$metrics" == "true" ]]; then
-    extra_args="${extra_args}        <string>--metrics</string>
-"
-  fi
-  if [[ "$n_predict" != "-1" && -n "$n_predict" ]]; then
-    extra_args="${extra_args}        <string>--predict</string>
-        <string>${n_predict}</string>
-"
-  fi
-  if [[ "$cache_reuse" != "0" && -n "$cache_reuse" ]]; then
-    extra_args="${extra_args}        <string>--cache-reuse</string>
-        <string>${cache_reuse}</string>
-"
-  fi
-  if [[ -n "$alias" && "$alias" != "null" ]]; then
-    extra_args="${extra_args}        <string>--alias</string>
-        <string>${alias}</string>
-"
-  fi
+  # Build ProgramArguments array.
+  local -a args=(
+    "--host" "${host}"
+    "--port" "${port}"
+    "--model" "${model_path}"
+    "--ctx-size" "${ctx_size}"
+    "--n-gpu-layers" "${n_gpu_layers}"
+    "--parallel" "${parallel}"
+    "--batch-size" "${batch_size}"
+    "--ubatch-size" "${ubatch_size}"
+    "--cache-type-k" "${cache_type_k}"
+    "--cache-type-v" "${cache_type_v}"
+  )
 
-  printf 'llama-ctl: registering launchd service...\n' >&2
-  mkdir -p "$(dirname "$PLIST_FILE")" "$(dirname "$LOG_FILE")"
+  [[ "$embeddings" == "true" ]] && args+=("--embeddings" "--pooling" "${pooling}")
+  [[ "$flash_attn" == "true" ]] && args+=("--flash-attn" "on")
+  [[ "$metrics" == "true" ]]    && args+=("--metrics")
+  [[ "$n_predict" != "-1" && -n "$n_predict" ]] && args+=("--predict" "${n_predict}")
+  [[ "$cache_reuse" != "0" && -n "$cache_reuse" ]] && args+=("--cache-reuse" "${cache_reuse}")
+  [[ -n "$alias" && "$alias" != "null" ]] && args+=("--alias" "${alias}")
 
-  cat > "$PLIST_FILE" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>${PLIST_LABEL}</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>${bin}</string>
-        <string>--host</string>
-        <string>${host}</string>
-        <string>--port</string>
-        <string>${port}</string>
-        <string>--model</string>
-        <string>${model_path}</string>
-        <string>--ctx-size</string>
-        <string>${ctx_size}</string>
-        <string>--n-gpu-layers</string>
-        <string>${n_gpu_layers}</string>
-        <string>--parallel</string>
-        <string>${parallel}</string>
-        <string>--batch-size</string>
-        <string>${batch_size}</string>
-        <string>--ubatch-size</string>
-        <string>${ubatch_size}</string>
-        <string>--cache-type-k</string>
-        <string>${cache_type_k}</string>
-        <string>--cache-type-v</string>
-        <string>${cache_type_v}</string>
-${extra_args}    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>ThrottleInterval</key>
-    <integer>10</integer>
-    <key>StandardOutPath</key>
-    <string>${LOG_FILE}</string>
-    <key>StandardErrorPath</key>
-    <string>${LOG_FILE}</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>HOME</key>
-        <string>${HOME}</string>
-        <key>ZDOTDIR</key>
-        <string>${ZDOTDIR}</string>
-        <key>ZDOTS_AI_PROFILE</key>
-        <string>${AI_PROFILE}</string>
-        <key>ZDOTS_AI_MODELS_DIR</key>
-        <string>${MODELS_DIR}</string>
-    </dict>
-</dict>
-</plist>
-EOF
-  printf 'llama-ctl: service registered at %s\n' "$PLIST_FILE" >&2
+  export ZDOTS_AI_PROFILE="${AI_PROFILE}"
+  export ZDOTS_AI_MODELS_DIR="${MODELS_DIR}"
+  ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR ZDOTS_AI_PROFILE ZDOTS_AI_MODELS_DIR" \
+    zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$bin" "$LOG_FILE" "${args[@]}"
 }
 
 start_llama() {
