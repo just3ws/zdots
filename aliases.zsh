@@ -52,12 +52,12 @@ alias zlogs-otel='otel-collector logs'                # tail OTel collector log
 alias zlogs-ci='local-ci logs'                        # tail LGTM stack log
 
 # AI Recipes (pre-built scenarios — run with no args for usage)
-alias zmorning='recipes/morning'                      # daily briefing: health + history + suggestions
-alias zstandup='recipes/standup'                      # git history → standup summary
-alias zpre-push='recipes/pre-push'                    # review unpushed commits before pushing
-alias zcommit-recipe='recipes/commit'                 # review staged diff → generate message → commit
-alias zlog-errors='recipes/log-errors'                # triage service log errors with AI
-alias ztranscribe='recipes/yt-transcribe'              # high-quality YouTube transcription pipeline
+alias zmorning='"${ZDOTDIR}"/recipes/morning'                      # daily briefing: health + history + suggestions
+alias zstandup='"${ZDOTDIR}"/recipes/standup'                      # git history → standup summary
+alias zpre-push='"${ZDOTDIR}"/recipes/pre-push'                    # review unpushed commits before pushing
+alias zcommit-recipe='"${ZDOTDIR}"/recipes/commit'                 # review staged diff → generate message → commit
+alias zlog-errors='"${ZDOTDIR}"/recipes/log-errors'                # triage service log errors with AI
+alias ztranscribe='"${ZDOTDIR}"/recipes/yt-transcribe'              # high-quality YouTube transcription pipeline
 
 # AI Shell Intelligence (local model via ai-query)
 alias zcommit='commit-msg'                            # draft commit message from staged diff
