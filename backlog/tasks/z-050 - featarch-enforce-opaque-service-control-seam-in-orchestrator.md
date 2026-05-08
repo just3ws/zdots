@@ -1,9 +1,10 @@
 ---
 id: Z-050
 title: 'feat(arch): enforce opaque service control seam in orchestrator'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-05-08 01:00'
+updated_date: '2026-05-08 01:22'
 labels: []
 milestone: m-4
 dependencies:
