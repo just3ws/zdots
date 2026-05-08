@@ -57,6 +57,7 @@ alias zstandup='recipes/standup'                      # git history → standup 
 alias zpre-push='recipes/pre-push'                    # review unpushed commits before pushing
 alias zcommit-recipe='recipes/commit'                 # review staged diff → generate message → commit
 alias zlog-errors='recipes/log-errors'                # triage service log errors with AI
+alias ztranscribe='recipes/yt-transcribe'              # high-quality YouTube transcription pipeline
 
 # AI Shell Intelligence (local model via ai-query)
 alias zcommit='commit-msg'                            # draft commit message from staged diff
