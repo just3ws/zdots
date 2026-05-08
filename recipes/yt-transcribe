@@ -21,15 +21,20 @@ OUT_BASE="${HOME}/Downloads/transcripts"
 
 usage() {
   cat <<EOF
-Usage: recipes/yt-transcribe <youtube_url> [options]
+Usage: ztranscribe <youtube_url> [options]
 
-Downloads and transcribes YouTube videos at the highest possible quality.
+High-performance YouTube transcription pipeline. Downloads best audio, 
+captures full metadata, and transcribes using whisper.cpp.
 
 Options:
-  --keep-media   Do not delete the downloaded audio/video files after transcription.
-  --diarize      Perform speaker identification (requires HUGGINGFACE_TOKEN).
-  --profile <p>  Whisper profile to use (default: max-accuracy).
+  --keep-media   Keep the original .wav audio file (deleted by default).
+  --diarize      Identify speakers (requires HUGGINGFACE_TOKEN).
+  --profile <p>  Whisper profile: max-accuracy (default), standard, light.
   -h, --help     Show this help
+
+Outputs:
+  Saved to ~/Downloads/transcripts/<video_id>/ in 5 formats:
+  .txt, .json (structured), .srt, .vtt, .csv + .info.json (metadata)
 EOF
 }
 

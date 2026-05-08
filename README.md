@@ -68,7 +68,24 @@ All components are standalone executables in `bin/`.
 
 ---
 
-## 5. Setup & Documentation
+## 5. High-Value Superpowers
+
+### YouTube Transcription (`ztranscribe`)
+A high-performance pipeline for deep context extraction from YouTube videos.
+
+```bash
+ztranscribe 'https://www.youtube.com/watch?v=...' --diarize
+```
+
+*   **Max Quality**: Extracts best audio (`yt-dlp`) → 16kHz Mono (`ffmpeg`) → `large-v3` (`whisper.cpp`).
+*   **Multi-Context**: Generates `.txt`, `.json`, `.srt`, `.vtt`, and `.csv` transcripts simultaneously.
+*   **Diarization**: Optional `--diarize` flag identifies "who said what" via `pyannote.audio`.
+*   **Hygiene**: Automatically discards heavy media files after processing (override with `--keep-media`).
+*   **Metadata**: Captures full video metadata in `.info.json` for RAG and archival.
+
+---
+
+## 6. Setup & Documentation
 
 Refer to [docs/development.md](docs/development.md) for installation.
 
