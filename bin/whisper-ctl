@@ -55,13 +55,14 @@ cmd_install() {
 cmd_download() {
   local repo="${ZDOTS_WHISPER_HF_REPO:-}"
   local file="${ZDOTS_WHISPER_MODEL_FILE:-}"
+  local prefix="${ZDOTS_WHISPER_URL_PREFIX:-}"
   
   if [[ -z "$repo" || -z "$file" ]]; then
     echo "whisper-ctl: error: no model configured for profile '$PROFILE'" >&2
     exit 1
   fi
 
-  zdots_model_download "$repo" "$file" "$MODELS_DIR" "models/"
+  zdots_model_download "$repo" "$file" "$MODELS_DIR" "$prefix"
 }
 
 cmd_transcribe() {
