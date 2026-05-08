@@ -1,9 +1,10 @@
 ---
 id: Z-049
 title: 'feat(arch): unify configuration registry and service metadata'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-05-08 00:59'
+updated_date: '2026-05-08 01:07'
 labels: []
 milestone: m-4
 dependencies: []
