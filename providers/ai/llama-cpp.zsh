@@ -8,14 +8,13 @@ zdots_ai_init() {
   export ZDOTS_AI_MODELS_DIR="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
 
   # Use the unified metadata service to resolve configuration.
-  # This populates ZDOTS_AI_HOST, ZDOTS_AI_PORT, ZDOTS_AI_MODEL_FILE, etc.
+  # This populates ZDOTS_AI_ENDPOINT, ZDOTS_AI_MODEL_FILE, etc.
   local _meta_script="${ZDOTDIR:-$HOME/.config/zsh}/lib/metadata.bash"
   if [[ -f "$_meta_script" ]]; then
     eval "$(bash "$_meta_script" env ai)"
   fi
 
   # Ensure stable variables are set for the provider interface
-  export ZDOTS_AI_ENDPOINT="http://${ZDOTS_AI_HOST:-127.0.0.1}:${ZDOTS_AI_PORT:-8080}"
   export ZDOTS_AI_MODEL="${ZDOTS_AI_MODEL_FILE%%.gguf}"
 
   # Non-blocking boot-time health check. We do NOT block startup — set a

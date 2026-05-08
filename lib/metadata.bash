@@ -21,7 +21,7 @@ _has_yq() { command -v yq >/dev/null 2>&1; }
 _zdots_meta_get_file() {
   local service="$1"
   case "$service" in
-    ai)   echo "$ZDOTS_META_DIR/ai-models.yaml" ;;
+    ai|whisper) echo "$ZDOTS_META_DIR/ai-models.yaml" ;;
     otel) echo "$ZDOTS_META_DIR/otel-collector.yaml" ;;
     lgtm) echo "$ZDOTS_META_DIR/docker-compose.lgtm.yaml" ;;
     *)    return 1 ;;
@@ -43,7 +43,8 @@ zdots_meta_resolve_yaml() {
     fi
 
     if [[ -z "$path" ]]; then
-      yq -o json ".profiles.${profile} * .server | .active_profile = \"${profile}\"" "$file" 2>/dev/null
+      # Merge profile with server defaults and add derived fields
+      yq -o json ".profiles.${profile} * .server | .active_profile = \"${profile}\" | .endpoint = \"http://\" + .host + \":\" + (.port | tostring)" "$file" 2>/dev/null
     else
       local val; val=$(yq ".profiles.${profile}.${path}" "$file" 2>/dev/null)
       if [[ "$val" == "null" || -z "$val" ]]; then
@@ -52,15 +53,13 @@ zdots_meta_resolve_yaml() {
       echo "$val"
     fi
   elif [[ "$service" == "whisper" ]]; then
-    # Unified ai-models.yaml but different top-level key
-    local file; file=$(_zdots_meta_get_file ai)
     local profile="${ZDOTS_WHISPER_PROFILE:-}"
     if [[ -z "$profile" || "$profile" == "null" ]]; then
       profile=$(yq ".default_whisper_profile" "$file" 2>/dev/null)
     fi
 
     if [[ -z "$path" ]]; then
-      yq -o json ".whisper_profiles.${profile} | .active_profile = \"${profile}\"" "$file" 2>/dev/null
+      yq -o json ".whisper_profiles.${profile} | .active_profile = \"${profile}\" | .endpoint = \"http://\" + .host + \":\" + (.port | tostring)" "$file" 2>/dev/null
     else
       yq ".whisper_profiles.${profile}.${path}" "$file" 2>/dev/null
     fi
