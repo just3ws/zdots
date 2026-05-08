@@ -1,0 +1,86 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# dependencies = [
+#   "pyannote.audio",
+#   "torch",
+#   "numpy",
+# ]
+# ///
+"""
+bin/diarize — Perform speaker diarization on audio and merge with Whisper JSON.
+
+This script uses pyannote.audio to identify speaker segments. 
+Note: Requires HUGGINGFACE_TOKEN in environment to download the pre-trained 
+diarization model (pyannote/speaker-diarization-3.1).
+"""
+
+import sys
+import os
+import json
+import argparse
+from pyannote.audio import Pipeline
+import torch
+
+def main():
+    parser = argparse.ArgumentParser(description="Diarize audio and merge with Whisper JSON.")
+    parser.add_argument("audio", help="Path to 16kHz WAV audio file")
+    parser.add_argument("whisper_json", help="Path to Whisper output JSON file")
+    parser.add_argument("--output", help="Path to output speaker-labeled JSON", default=None)
+    
+    args = parser.parse_args()
+    
+    hf_token = os.environ.get("HUGGINGFACE_TOKEN") or os.environ.get("HF_TOKEN")
+    if not hf_token:
+        print("Error: HUGGINGFACE_TOKEN or HF_TOKEN required for diarization model.", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Loading diarization pipeline...", file=sys.stderr)
+    pipeline = Pipeline.from_pretrained(
+        "pyannote/speaker-diarization-3.1",
+        use_auth_token=hf_token
+    )
+    
+    # Move to GPU if available (Metal on Mac)
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+        pipeline.to(device)
+        print("Using MPS (Metal Performance Shaders)", file=sys.stderr)
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+        pipeline.to(device)
+        print("Using CUDA", file=sys.stderr)
+    else:
+        print("Using CPU", file=sys.stderr)
+
+    print(f"Running diarization on {args.audio}...", file=sys.stderr)
+    diarization = pipeline(args.audio)
+    
+    with open(args.whisper_json, 'r') as f:
+        data = json.load(f)
+
+    # Simple merging logic: find the dominant speaker for each whisper segment
+    for segment in data.get('transcription', []):
+        start = segment['offsets']['from'] / 1000.0  # ms to s
+        end = segment['offsets']['to'] / 1000.0
+        
+        # Find speaker overlap
+        speakers = {}
+        for turn, _, speaker in diarization.itertracks(yield_label=True):
+            overlap = max(0, min(end, turn.end) - max(start, turn.start))
+            if overlap > 0:
+                speakers[speaker] = speakers.get(speaker, 0) + overlap
+        
+        if speakers:
+            dominant_speaker = max(speakers, key=speakers.get)
+            segment['speaker'] = dominant_speaker
+        else:
+            segment['speaker'] = "UNKNOWN"
+
+    output_path = args.output or args.whisper_json.replace(".json", ".speaker.json")
+    with open(output_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    print(f"Saved speaker-labeled JSON to {output_path}", file=sys.stderr)
+
+if __name__ == "__main__":
+    main()
