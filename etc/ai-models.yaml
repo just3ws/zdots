@@ -21,13 +21,13 @@ profiles:
     n_gpu_layers: 99
     description: "Verified 2026 SOTA coding model. High-speed agentic reasoning."
 
-  reasoning:
-    model_file: "DeepSeek-V3-Q4_K_M.gguf"
-    hf_repo: "MaziyarPanahi/DeepSeek-V3-GGUF"
-    size_gb: 4.8
+  llama-3.1:
+    model_file: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    hf_repo: "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
+    size_gb: 4.9
     ctx_size: 16384
     n_gpu_layers: 99
-    description: "DeepSeek V3. Superior logical and algorithmic reasoning."
+    description: "Meta Llama 3.1. High-quality instruction following and general knowledge. Gated model."
 
   constrained:
     model_file: "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
