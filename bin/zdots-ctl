@@ -43,12 +43,12 @@ _chkwarn() { printf '  [WARN] %s\n'   "$*"; }
 _fix()  { printf '         fix: %s\n' "$*"; }
 
 # ---------------------------------------------------------------------------
-# Live probes
+# Live probes — Enforce opaque service control seam
 # ---------------------------------------------------------------------------
 
-_ai_up()      { curl -sf -m 2 "${AI_ENDPOINT}/health"    >/dev/null 2>&1; }
-_otel_up()    { launchctl list com.zdots.otel-collector   2>/dev/null | grep -q '"PID"'; }
-_grafana_up() { curl -sf -m 2 "${GRAFANA_URL}/api/health" >/dev/null 2>&1; }
+_ai_up()      { "$BIN/llama-ctl" health >/dev/null 2>&1; }
+_otel_up()    { "$BIN/otel-collector" status >/dev/null 2>&1; }
+_grafana_up() { "$BIN/local-ci" health >/dev/null 2>&1; }
 _colima_up()  { colima status >/dev/null 2>&1; }
 
 _wait_for() {
