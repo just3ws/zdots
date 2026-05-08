@@ -47,7 +47,7 @@ _fix()  { printf '         fix: %s\n' "$*"; }
 # ---------------------------------------------------------------------------
 
 _ai_up()      { "$BIN/llama-ctl" health >/dev/null 2>&1; }
-_otel_up()    { "$BIN/otel-collector" status >/dev/null 2>&1; }
+_otel_up()    { "$BIN/otel-collector" health >/dev/null 2>&1; }
 _grafana_up() { "$BIN/local-ci" health >/dev/null 2>&1; }
 _colima_up()  { colima status >/dev/null 2>&1; }
 
