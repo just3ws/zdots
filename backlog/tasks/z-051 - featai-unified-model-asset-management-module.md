@@ -1,9 +1,10 @@
 ---
 id: Z-051
 title: 'feat(ai): unified model asset management module'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-05-08 01:00'
+updated_date: '2026-05-08 01:15'
 labels: []
 milestone: m-4
 dependencies:
