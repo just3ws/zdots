@@ -160,10 +160,7 @@ _active_model_path() {
 }
 
 _endpoint() {
-  local host port
-  host=$(_server_field host "127.0.0.1")
-  port=$(_server_field port "8080")
-  echo "http://${host}:${port}"
+  bash "$META_LIB" get ai endpoint
 }
 
 install_llama() {
