@@ -1,6 +1,6 @@
 ---
 id: readme
-title: "Zdots: The Observable Control Plane"
+title: "Zdots: The Deepened Shell Platform"
 purpose: Primary entry point and system overview for the Zdots environment.
 links:
   - id: architecture
@@ -11,64 +11,72 @@ links:
     rel: child
 ---
 
-# Zdots: The Observable Control Plane
+# Zdots: The Deepened Shell Platform
 
-A modular Zsh environment built around two ideas: **local AI inference you can actually build on**, and **a shell that observes itself**. Every command emits an OTel span. Every AI call goes through a local Qwen server with a full OpenAI-compatible API. Everything is wired together and self-describing.
-
----
-
-## 1. What's here
-
-| Subsystem | What it does |
-|---|---|
-| **Local AI** | llama.cpp on port 8080. OpenAI-compatible. [docs/llama-cpp.md](docs/llama-cpp.md) |
-| **Observability** | Every shell command → OTel span → LGTM stack. [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
-| **Safe inference** | `ai-query` wraps every call in guardrail layers. [docs/ai-query.md](docs/ai-query.md) |
-| **Platform control** | `zdots-ctl` manages the entire stack in dependency order. |
-| **Architecture** | Provider DI pattern for interchangeable backends. [docs/architecture.md](docs/architecture.md) |
+Zdots is more than a Zsh configuration; it is a **Deepened Shell Platform** engineered for local AI development and systemic observability. While traditional dotfiles focus on visual aesthetics and aliases, Zdots provides a high-leverage **Control Plane** for local inference, distributed tracing, and declarative service management.
 
 ---
 
-## 2. Setup
+## 1. Core Architectural Pillars
 
-Refer to [docs/development.md](docs/development.md) for full installation and bootstrapping instructions.
+Zdots is built on a "Deepened" architectural philosophy: a small number of semantic interfaces providing massive leverage.
 
-```sh
-make bootstrap          # Install dependencies and hydrate models
-zdots-ctl status        # Confirm health
-```
+| Pillar | Description | Implementation |
+|---|---|---|
+| **Local AI SOTA** | High-performance inference via **llama.cpp** and **whisper.cpp**. | `llama-ctl`, `whisper-ctl` |
+| **System Observability** | Every shell command emits an OTel span to a local **LGTM** stack. | `bin/otel-collector`, `env.sh` |
+| **Declarative Lifecycle** | Services define specs; a unified engine handles registration. | `lib/lifecycle.bash` |
+| **Semantic Config** | Centralized Registry resolves derived endpoints from YAML. | `lib/metadata.bash` |
+| **Asset Management** | Unified store for downloading and caching AI model assets. | `lib/model-store.bash` |
 
 ---
 
-## 3. Bin scripts
+## 2. Why it's "Deep"
 
-All scripts in `bin/` are standalone executables.
+Traditional shell configs are **shallow**: a bug in one service's management logic must be fixed everywhere. Zdots is **deep**:
 
-| Script | Purpose |
+1.  **Opaque Service Seams**: The orchestrator (`zdots-ctl`) interacts with services (AI, OTel, LGTM) only through their CLI grammar. You can swap a background process for a Docker container without changing the orchestrator.
+2.  **Locality of Logic**: `launchd` plist generation, HuggingFace model downloads, and endpoint construction are concentrated in core libraries.
+3.  **High-Signal Validation**: Includes a 160+ test Bats suite and a high-confidence `secret-scan` to ensure platform integrity on every commit.
+
+---
+
+## 3. The May 2026 AI Stack
+
+Zdots includes a production-grade local AI runtime out of the box:
+
+*   **Inference**: llama.cpp (OpenAI-compatible) using Qwen2.5-Coder and Nomic v2.
+*   **Transcription**: whisper.cpp for high-speed local audio-to-text.
+*   **Guardrails**: `ai-query` wraps LLM calls in security and normalization layers.
+*   **Recipies**: Built-in workflows like `transcribe` (audio → transcript → AI summary).
+
+---
+
+## 4. Operational Commands
+
+All components are standalone executables in `bin/`.
+
+| Command | Purpose |
 |---|---|
 | `zdots-ctl` | Platform orchestrator: `up/down/reset/install/check/status` |
-| `agent-guide` | Live service status + complete usage guide |
-| `llama-ctl` | llama.cpp lifecycle and model management |
-| `whisper-ctl` | Manage local whisper.cpp transcription |
-| `ai-query` | Safe AI inference from any context |
-| `otel-collector` | Manage the bare-metal OTel collector |
-| `local-ci` | Start/stop Colima + LGTM stack |
-| `secret-scan` | High-signal secret and credential leak detector |
-| `bench` | Shell startup performance benchmarking |
+| `llama-ctl` | Manages local LLM lifecycle, profiles, and hardware tuning. |
+| `whisper-ctl` | Manages local transcription engine and model management. |
+| `ai-query` | Secure, normalized AI inference from any shell context. |
+| `otel-collector` | Manages the bare-metal OTel collector and tracing pipeline. |
+| `local-ci` | Manages the containerized LGTM (Grafana/Loki/Tempo) stack. |
+| `secret-scan` | High-confidence leak detection for AWS, GitHub, and SSH keys. |
 
 ---
 
-## 4. Documentation Map
+## 5. Setup & Documentation
 
-| Doc | Contents |
-|---|---|
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Standards, PR workflow, and rubric |
-| [docs/architecture.md](docs/architecture.md) | Loading sequence, DI pattern, OTel routing |
-| [docs/configuration.md](docs/configuration.md) | Env vars, YAML profiles, and secrets |
-| [docs/development.md](docs/development.md) | Setup, bootstrapping, and disk hygiene |
-| [docs/testing.md](docs/testing.md) | Automated tests, integration, and benchmarks |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | Common fixes and recovery steps |
-| [docs/zen.md](docs/zen.md) | Design philosophy and Zen of Zsh |
-| [docs/references.md](docs/references.md) | External bookmarks and tutorials |
-| [AGENTS.md](AGENTS.md) | Agent orientation and RTK rules |
-| [SECURITY.md](SECURITY.md) | Security baseline and secret scanning |
+Refer to [docs/development.md](docs/development.md) for installation.
+
+```sh
+make bootstrap          # Full platform installation & model hydration
+zdots-ctl status        # Confirm entire stack is green
+```
+
+*   [docs/architecture.md](docs/architecture.md) — The DI pattern and loading sequence.
+*   [docs/testing.md](docs/testing.md) — How we ensure the build is always green.
+*   [AGENTS.md](AGENTS.md) — Orientation for AI agents (Claude, Gemini) including RTK rules.
