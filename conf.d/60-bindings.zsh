@@ -1,4 +1,9 @@
 if [[ -o interactive && -o zle ]]; then
+  # Explicitly bind fallback history search (ensures bin/check consistency)
+  bindkey '^R' history-incremental-search-backward
+  bindkey -M emacs '^R' history-incremental-search-backward
+  bindkey -M viins '^R' history-incremental-search-backward
+
   bindkey '^P' up-line-or-history
   bindkey '^N' down-line-or-history
 
