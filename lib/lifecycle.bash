@@ -20,6 +20,62 @@ _svc_die()  { printf '%s: [err] %s\n' "${SVC_NAME:-platform}" "$*" >&2; exit 1; 
 # launchd (macOS)
 # ---------------------------------------------------------------------------
 
+# zdots_svc_launchd_register — Generate and save a launchd plist
+# Usage: zdots_svc_launchd_register <label> <plist_path> <binary> <log_path> [args...]
+# Environment: ZDOTS_SVC_ENV_KEYS (space-separated list of env var names to include)
+zdots_svc_launchd_register() {
+  local label="$1" plist_path="$2" binary="$3" log_path="$4"
+  shift 4
+  local args=("$@")
+
+  _svc_log "registering macOS launchd service: ${label}..."
+  mkdir -p "$(dirname "$plist_path")"
+  mkdir -p "$(dirname "$log_path")"
+
+  # Build ProgramArguments XML
+  local arg_xml=""
+  for arg in "${args[@]}"; do
+    arg_xml="${arg_xml}        <string>${arg}</string>\n"
+  done
+
+  # Build EnvironmentVariables XML
+  local env_xml=""
+  if [[ -n "${ZDOTS_SVC_ENV_KEYS:-}" ]]; then
+    env_xml="    <key>EnvironmentVariables</key>\n    <dict>\n"
+    for key in $ZDOTS_SVC_ENV_KEYS; do
+      local val="${!key:-}"
+      if [[ -n "$val" ]]; then
+        env_xml="${env_xml}        <key>${key}</key>\n        <string>${val}</string>\n"
+      fi
+    done
+    env_xml="${env_xml}    </dict>\n"
+  fi
+
+  cat <<PLIST > "$plist_path"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${label}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${binary}</string>
+$(printf "$arg_xml")    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${log_path}</string>
+    <key>StandardErrorPath</key>
+    <string>${log_path}</string>
+$(printf "$env_xml")</dict>
+</plist>
+PLIST
+  _svc_ok "service registered at ${plist_path}"
+}
+
 zdots_svc_launchd_start() {
   local label="$1" plist="$2"
   if launchctl print "gui/$(id -u)/${label}" >/dev/null 2>&1; then

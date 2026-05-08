@@ -88,40 +88,9 @@ cmd_install() {
   fi
 
   if [ "$OS" = "darwin" ]; then
-    _info "registering macOS launchd service..."
-    mkdir -p "$(dirname "$PLIST_FILE")"
-    mkdir -p "$(dirname "$LOG_FILE")"
-    cat > "$PLIST_FILE" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>${PLIST_LABEL}</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>${BINARY}</string>
-        <string>--config</string>
-        <string>${CONFIG_FILE}</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>${LOG_FILE}</string>
-    <key>StandardErrorPath</key>
-    <string>${LOG_FILE}</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>HOME</key>
-        <string>${HOME}</string>
-    </dict>
-</dict>
-</plist>
-PLIST
-    _info "service registered at $PLIST_FILE"
-    _info "run 'otel-collector start' to enable"
+    ZDOTS_SVC_ENV_KEYS="HOME" \
+      zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$BINARY" "$LOG_FILE" \
+      "--config" "$CONFIG_FILE"
   fi
 }
 
