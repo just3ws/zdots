@@ -4,7 +4,9 @@
 
 set -eu
 
-REPO_ROOT="${0:A:h:h}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Ensure Homebrew and common paths are available (for launchd)
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 LOG="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/colima-autostart.log"
 mkdir -p "$(dirname "$LOG")"
 
