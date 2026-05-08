@@ -396,13 +396,41 @@ model_switch() {
 }
 
 model_prune() {
-  local active; active=$(_active_model_file)
-  if [[ -z "$active" ]]; then
-    echo "llama-ctl: cannot determine active model; aborting prune." >&2
+  _require_yq
+  local -a protect=()
+  
+  # Identify active models for ALL profiles to protect them
+  while read -r p; do
+    local file; file=$(_yq_get ".profiles.${p}.model_file")
+    [[ -z "$file" || "$file" == "null" ]] && continue
+    protect+=("$file")
+  done < <(_yq_get ".profiles | keys | .[]")
+
+  if [[ ${#protect[@]} -eq 0 ]]; then
+    echo "llama-ctl: error: could not determine any active models to protect." >&2
     exit 1
   fi
 
-  zdots_model_prune "$MODELS_DIR" "$active" "*.gguf"
+  if [[ ! -d "$MODELS_DIR" ]]; then
+    echo "model-store: no directory to prune: $MODELS_DIR"
+    return 0
+  fi
+
+  local pruned=0
+  while IFS= read -r -d '' f; do
+    local name; name=$(basename "$f")
+    local skip=false
+    for p in "${protect[@]}"; do
+      [[ "$name" == "$p" ]] && skip=true && break
+    done
+    $skip && continue
+
+    echo "model-store: removing orphaned model: $name"
+    rm -f "$f"
+    pruned=$((pruned + 1))
+  done < <(find "$MODELS_DIR" -maxdepth 1 -name "*.gguf" -print0 2>/dev/null)
+
+  echo "model-store: pruned $pruned orphaned model(s) from $MODELS_DIR"
 }
 
 model_df() {
