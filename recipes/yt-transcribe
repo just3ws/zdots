@@ -91,24 +91,28 @@ ffmpeg -y -i "$RAW_WAV" -ar 16000 -ac 1 -c:a pcm_s16le "$CONVERTED_WAV" > /dev/n
 
 # 3. Transcription
 printf '── Transcribing with Whisper (%s) ...\n' "$WHISPER_PROFILE" >&2
-# whisper-ctl expects to be run from ZDOTDIR or have config resolved.
-# We ensure the model is downloaded first.
+# Ensure the model is downloaded first.
 ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" model-download >&2
 
-# We call whisper-cli directly to get ALL formats.
+# Resolve paths robustly
+MODELS_DIR="${ZDOTS_WHISPER_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/whisper-cpp/models}"
+MODEL_FILE=$(ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" config | jq -r '.model_file')
+MODEL_PATH="${MODELS_DIR}/${MODEL_FILE}"
+
 WHISPER_BIN=$("$WHISPER_CTL" config | jq -r '.binary // empty')
-[[ -z "$WHISPER_BIN" ]] && WHISPER_BIN="/opt/homebrew/bin/whisper-cli"
+[[ -z "$WHISPER_BIN" || "$WHISPER_BIN" == "null" ]] && WHISPER_BIN="/opt/homebrew/bin/whisper-cli"
 
-# Resolve model path using the specific profile
-WHISPER_MODEL_DIR=$(ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" config | jq -r '.models_dir')
-WHISPER_MODEL_FILE=$(ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" config | jq -r '.model_file')
-MODEL_PATH="${WHISPER_MODEL_DIR}/${WHISPER_MODEL_FILE}"
+if [[ ! -f "$MODEL_PATH" ]]; then
+  printf 'yt-transcribe: error: model not found at %s\n' "$MODEL_PATH" >&2
+  exit 1
+fi
 
+# We run whisper-cli with live progress visible.
 "$WHISPER_BIN" \
   --model "$MODEL_PATH" \
   --file "$CONVERTED_WAV" \
   --output-txt --output-vtt --output-srt --output-csv --output-json \
-  --output-file "${OUT_DIR}/${VIDEO_ID}" > /dev/null 2>&1
+  --output-file "${OUT_DIR}/${VIDEO_ID}"
 
 # 4. Optional Diarization
 if $DIARIZE_FLAG; then
