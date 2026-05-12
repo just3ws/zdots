@@ -199,3 +199,83 @@ zdots_svc_restart() {
   sleep 1
   eval "$start_cmd"
 }
+
+# ---------------------------------------------------------------------------
+# Output & Logging
+# ---------------------------------------------------------------------------
+
+zdots_svc_logs() {
+  local log_file="$1"
+  trap 'exit 0' INT TERM
+  mkdir -p "$(dirname "$log_file")"
+  tail -f "$log_file"
+}
+
+# zdots_svc_print_status — Standardized status output (text or JSON)
+# Usage: zdots_svc_print_status <json_bool> <running_bool> <pid> <endpoint> <log_file> [extra_key=val...]
+zdots_svc_print_status() {
+  local json="$1" running="$2" pid="$3" endpoint="$4" log_file="$5"
+  shift 5
+
+  if [[ "$json" == "true" ]]; then
+    printf '{\n'
+    printf '  "running": %s,\n' "$running"
+    printf '  "pid": %s,\n' "${pid:-null}"
+    printf '  "endpoint": "%s",\n' "$endpoint"
+    printf '  "log_file": "%s"' "$log_file"
+    for kv in "$@"; do
+      local k="${kv%%=*}"
+      local v="${kv#*=}"
+      # Try to detect if value should be a boolean/number or quoted string
+      if [[ "$v" =~ ^(true|false|[0-9]+)$ ]]; then
+        printf ',\n  "%s": %s' "$k" "$v"
+      else
+        printf ',\n  "%s": "%s"' "$k" "$v"
+      fi
+    done
+    printf '\n}\n'
+  else
+    if [[ "$running" == "true" ]]; then
+      _svc_ok "running (PID: ${pid:-unknown})"
+    else
+      _svc_warn "not running"
+    fi
+    printf '%-12s %s\n' "endpoint" "$endpoint"
+    printf '%-12s %s\n' "log" "$log_file"
+    for kv in "$@"; do
+      local k="${kv%%=*}"
+      local v="${kv#*=}"
+      printf '%-12s %s\n' "$k" "$v"
+    done
+  fi
+}
+
+# zdots_svc_print_health — Standardized health output (text or JSON)
+# Usage: zdots_svc_print_health <json_bool> <healthy_bool> <endpoint> [extra_key=val...]
+zdots_svc_print_health() {
+  local json="$1" healthy="$2" endpoint="$3"
+  shift 3
+
+  if [[ "$json" == "true" ]]; then
+    printf '{\n'
+    printf '  "healthy": %s,\n' "$healthy"
+    printf '  "endpoint": "%s"' "$endpoint"
+    for kv in "$@"; do
+      local k="${kv%%=*}"
+      local v="${kv#*=}"
+      if [[ "$v" =~ ^(true|false|[0-9]+)$ ]]; then
+        printf ',\n  "%s": %s' "$k" "$v"
+      else
+        printf ',\n  "%s": "%s"' "$k" "$v"
+      fi
+    done
+    printf '\n}\n'
+  else
+    if [[ "$healthy" == "true" ]]; then
+      _svc_ok "healthy ($endpoint)"
+      return 0
+    else
+      _svc_die "unhealthy ($endpoint)"
+    fi
+  fi
+}
