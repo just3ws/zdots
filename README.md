@@ -52,7 +52,100 @@ Zdots includes a production-grade local AI runtime out of the box:
 
 ---
 
-## 4. Operational Commands
+## 4. Architecture Diagrams
+
+### System Overview
+The Zdots platform operates as a "Sidecar Control Plane" on the host, delegating heavy observability storage to an isolated container stack.
+
+```mermaid
+graph TB
+    subgraph Host ["Bare Metal (macOS)"]
+        ZSH["Zsh Shell & Apps"]
+        COL["OTel Collector (bin/otel-collector)"]
+        AI["llama.cpp (bin/llama-ctl)"]
+        CTL["zdots-ctl / local-ci"]
+        LOGS[".local/state/zsh/*.log"]
+    end
+
+    subgraph Colima ["Docker Container Stack (local-ci)"]
+        subgraph LGTM ["LGTM Stack (zdots-lgtm)"]
+            Grafana["Grafana (Port 3000)"]
+            Tempo["Tempo (Traces)"]
+            Loki["Loki (Logs)"]
+            Mimir["Mimir (Metrics)"]
+        end
+    end
+
+    %% Data Flows
+    ZSH -- "OTLP (4318)" --> COL
+    COL -- "OTLP/HTTP (4418)" --> Tempo
+    COL -- "OTLP/HTTP (4418)" --> Loki
+    COL -- "OTLP/HTTP (4418)" --> Mimir
+    COL -- "JSON Write" --> LOGS
+    
+    %% AI Interactions
+    ZSH -- "ai-query" --> AI
+    AI -- "Metrics" --> COL
+    
+    %% UI
+    User((User)) -- "CLI" --> ZSH
+    User -- "Web UI" --> Grafana
+```
+
+### Telemetry Signal Flow
+Data is captured synchronously by the shell and asynchronously exported/persisted by the collector.
+
+```mermaid
+sequenceDiagram
+    participant Shell as Zsh Shell
+    participant Collector as OTel Collector (Host)
+    participant LGTM as LGTM Stack (Colima)
+    participant Disk as Local Storage
+
+    Note over Shell: Command Executed
+    Shell->>Collector: OLP Trace Span (HTTP:4318)
+    
+    par Parallel Export
+        Collector->>Disk: Write to collector-traces.json
+        Collector->>LGTM: Forward to Tempo/Loki (HTTP:4418)
+    end
+
+    Note over LGTM: Data Indexed
+    LGTM->>LGTM: Correlate Logs + Traces
+```
+
+### Unified Service Lifecycle
+A shared engine (`lib/lifecycle.bash`) provides a consistent grammar across all service types.
+
+```mermaid
+graph LR
+    subgraph ControlPlane ["zdots-ctl (Orchestrator)"]
+        A[llama-ctl]
+        B[otel-collector]
+        C[local-ci]
+    end
+
+    subgraph LifecycleEngine ["lib/lifecycle.bash"]
+        L1[launchd primitives]
+        L2[docker-compose primitives]
+        L3[Status/Health Formatters]
+    end
+
+    A -- "delegates" --> L1
+    A -- "delegates" --> L3
+    
+    B -- "delegates" --> L1
+    B -- "delegates" --> L3
+    
+    C -- "delegates" --> L2
+    C -- "delegates" --> L3
+
+    L3 -- "Standard Output" --> UI[Terminal / JSON]
+```
+
+---
+
+## 5. Operational Commands
 
 All components are standalone executables in `bin/`.
 
