@@ -188,5 +188,6 @@ zdots-ctl status        # Confirm entire stack is green
 ```
 
 *   [docs/architecture.md](docs/architecture.md) — The DI pattern and loading sequence.
+*   [docs/migration.md](docs/migration.md) — How to set up on a new machine.
 *   [docs/testing.md](docs/testing.md) — How we ensure the build is always green.
 *   [AGENTS.md](AGENTS.md) — Orientation for AI agents (Claude, Gemini) including RTK rules.
