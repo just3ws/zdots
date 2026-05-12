@@ -2,7 +2,7 @@
 SHELL := /bin/sh
 ZDOTDIR ?= $(HOME)/.config/zsh
 
-.PHONY: bootstrap check check-fast test health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean
+.PHONY: bootstrap check check-fast test health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
 
 # ------------------------------------------------------------------------------
 # CORE & VALIDATION
@@ -24,6 +24,9 @@ test:
 # Platform health: services, AI integration, disk (zdots-ctl check)
 health:
 	$(ZDOTDIR)/bin/zdots-ctl check
+
+ctx-status:
+	$(ZDOTDIR)/bin/zdots-ctx status
 
 bench:
 	@for i in 1 2 3 4 5; do \

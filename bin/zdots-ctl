@@ -50,6 +50,7 @@ _ai_up()      { "$BIN/llama-ctl" health >/dev/null 2>&1; }
 _otel_up()    { "$BIN/otel-collector" health >/dev/null 2>&1; }
 _grafana_up() { "$BIN/local-ci" health >/dev/null 2>&1; }
 _colima_up()  { colima status >/dev/null 2>&1; }
+_ctx_up()     { "$BIN/zdots-ctx" status >/dev/null 2>&1; }
 
 _wait_for() {
   local label="$1" url="$2" timeout="${3:-$WAIT_TIMEOUT}"
@@ -147,15 +148,16 @@ cmd_status() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local lgtm_up ai_up otel_up colima_up
+  local lgtm_up ai_up otel_up colima_up ctx_up
   _grafana_up && lgtm_up=true   || lgtm_up=false
   _ai_up      && ai_up=true     || ai_up=false
   _otel_up    && otel_up=true   || otel_up=false
   _colima_up  && colima_up=true || colima_up=false
+  _ctx_up     && ctx_up=true    || ctx_up=false
 
   if $json; then
-    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"grafana_url":"%s","ai_endpoint":"%s","otlp_endpoint":"%s"}\n' \
-      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" \
+    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"intelligence_suite":%s,"grafana_url":"%s","ai_endpoint":"%s","otlp_endpoint":"%s"}\n' \
+      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" "$ctx_up" \
       "$GRAFANA_URL" "$AI_ENDPOINT" "$OTLP_ENDPOINT"
     return
   fi
@@ -169,6 +171,7 @@ cmd_status() {
   printf '  %-20s %s  %s\n' "LGTM stack"     "$(_sym "$lgtm_up")"  "$GRAFANA_URL"
   printf '  %-20s %s  %s\n' "otel-collector" "$(_sym "$otel_up")"  "$OTLP_ENDPOINT"
   printf '  %-20s %s  %s\n' "AI server"      "$(_sym "$ai_up")"    "$AI_ENDPOINT"
+  printf '  %-20s %s  %s\n' "intelligence"   "$(_sym "$ctx_up")"   "postgres"
 
   if [[ "$lgtm_up" == false || "$ai_up" == false || "$otel_up" == false ]]; then
     printf '\nzdots-ctl: to start all: zdots-ctl up\n'
@@ -313,6 +316,13 @@ cmd_check() {
   else
     _chk_warn "AI server  unreachable"
     _fix "zdots-ctl up"
+  fi
+
+  if _ctx_up; then
+    _chk_pass "intelligence  connected (postgres)"
+  else
+    _chk_warn "intelligence  unreachable (check ~/my/config or DATABASE_URL)"
+    _fix "zdots-ctx status"
   fi
 
   # ── AI integration smoke test ──────────────────────────────────────────────

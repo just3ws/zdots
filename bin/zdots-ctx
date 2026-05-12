@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# bin/zdots-ctx — Bridge to the PostgreSQL Intelligence Suite.
+#
+# RATIONALE:
+# Serves as the primary interface for the shell to interact with the
+# PostgreSQL-backed "Brain" (Methodology, Lessons Learnt, Session Memory).
+#
+# GRAMMAR:
+#   status    Check connection to the Postgres database
+#   query     Semantic/text search over methodologies and lessons
+#   capture   Distill current session residue into the database
+#   hydrate   Inject relevant methodologies into the AI context
+
+set -euo pipefail
+
+# SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+# Source the lifecycle engine for logging and output helpers
+# shellcheck source=lib/lifecycle.bash
+source "${ZDOTDIR}/lib/lifecycle.bash"
+
+SVC_NAME="zdots-ctx"
+MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
+# DATABASE_URL is expected from env.sh / .zdots.env
+
+usage() {
+  cat <<EOF
+Usage: zdots-ctx <command> [--json]
+
+Intelligence Suite Interface:
+  status    Check connection and report database metadata
+  query     [t] Search for methodology or lessons related to [t]
+  capture   Distill current session (traces/history) into a lesson
+  hydrate   Output methodologies for the current task (AI-targeted)
+
+Options:
+  --json      Output as JSON (valid for status, query, hydrate)
+  -h, --help  Show this help
+
+Environment:
+  ZDOTS_MY_ROOT  Root of the identity monorepo (default: ~/my)
+  DATABASE_URL   PostgreSQL connection string
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+_require_psql() {
+  if ! command -v psql >/dev/null 2>&1; then
+    _svc_die "psql client not found. Run: brew install postgresql@18"
+  fi
+}
+
+_db_ping() {
+  if [[ -z "${DATABASE_URL:-}" ]]; then
+    return 1
+  fi
+  psql "$DATABASE_URL" -c "SELECT 1;" >/dev/null 2>&1
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand implementations
+# ---------------------------------------------------------------------------
+
+cmd_status() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  _require_psql
+
+  local connected=false
+  if _db_ping; then
+    connected=true
+  fi
+
+  local db_name="unknown"
+  if [[ "$connected" == "true" ]]; then
+    db_name=$(psql "${DATABASE_URL}" -tAc "SELECT current_database();" 2>/dev/null || echo "unknown")
+  fi
+
+  if $json; then
+    printf '{\n'
+    printf '  "connected": %s,\n' "$connected"
+    printf '  "database": "%s",\n' "$db_name"
+    printf '  "my_root": "%s",\n' "$MY_ROOT"
+    printf '  "database_url": "%s"\n' "${DATABASE_URL:-}"
+    printf '}\n'
+    return
+  fi
+
+  if [[ "$connected" == "true" ]]; then
+    _svc_ok "connected to database: ${db_name}"
+    printf '%-16s %s\n' "my_root:" "$MY_ROOT"
+    return 0
+  else
+    _svc_warn "failed to connect to database at ${DATABASE_URL:-none}"
+    printf '%-16s %s\n' "my_root:" "$MY_ROOT"
+    return 1
+  fi
+}
+
+cmd_query() {
+  _svc_die "query command not yet implemented (Z-062)"
+}
+
+cmd_capture() {
+  _svc_die "capture command not yet implemented (Z-064)"
+}
+
+cmd_hydrate() {
+  _svc_die "hydrate command not yet implemented (Z-061 phase 2)"
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
+case "${1:-}" in
+  status)   shift; cmd_status "${@}" ;;
+  query)    shift; cmd_query "${@}" ;;
+  capture)  shift; cmd_capture "${@}" ;;
+  hydrate)  shift; cmd_hydrate "${@}" ;;
+  -h|--help) usage; exit 0 ;;
+  "")       usage >&2; exit 1 ;;
+  *)        printf 'zdots-ctx: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+esac
