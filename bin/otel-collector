@@ -55,9 +55,10 @@ Service Lifecycle:
   health    Exit 0 if collector endpoint is reachable, exit 1 otherwise
   logs      Tail the collector log
   validate  Validate etc/otel-collector.yaml
+  config    Show collector configuration (endpoints, signals)
 
 Options:
-  --json      Output status/health as JSON (valid for status, health)
+  --json      Output status/health/config as JSON (valid for status, health, config)
   -h, --help  Show this help
 
 Environment:
@@ -149,6 +150,55 @@ cmd_validate() {
   "$BINARY" validate --config "$CONFIG_FILE"
 }
 
+cmd_config() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  # Check for yq; fall back to defaults if missing.
+  local grpc_endpoint="127.0.0.1:4317"
+  local http_endpoint="127.0.0.1:4318"
+  
+  if command -v yq >/dev/null 2>&1; then
+    grpc_endpoint=$(yq '.receivers.otlp.protocols.grpc.endpoint' "$CONFIG_FILE" 2>/dev/null || echo "$grpc_endpoint")
+    http_endpoint=$(yq '.receivers.otlp.protocols.http.endpoint' "$CONFIG_FILE" 2>/dev/null || echo "$http_endpoint")
+    
+    # Normalize 0.0.0.0 to 127.0.0.1 for local reporting context
+    [[ "$grpc_endpoint" == "0.0.0.0"* ]] && grpc_endpoint="127.0.0.1${grpc_endpoint#0.0.0.0}"
+    [[ "$http_endpoint" == "0.0.0.0"* ]] && http_endpoint="127.0.0.1${http_endpoint#0.0.0.0}"
+  fi
+
+  if $json; then
+    printf '{\n'
+    printf '  "version":     "%s",\n' "$VERSION"
+    printf '  "distro":      "%s",\n' "$DISTRO"
+    printf '  "os":          "%s",\n' "$OS"
+    printf '  "arch":        "%s",\n' "$ARCH"
+    printf '  "config_file": "%s",\n' "$CONFIG_FILE"
+    printf '  "endpoints": {\n'
+    printf '    "grpc": "http://%s",\n' "$grpc_endpoint"
+    printf '    "http": "http://%s"\n'   "$http_endpoint"
+    printf '  },\n'
+    printf '  "signals": ["traces", "metrics", "logs"],\n'
+    printf '  "_discovery": {\n'
+    printf '    "otlp_endpoint_grpc": "http://%s",\n' "$grpc_endpoint"
+    printf '    "otlp_endpoint_http": "http://%s",\n' "$http_endpoint"
+    printf '    "protocol_preferred": "grpc",\n'
+    printf '    "environment_variables": {\n'
+    printf '      "OTEL_EXPORTER_OTLP_ENDPOINT": "http://%s",\n' "$http_endpoint"
+    printf '      "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf"\n'
+    printf '    }\n'
+    printf '  }\n'
+    printf '}\n'
+  else
+    printf '%-16s %s\n' "version:"     "$VERSION"
+    printf '%-16s %s\n' "distro:"      "$DISTRO"
+    printf '%-16s %s\n' "config:"      "$CONFIG_FILE"
+    printf '%-16s %s\n' "gRPC OTLP:"   "http://$grpc_endpoint"
+    printf '%-16s %s\n' "HTTP OTLP:"   "http://$http_endpoint"
+    printf '%-16s %s\n' "signals:"     "traces, metrics, logs"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
@@ -162,6 +212,7 @@ case "${1:-}" in
   health)    shift; cmd_health "${@}" ;;
   logs)      cmd_logs ;;
   validate)  cmd_validate ;;
+  config)    shift; cmd_config "${@}" ;;
   -h|--help) usage; exit 0 ;;
   "")        usage >&2; exit 1 ;;
   *)         printf 'otel-collector: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
