@@ -115,7 +115,7 @@ cmd_status() {
   local json=false
   [ "${1:-}" = "--json" ] && json=true
 
-  local running pid state
+  local running pid state healthy
   if [ "$OS" = "darwin" ]; then
     state=$(zdots_svc_launchd_status "$PLIST_LABEL")
   else
@@ -124,37 +124,23 @@ cmd_status() {
   running=$(echo "$state" | awk '{print $1}')
   pid=$(echo "$state" | awk '{print $2}')
 
-  if $json; then
-    printf '{"running":%s,"pid":%s,"otlp_endpoint":"%s","log_file":"%s"}\n' \
-      "$running" "${pid:-null}" "$OTLP_ENDPOINT" "$LOG_FILE"
-    return
-  fi
+  zdots_svc_health_check_url "${OTLP_ENDPOINT}/v1/traces" "POST" '{"resourceSpans":[]}' && healthy=true || healthy=false
 
-  if [[ "$running" == "true" ]]; then
-    printf 'otel-collector: running (PID: %s)\n' "${pid:-unknown}"
-  else
-    printf 'otel-collector: not running\n'
-  fi
-  printf 'otel-collector: endpoint  %s\n' "$OTLP_ENDPOINT"
-  printf 'otel-collector: log       %s\n' "$LOG_FILE"
+  zdots_svc_print_status "$json" "$running" "$pid" "$OTLP_ENDPOINT" "$LOG_FILE" "healthy=${healthy}"
 }
 
 cmd_health() {
   local json=false
   [ "${1:-}" = "--json" ] && json=true
 
-  if zdots_svc_health_check_url "${OTLP_ENDPOINT}/v1/traces" "POST" '{"resourceSpans":[]}'; then
-    $json && printf '{"healthy":true,"endpoint":"%s"}\n' "$OTLP_ENDPOINT"
-    return 0
-  else
-    $json && printf '{"healthy":false,"endpoint":"%s"}\n' "$OTLP_ENDPOINT"
-    return 1
-  fi
+  local healthy
+  zdots_svc_health_check_url "${OTLP_ENDPOINT}/v1/traces" "POST" '{"resourceSpans":[]}' && healthy=true || healthy=false
+
+  zdots_svc_print_health "$json" "$healthy" "$OTLP_ENDPOINT"
 }
 
 cmd_logs() {
-  trap 'exit 0' INT TERM
-  tail -f "$LOG_FILE"
+  zdots_svc_logs "$LOG_FILE"
 }
 
 cmd_validate() {
@@ -171,7 +157,7 @@ case "${1:-}" in
   install)   cmd_install ;;
   start)     cmd_start ;;
   stop)      cmd_stop ;;
-  restart)   cmd_stop; cmd_start ;;
+  restart)   zdots_svc_restart cmd_stop cmd_start ;;
   status)    shift; cmd_status "${@}" ;;
   health)    shift; cmd_health "${@}" ;;
   logs)      cmd_logs ;;

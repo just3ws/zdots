@@ -90,6 +90,7 @@ Maintenance:
   prune     Prune Docker containers, images, and build cache (dry run by default)
   prune -f  Execute prune — DESTRUCTIVE, permanent
   rebuild   Delete and recreate the Colima VM — DESTRUCTIVE
+  reset-password Reset Grafana admin password
 
 CI:
   run [args]  Run GitHub Actions locally via act
@@ -214,6 +215,34 @@ cmd_rebuild() {
   fi
 }
 
+cmd_reset_password() {
+  local container="zdots-lgtm"
+  local password=""
+
+  if [[ $# -eq 2 ]]; then
+    container="$1"
+    password="$2"
+  elif [[ $# -eq 1 ]]; then
+    password="$1"
+  else
+    _die "usage: local-ci reset-password [container] <new-password>"
+  fi
+
+  _info "resetting Grafana admin password in container '${container}'..."
+  if ! docker exec -it "$container" \
+    /otel-lgtm/grafana/bin/grafana \
+    cli \
+    --homepath /otel-lgtm/grafana \
+    --configOverrides cfg:default.paths.data=/data/grafana/data \
+    admin reset-admin-password "$password"; then
+    _die "failed to reset password inside container"
+  fi
+
+  _info "password reset succeeded. Restarting service..."
+  docker restart "$container" >/dev/null
+  _info "done. Login with username: admin"
+}
+
 cmd_run() {
   _check_deps
   _info "running GitHub Actions locally via act..."
@@ -238,6 +267,7 @@ case "${1:-}" in
   logs)         shift; cmd_logs "${@}" ;;
   prune)        shift; cmd_prune "${@}" ;;
   rebuild)      cmd_rebuild ;;
+  reset-password) shift; cmd_reset_password "${@}" ;;
   run)          shift; cmd_run "${@}" ;;
   -h|--help)    usage; exit 0 ;;
   "")           usage >&2; exit 1 ;;

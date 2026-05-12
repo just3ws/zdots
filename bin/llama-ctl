@@ -276,49 +276,28 @@ status_llama() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local state running pid
+  local state running pid healthy
   state=$(zdots_svc_launchd_status "$PLIST_LABEL")
   running=$(echo "$state" | awk '{print $1}')
   pid=$(echo "$state" | awk '{print $2}')
+  
+  zdots_svc_health_check_url "${AI_ENDPOINT}/health" && healthy=true || healthy=false
 
-  if $json; then
-    local healthy
-    zdots_svc_health_check_url "${AI_ENDPOINT}/health" && healthy=true || healthy=false
-    printf '{"running":%s,"pid":%s,"endpoint":"%s","active_model":"%s","healthy":%s,"launchd":%s,"profile":"%s"}\n' \
-      "$running" "${pid:-null}" "$AI_ENDPOINT" "$(_active_model_file)" "$healthy" \
-      "$([[ -f "$PLIST_FILE" ]] && echo true || echo false)" "$AI_PROFILE"
-    return
-  fi
-
-  if [[ "$running" == "true" ]]; then
-    printf 'llama-ctl: running (PID: %s)\n' "${pid:-unknown}"
-    if zdots_svc_health_check_url "${AI_ENDPOINT}/health"; then
-      printf 'llama-ctl: health   OK (%s/health)\n' "$AI_ENDPOINT"
-    else
-      printf 'llama-ctl: health   loading... (%s)\n' "$AI_ENDPOINT"
-    fi
-  else
-    printf 'llama-ctl: not running\n'
-    if [[ -f "$PLIST_FILE" ]]; then
-      printf 'llama-ctl: launchd  registered (%s)\n' "$PLIST_LABEL"
-    fi
-  fi
-  printf 'llama-ctl: profile  %s\n' "$AI_PROFILE"
-  printf 'llama-ctl: models   %s\n' "$MODELS_DIR"
-  printf 'llama-ctl: active   %s\n' "$(_active_model_file)"
+  zdots_svc_print_status "$json" "$running" "$pid" "$AI_ENDPOINT" "$LOG_FILE" \
+    "profile=${AI_PROFILE}" \
+    "active_model=$(_active_model_file)" \
+    "healthy=${healthy}" \
+    "launchd=$([[ -f "$PLIST_FILE" ]] && echo true || echo false)"
 }
 
 health_llama() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  if zdots_svc_health_check_url "${AI_ENDPOINT}/health"; then
-    $json && printf '{"healthy":true,"endpoint":"%s"}\n' "$AI_ENDPOINT"
-    return 0
-  else
-    $json && printf '{"healthy":false,"endpoint":"%s"}\n' "$AI_ENDPOINT"
-    return 1
-  fi
+  local healthy
+  zdots_svc_health_check_url "${AI_ENDPOINT}/health" && healthy=true || healthy=false
+  
+  zdots_svc_print_health "$json" "$healthy" "$AI_ENDPOINT"
 }
 
 
@@ -473,9 +452,7 @@ validate_llama() {
 }
 
 logs_llama() {
-  trap 'exit 0' INT TERM
-  mkdir -p "$(dirname "$LOG_FILE")"
-  tail -f "$LOG_FILE"
+  zdots_svc_logs "$LOG_FILE"
 }
 
 # config_dump — print all resolved server configuration values.
@@ -580,7 +557,7 @@ case "${1:-}" in
   install)        install_llama ;;
   start)          start_llama ;;
   stop)           stop_llama ;;
-  restart)        stop_llama; sleep 1; start_llama ;;
+  restart)        zdots_svc_restart stop_llama start_llama ;;
   status)         shift; status_llama "${@}" ;;
   health)         shift; health_llama "${@}" ;;
   logs)           logs_llama ;;
