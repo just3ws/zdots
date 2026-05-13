@@ -203,7 +203,43 @@ if [ -n "${ZDOTS_SERVICE_AI:-}" ] && [ "$ZDOTS_SERVICE_AI" != "none" ]; then
   fi
 fi
 
-# 5. Tool Verification (The "Reality")
+# 5. Intelligence Suite & MCP (The "Brain")
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo ""
+  echo "${BOLD}Intelligence Suite (Brain):${RESET}"
+fi
+
+_ctx_live=0
+_ctx_db="unknown"
+_bin_ctx="${ZDOTDIR}/bin/zdots-ctx"
+if [ -x "$_bin_ctx" ]; then
+  # Simple grep/awk to avoid complex bashisms in sh-shebang file
+  _ctx_status=$("$_bin_ctx" status --json 2>/dev/null || echo '{"connected":false}')
+  if echo "$_ctx_status" | grep -q '"connected": true'; then
+    _ctx_live=1
+    _ctx_db=$(echo "$_ctx_status" | sed -n 's/.*"database": "\([^"]*\)".*/\1/p')
+  fi
+fi
+
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  if [ "$_ctx_live" = "1" ]; then
+    printf "  %bIntelligence:%b %bonline (%s)%b\n" "$CYAN" "$RESET" "$GREEN" "$_ctx_db" "$RESET"
+  else
+    printf "  %bIntelligence:%b %boffline/uninitialized%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
+  fi
+
+  # Check MCP servers
+  for m in llama-mcp ctx-mcp; do
+    if [ -x "${ZDOTDIR}/bin/$m" ]; then
+      printf "  %-15s : %bonline%b\n" "mcp:$m" "$GREEN" "$RESET"
+    else
+      printf "  %-15s : %bmissing/not executable%b\n" "mcp:$m" "$RED" "$RESET"
+      errors=$((errors + 1))
+    fi
+  done
+fi
+
+# 6. Tool Verification (The "Reality")
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo ""
   echo "${BOLD}Tooling Reality:${RESET}"
@@ -247,6 +283,10 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg ai_model "${ZDOTS_AI_MODEL:-unknown}" \
       --arg trace_file "$_z_trace_file" \
       --arg last_trace "$_ts" \
+      --arg ctx_live "$_ctx_live" \
+      --arg ctx_db "$_ctx_db" \
+      --arg mcp_llama "$([ -x "${ZDOTDIR}/bin/llama-mcp" ] && echo 1 || echo 0)" \
+      --arg mcp_ctx "$([ -x "${ZDOTDIR}/bin/ctx-mcp" ] && echo 1 || echo 0)" \
       --arg errors "$errors" \
       --arg stdin_tty "$_json_stdin_tty" \
       --arg stdout_tty "$_json_stdout_tty" \
@@ -278,6 +318,12 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
         observability: {
           trace_file: $trace_file,
           last_trace: $last_trace
+        },
+        brain: {
+          intelligence_live: ($ctx_live | tonumber),
+          intelligence_db:   $ctx_db,
+          mcp_llama:         ($mcp_llama | tonumber),
+          mcp_ctx:           ($mcp_ctx | tonumber)
         },
         health_errors: ($errors | tonumber)
       }'
