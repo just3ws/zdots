@@ -47,6 +47,7 @@ Intelligence Suite Interface:
   requeue <job_id>
   jobs      List pending and recent jobs
   worker    [--type T] Run a worker to process queued jobs
+  triage    Review and resolve permanently failed 'dead' jobs
   clear-stale-jobs Reset 'running' jobs that have timed out
   backup    Create a timestamped SQL dump in ~/my/backups
   restore [f] Restore the database from dump file [f]
@@ -694,13 +695,66 @@ cmd_worker() {
       printf "\033[1;31m==> [JOB %s] FAILED: %s\033[0m\n" "${id:0:8}" "$error"
       psql "${DATABASE_URL}" -c "
         UPDATE jobs 
-        SET status = 'failed', 
+        SET 
+            status = CASE WHEN attempts + 1 >= 3 THEN 'dead'::job_status ELSE 'failed'::job_status END,
             error_message = '${error//\'/''}', 
             attempts = attempts + 1,
             updated_at = CURRENT_TIMESTAMP,
-            next_run_at = CURRENT_TIMESTAMP + make_interval(mins => CAST(POWER(attempts + 1, 2) * 5 AS INTEGER))
+            next_run_at = CASE WHEN attempts + 1 >= 3 THEN CURRENT_TIMESTAMP ELSE CURRENT_TIMESTAMP + make_interval(mins => CAST(POWER(attempts + 1, 2) * 5 AS INTEGER)) END
         WHERE id = '${id}';
       " >/dev/null
+    fi
+  done
+}
+
+cmd_triage() {
+  _require_psql
+  _svc_log "checking for dead jobs..."
+  
+  local dead_jobs
+  dead_jobs=$(psql "${DATABASE_URL}" -tAc "SELECT id, type, error_message, payload FROM jobs WHERE status = 'dead' ORDER BY updated_at ASC;")
+  
+  if [[ -z "$dead_jobs" ]]; then
+    _svc_ok "no dead jobs to triage."
+    return 0
+  fi
+
+  echo "$dead_jobs" | while IFS='|' read -r id type error payload; do
+    printf "\n\033[1;31m=== DEAD JOB [%s] ===\033[0m\n" "${id:0:8}"
+    printf "Type:    %s\n" "$type"
+    printf "Payload: %s\n" "$payload"
+    printf "Error:   %s\n" "$error"
+    printf "---------------------------------\n"
+    
+    printf "AI Analysis:\n"
+    local prompt
+    prompt=$(cat <<EOF
+You are an expert platform debugger. The following async job has failed permanently (reached max retries).
+Type: $type
+Payload: $payload
+Error: $error
+
+Analyze the failure and suggest 1-2 possible reasons and how to fix them. Be concise.
+EOF
+)
+    echo "$prompt" | "${ZDOTDIR}/bin/ai-query" --mode raw 2>/dev/null | sed 's/^/  /' || echo "  (AI analysis failed)"
+
+    printf "\nAction [r=requeue, d=delete, s=skip]: "
+    local action
+    read -r action </dev/tty || action="s"
+    
+    if [[ "$action" == "r" ]]; then
+      psql "${DATABASE_URL}" -c "
+        UPDATE jobs 
+        SET status = 'pending', attempts = 0, error_message = NULL, updated_at = CURRENT_TIMESTAMP, next_run_at = CURRENT_TIMESTAMP 
+        WHERE id = '${id}';
+      " >/dev/null
+      _svc_ok "job reset to pending."
+    elif [[ "$action" == "d" ]]; then
+      psql "${DATABASE_URL}" -c "DELETE FROM jobs WHERE id = '${id}';" >/dev/null
+      _svc_ok "job deleted."
+    else
+      _svc_log "skipped."
     fi
   done
 }
@@ -739,6 +793,7 @@ case "${1:-}" in
   requeue)         shift; cmd_requeue "${@}" ;;
   jobs)            shift; cmd_jobs "${@}" ;;
   worker)          shift; cmd_worker "${@}" ;;
+  triage)          shift; cmd_triage "${@}" ;;
   clear-stale-jobs) shift; cmd_clear_stale_jobs "${@}" ;;
   backup)   shift; cmd_backup "${@}" ;;
   restore)  shift; cmd_restore "${@}" ;;
