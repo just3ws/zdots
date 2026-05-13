@@ -539,6 +539,7 @@ cmd_worker() {
   _svc_log "starting worker..."
   [[ -n "$type_filter" ]] && _svc_log "filtering by type: ${type_filter}"
 
+  local idle_notified=false
   while true; do
     # Claim a job (atomic). We use -q (quiet) and head -n 1 to avoid "UPDATE 1" status noise.
     local job
@@ -559,17 +560,25 @@ cmd_worker() {
     " 2>/dev/null | head -n 1 || true)
 
     if [[ -z "$job" ]]; then
-      # No jobs, sleep and retry
+      if [[ "$idle_notified" == "false" ]]; then
+        _svc_log "queue empty, waiting for jobs..."
+        idle_notified=true
+      fi
       sleep 5
       continue
     fi
 
+    idle_notified=false
     local id type payload
     id=$(echo "$job" | cut -d'|' -f1)
     type=$(echo "$job" | cut -d'|' -f2)
     payload=$(echo "$job" | cut -d'|' -f3)
 
-    _svc_log "processing job [${id}]: ${type}..."
+    # Get remaining count for progress visibility
+    local pending_count
+    pending_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM jobs WHERE ${where_clause};" 2>/dev/null || echo 0)
+
+    printf "\n\033[1;34m==> [JOB %s] Starting %s (%s remaining in queue)\033[0m\n" "${id:0:8}" "$type" "$pending_count"
     
     local success=false
     local error=""
@@ -580,11 +589,11 @@ cmd_worker() {
         if [[ -z "$url" || "$url" == "null" ]]; then
           error="missing url in payload"
         else
-          # Execute ztranscribe (assuming it is in PATH or bin/)
-          if "${ZDOTDIR}/recipes/transcribe" "$url"; then
+          # Use yt-transcribe for URLs
+          if "${ZDOTDIR}/recipes/yt-transcribe" "$url"; then
             success=true
           else
-            error="ztranscribe failed"
+            error="yt-transcribe failed"
           fi
         fi
         ;;
@@ -594,10 +603,10 @@ cmd_worker() {
     esac
 
     if [[ "$success" == "true" ]]; then
-      _svc_ok "job [${id}] completed."
+      printf "\033[1;32m==> [JOB %s] SUCCESS\033[0m\n" "${id:0:8}"
       psql "${DATABASE_URL}" -c "UPDATE jobs SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = '${id}';" >/dev/null
     else
-      _svc_warn "job [${id}] failed: ${error}"
+      printf "\033[1;31m==> [JOB %s] FAILED: %s\033[0m\n" "${id:0:8}" "$error"
       psql "${DATABASE_URL}" -c "
         UPDATE jobs 
         SET status = 'failed', 
