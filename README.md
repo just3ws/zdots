@@ -24,6 +24,7 @@ Zdots is built on a "Deepened" architectural philosophy: a small number of seman
 | Pillar | Description | Implementation |
 |---|---|---|
 | **Local AI SOTA** | High-performance inference via **llama.cpp** and **whisper.cpp**. | `llama-ctl`, `whisper-ctl` |
+| **Shell Brain** | Structured PostgreSQL storage for methodologies and lessons. | `zdots-ctx`, `ctx-mcp` |
 | **System Observability** | Every shell command emits an OTel span to a local **LGTM** stack. | `bin/otel-collector`, `env.sh` |
 | **Declarative Lifecycle** | Services define specs; a unified engine handles registration. | `lib/lifecycle.bash` |
 | **Semantic Config** | Centralized Registry resolves derived endpoints from YAML. | `lib/metadata.bash` |
@@ -152,6 +153,7 @@ All components are standalone executables in `bin/`.
 | Command | Purpose |
 |---|---|
 | `zdots-ctl` | Platform orchestrator: `up/down/reset/install/check/status` |
+| `zdots-ctx` | Intelligence suite manager: `query/capture/hydrate/backup/seed` |
 | `llama-ctl` | Manages local LLM lifecycle, profiles, and hardware tuning. |
 | `whisper-ctl` | Manages local transcription engine and model management. |
 | `ai-query` | Secure, normalized AI inference from any shell context. |
@@ -162,6 +164,18 @@ All components are standalone executables in `bin/`.
 ---
 
 ## 5. High-Value Superpowers
+
+### Autonomous Shell Brain (`zdots-ctx`)
+Your shell learns as you work, distilling complex sessions into structured knowledge.
+
+```bash
+zdots-ctx capture
+```
+
+*   **Semantic Memory**: Uses local AI to distill "Intent vs Result" from your OTel traces and history.
+*   **Methodology Store**: A permanent PostgreSQL brain for your architectural standards.
+*   **AI Bridge (MCP)**: Exposes your brain to AI agents via the Model Context Protocol, allowing me (Gemini) to read your standards and contribute new lessons.
+*   **Full-Text Search**: Sub-second lookups over your entire history of technical lessons.
 
 ### YouTube Transcription (`ztranscribe`)
 A high-performance pipeline for deep context extraction from YouTube videos.
