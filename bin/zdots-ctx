@@ -92,12 +92,13 @@ cmd_status() {
   fi
 
   local db_name="unknown"
-  local m_count=0 l_count=0 r_count=0
+  local m_count=0 l_count=0 r_count=0 j_count=0
   if [[ "$connected" == "true" ]]; then
     db_name=$(psql "${DATABASE_URL}" -tAc "SELECT current_database();" 2>/dev/null || echo "unknown")
     m_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM methodologies;" 2>/dev/null || echo 0)
     l_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM lessons;" 2>/dev/null || echo 0)
     r_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM session_residue;" 2>/dev/null || echo 0)
+    j_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM jobs WHERE status = 'pending';" 2>/dev/null || echo 0)
   fi
 
   if $json; then
@@ -107,7 +108,8 @@ cmd_status() {
     printf '  "counts": {\n'
     printf '    "methodologies": %s,\n' "$m_count"
     printf '    "lessons": %s,\n'       "$l_count"
-    printf '    "residue": %s\n'       "$r_count"
+    printf '    "residue": %s,\n'       "$r_count"
+    printf '    "pending_jobs": %s\n'   "$j_count"
     printf '  },\n'
     printf '  "my_root": "%s",\n' "$MY_ROOT"
     printf '  "database_url": "%s"\n' "${DATABASE_URL:-}"
@@ -120,6 +122,7 @@ cmd_status() {
     printf -- '%-16s %s\n' "methodologies:" "$m_count"
     printf -- '%-16s %s\n' "lessons:"       "$l_count"
     printf -- '%-16s %s\n' "residue:"       "$r_count"
+    printf -- '%-16s %s\n' "pending jobs:"  "$j_count"
     printf -- '%-16s %s\n' "my_root:"       "$MY_ROOT"
     return 0
   else
@@ -541,12 +544,13 @@ cmd_worker() {
 
   local idle_notified=false
   while true; do
-    # Claim a job (atomic). We use -q (quiet) and head -n 1 to avoid "UPDATE 1" status noise.
+    # Claim a job (atomic). We use -tA to get | separated columns.
     local job
     local where_clause="status = 'pending'"
     [[ -n "$type_filter" ]] && where_clause="${where_clause} AND type = '${type_filter}'"
 
-    job=$(psql "${DATABASE_URL}" -tAcq "
+    # Use a simpler query that doesn't use sub-select if possible, or ensure it's robust
+    job=$(psql "${DATABASE_URL}" -tA -c "
       UPDATE jobs 
       SET status = 'running', updated_at = CURRENT_TIMESTAMP, trace_id = '${ZDOTS_TRACE_ID:-}'
       WHERE id = (
@@ -557,9 +561,9 @@ cmd_worker() {
         LIMIT 1
       )
       RETURNING id, type, payload;
-    " 2>/dev/null | head -n 1 || true)
+    " | head -n 1 || true)
 
-    if [[ -z "$job" ]]; then
+    if [[ -z "$job" || "$job" == "UPDATE 0" ]]; then
       if [[ "$idle_notified" == "false" ]]; then
         _svc_log "queue empty, waiting for jobs..."
         idle_notified=true
@@ -573,6 +577,11 @@ cmd_worker() {
     id=$(echo "$job" | cut -d'|' -f1)
     type=$(echo "$job" | cut -d'|' -f2)
     payload=$(echo "$job" | cut -d'|' -f3)
+
+    # If id still contains "UPDATE", psql noise is still there
+    if [[ "$id" == *"UPDATE"* ]]; then
+       id=$(echo "$id" | awk '{print $1}')
+    fi
 
     # Get remaining count for progress visibility
     local pending_count
