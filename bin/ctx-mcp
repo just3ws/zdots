@@ -79,6 +79,25 @@ TOOLS = [
     name: "ctx_capture",
     description: "Trigger an AI-driven distillation of the current shell session residue. Note: Requires ZDOTS_SESSION_ID to be set in environment.",
     inputSchema: { type: "object", properties: {} }
+  },
+  {
+    name: "ctx_enqueue",
+    description: "Enqueue a new side-effect job (e.g., transcription).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        type: { type: "string", description: "Job type, e.g. 'transcription'" },
+        payload_json: { type: "string", description: "JSON string representing the job payload" },
+        priority: { type: "integer", description: "Priority level (default 10, higher is more urgent)" },
+        force: { type: "boolean", description: "If true, bypasses idempotency and forces a re-queue" }
+      },
+      required: ["type", "payload_json"]
+    }
+  },
+  {
+    name: "ctx_jobs",
+    description: "List pending and recent jobs in the side-effect broker.",
+    inputSchema: { type: "object", properties: {} }
   }
 ].freeze
 
@@ -138,6 +157,21 @@ def tool_ctx_capture(_args)
   res[:exit_code] == 0 ? res[:stdout] : "Error capturing residue: #{res[:stderr]}\nNote: This tool requires a valid ZDOTS_SESSION_ID."
 end
 
+def tool_ctx_enqueue(args)
+  type = args["type"]
+  payload_json = args["payload_json"]
+  priority = args.fetch("priority", 10)
+  force_flag = args["force"] ? "--force" : ""
+  
+  res = run_ctx("enqueue", force_flag, type, payload_json, priority.to_s)
+  res[:exit_code] == 0 ? "✅ #{res[:stdout]}" : "❌ Error: #{res[:stderr]}"
+end
+
+def tool_ctx_jobs(_args)
+  res = run_ctx("jobs", "--json")
+  res[:exit_code] == 0 ? res[:stdout] : "Error fetching jobs: #{res[:stderr]}"
+end
+
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
@@ -160,6 +194,8 @@ def call_tool(name, args)
   when "ctx_add_methodology" then tool_ctx_add_methodology(args)
   when "ctx_add_lesson"      then tool_ctx_add_lesson(args)
   when "ctx_capture"         then tool_ctx_capture(args)
+  when "ctx_enqueue"         then tool_ctx_enqueue(args)
+  when "ctx_jobs"            then tool_ctx_jobs(args)
   else raise "Unknown tool: #{name}"
   end
 end

@@ -120,7 +120,7 @@ if $JSON; then
           },
           {
             name:  "ctx-mcp",
-            tools: ["ctx_status","ctx_query","ctx_hydrate","ctx_add_methodology","ctx_add_lesson","ctx_capture"],
+            tools: ["ctx_status","ctx_query","ctx_hydrate","ctx_add_methodology","ctx_add_lesson","ctx_capture","ctx_enqueue","ctx_jobs"],
             note:  "Intelligence suite / Second brain"
           }
         ],
@@ -221,6 +221,8 @@ CAPABILITY DISCOVERY — start here when integrating or debugging:
     ctx_add_methodology   record a new preferred methodology
     ctx_add_lesson        record a new lesson learnt
     ctx_capture           distill session residue
+    ctx_enqueue           enqueue a background side-effect job
+    ctx_jobs              list pending and running jobs
 
   llama-ctl config --json includes _discovery block with all bootstrap pointers
 

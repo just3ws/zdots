@@ -177,6 +177,19 @@ zdots-ctx capture
 *   **AI Bridge (MCP)**: Exposes your brain to AI agents via the Model Context Protocol, allowing me (Gemini) to read your standards and contribute new lessons.
 *   **Full-Text Search**: Sub-second lookups over your entire history of technical lessons.
 
+### Side-Effect Broker (Job Queue)
+Manage high-cost operations (like batch media transcription) securely via PostgreSQL.
+
+```bash
+zdots-ctx enqueue transcription '{"url": "https://youtu.be/..."}'
+zdots-ctx worker --type transcription
+```
+
+*   **Idempotency**: Prevents duplicate jobs by hashing payload and type.
+*   **WIP Limits & Concurrency**: Workers process jobs sequentially to protect machine resources (e.g., VRAM, CPU).
+*   **Resilience & Backoff**: Exponential backoff for temporary failures and a Dead-Letter Queue (DLQ) for permanent failures.
+*   **Observability**: Real-time queue depth exported to the local OpenTelemetry stack (`zdots-ctx metrics-loop`).
+
 ### YouTube Transcription (`ztranscribe`)
 A high-performance pipeline for deep context extraction from YouTube videos.
 

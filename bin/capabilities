@@ -211,6 +211,7 @@ fi
 
 _ctx_live=0
 _ctx_db="unknown"
+_ctx_pending=0
 _bin_ctx="${ZDOTDIR}/bin/zdots-ctx"
 if [ -x "$_bin_ctx" ]; then
   # Simple grep/awk to avoid complex bashisms in sh-shebang file
@@ -218,12 +219,14 @@ if [ -x "$_bin_ctx" ]; then
   if echo "$_ctx_status" | grep -q '"connected": true'; then
     _ctx_live=1
     _ctx_db=$(echo "$_ctx_status" | sed -n 's/.*"database": "\([^"]*\)".*/\1/p')
+    _ctx_pending=$(echo "$_ctx_status" | grep -o '"pending_jobs": [0-9]*' | awk '{print $2}')
+    _ctx_pending=${_ctx_pending:-0}
   fi
 fi
 
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   if [ "$_ctx_live" = "1" ]; then
-    printf "  %bIntelligence:%b %bonline (%s)%b\n" "$CYAN" "$RESET" "$GREEN" "$_ctx_db" "$RESET"
+    printf "  %bIntelligence:%b %bonline (%s) [%s pending jobs]%b\n" "$CYAN" "$RESET" "$GREEN" "$_ctx_db" "$_ctx_pending" "$RESET"
   else
     printf "  %bIntelligence:%b %boffline/uninitialized%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
   fi
@@ -285,6 +288,7 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg last_trace "$_ts" \
       --arg ctx_live "$_ctx_live" \
       --arg ctx_db "$_ctx_db" \
+      --arg ctx_pending "$_ctx_pending" \
       --arg mcp_llama "$([ -x "${ZDOTDIR}/bin/llama-mcp" ] && echo 1 || echo 0)" \
       --arg mcp_ctx "$([ -x "${ZDOTDIR}/bin/ctx-mcp" ] && echo 1 || echo 0)" \
       --arg errors "$errors" \
@@ -322,6 +326,7 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
         brain: {
           intelligence_live: ($ctx_live | tonumber),
           intelligence_db:   $ctx_db,
+          intelligence_pending: ($ctx_pending | tonumber),
           mcp_llama:         ($mcp_llama | tonumber),
           mcp_ctx:           ($mcp_ctx | tonumber)
         },
@@ -356,10 +361,14 @@ fi
 unset _avail _p_status _z_services _z_state_dir _z_trace_file _z_last_trace _ts _m_status _tools _path _status _tty_stdin _tty_stdout _tty_stderr _mux _json_stdin_tty _json_stdout_tty _json_stderr_tty _json_mux
 
 if [ "$errors" -gt 0 ]; then
-  echo "${RED}Health Check Failed: $errors service contract violation(s) detected.${RESET}"
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    echo "${RED}Health Check Failed: $errors service contract violation(s) detected.${RESET}"
+  fi
   exit 1
 else
-  echo "${GREEN}Health Check Passed: Service contract is valid.${RESET}"
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    echo "${GREEN}Health Check Passed: Service contract is valid.${RESET}"
+  fi
   exit 0
 fi
 
