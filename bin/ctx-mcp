@@ -1,0 +1,200 @@
+#!/usr/bin/env ruby
+# bin/ctx-mcp — MCP server for the PostgreSQL Intelligence Suite (zdots-ctx).
+#
+# Exposes live context (methodologies, lessons, residue) to AI agents.
+# Allows AIs to both query existing knowledge and capture new insights.
+#
+# Transport: stdio (JSON-RPC 2.0)
+# Register in ~/.claude.json → mcpServers:
+#   "ctx": {"type":"stdio","command":"${ZDOTDIR}/bin/ctx-mcp"}
+
+require "json"
+require "open3"
+
+ZDOTDIR = ENV.fetch("ZDOTDIR", File.expand_path("~/.config/zsh"))
+BIN = File.join(ZDOTDIR, "bin")
+CTX_BIN = File.join(BIN, "zdots-ctx")
+
+$stdout.sync = true
+$stderr.sync = true
+
+# ---------------------------------------------------------------------------
+# Tool registry
+# ---------------------------------------------------------------------------
+TOOLS = [
+  {
+    name: "ctx_status",
+    description: "Check the connection to the PostgreSQL Intelligence Suite and report record counts.",
+    inputSchema: { type: "object", properties: {} }
+  },
+  {
+    name: "ctx_query",
+    description: "Search for methodologies and lessons using full-text search.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        term: { type: "string", description: "Search term or topic" }
+      },
+      required: ["term"]
+    }
+  },
+  {
+    name: "ctx_hydrate",
+    description: "Get a condensed summary of preferred methodologies and recent lessons for AI context injection.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tag: { type: "string", description: "Optional tag to filter methodologies" }
+      }
+    }
+  },
+  {
+    name: "ctx_add_methodology",
+    description: "Add or update a preferred methodology or architectural standard.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "URL-safe unique identifier (e.g. 'bash-style-guide')" },
+        title: { type: "string", description: "Descriptive title" },
+        content: { type: "string", description: "Full methodology content in Markdown" },
+        tags: { type: "array", items: { type: "string" }, description: "Search tags" }
+      },
+      required: ["slug", "title", "content"]
+    }
+  },
+  {
+    name: "ctx_add_lesson",
+    description: "Record a new lesson learnt or distilled insight from a technical task.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        content: { type: "string", description: "The lesson or insight distilled" },
+        context: { type: "string", description: "The situation, bug, or task that led to this lesson" },
+        tags: { type: "array", items: { type: "string" }, description: "Tags for categorization" }
+      },
+      required: ["content"]
+    }
+  },
+  {
+    name: "ctx_capture",
+    description: "Trigger an AI-driven distillation of the current shell session residue. Note: Requires ZDOTS_SESSION_ID to be set in environment.",
+    inputSchema: { type: "object", properties: {} }
+  }
+].freeze
+
+# ---------------------------------------------------------------------------
+# Implementations
+# ---------------------------------------------------------------------------
+def run_ctx(*args)
+  # We source env.sh first to ensure DATABASE_URL and ZDOTS_MY_ROOT are set
+  env_sh = File.join(ZDOTDIR, "env.sh")
+  
+  # Escape arguments for safe shell execution
+  escaped_args = args.map { |arg| "'" + arg.to_s.gsub("'", "'\\''") + "'" }.join(" ")
+  
+  cmd = "source #{env_sh} && #{CTX_BIN} #{escaped_args}"
+  stdout, stderr, status = Open3.capture3("bash", "-c", cmd)
+  { stdout: stdout, stderr: stderr, exit_code: status.exitstatus }
+end
+
+def tool_ctx_status(_args)
+  res = run_ctx("status", "--json")
+  res[:exit_code] == 0 ? res[:stdout] : "Error checking status: #{res[:stderr]}"
+end
+
+def tool_ctx_query(args)
+  term = args["term"]
+  res = run_ctx("query", term)
+  res[:stdout] + res[:stderr]
+end
+
+def tool_ctx_hydrate(args)
+  tag = args["tag"] || ""
+  res = run_ctx("hydrate", tag, "--json")
+  res[:exit_code] == 0 ? res[:stdout] : "Error hydrating: #{res[:stderr]}"
+end
+
+def tool_ctx_add_methodology(args)
+  slug = args["slug"]
+  title = args["title"]
+  content = args["content"]
+  tags = args.fetch("tags", [])
+  
+  res = run_ctx("add-methodology", slug, title, content, *tags)
+  res[:exit_code] == 0 ? "✅ Methodology '#{slug}' saved." : "❌ Error: #{res[:stderr]}"
+end
+
+def tool_ctx_add_lesson(args)
+  content = args["content"]
+  context = args.fetch("context", "")
+  tags = args.fetch("tags", [])
+  
+  res = run_ctx("add-lesson", content, context, *tags)
+  res[:exit_code] == 0 ? "✅ Lesson saved." : "❌ Error: #{res[:stderr]}"
+end
+
+def tool_ctx_capture(_args)
+  res = run_ctx("capture", "--json")
+  res[:exit_code] == 0 ? res[:stdout] : "Error capturing residue: #{res[:stderr]}\nNote: This tool requires a valid ZDOTS_SESSION_ID."
+end
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+def respond(id, result)
+  $stdout.puts JSON.generate({ jsonrpc: "2.0", id: id, result: result })
+end
+
+def error_response(id, code, message)
+  $stdout.puts JSON.generate({
+    jsonrpc: "2.0", id: id,
+    error: { code: code, message: message }
+  })
+end
+
+def call_tool(name, args)
+  case name
+  when "ctx_status"          then tool_ctx_status(args)
+  when "ctx_query"           then tool_ctx_query(args)
+  when "ctx_hydrate"         then tool_ctx_hydrate(args)
+  when "ctx_add_methodology" then tool_ctx_add_methodology(args)
+  when "ctx_add_lesson"      then tool_ctx_add_lesson(args)
+  when "ctx_capture"         then tool_ctx_capture(args)
+  else raise "Unknown tool: #{name}"
+  end
+end
+
+$stdin.each_line do |line|
+  line = line.strip
+  next if line.empty?
+  begin
+    msg = JSON.parse(line)
+  rescue JSON::ParserError
+    error_response(nil, -32700, "Parse error")
+    next
+  end
+
+  id = msg["id"]
+  method = msg["method"]
+  params = msg["params"] || {}
+
+  case method
+  when "initialize"
+    respond(id, {
+      protocolVersion: "2024-11-05",
+      capabilities: { tools: {} },
+      serverInfo: { name: "ctx-mcp", version: "1.0.0" }
+    })
+  when "tools/list"
+    respond(id, { tools: TOOLS })
+  when "tools/call"
+    begin
+      result_text = call_tool(params["name"], params.fetch("arguments", {}))
+      respond(id, { content: [{ type: "text", text: result_text }] })
+    rescue => e
+      respond(id, { content: [{ type: "text", text: "Error: #{e.message}" }], isError: true })
+    end
+  when "ping" then respond(id, {})
+  else respond(id, {}) if id
+  end
+end

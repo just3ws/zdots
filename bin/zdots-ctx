@@ -41,6 +41,8 @@ Intelligence Suite Interface:
   capture   Distill current session (traces/history) into a lesson
   hydrate   Output methodologies for the current task (AI-targeted)
   seed      Import existing standards from ~/my/standards
+  add-methodology <slug> <title> <content> [tags...]
+  add-lesson <content> [context] [tags...]
   backup    Create a timestamped SQL dump in ~/my/backups
   restore [f] Restore the database from dump file [f]
 
@@ -439,7 +441,56 @@ cmd_seed() {
   done
   _svc_ok "seeding complete."
 }
+
+cmd_add_methodology() {
+  local slug="${1:-}"
+  local title="${2:-}"
+  local content="${3:-}"
+  shift 3 || true
+  local tags=("$@")
+
+  if [[ -z "$slug" || -z "$title" || -z "$content" ]]; then
+    _svc_die "usage: zdots-ctx add-methodology <slug> <title> <content> [tags...]"
+  fi
+
+  _require_psql
+  _svc_log "adding methodology: ${slug}..."
+
+  local tags_csv; tags_csv=$(IFS=,; echo "${tags[*]}")
+
+  psql "${DATABASE_URL}" -c "
+    INSERT INTO methodologies (slug, title, content, tags)
+    VALUES ('${slug}', '${title//\'/''}', '${content//\'/''}', string_to_array('${tags_csv}', ','))
+    ON CONFLICT (slug) DO UPDATE 
+    SET title = EXCLUDED.title, content = EXCLUDED.content, tags = EXCLUDED.tags, updated_at = CURRENT_TIMESTAMP;
+  " >/dev/null
+  _svc_ok "methodology '${slug}' saved."
+}
+
+cmd_add_lesson() {
+  local content="${1:-}"
+  local context="${2:-}"
+  shift 2 || true
+  local tags=("$@")
+
+  if [[ -z "$content" ]]; then
+    _svc_die "usage: zdots-ctx add-lesson <content> [context] [tags...]"
+  fi
+
+  _require_psql
+  _svc_log "adding lesson..."
+
+  local tags_csv; tags_csv=$(IFS=,; echo "${tags[*]}")
+
+  psql "${DATABASE_URL}" -c "
+    INSERT INTO lessons (content, context, tags)
+    VALUES ('${content//\'/''}', '${context//\'/''}', string_to_array('${tags_csv}', ','));
+  " >/dev/null
+  _svc_ok "lesson saved."
+}
+
 # ---------------------------------------------------------------------------
+
 
 case "${1:-}" in
   status)   shift; cmd_status "${@}" ;;
@@ -449,6 +500,8 @@ case "${1:-}" in
   capture)  shift; cmd_capture "${@}" ;;
   hydrate)  shift; cmd_hydrate "${@}" ;;
   seed)     shift; cmd_seed "${@}" ;;
+  add-methodology) shift; cmd_add_methodology "${@}" ;;
+  add-lesson)      shift; cmd_add_lesson "${@}" ;;
   backup)   shift; cmd_backup "${@}" ;;
   restore)  shift; cmd_restore "${@}" ;;
   -h|--help) usage; exit 0 ;;
