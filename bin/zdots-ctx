@@ -520,7 +520,7 @@ cmd_enqueue() {
       INSERT INTO jobs (type, payload, priority, fingerprint)
       VALUES ('${type}', '${payload//\'/''}'::jsonb, ${priority}, md5('${type}' || '${payload//\'/''}'::text))
       ON CONFLICT (fingerprint) DO UPDATE 
-      SET status = 'pending', attempts = 0, error_message = NULL, priority = EXCLUDED.priority, updated_at = CURRENT_TIMESTAMP;
+      SET status = 'pending', attempts = 0, error_message = NULL, priority = EXCLUDED.priority, updated_at = CURRENT_TIMESTAMP, next_run_at = CURRENT_TIMESTAMP;
     " >/dev/null
     _svc_ok "job reset to pending."
   else
@@ -551,7 +551,7 @@ cmd_requeue() {
   _svc_log "re-queuing job ${id}..."
   psql "${DATABASE_URL}" -c "
     UPDATE jobs 
-    SET status = 'pending', attempts = 0, error_message = NULL, updated_at = CURRENT_TIMESTAMP 
+    SET status = 'pending', attempts = 0, error_message = NULL, updated_at = CURRENT_TIMESTAMP, next_run_at = CURRENT_TIMESTAMP 
     WHERE id = '${id}';
   " >/dev/null
   _svc_ok "job reset to pending."
@@ -568,7 +568,7 @@ cmd_jobs() {
   fi
 
   psql "${DATABASE_URL}" -c "
-    SELECT id, type, status, priority, attempts, created_at 
+    SELECT id, type, status, priority, attempts, created_at, next_run_at 
     FROM jobs 
     ORDER BY status = 'running' DESC, status = 'pending' DESC, priority DESC, created_at ASC 
     LIMIT 20;
@@ -591,7 +591,7 @@ cmd_worker() {
   trap '
     if [[ -n "$current_job_id" ]]; then
       _svc_log "worker interrupted. Releasing job [${current_job_id:0:8}] back to pending..."
-      psql "${DATABASE_URL}" -c "UPDATE jobs SET status = '''pending''', updated_at = CURRENT_TIMESTAMP WHERE id = '''${current_job_id}''';" >/dev/null 2>&1
+      psql "${DATABASE_URL}" -c "UPDATE jobs SET status = '''pending''', updated_at = CURRENT_TIMESTAMP, next_run_at = CURRENT_TIMESTAMP WHERE id = '''${current_job_id}''';" >/dev/null 2>&1
     fi
     exit 0
   ' SIGINT SIGTERM
@@ -601,7 +601,7 @@ cmd_worker() {
     current_job_id=""
     # Claim a job (atomic). We use -tA to get | separated columns.
     local job
-    local where_clause="status = 'pending'"
+    local where_clause="status = 'pending' AND next_run_at <= CURRENT_TIMESTAMP"
     [[ -n "$type_filter" ]] && where_clause="${where_clause} AND type = '${type_filter}'"
 
     # Use a simpler query that doesn't use sub-select if possible, or ensure it's robust
@@ -697,7 +697,8 @@ cmd_worker() {
         SET status = 'failed', 
             error_message = '${error//\'/''}', 
             attempts = attempts + 1,
-            updated_at = CURRENT_TIMESTAMP 
+            updated_at = CURRENT_TIMESTAMP,
+            next_run_at = CURRENT_TIMESTAMP + make_interval(mins => CAST(POWER(attempts + 1, 2) * 5 AS INTEGER))
         WHERE id = '${id}';
       " >/dev/null
     fi
