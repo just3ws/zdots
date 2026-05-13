@@ -49,6 +49,7 @@ Intelligence Suite Interface:
   worker    [--type T] Run a worker to process queued jobs
   triage    Review and resolve permanently failed 'dead' jobs
   clear-stale-jobs Reset 'running' jobs that have timed out
+  metrics-loop Export queue depth metrics to OTel continuously
   backup    Create a timestamped SQL dump in ~/my/backups
   restore [f] Restore the database from dump file [f]
 
@@ -776,8 +777,88 @@ cmd_clear_stale_jobs() {
   _svc_ok "stale jobs updated to 'failed'."
 }
 
-# ---------------------------------------------------------------------------
+cmd_metrics_loop() {
+  _require_psql
+  
+  local otlp_endpoint="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://127.0.0.1:4318}"
+  local poll_interval="${1:-60}"
+  
+  _svc_log "starting metrics export loop (interval: ${poll_interval}s)..."
+  _svc_log "target endpoint: ${otlp_endpoint}/v1/metrics"
+  
+  # Graceful shutdown trap
+  trap '
+    _svc_log "metrics loop interrupted. exiting..."
+    exit 0
+  ' SIGINT SIGTERM
 
+  while true; do
+    local pending_count dead_count
+    pending_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM jobs WHERE status = 'pending';" 2>/dev/null || echo 0)
+    dead_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM jobs WHERE status = 'dead';" 2>/dev/null || echo 0)
+
+    # Use python to get timeUnixNano (platform independent)
+    local ts_nano
+    if command -v python3 >/dev/null 2>&1; then
+      ts_nano=$(python3 -c "import time; print(int(time.time() * 1e9))")
+    elif command -v gdate >/dev/null 2>&1; then
+      ts_nano=$(gdate +%s%N)
+    else
+      ts_nano=$(date +%s000000000)
+    fi
+    
+    local payload
+    payload=$(cat <<EOF
+{
+  "resourceMetrics": [
+    {
+      "resource": {
+        "attributes": [
+          { "key": "service.name", "value": { "stringValue": "zdots-ctx" } }
+        ]
+      },
+      "scopeMetrics": [
+        {
+          "scope": { "name": "zdots.queue" },
+          "metrics": [
+            {
+              "name": "zdots.jobs.pending",
+              "description": "Number of pending jobs",
+              "unit": "{jobs}",
+              "gauge": {
+                "dataPoints": [
+                  { "asInt": "${pending_count}", "timeUnixNano": "${ts_nano}" }
+                ]
+              }
+            },
+            {
+              "name": "zdots.jobs.dead",
+              "description": "Number of dead jobs",
+              "unit": "{jobs}",
+              "gauge": {
+                "dataPoints": [
+                  { "asInt": "${dead_count}", "timeUnixNano": "${ts_nano}" }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+EOF
+)
+
+    curl -s -o /dev/null -X POST -H "Content-Type: application/json" -d "$payload" "${otlp_endpoint}/v1/metrics" || true
+    
+    sleep "${poll_interval}"
+  done
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
 
 case "${1:-}" in
   status)   shift; cmd_status "${@}" ;;
@@ -795,6 +876,7 @@ case "${1:-}" in
   worker)          shift; cmd_worker "${@}" ;;
   triage)          shift; cmd_triage "${@}" ;;
   clear-stale-jobs) shift; cmd_clear_stale_jobs "${@}" ;;
+  metrics-loop)    shift; cmd_metrics_loop "${@}" ;;
   backup)   shift; cmd_backup "${@}" ;;
   restore)  shift; cmd_restore "${@}" ;;
   -h|--help) usage; exit 0 ;;
