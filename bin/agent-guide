@@ -112,9 +112,19 @@ if $JSON; then
         note:     "Full capability + integration guide for the local llama.cpp server"
       },
       mcp: {
-        server: "llama-mcp",
-        tools:  ["llama_capabilities","llama_health","llama_config","llama_run_test","llama_integration_snippet"],
-        note:   "Registered in ~/.claude.json; available natively in Claude Code sessions"
+        servers: [
+          {
+            name:  "llama-mcp",
+            tools: ["llama_capabilities","llama_health","llama_config","llama_run_test","llama_integration_snippet"],
+            note:  "Inference control plane"
+          },
+          {
+            name:  "ctx-mcp",
+            tools: ["ctx_status","ctx_query","ctx_hydrate","ctx_add_methodology","ctx_add_lesson","ctx_capture"],
+            note:  "Intelligence suite / Second brain"
+          }
+        ],
+        note: "Registered in ~/.claude.json; available natively in Claude Code sessions"
       },
       docs: {
         platform_control: "zdots-ctl check / up / down / reset / status",
@@ -203,6 +213,14 @@ CAPABILITY DISCOVERY — start here when integrating or debugging:
     llama_config          resolved server config with capacity limits
     llama_run_test        run integration test suite (quick or full)
     llama_integration_snippet  working code for ruby_llm / python / node / curl
+
+  Intelligence Suite MCP tools (ctx-mcp):
+    ctx_status            check intelligence suite connectivity
+    ctx_query             search methodologies and lessons
+    ctx_hydrate           get context for AI tasks
+    ctx_add_methodology   record a new preferred methodology
+    ctx_add_lesson        record a new lesson learnt
+    ctx_capture           distill session residue
 
   llama-ctl config --json includes _discovery block with all bootstrap pointers
 
