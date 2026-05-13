@@ -43,7 +43,8 @@ Intelligence Suite Interface:
   seed      Import existing standards from ~/my/standards
   add-methodology <slug> <title> <content> [tags...]
   add-lesson <content> [context] [tags...]
-  enqueue <type> <payload_json> [priority]
+  enqueue [--force] <type> <payload_json> [priority]
+  requeue <job_id>
   jobs      List pending and recent jobs
   worker    [--type T] Run a worker to process queued jobs
   clear-stale-jobs Reset 'running' jobs that have timed out
@@ -497,22 +498,63 @@ cmd_add_lesson() {
 }
 
 cmd_enqueue() {
+  local force=false
+  if [[ "${1:-}" == "--force" ]]; then
+    force=true
+    shift
+  fi
+
   local type="${1:-}"
   local payload="${2:-}"
   local priority="${3:-10}"
 
   if [[ -z "$type" || -z "$payload" ]]; then
-    _svc_die "usage: zdots-ctx enqueue <type> <payload_json> [priority]"
+    _svc_die "usage: zdots-ctx enqueue [--force] <type> <payload_json> [priority]"
   fi
 
   _require_psql
-  _svc_log "enqueuing job: ${type}..."
+  
+  if $force; then
+    _svc_log "force-enqueuing job: ${type}..."
+    psql "${DATABASE_URL}" -c "
+      INSERT INTO jobs (type, payload, priority, fingerprint)
+      VALUES ('${type}', '${payload//\'/''}'::jsonb, ${priority}, md5('${type}' || '${payload//\'/''}'::text))
+      ON CONFLICT (fingerprint) DO UPDATE 
+      SET status = 'pending', attempts = 0, error_message = NULL, priority = EXCLUDED.priority, updated_at = CURRENT_TIMESTAMP;
+    " >/dev/null
+    _svc_ok "job reset to pending."
+  else
+    _svc_log "enqueuing job: ${type}..."
+    local result
+    result=$(psql "${DATABASE_URL}" -tAc "
+      INSERT INTO jobs (type, payload, priority, fingerprint)
+      VALUES ('${type}', '${payload//\'/''}'::jsonb, ${priority}, md5('${type}' || '${payload//\'/''}'::text))
+      ON CONFLICT (fingerprint) DO NOTHING
+      RETURNING id;
+    ")
+    
+    if [[ -z "$result" ]]; then
+      _svc_warn "job already exists in queue (idempotent skip). Use --force to retry."
+    else
+      _svc_ok "job enqueued (ID: ${result})."
+    fi
+  fi
+}
 
+cmd_requeue() {
+  local id="${1:-}"
+  if [[ -z "$id" ]]; then
+    _svc_die "usage: zdots-ctx requeue <job_id>"
+  fi
+
+  _require_psql
+  _svc_log "re-queuing job ${id}..."
   psql "${DATABASE_URL}" -c "
-    INSERT INTO jobs (type, payload, priority)
-    VALUES ('${type}', '${payload//\'/''}'::jsonb, ${priority});
+    UPDATE jobs 
+    SET status = 'pending', attempts = 0, error_message = NULL, updated_at = CURRENT_TIMESTAMP 
+    WHERE id = '${id}';
   " >/dev/null
-  _svc_ok "job enqueued."
+  _svc_ok "job reset to pending."
 }
 
 cmd_jobs() {
@@ -668,6 +710,7 @@ case "${1:-}" in
   add-methodology) shift; cmd_add_methodology "${@}" ;;
   add-lesson)      shift; cmd_add_lesson "${@}" ;;
   enqueue)         shift; cmd_enqueue "${@}" ;;
+  requeue)         shift; cmd_requeue "${@}" ;;
   jobs)            shift; cmd_jobs "${@}" ;;
   worker)          shift; cmd_worker "${@}" ;;
   clear-stale-jobs) shift; cmd_clear_stale_jobs "${@}" ;;
