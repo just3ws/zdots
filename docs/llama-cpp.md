@@ -211,7 +211,7 @@ This survives profile switches — the underlying GGUF filename changes, but
 
 ## Embeddings
 
-The `/v1/embeddings` endpoint is enabled by default.
+The `/v1/embeddings` endpoint is enabled by default. The current `max-accuracy` model (`Qwen2.5-Coder-7B-Instruct`) provides embeddings with a dimension size of **3584**.
 
 ```sh
 # Quick test — confirm dimensions
