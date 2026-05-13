@@ -43,6 +43,9 @@ Intelligence Suite Interface:
   seed      Import existing standards from ~/my/standards
   add-methodology <slug> <title> <content> [tags...]
   add-lesson <content> [context] [tags...]
+  enqueue <type> <payload_json> [priority]
+  jobs      List pending and recent jobs
+  worker    [--type T] Run a worker to process queued jobs
   backup    Create a timestamped SQL dump in ~/my/backups
   restore [f] Restore the database from dump file [f]
 
@@ -489,6 +492,124 @@ cmd_add_lesson() {
   _svc_ok "lesson saved."
 }
 
+cmd_enqueue() {
+  local type="${1:-}"
+  local payload="${2:-}"
+  local priority="${3:-10}"
+
+  if [[ -z "$type" || -z "$payload" ]]; then
+    _svc_die "usage: zdots-ctx enqueue <type> <payload_json> [priority]"
+  fi
+
+  _require_psql
+  _svc_log "enqueuing job: ${type}..."
+
+  psql "${DATABASE_URL}" -c "
+    INSERT INTO jobs (type, payload, priority)
+    VALUES ('${type}', '${payload//\'/''}'::jsonb, ${priority});
+  " >/dev/null
+  _svc_ok "job enqueued."
+}
+
+cmd_jobs() {
+  _require_psql
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  if $json; then
+    psql "${DATABASE_URL}" -tAc "SELECT json_agg(j) FROM (SELECT * FROM jobs ORDER BY created_at DESC LIMIT 50) j;"
+    return
+  fi
+
+  psql "${DATABASE_URL}" -c "
+    SELECT id, type, status, priority, attempts, created_at 
+    FROM jobs 
+    ORDER BY status = 'running' DESC, status = 'pending' DESC, priority DESC, created_at ASC 
+    LIMIT 20;
+  "
+}
+
+cmd_worker() {
+  local type_filter=""
+  if [[ "${1:-}" == "--type" ]]; then
+    type_filter="${2:-}"
+  fi
+
+  _require_psql
+  _svc_log "starting worker..."
+  [[ -n "$type_filter" ]] && _svc_log "filtering by type: ${type_filter}"
+
+  while true; do
+    # Claim a job (atomic)
+    local job
+    local where_clause="status = 'pending'"
+    [[ -n "$type_filter" ]] && where_clause="${where_clause} AND type = '${type_filter}'"
+
+    job=$(psql "${DATABASE_URL}" -tAc "
+      UPDATE jobs 
+      SET status = 'running', updated_at = CURRENT_TIMESTAMP, trace_id = '${ZDOTS_TRACE_ID:-}'
+      WHERE id = (
+        SELECT id FROM jobs 
+        WHERE ${where_clause}
+        ORDER BY priority DESC, created_at ASC 
+        FOR UPDATE SKIP LOCKED 
+        LIMIT 1
+      )
+      RETURNING id, type, payload;
+    " 2>/dev/null || true)
+
+    if [[ -z "$job" ]]; then
+      # No jobs, sleep and retry
+      sleep 5
+      continue
+    fi
+
+    local id type payload
+    id=$(echo "$job" | cut -d'|' -f1)
+    type=$(echo "$job" | cut -d'|' -f2)
+    payload=$(echo "$job" | cut -d'|' -f3)
+
+    _svc_log "processing job [${id}]: ${type}..."
+    
+    local success=false
+    local error=""
+
+    case "$type" in
+      transcription)
+        local url; url=$(echo "$payload" | jq -r '.url' 2>/dev/null)
+        if [[ -z "$url" || "$url" == "null" ]]; then
+          error="missing url in payload"
+        else
+          # Execute ztranscribe (assuming it is in PATH or bin/)
+          if "${ZDOTDIR}/recipes/transcribe" "$url"; then
+            success=true
+          else
+            error="ztranscribe failed"
+          fi
+        fi
+        ;;
+      *)
+        error="unknown job type: ${type}"
+        ;;
+    esac
+
+    if [[ "$success" == "true" ]]; then
+      _svc_ok "job [${id}] completed."
+      psql "${DATABASE_URL}" -c "UPDATE jobs SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = '${id}';" >/dev/null
+    else
+      _svc_warn "job [${id}] failed: ${error}"
+      psql "${DATABASE_URL}" -c "
+        UPDATE jobs 
+        SET status = 'failed', 
+            error_message = '${error//\'/''}', 
+            attempts = attempts + 1,
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE id = '${id}';
+      " >/dev/null
+    fi
+  done
+}
+
 # ---------------------------------------------------------------------------
 
 
@@ -502,6 +623,9 @@ case "${1:-}" in
   seed)     shift; cmd_seed "${@}" ;;
   add-methodology) shift; cmd_add_methodology "${@}" ;;
   add-lesson)      shift; cmd_add_lesson "${@}" ;;
+  enqueue)         shift; cmd_enqueue "${@}" ;;
+  jobs)            shift; cmd_jobs "${@}" ;;
+  worker)          shift; cmd_worker "${@}" ;;
   backup)   shift; cmd_backup "${@}" ;;
   restore)  shift; cmd_restore "${@}" ;;
   -h|--help) usage; exit 0 ;;
