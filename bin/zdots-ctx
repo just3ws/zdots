@@ -6,10 +6,14 @@
 # PostgreSQL-backed "Brain" (Methodology, Lessons Learnt, Session Memory).
 #
 # GRAMMAR:
-#   status    Check connection to the Postgres database
-#   query     Semantic/text search over methodologies and lessons
-#   capture   Distill current session residue into the database
-#   hydrate   Inject relevant methodologies into the AI context
+#   status    Check connection and report database metadata
+#   init-db   Create the database and apply initial schema
+#   migrate   Apply pending SQL migrations from etc/db/migrations
+#   query     [t] Search for methodology or lessons related to [t]
+#   capture   Distill current session (traces/history) into a lesson
+#   hydrate   Output methodologies for the current task (AI-targeted)
+#   backup    Create a timestamped SQL dump in ~/my/backups
+#   restore [f] Restore the database from dump file [f]
 
 set -euo pipefail
 
@@ -31,9 +35,13 @@ Usage: zdots-ctx <command> [--json]
 
 Intelligence Suite Interface:
   status    Check connection and report database metadata
+  init-db   Create the database and apply initial schema
+  migrate   Apply pending SQL migrations from etc/db/migrations
   query     [t] Search for methodology or lessons related to [t]
   capture   Distill current session (traces/history) into a lesson
   hydrate   Output methodologies for the current task (AI-targeted)
+  backup    Create a timestamped SQL dump in ~/my/backups
+  restore [f] Restore the database from dump file [f]
 
 Options:
   --json      Output as JSON (valid for status, query, hydrate)
@@ -78,14 +86,23 @@ cmd_status() {
   fi
 
   local db_name="unknown"
+  local m_count=0 l_count=0 r_count=0
   if [[ "$connected" == "true" ]]; then
     db_name=$(psql "${DATABASE_URL}" -tAc "SELECT current_database();" 2>/dev/null || echo "unknown")
+    m_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM methodologies;" 2>/dev/null || echo 0)
+    l_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM lessons;" 2>/dev/null || echo 0)
+    r_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM session_residue;" 2>/dev/null || echo 0)
   fi
 
   if $json; then
     printf '{\n'
     printf '  "connected": %s,\n' "$connected"
     printf '  "database": "%s",\n' "$db_name"
+    printf '  "counts": {\n'
+    printf '    "methodologies": %s,\n' "$m_count"
+    printf '    "lessons": %s,\n'       "$l_count"
+    printf '    "residue": %s\n'       "$r_count"
+    printf '  },\n'
     printf '  "my_root": "%s",\n' "$MY_ROOT"
     printf '  "database_url": "%s"\n' "${DATABASE_URL:-}"
     printf '}\n'
@@ -94,17 +111,145 @@ cmd_status() {
 
   if [[ "$connected" == "true" ]]; then
     _svc_ok "connected to database: ${db_name}"
-    printf '%-16s %s\n' "my_root:" "$MY_ROOT"
+    printf '%-16s %s\n' "methodologies:" "$m_count"
+    printf '%-16s %s\n' "lessons:"       "$l_count"
+    printf '%-16s %s\n' "residue:"       "$r_count"
+    printf '%-16s %s\n' "my_root:"       "$MY_ROOT"
     return 0
   else
     _svc_warn "failed to connect to database at ${DATABASE_URL:-none}"
-    printf '%-16s %s\n' "my_root:" "$MY_ROOT"
+    printf '%-16s %s\n' "my_root:"       "$MY_ROOT"
     return 1
   fi
 }
 
+cmd_init_db() {
+  _require_psql
+  _svc_log "initializing intelligence suite database..."
+  
+  # Try to create the database if it doesn't exist
+  # We use 'postgres' DB for the initial connection to run CREATE DATABASE
+  local db_name
+  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
+  
+  if ! psql "${DATABASE_URL}" -c "SELECT 1" >/dev/null 2>&1; then
+    _svc_log "database '${db_name}' not found, attempting to create..."
+    local base_url
+    base_url=$(echo "${DATABASE_URL}" | sed -E 's/\/[^/]+$/\/postgres/')
+    if ! psql "${base_url}" -c "CREATE DATABASE ${db_name};" >/dev/null 2>&1; then
+      _svc_die "failed to create database '${db_name}'. Ensure Postgres is running and you have permissions."
+    fi
+    _svc_ok "database '${db_name}' created."
+  else
+    _svc_ok "database '${db_name}' already exists."
+  fi
+
+  cmd_migrate
+}
+
+cmd_migrate() {
+  _require_psql
+  _svc_log "applying migrations from etc/db/migrations..."
+  
+  # Bash-compatible globbing
+  for sql in "${ZDOTDIR}/etc/db/migrations"/*.sql; do
+    [[ -e "$sql" ]] || continue
+    _svc_log "applying $(basename "$sql")..."
+    if psql "${DATABASE_URL}" -f "$sql" >/dev/null 2>&1; then
+      _svc_ok "$(basename "$sql") applied."
+    else
+      _svc_die "failed to apply $(basename "$sql")."
+    fi
+  done
+  _svc_ok "all migrations applied."
+}
+
+cmd_backup() {
+  if ! command -v pg_dump >/dev/null 2>&1; then
+    _svc_die "pg_dump not found. Run: brew install postgresql@18"
+  fi
+
+  local backup_dir="${MY_ROOT}/backups"
+  mkdir -p "$backup_dir"
+
+  local timestamp
+  timestamp=$(date +%Y%m%d_%H%M%S)
+  local db_name
+  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
+  local backup_file="${backup_dir}/${db_name}_${timestamp}.sql.gz"
+
+  _svc_log "creating backup: ${backup_file}..."
+  if pg_dump "${DATABASE_URL}" | gzip > "$backup_file"; then
+    _svc_ok "backup complete."
+    # Maintain last 10 backups
+    ls -t "${backup_dir}/${db_name}"_*.sql.gz 2>/dev/null | tail -n +11 | xargs rm -f -- 2>/dev/null || true
+  else
+    _svc_die "backup failed."
+  fi
+}
+
+cmd_restore() {
+  local backup_file="${1:-}"
+  if [[ -z "$backup_file" ]]; then
+    _svc_die "usage: zdots-ctx restore <path-to-sql-gz>"
+  fi
+
+  if [[ ! -f "$backup_file" ]]; then
+    _svc_die "backup file not found: $backup_file"
+  fi
+
+  _require_psql
+  _svc_log "restoring from ${backup_file}..."
+  
+  # WARNING: This is destructive to the current database
+  printf "WARNING: This will overwrite the current database. Proceed? [y/N] "
+  local response
+  read -r response
+  if [[ ! "$response" =~ ^[Yy]$ ]]; then
+    _svc_log "aborted."
+    return 1
+  fi
+
+  local db_name
+  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
+  local base_url
+  base_url=$(echo "${DATABASE_URL}" | sed -E 's/\/[^/]+$/\/postgres/')
+
+  psql "${base_url}" -c "DROP DATABASE IF EXISTS ${db_name} (FORCE);" >/dev/null 2>&1
+  psql "${base_url}" -c "CREATE DATABASE ${db_name};" >/dev/null 2>&1
+
+  if gunzip -c "$backup_file" | psql "${DATABASE_URL}" >/dev/null 2>&1; then
+    _svc_ok "restore complete."
+  else
+    _svc_die "restore failed."
+  fi
+}
+
 cmd_query() {
-  _svc_die "query command not yet implemented (Z-062)"
+  local term="${1:-}"
+  if [[ -z "$term" ]]; then
+    _svc_die "usage: zdots-ctx query <search-term>"
+  fi
+
+  _require_psql
+  
+  _svc_log "searching methodologies..."
+  psql "${DATABASE_URL}" -c "
+    SELECT slug, title 
+    FROM methodologies 
+    WHERE to_tsvector('english', title || ' ' || content) @@ plainto_tsquery('english', '${term}')
+    OR title ILIKE '%${term}%'
+    OR content ILIKE '%${term}%';
+  "
+
+  _svc_log "searching lessons..."
+  psql "${DATABASE_URL}" -c "
+    SELECT created_at::date as date, content 
+    FROM lessons 
+    WHERE to_tsvector('english', content || ' ' || coalesce(context, '')) @@ plainto_tsquery('english', '${term}')
+    OR content ILIKE '%${term}%'
+    OR context ILIKE '%${term}%';
+  "
 }
 
 cmd_capture() {
@@ -121,9 +266,13 @@ cmd_hydrate() {
 
 case "${1:-}" in
   status)   shift; cmd_status "${@}" ;;
+  init-db)  shift; cmd_init_db "${@}" ;;
+  migrate)  shift; cmd_migrate "${@}" ;;
   query)    shift; cmd_query "${@}" ;;
   capture)  shift; cmd_capture "${@}" ;;
   hydrate)  shift; cmd_hydrate "${@}" ;;
+  backup)   shift; cmd_backup "${@}" ;;
+  restore)  shift; cmd_restore "${@}" ;;
   -h|--help) usage; exit 0 ;;
   "")       usage >&2; exit 1 ;;
   *)        printf 'zdots-ctx: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
