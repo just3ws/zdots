@@ -40,6 +40,7 @@ Intelligence Suite Interface:
   query     [t] Search for methodology or lessons related to [t]
   capture   Distill current session (traces/history) into a lesson
   hydrate   Output methodologies for the current task (AI-targeted)
+  seed      Import existing standards from ~/my/standards
   backup    Create a timestamped SQL dump in ~/my/backups
   restore [f] Restore the database from dump file [f]
 
@@ -111,14 +112,14 @@ cmd_status() {
 
   if [[ "$connected" == "true" ]]; then
     _svc_ok "connected to database: ${db_name}"
-    printf '%-16s %s\n' "methodologies:" "$m_count"
-    printf '%-16s %s\n' "lessons:"       "$l_count"
-    printf '%-16s %s\n' "residue:"       "$r_count"
-    printf '%-16s %s\n' "my_root:"       "$MY_ROOT"
+    printf -- '%-16s %s\n' "methodologies:" "$m_count"
+    printf -- '%-16s %s\n' "lessons:"       "$l_count"
+    printf -- '%-16s %s\n' "residue:"       "$r_count"
+    printf -- '%-16s %s\n' "my_root:"       "$MY_ROOT"
     return 0
   else
     _svc_warn "failed to connect to database at ${DATABASE_URL:-none}"
-    printf '%-16s %s\n' "my_root:"       "$MY_ROOT"
+    printf -- '%-16s %s\n' "my_root:"       "$MY_ROOT"
     return 1
   fi
 }
@@ -253,15 +254,191 @@ cmd_query() {
 }
 
 cmd_capture() {
-  _svc_die "capture command not yet implemented (Z-064)"
+  local sid="${ZDOTS_SESSION_ID:-}"
+  if [[ -z "$sid" ]]; then
+    _svc_die "ZDOTS_SESSION_ID not set. Session capture requires an active observable shell."
+  fi
+
+  _svc_log "capturing residue for session: ${sid}..."
+
+  # 1. Extract recent history (last 50 commands)
+  local history_snippet
+  history_snippet=$(tail -n 50 "${HISTFILE:-$HOME/.zsh_history}" 2>/dev/null | sed 's/^: [0-9]*:[0-9];//' || echo "history not available")
+
+  # 2. Extract traces for this session
+  local trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
+  local trace_snippet="no traces found"
+  if [[ -f "$trace_file" ]]; then
+    trace_snippet=$(grep "\"sid\":\"${sid}\"" "$trace_file" | tail -n 100 || echo "no traces found")
+  fi
+
+  # 3. Construct the distillation prompt
+  local prompt
+  prompt=$(cat <<EOF
+You are the Distiller for the Cerebral Control Plane.
+Analyze the following shell session context and produce a structured "Lesson Learnt" or "Session Residue" summary.
+
+SESSION_ID: ${sid}
+
+RECENT_HISTORY:
+${history_snippet}
+
+SESSION_TRACES (Last 100):
+${trace_snippet}
+
+INSTRUCTIONS:
+1. Identify the primary goal of this session.
+2. Summarize the technical challenges encountered (especially those reflected in trace errors).
+3. State the final result (did it succeed? what was fixed?).
+4. Output the result as a single concise paragraph for a "Lesson" and a few bullet points for "Residue".
+5. Use the following JSON format:
+{
+  "lesson": "Concise paragraph summarizing the key learning or fix.",
+  "summary": "High-level summary of work done.",
+  "intent": "What the user was trying to achieve.",
+  "result": "Final outcome.",
+  "tags": ["tag1", "tag2"]
+}
+EOF
+)
+
+  _svc_log "distilling with local AI..."
+  local distillation
+  if ! distillation=$(echo "$prompt" | ai-query --mode raw 2>/dev/null); then
+    _svc_die "AI distillation failed. Ensure llama-server is running."
+  fi
+
+  # Clean up the AI output to ensure it's valid JSON
+  distillation=$(echo "$distillation" | sed -n '/{/,/}/p')
+
+  if [[ -z "$distillation" ]]; then
+    _svc_die "AI returned empty or invalid response."
+  fi
+
+  if [[ "${1:-}" == "--json" ]]; then
+    echo "$distillation"
+    return
+  fi
+
+  # Propose the lesson to the user
+  local lesson intent result
+  lesson=$(echo "$distillation" | jq -r '.lesson' 2>/dev/null || echo "error parsing lesson")
+  intent=$(echo "$distillation" | jq -r '.intent' 2>/dev/null || echo "error parsing intent")
+  result=$(echo "$distillation" | jq -r '.result' 2>/dev/null || echo "error parsing result")
+
+  printf -- "\n--- PROPOSED SESSION RESIDUE ---\n"
+  printf "INTENT: %s\n" "$intent"
+  printf "RESULT: %s\n" "$result"
+  printf "LESSON: %s\n" "$lesson"
+  printf -- "---------------------------------\n\n"
+
+  printf "Save this residue to the intelligence suite? [y/N] "
+  local response
+  read -r response
+  if [[ "$response" =~ ^[Yy]$ ]]; then
+    _require_psql
+    local tags; tags=$(echo "$distillation" | jq -r '.tags | join(",")' 2>/dev/null || echo "")
+    
+    # Insert into session_residue
+    psql "${DATABASE_URL}" -c "
+      INSERT INTO session_residue (trace_id, intent, result, summary, metadata)
+      VALUES ('${sid}', '${intent//\'/''}', '${result//\'/''}', '${lesson//\'/''}', '${distillation//\'/''}'::jsonb)
+      ON CONFLICT (trace_id) DO UPDATE 
+      SET intent = EXCLUDED.intent, result = EXCLUDED.result, summary = EXCLUDED.summary, metadata = EXCLUDED.metadata;
+    " >/dev/null
+
+    # Also insert the lesson
+    psql "${DATABASE_URL}" -c "
+      INSERT INTO lessons (content, context, tags, source_trace_id)
+      VALUES ('${lesson//\'/''}', '${intent//\'/''}', string_to_array('${tags}', ','), '${sid}');
+    " >/dev/null
+
+    _svc_ok "residue and lesson saved to database."
+  else
+    _svc_log "capture aborted."
+  fi
 }
 
 cmd_hydrate() {
-  _svc_die "hydrate command not yet implemented (Z-061 phase 2)"
+  local tag="${1:-}"
+  local json=false
+  [[ "${1:-}" == "--json" || "${2:-}" == "--json" ]] && json=true
+
+  _require_psql
+
+  _svc_log "hydrating AI context..."
+
+  # Fetch methodologies
+  local methodologies
+  if [[ -n "$tag" && "$tag" != "--json" ]]; then
+    methodologies=$(psql "${DATABASE_URL}" -tAc "SELECT title, content FROM methodologies WHERE '$tag' = ANY(tags);" 2>/dev/null)
+  else
+    methodologies=$(psql "${DATABASE_URL}" -tAc "SELECT title, content FROM methodologies LIMIT 5;" 2>/dev/null)
+  fi
+
+  # Fetch recent lessons
+  local lessons
+  lessons=$(psql "${DATABASE_URL}" -tAc "SELECT context, content FROM lessons ORDER BY created_at DESC LIMIT 5;" 2>/dev/null)
+
+  if $json; then
+    # We use a simple JSON structure for AI tool parsing
+    psql "${DATABASE_URL}" -tAc "
+      SELECT json_build_object(
+        'methodologies', (SELECT json_agg(m) FROM (SELECT title, content, tags FROM methodologies) m),
+        'recent_lessons', (SELECT json_agg(l) FROM (SELECT context, content, tags FROM lessons ORDER BY created_at DESC LIMIT 10) l)
+      );
+    "
+    return
+  fi
+
+  # Text output (AI-targeted markdown)
+  printf "The following context has been retrieved from the Cerebral Control Plane:\n\n"
+  printf "### PREFERRED METHODOLOGIES\n"
+  if [[ -n "$methodologies" ]]; then
+    echo "$methodologies" | while IFS='|' read -r title content; do
+      printf "#### %s\n%s\n\n" "$title" "$content"
+    done
+  else
+    printf "None found.\n\n"
+  fi
+
+  printf "### RECENT LESSONS LEARNT\n"
+  if [[ -n "$lessons" ]]; then
+    echo "$lessons" | while IFS='|' read -r context content; do
+      printf "* **Context**: %s\n  **Lesson**: %s\n\n" "$context" "$content"
+    done
+  else
+    printf "None found.\n\n"
+  fi
 }
 
 # ---------------------------------------------------------------------------
-# Dispatch
+cmd_seed() {
+  _require_psql
+  local standards_dir="${MY_ROOT}/standards"
+  if [[ ! -d "$standards_dir" ]]; then
+    _svc_die "standards directory not found: $standards_dir"
+  fi
+
+  _svc_log "importing standards from ${standards_dir}..."
+
+  for f in "${standards_dir}"/*.md; do
+    [[ -e "$f" ]] || continue
+    local slug title content
+    slug=$(basename "$f" .md | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+    title=$(head -n 1 "$f" | sed 's/^# //')
+    content=$(cat "$f")
+
+    _svc_log "seeding: ${slug}..."
+    psql "${DATABASE_URL}" -c "
+      INSERT INTO methodologies (slug, title, content)
+      VALUES ('${slug}', '${title//\'/''}', '${content//\'/''}')
+      ON CONFLICT (slug) DO UPDATE 
+      SET title = EXCLUDED.title, content = EXCLUDED.content, updated_at = CURRENT_TIMESTAMP;
+    " >/dev/null
+  done
+  _svc_ok "seeding complete."
+}
 # ---------------------------------------------------------------------------
 
 case "${1:-}" in
@@ -271,6 +448,7 @@ case "${1:-}" in
   query)    shift; cmd_query "${@}" ;;
   capture)  shift; cmd_capture "${@}" ;;
   hydrate)  shift; cmd_hydrate "${@}" ;;
+  seed)     shift; cmd_seed "${@}" ;;
   backup)   shift; cmd_backup "${@}" ;;
   restore)  shift; cmd_restore "${@}" ;;
   -h|--help) usage; exit 0 ;;
