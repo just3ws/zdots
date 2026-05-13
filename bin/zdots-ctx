@@ -46,6 +46,7 @@ Intelligence Suite Interface:
   enqueue <type> <payload_json> [priority]
   jobs      List pending and recent jobs
   worker    [--type T] Run a worker to process queued jobs
+  clear-stale-jobs Reset 'running' jobs that have timed out
   backup    Create a timestamped SQL dump in ~/my/backups
   restore [f] Restore the database from dump file [f]
 
@@ -598,11 +599,19 @@ cmd_worker() {
         if [[ -z "$url" || "$url" == "null" ]]; then
           error="missing url in payload"
         else
-          # Use yt-transcribe for URLs
-          if "${ZDOTDIR}/recipes/yt-transcribe" "$url"; then
+          # Use yt-transcribe for URLs with a 1-hour timeout safety
+          local timeout_cmd=""
+          if command -v timeout >/dev/null 2>&1; then
+            timeout_cmd="timeout 3600"
+          elif command -v gtimeout >/dev/null 2>&1; then
+            timeout_cmd="gtimeout 3600"
+          fi
+
+          _svc_log "executing: ${timeout_cmd:-} yt-transcribe ${url}"
+          if ${timeout_cmd:-} "${ZDOTDIR}/recipes/yt-transcribe" "$url"; then
             success=true
           else
-            error="yt-transcribe failed"
+            error="yt-transcribe failed or timed out"
           fi
         fi
         ;;
@@ -628,6 +637,23 @@ cmd_worker() {
   done
 }
 
+cmd_clear_stale_jobs() {
+  _require_psql
+  local timeout_interval="${1:-2 hours}"
+  
+  _svc_log "clearing jobs stuck in 'running' for more than ${timeout_interval}..."
+  
+  psql "${DATABASE_URL}" -c "
+    UPDATE jobs 
+    SET status = 'failed', 
+        error_message = 'Job timed out or worker crashed (stale for ${timeout_interval})',
+        updated_at = CURRENT_TIMESTAMP 
+    WHERE status = 'running' 
+    AND updated_at < CURRENT_TIMESTAMP - INTERVAL '${timeout_interval}';
+  "
+  _svc_ok "stale jobs updated to 'failed'."
+}
+
 # ---------------------------------------------------------------------------
 
 
@@ -644,6 +670,7 @@ case "${1:-}" in
   enqueue)         shift; cmd_enqueue "${@}" ;;
   jobs)            shift; cmd_jobs "${@}" ;;
   worker)          shift; cmd_worker "${@}" ;;
+  clear-stale-jobs) shift; cmd_clear_stale_jobs "${@}" ;;
   backup)   shift; cmd_backup "${@}" ;;
   restore)  shift; cmd_restore "${@}" ;;
   -h|--help) usage; exit 0 ;;
