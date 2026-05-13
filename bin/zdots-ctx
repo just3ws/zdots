@@ -540,12 +540,12 @@ cmd_worker() {
   [[ -n "$type_filter" ]] && _svc_log "filtering by type: ${type_filter}"
 
   while true; do
-    # Claim a job (atomic)
+    # Claim a job (atomic). We use -q (quiet) and head -n 1 to avoid "UPDATE 1" status noise.
     local job
     local where_clause="status = 'pending'"
     [[ -n "$type_filter" ]] && where_clause="${where_clause} AND type = '${type_filter}'"
 
-    job=$(psql "${DATABASE_URL}" -tAc "
+    job=$(psql "${DATABASE_URL}" -tAcq "
       UPDATE jobs 
       SET status = 'running', updated_at = CURRENT_TIMESTAMP, trace_id = '${ZDOTS_TRACE_ID:-}'
       WHERE id = (
@@ -556,7 +556,7 @@ cmd_worker() {
         LIMIT 1
       )
       RETURNING id, type, payload;
-    " 2>/dev/null || true)
+    " 2>/dev/null | head -n 1 || true)
 
     if [[ -z "$job" ]]; then
       # No jobs, sleep and retry
