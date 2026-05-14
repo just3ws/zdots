@@ -98,6 +98,17 @@ TOOLS = [
     name: "ctx_jobs",
     description: "List pending and recent jobs in the side-effect broker.",
     inputSchema: { type: "object", properties: {} }
+  },
+  {
+    name: "ctx_semantic_search",
+    description: "Perform a semantic (vector-similarity) search over methodologies and lessons.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        term: { type: "string", description: "Search term or topic" }
+      },
+      required: ["term"]
+    }
   }
 ].freeze
 
@@ -157,6 +168,12 @@ def tool_ctx_capture(_args)
   res[:exit_code] == 0 ? res[:stdout] : "Error capturing residue: #{res[:stderr]}\nNote: This tool requires a valid ZDOTS_SESSION_ID."
 end
 
+def tool_ctx_semantic_search(args)
+  term = args["term"]
+  res = run_ctx("query", "--semantic", term)
+  res[:stdout] + res[:stderr]
+end
+
 def tool_ctx_enqueue(args)
   type = args["type"]
   payload_json = args["payload_json"]
@@ -194,6 +211,7 @@ def call_tool(name, args)
   when "ctx_add_methodology" then tool_ctx_add_methodology(args)
   when "ctx_add_lesson"      then tool_ctx_add_lesson(args)
   when "ctx_capture"         then tool_ctx_capture(args)
+  when "ctx_semantic_search" then tool_ctx_semantic_search(args)
   when "ctx_enqueue"         then tool_ctx_enqueue(args)
   when "ctx_jobs"            then tool_ctx_jobs(args)
   else raise "Unknown tool: #{name}"
