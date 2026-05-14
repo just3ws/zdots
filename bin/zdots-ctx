@@ -37,9 +37,9 @@ Intelligence Suite Interface:
   status    Check connection and report database metadata
   init-db   Create the database and apply initial schema
   migrate   Apply pending SQL migrations from etc/db/migrations
-  query     [t] Search for methodology or lessons related to [t]
+  query [--semantic] <t>  Search methodologies or lessons for <t>
   capture   Distill current session (traces/history) into a lesson
-  hydrate   Output methodologies for the current task (AI-targeted)
+  hydrate [tag] Get semantically relevant context for AI tasks
   seed      Import existing standards from ~/my/standards
   add-methodology <slug> <title> <content> [tags...]
   add-lesson <content> [context] [tags...]
@@ -239,30 +239,73 @@ cmd_restore() {
 }
 
 cmd_query() {
+  local semantic=false
+  if [[ "${1:-}" == "--semantic" ]]; then
+    semantic=true
+    shift
+  fi
+
   local term="${1:-}"
   if [[ -z "$term" ]]; then
-    _svc_die "usage: zdots-ctx query <search-term>"
+    _svc_die "usage: zdots-ctx query [--semantic] <search-term>"
   fi
 
   _require_psql
   
-  _svc_log "searching methodologies..."
-  psql "${DATABASE_URL}" -X -t -A -q -c "
-    SELECT slug, title 
-    FROM methodologies 
-    WHERE to_tsvector('english', title || ' ' || content) @@ plainto_tsquery('english', '${term}')
-    OR title ILIKE '%${term}%'
-    OR content ILIKE '%${term}%';
-  "
+  if $semantic; then
+    _svc_log "generating embedding for query: '${term}'..."
+    local tmp_json; tmp_json=$(mktemp)
+    jq -n --arg m "local" --arg i "$term" '{model: $m, input: $i}' > "$tmp_json"
+    
+    local embedding
+    embedding=$(curl -sf "http://127.0.0.1:8080/v1/embeddings" \
+      -H "Content-Type: application/json" \
+      -d @"$tmp_json" \
+      | jq -c '.data[0].embedding' 2>/dev/null)
+    
+    rm -f "$tmp_json"
 
-  _svc_log "searching lessons..."
-  psql "${DATABASE_URL}" -X -t -A -q -c "
-    SELECT created_at::date as date, content 
-    FROM lessons 
-    WHERE to_tsvector('english', content || ' ' || coalesce(context, '')) @@ plainto_tsquery('english', '${term}')
-    OR content ILIKE '%${term}%'
-    OR context ILIKE '%${term}%';
-  "
+    if [[ -z "$embedding" || "$embedding" == "null" ]]; then
+      _svc_die "failed to generate embedding for semantic search."
+    fi
+
+    _svc_log "performing semantic search..."
+    printf "\n### SEMANTIC MATCHES: METHODOLOGIES\n"
+    psql "${DATABASE_URL}" -X -t -A -q -c "
+      SELECT slug, title, (1 - (embedding <=> '${embedding}')) as similarity
+      FROM methodologies 
+      WHERE embedding IS NOT NULL
+      ORDER BY embedding <=> '${embedding}' 
+      LIMIT 5;
+    " | column -t -s '|'
+
+    printf "\n### SEMANTIC MATCHES: LESSONS\n"
+    psql "${DATABASE_URL}" -X -t -A -q -c "
+      SELECT created_at::date, (1 - (embedding <=> '${embedding}')) as similarity, content
+      FROM lessons 
+      WHERE embedding IS NOT NULL
+      ORDER BY embedding <=> '${embedding}' 
+      LIMIT 5;
+    " | column -t -s '|'
+  else
+    _svc_log "searching methodologies (text)..."
+    psql "${DATABASE_URL}" -X -t -A -q -c "
+      SELECT slug, title 
+      FROM methodologies 
+      WHERE to_tsvector('english', title || ' ' || content) @@ plainto_tsquery('english', '${term}')
+      OR title ILIKE '%${term}%'
+      OR content ILIKE '%${term}%';
+    " | column -t -s '|'
+
+    _svc_log "searching lessons (text)..."
+    psql "${DATABASE_URL}" -X -t -A -q -c "
+      SELECT created_at::date as date, content 
+      FROM lessons 
+      WHERE to_tsvector('english', content || ' ' || coalesce(context, '')) @@ plainto_tsquery('english', '${term}')
+      OR content ILIKE '%${term}%'
+      OR context ILIKE '%${term}%';
+    " | column -t -s '|'
+  fi
 }
 
 cmd_capture() {
@@ -389,24 +432,49 @@ cmd_hydrate() {
 
   _svc_log "hydrating AI context..."
 
-  # Fetch methodologies
+  # Fetch methodologies by tag or limit
   local methodologies
   if [[ -n "$tag" && "$tag" != "--json" ]]; then
-    methodologies=$(psql "${DATABASE_URL}" -tAc "SELECT title, content FROM methodologies WHERE '$tag' = ANY(tags);" 2>/dev/null)
+    methodologies=$(psql "${DATABASE_URL}" -X -t -A -q "SELECT title, content FROM methodologies WHERE '$tag' = ANY(tags) OR slug ILIKE '%$tag%';" 2>/dev/null)
   else
-    methodologies=$(psql "${DATABASE_URL}" -tAc "SELECT title, content FROM methodologies LIMIT 5;" 2>/dev/null)
+    methodologies=$(psql "${DATABASE_URL}" -X -t -A -q "SELECT title, content FROM methodologies ORDER BY updated_at DESC LIMIT 5;" 2>/dev/null)
   fi
 
-  # Fetch recent lessons
+  # Fetch semantically relevant lessons if we have a tag/topic
   local lessons
-  lessons=$(psql "${DATABASE_URL}" -tAc "SELECT context, content FROM lessons ORDER BY created_at DESC LIMIT 5;" 2>/dev/null)
+  if [[ -n "$tag" && "$tag" != "--json" ]]; then
+    _svc_log "fetching semantically relevant lessons for: ${tag}..."
+    
+    local tmp_json; tmp_json=$(mktemp)
+    jq -n --arg m "local" --arg i "$tag" '{model: $m, input: $i}' > "$tmp_json"
+    local embedding
+    embedding=$(curl -sf "http://127.0.0.1:8080/v1/embeddings" \
+      -H "Content-Type: application/json" \
+      -d @"$tmp_json" \
+      | jq -c '.data[0].embedding' 2>/dev/null)
+    rm -f "$tmp_json"
+
+    if [[ -n "$embedding" && "$embedding" != "null" ]]; then
+      lessons=$(psql "${DATABASE_URL}" -X -t -A -q "
+        SELECT context, content FROM lessons 
+        WHERE embedding IS NOT NULL
+        ORDER BY embedding <=> '${embedding}' 
+        LIMIT 5;
+      " 2>/dev/null)
+    fi
+  fi
+
+  # Fallback to recent lessons if no semantic match or no tag
+  if [[ -z "$lessons" ]]; then
+    lessons=$(psql "${DATABASE_URL}" -X -t -A -q "SELECT context, content FROM lessons ORDER BY created_at DESC LIMIT 5;" 2>/dev/null)
+  fi
 
   if $json; then
     # We use a simple JSON structure for AI tool parsing
     psql "${DATABASE_URL}" -tAc "
       SELECT json_build_object(
-        'methodologies', (SELECT json_agg(m) FROM (SELECT title, content, tags FROM methodologies) m),
-        'recent_lessons', (SELECT json_agg(l) FROM (SELECT context, content, tags FROM lessons ORDER BY created_at DESC LIMIT 10) l)
+        'methodologies', (SELECT json_agg(m) FROM (SELECT title, content, tags FROM methodologies ORDER BY updated_at DESC LIMIT 10) m),
+        'relevant_lessons', (SELECT json_agg(l) FROM (SELECT context, content, tags FROM lessons ORDER BY created_at DESC LIMIT 10) l)
       );
     "
     return
@@ -423,7 +491,7 @@ cmd_hydrate() {
     printf "None found.\n\n"
   fi
 
-  printf "### RECENT LESSONS LEARNT\n"
+  printf "### RECENT/RELEVANT LESSONS LEARNT\n"
   if [[ -n "$lessons" ]]; then
     echo "$lessons" | while IFS='|' read -r context content; do
       printf "* **Context**: %s\n  **Lesson**: %s\n\n" "$context" "$content"
