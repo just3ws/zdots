@@ -27,6 +27,7 @@ Zdots is built on a "Deepened" architectural philosophy: a small number of seman
 | **Shell Brain** | Structured PostgreSQL storage for methodologies and lessons. | `zdots-ctx`, `ctx-mcp` |
 | **System Observability** | Every shell command emits an OTel span to a local **LGTM** stack. | `bin/otel-collector`, `env.sh` |
 | **Declarative Lifecycle** | Services define specs; a unified engine handles registration. | `lib/lifecycle.bash` |
+| **Sentient Workbench** | Task-driven orchestration, trace propagation, and UX awareness. | `ztask`, `gemini-invoke` |
 | **Semantic Config** | Centralized Registry resolves derived endpoints from YAML. | `lib/metadata.bash` |
 | **Asset Management** | Unified store for downloading and caching AI model assets. | `lib/model-store.bash` |
 
@@ -154,6 +155,8 @@ All components are standalone executables in `bin/`.
 |---|---|
 | `zdots-ctl` | Platform orchestrator: `up/down/reset/install/check/status` |
 | `zdots-ctx` | Intelligence suite manager: `query/capture/hydrate/backup/seed` |
+| `ztask` | Task-driven orchestrator: `start/done/stop/status` |
+| `gemini-invoke` | Observable agent bridge (aliased to `gm`). |
 | `llama-ctl` | Manages local LLM lifecycle, profiles, and hardware tuning. |
 | `whisper-ctl` | Manages local transcription engine and model management. |
 | `ai-query` | Secure, normalized AI inference from any shell context. |
@@ -164,6 +167,13 @@ All components are standalone executables in `bin/`.
 ---
 
 ## 5. High-Value Superpowers
+
+### Sentient Workbench
+The shell is your prompt interface, providing deep context and emotional intelligence.
+
+*   **Collaborative Hand-off**: Every agent session (via `gm`) is linked to the shell trace.
+*   **Task Hydration**: `ztask start <id>` morphs the environment to match your intent.
+*   **Cognitive Load Awareness**: Detects frustration bursts and triggers **Calm Mode**.
 
 ### Autonomous Shell Brain (`zdots-ctx`)
 Your shell learns as you work, distilling complex sessions into structured knowledge.
