@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "../../zdots"
-require_relative "job"
+
+
 
 job = Zdots::Models::Job.first
 if job
