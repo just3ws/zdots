@@ -4,13 +4,12 @@ This changelog summarizes the historical evolution of this repository from exist
 
 ## May 2026 - SOTA AI Upgrade
 
-- Upgraded local inference stack to May 2026 State-of-the-Art models (Qwen 2.5 Coder, DeepSeek V3, Nomic Embed v2 MoE).
-- Integrated `whisper.cpp` for high-performance local audio transcription via `whisper-ctl`.
-- Added `recipes/transcribe` for automated transcription + AI summarization.
-- Removed legacy Ollama integration to streamline the local AI stack.
-- Enhanced `llama-ctl` to support authenticated downloads via `HUGGINGFACE_TOKEN`.
-- Optimized Aider for local SOTA with `architect` mode and low-load `laid` command.
-- Updated documentation and validation suites for new model capabilities.
+- Integrated Taoism, Zen, Agile, and Software Craftsmanship manifestos into `GEMINI.md` as foundational architectural values.
+- Implemented `DocsSync` pipeline for `GEMINI.md` to ensure automatic alignment with session residues.
+- Added baseline database migration for intelligence suite.
+- Integrated character-based heuristics (Schrute, Costanza, Malone, et al.) into global memory (local).
+- Fixed: set explicit migration table (`zdots_schema_migrations`) in `zdots-migrator` to prevent collision.
+
 
 ## 2026 (36 commits) - Hardening + Modernization
 
