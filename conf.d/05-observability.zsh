@@ -18,11 +18,11 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
   autoload -Uz add-zsh-hook
   add-zsh-hook chpwd _zdots_trace_chpwd
 
-  # Hook: Command Result (Post-execution: Error Tracing)
+  # Hook: Command Result (Post-execution: Error Tracing + Cognitive Load)
   _zdots_trace_precmd() {
     local last_status=$?
-
-    # If the last command failed, send an error span
+    
+    # 1. Error Tracing
     if [[ $last_status -ne 0 ]]; then
       if [[ $_ZDOTS_OTEL_CLI_AVAILABLE -eq 1 ]]; then
         (
@@ -39,7 +39,21 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
       fi
       zdots_trace_log "error" "status=$last_status, cmd=$ZDOTS_LAST_COMMAND"
     fi
+
+    # 2. Cognitive Load Awareness (Frustration Detection)
+    # Periodically check error velocity to trigger Calm Mode assistance.
+    # We use a static counter to avoid checking every single command.
+    (( _ZDOTS_CMD_COUNT++ ))
+    if (( _ZDOTS_CMD_COUNT % 5 == 0 )); then
+      if [[ -r "$ZDOTDIR/lib/cognitive-load.bash" ]]; then
+        source "$ZDOTDIR/lib/cognitive-load.bash"
+        if zdots_check_cognitive_load 3 5; then
+          zdots_calm_mode
+        fi
+      fi
+    fi
   }
+  typeset -gi _ZDOTS_CMD_COUNT=0
   add-zsh-hook precmd _zdots_trace_precmd
 
   # Hook: Command Execution (Pre-execution: Rotate Span ID)

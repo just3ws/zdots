@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# bin/ztask — Task-driven platform orchestrator.
+#
+# RATIONALE:
+# Implements "Predictive Pre-fetching" (Z-057).
+# Bridges the backlog with the live shell environment.
+
+set -eo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+# shellcheck source=lib/lifecycle.bash
+source "${ZDOTDIR}/lib/lifecycle.bash"
+
+# 1. Ensure environment is loaded (no set -u to avoid .zdots.env errors)
+[[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
+
+TASKS_DIR="${ZDOTDIR}/backlog/tasks"
+ACTIVE_TASK_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task"
+
+usage() {
+  cat <<EOF
+Usage: ztask <command> [id]
+
+Task-Driven Environment:
+  start <id>  Activate task: update status, start services, hydrate context
+  done        Complete current task: mark done and run capture
+  status      Show current active task
+  stop        Deactivate environment (clear active task)
+
+EOF
+}
+
+_find_task_file() {
+  local id="$1"
+  local slug; slug=$(echo "$id" | tr '[:upper:]' '[:lower:]')
+  # Find file matching "ID - *"
+  ls "$TASKS_DIR"/${slug}* 2>/dev/null | head -n 1
+}
+
+cmd_start() {
+  local id="${1:-}"
+  if [[ -z "$id" ]]; then
+    _svc_die "usage: ztask start <task-id> (e.g. z-054)"
+  fi
+
+  local task_file; task_file=$(_find_task_file "$id")
+  if [[ -z "$task_file" || ! -f "$task_file" ]]; then
+    _svc_die "task not found: $id"
+  fi
+
+  _svc_log "activating task: $id..."
+
+  # 1. Update task status in markdown
+  sed -i '' 's/Status: .*/Status: ◒ In Progress/' "$task_file"
+
+  # 2. Ensure services are up
+  if [[ -x "${ZDOTDIR}/bin/zdots-ctl" ]]; then
+    "${ZDOTDIR}/bin/zdots-ctl" up >/dev/null
+  fi
+
+  # 3. Hydrate context
+  if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]]; then
+    _svc_log "hydrating task context..."
+    "${ZDOTDIR}/bin/zdots-ctx" hydrate "$id"
+  fi
+
+  # 4. Save active task state
+  mkdir -p "$(dirname "$ACTIVE_TASK_FILE")"
+  echo "$id" > "$ACTIVE_TASK_FILE"
+  
+  _svc_ok "task $id active. Shell environment hydrated."
+}
+
+cmd_status() {
+  if [[ -f "$ACTIVE_TASK_FILE" ]]; then
+    local id; id=$(cat "$ACTIVE_TASK_FILE")
+    _svc_ok "active task: $id"
+  else
+    _svc_log "no active task."
+  fi
+}
+
+cmd_stop() {
+  if [[ -f "$ACTIVE_TASK_FILE" ]]; then
+    local id; id=$(cat "$ACTIVE_TASK_FILE")
+    rm -f "$ACTIVE_TASK_FILE"
+    _svc_log "task $id deactivated."
+  else
+    _svc_log "no active task to stop."
+  fi
+}
+
+cmd_done() {
+  if [[ ! -f "$ACTIVE_TASK_FILE" ]]; then
+    _svc_die "no active task found. run 'ztask start <id>' first."
+  fi
+
+  local id; id=$(cat "$ACTIVE_TASK_FILE")
+  local task_file; task_file=$(_find_task_file "$id")
+  
+  _svc_log "completing task $id..."
+
+  # 1. Update status to Done
+  if [[ -n "$task_file" ]]; then
+    sed -i '' 's/Status: .*/Status: ✔ Done/' "$task_file"
+  fi
+
+  # 2. Capture residue
+  if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]]; then
+    _svc_log "triggering session residue capture..."
+    "${ZDOTDIR}/bin/zdots-ctx" capture
+  fi
+
+  rm -f "$ACTIVE_TASK_FILE"
+  _svc_ok "task $id completed."
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
+case "${1:-}" in
+  start)    shift; cmd_start "${@}" ;;
+  done)     shift; cmd_done "${@}" ;;
+  status)   shift; cmd_status "${@}" ;;
+  stop)     shift; cmd_stop "${@}" ;;
+  -h|--help) usage; exit 0 ;;
+  *)        usage >&2; exit 1 ;;
+esac

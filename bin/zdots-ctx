@@ -15,7 +15,7 @@
 #   backup    Create a timestamped SQL dump in ~/my/backups
 #   restore [f] Restore the database from dump file [f]
 
-set -euo pipefail
+set -eo pipefail
 
 # SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
 trap '' PIPE
@@ -25,9 +25,12 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 # shellcheck source=lib/lifecycle.bash
 source "${ZDOTDIR}/lib/lifecycle.bash"
 
+# 1. Ensure basics (handle unbound variables for complex environment files)
+[[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
+
 SVC_NAME="zdots-ctx"
 MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
-# DATABASE_URL is expected from env.sh / .zdots.env
+DB_URL="${DATABASE_URL:-}"
 
 usage() {
   cat <<EOF
@@ -50,6 +53,7 @@ Intelligence Suite Interface:
   triage    Review and resolve permanently failed 'dead' jobs
   clear-stale-jobs Reset 'running' jobs that have timed out
   metrics-loop Export queue depth metrics to OTel continuously
+  error-velocity Report count of recent command errors (frustration detector)
   backup    Create a timestamped SQL dump in ~/my/backups
   restore [f] Restore the database from dump file [f]
 
@@ -424,6 +428,7 @@ EOF
 }
 
 cmd_hydrate() {
+  set -x
   local tag="${1:-}"
   local json=false
   [[ "${1:-}" == "--json" || "${2:-}" == "--json" ]] && json=true
@@ -435,9 +440,9 @@ cmd_hydrate() {
   # Fetch methodologies by tag or limit
   local methodologies
   if [[ -n "$tag" && "$tag" != "--json" ]]; then
-    methodologies=$(psql "${DATABASE_URL}" -X -t -A -q "SELECT title, content FROM methodologies WHERE '$tag' = ANY(tags) OR slug ILIKE '%$tag%';" 2>/dev/null)
+    methodologies=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT title, content FROM methodologies WHERE '$tag' = ANY(tags) OR slug ILIKE '%$tag%';" 2>/dev/null)
   else
-    methodologies=$(psql "${DATABASE_URL}" -X -t -A -q "SELECT title, content FROM methodologies ORDER BY updated_at DESC LIMIT 5;" 2>/dev/null)
+    methodologies=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT title, content FROM methodologies ORDER BY updated_at DESC LIMIT 5;" 2>/dev/null)
   fi
 
   # Fetch semantically relevant lessons if we have a tag/topic
@@ -455,7 +460,7 @@ cmd_hydrate() {
     rm -f "$tmp_json"
 
     if [[ -n "$embedding" && "$embedding" != "null" ]]; then
-      lessons=$(psql "${DATABASE_URL}" -X -t -A -q "
+      lessons=$(psql "${DATABASE_URL}" -X -t -A -q -c "
         SELECT context, content FROM lessons 
         WHERE embedding IS NOT NULL
         ORDER BY embedding <=> '${embedding}' 
@@ -466,7 +471,7 @@ cmd_hydrate() {
 
   # Fallback to recent lessons if no semantic match or no tag
   if [[ -z "$lessons" ]]; then
-    lessons=$(psql "${DATABASE_URL}" -X -t -A -q "SELECT context, content FROM lessons ORDER BY created_at DESC LIMIT 5;" 2>/dev/null)
+    lessons=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT context, content FROM lessons ORDER BY created_at DESC LIMIT 5;" 2>/dev/null)
   fi
 
   if $json; then
@@ -960,6 +965,33 @@ EOF
   done
 }
 
+cmd_error_velocity() {
+  set -x
+  local minutes="${1:-5}"
+  local trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
+  
+  if [[ ! -f "$trace_file" ]]; then
+    echo 0
+    return
+  fi
+
+  # Calculate timestamp threshold (e.g., 5 minutes ago)
+  local threshold
+  if date --version >/dev/null 2>&1; then
+    # GNU date (Linux / Homebrew coreutils)
+    threshold=$(date -d "${minutes} minutes ago" "+%Y-%m-%dT%H:%M:%S")
+  else
+    # BSD date (macOS default)
+    threshold=$(date -v-"${minutes}"M "+%Y-%m-%dT%H:%M:%S")
+  fi
+
+  # Count error spans (status.code == 2) within the threshold.
+  local error_count
+  error_count=$(tail -n 100 "$trace_file" | { grep "\"status\":{\"code\":2}" || true; } | awk -v t="$threshold" -F'"ts":"' '{ if ($2 > t) print $0 }' | wc -l | tr -d ' ')
+
+  echo "${error_count:-0}"
+}
+
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
@@ -981,6 +1013,7 @@ case "${1:-}" in
   triage)          shift; cmd_triage "${@}" ;;
   clear-stale-jobs) shift; cmd_clear_stale_jobs "${@}" ;;
   metrics-loop)    shift; cmd_metrics_loop "${@}" ;;
+  error-velocity)  shift; cmd_error_velocity "${@}" ;;
   backup)   shift; cmd_backup "${@}" ;;
   restore)  shift; cmd_restore "${@}" ;;
   -h|--help) usage; exit 0 ;;

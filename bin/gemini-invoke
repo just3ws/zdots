@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# bin/gemini-invoke — Observable entry point for AI agent sessions.
+#
+# RATIONALE:
+# Implements "The Collaborative Hand-off" (Z-056).
+# Ensures that every agent session is linked to the originating shell trace
+# and hydrates the agent's context with platform methodologies.
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+# shellcheck source=lib/lifecycle.bash
+source "${ZDOTDIR}/lib/lifecycle.bash"
+
+# 1. Ensure environment is loaded (Trace IDs, etc.)
+if [[ -z "${ZDOTS_TRACE_ID:-}" ]]; then
+  # Sourcing env.sh in a subshell to get the variables without polluting this script's init
+  # but actually we want them exported.
+  # shellcheck source=env.sh
+  source "${ZDOTDIR}/env.sh"
+fi
+
+# 2. Start the "Agent Session" Span
+START_NS=$(python3 -c "import time; print(int(time.time() * 1e9))" 2>/dev/null || date +%s000000000)
+PARENT_SPAN_ID="${ZDOTS_SPAN_ID:-}"
+AGENT_SPAN_ID=$(zdots_svc_new_span_id)
+
+# Update environment for the agent process
+export ZDOTS_SPAN_ID="$AGENT_SPAN_ID"
+export TRACEPARENT="00-${ZDOTS_TRACE_ID}-${AGENT_SPAN_ID}-01"
+
+_svc_log "starting observable agent session [trace:${ZDOTS_TRACE_ID:0:8}]..."
+
+# 3. Hydrate context if available
+HYDRATION=""
+if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]]; then
+  # If we are in a task-specific mode, we could pass a tag here.
+  HYDRATION=$("${ZDOTDIR}/bin/zdots-ctx" hydrate 2>/dev/null || echo "")
+fi
+
+# 4. Invoke the agent
+# We use 'gemini' as the default command.
+AGENT_CMD="${1:-gemini}"
+shift || true
+
+# Emit start span
+_svc_log "emitting start span [span:${AGENT_SPAN_ID:0:8}]..."
+zdots_svc_emit_span "agent_invocation" "$START_NS" "$START_NS" \
+  "parent_span_id=$PARENT_SPAN_ID" \
+  "agent_command=$AGENT_CMD"
+
+# Run the agent
+# If hydration was successful, we could potentially pipe it or prepend it
+# but for now we just rely on the agent having the MCP tools.
+if ! "$AGENT_CMD" "$@"; then
+  _svc_warn "agent session ended with non-zero exit code."
+fi
+
+# 5. Emit end span
+_svc_log "emitting end span..."
+END_NS=$(python3 -c "import time; print(int(time.time() * 1e9))" 2>/dev/null || date +%s000000000)
+zdots_svc_emit_span "agent_session_complete" "$START_NS" "$END_NS" \
+  "agent_command=$AGENT_CMD"

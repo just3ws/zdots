@@ -363,6 +363,11 @@ aiq_submit() {
   # Caller owns the EXIT trap for cleanup; we remove on error paths below.
 
   local http_code
+  local trace_header=()
+  if [[ -n "${TRACEPARENT:-}" ]]; then
+    trace_header=( -H "traceparent: ${TRACEPARENT}" )
+  fi
+
   http_code=$(jq -nc \
     --arg model  "$model" \
     --arg system "$sys_msg" \
@@ -379,6 +384,7 @@ aiq_submit() {
     | curl -s -o "$tmp_resp" -w '%{http_code}' \
         -X POST "${endpoint}/v1/chat/completions" \
         -H "Content-Type: application/json" \
+        "${trace_header[@]}" \
         --max-time "$timeout" \
         --connect-timeout 5 \
         -d @- 2>/dev/null) || true
