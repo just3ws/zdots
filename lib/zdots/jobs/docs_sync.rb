@@ -9,7 +9,8 @@ module Zdots
       DOCS_TO_MAINTAIN = [
         "README.md",
         "docs/architecture.md",
-        "AGENTS.md"
+        "AGENTS.md",
+        "GEMINI.md"
       ].freeze
 
       def run

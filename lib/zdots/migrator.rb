@@ -15,7 +15,7 @@ module Zdots
       
       puts "zdots-migrator: applying migrations from #{migrations_path}..."
       
-      Sequel::Migrator.run(db, migrations_path, use_transactions: true)
+      Sequel::Migrator.run(db, migrations_path, table: :zdots_schema_migrations, use_transactions: true)
       
       puts "zdots-migrator: [ok] all migrations up to date."
     rescue => e
