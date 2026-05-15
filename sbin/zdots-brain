@@ -1,0 +1,279 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/zdots"
+require_relative "../lib/zdots/models/job"
+require_relative "../lib/zdots/models/lesson"
+require_relative "../lib/zdots/models/methodology"
+require_relative "../lib/zdots/jobs/base"
+require_relative "../lib/zdots/jobs/transcription"
+require_relative "../lib/zdots/jobs/distill"
+require_relative "../lib/zdots/jobs/embed"
+
+require "optparse"
+require "json"
+require "digest"
+require "ruby_llm"
+
+module Zdots
+  class CLI
+    def initialize
+      @options = { format: "text", semantic: false }
+      parse_options
+    end
+
+    def run(args)
+      command = args.shift
+      case command
+      when "status"
+        cmd_status
+      when "worker"
+        cmd_worker(args)
+      when "add-methodology"
+        cmd_add_methodology(args)
+      when "add-lesson"
+        cmd_add_lesson(args)
+      when "query"
+        cmd_query(args)
+      when "enqueue"
+        cmd_enqueue(args)
+      when "jobs"
+        cmd_jobs
+      else
+        puts "Unknown command: #{command}"
+        exit 1
+      end
+    end
+
+    private
+
+    def parse_options
+      @options[:type] = nil
+      OptionParser.new do |opts|
+        opts.on("--json", "Output as JSON") { @options[:format] = "json" }
+        opts.on("--semantic", "Perform semantic search") { @options[:semantic] = true }
+        opts.on("--type TYPE", "Filter by job type") { |t| @options[:type] = t }
+      end.parse!
+    end
+
+    def cmd_worker(args)
+      Zdots.init_otel("zdots-worker")
+      
+      puts "zdots-brain: starting worker..."
+      puts "  filter by type: #{@options[:type]}" if @options[:type]
+      
+      idle_notified = false
+      
+      loop do
+        job = Zdots::Models::Job.claim(@options[:type], ENV["ZDOTS_TRACE_ID"])
+        
+        if job.nil?
+          unless idle_notified
+            puts "zdots-brain: queue empty, waiting for jobs..."
+            idle_notified = true
+          end
+          sleep 5
+          next
+        end
+
+        idle_notified = false
+        pending_count = Zdots::Models::Job.pending_count(@options[:type])
+        
+        puts ""
+        puts "\e[1;34m==> [JOB #{job.id.to_s[0..7]}] Starting #{job.type} (#{pending_count} remaining in queue)\e[0m"
+        
+        begin
+          job_class = case job.type
+                      when "transcription" then Zdots::Jobs::Transcription
+                      when "distill"       then Zdots::Jobs::Distill
+                      when "embed"         then Zdots::Jobs::Embed
+                      else raise "Unknown job type: #{job.type}"
+                      end
+          
+          job_class.perform(job)
+          puts "\e[1;32m==> [JOB #{job.id.to_s[0..7]}] SUCCESS\e[0m"
+        rescue => e
+          puts "\e[1;31m==> [JOB #{job.id.to_s[0..7]}] FAILED: #{e.message}\e[0m"
+          # Error handling is also inside JobBase#perform_with_otel
+        end
+      end
+    end
+
+    def cmd_add_methodology(args)
+      slug = args.shift
+      title = args.shift
+      content = args.shift
+      tags = args
+
+      if slug.nil? || title.nil? || content.nil?
+        puts "usage: zdots-brain add-methodology <slug> <title> <content> [tags...]"
+        exit 1
+      end
+
+      m = Zdots::Models::Methodology.find_or_create(slug: slug)
+      m.update(title: title, content: content, tags: Sequel.pg_array(tags))
+      
+      puts "zdots-brain: methodology '#{slug}' saved."
+      
+      # Enqueue embedding
+      Zdots::Models::Job.create(
+        type: "embed",
+        payload: Sequel.pg_jsonb({ table: "methodologies", id: m.id, text: content }),
+        priority: 10,
+        fingerprint: Digest::MD5.hexdigest("embed-methodologies-#{m.id}")
+      )
+    end
+
+    def cmd_add_lesson(args)
+      content = args.shift
+      context = args.shift
+      tags = args
+
+      if content.nil?
+        puts "usage: zdots-brain add-lesson <content> [context] [tags...]"
+        exit 1
+      end
+
+      l = Zdots::Models::Lesson.create(
+        content: content,
+        context: context,
+        tags: Sequel.pg_array(tags)
+      )
+
+      puts "zdots-brain: lesson saved."
+
+      # Enqueue embedding
+      Zdots::Models::Job.create(
+        type: "embed",
+        payload: Sequel.pg_jsonb({ table: "lessons", id: l.id, text: content }),
+        priority: 10,
+        fingerprint: Digest::MD5.hexdigest("embed-lessons-#{l.id}")
+      )
+    end
+
+    def cmd_query(args)
+      term = args.join(" ")
+      if term.empty?
+        puts "usage: zdots-brain query [--semantic] <search-term>"
+        exit 1
+      end
+
+      if @options[:semantic]
+        puts "zdots-brain: generating embedding for query: '#{term}'..."
+        llm = RubyLLM::Provider::OpenAI.new(
+          api_key: "local",
+          base_url: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080/v1")
+        )
+        embedding = llm.embed(model: "local", input: term).embedding
+        
+        puts "\n### SEMANTIC MATCHES: METHODOLOGIES"
+        matches = Zdots::Models::Methodology.where(Sequel.is_not(:embedding, nil)).order(Sequel.lit("embedding <=> ?", Sequel.pg_array(embedding))).limit(5).all
+        matches.each { |m| puts "#{m.slug.ljust(30)} | #{m.title.ljust(50)}" }
+
+        puts "\n### SEMANTIC MATCHES: LESSONS"
+        matches = Zdots::Models::Lesson.where(Sequel.is_not(:embedding, nil)).order(Sequel.lit("embedding <=> ?", Sequel.pg_array(embedding))).limit(5).all
+        matches.each { |l| puts "#{l.created_at.to_date} | #{l.content[0..100]}..." }
+      else
+        puts "zdots-brain: searching methodologies (text)..."
+        matches = Zdots::Models::Methodology.search(term).limit(5).all
+        matches.each { |m| puts "#{m.slug.ljust(30)} | #{m.title.ljust(50)}" }
+
+        puts "\nzdots-brain: searching lessons (text)..."
+        matches = Zdots::Models::Lesson.search(term).limit(5).all
+        matches.each { |l| puts "#{l.created_at.to_date} | #{l.content[0..100]}..." }
+      end
+    end
+
+    def cmd_enqueue(args)
+      force = false
+      if args.first == "--force"
+        force = true
+        args.shift
+      end
+
+      type = args.shift
+      payload_json = args.shift
+      priority = args.shift || 10
+
+      if type.nil? || payload_json.nil?
+        puts "usage: zdots-brain enqueue [--force] <type> <payload_json> [priority]"
+        exit 1
+      end
+
+      payload = JSON.parse(payload_json)
+      fingerprint = Digest::MD5.hexdigest("#{type}#{payload_json}")
+
+      if force
+        Zdots::Models::Job.dataset.insert_conflict(
+          target: :fingerprint,
+          update: { status: "pending", attempts: 0, error_message: nil, priority: priority, updated_at: Sequel::CURRENT_TIMESTAMP, next_run_at: Sequel::CURRENT_TIMESTAMP }
+        ).insert(type: type, payload: Sequel.pg_jsonb(payload), priority: priority, fingerprint: fingerprint)
+        puts "zdots-brain: job reset to pending."
+      else
+        job_id = Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+          type: type, payload: Sequel.pg_jsonb(payload), priority: priority, fingerprint: fingerprint
+        )
+        if job_id
+          puts "zdots-brain: job enqueued (ID: #{job_id})."
+        else
+          puts "zdots-brain: [!!] job already exists in queue (idempotent skip)."
+        end
+      end
+    rescue JSON::ParserError
+      puts "zdots-brain: [!!] error: invalid JSON payload"
+      exit 1
+    end
+
+    def cmd_jobs
+      jobs = Zdots::Models::Job.order(Sequel.desc(Sequel.case({ {status: 'running'} => 2, {status: 'pending'} => 1 }, 0)), Sequel.desc(:priority), :created_at).limit(20).all
+      
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(jobs.map(&:values))
+      else
+        printf "%-38s | %-13s | %-9s | %-8s | %-8s\n", "ID", "Type", "Status", "Priority", "Attempts"
+        printf "%-38s-+-%-13s-+-%-9s-+-%-8s-+-%-8s\n", "-"*38, "-"*13, "-"*9, "-"*8, "-"*8
+        jobs.each do |j|
+          printf "%-38s | %-13s | %-9s | %-8d | %-8d\n", j.id, j.type, j.status, j.priority, j.attempts
+        end
+      end
+    end
+
+    def cmd_status
+      Zdots.init_otel("zdots-brain")
+      db = Zdots.db
+      connected = true rescue false
+      
+      data = {
+        connected: connected,
+        database: db.opts[:database] || "unknown",
+        counts: {
+          methodologies: Zdots::Models::Methodology.count,
+          lessons: Zdots::Models::Lesson.count,
+          pending_jobs: Zdots::Models::Job.pending_count,
+          dead_jobs: Zdots::Models::Job.dead_count
+        },
+        my_root: ENV["ZDOTS_MY_ROOT"]
+      }
+
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(data)
+      else
+        puts "zdots-brain: connected to database: #{data[:database]}"
+        puts "  methodologies : #{data[:counts][:methodologies]}"
+        puts "  lessons       : #{data[:counts][:lessons]}"
+        puts "  pending jobs  : #{data[:counts][:pending_jobs]}"
+        puts "  dead jobs     : #{data[:counts][:dead_jobs]}"
+        puts "  my_root       : #{data[:my_root]}"
+      end
+    rescue => e
+      if @options[:format] == "json"
+        puts JSON.generate({ connected: false, error: e.message })
+      else
+        puts "zdots-brain: [!!] error: #{e.message}"
+      end
+      exit 1
+    end
+  end
+end
+
+Zdots::CLI.new.run(ARGV)
