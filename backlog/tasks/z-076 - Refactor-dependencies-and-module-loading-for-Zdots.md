@@ -1,10 +1,10 @@
 ---
 id: Z-076
 title: Refactor dependencies and module loading for Zdots
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-05-15 06:22'
-updated_date: '2026-05-15 06:22'
+updated_date: '2026-05-15 06:26'
 labels: []
 dependencies: []
 ---
