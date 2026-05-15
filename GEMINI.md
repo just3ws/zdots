@@ -11,6 +11,15 @@ Gemini-specific instructions for Zdots.
 - Use `tokei` for quick codebase orientation before performing deep analysis.
 - Respect the performance budget (< 0.08s) when suggesting shell modifications.
 
+## Agent Context & Observability
+- **Traceability**: This is an observable session. Every tool call and command is emitted as an OTel span to the local LGTM stack.
+- **System Capabilities**: Use the `capabilities --json` command to verify the environment contract before performing complex operations.
+- **The Trinity Awareness**:
+    - **Anchor (`adots`)**: For root-level system state.
+    - **Platform (`zdots`)**: For shell behavior and real-time observability.
+    - **Brain (`my`)**: For long-term context, standards, and structured memory.
+- **Context Writing**: When making significant architectural decisions or recording project observations, utilize the `~/my/context/` directory (e.g., `observations.md` or `next_prompt.md`) to hydrate the "Cerebral Control Plane."
+
 ## Documentation Standards
 - **Diagrams**: Use Mermaid (v11+) for all architectural and state visualizations.
 - **Supported Types**: Prefer `architecture-beta` for system maps, `erDiagram` for database schema, and `stateDiagram-v2` for job lifecycles.
