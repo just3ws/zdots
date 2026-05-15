@@ -33,8 +33,10 @@ agent-guide          # detailed usage guide for all services
 ## 4. Project Protocols
 
 - **Tasks:** Use the `backlog` CLI. See [docs/backlog.md](docs/backlog.md).
+- **Environment:** Use `ztask start <id>` when starting work to hydrate context.
+- **Observability:** This is an observable session linked to the shell via `gemini-invoke`. Every tool call you make is tracked.
 - **Standards:** Follow the [Zsh Quality Rubric](docs/zsh-quality-rubric.md).
-- **Setup:** See [docs/development.md](docs/development.md).
+- **Setup:** See [docs/migration.md](docs/migration.md) for new machine setup.
 - **Testing:** See [docs/testing.md](docs/testing.md).
 
 ---
