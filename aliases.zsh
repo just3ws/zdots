@@ -68,3 +68,20 @@ alias zreview='diff-review'                           # review staged diff for i
 alias zhistory='history-analyze'                      # shell history frequency report
 alias zhistory-ai='history-analyze --ai'              # + AI optimization suggestions
 alias zaliases='alias-suggest'                        # suggest aliases from history
+
+# Fabric-AI Integration (Pattern-based Intelligence)
+alias fabric='fabric-ai'
+alias zsum='fabric -p summarize'                      # summarize input
+alias zwisdom='fabric -p extract_wisdom'              # extract wisdom/key points
+alias zexplain='fabric -p explain_code'               # explain code blocks
+alias zfp='fabric --listpatterns | fzf --header "Select Fabric Pattern" | xargs -I {} fabric --pattern {}'
+
+# Visual & Theme (Dracula Pro)
+export LS_COLORS="$(vivid generate dracula)"
+alias ls='eza --color=always --icons --group-directories-first'
+alias ll='eza -lh --color=always --icons --group-directories-first'
+alias la='eza -lah --color=always --icons --group-directories-first'
+
+# Command Center & Productivity
+alias zdashboard='tmux new-session -A -s dashboard "btop" \; split-window -h "lazygit" \; split-window -v "mactop" \; select-pane -t 0'
+alias zjump='sesh connect $(sesh list -i | fzf --header "Jump to Project")'

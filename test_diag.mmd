@@ -1,0 +1,18 @@
+architecture-beta
+    group host(logos:apple)[Bare Metal macOS]
+    group colima(logos:docker)[Colima Stack]
+
+    service zsh(logos:zsh-icon)[Zsh Shell] in host
+    service collector(logos:opentelemetry)[OTel Collector] in host
+    service brain(logos:postgresql)[Postgres Brain] in host
+    service ai(logos:cpu)[llama.cpp] in host
+
+    service grafana(logos:grafana)[Grafana] in colima
+    service tempo(logos:opentelemetry)[Tempo] in colima
+    service loki(logos:opentelemetry)[Loki] in colima
+
+    zsh:R -- L:collector
+    collector:B -- T:tempo
+    collector:B -- T:loki
+    zsh:B -- T:brain
+    zsh:L -- R:ai
