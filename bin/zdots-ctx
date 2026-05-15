@@ -30,7 +30,6 @@ source "${ZDOTDIR}/lib/lifecycle.bash"
 
 SVC_NAME="zdots-ctx"
 MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
-DB_URL="${DATABASE_URL:-}"
 
 usage() {
   cat <<EOF
