@@ -8,7 +8,7 @@
 # USAGE:
 # Services should define their metadata and delegate to these primitives.
 
-set -euo pipefail
+set -eo pipefail
 
 # Internal helpers
 _svc_log()  { printf '%s: %s\n' "${SVC_NAME:-platform}" "$*" >&2; }
@@ -201,8 +201,63 @@ zdots_svc_restart() {
 }
 
 # ---------------------------------------------------------------------------
-# Output & Logging
+# Observability Primitives
 # ---------------------------------------------------------------------------
+
+# zdots_svc_emit_span <name> <start_ts_nano> <end_ts_nano> [attributes...]
+# Emits a basic OTLP trace span to the local collector.
+zdots_svc_emit_span() {
+  local name="$1" start_ns="$2" end_ns="$3"
+  shift 3
+
+  local otlp_endpoint="${ZDOTS_OTLP_ENDPOINT:-http://127.0.0.1:4318}"
+  if [[ -z "${ZDOTS_TRACE_ID:-}" ]]; then return 0; fi
+
+  # Construct attributes JSON
+  local attrs="[]"
+  for kv in "$@"; do
+    local k="${kv%%=*}"
+    local v="${kv#*=}"
+    attrs=$(echo "$attrs" | jq -c ". + [{\"key\": \"$k\", \"value\": {\"stringValue\": \"$v\"}}]")
+  done
+
+  local payload
+  payload=$(jq -nc \
+    --arg name "$name" \
+    --arg tid "$ZDOTS_TRACE_ID" \
+    --arg sid "$ZDOTS_SPAN_ID" \
+    --arg start "$start_ns" \
+    --arg end "$end_ns" \
+    --argjson attrs "$attrs" \
+    '{
+      resourceSpans: [{
+        resource: { attributes: [{ key: "service.name", value: { stringValue: "zdots-agent" } }] },
+        scopeSpans: [{
+          spans: [{
+            traceId: $tid,
+            spanId: $sid,
+            name: $name,
+            startTimeUnixNano: $start,
+            endTimeUnixNano: $end,
+            attributes: $attrs,
+            status: { code: 1 }
+          }]
+        }]
+      }]
+    }')
+
+  curl -s -o /dev/null -X POST -H "Content-Type: application/json" -d "$payload" "${otlp_endpoint}/v1/traces" || true
+}
+
+# zdots_svc_new_span_id
+# Generates a new random 8-byte (16-char) hex span ID.
+zdots_svc_new_span_id() {
+  if [[ -n "${ZSH_VERSION:-}" ]]; then
+    printf '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM | head -c 16
+  else
+    openssl rand -hex 8
+  fi
+}
 
 zdots_svc_logs() {
   local log_file="$1"
