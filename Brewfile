@@ -1,113 +1,229 @@
-# Zsh Configuration & Toolchain Dependencies
-# This file tracks Homebrew dependencies required for this shell environment.
-
-# ------------------------------------------------------------------------------
-# Core Shell & Prompt (Powering the Interactive Experience)
-# ------------------------------------------------------------------------------
+tap "arimxyer/tap"
+tap "bysiber/cleardisk"
+tap "dracula/install"
+tap "gromgit/brewtils"
 tap "romkatv/powerlevel10k"
-brew "zsh"              # Primary shell; configured via .zshrc and conf.d/
-brew "powerlevel10k"    # Prompt engine; depends on Fira Code Nerd Font for glyphs.
-brew "vivid"            # LS_COLORS generator; used in conf.d/30-env.zsh for theme-specific colors.
-
-# ------------------------------------------------------------------------------
-# Navigation & Search (Fundamentals of the Shell)
-# ------------------------------------------------------------------------------
-brew "zoxide"           # Better 'cd' (aliased to 'z'); initialized in conf.d/70-integrations.zsh.
-brew "fzf"              # Fuzzy finder; provides Ctrl-R/Ctrl-T widgets via conf.d/70-integrations.zsh.
-brew "fzf-tab"          # Replaces zsh completion menu with fzf; sourced in conf.d/70-integrations.zsh.
-brew "eza"              # Modern 'ls'; used for aliases (ls, ll, la) in .aliasrc.
-brew "fd"               # Modern 'find'; search backend for fzf in fzfrc.
-brew "ripgrep"          # Fast text search; used as grep alternative and fzf backend.
-brew "ack"              # Alternative search tool; found in history usage.
-brew "tree"             # Directory tree visualization; used for fzf previews in fzfrc.
-brew "sd"               # Intuitive find & replace CLI (sed alternative); used for refactoring.
-brew "television"       # Modern TUI browser; agent-friendly interface for data navigation.
-
-# ------------------------------------------------------------------------------
-# AI & Agent Infrastructure (Maximizing Token Efficiency & Context)
-# ------------------------------------------------------------------------------
-brew "repomix"          # Packs repository context for LLMs (Critical for token efficiency).
-brew "rtk"              # CLI proxy to minimize LLM token consumption (High-signal summaries).
-brew "backlog-md"       # Markdown task manager; provides project state/roadmap to agents.
-brew "tokei"            # Blazingly fast code stats; provides project metadata to agents.
-brew "universal-ctags"  # Symbol indexing; allows agents to find definitions without deep scans.
-brew "ast-grep"         # Structural code search (sg); used for complex refactoring by agents.
-brew "fabric-ai"        # AI workflow pattern executor.
-brew "llama.cpp"        # Local LLM inference server; OpenAI-compatible API on :8080.
-brew "whisper-cpp"      # High-performance inference of OpenAI's Whisper ASR models.
-brew "otel-cli"         # OpenTelemetry CLI; useful for ad-hoc shell spans.
-brew "gemini-cli"       # Google Gemini AI CLI; aliased to 'gm' in conf.d/80-aliases.zsh.
-brew "usage"            # CLI specification tool; helps agents understand CLI parameters.
-
-# ------------------------------------------------------------------------------
-# Data Processing (Structured Context for Humans and Agents)
-# ------------------------------------------------------------------------------
-brew "jq"               # JSON processor; used via 'J' global alias in conf.d/80-aliases.zsh.
-brew "yq"               # YAML processor; essential for config manipulation (mise, fly, actions).
-brew "dasel"            # Unified JSON/YAML/TOML/XML query tool; used for agent-friendly config lookups.
-brew "fx"               # Terminal JSON viewer; interactive data exploration.
-brew "jless"            # Interactive JSON pager; similar to 'less' but for structured data.
-brew "glow"             # Markdown renderer; used for reading repository docs (README, CLAUDE.md).
-
-# ------------------------------------------------------------------------------
-# UI & Productivity
-# ------------------------------------------------------------------------------
-brew "atuin"            # SQLite-backed history sync/search; replaces Ctrl-R in conf.d/70-integrations.zsh.
-brew "lazygit"          # Git TUI; aliased to 'lg' in conf.d/80-aliases.zsh.
-brew "bat"              # Syntax-highlighted 'cat' and fzf previewer; used in .aliasrc and fzfrc.
-brew "bottom"           # Graphical process monitor; aliased to 'top' and 'htop' in conf.d/80-aliases.zsh.
-brew "tealdeer"         # Fast 'tldr' client; provides command examples aliased to 'help'.
-brew "boxes"            # Draws ASCII boxes; used for banners and code documentation.
-
-# ------------------------------------------------------------------------------
-# Development Toolchain & Runtimes
-# ------------------------------------------------------------------------------
-brew "mise"             # Polyglot runtime manager; replaces asdf; activated in .zprofile.
-brew "pnpm"             # Fast package manager; used extensively in TS/JS development.
-brew "uv"               # Extremely fast Python package manager; modern standard for Python.
-brew "gh"               # GitHub CLI; provides _gh completion and repo management.
-# gh extension install dlvhdr/gh-dash (TUI for GitHub PRs/Issues)
-brew "git-absorb"       # Automatic git commit --fixup (Highly efficient for agents).
-brew "flyctl"           # Fly.io CLI (fly); used for cloud deployments via 'fd' aliases.
-brew "hyperfine"        # Benchmarking tool; used by bin/check to enforce performance budget.
-brew "broot"            # Weighted tree navigation and project mapping.
-brew "postgresql@18"    # Postgres client tools; path managed in .zshenv.
-brew "openjdk"          # Java Runtime; JAVA_HOME and path managed in .zshenv.
-
-# ------------------------------------------------------------------------------
-# Security, Infrastructure & Validation
-# ------------------------------------------------------------------------------
-brew "bats-core"        # Bash Automated Testing System; core runner.
-brew "shellcheck"       # Bash/sh linter; used by bin/check to validate repo scripts.
-brew "shfmt"            # Shell script formatter.
-brew "actionlint"       # GitHub Actions linter; ensures CI stability.
-brew "act"              # Run GitHub Actions locally for rapid iteration.
-brew "colima"           # Container runtime (lightweight CLI-driven alternative to Docker Desktop).
-brew "docker"           # Docker CLI client.
-brew "docker-compose"   # Docker Compose V2 plugin.
-brew "docker-compose-langserver" # LSP for Docker Compose.
-brew "pre-commit"       # Git hook manager; automates safety and quality checks.
-brew "gitleaks"         # Secret scanner; prevents sensitive data leaks.
-brew "trufflehog"       # Advanced secret scanner; deep historical scanning.
-brew "git-lfs"          # Git Large File Storage; manages binary assets.
-brew "sqlite"           # SQLite CLI; powers atuin and bin/history-import.
-brew "coreutils"        # GNU system utilities; provides consistent behavior across platforms.
-brew "openssl@3"        # Cryptography toolkit; dependency for Node/Ruby builds.
-brew "jemalloc"         # High-performance malloc; optimized for Ruby (RUBY_CONFIGURE_OPTS).
-
-# ------------------------------------------------------------------------------
-# Zsh Plugins (Sourced in .zshrc or conf.d/70-integrations.zsh)
-# ------------------------------------------------------------------------------
-brew "zsh-autosuggestions"          # Fish-like autosuggestions.
-brew "zsh-completions"              # Additional completion definitions.
-brew "zsh-syntax-highlighting"      # Fish-like syntax highlighting.
-brew "zsh-history-substring-search" # Up/Down arrows search through history matches.
-brew "zsh-history-enquirer"         # Interactive history cleanup and management.
-brew "zsh-autopair"                 # Auto-close brackets, quotes, etc.
-brew "zsh-you-should-use"           # Alias coach; reminds you of existing shortcuts.
-brew "zsh-vi-mode"                  # Improved Vi-mode experience with mode indicators.
-
-# ------------------------------------------------------------------------------
-# Casks
-# ------------------------------------------------------------------------------
-cask "font-fira-code-nerd-font"      # Preferred font for Powerlevel10k and UI glyphs.
+tap "steipete/tap"
+tap "supabase/tap"
+brew "ack"
+brew "act"
+brew "shellcheck"
+brew "actionlint"
+brew "ansifilter"
+brew "openssl@3"
+brew "tmux"
+brew "aoe"
+brew "ast-grep"
+brew "atuin"
+brew "sqlite"
+brew "node"
+brew "backlog-md"
+brew "bash"
+brew "bat"
+brew "bats-core"
+brew "bottom"
+brew "boxes"
+brew "broot"
+brew "btop"
+brew "librsvg"
+brew "chafa"
+brew "cmake"
+brew "colima"
+brew "coreutils"
+brew "csvlens"
+brew "curl"
+brew "dasel"
+brew "dashing"
+brew "diff-so-fancy"
+brew "direnv"
+brew "docker"
+brew "docker-buildx"
+brew "docker-compose"
+brew "docker-compose-langserver"
+brew "entr"
+brew "eza"
+brew "fabric-ai"
+brew "fd"
+brew "fdupes"
+brew "fish"
+brew "flyctl"
+brew "fswatch"
+brew "fx"
+brew "fzf"
+brew "fzf-tab"
+brew "gemini-cli"
+brew "geoipupdate"
+brew "gh"
+brew "git"
+brew "git-absorb"
+brew "git-delta"
+brew "git-lfs"
+brew "gitleaks"
+brew "gitlint"
+brew "glow"
+brew "gnupg"
+brew "go"
+brew "gource"
+brew "grafana"
+brew "graphicsmagick"
+brew "graphviz"
+brew "grep"
+brew "hadolint"
+brew "htop"
+brew "hyperfine"
+brew "imagemagick"
+brew "jemalloc"
+brew "jless"
+brew "jq"
+brew "julia"
+brew "k6"
+brew "kimi-cli"
+brew "lazygit"
+brew "llama.cpp"
+brew "lnav"
+brew "lua-language-server"
+brew "luacheck"
+brew "luarocks"
+brew "mactop"
+brew "mermaid-cli"
+brew "usage"
+brew "mise"
+brew "mmv"
+brew "mysql-client"
+brew "ncdu"
+brew "tree-sitter"
+brew "neovim"
+brew "nvtop"
+brew "ollama"
+brew "openai-whisper"
+brew "openapi"
+brew "openjdk"
+brew "openapi-diff"
+brew "openapi-generator"
+brew "openapi-tui"
+brew "ossp-uuid"
+brew "otel-cli"
+brew "pandoc"
+brew "pgvector"
+brew "pipx"
+brew "pnpm"
+brew "postgresql@18", restart_service: :changed
+brew "powerlevel10k"
+brew "pre-commit"
+brew "prettier"
+brew "prometheus"
+brew "pv"
+brew "railway"
+brew "ranger"
+brew "redis", restart_service: :changed
+brew "rename"
+brew "repomix"
+brew "ripgrep"
+brew "roblox-ts"
+brew "rsync"
+brew "rtk"
+brew "ruby-lsp"
+brew "rust"
+brew "rustup"
+brew "sd"
+brew "sentry-cli"
+brew "sesh"
+brew "shfmt"
+brew "sponge"
+brew "ssh-copy-id"
+brew "stow"
+brew "stylua"
+brew "svgo"
+brew "swift-format"
+brew "swiftformat"
+brew "swiftlint"
+brew "syft"
+brew "tailscale"
+brew "taplo"
+brew "tealdeer"
+brew "television"
+brew "terminal-notifier"
+brew "tokei"
+brew "tree"
+brew "tree-sitter-cli"
+brew "tree-sitter-go"
+brew "tree-sitter-python"
+brew "tree-sitter-ruby"
+brew "trivy"
+brew "trufflehog"
+brew "universal-ctags"
+brew "uv"
+brew "vivid"
+brew "watch"
+brew "wget"
+brew "whisper-cpp"
+brew "whisperkit-cli"
+brew "xcodegen"
+brew "xmlstarlet"
+brew "yamllint"
+brew "yarn"
+brew "yq"
+brew "yt-dlp"
+brew "zoxide"
+brew "zsh"
+brew "zsh-autopair"
+brew "zsh-autosuggestions"
+brew "zsh-completions"
+brew "zsh-history-enquirer"
+brew "zsh-history-substring-search"
+brew "zsh-syntax-highlighting"
+brew "zsh-vi-mode"
+brew "zsh-you-should-use"
+brew "arimxyer/tap/models"
+brew "gromgit/brewtils/taproom"
+brew "steipete/tap/gogcli"
+cask "1password"
+cask "1password-cli"
+cask "alfred"
+cask "antigravity"
+cask "chatgpt"
+cask "claude"
+cask "claude-code"
+cask "claude-devtools"
+cask "claudebar"
+cask "bysiber/cleardisk/cleardisk"
+cask "cmux"
+cask "codex"
+cask "codex-app"
+cask "daisydisk"
+cask "dash"
+cask "dbeaver-community"
+cask "deezer"
+cask "dracula/install/dracula-terminal"
+cask "dracula/install/dracula-xcode"
+cask "firefox"
+cask "font-fira-code-nerd-font"
+cask "font-meslo-lg-nerd-font"
+cask "google-chrome"
+cask "iterm2"
+cask "itermai"
+cask "libreoffice"
+cask "marked-app"
+cask "microsoft-teams"
+cask "miro"
+cask "obsidian"
+cask "onyx"
+cask "pgadmin4"
+cask "postman"
+cask "rectangle"
+cask "slack"
+cask "stats"
+cask "tailscale-app"
+cask "ungoogled-chromium"
+cask "vimr"
+cask "visual-studio-code"
+cask "zoom"
+vscode "github.copilot-chat"
+vscode "saoudrizwan.claude-dev"
+go "cmd/go"
+go "cmd/gofmt"
+uv "aider-chat"
+npm "@anthropic-ai/claude-code"
+npm "@earendil-works/pi-coding-agent"
+npm "corepack"
+npm "pnpm"

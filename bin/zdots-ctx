@@ -127,20 +127,7 @@ cmd_init_db() {
 }
 
 cmd_migrate() {
-  _require_psql
-  _svc_log "applying migrations from etc/db/migrations..."
-  
-  # Bash-compatible globbing
-  for sql in "${ZDOTDIR}/etc/db/migrations"/*.sql; do
-    [[ -e "$sql" ]] || continue
-    _svc_log "applying $(basename "$sql")..."
-    if psql "${DATABASE_URL}" -X -t -A -q -c -f "$sql" >/dev/null 2>&1; then
-      _svc_ok "$(basename "$sql") applied."
-    else
-      _svc_die "failed to apply $(basename "$sql")."
-    fi
-  done
-  _svc_ok "all migrations applied."
+  bundle exec ruby "${ZDOTDIR}/lib/zdots/migrator.rb"
 }
 
 cmd_query() {

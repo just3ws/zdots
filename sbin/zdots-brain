@@ -9,6 +9,7 @@ require_relative "../lib/zdots/jobs/base"
 require_relative "../lib/zdots/jobs/transcription"
 require_relative "../lib/zdots/jobs/distill"
 require_relative "../lib/zdots/jobs/embed"
+require_relative "../lib/zdots/jobs/docs_sync"
 
 require "optparse"
 require "json"
@@ -33,6 +34,8 @@ module Zdots
         cmd_add_methodology(args)
       when "add-lesson"
         cmd_add_lesson(args)
+      when "capture"
+        cmd_capture(args)
       when "query"
         cmd_query(args)
       when "enqueue"
@@ -87,6 +90,7 @@ module Zdots
                       when "transcription" then Zdots::Jobs::Transcription
                       when "distill"       then Zdots::Jobs::Distill
                       when "embed"         then Zdots::Jobs::Embed
+                      when "docs_sync"     then Zdots::Jobs::DocsSync
                       else raise "Unknown job type: #{job.type}"
                       end
           
@@ -116,7 +120,7 @@ module Zdots
       puts "zdots-brain: methodology '#{slug}' saved."
       
       # Enqueue embedding
-      Zdots::Models::Job.create(
+      Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
         type: "embed",
         payload: Sequel.pg_jsonb({ table: "methodologies", id: m.id, text: content }),
         priority: 10,
@@ -143,12 +147,138 @@ module Zdots
       puts "zdots-brain: lesson saved."
 
       # Enqueue embedding
-      Zdots::Models::Job.create(
+      Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
         type: "embed",
         payload: Sequel.pg_jsonb({ table: "lessons", id: l.id, text: content }),
         priority: 10,
         fingerprint: Digest::MD5.hexdigest("embed-lessons-#{l.id}")
       )
+    end
+
+    def cmd_capture(args)
+      sid = ENV["ZDOTS_SESSION_ID"]
+      if sid.nil? || sid.empty?
+        puts "zdots-brain: [!!] error: ZDOTS_SESSION_ID not set"
+        exit 1
+      end
+
+      puts "zdots-brain: capturing residue for session: #{sid}..."
+
+      # 1. Extract history
+      hist_file = ENV.fetch("HISTFILE", File.expand_path("~/.zsh_history"))
+      history = if File.exist?(hist_file)
+                  `tail -n 50 #{hist_file} | sed 's/^: [0-9]*:[0-9];//'`.strip
+                else
+                  "history not available"
+                end
+
+      # 2. Extract traces
+      trace_file = File.join(ENV["XDG_STATE_HOME"] || File.expand_path("~/.local/state"), "zsh", "traces.jsonl")
+      traces = if File.exist?(trace_file)
+                 `grep "\"sid\":\"#{sid}\"" #{trace_file} | tail -n 100`.strip
+               else
+                 "no traces found"
+               end
+
+      # 3. Distill using RubyLLM
+      llm = RubyLLM::Provider::OpenAI.new(
+        api_key: "local",
+        base_url: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080/v1")
+      )
+
+      prompt = <<~PROMPT
+        You are the Distiller for the Cerebral Control Plane.
+        Analyze the following shell session context and produce a structured "Lesson Learnt" or "Session Residue" summary.
+
+        SESSION_ID: #{sid}
+
+        RECENT_HISTORY:
+        #{history}
+
+        SESSION_TRACES (Last 100):
+        #{traces}
+
+        INSTRUCTIONS:
+        1. Identify the primary goal of this session.
+        2. Summarize the technical challenges encountered.
+        3. State the final result.
+        4. Output the result as a single concise paragraph for a "Lesson" and a few bullet points for "Residue".
+        5. Use the following JSON format:
+        {
+          "lesson": "Concise paragraph summarizing the key learning or fix.",
+          "summary": "High-level summary of work done.",
+          "intent": "What the user was trying to achieve.",
+          "result": "Final outcome.",
+          "tags": ["tag1", "tag2"]
+        }
+      PROMPT
+
+      response = llm.chat(
+        model: "local",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.2
+      )
+
+      begin
+        distillation = JSON.parse(response.content.match(/\{.*\}/m)[0])
+      rescue => e
+        puts "zdots-brain: [!!] error parsing AI response: #{e.message}"
+        exit 1
+      end
+
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(distillation)
+        return
+      end
+
+      puts "\n--- PROPOSED SESSION RESIDUE ---"
+      puts "INTENT: #{distillation['intent']}"
+      puts "RESULT: #{distillation['result']}"
+      puts "LESSON: #{distillation['lesson']}"
+      puts "---------------------------------\n\n"
+
+      print "Save this residue to the intelligence suite? [y/N] "
+      answer = gets.strip.downcase
+      if answer == 'y'
+        # 1. Save to session_residue
+        Zdots.db[:session_residue].insert_conflict(target: :trace_id).insert(
+          trace_id: sid,
+          intent: distillation['intent'],
+          result: distillation['result'],
+          summary: distillation['summary'],
+          metadata: Sequel.pg_jsonb(distillation)
+        )
+
+        # 2. Save to lessons
+        l = Zdots::Models::Lesson.create(
+          content: distillation['lesson'],
+          context: distillation['intent'],
+          tags: Sequel.pg_array(distillation['tags']),
+          source_trace_id: sid
+        )
+
+        puts "zdots-brain: residue and lesson saved."
+
+        # 3. Enqueue embedding
+        Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+          type: "embed",
+          payload: Sequel.pg_jsonb({ table: "lessons", id: l.id, text: distillation['lesson'] }),
+          priority: 10,
+          fingerprint: Digest::MD5.hexdigest("embed-lessons-#{l.id}")
+        )
+
+        # 4. Enqueue docs_sync
+        Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+          type: "docs_sync",
+          payload: Sequel.pg_jsonb({ trace_id: sid }),
+          priority: 5,
+          fingerprint: Digest::MD5.hexdigest("docs_sync-#{sid}")
+        )
+        
+        puts "zdots-brain: enqueued 'docs_sync' job."
+      else
+        puts "zdots-brain: capture aborted."
+      end
     end
 
     def cmd_query(args)

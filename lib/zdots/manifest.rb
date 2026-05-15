@@ -51,6 +51,11 @@ module Zdots
         description: "Drop high-latency work into the background Side-Effect Broker.",
         params: { type: "string", payload: "json" },
         mcp: true
+      },
+      {
+        name: "living_docs",
+        description: "Manually trigger the Living Docs synchronization pipeline.",
+        mcp: true
       }
     ].freeze
     
