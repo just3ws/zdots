@@ -33,10 +33,10 @@ export TRACEPARENT="00-${ZDOTS_TRACE_ID}-${AGENT_SPAN_ID}-01"
 _svc_log "starting observable agent session [trace:${ZDOTS_TRACE_ID:0:8}]..."
 
 # 3. Hydrate context if available
-HYDRATION=""
 if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]]; then
   # If we are in a task-specific mode, we could pass a tag here.
-  HYDRATION=$("${ZDOTDIR}/bin/zdots-ctx" hydrate 2>/dev/null || echo "")
+  # We just run it to show the user or seed the AI if it is reading stdout.
+  "${ZDOTDIR}/bin/zdots-ctx" hydrate 2>/dev/null || true
 fi
 
 # 4. Invoke the agent
