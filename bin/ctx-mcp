@@ -18,99 +18,25 @@ CTX_BIN = File.join(BIN, "zdots-ctx")
 $stdout.sync = true
 $stderr.sync = true
 
+require_relative "../lib/zdots"
+require_relative "../lib/zdots/manifest"
+
+# ... (id/method/params logic remains same)
+
 # ---------------------------------------------------------------------------
-# Tool registry
+# Tool registry (Dynamic from Manifest)
 # ---------------------------------------------------------------------------
-TOOLS = [
+TOOLS = Zdots::Manifest.mcp_tools.map do |t|
   {
-    name: "ctx_status",
-    description: "Check the connection to the PostgreSQL Intelligence Suite and report record counts.",
-    inputSchema: { type: "object", properties: {} }
-  },
-  {
-    name: "ctx_query",
-    description: "Search for methodologies and lessons using full-text search.",
+    name: t[:name],
+    description: t[:description],
     inputSchema: {
       type: "object",
-      properties: {
-        term: { type: "string", description: "Search term or topic" }
-      },
-      required: ["term"]
-    }
-  },
-  {
-    name: "ctx_hydrate",
-    description: "Get a condensed summary of preferred methodologies and recent lessons for AI context injection.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        tag: { type: "string", description: "Optional tag to filter methodologies" }
-      }
-    }
-  },
-  {
-    name: "ctx_add_methodology",
-    description: "Add or update a preferred methodology or architectural standard.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        slug: { type: "string", description: "URL-safe unique identifier (e.g. 'bash-style-guide')" },
-        title: { type: "string", description: "Descriptive title" },
-        content: { type: "string", description: "Full methodology content in Markdown" },
-        tags: { type: "array", items: { type: "string" }, description: "Search tags" }
-      },
-      required: ["slug", "title", "content"]
-    }
-  },
-  {
-    name: "ctx_add_lesson",
-    description: "Record a new lesson learnt or distilled insight from a technical task.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        content: { type: "string", description: "The lesson or insight distilled" },
-        context: { type: "string", description: "The situation, bug, or task that led to this lesson" },
-        tags: { type: "array", items: { type: "string" }, description: "Tags for categorization" }
-      },
-      required: ["content"]
-    }
-  },
-  {
-    name: "ctx_capture",
-    description: "Trigger an AI-driven distillation of the current shell session residue. Note: Requires ZDOTS_SESSION_ID to be set in environment.",
-    inputSchema: { type: "object", properties: {} }
-  },
-  {
-    name: "ctx_enqueue",
-    description: "Enqueue a new side-effect job (e.g., transcription).",
-    inputSchema: {
-      type: "object",
-      properties: {
-        type: { type: "string", description: "Job type, e.g. 'transcription'" },
-        payload_json: { type: "string", description: "JSON string representing the job payload" },
-        priority: { type: "integer", description: "Priority level (default 10, higher is more urgent)" },
-        force: { type: "boolean", description: "If true, bypasses idempotency and forces a re-queue" }
-      },
-      required: ["type", "payload_json"]
-    }
-  },
-  {
-    name: "ctx_jobs",
-    description: "List pending and recent jobs in the side-effect broker.",
-    inputSchema: { type: "object", properties: {} }
-  },
-  {
-    name: "ctx_semantic_search",
-    description: "Perform a semantic (vector-similarity) search over methodologies and lessons.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        term: { type: "string", description: "Search term or topic" }
-      },
-      required: ["term"]
+      properties: (t[:params] || {}).each_with_object({}) { |(k, v), h| h[k] = { type: v == "json" ? "string" : v } },
+      required: (t[:params] || {}).keys
     }
   }
-].freeze
+end.freeze
 
 # ---------------------------------------------------------------------------
 # Implementations

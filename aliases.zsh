@@ -36,6 +36,9 @@ alias claude-mem='bun "$HOME/.claude/plugins/marketplaces/thedotmack/plugin/scri
 # Zsh Globbing shorthands
 alias prunedirs='rm -d **/*(/^F)'
 
+# Root Directory Tracking (Bare Repository)
+alias homegit='/usr/bin/git --git-dir=$HOME/.homegit/ --work-tree=$HOME'
+
 # Zdots Platform Control (z* prefix — work from any directory)
 alias zstatus='zdots-status'                          # live TUI dashboard
 # zaider is a shell function defined in providers/ai/aider.zsh (sourced by 95-ai.zsh)
