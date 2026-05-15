@@ -135,7 +135,85 @@ graph TD
 
 ---
 
-## 6. CI/CD Lifecycle & Contract Validation
+## 7. PostgreSQL Intelligence Suite (The Brain)
+
+The platform includes a persistent knowledge store to manage methodologies, lessons, and asynchronous work.
+
+### Database Schema (ER Diagram)
+The following diagram illustrates the relational structure of the Shell Brain.
+
+```mermaid
+erDiagram
+    methodologies ||--o{ jobs : "triggers embedding"
+    lessons ||--o{ jobs : "triggers embedding"
+    jobs ||--o{ jobs : "chains follow-up"
+    
+    methodologies {
+        uuid id PK
+        text slug UK
+        text title
+        text content
+        text_array tags
+        jsonb metadata
+        vector embedding "3584 dims"
+        timestamptz created_at
+    }
+    
+    lessons {
+        uuid id PK
+        text content
+        text context
+        text_array tags
+        text source_trace_id
+        vector embedding "3584 dims"
+        timestamptz created_at
+    }
+    
+    jobs {
+        uuid id PK
+        text type
+        jsonb payload
+        job_status status
+        int priority
+        int attempts
+        text trace_id
+        text error_message
+        text fingerprint UK
+        timestamptz next_run_at
+        timestamptz created_at
+    }
+```
+
+### Job Broker Lifecycle (State Diagram)
+Asynchronous tasks transition through the following states, managed by PostgreSQL stored procedures.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending : Enqueued
+    
+    state Pending {
+        [*] --> Ready : next_run_at <= now
+        Ready --> [*]
+    }
+    
+    Pending --> Running : claim_next_job()
+    
+    Running --> Completed : complete_job()
+    Completed --> [*]
+    
+    Running --> Failed : fail_job() (attempts < 3)
+    Failed --> Pending : Exponential Backoff
+    
+    Running --> Dead : fail_job() (attempts >= 3)
+    Dead --> Triage : zdots-ctx triage
+    
+    Triage --> Pending : Requeue
+    Triage --> [*] : Delete
+```
+
+---
+
+## 8. CI/CD Lifecycle & Contract Validation
 
 Zdots uses a tiered validation strategy to ensure environmental stability.
 

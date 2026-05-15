@@ -60,38 +60,25 @@ Zdots includes a production-grade local AI runtime out of the box:
 The Zdots platform operates as a "Sidecar Control Plane" on the host, delegating heavy observability storage to an isolated container stack.
 
 ```mermaid
-graph TB
-    subgraph Host ["Bare Metal (macOS)"]
-        ZSH["Zsh Shell & Apps"]
-        COL["OTel Collector (bin/otel-collector)"]
-        AI["llama.cpp (bin/llama-ctl)"]
-        CTL["zdots-ctl / local-ci"]
-        LOGS[".local/state/zsh/*.log"]
-    end
+architecture-beta
+    group host(logos:apple)[Bare Metal macOS]
+    group colima(logos:docker)[Colima Stack]
 
-    subgraph Colima ["Docker Container Stack (local-ci)"]
-        subgraph LGTM ["LGTM Stack (zdots-lgtm)"]
-            Grafana["Grafana (Port 3000)"]
-            Tempo["Tempo (Traces)"]
-            Loki["Loki (Logs)"]
-            Mimir["Mimir (Metrics)"]
-        end
-    end
+    service zsh(logos:zsh-icon)[Zsh Shell] in host
+    service collector(logos:opentelemetry)[OTel Collector] in host
+    service brain(logos:postgresql)[Postgres Brain] in host
+    service ai(logos:cpu)[llama.cpp] in host
 
-    %% Data Flows
-    ZSH -- "OTLP (4318)" --> COL
-    COL -- "OTLP/HTTP (4418)" --> Tempo
-    COL -- "OTLP/HTTP (4418)" --> Loki
-    COL -- "OTLP/HTTP (4418)" --> Mimir
-    COL -- "JSON Write" --> LOGS
-    
-    %% AI Interactions
-    ZSH -- "ai-query" --> AI
-    AI -- "Metrics" --> COL
-    
-    %% UI
-    User((User)) -- "CLI" --> ZSH
-    User -- "Web UI" --> Grafana
+    service grafana(logos:grafana)[Grafana] in colima
+    service tempo(logos:opentelemetry)[Tempo] in colima
+    service loki(logos:opentelemetry)[Loki] in colima
+
+    zsh:R -- L:collector
+    collector:B -- T:tempo
+    collector:B -- T:loki
+    zsh:B -- T:brain
+    zsh:L -- R:ai
+    brain:R -- L:ai
 ```
 
 ### Telemetry Signal Flow
@@ -103,6 +90,7 @@ sequenceDiagram
     participant Collector as OTel Collector (Host)
     participant LGTM as LGTM Stack (Colima)
     participant Disk as Local Storage
+    participant AI as Local AI (llama.cpp)
 
     Note over Shell: Command Executed
     Shell->>Collector: OLP Trace Span (HTTP:4318)
@@ -114,6 +102,11 @@ sequenceDiagram
 
     Note over LGTM: Data Indexed
     LGTM->>LGTM: Correlate Logs + Traces
+    
+    opt Sentient Feedback
+        Collector->>AI: Trigger "Sniffer" Insight
+        AI-->>Disk: Append to ai-insights.log
+    end
 ```
 
 ### Unified Service Lifecycle
