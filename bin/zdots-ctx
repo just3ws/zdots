@@ -9,9 +9,20 @@
 #   status    Check connection and report database metadata
 #   init-db   Create the database and apply initial schema
 #   migrate   Apply pending SQL migrations from etc/db/migrations
-#   query     [t] Search for methodology or lessons related to [t]
+#   query [--semantic] <t>  Search methodologies or lessons for <t>
 #   capture   Distill current session (traces/history) into a lesson
-#   hydrate   Output methodologies for the current task (AI-targeted)
+#   hydrate [tag] Get semantically relevant context for AI tasks
+#   seed      Import existing standards from ~/my/standards
+#   add-methodology <slug> <title> <content> [tags...]
+#   add-lesson <content> [context] [tags...]
+#   enqueue [--force] <type> <payload_json> [priority]
+#   requeue <job_id>
+#   jobs      List pending and recent jobs
+#   worker    [--type T] Run a worker to process queued jobs
+#   triage    Review and resolve permanently failed 'dead' jobs
+#   clear-stale-jobs Reset 'running' jobs that have timed out
+#   metrics-loop Export queue depth metrics to OTel continuously
+#   error-velocity Report count of recent command errors (frustration detector)
 #   backup    Create a timestamped SQL dump in ~/my/backups
 #   restore [f] Restore the database from dump file [f]
 
@@ -80,7 +91,7 @@ _db_ping() {
   if [[ -z "${DATABASE_URL:-}" ]]; then
     return 1
   fi
-  psql "$DATABASE_URL" -c "SELECT 1;" >/dev/null 2>&1
+  psql "${DATABASE_URL}" -X -t -A -q -c "SELECT 1;" >/dev/null 2>&1
 }
 
 # ---------------------------------------------------------------------------
@@ -101,11 +112,11 @@ cmd_status() {
   local db_name="unknown"
   local m_count=0 l_count=0 r_count=0 j_count=0
   if [[ "$connected" == "true" ]]; then
-    db_name=$(psql "${DATABASE_URL}" -tAc "SELECT current_database();" 2>/dev/null || echo "unknown")
-    m_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM methodologies;" 2>/dev/null || echo 0)
-    l_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM lessons;" 2>/dev/null || echo 0)
-    r_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM session_residue;" 2>/dev/null || echo 0)
-    j_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM jobs WHERE status = 'pending';" 2>/dev/null || echo 0)
+    db_name=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT current_database();" 2>/dev/null || echo "unknown")
+    m_count=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM methodologies;" 2>/dev/null || echo 0)
+    l_count=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM lessons;" 2>/dev/null || echo 0)
+    r_count=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM session_residue;" 2>/dev/null || echo 0)
+    j_count=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM jobs WHERE status = 'pending';" 2>/dev/null || echo 0)
   fi
 
   if $json; then
@@ -171,74 +182,13 @@ cmd_migrate() {
   for sql in "${ZDOTDIR}/etc/db/migrations"/*.sql; do
     [[ -e "$sql" ]] || continue
     _svc_log "applying $(basename "$sql")..."
-    if psql "${DATABASE_URL}" -f "$sql" >/dev/null 2>&1; then
+    if psql "${DATABASE_URL}" -X -t -A -q -c -f "$sql" >/dev/null 2>&1; then
       _svc_ok "$(basename "$sql") applied."
     else
       _svc_die "failed to apply $(basename "$sql")."
     fi
   done
   _svc_ok "all migrations applied."
-}
-
-cmd_backup() {
-  if ! command -v pg_dump >/dev/null 2>&1; then
-    _svc_die "pg_dump not found. Run: brew install postgresql@18"
-  fi
-
-  local backup_dir="${MY_ROOT}/backups"
-  mkdir -p "$backup_dir"
-
-  local timestamp
-  timestamp=$(date +%Y%m%d_%H%M%S)
-  local db_name
-  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
-  local backup_file="${backup_dir}/${db_name}_${timestamp}.sql.gz"
-
-  _svc_log "creating backup: ${backup_file}..."
-  if pg_dump "${DATABASE_URL}" | gzip > "$backup_file"; then
-    _svc_ok "backup complete."
-    # Maintain last 10 backups
-    ls -t "${backup_dir}/${db_name}"_*.sql.gz 2>/dev/null | tail -n +11 | xargs rm -f -- 2>/dev/null || true
-  else
-    _svc_die "backup failed."
-  fi
-}
-
-cmd_restore() {
-  local backup_file="${1:-}"
-  if [[ -z "$backup_file" ]]; then
-    _svc_die "usage: zdots-ctx restore <path-to-sql-gz>"
-  fi
-
-  if [[ ! -f "$backup_file" ]]; then
-    _svc_die "backup file not found: $backup_file"
-  fi
-
-  _require_psql
-  _svc_log "restoring from ${backup_file}..."
-  
-  # WARNING: This is destructive to the current database
-  printf "WARNING: This will overwrite the current database. Proceed? [y/N] "
-  local response
-  read -r response
-  if [[ ! "$response" =~ ^[Yy]$ ]]; then
-    _svc_log "aborted."
-    return 1
-  fi
-
-  local db_name
-  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
-  local base_url
-  base_url=$(echo "${DATABASE_URL}" | sed -E 's/\/[^/]+$/\/postgres/')
-
-  psql "${base_url}" -c "DROP DATABASE IF EXISTS ${db_name} (FORCE);" >/dev/null 2>&1
-  psql "${base_url}" -c "CREATE DATABASE ${db_name};" >/dev/null 2>&1
-
-  if gunzip -c "$backup_file" | psql "${DATABASE_URL}" >/dev/null 2>&1; then
-    _svc_ok "restore complete."
-  else
-    _svc_die "restore failed."
-  fi
 }
 
 cmd_query() {
@@ -407,7 +357,7 @@ EOF
 
     # Also insert the lesson
     local id
-    id=$(psql "${DATABASE_URL}" -tAc "
+    id=$(psql "${DATABASE_URL}" -X -t -A -q -c "
       INSERT INTO lessons (content, context, tags, source_trace_id)
       VALUES ('${lesson//\'/''}', '${intent//\'/''}', string_to_array('${tags}', ','), '${sid}')
       RETURNING id;
@@ -427,7 +377,6 @@ EOF
 }
 
 cmd_hydrate() {
-  set -x
   local tag="${1:-}"
   local json=false
   [[ "${1:-}" == "--json" || "${2:-}" == "--json" ]] && json=true
@@ -524,7 +473,7 @@ cmd_seed() {
 
     _svc_log "seeding: ${slug}..."
     local id
-    id=$(psql "${DATABASE_URL}" -tAc "
+    id=$(psql "${DATABASE_URL}" -X -t -A -q -c "
       INSERT INTO methodologies (slug, title, content)
       VALUES ('${slug}', '${title//\'/''}', '${content//\'/''}')
       ON CONFLICT (slug) DO UPDATE 
@@ -555,11 +504,11 @@ cmd_add_methodology() {
 
   _require_psql
   _svc_log "adding methodology: ${slug}..."
-
+  
   local tags_csv; tags_csv=$(IFS=,; echo "${tags[*]}")
 
   local id
-  id=$(psql "${DATABASE_URL}" -tAc "
+  id=$(psql "${DATABASE_URL}" -X -t -A -q -c "
     INSERT INTO methodologies (slug, title, content, tags)
     VALUES ('${slug}', '${title//\'/''}', '${content//\'/''}', string_to_array('${tags_csv}', ','))
     ON CONFLICT (slug) DO UPDATE 
@@ -574,7 +523,8 @@ cmd_add_methodology() {
     payload=$(jq -n --arg t "methodologies" --arg i "$id" --arg txt "$content" '{table: $t, id: $i, text: $txt}')
     cmd_enqueue "embed" "$payload" >/dev/null
   fi
-  }
+}
+
 cmd_add_lesson() {
   local content="${1:-}"
   local context="${2:-}"
@@ -591,7 +541,7 @@ cmd_add_lesson() {
   local tags_csv; tags_csv=$(IFS=,; echo "${tags[*]}")
 
   local id
-  id=$(psql "${DATABASE_URL}" -tAc "
+  id=$(psql "${DATABASE_URL}" -X -t -A -q -c "
     INSERT INTO lessons (content, context, tags)
     VALUES ('${content//\'/''}', '${context//\'/''}', string_to_array('${tags_csv}', ','))
     RETURNING id;
@@ -635,7 +585,7 @@ cmd_enqueue() {
   else
     _svc_log "enqueuing job: ${type}..."
     local result
-    result=$(psql "${DATABASE_URL}" -tAc "
+    result=$(psql "${DATABASE_URL}" -X -t -A -q -c "
       INSERT INTO jobs (type, payload, priority, fingerprint)
       VALUES ('${type}', '${payload//\'/''}'::jsonb, ${priority}, md5('${type}' || '${payload//\'/''}'::text))
       ON CONFLICT (fingerprint) DO NOTHING
@@ -769,6 +719,51 @@ cmd_worker() {
           fi
         fi
         ;;
+      distill)
+        local url; url=$(echo "$payload" | jq -r '.url' 2>/dev/null)
+        if [[ -z "$url" || "$url" == "null" ]]; then
+          error="missing url in payload"
+        else
+          local vid; vid=$(echo "$url" | sed -E 's/.*v=([^&]*).*/\1/' | sed -E 's/.*\/([^\?\/]*).*/\1/')
+          local transcript_path="${HOME}/Downloads/transcripts/${vid}/${vid}.txt"
+          
+          if [[ ! -f "$transcript_path" ]]; then
+            error="transcript file not found: ${transcript_path}"
+          else
+            _svc_log "distilling transcript for ${vid}..."
+            local content; content=$(cat "$transcript_path")
+            local prompt
+            prompt=$(cat <<EOF
+You are the Knowledge Distiller for the Sentient Workbench.
+The following is a transcript from a YouTube video. 
+Extract 1-2 core technical lessons or architectural methodologies described in this text.
+
+VIDEO_URL: ${url}
+
+TRANSCRIPT:
+${content}
+
+INSTRUCTIONS:
+1. Be extremely concise.
+2. Output a single paragraph summarizing the key engineering insight.
+3. If the video is purely entertainment, output "No technical lessons identified."
+EOF
+)
+            local summary
+            if summary=$(echo "$prompt" | "${ZDOTDIR}/bin/ai-query" --mode raw 2>/dev/null); then
+              if [[ "$summary" != *"No technical lessons identified"* ]]; then
+                _svc_log "saving distilled lesson..."
+                cmd_add_lesson "$summary" "YouTube: ${url}" "video-distillation" >/dev/null
+              else
+                _svc_log "skipping: no technical lessons identified."
+              fi
+              success=true
+            else
+              error="AI distillation failed"
+            fi
+          fi
+        fi
+        ;;
       embed)
         local table id text
         table=$(echo "$payload" | jq -r '.table' 2>/dev/null)
@@ -821,7 +816,7 @@ cmd_triage() {
   _svc_log "checking for dead jobs..."
   
   local dead_jobs
-  dead_jobs=$(psql "${DATABASE_URL}" -tAc "SELECT id, type, error_message, payload FROM jobs WHERE status = 'dead' ORDER BY updated_at ASC;")
+  dead_jobs=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT id, type, error_message, payload FROM jobs WHERE status = 'dead' ORDER BY updated_at ASC;")
   
   if [[ -z "$dead_jobs" ]]; then
     _svc_ok "no dead jobs to triage."
@@ -833,7 +828,7 @@ cmd_triage() {
     printf "Type:    %s\n" "$type"
     printf "Payload: %s\n" "$payload"
     printf "Error:   %s\n" "$error"
-    printf "---------------------------------\n"
+    printf -- "---------------------------------\n"
     
     printf "AI Analysis:\n"
     local prompt
@@ -902,8 +897,8 @@ cmd_metrics_loop() {
 
   while true; do
     local pending_count dead_count
-    pending_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM jobs WHERE status = 'pending';" 2>/dev/null || echo 0)
-    dead_count=$(psql "${DATABASE_URL}" -tAc "SELECT count(*) FROM jobs WHERE status = 'dead';" 2>/dev/null || echo 0)
+    pending_count=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM jobs WHERE status = 'pending';" 2>/dev/null || echo 0)
+    dead_count=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM jobs WHERE status = 'dead';" 2>/dev/null || echo 0)
 
     # Use python to get timeUnixNano (platform independent)
     local ts_nano
@@ -964,31 +959,101 @@ EOF
   done
 }
 
-cmd_error_velocity() {
-  set -x
-  local minutes="${1:-5}"
-  local trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
-  
-  if [[ ! -f "$trace_file" ]]; then
-    echo 0
-    return
+cmd_backup() {
+  if ! command -v pg_dump >/dev/null 2>&1; then
+    _svc_die "pg_dump not found. Run: brew install postgresql@18"
   fi
 
-  # Calculate timestamp threshold (e.g., 5 minutes ago)
-  local threshold
-  if date --version >/dev/null 2>&1; then
-    # GNU date (Linux / Homebrew coreutils)
-    threshold=$(date -d "${minutes} minutes ago" "+%Y-%m-%dT%H:%M:%S")
+  local backup_dir="${MY_ROOT}/backups"
+  mkdir -p "$backup_dir"
+
+  local timestamp
+  timestamp=$(date +%Y%m%d_%H%M%S)
+  local db_name
+  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
+  local backup_file="${backup_dir}/${db_name}_${timestamp}.sql.gz"
+
+  _svc_log "creating backup: ${backup_file}..."
+  if pg_dump "${DATABASE_URL}" | gzip > "$backup_file"; then
+    _svc_ok "backup complete."
+    # Maintain last 10 backups
+    ls -t "${backup_dir}/${db_name}"_*.sql.gz 2>/dev/null | tail -n +11 | xargs rm -f -- 2>/dev/null || true
   else
-    # BSD date (macOS default)
-    threshold=$(date -v-"${minutes}"M "+%Y-%m-%dT%H:%M:%S")
+    _svc_die "backup failed."
+  fi
+}
+
+cmd_restore() {
+  local backup_file="${1:-}"
+  if [[ -z "$backup_file" ]]; then
+    _svc_die "usage: zdots-ctx restore <path-to-sql-gz>"
   fi
 
-  # Count error spans (status.code == 2) within the threshold.
-  local error_count
-  error_count=$(tail -n 100 "$trace_file" | { grep "\"status\":{\"code\":2}" || true; } | awk -v t="$threshold" -F'"ts":"' '{ if ($2 > t) print $0 }' | wc -l | tr -d ' ')
+  if [[ ! -f "$backup_file" ]]; then
+    _svc_die "backup file not found: $backup_file"
+  fi
 
-  echo "${error_count:-0}"
+  _require_psql
+  _svc_log "restoring from ${backup_file}..."
+  
+  # WARNING: This is destructive to the current database
+  printf "WARNING: This will overwrite the current database. Proceed? [y/N] "
+  local response
+  read -r response
+  if [[ ! "$response" =~ ^[Yy]$ ]]; then
+    _svc_log "aborted."
+    return 1
+  fi
+
+  local db_name
+  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
+  local base_url
+  base_url=$(echo "${DATABASE_URL}" | sed -E 's/\/[^/]+$/\/postgres/')
+
+  psql "${base_url}" -c "DROP DATABASE IF EXISTS ${db_name} (FORCE);" >/dev/null 2>&1
+  psql "${base_url}" -c "CREATE DATABASE ${db_name};" >/dev/null 2>&1
+
+  if gunzip -c "$backup_file" | psql "${DATABASE_URL}" >/dev/null 2>&1; then
+    _svc_ok "restore complete."
+  else
+    _svc_die "restore failed."
+  fi
+}
+
+cmd_seed() {
+  _require_psql
+  local standards_dir="${MY_ROOT}/standards"
+  if [[ ! -d "$standards_dir" ]]; then
+    _svc_die "standards directory not found: $standards_dir"
+  fi
+
+  _svc_log "importing standards from ${standards_dir}..."
+
+  for f in "${standards_dir}"/*.md; do
+    [[ -e "$f" ]] || continue
+    local slug title content
+    slug=$(basename "$f" .md | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+    title=$(head -n 1 "$f" | sed 's/^# //')
+    content=$(cat "$f")
+
+    _svc_log "seeding: ${slug}..."
+    local id
+    id=$(psql "${DATABASE_URL}" -X -t -A -q -c "
+      INSERT INTO methodologies (slug, title, content)
+      VALUES ('${slug}', '${title//\'/''}', '${content//\'/''}')
+      ON CONFLICT (slug) DO UPDATE 
+      SET title = EXCLUDED.title, content = EXCLUDED.content, updated_at = CURRENT_TIMESTAMP
+      RETURNING id;
+    " | head -n 1)
+
+    if [[ -n "$id" ]]; then
+      # Enqueue embedding job
+      local payload
+      payload=$(jq -n --arg t "methodologies" --arg i "$id" --arg txt "$content" '{table: $t, id: $i, text: $txt}')
+      cmd_enqueue "embed" "$payload" >/dev/null
+    fi
+  done
+  _svc_ok "seeding complete."
 }
 
 # ---------------------------------------------------------------------------
