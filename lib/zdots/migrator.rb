@@ -8,7 +8,7 @@ Sequel.extension :migration
 module Zdots
   module Migrator
     def self.run
-      Zdots.init_otel("zdots-migrator")
+      # Zdots.init_otel("zdots-migrator")
       db = Zdots.db
       
       migrations_path = File.expand_path("../../db/migrations", __dir__)

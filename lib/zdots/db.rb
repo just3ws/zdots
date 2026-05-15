@@ -4,7 +4,7 @@ require "sequel"
 require "dotenv"
 
 # Load environment variables if not already loaded
-Dotenv.load(File.expand_path("../../.zdots.env", __dir__))
+Dotenv.load(File.expand_path("../../.env.shared", __dir__))
 
 module Zdots
   module DB
