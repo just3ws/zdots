@@ -96,7 +96,7 @@ fi
 
 # AI Workflow
 if command -v claude >/dev/null 2>&1; then alias cl='claude'; fi
-if command -v gemini >/dev/null 2>&1; then alias gm='gemini'; fi
+if command -v gemini >/dev/null 2>&1; then alias gm='gemini-invoke gemini'; fi
 
 # Colima / Docker storage hygiene (256GB primary — prune aggressively)
 if command -v colima >/dev/null 2>&1; then

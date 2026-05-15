@@ -46,6 +46,11 @@ zdots_ai_infer() {
   export _ZDOTS_AI_SERVER_UP=1
 
   local tmp_res; tmp_res=$(mktemp)
+  local trace_header=()
+  if [[ -n "${TRACEPARENT:-}" ]]; then
+    trace_header=( -H "traceparent: ${TRACEPARENT}" )
+  fi
+
   jq -nc \
     --arg model "$ZDOTS_AI_MODEL" \
     --arg system "$system" \
@@ -61,6 +66,7 @@ zdots_ai_infer() {
     }' \
     | curl -sf -X POST "$ZDOTS_AI_ENDPOINT/v1/chat/completions" \
         -H "Content-Type: application/json" \
+        "${trace_header[@]}" \
         -d @- >| "$tmp_res"
 
   if [[ ! -s "$tmp_res" ]]; then
