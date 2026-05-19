@@ -17,17 +17,19 @@ module Zdots
 
         puts "  --> Generating embedding for #{table}:#{id} using RubyLLM..."
 
-        llm = RubyLLM::Provider::OpenAI.new(
-          api_key: "local",
-          base_url: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080/v1")
-        )
+        config = RubyLLM::Configuration.new
+        config.openai_api_key = "local"
+        config.openai_api_base = ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080/v1")
+
+        llm = RubyLLM::Providers::OpenAI.new(config)
 
         response = llm.embed(
+          text,
           model: "local",
-          input: text
+          dimensions: 3584
         )
 
-        embedding = response.embedding
+        embedding = response.vectors
         
         if embedding.nil? || embedding.empty?
           raise "Failed to generate or parse embedding from AI server"

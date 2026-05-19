@@ -18,9 +18,9 @@ module Zdots
         timeout_bin = `which timeout`.strip if timeout_bin.empty?
         
         cmd = if timeout_bin.empty?
-                "#{recipe_path} '#{url}'"
+                "#{recipe_path} '#{url}' --profile standard --summarize"
               else
-                "#{timeout_bin} 3600 #{recipe_path} '#{url}'"
+                "#{timeout_bin} 3600 #{recipe_path} '#{url}' --profile standard --summarize"
               end
 
         puts "  --> Executing: #{cmd}"

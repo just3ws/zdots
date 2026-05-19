@@ -65,7 +65,8 @@ fi
 
 # 2. Summarize
 printf '── Summarizing transcript ...\n' >&2
-SUMMARY=$(cat "$RAW_TXT" | "$AI_QUERY" "Clean up this transcript and provide a concise executive summary with action items.")
+CONTEXT=$(zdots-ctx hydrate transcription --json 2>/dev/null || echo "")
+SUMMARY=$(cat "$RAW_TXT" | "$AI_QUERY" --system "$CONTEXT" "Clean up this transcript and provide a concise executive summary with action items.")
 
 # 3. Output
 if $SUMMARY_ONLY; then

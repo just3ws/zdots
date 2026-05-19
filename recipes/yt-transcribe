@@ -17,6 +17,7 @@ trap '' PIPE
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 WHISPER_CTL="${ZDOTDIR}/bin/whisper-ctl"
 DIARIZE="${ZDOTDIR}/bin/diarize"
+AI_QUERY="${ZDOTDIR}/bin/ai-query"
 OUT_BASE="${HOME}/Downloads/transcripts"
 
 usage() {
@@ -29,24 +30,27 @@ captures full metadata, and transcribes using whisper.cpp.
 Options:
   --keep-media   Keep the original .wav audio file (deleted by default).
   --diarize      Identify speakers (requires HUGGINGFACE_TOKEN).
+  --summarize    Generate an AI summary/cleanup (requires llama-server).
   --profile <p>  Whisper profile: max-accuracy (default), standard, light.
   -h, --help     Show this help
 
 Outputs:
-  Saved to ~/Downloads/transcripts/<video_id>/ in 5 formats:
-  .txt, .json (structured), .srt, .vtt, .csv + .info.json (metadata)
+  Saved to ~/Downloads/transcripts/<video_id>/ in 5+ formats:
+  .txt, .json (structured), .srt, .vtt, .csv, .info.json, .summary.md
 EOF
 }
 
 URL=""
 KEEP_MEDIA=false
 DIARIZE_FLAG=false
+SUMMARIZE_FLAG=false
 WHISPER_PROFILE="max-accuracy"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --keep-media) KEEP_MEDIA=true; shift ;;
     --diarize)    DIARIZE_FLAG=true; shift ;;
+    --summarize)  SUMMARIZE_FLAG=true; shift ;;
     --profile)    WHISPER_PROFILE="$2"; shift 2 ;;
     -h|--help)    usage; exit 0 ;;
     *)            URL="$1"; shift ;;
@@ -114,7 +118,23 @@ fi
   --output-txt --output-vtt --output-srt --output-csv --output-json \
   --output-file "${OUT_DIR}/${VIDEO_ID}"
 
-# 4. Optional Diarization
+# 4. Optional Summarization & Cleanup
+if $SUMMARIZE_FLAG; then
+  printf '── Summarizing and cleaning up transcript ...\n' >&2
+  RAW_TXT="${OUT_DIR}/${VIDEO_ID}.txt"
+  SUMMARY_MD="${OUT_DIR}/${VIDEO_ID}.summary.md"
+  
+  if [[ -f "$RAW_TXT" ]]; then
+    CONTEXT=$(zdots-ctx hydrate transcription --json 2>/dev/null || echo "")
+    if cat "$RAW_TXT" | "$AI_QUERY" --system "$CONTEXT" "Clean up this transcript and provide a concise executive summary with action items." > "$SUMMARY_MD"; then
+      printf '── Summary saved to: %s\n' "$SUMMARY_MD" >&2
+    else
+      printf 'yt-transcribe: warning: summarization failed.\n' >&2
+    fi
+  fi
+fi
+
+# 5. Optional Diarization
 if $DIARIZE_FLAG; then
   printf '── Performing speaker diarization ...\n' >&2
   if ! "$DIARIZE" "$CONVERTED_WAV" "${OUT_DIR}/${VIDEO_ID}.json" --output "${OUT_DIR}/${VIDEO_ID}.speaker.json"; then
