@@ -60,7 +60,7 @@ module Zdots
     end
 
     def cmd_worker(args)
-      Zdots.init_otel("zdots-worker")
+      # Zdots.init_otel("zdots-worker")
       
       puts "zdots-brain: starting worker..."
       puts "  filter by type: #{@options[:type]}" if @options[:type]
@@ -369,7 +369,7 @@ module Zdots
     end
 
     def cmd_status
-      Zdots.init_otel("zdots-brain")
+      # Zdots.init_otel("zdots-brain")
       db = Zdots.db
       connected = true rescue false
       
