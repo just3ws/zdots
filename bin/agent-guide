@@ -126,6 +126,16 @@ if $JSON; then
         ],
         note: "Registered in ~/.claude.json; available natively in Claude Code sessions"
       },
+      database: {
+        name:           "my",
+        app_user:       "zdots_rw",
+        app_url:        "postgresql://zdots_rw@/my",
+        readonly_user:  "zdots_ro",
+        readonly_url:   "postgresql://zdots_ro@/my",
+        migration_user: "mike (superuser via ZDOTS_MIGRATION_URL)",
+        note:           "All writes go through zdots-ctx or context-engine only. Use zdots_ro for safe psql exploration.",
+        explore:        "psql -U zdots_ro my"
+      },
       docs: {
         platform_control: "zdots-ctl check / up / down / reset / status",
         ai:               "docs/llama-cpp.md",
@@ -352,6 +362,24 @@ without first reviewing a dry run or getting explicit user confirmation.
   docker-df                 safe: shows Docker disk usage (read-only)
   local-ci prune            DRY RUN — shows what Docker prune would free (safe)
   local-ci prune -f         DESTRUCTIVE: executes Docker prune
+EOF
+
+_head "Database Access"
+
+cat <<EOF
+Database: my (PostgreSQL)
+
+WRITE PATH — all mutations must go through intentional interfaces:
+  zdots-ctx <command>          CLI interface (zdots_rw user)
+  context-engine API           Rails app (zdots_rw user)
+
+READ-ONLY EXPLORATION — safe for ad-hoc queries:
+  psql -U zdots_ro my          connects as zdots_ro (SELECT only)
+  zdots-ctx query <term>       full-text search via the safe interface
+  zdots-ctx status             connection check + record counts
+
+DO NOT connect as mike (superuser) for routine queries — use zdots_ro.
+Migrations (zdots-ctx migrate) use ZDOTS_MIGRATION_URL (superuser) automatically.
 EOF
 
 _head "Quick Reference"
