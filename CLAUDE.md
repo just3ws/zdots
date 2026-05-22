@@ -17,6 +17,22 @@ zdots-ctl reset        # full restart
 zdots-ctl install      # first-time setup on a new workstation
 ```
 
+## Database Architecture
+
+| Attribute | Value |
+|---|---|
+| Database | `my` (PostgreSQL) |
+| Schema owner | `zdots-brain` via Sequel migrations in `db/migrations/` |
+| Consumer | `context-engine` (Rails) — read/write via `zdots_bridge.rb` |
+| Migration command | `zdots-ctx migrate` |
+| Migration table | `zdots_schema_migrations` |
+
+The authoritative migrations are:
+- `db/migrations/20260514000000_baseline.rb` — tables, indexes, extensions
+- `db/migrations/20260515000000_add_job_functions.rb` — PL/pgSQL job functions
+
+The old SQL files in `etc/db/migrations/` (001–009) are archived and must not be applied. Do **not** reference the `zdots` database — that is an unrelated legacy app schema.
+
 ## Claude Context
 - This environment is optimized for `claude-code` via the `cl` alias.
 - Follow the **RTK** guidance in [AGENTS.md](AGENTS.md#rtk-rust-token-killer---history-aware-optimizations) for all high-output commands.
