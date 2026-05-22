@@ -10,6 +10,13 @@
 model: openai/local
 weak-model: openai/local
 
+# Baseline context — loaded every session so Aider starts with full project awareness.
+# Mirrors the context that Claude Code and Gemini load automatically via their respective
+# CLAUDE.md / GEMINI.md conventions.
+read:
+  - AGENTS.md
+  - AIDER.md
+
 # Use the local nomic-embed-v2-moe for the repo map
 # This model handles larger maps better than v1.5
 map-tokens: 2048
