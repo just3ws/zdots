@@ -23,13 +23,19 @@ zdots-ctl install      # first-time setup on a new workstation
 |---|---|
 | Database | `my` (PostgreSQL) |
 | Schema owner | `zdots-brain` via Sequel migrations in `db/migrations/` |
+| Migration user | `mike` (superuser) via `ZDOTS_MIGRATION_URL` |
+| App user | `zdots_rw` — write access via zdots-ctx / context-engine only |
+| Read-only access | `zdots_ro` — SELECT only, safe for psql exploration |
 | Consumer | `context-engine` (Rails) — read/write via `zdots_bridge.rb` |
 | Migration command | `zdots-ctx migrate` |
 | Migration table | `zdots_schema_migrations` |
 
+For safe psql exploration use: `psql -U zdots_ro my`
+
 The authoritative migrations are:
 - `db/migrations/20260514000000_baseline.rb` — tables, indexes, extensions
 - `db/migrations/20260515000000_add_job_functions.rb` — PL/pgSQL job functions
+- `db/migrations/20260522000000_setup_access_roles.rb` — zdots_ro/zdots_rw roles
 
 The old SQL files in `etc/db/migrations/` (001–009) are archived and must not be applied. Do **not** reference the `zdots` database — that is an unrelated legacy app schema.
 
