@@ -11,7 +11,7 @@ module Zdots
     class << self
       def connect
         @connect ||= begin
-          db = Sequel.connect(ENV.fetch("DATABASE_URL", "postgresql://zdots_rw@/my"))
+          db = Sequel.connect(ENV.fetch("ZDOTS_DATABASE_URL", "postgresql://zdots_rw@/my"))
           db.extension :pg_array, :pg_json
           db
         end
@@ -28,10 +28,10 @@ module Zdots
 
         abort <<~MSG
           [zdots] Database misconfiguration detected.
-          Connected to: #{db.opts[:database] || db.opts[:host]}  (DATABASE_URL=#{ENV.fetch('DATABASE_URL', 'unset')})
+          Connected to: #{db.opts[:database] || db.opts[:host]}  (ZDOTS_DATABASE_URL=#{ENV.fetch('ZDOTS_DATABASE_URL', 'unset')})
           Missing tables: #{missing.join(', ')}
 
-          Fix: ensure DATABASE_URL points to the 'my' database, then run: zdots-ctx migrate
+          Fix: ensure ZDOTS_DATABASE_URL points to the 'my' database, then run: zdots-ctx migrate
         MSG
       end
     end

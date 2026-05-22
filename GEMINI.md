@@ -38,7 +38,7 @@ The single database is `my` (PostgreSQL). All access uses role-based users — n
 - `psql -U zdots_ro my` — direct SQL (SELECT only, no writes possible)
 - `zdots-ctx query <term>` — full-text search
 
-`DATABASE_URL` always resolves to `postgresql://zdots_rw@/my`. Do not override it to point at any other database — the `my` database is the only authoritative source.
+`ZDOTS_DATABASE_URL` always resolves to `postgresql://zdots_rw@/my`. Do not set `DATABASE_URL` in the zdots environment — it has no owner here and setting it causes confusion across tools. Use `ZDOTS_DATABASE_URL` for app connections and `ZDOTS_MIGRATION_URL` for migrations.
 
 ## Documentation Standards
 - **Diagrams**: Use Mermaid (v11+) for all architectural and state visualizations.
