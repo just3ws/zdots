@@ -3,6 +3,7 @@
 Sequel.migration do
   up do
     run <<~SQL
+      DROP FUNCTION IF EXISTS claim_next_job(text, text);
       CREATE OR REPLACE FUNCTION claim_next_job(p_worker_type text, p_trace_id text)
       RETURNS TABLE(id uuid, type text, payload jsonb) AS $$
       DECLARE
