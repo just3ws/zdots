@@ -22,7 +22,6 @@
 #   triage    Review and resolve permanently failed 'dead' jobs
 #   clear-stale-jobs Reset 'running' jobs that have timed out
 #   metrics-loop Export queue depth metrics to OTel continuously
-#   error-velocity Report count of recent command errors (frustration detector)
 #   backup    Create a timestamped SQL dump in ~/my/backups
 #   restore [f] Restore the database from dump file [f]
 
@@ -63,7 +62,6 @@ Intelligence Suite Interface:
   triage    Review and resolve permanently failed 'dead' jobs
   clear-stale-jobs Reset 'running' jobs that have timed out
   metrics-loop Export queue depth metrics to OTel continuously
-  error-velocity Report count of recent command errors (frustration detector)
   backup    Create a timestamped SQL dump in ~/my/backups
   restore [f] Restore the database from dump file [f]
 
@@ -401,43 +399,6 @@ cmd_hydrate() {
   fi
 }
 
-# ---------------------------------------------------------------------------
-cmd_seed() {
-  _require_psql
-  local standards_dir="${MY_ROOT}/standards"
-  if [[ ! -d "$standards_dir" ]]; then
-    _svc_die "standards directory not found: $standards_dir"
-  fi
-
-  _svc_log "importing standards from ${standards_dir}..."
-
-  for f in "${standards_dir}"/*.md; do
-    [[ -e "$f" ]] || continue
-    local slug title content
-    slug=$(basename "$f" .md | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-    title=$(head -n 1 "$f" | sed 's/^# //')
-    content=$(cat "$f")
-
-    _svc_log "seeding: ${slug}..."
-    local id
-    id=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-      INSERT INTO methodologies (slug, title, content)
-      VALUES ('${slug}', '${title//\'/''}', '${content//\'/''}')
-      ON CONFLICT (slug) DO UPDATE 
-      SET title = EXCLUDED.title, content = EXCLUDED.content, updated_at = CURRENT_TIMESTAMP
-      RETURNING id;
-    " | head -n 1)
-
-    if [[ -n "$id" ]]; then
-      # Enqueue embedding job
-      local payload
-      payload=$(jq -n --arg t "methodologies" --arg i "$id" --arg txt "$content" '{table: $t, id: $i, text: $txt}')
-      cmd_enqueue "embed" "$payload" >/dev/null
-    fi
-  done
-  _svc_ok "seeding complete."
-}
-
 cmd_add_methodology() {
   "${ZDOTDIR}/sbin/zdots-brain" add-methodology "$@"
 }
@@ -740,7 +701,6 @@ case "${1:-}" in
   triage)          shift; cmd_triage "${@}" ;;
   clear-stale-jobs) shift; cmd_clear_stale_jobs "${@}" ;;
   metrics-loop)    shift; cmd_metrics_loop "${@}" ;;
-  error-velocity)  shift; cmd_error_velocity "${@}" ;;
   backup)   shift; cmd_backup "${@}" ;;
   restore)  shift; cmd_restore "${@}" ;;
   -h|--help) usage; exit 0 ;;

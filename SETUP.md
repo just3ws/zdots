@@ -69,7 +69,7 @@ The `bootstrap` script runs `zdots-ctx init-db` automatically. If it was
 skipped (PostgreSQL wasn't running), run it manually after starting PostgreSQL:
 
 ```bash
-brew services start postgresql@17
+brew services start postgresql@18
 zdots-ctx init-db
 ```
 
