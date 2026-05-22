@@ -23,7 +23,7 @@ module Zdots
       },
       intelligence: {
         title: "Intelligence Suite (PostgreSQL)",
-        database: "zdots",
+        database: "my",
         manager: "zdots-ctx"
       }
     }.freeze

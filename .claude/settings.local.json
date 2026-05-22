@@ -249,16 +249,15 @@
       "Bash(xargs -I{} readlink {})",
       "Bash(zdots-ctl up *)",
       "Bash(psql -l)",
-      "Bash(psql zdots *)",
-      "Bash(psql zdots_old -c \"\\\\dt\")",
-      "Bash(psql zdots_archive -c \"\\\\dt\")",
       "Bash(bundle exec *)",
       "Bash(zdots-brain status *)",
       "Bash(zdots-ctx status *)",
       "Bash(psql my *)",
       "Bash(psql -d my -c \"SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE relname IN \\('jobs','lessons','methodologies','session_residue'\\) ORDER BY relname;\")",
       "Bash(DATABASE_URL=postgresql:///my zdots-ctx status *)",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(zdots-ctx migrate *)",
+      "Bash(DATABASE_URL=postgresql:///my ruby -e ' *)"
     ]
   }
 }
