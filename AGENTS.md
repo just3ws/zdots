@@ -25,8 +25,9 @@ agent-guide          # detailed usage guide for all services
 
 | Need | Tool |
 |---|---|
-| Multi-file reasoning | Claude Code (`cl`) |
-| Interactive code edit | `zaider` (aider) |
+| Multi-file reasoning | Claude Code (`cl`) or `zaider` (Aider) |
+| Interactive code edit | `zaider` — Aider wired to local llama.cpp |
+| Low-priority / background edits | `laid` — `zaider` at nice +19, reduced threads |
 | Scripted inference | `ai-query` |
 | Context reduction | `rtk` |
 
@@ -53,8 +54,36 @@ agent-guide          # detailed usage guide for all services
 
 ## 6. Database
 
-- **Database:** `my` (PostgreSQL) — do **not** use the `zdots` database (unrelated legacy app).
-- **Schema owner:** `zdots-brain` manages the schema via Sequel migrations in `db/migrations/`.
-- **Consumer:** `context-engine` (Rails) reads/writes via `zdots_bridge.rb`.
-- **Migrate:** `zdots-ctx migrate`
-- Old SQL files in `etc/db/migrations/archive/` (001–009) are superseded and must not be applied.
+| Attribute | Value |
+|---|---|
+| Database | `my` (PostgreSQL) — do **not** use `zdots` (unrelated legacy schema) |
+| Schema owner | `zdots-brain` via Sequel migrations in `db/migrations/` |
+| Migration user | OS user (superuser) via `ZDOTS_MIGRATION_URL` |
+| App user | `zdots_rw` — write access via `zdots-ctx` / `context-engine` only |
+| Read-only | `zdots_ro` — SELECT only, safe for ad-hoc queries |
+| App connection | `ZDOTS_DATABASE_URL=postgresql://zdots_rw@/my` |
+| Migration command | `zdots-ctx migrate` |
+
+Safe exploration: `psql -U zdots_ro my`
+
+Do **not** set `DATABASE_URL` — it has no owner in this stack and causes confusion. Use `ZDOTS_DATABASE_URL` for app connections and `ZDOTS_MIGRATION_URL` for migrations.
+
+## 7. AI Stack
+
+All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are configured until explicitly added to `.zdots.secrets`.
+
+| Tool | Purpose | Invocation |
+|---|---|---|
+| `ai-query` | Scripted / piped inference | `ai-query "prompt"` or `cmd \| ai-query "task"` |
+| `zaider` | Aider wired to local llama.cpp | `zaider` (from any repo directory) |
+| `laid` | Low-priority Aider | `laid` (nice +19, reduced threads) |
+| `zdots-ctx query` | Search local knowledge base | `zdots-ctx query <term>` |
+| `zdots-ctx hydrate` | Context blob for AI tasks | `zdots-ctx hydrate [tag]` |
+
+**Endpoint:** `ZDOTS_AI_ENDPOINT` (default `http://127.0.0.1:8080`). Override in `.zdots.local` to point at a remote LAN machine.
+
+**Aider context management** (7B model — be deliberate):
+- `/add file.rb` — add only what you're editing
+- `/drop file.rb` — free context when done
+- `/clear` — wipe history between tasks
+- `/tokens` — check budget before adding large files
