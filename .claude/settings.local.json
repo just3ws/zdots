@@ -257,16 +257,18 @@
       "Bash(DATABASE_URL=postgresql:///my zdots-ctx status *)",
       "Bash(xargs cat)",
       "Bash(zdots-ctx migrate *)",
-      "Bash(DATABASE_URL=postgresql:///my ruby -e ' *)",
+      "Bash(ZDOTS_DATABASE_URL=postgresql:///my ruby -e ' *)",
       "Bash(zdots-ctx worker *)",
       "Bash(zdots-ctx jobs *)",
       "Bash(psql *)",
       "Bash(pkill -f \"zdots-brain worker\")",
-      "Bash(DATABASE_URL=postgresql://zdots_rw@/my ruby *)",
-      "Bash(DATABASE_URL=postgresql:///my bundle exec *)",
+      "Bash(ZDOTS_DATABASE_URL=postgresql://zdots_rw@/my ruby *)",
+      "Bash(ZDOTS_DATABASE_URL=postgresql:///my bundle exec *)",
       "Bash(zdots-ctx --help)",
       "Bash(env *)",
-      "Bash(bin/agent-guide --json)"
+      "Bash(bin/agent-guide --json)",
+      "Bash(jq '{services: .services, env: .env}')",
+      "Bash(jq '{migration_user: .database.migration_user, env_keys: \\(.env | keys\\)}')"
     ]
   }
 }
