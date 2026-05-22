@@ -20,6 +20,26 @@ Gemini-specific instructions for Zdots.
     - **Brain (`my`)**: For long-term context, standards, and structured memory.
 - **Context Writing**: When making significant architectural decisions or recording project observations, utilize the `~/my/context/` directory (e.g., `observations.md` or `next_prompt.md`) to hydrate the "Cerebral Control Plane."
 
+## Database Access
+
+The single database is `my` (PostgreSQL). All access uses role-based users — never connect as the `mike` superuser for routine work.
+
+| User | Role | Purpose | Connect string |
+|------|------|---------|----------------|
+| `zdots_ro` | `zdots_reader` | Read-only exploration | `psql -U zdots_ro my` |
+| `zdots_rw` | `zdots_writer` | App writes (zdots-ctx, context-engine) | `postgresql://zdots_rw@/my` |
+| `mike` | superuser | Migrations only — via `ZDOTS_MIGRATION_URL` | automatic via `zdots-ctx migrate` |
+
+**Write path** — all mutations must go through intentional interfaces:
+- `zdots-ctx <command>` — CLI (uses `zdots_rw`)
+- `context-engine` Rails API (uses `zdots_rw`)
+
+**Read-only exploration** — safe for ad-hoc queries:
+- `psql -U zdots_ro my` — direct SQL (SELECT only, no writes possible)
+- `zdots-ctx query <term>` — full-text search
+
+`DATABASE_URL` always resolves to `postgresql://zdots_rw@/my`. Do not override it to point at any other database — the `my` database is the only authoritative source.
+
 ## Documentation Standards
 - **Diagrams**: Use Mermaid (v11+) for all architectural and state visualizations.
 - **Supported Types**: Prefer `architecture-beta` for system maps, `erDiagram` for database schema, and `stateDiagram-v2` for job lifecycles.

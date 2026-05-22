@@ -72,8 +72,16 @@ Options:
   -h, --help  Show this help
 
 Environment:
-  ZDOTS_MY_ROOT  Root of the identity monorepo (default: ~/my)
-  DATABASE_URL   PostgreSQL connection string
+  ZDOTS_MY_ROOT        Root of the identity monorepo (default: ~/my)
+  DATABASE_URL         App connection — defaults to postgresql://zdots_rw@/my
+                       zdots_rw has DML + EXECUTE; all writes go through this interface
+  ZDOTS_MIGRATION_URL  Superuser connection for migrations (default: postgresql:///my)
+                       Used only by 'migrate' and 'init-db'; requires CREATE/ALTER/DROP
+  DATABASE_URL_OVERRIDE  Set to force DATABASE_URL regardless of env sourcing
+
+Database access levels:
+  zdots_rw   INSERT/UPDATE/DELETE/SELECT + stored procedures — app user (this tool)
+  zdots_ro   SELECT only — safe for psql exploration: psql -U zdots_ro my
 EOF
 }
 
@@ -105,16 +113,16 @@ cmd_status() {
 cmd_init_db() {
   _require_psql
   _svc_log "initializing intelligence suite database..."
-  
-  # Try to create the database if it doesn't exist
-  # We use 'postgres' DB for the initial connection to run CREATE DATABASE
+
+  # Use the superuser URL for DDL operations — zdots_rw cannot CREATE DATABASE
+  local migration_url="${ZDOTS_MIGRATION_URL:-postgresql:///my}"
   local db_name
-  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
-  
-  if ! psql "${DATABASE_URL}" -X -t -A -q -c "SELECT 1" >/dev/null 2>&1; then
+  db_name=$(echo "${migration_url}" | sed -E 's/.*\///')
+
+  if ! psql "${migration_url}" -X -t -A -q -c "SELECT 1" >/dev/null 2>&1; then
     _svc_log "database '${db_name}' not found, attempting to create..."
     local base_url
-    base_url=$(echo "${DATABASE_URL}" | sed -E 's/\/[^/]+$/\/postgres/')
+    base_url=$(echo "${migration_url}" | sed -E 's/\/[^/]+$/\/postgres/')
     if ! psql "${base_url}" -c "CREATE DATABASE ${db_name};" >/dev/null 2>&1; then
       _svc_die "failed to create database '${db_name}'. Ensure Postgres is running and you have permissions."
     fi
