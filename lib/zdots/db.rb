@@ -20,6 +20,20 @@ module Zdots
       def logger=(logger)
         connect.loggers << logger
       end
+
+      def validate!
+        db = connect
+        missing = %i[jobs lessons methodologies].reject { |t| db.table_exists?(t) }
+        return if missing.empty?
+
+        abort <<~MSG
+          [zdots] Database misconfiguration detected.
+          Connected to: #{db.opts[:database] || db.opts[:host]}  (DATABASE_URL=#{ENV.fetch('DATABASE_URL', 'unset')})
+          Missing tables: #{missing.join(', ')}
+
+          Fix: ensure DATABASE_URL points to the 'my' database, then run: zdots-ctx migrate
+        MSG
+      end
     end
   end
 end

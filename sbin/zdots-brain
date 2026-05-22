@@ -406,4 +406,6 @@ module Zdots
   end
 end
 
+Zdots::DB.validate!
+
 Zdots::CLI.new.run(ARGV)

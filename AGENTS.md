@@ -50,3 +50,11 @@ agent-guide          # detailed usage guide for all services
 | OTel | `otel-collector` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | LGTM Stack | `local-ci` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | Orchestrator | `zdots-ctl` | [README.md](README.md) |
+
+## 6. Database
+
+- **Database:** `my` (PostgreSQL) — do **not** use the `zdots` database (unrelated legacy app).
+- **Schema owner:** `zdots-brain` manages the schema via Sequel migrations in `db/migrations/`.
+- **Consumer:** `context-engine` (Rails) reads/writes via `zdots_bridge.rb`.
+- **Migrate:** `zdots-ctx migrate`
+- Old SQL files in `etc/db/migrations/archive/` (001–009) are superseded and must not be applied.
