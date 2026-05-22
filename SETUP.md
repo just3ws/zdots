@@ -84,6 +84,48 @@ override it in `.zdots.local`:
 ZDOTS_MIGRATION_URL=postgresql://yourusername@localhost/my
 ```
 
+## AI security boundary
+
+**On a fresh clone, all AI is local. This is non-negotiable until security is complete.**
+
+`ZDOTS_AI_MODE=local` is the default set in `.zdots.env`. It means:
+
+- `ai-query`, `zaider` (Aider), and `zdots-ctx` all send inference to `ZDOTS_AI_ENDPOINT` only
+- No `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY` are set
+- No data leaves the machine (or your LAN) to reach a cloud provider
+
+### Local stack for analysis and automation
+
+```
+ai-query "analyze this"              # one-shot inference via llama.cpp
+zaider                               # Aider wired to local model
+zdots-ctx query <term>               # search local knowledge base
+zdots-ctx hydrate [tag]              # context blob for AI tasks
+zdots-brain                          # background job worker (embed, distill)
+```
+
+### Using a more powerful machine on your LAN
+
+If you have a workstation running llama.cpp, point everything at it in `.zdots.local`:
+
+```bash
+ZDOTS_AI_ENDPOINT=http://powerstation.local:8080
+```
+
+`ai-query`, `zaider`, and `zdots-ctx` all read this single variable — no other config needed.
+
+### Enabling cloud AI (after security setup)
+
+1. Add API keys to `.zdots.secrets` (gitignored):
+   ```bash
+   export OPENAI_API_KEY=sk-...
+   export ANTHROPIC_API_KEY=sk-ant-...
+   ```
+2. Set `ZDOTS_AI_MODE=cloud` in `.zdots.local`
+3. Restart your shell
+
+Cloud keys never go in `.zdots.env`, `.zdots.local`, or anywhere tracked by git.
+
 ## Verify
 
 ```bash

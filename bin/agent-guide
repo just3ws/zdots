@@ -75,6 +75,12 @@ if command -v whisper-cpp >/dev/null 2>&1; then
 fi
 
 CURRENT_USER="$(id -un 2>/dev/null || printf 'unknown')"
+AI_MODE="${ZDOTS_AI_MODE:-local}"
+
+CLOUD_KEYS_SET=false
+if [ -n "${OPENAI_API_KEY:-}" ] || [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${GEMINI_API_KEY:-}" ]; then
+  CLOUD_KEYS_SET=true
+fi
 
 # ---------------------------------------------------------------------------
 # JSON output mode
@@ -91,6 +97,8 @@ if $JSON; then
     --arg     grafana_url  "$GRAFANA_URL" \
     --argjson whisper_up   "$WHISPER_UP" \
     --arg     current_user "$CURRENT_USER" \
+    --arg     ai_mode        "$AI_MODE" \
+    --argjson cloud_keys_set "$CLOUD_KEYS_SET" \
     '{
       services: {
         llama_cpp:   { up: $ai_up,      endpoint: $ai_ep,     model: $ai_model, start: "llama-ctl start" },
@@ -100,11 +108,15 @@ if $JSON; then
         grafana:     { up: $grafana_up, url: $grafana_url,                       start: "local-ci start" }
       },
       ai: {
+        mode:              $ai_mode,
         inference_command: "ai-query",
         endpoint:          $ai_ep,
         model:             $ai_model,
         subprocess_safe:   true,
-        interactive_only:  ["ai"]
+        interactive_only:  ["ai"],
+        aider_command:     "zaider",
+        knowledge_base:    "zdots-ctx query / zdots-ctx hydrate",
+        cloud_keys_set:    $cloud_keys_set
       },
       otel: {
         otlp_http_endpoint:  $otel_ep,
