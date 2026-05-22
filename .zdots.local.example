@@ -24,8 +24,25 @@
 # ZDOTS_MIGRATION_URL=postgresql:///my
 
 # ---------------------------------------------------------------------------
-# AI Inference
-# Override if your AI server runs on a non-default port or remote host.
+# AI security boundary (NON-NEGOTIABLE on a new machine)
+#
+# local  — ZDOTS_AI_ENDPOINT only. No cloud API keys. Safe default.
+# cloud  — Enables cloud APIs. Keys MUST live in .zdots.secrets, not here.
+#
+# Do NOT change this to "cloud" until:
+#   1. Security review is complete for this machine
+#   2. Cloud API keys are stored in .zdots.secrets (gitignored)
+#   3. You understand what data will leave this machine
+# ---------------------------------------------------------------------------
+ZDOTS_AI_MODE=local
+
+# AI endpoint — local (default) or a trusted machine on your LAN.
+# Aider (zaider), ai-query, and zdots-ctx all read this single variable.
+#
+# Examples:
+#   local llama.cpp:              http://127.0.0.1:8080   (default)
+#   remote powerful workstation:  http://powerstation.local:8080
+#   remote Pi/NAS:                http://192.168.1.100:11434
 # ---------------------------------------------------------------------------
 # ZDOTS_AI_ENDPOINT=http://127.0.0.1:8080
 # ZDOTS_AI_PROFILE=standard
