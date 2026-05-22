@@ -17,6 +17,13 @@ if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.secrets" ]; then
   . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.secrets"
 fi
 
+# 1c. Machine-local overrides (Ignored by Git)
+# Machine identity, context (work/home), and per-machine overrides.
+# Copy from .zdots.local.example and fill in. Never commit this file.
+if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.local" ]; then
+  . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.local"
+fi
+
 # 2. XDG Base Directory Specification (Harden & Absolute)
 export XDG_ROOT="$HOME"
 export XDG_CONFIG_HOME="$XDG_ROOT/.config"

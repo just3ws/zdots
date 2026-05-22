@@ -74,6 +74,8 @@ if command -v whisper-cpp >/dev/null 2>&1; then
   WHISPER_UP=true
 fi
 
+CURRENT_USER="$(id -un 2>/dev/null || printf 'unknown')"
+
 # ---------------------------------------------------------------------------
 # JSON output mode
 # ---------------------------------------------------------------------------
@@ -88,6 +90,7 @@ if $JSON; then
     --argjson grafana_up   "$GRAFANA_UP" \
     --arg     grafana_url  "$GRAFANA_URL" \
     --argjson whisper_up   "$WHISPER_UP" \
+    --arg     current_user "$CURRENT_USER" \
     '{
       services: {
         llama_cpp:   { up: $ai_up,      endpoint: $ai_ep,     model: $ai_model, start: "llama-ctl start" },
@@ -144,7 +147,7 @@ if $JSON; then
         app_url:        "postgresql://zdots_rw@/my",
         readonly_user:  "zdots_ro",
         readonly_url:   "postgresql://zdots_ro@/my",
-        migration_user: "mike (superuser via ZDOTS_MIGRATION_URL)",
+        migration_user: ($current_user + " (OS superuser via ZDOTS_MIGRATION_URL)"),
         note:           "All writes go through zdots-ctx or context-engine only. Use zdots_ro for safe psql exploration.",
         explore:        "psql -U zdots_ro my"
       },

@@ -1,0 +1,41 @@
+# .zdots.local — Machine-local identity and overrides
+#
+# This file is sourced AFTER .zdots.env and .zdots.secrets.
+# It is gitignored and never committed. Copy this file to .zdots.local
+# and fill in values for this specific machine.
+#
+#   cp .zdots.local.example .zdots.local
+#
+# Values set here override anything from .zdots.env.
+
+# ---------------------------------------------------------------------------
+# Machine context
+# Selects work vs. home profile. Affects git identity, proxies, etc.
+# Options: home, work
+# ---------------------------------------------------------------------------
+# ZDOTS_CONTEXT=home
+
+# ---------------------------------------------------------------------------
+# Database
+# Default ZDOTS_MIGRATION_URL uses peer auth as the OS user (postgresql:///my).
+# This works on macOS/Homebrew where the installing user is a PG superuser.
+# Override here if your setup differs (e.g., different PG port, named user).
+# ---------------------------------------------------------------------------
+# ZDOTS_MIGRATION_URL=postgresql:///my
+
+# ---------------------------------------------------------------------------
+# AI Inference
+# Override if your AI server runs on a non-default port or remote host.
+# ---------------------------------------------------------------------------
+# ZDOTS_AI_ENDPOINT=http://127.0.0.1:8080
+# ZDOTS_AI_PROFILE=standard
+
+# ---------------------------------------------------------------------------
+# Work context overrides (only relevant when ZDOTS_CONTEXT=work)
+# Keep corporate identity and network config here, not in the shared repo.
+# ---------------------------------------------------------------------------
+# GIT_AUTHOR_EMAIL=firstname.lastname@company.com
+# GIT_COMMITTER_EMAIL=firstname.lastname@company.com
+# HTTP_PROXY=http://corporate-proxy:8080
+# HTTPS_PROXY=http://corporate-proxy:8080
+# NO_PROXY=localhost,127.0.0.1,.internal,.corp
