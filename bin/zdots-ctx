@@ -37,7 +37,7 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 source "${ZDOTDIR}/lib/lifecycle.bash"
 
 # 1. Ensure basics (handle unbound variables for complex environment files)
-[[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
+[[ -z "${ZDOTS_DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
 
 SVC_NAME="zdots-ctx"
 MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
@@ -73,11 +73,11 @@ Options:
 
 Environment:
   ZDOTS_MY_ROOT        Root of the identity monorepo (default: ~/my)
-  DATABASE_URL         App connection — defaults to postgresql://zdots_rw@/my
+  ZDOTS_DATABASE_URL         App connection — defaults to postgresql://zdots_rw@/my
                        zdots_rw has DML + EXECUTE; all writes go through this interface
   ZDOTS_MIGRATION_URL  Superuser connection for migrations (default: postgresql:///my)
                        Used only by 'migrate' and 'init-db'; requires CREATE/ALTER/DROP
-  DATABASE_URL_OVERRIDE  Set to force DATABASE_URL regardless of env sourcing
+  ZDOTS_DATABASE_URL_OVERRIDE  Set to force ZDOTS_DATABASE_URL regardless of env sourcing
 
 Database access levels:
   zdots_rw   INSERT/UPDATE/DELETE/SELECT + stored procedures — app user (this tool)
@@ -96,10 +96,10 @@ _require_psql() {
 }
 
 _db_ping() {
-  if [[ -z "${DATABASE_URL:-}" ]]; then
+  if [[ -z "${ZDOTS_DATABASE_URL:-}" ]]; then
     return 1
   fi
-  psql "${DATABASE_URL}" -X -t -A -q -c "SELECT 1;" >/dev/null 2>&1
+  psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT 1;" >/dev/null 2>&1
 }
 
 # ---------------------------------------------------------------------------
@@ -171,7 +171,7 @@ cmd_query() {
 
     _svc_log "performing semantic search..."
     printf "\n### SEMANTIC MATCHES: METHODOLOGIES\n"
-    psql "${DATABASE_URL}" -X -t -A -q -c "
+    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
       SELECT slug, title, (1 - (embedding <=> '${embedding}')) as similarity
       FROM methodologies 
       WHERE embedding IS NOT NULL
@@ -180,7 +180,7 @@ cmd_query() {
     " | column -t -s '|'
 
     printf "\n### SEMANTIC MATCHES: LESSONS\n"
-    psql "${DATABASE_URL}" -X -t -A -q -c "
+    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
       SELECT created_at::date, (1 - (embedding <=> '${embedding}')) as similarity, content
       FROM lessons 
       WHERE embedding IS NOT NULL
@@ -189,7 +189,7 @@ cmd_query() {
     " | column -t -s '|'
   else
     _svc_log "searching methodologies (text)..."
-    psql "${DATABASE_URL}" -X -t -A -q -c "
+    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
       SELECT slug, title 
       FROM methodologies 
       WHERE to_tsvector('english', title || ' ' || content) @@ plainto_tsquery('english', '${term}')
@@ -198,7 +198,7 @@ cmd_query() {
     " | column -t -s '|'
 
     _svc_log "searching lessons (text)..."
-    psql "${DATABASE_URL}" -X -t -A -q -c "
+    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
       SELECT created_at::date as date, content 
       FROM lessons 
       WHERE to_tsvector('english', content || ' ' || coalesce(context, '')) @@ plainto_tsquery('english', '${term}')
@@ -295,7 +295,7 @@ EOF
     local tags; tags=$(echo "$distillation" | jq -r '.tags | join(",")' 2>/dev/null || echo "")
     
     # Insert into session_residue
-    psql "${DATABASE_URL}" -X -t -A -q -c "
+    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
       INSERT INTO session_residue (trace_id, intent, result, summary, metadata)
       VALUES ('${sid}', '${intent//\'/''}', '${result//\'/''}', '${lesson//\'/''}', '${distillation//\'/''}'::jsonb)
       ON CONFLICT (trace_id) DO UPDATE 
@@ -304,7 +304,7 @@ EOF
 
     # Also insert the lesson
     local id
-    id=$(psql "${DATABASE_URL}" -X -t -A -q -c "
+    id=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
       INSERT INTO lessons (content, context, tags, source_trace_id)
       VALUES ('${lesson//\'/''}', '${intent//\'/''}', string_to_array('${tags}', ','), '${sid}')
       RETURNING id;
@@ -335,9 +335,9 @@ cmd_hydrate() {
   # Fetch methodologies by tag or limit
   local methodologies
   if [[ -n "$tag" && "$tag" != "--json" ]]; then
-    methodologies=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT title, content FROM methodologies WHERE '$tag' = ANY(tags) OR slug ILIKE '%$tag%';" 2>/dev/null)
+    methodologies=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT title, content FROM methodologies WHERE '$tag' = ANY(tags) OR slug ILIKE '%$tag%';" 2>/dev/null)
   else
-    methodologies=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT title, content FROM methodologies ORDER BY updated_at DESC LIMIT 5;" 2>/dev/null)
+    methodologies=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT title, content FROM methodologies ORDER BY updated_at DESC LIMIT 5;" 2>/dev/null)
   fi
 
   # Fetch semantically relevant lessons if we have a tag/topic
@@ -355,7 +355,7 @@ cmd_hydrate() {
     rm -f "$tmp_json"
 
     if [[ -n "$embedding" && "$embedding" != "null" ]]; then
-      lessons=$(psql "${DATABASE_URL}" -X -t -A -q -c "
+      lessons=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
         SELECT context, content FROM lessons 
         WHERE embedding IS NOT NULL
         ORDER BY embedding <=> '${embedding}' 
@@ -366,12 +366,12 @@ cmd_hydrate() {
 
   # Fallback to recent lessons if no semantic match or no tag
   if [[ -z "$lessons" ]]; then
-    lessons=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT context, content FROM lessons ORDER BY created_at DESC LIMIT 5;" 2>/dev/null)
+    lessons=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT context, content FROM lessons ORDER BY created_at DESC LIMIT 5;" 2>/dev/null)
   fi
 
   if $json; then
     # We use a simple JSON structure for AI tool parsing
-    psql "${DATABASE_URL}" -tAc "
+    psql "${ZDOTS_DATABASE_URL}" -tAc "
       SELECT json_build_object(
         'methodologies', (SELECT json_agg(m) FROM (SELECT title, content, tags FROM methodologies ORDER BY updated_at DESC LIMIT 10) m),
         'relevant_lessons', (SELECT json_agg(l) FROM (SELECT context, content, tags FROM lessons ORDER BY created_at DESC LIMIT 10) l)
@@ -420,7 +420,7 @@ cmd_seed() {
 
     _svc_log "seeding: ${slug}..."
     local id
-    id=$(psql "${DATABASE_URL}" -X -t -A -q -c "
+    id=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
       INSERT INTO methodologies (slug, title, content)
       VALUES ('${slug}', '${title//\'/''}', '${content//\'/''}')
       ON CONFLICT (slug) DO UPDATE 
@@ -458,7 +458,7 @@ cmd_requeue() {
 
   _require_psql
   _svc_log "re-queuing job ${id}..."
-  psql "${DATABASE_URL}" -X -t -A -q -c "
+  psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
     UPDATE jobs 
     SET status = 'pending', attempts = 0, error_message = NULL, updated_at = CURRENT_TIMESTAMP, next_run_at = CURRENT_TIMESTAMP 
     WHERE id = '${id}';
@@ -479,7 +479,7 @@ cmd_triage() {
   _svc_log "checking for dead jobs..."
   
   local dead_jobs
-  dead_jobs=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT id, type, error_message, payload FROM jobs WHERE status = 'dead' ORDER BY updated_at ASC;")
+  dead_jobs=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT id, type, error_message, payload FROM jobs WHERE status = 'dead' ORDER BY updated_at ASC;")
   
   if [[ -z "$dead_jobs" ]]; then
     _svc_ok "no dead jobs to triage."
@@ -511,14 +511,14 @@ EOF
     read -r action </dev/tty || action="s"
     
     if [[ "$action" == "r" ]]; then
-      psql "${DATABASE_URL}" -X -t -A -q -c "
+      psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
         UPDATE jobs 
         SET status = 'pending', attempts = 0, error_message = NULL, updated_at = CURRENT_TIMESTAMP, next_run_at = CURRENT_TIMESTAMP 
         WHERE id = '${id}';
       " >/dev/null
       _svc_ok "job reset to pending."
     elif [[ "$action" == "d" ]]; then
-      psql "${DATABASE_URL}" -X -t -A -q -c "DELETE FROM jobs WHERE id = '${id}';" >/dev/null
+      psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "DELETE FROM jobs WHERE id = '${id}';" >/dev/null
       _svc_ok "job deleted."
     else
       _svc_log "skipped."
@@ -532,7 +532,7 @@ cmd_clear_stale_jobs() {
   
   _svc_log "clearing jobs stuck in 'running' for more than ${timeout_interval}..."
   
-  psql "${DATABASE_URL}" -X -t -A -q -c "
+  psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
     UPDATE jobs 
     SET status = 'failed', 
         error_message = 'Job timed out or worker crashed (stale for ${timeout_interval})',
@@ -560,8 +560,8 @@ cmd_metrics_loop() {
 
   while true; do
     local pending_count dead_count
-    pending_count=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM jobs WHERE status = 'pending';" 2>/dev/null || echo 0)
-    dead_count=$(psql "${DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM jobs WHERE status = 'dead';" 2>/dev/null || echo 0)
+    pending_count=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM jobs WHERE status = 'pending';" 2>/dev/null || echo 0)
+    dead_count=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT count(*) FROM jobs WHERE status = 'dead';" 2>/dev/null || echo 0)
 
     # Use python to get timeUnixNano (platform independent)
     local ts_nano
@@ -633,11 +633,11 @@ cmd_backup() {
   local timestamp
   timestamp=$(date +%Y%m%d_%H%M%S)
   local db_name
-  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
+  db_name=$(echo "${ZDOTS_DATABASE_URL}" | sed -E 's/.*\///')
   local backup_file="${backup_dir}/${db_name}_${timestamp}.sql.gz"
 
   _svc_log "creating backup: ${backup_file}..."
-  if pg_dump "${DATABASE_URL}" | gzip > "$backup_file"; then
+  if pg_dump "${ZDOTS_DATABASE_URL}" | gzip > "$backup_file"; then
     _svc_ok "backup complete."
     # Maintain last 10 backups
     ls -t "${backup_dir}/${db_name}"_*.sql.gz 2>/dev/null | tail -n +11 | xargs rm -f -- 2>/dev/null || true
@@ -669,14 +669,14 @@ cmd_restore() {
   fi
 
   local db_name
-  db_name=$(echo "${DATABASE_URL}" | sed -E 's/.*\///')
+  db_name=$(echo "${ZDOTS_DATABASE_URL}" | sed -E 's/.*\///')
   local base_url
-  base_url=$(echo "${DATABASE_URL}" | sed -E 's/\/[^/]+$/\/postgres/')
+  base_url=$(echo "${ZDOTS_DATABASE_URL}" | sed -E 's/\/[^/]+$/\/postgres/')
 
   psql "${base_url}" -c "DROP DATABASE IF EXISTS ${db_name} (FORCE);" >/dev/null 2>&1
   psql "${base_url}" -c "CREATE DATABASE ${db_name};" >/dev/null 2>&1
 
-  if gunzip -c "$backup_file" | psql "${DATABASE_URL}" >/dev/null 2>&1; then
+  if gunzip -c "$backup_file" | psql "${ZDOTS_DATABASE_URL}" >/dev/null 2>&1; then
     _svc_ok "restore complete."
   else
     _svc_die "restore failed."
@@ -701,7 +701,7 @@ cmd_seed() {
 
     _svc_log "seeding: ${slug}..."
     local id
-    id=$(psql "${DATABASE_URL}" -X -t -A -q -c "
+    id=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
       INSERT INTO methodologies (slug, title, content)
       VALUES ('${slug}', '${title//\'/''}', '${content//\'/''}')
       ON CONFLICT (slug) DO UPDATE 

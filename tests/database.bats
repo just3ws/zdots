@@ -136,37 +136,38 @@ _pg_up() {
 }
 
 # ---------------------------------------------------------------------------
-# Environment: DATABASE_URL points to 'my', not 'zdots' or anything else
+# Environment: ZDOTS_DATABASE_URL points to 'my', not 'zdots' or anything else
 # ---------------------------------------------------------------------------
 
-@test "env: DATABASE_URL default targets the 'my' database" {
-  # Unset DATABASE_URL_OVERRIDE and DATABASE_URL, source env, check the result
-  result=$(env -u DATABASE_URL_OVERRIDE -u DATABASE_URL \
-    bash -c 'source "'"$REPO_ROOT"'/.zdots.env" 2>/dev/null; echo "$DATABASE_URL"')
+@test "env: ZDOTS_DATABASE_URL default targets the 'my' database" {
+  # Unset ZDOTS_DATABASE_URL_OVERRIDE and ZDOTS_DATABASE_URL, source env, check the result
+  result=$(env -u ZDOTS_DATABASE_URL \
+    bash -c 'source "'"$REPO_ROOT"'/.zdots.env" 2>/dev/null; echo "$ZDOTS_DATABASE_URL"')
   # Extract the database name (last path component after @/ or last /)
   db_name="${result##*/}"
   [ "$db_name" = "my" ]
 }
 
-@test "env: DATABASE_URL does not target 'zdots' database" {
-  result=$(env -u DATABASE_URL_OVERRIDE -u DATABASE_URL \
-    bash -c 'source "'"$REPO_ROOT"'/.zdots.env" 2>/dev/null; echo "$DATABASE_URL"')
+@test "env: ZDOTS_DATABASE_URL does not target 'zdots' database" {
+  result=$(env -u ZDOTS_DATABASE_URL \
+    bash -c 'source "'"$REPO_ROOT"'/.zdots.env" 2>/dev/null; echo "$ZDOTS_DATABASE_URL"')
   # Extract the database name — should be 'my', not 'zdots'
   db_name="${result##*/}"
   [ "$db_name" != "zdots" ]
 }
 
-@test "env: DATABASE_URL_OVERRIDE is respected when set" {
-  result=$(DATABASE_URL_OVERRIDE="postgresql://zdots_rw@/my" \
-    bash -c 'source "'"$REPO_ROOT"'/.zdots.env" 2>/dev/null; echo "$DATABASE_URL"')
-  [ "$result" = "postgresql://zdots_rw@/my" ]
+@test "env: explicit ZDOTS_DATABASE_URL is not overridden by .zdots.env" {
+  # ZDOTS_DATABASE_URL is namespaced — if the caller sets it explicitly, respect it.
+  result=$(ZDOTS_DATABASE_URL="postgresql://zdots_rw@/other" \
+    bash -c 'source "'"$REPO_ROOT"'/.zdots.env" 2>/dev/null; echo "$ZDOTS_DATABASE_URL"')
+  [ "$result" = "postgresql://zdots_rw@/other" ]
 }
 
-@test "env: stale DATABASE_URL is overridden unconditionally by .zdots.env" {
-  # This is the key guardrail: even if DATABASE_URL is set to the wrong DB,
-  # sourcing .zdots.env must correct it (unless DATABASE_URL_OVERRIDE is set).
-  result=$(DATABASE_URL="postgresql://zdots_rw@/zdots" \
-    bash -c 'source "'"$REPO_ROOT"'/.zdots.env" 2>/dev/null; echo "$DATABASE_URL"')
+@test "env: bare DATABASE_URL does not bleed into ZDOTS_DATABASE_URL" {
+  # The whole point of the rename: DATABASE_URL set by an external tool must not
+  # pollute ZDOTS_DATABASE_URL. These are independent variables.
+  result=$(env -u ZDOTS_DATABASE_URL DATABASE_URL="postgresql://someone-else@/other" \
+    bash -c 'source "'"$REPO_ROOT"'/.zdots.env" 2>/dev/null; echo "$ZDOTS_DATABASE_URL"')
   db_name="${result##*/}"
   [ "$db_name" = "my" ]
 }
@@ -197,7 +198,7 @@ _pg_up() {
 @test "zdots-ctx: --help does not reference 'zdots' database" {
   run "$BIN/zdots-ctx" --help
   [ "$status" -eq 0 ]
-  # DATABASE_URL should reference 'my', not 'zdots'
+  # ZDOTS_DATABASE_URL should reference 'my', not 'zdots'
   [[ "$output" != *"postgresql:///zdots"* ]]
   [[ "$output" != *"@/zdots"* ]]
 }

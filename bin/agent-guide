@@ -111,7 +111,7 @@ if $JSON; then
         grafana_credentials: "admin/admin"
       },
       env: {
-        DATABASE_URL:                  "postgresql://zdots_rw@/my",
+        ZDOTS_DATABASE_URL:            "postgresql://zdots_rw@/my",
         ZDOTS_AI_ENDPOINT:             $ai_ep,
         ZDOTS_AI_MODEL:                "local",
         OTEL_EXPORTER_OTLP_ENDPOINT:   $otel_ep,
