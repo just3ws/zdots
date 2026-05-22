@@ -23,7 +23,7 @@ zdots-ctl install      # first-time setup on a new workstation
 |---|---|
 | Database | `my` (PostgreSQL) |
 | Schema owner | `zdots-brain` via Sequel migrations in `db/migrations/` |
-| Migration user | `mike` (superuser) via `ZDOTS_MIGRATION_URL` |
+| Migration user | OS user (superuser) via `ZDOTS_MIGRATION_URL` |
 | App user | `zdots_rw` — write access via zdots-ctx / context-engine only |
 | Read-only access | `zdots_ro` — SELECT only, safe for psql exploration |
 | Consumer | `context-engine` (Rails) — read/write via `zdots_bridge.rb` |
