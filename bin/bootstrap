@@ -95,9 +95,36 @@ fi
 echo "bootstrap: installing brew dependencies (this may take a while)..."
 brew bundle --file "$REPO_ROOT/Brewfile"
 
-# 6. AI Stack Setup
-# Install launchd service + download active profile GGUF.
-# llama.cpp is installed via brew bundle above; this registers the plist and fetches the model.
+# 6. AI Stack Setup — LOCAL MODELS ONLY
+#
+# SECURITY BOUNDARY: This machine runs local AI exclusively until you
+# complete security setup and explicitly enable cloud access.
+#
+#   ZDOTS_AI_MODE=local  (enforced in .zdots.env — override in .zdots.local only)
+#
+# What "local" means:
+#   - ai-query, zaider (Aider), and zdots-ctx all use ZDOTS_AI_ENDPOINT
+#   - ZDOTS_AI_ENDPOINT defaults to http://127.0.0.1:8080 (this machine)
+#   - To use a more powerful machine on your LAN, set in .zdots.local:
+#       ZDOTS_AI_ENDPOINT=http://powerstation.local:8080
+#   - No OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY are set
+#   - Cloud API keys go in .zdots.secrets ONLY — never in this repo
+#
+# Local AI stack: llama.cpp (inference) + zdots-ctx (knowledge base)
+#   ai-query "analyze this"          — one-shot inference
+#   zaider                           — Aider wired to local model
+#   zdots-ctx query <term>           — search local knowledge base
+#   zdots-ctx hydrate [tag]          — context for AI tasks
+#   zdots-brain                      — background job worker
+echo ""
+echo "================================================================"
+echo "  AI SECURITY BOUNDARY: LOCAL MODELS ONLY"
+echo "  ZDOTS_AI_MODE=local (no cloud API keys configured)"
+echo "  Endpoint: ${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+echo "  To use a remote LAN machine, set ZDOTS_AI_ENDPOINT in .zdots.local"
+echo "  To enable cloud AI: add keys to .zdots.secrets + set ZDOTS_AI_MODE=cloud"
+echo "================================================================"
+echo ""
 if command -v llama-server >/dev/null 2>&1; then
   if command -v llama-ctl >/dev/null 2>&1; then
     echo "bootstrap: registering llama.cpp launchd service..."
