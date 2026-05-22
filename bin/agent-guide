@@ -56,14 +56,22 @@ if launchctl list com.zdots.otel-collector 2>/dev/null | grep -q '"PID"'; then
   OTEL_UP=true
 fi
 
-COLIMA_UP=false
-if colima status 2>&1 | grep -q "is running"; then
-  COLIMA_UP=true
-fi
-
 GRAFANA_UP=false
 if curl -sf -m 2 "${GRAFANA_URL}/api/health" >/dev/null 2>&1; then
   GRAFANA_UP=true
+fi
+
+# Colima: prefer CLI probe; fall back to Grafana reachability (Grafana runs inside Colima).
+COLIMA_UP=false
+if colima status 2>&1 | grep -q "is running"; then
+  COLIMA_UP=true
+elif $GRAFANA_UP; then
+  COLIMA_UP=true
+fi
+
+WHISPER_UP=false
+if command -v whisper-cpp >/dev/null 2>&1; then
+  WHISPER_UP=true
 fi
 
 # ---------------------------------------------------------------------------
@@ -71,21 +79,22 @@ fi
 # ---------------------------------------------------------------------------
 if $JSON; then
   jq -n \
-    --argjson ai_up      "$AI_UP" \
-    --arg     ai_ep      "$AI_ENDPOINT" \
-    --arg     ai_model   "$AI_MODEL_ID" \
-    --argjson otel_up    "$OTEL_UP" \
-    --arg     otel_ep    "$OTEL_ENDPOINT" \
-    --argjson colima_up  "$COLIMA_UP" \
-    --argjson grafana_up "$GRAFANA_UP" \
-    --arg     grafana_url "$GRAFANA_URL" \
+    --argjson ai_up        "$AI_UP" \
+    --arg     ai_ep        "$AI_ENDPOINT" \
+    --arg     ai_model     "$AI_MODEL_ID" \
+    --argjson otel_up      "$OTEL_UP" \
+    --arg     otel_ep      "$OTEL_ENDPOINT" \
+    --argjson colima_up    "$COLIMA_UP" \
+    --argjson grafana_up   "$GRAFANA_UP" \
+    --arg     grafana_url  "$GRAFANA_URL" \
+    --argjson whisper_up   "$WHISPER_UP" \
     '{
       services: {
-        llama_cpp:   { up: $ai_up,      endpoint: $ai_ep,      model: $ai_model, start: "llama-ctl start" },
-        whisper_cpp: { up: true,                                                 start: "whisper-ctl install" },
-        otelcol:     { up: $otel_up,    endpoint: $otel_ep,                       start: "otel-collector start" },
-        colima:      { up: $colima_up,                                             start: "local-ci start" },
-        grafana:     { up: $grafana_up, url: $grafana_url,                        start: "local-ci start" }
+        llama_cpp:   { up: $ai_up,      endpoint: $ai_ep,     model: $ai_model, start: "llama-ctl start" },
+        whisper_cpp: { up: $whisper_up,                                          start: "whisper-ctl install" },
+        otelcol:     { up: $otel_up,    endpoint: $otel_ep,                      start: "otel-collector start" },
+        colima:      { up: $colima_up,                                            start: "local-ci start" },
+        grafana:     { up: $grafana_up, url: $grafana_url,                       start: "local-ci start" }
       },
       ai: {
         inference_command: "ai-query",
@@ -102,8 +111,11 @@ if $JSON; then
         grafana_credentials: "admin/admin"
       },
       env: {
-        OTEL_EXPORTER_OTLP_ENDPOINT: $otel_ep,
-        OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+        DATABASE_URL:                  "postgresql://zdots_rw@/my",
+        ZDOTS_AI_ENDPOINT:             $ai_ep,
+        ZDOTS_AI_MODEL:                "local",
+        OTEL_EXPORTER_OTLP_ENDPOINT:   $otel_ep,
+        OTEL_EXPORTER_OTLP_PROTOCOL:   "http/protobuf"
       },
       ai_caps: {
         text:     "llama-caps",
