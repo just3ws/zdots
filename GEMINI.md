@@ -22,13 +22,13 @@ Gemini-specific instructions for Zdots.
 
 ## Database Access
 
-The single database is `my` (PostgreSQL). All access uses role-based users — never connect as the `mike` superuser for routine work.
+The single database is `my` (PostgreSQL). All access uses role-based users — never connect as the OS superuser for routine work.
 
 | User | Role | Purpose | Connect string |
 |------|------|---------|----------------|
 | `zdots_ro` | `zdots_reader` | Read-only exploration | `psql -U zdots_ro my` |
 | `zdots_rw` | `zdots_writer` | App writes (zdots-ctx, context-engine) | `postgresql://zdots_rw@/my` |
-| `mike` | superuser | Migrations only — via `ZDOTS_MIGRATION_URL` | automatic via `zdots-ctx migrate` |
+| OS user | superuser | Migrations only — via `ZDOTS_MIGRATION_URL` | automatic via `zdots-ctx migrate` |
 
 **Write path** — all mutations must go through intentional interfaces:
 - `zdots-ctx <command>` — CLI (uses `zdots_rw`)

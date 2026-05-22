@@ -122,4 +122,25 @@ else
   echo "bootstrap: bundler not found — skipping bundle install."
 fi
 
+# 8. Machine-local identity file
+if [ ! -f "$REPO_ROOT/.zdots.local" ]; then
+  echo "bootstrap: creating .zdots.local from template..."
+  cp "$REPO_ROOT/.zdots.local.example" "$REPO_ROOT/.zdots.local"
+  echo "bootstrap: IMPORTANT: edit .zdots.local and set ZDOTS_CONTEXT (home|work) and any overrides."
+fi
+
+# 9. Intelligence suite database
+# Requires PostgreSQL running. Uses ZDOTS_MIGRATION_URL (peer auth as OS superuser by default).
+if command -v psql >/dev/null 2>&1; then
+  echo "bootstrap: initializing intelligence suite database..."
+  if "$REPO_ROOT/bin/zdots-ctx" init-db; then
+    echo "bootstrap: database ready."
+  else
+    echo "bootstrap: warning: database setup failed — run 'zdots-ctx init-db' after PostgreSQL is running."
+  fi
+else
+  echo "bootstrap: psql not found — skipping database setup."
+  echo "           Install PostgreSQL then run: zdots-ctx init-db"
+fi
+
 echo "bootstrap: complete. Restart your shell or run 'exec zsh'."
