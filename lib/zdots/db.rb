@@ -11,7 +11,7 @@ module Zdots
     class << self
       def connect
         @connect ||= begin
-          db = Sequel.connect(ENV.fetch("DATABASE_URL", "postgresql:///my"))
+          db = Sequel.connect(ENV.fetch("DATABASE_URL", "postgresql://zdots_rw@/my"))
           db.extension :pg_array, :pg_json
           db
         end

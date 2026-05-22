@@ -9,7 +9,8 @@ module Zdots
   module Migrator
     def self.run
       # Zdots.init_otel("zdots-migrator")
-      db = Zdots.db
+      migration_url = ENV.fetch("ZDOTS_MIGRATION_URL", ENV.fetch("DATABASE_URL", "postgresql:///my"))
+      db = Sequel.connect(migration_url)
       
       migrations_path = File.expand_path("../../db/migrations", __dir__)
       
