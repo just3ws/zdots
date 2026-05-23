@@ -44,6 +44,8 @@ module Zdots
         cmd_enqueue(args)
       when "jobs"
         cmd_jobs
+      when "rekey"
+        cmd_rekey(args)
       else
         puts "Unknown command: #{command}"
         exit 1
@@ -54,10 +56,12 @@ module Zdots
 
     def parse_options
       @options[:type] = nil
+      @options[:dry_run] = false
       OptionParser.new do |opts|
         opts.on("--json", "Output as JSON") { @options[:format] = "json" }
         opts.on("--semantic", "Perform semantic search") { @options[:semantic] = true }
         opts.on("--type TYPE", "Filter by job type") { |t| @options[:type] = t }
+        opts.on("--dry-run", "Scan without writing changes") { @options[:dry_run] = true }
       end.parse!
     end
 
@@ -414,6 +418,83 @@ module Zdots
           printf "%-38s | %-13s | %-9s | %-8d | %-8d\n", j.id, j.type, j.status, j.priority, j.attempts
         end
       end
+    end
+
+    def cmd_rekey(args)
+      dry_run = @options[:dry_run]
+      table = args.shift || "lessons"
+      unless %w[lessons methodologies].include?(table)
+        puts "usage: zdots-brain rekey [--dry-run] [lessons|methodologies]"
+        exit 1
+      end
+
+      old_key = ENV["ZDOTS_DB_OLD_KEY"]
+      new_key = ENV["ZDOTS_DB_ENCRYPTION_KEY"]
+
+      if old_key.nil? || old_key.strip.empty?
+        puts "zdots-brain: ZDOTS_DB_OLD_KEY is not set — set it for this invocation only:"
+        puts "  ZDOTS_DB_OLD_KEY=<burned_key> zdots-brain rekey [table]"
+        exit 1
+      end
+      if new_key.nil? || new_key.strip.empty?
+        puts "zdots-brain: ZDOTS_DB_ENCRYPTION_KEY is not set"
+        exit 1
+      end
+      if old_key == new_key
+        puts "zdots-brain: ZDOTS_DB_OLD_KEY and ZDOTS_DB_ENCRYPTION_KEY are identical — nothing to do"
+        exit 0
+      end
+
+      puts "zdots-brain: re-keying #{table}#{dry_run ? " (dry run)" : ""}..."
+
+      rows = Zdots.db[table.to_sym].select(:id, :content_enc).all
+      rekeyed = 0
+      already_new = 0
+      null_rows = 0
+      errors = 0
+
+      rows.each do |row|
+        if row[:content_enc].nil?
+          null_rows += 1
+          next
+        end
+
+        begin
+          plaintext = nil
+          Zdots.db.transaction(savepoint: true) do
+            plaintext = Zdots.db.get(
+              Sequel.function(:pgp_sym_decrypt, Sequel.blob(row[:content_enc].to_s), old_key)
+            )
+          end
+
+          unless dry_run
+            new_enc = Zdots.db.get(Sequel.function(:pgp_sym_encrypt, plaintext, new_key))
+            Zdots.db[table.to_sym].where(id: row[:id]).update(content_enc: new_enc)
+          end
+
+          rekeyed += 1
+        rescue Sequel::DatabaseError
+          # pgp_sym_decrypt failed with old key — row may already be on new key
+          begin
+            Zdots.db.transaction(savepoint: true) do
+              Zdots.db.get(
+                Sequel.function(:pgp_sym_decrypt, Sequel.blob(row[:content_enc].to_s), new_key)
+              )
+            end
+            already_new += 1
+          rescue Sequel::DatabaseError
+            errors += 1
+          end
+        end
+      end
+
+      puts "zdots-brain: #{table} rekey #{dry_run ? "scan" : "complete"}:"
+      puts "  rekeyed     : #{rekeyed}"
+      puts "  already new : #{already_new}"
+      puts "  null        : #{null_rows}"
+      puts "  unreadable  : #{errors}"
+
+      exit(errors > 0 ? 1 : 0)
     end
 
     def cmd_status
