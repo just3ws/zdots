@@ -158,6 +158,64 @@ probe_home() {
 }
 
 # ---------------------------------------------------------------------------
+# PHI boundary probe
+# ---------------------------------------------------------------------------
+probe_phi() {
+  PHI_AI_MODE="${ZDOTS_AI_MODE:-local}"
+  PHI_HISTORY_REDACT="${ZDOTS_HISTORY_REDACT:-1}"
+  PHI_CAPTURE_ENABLED="${ZDOTS_CAPTURE_ENABLED:-0}"
+  PHI_KEYCHAIN_COUNT=0
+
+  if [[ -r "${ZDOTDIR}/lib/keychain.bash" ]]; then
+    source "${ZDOTDIR}/lib/keychain.bash" 2>/dev/null || true
+    if command -v zdots_keychain_list >/dev/null 2>&1; then
+      PHI_KEYCHAIN_COUNT=$(zdots_keychain_list 2>/dev/null | wc -l | tr -d ' ')
+    fi
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Database probe
+# ---------------------------------------------------------------------------
+probe_db() {
+  DB_UP=false
+  DB_STATUS=""
+
+  if command -v psql >/dev/null 2>&1; then
+    if psql -qAt -U zdots_ro -d my -c '\q' >/dev/null 2>&1; then
+      DB_UP=true
+      local tbl_count
+      tbl_count=$(PGAPPNAME=zdots-status psql -qAt --no-psqlrc -U zdots_ro -d my \
+        -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'" \
+        2>/dev/null | grep -E '^[0-9]+$' | tail -1 || echo "?")
+      DB_STATUS="${tbl_count} public tables"
+    fi
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Active task probe
+# ---------------------------------------------------------------------------
+probe_tasks() {
+  ACTIVE_TASK=""
+  TASK_WIP_COUNT=0
+
+  local active_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task"
+  [[ -f "$active_file" ]] && ACTIVE_TASK=$(cat "$active_file")
+
+  if command -v backlog >/dev/null 2>&1; then
+    local raw
+    raw=$(backlog task list 2>/dev/null) || true
+    TASK_WIP_COUNT=$(printf '%s\n' "$raw" \
+      | awk '/^In Progress:/{p=1;next} /^[A-Za-z]/{p=0} p && /Z-/' \
+      | wc -l | tr -d ' ')
+    TASK_TODO_COUNT=$(printf '%s\n' "$raw" \
+      | awk '/^To Do:/{p=1;next} /^[A-Za-z]/{p=0} p && /Z-/' \
+      | wc -l | tr -d ' ')
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Shell info (static — read once)
 # ---------------------------------------------------------------------------
 probe_shell() {
@@ -245,6 +303,55 @@ draw() {
     fi
   fi
 
+  # ── PHI Boundary ──────────────────────────────────────────────────────
+  _section "PHI Boundary"
+  local ai_mode_icon
+  case "$PHI_AI_MODE" in
+    none)  ai_mode_icon="$(_warn)" ;;
+    local) ai_mode_icon="$(_pass)" ;;
+    cloud) ai_mode_icon="$(_warn)" ;;
+    *)     ai_mode_icon="$(_warn)" ;;
+  esac
+  printf '  %s  %-20s mode=%s\n' \
+    "$ai_mode_icon" "AI mode" "$PHI_AI_MODE"
+
+  if [[ "$PHI_HISTORY_REDACT" == "1" ]]; then
+    printf '  %s  %-20s ZDOTS_HISTORY_REDACT=1\n' "$(_pass)" "History redact"
+  else
+    printf '  %s  %-20s %sZDOTS_HISTORY_REDACT=0  PHI may persist in history%s\n' \
+      "$(_warn)" "History redact" "$YELLOW" "$RESET"
+  fi
+
+  if [[ "$PHI_CAPTURE_ENABLED" == "1" ]]; then
+    printf '  %s  %-20s capture enabled\n' "$(_warn)" "Context capture"
+  else
+    printf '  %s  %-20s capture disabled (opt-in)\n' "$(_pass)" "Context capture"
+  fi
+
+  printf '  %s  %-20s %s secret(s) in login Keychain\n' \
+    "$(_pass)" "Keychain" "$PHI_KEYCHAIN_COUNT"
+
+  # ── Database ───────────────────────────────────────────────────────────
+  _section "Database"
+  if $DB_UP; then
+    printf '  %s  %-20s my  (%s)\n' "$(_pass)" "PostgreSQL" "$DB_STATUS"
+  else
+    printf '  %s  %-20s %spsql -U zdots_ro my%s\n' \
+      "$(_down)" "PostgreSQL" "$DIM" "$RESET"
+  fi
+
+  # ── Active Task ────────────────────────────────────────────────────────
+  _section "Tasks"
+  if [[ -n "$ACTIVE_TASK" ]]; then
+    printf '  %s  %-20s %s\n' "$(_pass)" "Active" "$ACTIVE_TASK"
+  else
+    printf '  %s  %-20s %snone  (ztask start <id>)%s\n' \
+      "$(_warn)" "Active" "$DIM" "$RESET"
+  fi
+  printf '  %s  %-20s %s in progress  •  %s to do\n' \
+    "$(_pass)" "Backlog" "${TASK_WIP_COUNT:-0}" "${TASK_TODO_COUNT:-0}"
+  printf '  %szdash — interactive task picker%s\n' "$DIM" "$RESET"
+
   # ── Home-dir warnings ─────────────────────────────────────────────────
   if (( ${#HOME_WARNINGS[@]} > 0 )); then
     _section "Home Directory Warnings"
@@ -291,6 +398,9 @@ if $ONCE || ! tput smcup >/dev/null 2>&1; then
   probe_storage
   probe_home
   probe_shell
+  probe_phi
+  probe_db
+  probe_tasks
   draw
   exit 0
 fi
@@ -308,10 +418,13 @@ trap _cleanup EXIT INT TERM
 # Run startup probes (shell timing is slow — do it once)
 probe_shell
 probe_home
+probe_phi
 
 while true; do
   probe_services
   probe_storage
+  probe_db
+  probe_tasks
 
   tput cup 0 0
   draw
