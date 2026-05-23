@@ -1,9 +1,10 @@
 ---
 id: Z-084
 title: 'Work machine profile: PHI-safe defaults in .zdots.local.example and .zdots.env'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-22 23:48'
+updated_date: '2026-05-23 06:34'
 labels:
   - phi
   - security
@@ -31,6 +32,12 @@ Consolidate all PHI-safe defaults into a coherent 'work' profile so a fresh clon
 - [ ] #4 .zdots.local.example work section includes the AI security boundary note from bootstrap
 - [ ] #5 SETUP.md work machine section updated to reference new variables
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+.zdots.env already had the ZDOTS_CONTEXT=work branch setting ZDOTS_AI_MODE=local, ZDOTS_CAPTURE_ENABLED=0, ZDOTS_HISTORY_REDACT=1. Added ZDOTS_DB_ENCRYPTION_KEY section to .zdots.local.example with Keychain generation pattern, storage command, and capture precondition note. AI mode cannot be overridden to cloud via .zdots.env (only .zdots.local can override).
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
