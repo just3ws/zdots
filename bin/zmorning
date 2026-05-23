@@ -70,25 +70,26 @@ fi
 
 (( _brief_only )) && exit 0
 
-# ── Pi orientation session ────────────────────────────────────────────────────
+# ── Interactive continuation ──────────────────────────────────────────────────
+# Default: zdash task picker (orient → pick → launch)
+# --pi flag: skip zdash, open Pi directly for conversational orientation
 
-# Gate: skip Pi if AI unavailable
-if [[ "${ZDOTS_AI_MODE:-local}" == "none" ]]; then
-  print "AI unavailable (ZDOTS_AI_MODE=none) — brief only"
+if (( _pi_only )); then
+  if [[ "${ZDOTS_AI_MODE:-local}" == "none" ]]; then
+    print "AI unavailable (ZDOTS_AI_MODE=none)"
+    exit 0
+  fi
+  if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+    print "llama.cpp not responding — run: llama-ctl start"
+    exit 1
+  fi
+  [[ -r "${ZDOTDIR}/providers/ai/pi.zsh" ]] && source "${ZDOTDIR}/providers/ai/pi.zsh"
+  PI_SYSTEM_PROMPT="You are a focused engineering assistant. Help the developer orient: \
+review what's in progress, identify the highest-leverage next action, surface blockers. \
+Concise — bullet points. Do NOT add tasks or commit unless asked." \
+    zpi "$@"
   exit 0
 fi
 
-if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
-  print "llama.cpp not responding — run: llama-ctl start"
-  exit 1
-fi
-
-# Source Pi provider so zpi() is available
-[[ -r "${ZDOTDIR}/providers/ai/pi.zsh" ]] && source "${ZDOTDIR}/providers/ai/pi.zsh"
-
-# Launch Pi with a morning orientation system prompt
-PI_SYSTEM_PROMPT="You are a focused engineering assistant helping the developer orient for their work session.
-When asked, help them: review what's in progress, identify the highest-leverage next action,
-surface blockers, and keep scope tight. Be concise — bullet points preferred.
-Do NOT add tasks or make git commits unless explicitly asked." \
-  zpi "$@"
+# Default: zdash
+[[ -x "${ZDOTDIR}/bin/zdash" ]] && exec "${ZDOTDIR}/bin/zdash"
