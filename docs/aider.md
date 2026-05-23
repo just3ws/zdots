@@ -33,7 +33,7 @@ Running a 7B model locally on a dev machine can cause UI stutter. We provide two
 
 ## Capability boundaries (May 2026 SOTA)
 
-The active model (**Qwen3-Coder-7B Q4_K_M**) is a frontier-level coding model for its size.
+The active model (**Qwen2.5-Coder-7B Q4_K_M**) is a frontier-level coding model for its size.
 
 **Works well:**
 - **Architect Mode**: It can plan its own multi-file edits and self-correct.
@@ -47,8 +47,6 @@ We default to **`edit-format: architect`** in `.aider.conf.yml`. This leverages 
 ## Repo Mapping with Nomic v2
 
 We use **Nomic Embed Text v2 (MoE)** for the repository map. This model is significantly better at semantic retrieval than v1.5, allowing Aider to find relevant context in your repo even with a tight 2048-token map limit.
-
-## See also
 
 ## Sourcing the provider
 
@@ -91,16 +89,18 @@ zaider --architect         # architect mode: plan with one model, edit with anot
 zaider --watch             # watch mode: aider monitors for AI comments in files
 ```
 
-## Architect mode + reasoning profile
+## Architect mode + alternate profile
 
-If you switch to the `reasoning` profile (Qwen2.5-7B-Instruct), you can run architect mode with two distinct models:
+To run architect mode with two distinct models, switch the server to an alternate profile and point both `--model` and `--editor-model` at `openai/local`:
 
 ```sh
-ZDOTS_AI_PROFILE=reasoning llama-ctl install   # switch server to reasoning model
+ZDOTS_AI_PROFILE=llama-3.1 llama-ctl install  # switch to alternate model
 zaider --architect --model openai/local --editor-model openai/local
 ```
 
 Switch back: `ZDOTS_AI_PROFILE=standard llama-ctl install`
+
+Available profiles: `standard` (Qwen2.5-Coder 7B), `llama-3.1`, `constrained` (1.5B). See `etc/ai-models.yaml`.
 
 ## Updating
 

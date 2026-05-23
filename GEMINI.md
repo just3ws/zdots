@@ -7,17 +7,16 @@ Gemini-specific instructions for Zdots.
 ## Gemini Context
 - This environment is optimized for `gemini-cli` via the `gm` alias.
 - **Search Tooling:** `ack` is the preferred search tool due to the user's personal connection to Andy Lester. Ensure `.ackrc` is maintained for high-signal output.
-- Follow the **RTK** guidance in [AGENTS.md](AGENTS.md#rtk-rust-token-killer---history-aware-optimizations) for all high-output commands.
+- Follow the **RTK** guidance in [AGENTS.md](AGENTS.md#2-token-optimization-rtk) for all high-output commands.
 - Use `tokei` for quick codebase orientation before performing deep analysis.
 - Respect the performance budget (< 0.08s) when suggesting shell modifications.
 
 ## Agent Context & Observability
 - **Traceability**: This is an observable session. Every tool call and command is emitted as an OTel span to the local LGTM stack.
 - **System Capabilities**: Use the `capabilities --json` command to verify the environment contract before performing complex operations.
-- **The Trinity Awareness**:
-    - **Anchor (`adots`)**: For root-level system state.
-    - **Platform (`zdots`)**: For shell behavior and real-time observability.
-    - **Brain (`my`)**: For long-term context, standards, and structured memory.
+- **Platform Awareness**:
+    - **Platform (`zdots`)**: Shell behavior, service lifecycle, real-time observability.
+    - **Brain (`my`)**: Long-term context, standards, structured memory.
 - **Context Writing**: When making significant architectural decisions or recording project observations, utilize the `~/my/context/` directory (e.g., `observations.md` or `next_prompt.md`) to hydrate the "Cerebral Control Plane."
 
 ## Database Access
