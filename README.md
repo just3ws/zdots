@@ -156,6 +156,7 @@ All components are standalone executables in `bin/`.
 | `otel-collector` | Manages the bare-metal OTel collector and tracing pipeline. |
 | `local-ci` | Manages the containerized LGTM (Grafana/Loki/Tempo) stack. |
 | `secret-scan` | High-confidence leak detection for AWS, GitHub, and SSH keys. |
+| `zdots-issue` | Agent help desk: file a bug, question, or capability request. Do not modify zdots — file an issue. |
 
 ---
 

@@ -37,12 +37,44 @@ agent-guide          # detailed usage guide for all services
 - **Environment:** Use `ztask start <id>` when starting work to hydrate context.
 - **Observability:** This is an observable session linked to the shell via `gemini-invoke`. Every tool call you make is tracked.
 - **Standards:** Follow the [Zsh Quality Rubric](docs/zsh-quality-rubric.md).
-- **Setup:** See [docs/migration.md](docs/migration.md) for new machine setup.
+- **Setup:** See [SETUP.md](SETUP.md) for new machine setup.
 - **Testing:** See [docs/testing.md](docs/testing.md).
 
 ---
 
-## 5. Reference
+## 5. zdots Is Not Yours to Fix
+
+zdots is the infrastructure. You are a tenant, not the maintenance crew.
+
+**If zdots behaves unexpectedly — a tool errors, a service won't start, a command does something undocumented — your job is to file an issue and stop. Not to fix it.**
+
+Unauthorized modifications to zdots break the environment for all agents and the operator. The system is designed and maintained by the operator. Like a good union job: don't touch the wiring unless it's your wiring.
+
+```bash
+zdots-issue "Short description of the problem"
+zdots-issue --type question "Does zdots support X?"
+zdots-issue --type request  "I need zdots to do Y to complete task Z"
+zdots-issue --high          "This is blocking my current task"
+```
+
+`zdots-issue` creates a tracked backlog task with your trace ID attached. The operator reviews and resolves. You wait, work around it at the task level, or stop.
+
+**What counts as a zdots issue (file it, don't fix it):**
+- A `bin/` script exits with an unexpected code or error message
+- A service (`llama-ctl`, `otel-collector`, `zdots-ctx`) behaves contrary to its `--help`
+- A lib function (`zdots_ai_gate`, `phi_scrub`, etc.) is missing or broken
+- A migration fails or the schema doesn't match what docs describe
+- You need a capability zdots doesn't have
+
+**What is NOT a zdots issue (your job):**
+- Bugs in code you were asked to write
+- Test failures in tests for your feature
+- Configuration in `.zdots.local` or `.zdots.env` for your specific task
+- Choosing which zdots tool to use for a given problem
+
+---
+
+## 6. Reference
 
 | Service | Manager | Doc |
 |---|---|---|
@@ -52,7 +84,7 @@ agent-guide          # detailed usage guide for all services
 | LGTM Stack | `local-ci` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | Orchestrator | `zdots-ctl` | [README.md](README.md) |
 
-## 6. Database
+## 7. Database
 
 | Attribute | Value |
 |---|---|
@@ -68,7 +100,7 @@ Safe exploration: `psql -U zdots_ro my`
 
 Do **not** set `DATABASE_URL` — it has no owner in this stack and causes confusion. Use `ZDOTS_DATABASE_URL` for app connections and `ZDOTS_MIGRATION_URL` for migrations.
 
-## 7. AI Stack
+## 8. AI Stack
 
 All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are configured until explicitly added to `.zdots.secrets`.
 
@@ -90,7 +122,7 @@ All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are co
 - `/clear` — wipe history between tasks
 - `/tokens` — check budget before adding large files
 
-## 8. PHI Operating Mode
+## 9. PHI Operating Mode
 
 This codebase operates near protected health information. The following rules are **non-negotiable** and enforced at the kernel/OS boundary — not just by convention.
 
