@@ -53,8 +53,16 @@ ZDOTS_AI_MODE=local
 # PHI safety controls (relevant when ZDOTS_CONTEXT=work or near regulated data)
 # ---------------------------------------------------------------------------
 
+# Database encryption key — REQUIRED on work machines before enabling capture.
+# Generate: openssl rand -hex 32
+# Store in Keychain: zdots-keychain add ZDOTS_DB_ENCRYPTION_KEY <value>
+# Retrieve at runtime via .zdots.secrets:
+#   export ZDOTS_DB_ENCRYPTION_KEY="$(_zdots_kc ZDOTS_DB_ENCRYPTION_KEY)"
+# Do NOT paste the key here — this file is templated from the repo.
+# ZDOTS_DB_ENCRYPTION_KEY is set via .zdots.secrets (Keychain-backed).
+
 # Session capture — disabled by default (see: zdots-ctx capture).
-# Set to 1 only after confirming the PHI scrubber and DB encryption are in place.
+# Set to 1 only after ZDOTS_DB_ENCRYPTION_KEY is in Keychain and DB encryption is verified.
 # ZDOTS_CAPTURE_ENABLED=1
 
 # History redaction — on by default (1). Set to 0 to disable (not recommended
