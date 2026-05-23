@@ -127,6 +127,31 @@ echo "  To enable cloud AI: add keys to .zdots.secrets + set ZDOTS_AI_MODE=cloud
 echo "================================================================"
 echo ""
 
+# PHI-safe operating mode banner — fires when ZDOTS_CONTEXT=work.
+if [ "${ZDOTS_CONTEXT:-home}" = "work" ]; then
+  echo "================================================================"
+  echo "  PHI-SAFE OPERATING MODE ACTIVE (ZDOTS_CONTEXT=work)"
+  echo "  capture          : ${ZDOTS_CAPTURE_ENABLED:-0} (0=off, required before capture)"
+  echo "  history-redact   : ${ZDOTS_HISTORY_REDACT:-1} (1=on)"
+  echo "  ai-mode          : ${ZDOTS_AI_MODE:-local} (local=safe, no cloud egress)"
+  echo "  db-encryption    : $([ -n "${ZDOTS_DB_ENCRYPTION_KEY:-}" ] && echo 'key present' || echo 'KEY NOT SET — required for capture')"
+  echo ""
+  echo "  Verify posture:  zdots-ctl check"
+  echo "  Full policy:     backlog/docs/doc-002 - PHI-Safety-Policy.md"
+  echo "================================================================"
+  echo ""
+
+  # Warn (not error) if ZDOTS_DB_ENCRYPTION_KEY is unset on a work machine.
+  if [ -z "${ZDOTS_DB_ENCRYPTION_KEY:-}" ]; then
+    echo "bootstrap: WARNING: ZDOTS_CONTEXT=work but ZDOTS_DB_ENCRYPTION_KEY is not set."
+    echo "bootstrap:   Generate: openssl rand -hex 32"
+    echo "bootstrap:   Store:    zdots-keychain add ZDOTS_DB_ENCRYPTION_KEY <value>"
+    echo "bootstrap:   Then add to .zdots.secrets via the Keychain pattern."
+    echo "bootstrap:   Capture (zdots-ctx capture) will refuse to run until this is set."
+    echo ""
+  fi
+fi
+
 # Probe endpoint reachability. On an unknown network (corporate proxy, air-gap),
 # the local server may not be accessible yet. Set ZDOTS_AI_MODE=none for the
 # session so all AI tools exit cleanly rather than hang or error opaquely.
