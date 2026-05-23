@@ -48,6 +48,30 @@ ZDOTS_AI_MODE=local
 # ZDOTS_AI_PROFILE=standard
 
 # ---------------------------------------------------------------------------
+# PHI safety controls (relevant when ZDOTS_CONTEXT=work or near regulated data)
+# ---------------------------------------------------------------------------
+
+# Session capture — disabled by default (see: zdots-ctx capture).
+# Set to 1 only after confirming the PHI scrubber and DB encryption are in place.
+# ZDOTS_CAPTURE_ENABLED=1
+
+# History redaction — on by default (1). Set to 0 to disable (not recommended
+# on machines that may handle PHI).
+# ZDOTS_HISTORY_REDACT=1
+
+# Site-specific redaction patterns (Zsh array, ERE syntax for sed).
+# Added on top of the built-in SSN / MRN / DOB patterns.
+# Each entry is an ERE pattern; matching tokens are replaced with [REDACTED].
+# Examples:
+#   Patient account numbers:   'ACC[0-9]{8}'
+#   Internal employee IDs:     'EMP-[A-Z]{2}[0-9]{5}'
+#   Ticket identifiers:        'JIRA-[0-9]+'
+# ZDOTS_HISTORY_REDACT_PATTERNS=(
+#   'ACC[0-9]{8}'
+#   'EMP-[A-Z]{2}[0-9]{5}'
+# )
+
+# ---------------------------------------------------------------------------
 # Work context overrides (only relevant when ZDOTS_CONTEXT=work)
 # Keep corporate identity and network config here, not in the shared repo.
 # ---------------------------------------------------------------------------
