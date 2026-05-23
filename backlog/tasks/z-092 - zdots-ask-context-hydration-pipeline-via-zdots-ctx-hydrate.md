@@ -1,9 +1,10 @@
 ---
 id: Z-092
 title: 'zdots-ask: context hydration pipeline via zdots-ctx hydrate'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-05-23 13:54'
+updated_date: '2026-05-23 15:00'
 labels:
   - local-ai
   - zdots-ask
