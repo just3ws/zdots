@@ -52,3 +52,9 @@ else
   setopt inc_append_history_time
   unsetopt share_history
 fi
+
+# Re-assert XDG-compliant HISTFILE after /etc/zshrc (macOS system file) resets it to
+# ${ZDOTDIR}/.zsh_history. This must run AFTER /etc/zshrc (which runs between .zshenv
+# and .zshrc) to win the race. env.sh sets HISTFILE correctly but /etc/zshrc clobbers it.
+export HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
+[[ -d "${HISTFILE:h}" ]] || mkdir -p "${HISTFILE:h}"

@@ -45,8 +45,11 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
     # We use a static counter to avoid checking every single command.
     (( _ZDOTS_CMD_COUNT++ ))
     if (( _ZDOTS_CMD_COUNT % 5 == 0 )); then
-      if [[ -r "$ZDOTDIR/lib/cognitive-load.bash" ]]; then
+      # Source once (guard on function existence); never re-parse on every check.
+      if (( ! ${+functions[zdots_check_cognitive_load]} )) && [[ -r "$ZDOTDIR/lib/cognitive-load.bash" ]]; then
         source "$ZDOTDIR/lib/cognitive-load.bash"
+      fi
+      if (( ${+functions[zdots_check_cognitive_load]} )); then
         if zdots_check_cognitive_load 3 5; then
           zdots_calm_mode
         fi
