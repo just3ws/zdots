@@ -38,7 +38,7 @@ To prevent collisions between the host-level collector and the LGTM stack runnin
 | **Host Collector** | Bare Metal | `4317` | `4318` | Primary ingest for apps & shell |
 | **LGTM Hub** | Container | `4417` | `4418` | Final destination (Loki/Tempo) |
 
-**Note:** The Host Collector listens on `0.0.0.0:4318` (wildcard) for HTTP to ensure browser-based applications can reach it from any local origin.
+**Note:** The Host Collector listens on `127.0.0.1:4318` for HTTP so browser-based applications can reach it from local development origins without exposing telemetry ingestion on the LAN.
 
 ### CORS Support (Browser Apps)
 

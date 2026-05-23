@@ -282,7 +282,31 @@
       "Bash(/usr/bin/log help *)",
       "Bash(/usr/bin/log emit *)",
       "Bash(ZDOTS_AI_MODE=none /Users/mike/.config/zsh/bin/ai-query \"test\")",
-      "Bash(ZDOTS_AI_MODE=none zsh -c 'source /Users/mike/.config/zsh/providers/ai/aider.zsh && zaider --help')"
+      "Bash(ZDOTS_AI_MODE=none zsh -c 'source /Users/mike/.config/zsh/providers/ai/aider.zsh && zaider --help')",
+      "Bash(command -v pi)",
+      "Bash(pi --help)",
+      "Bash(pi -h)",
+      "Bash(pi --provider openai --help)",
+      "Bash(pi --print -p \"say hello\" --provider openai --api-key local --model local)",
+      "Bash(pi --print -p \"reply with only: ok\")",
+      "Bash(OPENAI_API_KEY=local OPENAI_BASE_URL=http://127.0.0.1:8080/v1 pi --provider openai --model local --print -p 'reply with only the word: ok')",
+      "Bash(npm list *)",
+      "Bash(npm root *)",
+      "Bash(OLLAMA_HOST=http://127.0.0.1:8080 pi --print -p \"reply with only: ok\")",
+      "Bash(pi --provider google --print -p \"reply with only: ok\")",
+      "Bash(bash *)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdots-keychain verify *)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdots-keychain list *)",
+      "Bash(/usr/bin/security dump-keychain *)",
+      "Bash(command -v gum fzf dialog whiptail charm)",
+      "Bash(fzf *)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdots-status *)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh zsh *)",
+      "Bash(xxd)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh backlog task list)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdash --list)",
+      "Bash(ZDOTDIR=/dev/null zsh *)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdash --preview Z-088)"
     ]
   }
 }

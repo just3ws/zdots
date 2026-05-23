@@ -96,8 +96,22 @@ _zdots_zle_ai_fix() {
   zle -M "${response:-ai: no response}"
 }
 
+_zdots_zle_zdash() {
+  # Clear the current line and launch zdash in-place.
+  # After zdash exits, restore the prompt (zle reset-prompt).
+  zle -I   # allow other widgets to run while zdash is alive
+  local saved="$BUFFER"
+  BUFFER=""
+  zle redisplay
+  "${ZDOTDIR}/bin/zdash"
+  BUFFER="$saved"
+  zle reset-prompt
+}
+
 zle -N _zdots_zle_ai_explain
 zle -N _zdots_zle_ai_fix
+zle -N _zdots_zle_zdash
 
 bindkey '\ee' _zdots_zle_ai_explain   # Alt-e: explain buffer
 bindkey '\ef' _zdots_zle_ai_fix       # Alt-f: fix last failure
+bindkey '\ez' _zdots_zle_zdash        # Alt-z: open zdash task launcher

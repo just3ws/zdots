@@ -8,10 +8,10 @@ services:
     container_name: zdots-lgtm
     restart: unless-stopped
     ports:
-      - "3000:3000"     # Grafana
-      - "4417:4317"     # OTLP gRPC (Exposed as 4417 to avoid conflict with bare metal)
-      - "4418:4318"     # OTLP HTTP (Exposed as 4418)
-      - "3100:3100"     # Loki (Logs)
+      - "127.0.0.1:3000:3000"     # Grafana
+      - "127.0.0.1:4417:4317"     # OTLP gRPC (Exposed as 4417 to avoid conflict with bare metal)
+      - "127.0.0.1:4418:4318"     # OTLP HTTP (Exposed as 4418)
+      - "127.0.0.1:3100:3100"     # Loki (Logs)
     environment:
       - OTEL_METRIC_EXPORT_INTERVAL=5000
       - ENABLE_LOGS_OTELCOL=true
