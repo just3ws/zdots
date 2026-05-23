@@ -48,7 +48,11 @@ zdots is the infrastructure. You are a tenant, not the maintenance crew.
 
 **If zdots behaves unexpectedly — a tool errors, a service won't start, a command does something undocumented — your job is to file an issue and stop. Not to fix it.**
 
-Unauthorized modifications to zdots break the environment for all agents and the operator. The system is designed and maintained by the operator. Like a good union job: don't touch the wiring unless it's your wiring.
+This is not primarily about authorization. It is about **coordination**.
+
+Every function in `lib/`, every script in `bin/`, every contract in `conf.d/` has callers you cannot see from your current task. If you change the behavior of `zdots_ai_gate` to unblock yourself, you do not know what the three other scripts that call it are expecting. If you rename a flag in `zdots-ctx`, you do not know which agent sessions, cron jobs, or shell aliases depend on the old flag. Your fix may be locally correct and still cause silent failures downstream — with no notification to the operator, no signal to other agents, and no way to recover except by debugging a system whose state no one fully understands anymore.
+
+The operator coordinates changes to zdots. That coordination is the entire point. Like a good union job: don't touch the wiring unless it's your wiring — not because you're not trusted, but because the electrician is the only one who knows what else is on that circuit.
 
 ```bash
 zdots-issue "Short description of the problem"
