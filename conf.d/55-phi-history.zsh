@@ -11,6 +11,8 @@
 
 [[ "${ZDOTS_HISTORY_REDACT:-1}" == "1" ]] || return 0
 
+[[ -r "${ZDOTDIR}/lib/audit_log.bash" ]] && source "${ZDOTDIR}/lib/audit_log.bash"
+
 zshaddhistory() {
   local line="${1%%$'\n'}"
   local t0=$EPOCHREALTIME
@@ -18,6 +20,7 @@ zshaddhistory() {
   # Suppress connection strings with credentials entirely — no redaction attempt,
   # the entry must not appear in history at all.
   if [[ "$line" =~ '(postgresql|mysql|redis)://[^@[:space:]]+@' ]]; then
+    zdots_audit_log "history_redacted" "reason=connection_string"
     return 1
   fi
 
@@ -53,6 +56,7 @@ zshaddhistory() {
   fi
 
   if (( changed )); then
+    zdots_audit_log "history_redacted" "reason=phi_pattern"
     print -s -- "$line"
     return 1
   fi

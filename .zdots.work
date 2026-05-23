@@ -1,0 +1,17 @@
+# .zdots.work — PHI-safe operating mode enforced overrides.
+#
+# Sourced AFTER .zdots.local (from env.sh), so these values win unconditionally.
+# These are not defaults — they are enforced. .zdots.local cannot override them.
+#
+# To activate: set ZDOTS_CONTEXT=work in .zdots.local.
+
+export ZDOTS_CONTEXT=work
+export ZDOTS_CAPTURE_ENABLED=0
+export ZDOTS_HISTORY_REDACT=1
+
+# Hard-block cloud AI mode — local and none are both safe; cloud is not.
+case "${ZDOTS_AI_MODE:-local}" in
+  none)  ;;
+  local) ;;
+  *)     export ZDOTS_AI_MODE=local ;;
+esac

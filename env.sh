@@ -24,6 +24,12 @@ if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.local" ]; then
   . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.local"
 fi
 
+# 1d. Work profile — sourced AFTER .zdots.local so enforced values win.
+# Activated by setting ZDOTS_CONTEXT=work in .zdots.local.
+if [ "${ZDOTS_CONTEXT:-home}" = "work" ] && [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.work" ]; then
+  . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.work"
+fi
+
 # 2. XDG Base Directory Specification (Harden & Absolute)
 export XDG_ROOT="$HOME"
 export XDG_CONFIG_HOME="$XDG_ROOT/.config"
