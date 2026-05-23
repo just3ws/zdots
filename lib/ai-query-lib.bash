@@ -355,6 +355,13 @@ aiq_sanitize_output() {
 aiq_submit() {
   local sysfile="$1" userfile="$2" endpoint="$3" model="$4" timeout="${5:-30}"
 
+  # Defense-in-depth: enforce gate even if caller forgot (e.g. sourced lib directly).
+  # Primary gate call is in bin/ai-query before this function runs.
+  if declare -f zdots_ai_gate >/dev/null 2>&1; then
+    zdots_ai_gate "ai-query"
+    zdots_assert_local_endpoint "$endpoint"
+  fi
+
   local sys_msg user_msg
   sys_msg=$(cat "$sysfile")
   user_msg=$(cat "$userfile")

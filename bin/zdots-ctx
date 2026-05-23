@@ -154,8 +154,7 @@ cmd_query() {
   fi
 
   if $semantic; then
-    zdots_ai_gate "zdots-ctx"
-    zdots_assert_local_endpoint "$_AI_ENDPOINT"
+    _AI_ENDPOINT=$(zdots_ai_gated_endpoint "zdots-ctx")
   fi
 
   local brain_flags=()
@@ -222,8 +221,7 @@ INSTRUCTIONS:
 EOF
 )
 
-  zdots_ai_gate "zdots-ctx"
-  zdots_assert_local_endpoint "$_AI_ENDPOINT"
+  _AI_ENDPOINT=$(zdots_ai_gated_endpoint "zdots-ctx")
   _svc_log "distilling with local AI..."
   local distillation
   if ! distillation=$(echo "$prompt" | ai-query --mode raw 2>/dev/null); then
@@ -304,8 +302,7 @@ cmd_hydrate() {
   done
 
   if [[ -n "$tag" ]]; then
-    zdots_ai_gate "zdots-ctx"
-    zdots_assert_local_endpoint "$_AI_ENDPOINT"
+    _AI_ENDPOINT=$(zdots_ai_gated_endpoint "zdots-ctx")
   fi
 
   "${ZDOTDIR}/sbin/zdots-brain" "${brain_flags[@]}" hydrate ${tag:+"$tag"}
