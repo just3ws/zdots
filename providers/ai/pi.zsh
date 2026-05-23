@@ -40,5 +40,7 @@ zdots_pi_init() {
 #   zpi --print -p "explain"   # non-interactive, print output only
 zpi() {
   zdots_pi_init
-  pi "$@"
+  local _pi_system_append=()
+  [[ -r "${ZDOTDIR}/PI.md" ]] && _pi_system_append=(--append-system-prompt "${ZDOTDIR}/PI.md")
+  pi "${_pi_system_append[@]}" "$@"
 }
