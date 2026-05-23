@@ -2,7 +2,7 @@
 # lib/phi_scrubber.bash — PHI pattern scrubber for the zdots content pipeline.
 #
 # phi_scrub — reads from stdin, writes scrubbed content to stdout.
-#             Returns 0 if content was clean, 1 if anything was redacted.
+#             Always returns 0; the caller always gets usable output.
 #
 # Redaction markers (from PHI safety policy doc-002):
 #   [REDACTED-SSN]   NNN-NN-NNNN
@@ -22,7 +22,4 @@ phi_scrub() {
     -e 's;(postgresql|mysql|redis)://[^@[:space:]]+@[^/[:space:]]*;[REDACTED-CONN];g')
 
   printf '%s' "$scrubbed"
-
-  # Return 1 (truthy "something changed") when redaction occurred
-  [[ "$scrubbed" != "$input" ]]
 }
