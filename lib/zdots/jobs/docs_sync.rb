@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "base"
-require "ruby_llm"
 
 module Zdots
   module Jobs
@@ -15,18 +14,13 @@ module Zdots
 
       def run
         trace_id = payload["trace_id"]
-        
-        # 1. Fetch the residue to process
+
         residue = Zdots.db[:session_residue].where(trace_id: trace_id).first
         raise "Residue not found for trace: #{trace_id}" unless residue
 
         puts "  --> Syncing documentation with residue from session: #{trace_id[0..7]}..."
 
-        # 2. Configure LLM
-        llm = RubyLLM::Provider::OpenAI.new(
-          api_key: "local",
-          base_url: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080/v1")
-        )
+        llm = Zdots::AI.client
 
         DOCS_TO_MAINTAIN.each do |doc_rel_path|
           full_path = File.join(Zdots::ZDOTDIR, doc_rel_path)
