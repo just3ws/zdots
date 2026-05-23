@@ -3,9 +3,10 @@ id: Z-089
 title: >-
   Emit PHI-adjacent operations to macOS Unified Logging for compliance audit
   trail
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-23 01:20'
+updated_date: '2026-05-23 06:39'
 labels:
   - phi
   - security
@@ -35,6 +36,12 @@ OTel spans are excellent for observability but depend on the local LGTM stack be
 - [ ] #7 zdots-ctl check includes a one-line audit log verification: last entry is readable
 - [ ] #8 AGENTS.md and SETUP.md document how to query the audit log
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+lib/audit_log.bash already existed with zdots_audit_log(). ai_boundary.bash already sourced it and emitted ai_gate_triggered, endpoint_assertion_pass/fail. zdots-ctx already emitted capture_invoked, capture_blocked. Added zdots-ctl check PHI audit log section: queries last 24h of com.zdots unified log entries and warns if empty. AGENTS.md Section 8 documents the query command.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
