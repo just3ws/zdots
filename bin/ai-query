@@ -59,6 +59,8 @@ if [[ ! -r "$_LIB" ]]; then
 fi
 # shellcheck source=../lib/ai-query-lib.bash
 source "$_LIB"
+# shellcheck source=../lib/ai_boundary.bash
+source "${_SCRIPT_DIR}/../lib/ai_boundary.bash"
 
 # ---------------------------------------------------------------------------
 # Defaults (override via flags or environment)
@@ -191,6 +193,12 @@ fi
 
 # Collect remaining argv as TASK
 TASK="${*}"
+
+# ---------------------------------------------------------------------------
+# AI boundary enforcement (PHI safety)
+# ---------------------------------------------------------------------------
+zdots_ai_gate "ai-query"
+zdots_assert_local_endpoint "$ENDPOINT"
 
 # ---------------------------------------------------------------------------
 # Check required dependencies up front
