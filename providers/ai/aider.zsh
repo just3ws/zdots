@@ -14,13 +14,13 @@
 
 zdots_aider_init() {
   # AI boundary enforcement — exit 2 if mode=none, exit 1 if endpoint not RFC-1918
-  local _ai_boundary_lib="${ZDOTDIR}/lib/ai_boundary.bash"
-  if [[ -r "$_ai_boundary_lib" ]]; then
+  if ! typeset -f zdots_ai_gate > /dev/null 2>&1; then
     # shellcheck source=lib/ai_boundary.bash
-    source "$_ai_boundary_lib"
-    zdots_ai_gate "zaider"
-    zdots_assert_local_endpoint "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+    [[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
   fi
+  typeset -f zdots_ai_gate > /dev/null 2>&1 && zdots_ai_gate "zaider"
+  typeset -f zdots_assert_local_endpoint > /dev/null 2>&1 \
+    && zdots_assert_local_endpoint "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
 
   # Derive endpoint from the active llama.cpp provider so both always agree.
   # ZDOTS_AI_ENDPOINT is set by providers/ai/llama-cpp.zsh before this runs.

@@ -12,14 +12,14 @@
 # Query: log show --predicate 'subsystem == "com.zdots"' --last 1h
 # Stream: log stream --predicate 'subsystem == "com.zdots" AND category == "phi-boundary"'
 #
-# Events emitted by the zdots toolchain:
-#   ai_gate_triggered          ZDOTS_AI_MODE=none blocked an inference call
-#   endpoint_assertion_pass    Locality check passed for an endpoint
-#   endpoint_assertion_fail    Non-local endpoint blocked in local mode
-#   capture_blocked            zdots-ctx capture suppressed (ZDOTS_CAPTURE_ENABLED=0)
-#   capture_invoked            zdots-ctx capture ran (content scrubbed before write)
-#   history_redacted           zshaddhistory hook redacted a command
-#   boundary_violation         Any PHI boundary enforcement event
+# Events and their log types:
+#   ai_gate_triggered          fault  — ZDOTS_AI_MODE=none blocked an inference call
+#   endpoint_assertion_fail    fault  — Non-local endpoint blocked in local mode
+#   boundary_violation         fault  — Any PHI boundary enforcement event
+#   capture_blocked            default — zdots-ctx capture suppressed (ZDOTS_CAPTURE_ENABLED=0)
+#   capture_invoked            default — zdots-ctx capture ran (content scrubbed before write)
+#   endpoint_assertion_pass    info   — Locality check passed for an endpoint
+#   history_redacted           info   — zshaddhistory hook redacted a command
 
 zdots_audit_log() {
   # No-op on non-darwin — unified logging is macOS-only
@@ -29,10 +29,19 @@ zdots_audit_log() {
   shift
   local detail="${*}"
 
-  # log(1) is always available on macOS; subsystem/category land in the
-  # unified log store readable by Console.app, MDM tools, and log(1).
-  /usr/bin/log log \
+  # Map event names to log types — fault for blocks/violations, info for passes
+  local type="default"
+  case "$event" in
+    *_fail|*_triggered|*_violation) type="fault"   ;;
+    *_pass|*_redacted)              type="info"    ;;
+  esac
+
+  # --public ensures the message is readable in log show/stream without
+  # private-data redaction. We write only event metadata, never PHI.
+  /usr/bin/log emit \
     --subsystem "com.zdots" \
     --category  "phi-boundary" \
-    -- "event=${event} ${detail}" 2>/dev/null || true
+    --type      "$type" \
+    --public \
+    "event=${event} ${detail}" 2>/dev/null || true
 }
