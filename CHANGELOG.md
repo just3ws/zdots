@@ -2,6 +2,16 @@
 
 This changelog summarizes the historical evolution of this repository from existing commit history.
 
+## May 2026 — Local AI Routing Layer
+
+- `bin/zdots-ask`: domain-aware prompt router — keyword scan → inject system prompt → local llama.cpp; `--dry-run`, `--domain`, `--list-domains` flags.
+- `bin/zdots-quiz`: 14-case capability probe with `--quick` (3-case) and `--verbose` flags; retry logic on empty model response.
+- `etc/prompts/zdots-{default,shell,ruby,phi}.md`: compact system prompts above 256-token `cache_reuse` threshold; caveman voice enshrined.
+- `bin/ai-query`: `AIQ_SUPPRESS_RAW_WARN=1` suppresses raw-mode warning for trusted internal callers.
+- `bin/zdots-ctl check`: AI router structural verification section (files, domains, dry-run test).
+- `docs/local-ai.md`: full architecture, routing decision tree, failure state diagram, capability delegation map, new-machine verification sequence.
+- Backlog: Z-092 (context hydration), Z-093 (zdash/llama-ctl quiz), DRAFT-001 (output contracts).
+
 ## May 2026 — Operation Martian (PHI Security + TUI)
 
 **PHI Safety (15-task DAG, Z-077–Z-091 — all complete):**
