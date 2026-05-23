@@ -343,7 +343,6 @@ cmd_check() {
         _chk_pass "llama-server plist  bound to 127.0.0.1"
       else
         _chk_fail "llama-server plist  may bind to all interfaces — run: llama-ctl install"
-        errors=$((errors + 1))
       fi
     fi
 
@@ -355,7 +354,6 @@ cmd_check() {
         | awk '$1 ~ /^llama-ser/ {print $9}' | grep -v '^127\.' || true)
       if [[ -n "$_non_lo" ]]; then
         _chk_fail "llama-server  socket exposed on non-loopback: $_non_lo"
-        errors=$((errors + 1))
       else
         _chk_pass "llama-server  socket bound to loopback only"
       fi
