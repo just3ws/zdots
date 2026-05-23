@@ -26,3 +26,4 @@ traces-collected.json
 .aider.tags.cache*
 .aider.input.history
 .aider*
+.claude/settings.local.json
