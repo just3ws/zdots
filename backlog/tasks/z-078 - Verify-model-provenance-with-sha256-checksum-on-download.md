@@ -1,9 +1,10 @@
 ---
 id: Z-078
 title: Verify model provenance with sha256 checksum on download
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-22 23:47'
+updated_date: '2026-05-23 06:39'
 labels:
   - phi
   - security
@@ -27,6 +28,12 @@ llama-ctl model-download currently pulls the model with no integrity check. On a
 - [ ] #4 llama-ctl start checks the model file hash before launching llama-server; refuses to start if unverified
 - [ ] #5 Re-running model-download after a verified download is a no-op (idempotent)
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+lib/llama-models.sha256 manifest created with SHA256 for qwen2.5-coder-7b-instruct-q4_k_m.gguf. zdots_model_verify() added to lib/model-store.bash — hard-fails on mismatch, no-op if file not in manifest. llama-ctl model-download verifies after download (idempotent: skip if already downloaded). llama-ctl start verifies before launch. llama-ctl model-verify subcommand for manual checks. zdots-ctl check verifies all manifest entries.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
