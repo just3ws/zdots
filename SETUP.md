@@ -229,10 +229,16 @@ Cloud keys never go in `.zdots.env`, `.zdots.local`, or anywhere tracked by git.
 
 ```bash
 exec zsh                    # reload the shell
-zdots-ctl check             # deep platform diagnostic
+zdots-ctl check             # deep platform diagnostic (includes AI router structural check)
 zdots-ctx status            # database + job queue health
 agent-guide                 # live service status
+zdots-quiz --quick          # probe local model on 3 canonical zdots tasks (~20s)
+zdots-quiz                  # full 14-case capability baseline (optional, ~5 min)
 ```
+
+`zdots-quiz --quick` runs TC-03 (PHI-safe AI call), TC-07 (transparent encryption accessor), and TC-09 (posture verification) — the three highest-value patterns. All must pass before trusting `zdots-ask` with real work.
+
+If any quiz case fails, run `zdots-quiz --verbose` to inspect the model's response and tune `etc/prompts/` accordingly.
 
 ## The firewall: what stays private
 

@@ -379,6 +379,42 @@ cmd_check() {
     _fix "zdots-ctx status"
   fi
 
+  # ── AI router structural check (fast — no model call) ─────────────────────
+  printf '\nAI router\n'
+  local _ask="${ZDOTDIR}/bin/zdots-ask"
+  local _quiz="${ZDOTDIR}/bin/zdots-quiz"
+  local _prompts_dir="${ZDOTDIR}/etc/prompts"
+  if [[ ! -x "$_ask" ]]; then
+    _chk_fail "zdots-ask  not found or not executable: $_ask"
+  else
+    _chk_pass "zdots-ask  executable"
+  fi
+  local _missing_prompts=0
+  for _d in default shell ruby phi; do
+    if [[ ! -f "${_prompts_dir}/zdots-${_d}.md" ]]; then
+      _chk_fail "prompt  zdots-${_d}.md missing"
+      _missing_prompts=$(( _missing_prompts + 1 ))
+    fi
+  done
+  if (( _missing_prompts == 0 )); then
+    _chk_pass "prompts  all 4 domain prompts present"
+  fi
+  # Verify domain detection without hitting the model
+  if [[ -x "$_ask" ]]; then
+    local _det
+    _det=$(ZDOTS_AI_MODE=none "${_ask}" --dry-run "write a ZLE widget" 2>/dev/null | grep '^.zdots-ask. domain=' | cut -d= -f2 | cut -d' ' -f1 || true)
+    if [[ "$_det" == "shell" ]]; then
+      _chk_pass "router  domain detection correct (shell detected for ZLE prompt)"
+    else
+      _chk_warn "router  domain detection returned '${_det:-empty}' for ZLE prompt (expected 'shell')"
+    fi
+  fi
+  if [[ -x "$_quiz" ]]; then
+    _chk_pass "zdots-quiz  executable (run 'zdots-quiz --quick' to probe model capability)"
+  else
+    _chk_warn "zdots-quiz  not found: $_quiz"
+  fi
+
   # ── AI integration smoke test ──────────────────────────────────────────────
   printf '\nAI integration\n'
   local _ruby_bin; _ruby_bin=$(command -v ruby 2>/dev/null || true)

@@ -58,4 +58,15 @@ else
 fi
 ```
 
+## OTel span emission (requires active observable session)
+```bash
+source "${ZDOTDIR}/lib/lifecycle.bash"
+# ZDOTS_TRACE_ID must be set (set by the observable shell session)
+_start=$(date +%s%N)
+# ... do work ...
+_end=$(date +%s%N)
+zdots_svc_emit_span "my-operation" "$_start" "$_end" "key=value"
+```
+Only call this inside scripts that run within an observable session (ZDOTS_TRACE_ID set). Silently skips if ZDOTS_TRACE_ID is unset.
+
 Answer directly. Code first, no greeting preamble. Match existing zdots patterns exactly.

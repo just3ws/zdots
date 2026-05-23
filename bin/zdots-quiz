@@ -98,6 +98,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --verbose|-v)     VERBOSE=1; shift ;;
     --domain|-d)      FILTER_DOMAIN="$2"; shift 2 ;;
+    --quick)          RUN_IDS=(TC-03 TC-07 TC-09); shift ;;   # 3-case smoke, ~20s
     --list)
       printf 'Test cases:\n'
       printf '  TC-01 shell  ZLE widget skeleton\n'
@@ -112,6 +113,8 @@ while [[ $# -gt 0 ]]; do
       printf '  TC-10 default  Read-only psql exploration\n'
       printf '  TC-11 shell  conf.d file structure and load-order prefix\n'
       printf '  TC-12 shell  ZDOTS_CONTEXT home/work branching\n'
+      printf '  TC-13 shell  OTel span emission pattern\n'
+      printf '  TC-14 default  zdots-ctx capture prerequisites\n'
       exit 0
       ;;
     --help|-h)
@@ -196,6 +199,17 @@ _run_case TC-12 shell \
   'ZDOTS_CONTEXT' \
   'work|home' \
   'if.*==|case.*ZDOTS_CONTEXT|\[\[.*ZDOTS_CONTEXT'
+
+_run_case TC-13 shell \
+  "Write a shell snippet that emits an OTel span for an operation in a zdots script." \
+  'lifecycle\.bash|zdots_svc_emit_span' \
+  'ZDOTS_TRACE_ID' \
+  'start.*date|_start|date.*%s'
+
+_run_case TC-14 default \
+  "What are the two required conditions before zdots-ctx capture can be called?" \
+  'ZDOTS_CAPTURE_ENABLED|capture.*enabled' \
+  'ZDOTS_SESSION_ID|session.*id'
 
 # ---------------------------------------------------------------------------
 # Summary
