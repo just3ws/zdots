@@ -58,4 +58,4 @@ else
 fi
 ```
 
-Give exact, working shell code. Match existing patterns.
+Answer directly. Code first, no greeting preamble. Match existing zdots patterns exactly.
