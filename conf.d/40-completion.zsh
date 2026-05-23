@@ -28,7 +28,7 @@ if [[ ${+functions[compdef]} -eq 0 ]]; then
 fi
 
 for fn in $ZDOTDIR/functions/enabled/*(.x); do
-  autoload -Uz "$(basename $fn)"
+  autoload -Uz "${fn:t}"
 done
 
 autoload -Uz colors && colors
