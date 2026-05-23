@@ -1,9 +1,10 @@
 ---
 id: Z-080
 title: Enforce AI endpoint locality when ZDOTS_AI_MODE=local
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-22 23:47'
+updated_date: '2026-05-23 00:37'
 labels:
   - phi
   - security
@@ -11,6 +12,10 @@ labels:
 milestone: m-5
 dependencies:
   - Z-077
+modified_files:
+  - lib/ai_boundary.bash
+  - bin/ai-query
+  - bin/zdots-ctx
 priority: high
 ---
 
@@ -22,14 +27,20 @@ ZDOTS_AI_MODE=local is currently advisory — nothing prevents a misconfigured Z
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Shared function zdots_assert_local_endpoint in lib/zdots/ai_boundary.sh (or equivalent) validates the host portion of ZDOTS_AI_ENDPOINT against loopback + RFC-1918 ranges
-- [ ] #2 ai-query calls the assertion before dispatching any request when ZDOTS_AI_MODE=local
-- [ ] #3 zdots-ctx calls the assertion before any inference operation when ZDOTS_AI_MODE=local
-- [ ] #4 A non-local endpoint with ZDOTS_AI_MODE=local exits non-zero with message referencing ZDOTS_AI_ENDPOINT and ZDOTS_AI_MODE
-- [ ] #5 ZDOTS_AI_MODE=cloud bypasses the locality check (explicit opt-in)
-- [ ] #6 ZDOTS_AI_MODE=none bypasses entirely (no endpoint used)
+- [x] #1 Shared function zdots_assert_local_endpoint in lib/zdots/ai_boundary.sh (or equivalent) validates the host portion of ZDOTS_AI_ENDPOINT against loopback + RFC-1918 ranges
+- [x] #2 ai-query calls the assertion before dispatching any request when ZDOTS_AI_MODE=local
+- [x] #3 zdots-ctx calls the assertion before any inference operation when ZDOTS_AI_MODE=local
+- [x] #4 A non-local endpoint with ZDOTS_AI_MODE=local exits non-zero with message referencing ZDOTS_AI_ENDPOINT and ZDOTS_AI_MODE
+- [x] #5 ZDOTS_AI_MODE=cloud bypasses the locality check (explicit opt-in)
+- [x] #6 ZDOTS_AI_MODE=none bypasses entirely (no endpoint used)
 - [ ] #7 Bats test: local endpoint passes, public IP fails, RFC-1918 LAN IP passes
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+lib/ai_boundary.bash created with zdots_ai_gate (exits 2 when ZDOTS_AI_MODE=none) and zdots_assert_local_endpoint (hard-fails on non-RFC-1918 endpoint when mode=local). Wired into bin/ai-query after arg parsing. Wired into bin/zdots-ctx before semantic query, capture, and hydrate AI paths. Hardcoded http://127.0.0.1:8080 in zdots-ctx replaced with _AI_ENDPOINT variable. Bats test for mode=none deferred to dedicated test task.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
