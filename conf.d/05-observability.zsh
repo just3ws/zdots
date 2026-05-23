@@ -62,7 +62,7 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
   # Hook: Command Execution (Pre-execution: Rotate Span ID)
   _zdots_trace_preexec() {
     local cmd="$1"
-    export ZDOTS_LAST_COMMAND="$cmd"
+    export ZDOTS_LAST_COMMAND="${cmd[1,512]}"
 
     # Rotate Span ID for the new command (Span) — Zsh built-in, no forks
     printf -v ZDOTS_SPAN_ID '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM

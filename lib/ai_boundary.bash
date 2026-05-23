@@ -10,10 +10,8 @@
 # Call zdots_ai_gate first, then zdots_assert_local_endpoint, before any
 # network request to an AI endpoint. Source this file to load both functions.
 
-_AI_BOUNDARY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/audit_log.bash
-[[ -r "$_AI_BOUNDARY_DIR/audit_log.bash" ]] && source "$_AI_BOUNDARY_DIR/audit_log.bash"
-unset _AI_BOUNDARY_DIR
+[[ -r "${ZDOTDIR}/lib/audit_log.bash" ]] && source "${ZDOTDIR}/lib/audit_log.bash"
 
 # Exit cleanly when AI is disabled. No network attempt is made.
 zdots_ai_gate() {

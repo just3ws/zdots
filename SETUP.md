@@ -84,6 +84,80 @@ override it in `.zdots.local`:
 ZDOTS_MIGRATION_URL=postgresql://yourusername@localhost/my
 ```
 
+## PHI safety — work machine checklist
+
+If `ZDOTS_CONTEXT=work` or this machine will touch protected health information,
+complete this checklist **before running any AI tooling**.
+
+### 1 — Set machine context
+
+```bash
+# .zdots.local
+ZDOTS_CONTEXT=work
+ZDOTS_AI_MODE=local     # lock to local; change only after security review
+ZDOTS_CAPTURE_ENABLED=0 # capture is opt-in; do NOT enable until DB encryption is in place
+ZDOTS_HISTORY_REDACT=1  # already the default; confirm it is set
+```
+
+### 2 — Verify security posture
+
+```bash
+zdots-ctl check   # verifies FileVault, SIP, and Application Firewall on darwin
+```
+
+`zdots-ctl check` will **hard-fail** if FileVault or SIP is disabled on a work machine.
+Fix before proceeding.
+
+### 3 — Zero-AI mode for unknown network environments
+
+If the corporate proxy situation is unresolved or llama.cpp is not yet running,
+disable AI entirely. The system runs fully without it:
+
+```bash
+# .zdots.local
+ZDOTS_AI_MODE=none
+```
+
+All AI commands (`ai-query`, `zaider`, `zdots-ctx capture`) exit cleanly with a
+human-readable message and exit code 2. No hangs, no timeouts, no curl errors.
+This is the safe baseline — not a degraded state.
+
+Once the proxy situation is resolved and the local model is running:
+
+```bash
+zdots-ctl up              # start llama.cpp and supporting services
+ZDOTS_AI_MODE=local       # back in .zdots.local
+ai-query "hello"          # smoke test
+```
+
+### 4 — Understand what the PHI scrubber covers
+
+Every AI call pipes content through `lib/phi_scrubber.bash` before sending or
+storing. Patterns scrubbed automatically:
+
+| Pattern | Replacement |
+|---------|-------------|
+| SSN `NNN-NN-NNNN` | `[REDACTED-SSN]` |
+| MRN labels | `[REDACTED-MRN]` |
+| DOB labels | `[REDACTED-DOB]` |
+| DB connection strings | `[REDACTED-CONN]` |
+
+Site-specific patterns (patient account numbers, employee IDs) go in `.zdots.local`:
+
+```bash
+ZDOTS_HISTORY_REDACT_PATTERNS=(
+  'ACC[0-9]{8}'
+  'EMP-[A-Z]{2}[0-9]{5}'
+)
+```
+
+The scrubber is the **first** layer, not the last. Do not send raw patient record
+excerpts to AI — scrubbing patterns are not exhaustive.
+
+Full policy: `backlog/docs/doc-002 - PHI-Safety-Policy.md`
+
+---
+
 ## AI security boundary
 
 **On a fresh clone, all AI is local. This is non-negotiable until security is complete.**
