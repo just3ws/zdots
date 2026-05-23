@@ -11,11 +11,27 @@ if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env" ]; then
   . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env"
 fi
 
-# 1b. Secrets (Ignored by Git)
-# Sensitive environment variables (API keys, tokens).
-if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.secrets" ]; then
-  . "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.secrets"
+# 1b. Secrets — macOS Keychain is the primary source; .zdots.secrets is a fallback.
+# On darwin: lib/keychain.bash is sourced and zdots_keychain_load populates all
+# known vars. Keychain is loaded AFTER the file so Keychain values always win.
+# On non-darwin: only the file path is used (Linux dev machines).
+# To add a secret: zdots-keychain add VARNAME value
+# To migrate from file:  zdots-keychain migrate
+_zdots_secrets="${ZDOTDIR:-$HOME/.config/zsh}/.zdots.secrets"
+_zdots_kc_lib="${ZDOTDIR:-$HOME/.config/zsh}/lib/keychain.bash"
+if [ -f "$_zdots_secrets" ]; then
+  . "$_zdots_secrets"
 fi
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -f "$_zdots_kc_lib" ]; then
+  . "$_zdots_kc_lib"
+  zdots_keychain_load \
+    ZDOTS_DB_ENCRYPTION_KEY \
+    MAXMIND_ACCOUNT_ID MAXMIND_LICENSE_KEY MAXMIND_EDITION_IDS \
+    HUGGINGFACE_TOKEN \
+    HOMEBREW_GITHUB_API_TOKEN GITHUB_TOKEN MISE_GITHUB_TOKEN \
+    ANTHROPIC_API_KEY OPENAI_API_KEY
+fi
+unset _zdots_secrets _zdots_kc_lib
 
 # 1c. Machine-local overrides (Ignored by Git)
 # Machine identity, context (work/home), and per-machine overrides.
