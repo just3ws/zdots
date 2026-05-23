@@ -213,7 +213,37 @@ stateDiagram-v2
 
 ---
 
-## 8. CI/CD Lifecycle & Contract Validation
+## 8. Local AI Routing Architecture
+
+The AI layer sits between the operator and llama.cpp, enforcing PHI boundaries and injecting domain-specific system prompts. See [local-ai.md](local-ai.md) for full documentation.
+
+### Routing Flow
+
+```mermaid
+flowchart LR
+    prompt([Prompt]) --> ask[zdots-ask\ndomain router]
+    ask -->|keyword scan| domain{Domain}
+    domain -->|shell/zle/conf.d| sp["zdots-shell.md"]
+    domain -->|ruby/sequel/.rb| rp["zdots-ruby.md"]
+    domain -->|phi/encrypt/ssn| pp["zdots-phi.md"]
+    domain -->|default| dp["zdots-default.md"]
+    sp & rp & pp & dp --> gate[zdots_ai_gate\nPHI boundary]
+    gate -->|ZDOTS_AI_MODE=local| llama["llama.cpp\n127.0.0.1:8080\nQwen2.5-Coder 7B"]
+    gate -->|ZDOTS_AI_MODE=none| exit2([exit 2])
+```
+
+### AI Verification Tiers
+
+| Tier | Tool | What it checks | Speed |
+|---|---|---|---|
+| Structural | `zdots-ctl check` AI router section | Files present, scripts executable, domain detection correct | < 2s |
+| Connection | `tests/llama_integration.rb --quick` | llama.cpp responds, chat + embeddings functional | ~10s |
+| Capability | `zdots-quiz --quick` | Local model produces correct zdots conventions | ~20s |
+| Full baseline | `zdots-quiz` | All 14 domain cases | ~5 min |
+
+---
+
+## 9. CI/CD Lifecycle & Contract Validation
 
 Zdots uses a tiered validation strategy to ensure environmental stability.
 

@@ -208,7 +208,60 @@ ztranscribe 'https://www.youtube.com/watch?v=...' --diarize
 
 ---
 
-## 6. Setup & Documentation
+## 6. Local AI Routing Layer
+
+Zdots routes every prompt through a domain-aware local LLM layer before any frontier model is considered. The 7B model runs entirely on-device — no cloud egress, no API keys required for covered tasks.
+
+```mermaid
+flowchart LR
+    subgraph Router["AI Router Layer"]
+        direction TB
+        ask["<b>zdots-ask</b>\ndomain router"]
+        prompts["<b>etc/prompts/</b>\nzdots-{default,shell,ruby,phi}.md"]
+        aiquery["<b>ai-query</b>\nguardrail wrapper"]
+        boundary["<b>ai_boundary.bash</b>\nPHI gate · endpoint lock"]
+        ask -->|selects| prompts
+        ask -->|calls| aiquery
+        aiquery -->|enforces| boundary
+    end
+
+    subgraph Inference["Local Inference (loopback only)"]
+        llama["<b>llama.cpp :8080</b><br/>Qwen2.5-Coder 7B Q4_K_M<br/>32k ctx · Metal GPU · KV cache reuse"]
+    end
+
+    subgraph Ops["Verification"]
+        ctl["zdots-ctl check"]
+        quiz["zdots-quiz\n14-case probe"]
+        quiz -->|calls| ask
+        ctl -->|inspects| ask
+    end
+
+    boundary -->|127.0.0.1:8080 only| llama
+```
+
+**Domain routing** — prompt keywords determine which system prompt is injected:
+
+| Domain | Trigger keywords | Covers |
+|---|---|---|
+| `shell` | zsh · zle · widget · conf.d · zdots-ctl | ZLE widgets, check helpers, AI call pattern, OTel spans |
+| `ruby` | sequel · migration · .rb · zdots_rw | Sequel migrations, pgcrypto accessors, PHI columns |
+| `phi` | phi · hipaa · ssn · mrn · pgcrypto · encrypt | 6-layer PHI defense, posture verification |
+| `default` | *(fallback)* | DB roles, tool names, capture constraints |
+
+All prompts use the **Caveman Voice**: technical precision, zero filler, code first.
+
+```bash
+zdots-ask "write ZLE widget that saves BUFFER and opens fzf"   # auto-detects shell
+zdots-ask --domain ruby "add nullable column to lessons table"  # explicit domain
+zdots-ask --dry-run "is this PHI-safe?"                        # inspect routing
+zdots-quiz --quick                                              # 3-case smoke test
+```
+
+→ Full documentation: [docs/local-ai.md](docs/local-ai.md)
+
+---
+
+## 7. Setup & Documentation
 
 Refer to [docs/development.md](docs/development.md) for installation.
 
@@ -218,6 +271,7 @@ zdots-ctl status        # Confirm entire stack is green
 ```
 
 *   [docs/architecture.md](docs/architecture.md) — The DI pattern and loading sequence.
+*   [docs/local-ai.md](docs/local-ai.md) — Local AI routing layer: architecture, prompts, capability map, quiz.
 *   [docs/migration.md](docs/migration.md) — How to set up on a new machine.
 *   [docs/testing.md](docs/testing.md) — How we ensure the build is always green.
 *   [AGENTS.md](AGENTS.md) — Orientation for AI agents (Claude, Gemini) including RTK rules.
