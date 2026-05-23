@@ -89,51 +89,116 @@ ZDOTS_MIGRATION_URL=postgresql://yourusername@localhost/my
 If `ZDOTS_CONTEXT=work` or this machine will touch protected health information,
 complete this checklist **before running any AI tooling**.
 
-### 1 — Set machine context
+### How the PHI-safe mode works
+
+Setting `ZDOTS_CONTEXT=work` in `.zdots.local` activates `.zdots.work`, which is
+sourced **after** `.zdots.local` and hard-enforces the following regardless of any
+other overrides:
+
+| Variable | Enforced value | Effect |
+|----------|---------------|--------|
+| `ZDOTS_CAPTURE_ENABLED` | `0` | Session capture blocked (exit 2) |
+| `ZDOTS_HISTORY_REDACT` | `1` | SSN/MRN/DOB/connection-string suppression in history |
+| `ZDOTS_AI_MODE` | `local` (min) | Cloud mode reset to local if set in .zdots.local |
+| `ZDOTS_CONTEXT` | `work` | Activates PHI assertions in `zdots-ctl check` |
+
+These are enforced values, not defaults. `.zdots.local` cannot override them.
+
+---
+
+### Step 1 — Declare work context
+
+Add one line to `.zdots.local`:
 
 ```bash
-# .zdots.local
 ZDOTS_CONTEXT=work
-ZDOTS_AI_MODE=local     # lock to local; change only after security review
-ZDOTS_CAPTURE_ENABLED=0 # capture is opt-in; do NOT enable until DB encryption is in place
-ZDOTS_HISTORY_REDACT=1  # already the default; confirm it is set
 ```
 
-### 2 — Provision the database encryption key
+That is the only required change. All PHI-safe defaults activate automatically.
+
+---
+
+### Step 2 — Provision the database encryption key
+
+The key must live in the macOS Keychain only — never in any file.
 
 ```bash
-# Generate
+# Generate a fresh key (skip if migrating an existing key)
 openssl rand -hex 32
 
 # Store in Keychain
 zdots-keychain add ZDOTS_DB_ENCRYPTION_KEY <value>
 
-# Wire into .zdots.secrets (add this line)
-export ZDOTS_DB_ENCRYPTION_KEY="$(_zdots_kc ZDOTS_DB_ENCRYPTION_KEY)"
+# Verify the key is reachable
+zdots-keychain verify
+```
 
-# Run the encryption migration
+Then run the DB migration so encrypted columns are created:
+
+```bash
 zdots-ctx migrate
 ```
 
-`zdots-ctx migrate` will hard-fail if `ZDOTS_DB_ENCRYPTION_KEY` is unset. After it runs,
-`lessons.content`, `methodologies.content`, and `session_residue.{summary,intent,result}`
-are encrypted at rest with pgcrypto. `zdots_ro` sees ciphertext only.
+`zdots-ctx migrate` hard-fails if `ZDOTS_DB_ENCRYPTION_KEY` is unset. After it
+runs, `lessons.content`, `methodologies.content`, and
+`session_residue.{summary,intent,result}` are encrypted at rest with pgcrypto.
+`zdots_ro` sees ciphertext only.
 
-**Agent sessions:** If another AI agent reports the key is missing, tell it:
+**Agent sessions:** if another AI agent reports the key is missing:
 ```bash
 export ZDOTS_DB_ENCRYPTION_KEY=$(zdots-keychain get ZDOTS_DB_ENCRYPTION_KEY)
 ```
 
-### 3 — Verify security posture
+---
+
+### Step 3 — Migrate secrets from file to Keychain (upgrade path)
+
+Skip this step on a fresh machine with no `.zdots.secrets`.
+
+If `.zdots.secrets` exists with literal values:
 
 ```bash
-zdots-ctl check   # verifies FileVault, SIP, Firewall, llama-server loopback, model provenance
+# Import all literal export VAR=value lines into Keychain
+zdots-keychain migrate
+
+# Confirm all critical secrets resolve
+zdots-keychain verify
+
+# Delete the file — Keychain is now the only source
+rm ~/.config/zsh/.zdots.secrets
 ```
 
-`zdots-ctl check` will **hard-fail** if FileVault or SIP is disabled on a work machine.
-Fix before proceeding.
+After deletion, `env.sh` loads all secrets directly via `zdots-keychain_load`.
+`zdots-ctl check` will PASS the "Secrets file absent" assertion.
 
-### 4 — Zero-AI mode for unknown network environments
+---
+
+### Step 4 — Verify security posture
+
+```bash
+zdots-ctl check
+```
+
+On a work machine this runs a full PHI posture check in addition to service
+health. All of the following must pass before the machine is safe for PHI work:
+
+| Check | Passes when |
+|-------|-------------|
+| FileVault | `fdesetup status` returns "FileVault is On" |
+| SIP | `csrutil status` returns "enabled" |
+| Application Firewall | enabled (WARN, not FAIL, if off) |
+| AI mode | `local` or `none` |
+| Capture | `ZDOTS_CAPTURE_ENABLED=0` |
+| History redaction | `ZDOTS_HISTORY_REDACT=1` |
+| Secrets file | `.zdots.secrets` absent |
+| DB encryption key | `ZDOTS_DB_ENCRYPTION_KEY` non-empty |
+
+`zdots-ctl check` **hard-fails** (exit 1) if FileVault or SIP is disabled, or if
+the DB encryption key is missing. Fix before proceeding.
+
+---
+
+### Step 5 — Zero-AI mode for unknown network environments
 
 If the corporate proxy situation is unresolved or llama.cpp is not yet running,
 disable AI entirely. The system runs fully without it:
@@ -155,17 +220,26 @@ ZDOTS_AI_MODE=local       # back in .zdots.local
 ai-query "hello"          # smoke test
 ```
 
-### 5 — Understand what the PHI scrubber covers
+---
 
-Every AI call pipes content through `lib/phi_scrubber.bash` before sending or
-storing. Patterns scrubbed automatically:
+### Step 6 — Understand what the PHI scrubber covers
 
-| Pattern | Replacement |
-|---------|-------------|
-| SSN `NNN-NN-NNNN` | `[REDACTED-SSN]` |
-| MRN labels | `[REDACTED-MRN]` |
-| DOB labels | `[REDACTED-DOB]` |
-| DB connection strings | `[REDACTED-CONN]` |
+**History hook** (`conf.d/55-phi-history.zsh`) runs before every command is
+written to `~/.local/state/zsh/history`. Commands matching these patterns are
+suppressed entirely (not redacted — the line is not written):
+
+| Pattern | Action |
+|---------|--------|
+| DB connection strings with credentials | Suppress |
+| SSN `NNN-NN-NNNN` | Redact in-place → `[REDACTED-SSN]` |
+| `MRN: <digits>` | Redact in-place → `[REDACTED-MRN]` |
+| `DOB: <date>` | Redact in-place → `[REDACTED-DOB]` |
+
+Every suppression emits a `history_redacted` entry to macOS Unified Logging.
+Stream live: `log stream --predicate 'subsystem == "com.zdots"'`
+
+**AI call scrubber** (`lib/phi_scrubber.bash`) applies the same patterns to all
+content before it is sent to the inference endpoint or stored in the DB.
 
 Site-specific patterns (patient account numbers, employee IDs) go in `.zdots.local`:
 
@@ -177,7 +251,7 @@ ZDOTS_HISTORY_REDACT_PATTERNS=(
 ```
 
 The scrubber is the **first** layer, not the last. Do not send raw patient record
-excerpts to AI — scrubbing patterns are not exhaustive.
+excerpts to AI — patterns are not exhaustive.
 
 Full policy: `backlog/docs/doc-002 - PHI-Safety-Policy.md`
 
@@ -231,15 +305,15 @@ ZDOTS_AI_ENDPOINT=http://powerstation.local:8080
 
 ### Enabling cloud AI (after security setup)
 
-1. Add API keys to `.zdots.secrets` (gitignored):
+1. Store API keys in macOS Keychain:
    ```bash
-   export OPENAI_API_KEY=sk-...
-   export ANTHROPIC_API_KEY=sk-ant-...
+   zdots-keychain add OPENAI_API_KEY sk-...
+   zdots-keychain add ANTHROPIC_API_KEY sk-ant-...
    ```
 2. Set `ZDOTS_AI_MODE=cloud` in `.zdots.local`
 3. Restart your shell
 
-Cloud keys never go in `.zdots.env`, `.zdots.local`, or anywhere tracked by git.
+Cloud keys live in the Keychain only — never in `.zdots.secrets`, `.zdots.local`, `.zdots.env`, or any tracked file. `env.sh` loads them automatically via `zdots_keychain_load` on every shell start.
 
 ## Verify
 
@@ -261,12 +335,13 @@ If any quiz case fails, run `zdots-quiz --verbose` to inspect the model's respon
 | File | Tracked | Contains |
 |------|---------|----------|
 | `.zdots.env` | yes | profiles, service config, defaults |
-| `.zdots.secrets` | **no** | API keys, tokens |
+| `.zdots.work` | yes | PHI-safe enforced values (no secrets) |
+| `.zdots.secrets` | **no** | API keys, tokens — **deprecated**: use Keychain instead |
 | `.zdots.local` | **no** | machine identity, context, overrides |
 | `.env` / `.env.*` | **no** | any other local env vars |
 
 **Never commit** credentials, hostnames, email addresses, or proxy settings.
-They belong in `.zdots.local` or `.zdots.secrets`.
+Machine-specific config belongs in `.zdots.local`. Secrets belong in macOS Keychain (`zdots-keychain add`).
 
 ## Keeping home and work in sync
 
