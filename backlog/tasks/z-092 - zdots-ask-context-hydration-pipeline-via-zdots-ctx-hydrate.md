@@ -1,10 +1,10 @@
 ---
 id: Z-092
 title: 'zdots-ask: context hydration pipeline via zdots-ctx hydrate'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-05-23 13:54'
-updated_date: '2026-05-23 15:00'
+updated_date: '2026-05-23 15:03'
 labels:
   - local-ai
   - zdots-ask
@@ -14,6 +14,8 @@ references:
   - bin/zdots-ask
   - bin/zdots-ctx
   - etc/prompts/
+modified_files:
+  - bin/zdots-ask
 priority: medium
 ---
 
@@ -37,12 +39,18 @@ Add `--context` flag to `zdots-ask` that prepends a `zdots-ctx hydrate` blob to 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 zdots-ask --context [TAG] prepends hydration blob to prompt
-- [ ] #2 Context blob truncated at 4096 tokens with warning
-- [ ] #3 Failure of zdots-ctx hydrate degrades gracefully (warns, proceeds without context)
+- [x] #1 zdots-ask --context [TAG] prepends hydration blob to prompt
+- [x] #2 Context blob truncated at 4096 tokens with warning
+- [x] #3 Failure of zdots-ctx hydrate degrades gracefully (warns, proceeds without context)
 - [ ] #4 zdots-quiz TC-15 validates context-aware response
-- [ ] #5 No latency increase when --context not specified
+- [x] #5 No latency increase when --context not specified
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented in bin/zdots-ask (commit fc27a38). --context [TAG] prepends zdots-ctx hydrate output to the user prompt (not system prompt — preserves KV cache for the static domain file). Char limit 16384 (~4096 tokens) with stderr warning on truncation. Fails open: broken DB warns and proceeds. Live test: --context doctrine correctly returned 'Kevin Malone's Law and the Dwight Schrute Test' from zero model knowledge, proving hydration pipeline is end-to-end functional. AC#4 (zdots-quiz TC-15) deferred to Z-093 scope. 216/216 tests pass."
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
