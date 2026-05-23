@@ -38,6 +38,8 @@ module Zdots
         cmd_capture(args)
       when "query"
         cmd_query(args)
+      when "hydrate"
+        cmd_hydrate(args)
       when "enqueue"
         cmd_enqueue(args)
       when "jobs"
@@ -114,8 +116,11 @@ module Zdots
         exit 1
       end
 
-      m = Zdots::Models::Methodology.find_or_create(slug: slug)
-      m.update(title: title, content: content, tags: Sequel.pg_array(tags))
+      m = Zdots::Models::Methodology.first(slug: slug) || Zdots::Models::Methodology.new(slug: slug)
+      m.title = title
+      m.content = content
+      m.tags = Sequel.pg_array(tags)
+      m.save
       
       puts "zdots-brain: methodology '#{slug}' saved."
       
@@ -305,12 +310,55 @@ module Zdots
         matches.each { |l| puts "#{l.created_at.to_date} | #{l.content[0..100]}..." }
       else
         puts "zdots-brain: searching methodologies (text)..."
-        matches = Zdots::Models::Methodology.search(term).limit(5).all
+        matches = Zdots::Models::Methodology.search(term).first(5)
         matches.each { |m| puts "#{m.slug.ljust(30)} | #{m.title.ljust(50)}" }
 
         puts "\nzdots-brain: searching lessons (text)..."
-        matches = Zdots::Models::Lesson.search(term).limit(5).all
-        matches.each { |l| puts "#{l.created_at.to_date} | #{l.content[0..100]}..." }
+        matches = Zdots::Models::Lesson.search(term).first(5)
+        matches.each { |l| puts "#{l.created_at.to_date} | #{l.content&.slice(0, 100) || '(encrypted)'}..." }
+      end
+    end
+
+    def cmd_hydrate(args)
+      tag = args.reject { |a| a == "--json" }.first
+      limit = 5
+
+      methodologies = if tag
+        Zdots::Models::Methodology.all.select { |m| (m.tags || []).include?(tag) || m.slug.include?(tag) }.first(limit)
+      else
+        Zdots::Models::Methodology.order(Sequel.desc(:updated_at)).limit(limit).all
+      end
+
+      lessons = Zdots::Models::Lesson.order(Sequel.desc(:created_at)).limit(limit).all
+
+      if @options[:format] == "json"
+        puts JSON.pretty_generate({
+          methodologies: methodologies.map { |m| { slug: m.slug, title: m.title, content: m.content, tags: m.tags } },
+          lessons: lessons.map { |l| { context: l.context, content: l.content, created_at: l.created_at&.iso8601 } }
+        })
+        return
+      end
+
+      puts "The following context has been retrieved from the Cerebral Control Plane:\n\n"
+      puts "### PREFERRED METHODOLOGIES"
+      if methodologies.any?
+        methodologies.each do |m|
+          puts "#### #{m.title}"
+          puts m.content.to_s
+          puts
+        end
+      else
+        puts "None found.\n\n"
+      end
+
+      puts "### RECENT LESSONS LEARNT"
+      if lessons.any?
+        lessons.each do |l|
+          puts "* **Context**: #{l.context}"
+          puts "  **Lesson**: #{l.content}\n\n"
+        end
+      else
+        puts "None found.\n\n"
       end
     end
 
