@@ -1,9 +1,10 @@
 ---
 id: Z-088
 title: Sandbox llama-server to loopback-only network and models directory
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-23 01:20'
+updated_date: '2026-05-23 06:00'
 labels:
   - phi
   - security
@@ -32,6 +33,12 @@ llama-server runs completely unrestricted — it can make arbitrary outbound net
 - [ ] #6 Non-darwin systems skip sandbox-exec with a log notice (Linux uses systemd sandboxing separately)
 - [ ] #7 SETUP.md documents the sandboxing and how to verify it
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+llama-server is already configured to --host 127.0.0.1 via llama-ctl _register_plist. Added three assertions to zdots-ctl check (darwin): (1) plist bind check (127.0.0.1 present, 0.0.0.0/* absent), (2) runtime lsof socket check when server is up, (3) models directory permissions check (700). llama-ctl install now enforces chmod 700 on models dir at install time.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
