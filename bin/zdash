@@ -13,11 +13,15 @@
 #   ctrl-r     refresh task list
 #   ?          toggle preview pane
 #   esc / q    quit
+#
+# Internal subcommands (called by fzf, not for direct use):
+#   zdash --list           print task list for fzf input
+#   zdash --preview ID     print formatted task file for fzf preview
 
 setopt NO_UNSET
 
-ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
-TASKS_DIR="${ZDOTDIR}/backlog/tasks"
+export ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+export TASKS_DIR="${ZDOTDIR}/backlog/tasks"
 ACTIVE_TASK_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task"
 
 # ── Color helpers ─────────────────────────────────────────────────────────────
@@ -25,30 +29,23 @@ _c()  { printf '\033[%sm' "$1"; }
 RST=$(_c 0); BOLD=$(_c 1); DIM=$(_c 2)
 RED=$(_c '0;31'); YEL=$(_c '0;33'); GRN=$(_c '0;32'); CYN=$(_c '0;36')
 
-# ── Task list builder ─────────────────────────────────────────────────────────
-# Output format (tab-separated, for fzf --delimiter=\t):
-#   STATUS_ICON  ID       PRIORITY  TITLE
-#   ◒            Z-088    MED       Sandbox llama-server...
-
-_build_task_list() {
-  local active_id=""
+# ── Task list (also: zdash --list) ───────────────────────────────────────────
+# Tab-separated: ICON  ID  PRIORITY  TITLE
+_cmd_list() {
+  local active_id="" section="" skip=0
+  local pri id title pri_col pri_abbr icon icol
   [[ -f "$ACTIVE_TASK_FILE" ]] && active_id=$(cat "$ACTIVE_TASK_FILE")
 
-  local section="" skip=0
   while IFS= read -r line; do
-    # Section detection
-    if [[ "$line" == "To Do:"* ]];        then section="todo";  skip=0; continue; fi
-    if [[ "$line" == "In Progress:"* ]];  then section="wip";   skip=0; continue; fi
-    if [[ "$line" == "Done:"* ]];         then skip=1; continue; fi
+    if [[ "$line" == "To Do:"* ]];       then section="todo"; skip=0; continue; fi
+    if [[ "$line" == "In Progress:"* ]]; then section="wip";  skip=0; continue; fi
+    if [[ "$line" == "Done:"* ]];        then skip=1; continue; fi
     [[ $skip -eq 1 ]] && continue
     [[ -z "${line// }" ]] && continue
 
-    # Parse: "  [PRIORITY] ID - Title"
     if [[ "$line" =~ '^ +\[([A-Z]+)\] (Z-[0-9]+) - (.+)$' ]]; then
-      local pri="$match[1]" id="$match[2]" title="$match[3]"
+      pri="$match[1]"; id="$match[2]"; title="$match[3]"
 
-      # Priority label + color
-      local pri_col pri_abbr
       case "$pri" in
         HIGH)   pri_col="$RED";  pri_abbr="HIGH" ;;
         MEDIUM) pri_col="$YEL";  pri_abbr="MED " ;;
@@ -56,14 +53,10 @@ _build_task_list() {
         *)      pri_col="$RST";  pri_abbr="    " ;;
       esac
 
-      # Status icon
-      local icon icol
-      if [[ "$section" == "wip" ]]; then
-        icon="◒"; icol="$CYN"
-      else
-        icon="○"; icol="$DIM"
+      if   [[ "$id" == "$active_id" ]]; then icon="★"; icol="$GRN"
+      elif [[ "$section" == "wip" ]];   then icon="◒"; icol="$CYN"
+      else                                   icon="○"; icol="$DIM"
       fi
-      [[ "$id" == "$active_id" ]] && icon="★" && icol="$GRN"
 
       printf '%s%s%s\t%s\t%s%s%s\t%s\n' \
         "$icol" "$icon" "$RST" \
@@ -74,33 +67,24 @@ _build_task_list() {
   done < <(backlog task list 2>/dev/null)
 }
 
-# ── Preview renderer ──────────────────────────────────────────────────────────
-# Called by fzf --preview. Arg: task ID (e.g. Z-088)
-_zdash_preview() {
-  local id="${1:l}"  # lowercase
-  local file
+# ── Preview renderer (also: zdash --preview ID) ───────────────────────────────
+_cmd_preview() {
+  local id="${1:l}" file in_front=1 ln
   file=$(ls "${TASKS_DIR}/${id}"*.md 2>/dev/null | head -1)
 
   if [[ -z "$file" || ! -f "$file" ]]; then
-    printf '\033[2mno task file found for %s\033[0m\n' "$1"
+    printf '\033[2mno task file: %s\033[0m\n' "$1"
     return
   fi
 
-  # Render: frontmatter dimmed, headings highlighted, body normal
-  local in_front=1
   while IFS= read -r ln; do
     if [[ $in_front -eq 1 && "$ln" == "---" ]]; then
-      printf '%s%s%s\n' "$DIM" "$ln" "$RST"
-      continue
+      printf '%s%s%s\n' "$DIM" "$ln" "$RST"; continue
     fi
-    if [[ $in_front -eq 1 ]]; then
-      if [[ "$ln" =~ ^[a-z_]+: ]]; then
-        printf '%s%s%s\n' "$DIM" "$ln" "$RST"
-        continue
-      else
-        in_front=0
-      fi
+    if [[ $in_front -eq 1 && "$ln" =~ ^[a-z_]+: ]]; then
+      printf '%s%s%s\n' "$DIM" "$ln" "$RST"; continue
     fi
+    in_front=0
     if [[ "$ln" =~ ^#+ ]]; then
       printf '%s%s%s\n' "$BOLD$CYN" "$ln" "$RST"
     else
@@ -109,9 +93,11 @@ _zdash_preview() {
   done < "$file"
 }
 
-# Export for fzf subshell
-export TASKS_DIR ACTIVE_TASK_FILE ZDOTDIR
-export -f _zdash_preview 2>/dev/null || true
+# ── Subcommand dispatch (called by fzf) ───────────────────────────────────────
+case "${1:-}" in
+  --list)    _cmd_list;           exit 0 ;;
+  --preview) _cmd_preview "${2:-}"; exit 0 ;;
+esac
 
 # ── Header ────────────────────────────────────────────────────────────────────
 _build_header() {
@@ -119,49 +105,49 @@ _build_header() {
   if curl -sf -m 1 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
     ai_dot="${GRN}●${RST}"; ai_txt="llama.cpp"
   else
-    ai_dot="${RED}●${RST}"; ai_txt="llama.cpp DOWN"
+    ai_dot="${RED}●${RST}"; ai_txt="DOWN"
   fi
 
-  local mode="${ZDOTS_AI_MODE:-local}"
   local active_task="none"
   [[ -f "$ACTIVE_TASK_FILE" ]] && active_task=$(cat "$ACTIVE_TASK_FILE")
 
   printf '  %s %s  mode=%s  active=%s\n' \
-    "$ai_dot" "$ai_txt" "$mode" "$active_task"
-  printf '  %senter=start  ^p=Pi  ^a=Aider  ^s=status  ^d=done  ?=preview  q=quit%s\n' \
+    "$ai_dot" "$ai_txt" "${ZDOTS_AI_MODE:-local}" "$active_task"
+  printf '  %senter=start  ^p=Pi  ^a=Aider  ^s=status  ^d=done  ?=preview  ^r=reload  q=quit%s\n' \
     "$DIM" "$RST"
 }
 
-# ── Source AI providers (for ctrl-p / ctrl-a actions) ────────────────────────
+# ── Source AI providers ───────────────────────────────────────────────────────
 [[ -r "${ZDOTDIR}/providers/ai/pi.zsh" ]]    && source "${ZDOTDIR}/providers/ai/pi.zsh"
 [[ -r "${ZDOTDIR}/providers/ai/aider.zsh" ]] && source "${ZDOTDIR}/providers/ai/aider.zsh"
 
-# ── Main fzf loop ─────────────────────────────────────────────────────────────
-while true; do
-  header=$(_build_header)
-  task_list=$(_build_task_list)
+# ── Main loop ─────────────────────────────────────────────────────────────────
+_self="${0:A}"   # absolute path to this script — safe for fzf subcommands
 
-  if [[ -z "$task_list" ]]; then
-    printf '%sno open tasks%s\n' "$DIM" "$RST"
+while true; do
+  if [[ -z "$(_cmd_list)" ]]; then
+    printf '%sno open tasks — all done!%s\n' "$GRN" "$RST"
     exit 0
   fi
 
-  result=$(printf '%s\n' "$task_list" | fzf \
-    --ansi \
-    --height=100% \
-    --layout=reverse \
-    --border=rounded \
-    --prompt="  zdash › " \
-    --header="$header" \
-    --delimiter=$'\t' \
-    --with-nth=1,2,3,4 \
-    --preview='_zdash_preview {2}' \
-    --preview-window=right:55%:wrap:hidden \
-    --bind='?:toggle-preview' \
-    --bind='ctrl-r:reload(_build_task_list)' \
-    --expect='enter,ctrl-p,ctrl-a,ctrl-s,ctrl-d' \
-    --no-multi \
-    2>/dev/null) || true
+  result=$(
+    "${_self}" --list | fzf \
+      --ansi \
+      --height=100% \
+      --layout=reverse \
+      --border=rounded \
+      --prompt="  zdash › " \
+      --header="$(_build_header)" \
+      --delimiter=$'\t' \
+      --with-nth=1,2,3,4 \
+      --preview="${_self} --preview {2}" \
+      --preview-window=right:55%:wrap:hidden \
+      --bind='?:toggle-preview' \
+      --bind="ctrl-r:reload(${_self} --list)" \
+      --expect='enter,ctrl-p,ctrl-a,ctrl-s,ctrl-d' \
+      --no-multi \
+      2>/dev/null
+  ) || true
 
   [[ -z "$result" ]] && break
 
@@ -174,7 +160,7 @@ while true; do
   case "$key" in
     ""|enter)
       printf '%s[zdash]%s ztask start %s\n' "$CYN" "$RST" "$id"
-      ZDOTDIR="$ZDOTDIR" "${ZDOTDIR}/bin/ztask" start "$id"
+      "${ZDOTDIR}/bin/ztask" start "$id"
       break
       ;;
     ctrl-p)
@@ -182,11 +168,11 @@ while true; do
       local task_file
       task_file=$(ls "${TASKS_DIR}/${id:l}"*.md 2>/dev/null | head -1)
       if [[ -n "$task_file" ]]; then
-        zpi "I'm about to work on task $id. Here's the spec:
+        zpi "Working on task ${id}. Spec:
 
 $(cat "$task_file")
 
-Help me understand the scope and surface the key decision points."
+Surface the key decision points and any gaps in the spec."
       else
         zpi
       fi
@@ -199,12 +185,11 @@ Help me understand the scope and surface the key decision points."
       ;;
     ctrl-s)
       "${ZDOTDIR}/bin/zdots-status"
-      # After status exits, loop back to task picker
-      continue
+      continue   # loop back to picker after status exits
       ;;
     ctrl-d)
       printf '%s[zdash]%s ztask done\n' "$CYN" "$RST"
-      ZDOTDIR="$ZDOTDIR" "${ZDOTDIR}/bin/ztask" done
+      "${ZDOTDIR}/bin/ztask" done
       break
       ;;
     *)
