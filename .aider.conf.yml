@@ -37,7 +37,10 @@ auto-commits: false
 # background processes (like indexing or tests) without your explicit command.
 suggest-shell-commands: false
 
-# Disable automatic linting/testing during heavy work — run them manually 
+# Disable automatic linting/testing during heavy work — run them manually
 # when you have CPU/GPU headroom.
 lint: false
 test: false
+
+# PHI safety: disable analytics so no telemetry leaves a PHI-adjacent machine.
+analytics: false
