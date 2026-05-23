@@ -1,9 +1,10 @@
 ---
 id: Z-087
 title: Replace .zdots.secrets plaintext with macOS Keychain for secret storage
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-23 01:20'
+updated_date: '2026-05-23 05:58'
 labels:
   - phi
   - security
@@ -32,6 +33,12 @@ The .zdots.secrets file stores sensitive values (ZDOTS_DB_ENCRYPTION_KEY, AI API
 - [ ] #7 .zdots.local.example documents the Keychain pattern and migration from .zdots.secrets
 - [ ] #8 zdots-ctl check asserts that on darwin, ZDOTS_DB_ENCRYPTION_KEY is sourced from Keychain (not .zdots.secrets)
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Migrated MAXMIND_ACCOUNT_ID, MAXMIND_LICENSE_KEY, and HUGGINGFACE_TOKEN from plaintext .zdots.secrets into macOS Keychain. Built lib/keychain.bash (get/set/delete/list/load) and bin/zdots-keychain CLI (add/get/delete/list/migrate/verify). Replaced .zdots.secrets literal values with inline Keychain calls via _zdots_kc(). Updated .zdots.secrets.example to show the pattern.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
