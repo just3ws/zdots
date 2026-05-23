@@ -21,7 +21,8 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
   # Hook: Command Result (Post-execution: Error Tracing + Cognitive Load)
   _zdots_trace_precmd() {
     local last_status=$?
-    
+    export ZDOTS_LAST_EXIT="$last_status"
+
     # 1. Error Tracing
     if [[ $last_status -ne 0 ]]; then
       if [[ $_ZDOTS_OTEL_CLI_AVAILABLE -eq 1 ]]; then
