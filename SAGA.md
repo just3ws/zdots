@@ -44,11 +44,12 @@ The Regrounding was five steps: Get Clean, Get Green, Get Honest, Get Structured
 ### III. The Sequel Trilogy: The Era of Autonomy
 **"Engineered Intelligence"**
 
-We are now entering the era of the **Living System**. The shell doesn't just report what happened; it analyzes and optimizes itself:
-*   **Task Z-012: History Analysis**: Using local AI models to process JSONL traces and suggest performance/security optimizations.
-*   **The May 2026 SOTA Upgrade**: Transitioning the entire inference stack to May 2026 State-of-the-Art models (Qwen 3 Coder, DeepSeek V3, Nomic v2 MoE) while hardening `llama-ctl` for authenticated downloads.
-*   **The Transcription Engine**: Integrating `whisper.cpp` to provide a coherent local interface for high-accuracy audio-to-text workflows.
-*   **The Self-Healing Shell**: Automating model hydration and dependency resolution based on environment health.
+The era of the **Living System**. The shell doesn't just report what happened; it analyzes, learns, and routes intelligently:
+*   **Operation Martian (PHI Safety)**: Enforcing defense-in-depth for PHI-adjacent workloads — Keychain secrets, AI locality, PHI scrubbing, history redaction, pgcrypto at-rest encryption, macOS Unified Logging audit trail.
+*   **The Local AI Routing Layer**: `zdots-ask` domain router + `zdots-quiz` capability probe. Domain-aware system prompts (shell, ruby, phi, default) above the 256-token KV cache threshold. No cloud egress.
+*   **The May 2026 SOTA Upgrade**: Qwen2.5-Coder 7B Q4_K_M + Nomic v2 MoE. SHA256 model provenance; `llama-ctl start` refuses mismatched model files.
+*   **The Transcription Engine**: `whisper.cpp` + `ztranscribe` pipeline (yt-dlp → ffmpeg → large-v3 → multi-format output).
+*   **The Shell Brain**: PostgreSQL intelligence suite (`zdots-ctx`) with methodology + lesson stores, job broker, and MCP bridge for AI agent access.
 
 ---
 

@@ -118,14 +118,14 @@ All `llama-ctl` commands respect this variable.
 | Profile | Model | Disk |
 |---|---|---|
 | standard | Qwen2.5-Coder-7B Q4_K_M | ~4.7GB |
-| reasoning | Qwen2.5-7B Q4_K_M | ~4.7GB |
+| llama-3.1 | Meta-Llama-3.1-8B Q4_K_M | ~4.9GB |
 | constrained | Qwen2.5-Coder-1.5B Q4_K_M | ~1.0GB |
 
 When disk is critically low: switch to `constrained` profile + prune.
 
 ```sh
 ZDOTS_AI_PROFILE=constrained llama-ctl model-download
-llama-ctl model-prune     # removes standard/reasoning GGUFs
+llama-ctl model-prune     # removes standard/llama-3.1 GGUFs
 ```
 
 ---
