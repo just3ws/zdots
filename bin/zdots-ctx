@@ -167,8 +167,8 @@ cmd_capture() {
   # PHI safety gate — capture is opt-in
   if [[ "${ZDOTS_CAPTURE_ENABLED:-0}" != "1" ]]; then
     zdots_audit_log "capture_blocked" "sid=${ZDOTS_SESSION_ID:-unknown}"
-    printf 'zdots-ctx: capture disabled (set ZDOTS_CAPTURE_ENABLED=1 in .zdots.local to enable)\n' >&2
-    exit 0
+    printf 'zdots-ctx: capture disabled (ZDOTS_CAPTURE_ENABLED=0) — set to 1 in .zdots.local to enable\n' >&2
+    exit 2
   fi
 
   local sid="${ZDOTS_SESSION_ID:-}"
