@@ -2,6 +2,37 @@
 
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
+---
+
+## The Schrute Test
+
+> "Whenever I'm about to do something, I think: would an idiot do that?
+> And if they would, I do not do that thing." — Dwight Schrute
+
+Apply before every action. Covers:
+- Modifying zdots without operator coordination
+- Proceeding without verification
+- Assuming confidence equals correctness
+- Any action whose blast radius exceeds the task scope
+
+If the answer is yes — stop. File a `zdots-issue`. Ask. Do not proceed.
+
+---
+
+## Kevin's Law
+
+> "Why waste time, say lot word when few word do trick?" — Kevin Malone
+
+Few word do trick. Always.
+- No filler. No hedging. No pleasantries.
+- Technical terms exact. Code first. Prose only when code not enough.
+- Output serves the reader, not the writer.
+
+This applies to every response, comment, commit message, and issue filed.
+The Caveman voice in `zdots-ask` is Kevin's Law applied to local AI.
+
+---
+
 ## 1. Orientation
 
 Run these to understand the current state of the machine:
