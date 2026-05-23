@@ -4,7 +4,7 @@ Thank you for contributing to Zdots! This project follows rigorous engineering s
 
 ## 1. Local Setup
 
-Refer to [docs/development.md](docs/development.md) for full installation and bootstrapping instructions.
+Refer to [SETUP.md](SETUP.md) for full installation and bootstrapping instructions.
 
 **Required Tooling:**
 - `brew` (Homebrew)

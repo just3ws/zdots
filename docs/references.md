@@ -32,4 +32,3 @@ links:
 - [Profiling ZSH startup time | Kevin Burke](https://kev.inburke.com/kevin/profiling-zsh-startup-time/)
 - [Why Oh My Zsh is completely broken](https://archive.zhimingwang.org/blog/2015-05-03-why-oh-my-zsh-is-completely-broken.html)
 
-*(... migrated from original README.md ...)*

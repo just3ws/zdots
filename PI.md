@@ -2,7 +2,7 @@
 
 Pi-specific instructions for Zdots.
 
-**CRITICAL:** Read [AGENTS.md](AGENTS.md) first for core architectural guidelines, performance standards, and RTK token-optimization rules.
+**CRITICAL:** Read [AGENTS.md](AGENTS.md) first for the core architectural guidelines, performance standards, **RTK token-optimization rules**, and **PHI Operating Mode** (Section 8 — non-negotiable on work machines).
 
 Pi is `@earendil-works/pi-coding-agent` — a session-aware AI coding agent with built-in tools (read, bash, edit, write). It runs locally via llama.cpp, with full PHI boundary enforcement.
 
