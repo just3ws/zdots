@@ -154,12 +154,13 @@ while true; do
   key=$(printf '%s' "$result" | head -1)
   sel=$(printf '%s' "$result" | tail -1)
   id=$(printf '%s' "$sel" | cut -f2)
+  title=$(printf '%s' "$sel" | cut -f4)
 
   [[ -z "$id" ]] && break
 
   case "$key" in
     ""|enter)
-      printf '%s[zdash]%s ztask start %s\n' "$CYN" "$RST" "$id"
+      printf '%s[zdash]%s starting %s%s%s: %s\n' "$CYN" "$RST" "$BOLD" "$id" "$RST" "$title"
       "${ZDOTDIR}/bin/ztask" start "$id"
       break
       ;;
