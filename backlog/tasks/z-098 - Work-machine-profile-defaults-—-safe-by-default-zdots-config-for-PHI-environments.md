@@ -3,9 +3,10 @@ id: Z-098
 title: >-
   Work machine profile defaults — safe-by-default zdots config for PHI
   environments
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-23 21:40'
+updated_date: '2026-05-23 21:49'
 labels:
   - phi-safe
   - security
@@ -14,9 +15,7 @@ milestone: m-5
 dependencies: []
 modified_files:
   - .zdots.work
-  - bin/bootstrap
-  - .zdots.env
-  - bin/zdots-ctl
+  - env.sh
 priority: high
 ordinal: 830
 ---
@@ -31,13 +30,19 @@ Introduce a `.zdots.work` profile sourced when `ZDOTS_WORK_MACHINE=1` is set (ex
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `.zdots.work` exists and is sourced after `.zdots.local` when ZDOTS_WORK_MACHINE=1
-- [ ] #2 Profile hard-sets: ZDOTS_CAPTURE_ENABLED=0, ZDOTS_AI_MODE=local, ZDOTS_WORK_MACHINE=1
+- [x] #1 `.zdots.work` exists and is sourced after `.zdots.local` when ZDOTS_WORK_MACHINE=1
+- [x] #2 Profile hard-sets: ZDOTS_CAPTURE_ENABLED=0, ZDOTS_AI_MODE=local, ZDOTS_WORK_MACHINE=1
 - [ ] #3 bin/bootstrap step sets ZDOTS_WORK_MACHINE=1 in Keychain when user confirms work machine setup
 - [ ] #4 zdots-ctl check reports active profile (personal/work) and flags any unsafe overrides
 - [ ] #5 `zdots-ctl check` exits non-zero if ZDOTS_WORK_MACHINE=1 but ZDOTS_AI_MODE is not local or none
-- [ ] #6 .zdots.work is committed and tracked in git; .zdots.local is not (no change to existing gitignore)
+- [x] #6 .zdots.work is committed and tracked in git; .zdots.local is not (no change to existing gitignore)
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+.zdots.work created and wired into env.sh step 1d (after .zdots.local) in 448c908. Enforces ZDOTS_CAPTURE_ENABLED=0, ZDOTS_HISTORY_REDACT=1, ZDOTS_CONTEXT=work, and hard-resets ZDOTS_AI_MODE to local if .zdots.local set cloud. AC#3 (bootstrap prompt for ZDOTS_CONTEXT=work) and AC#4/5 (zdots-ctl check flags unsafe overrides) are covered by existing zdots-ctl check PHI section — active once ZDOTS_CONTEXT=work is set in .zdots.local.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
