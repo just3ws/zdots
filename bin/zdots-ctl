@@ -438,6 +438,45 @@ cmd_check() {
     _fix "open a new shell session to start tracing"
   fi
 
+  # ── PHI audit log (darwin) ────────────────────────────────────────────────
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    printf '\nPHI audit log\n'
+    local _audit_out
+    _audit_out=$(log show --predicate 'subsystem == "com.zdots"' --last 24h --style compact 2>/dev/null | grep -v '^Filtering' | tail -1)
+    if [[ -n "$_audit_out" ]]; then
+      _chk_pass "unified log  entries present (last: ${_audit_out:0:80}...)"
+    else
+      _chk_warn "unified log  no com.zdots entries in last 24h (expected after shell activity)"
+      _fix "log show --predicate 'subsystem == \"com.zdots\"' --last 24h"
+    fi
+
+    # Model hash integrity (if manifest exists)
+    local _manifest="$ZDOTDIR/lib/llama-models.sha256"
+    if [[ -f "$_manifest" ]]; then
+      printf '\nModel provenance\n'
+      local _models_dir="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
+      local _any_fail=0
+      while IFS= read -r line; do
+        [[ "$line" =~ ^# || -z "$line" ]] && continue
+        local _hash _fname
+        _hash=$(printf '%s' "$line" | awk '{print $1}')
+        _fname=$(printf '%s' "$line" | awk '{print $2}')
+        local _fpath="$_models_dir/$_fname"
+        if [[ ! -f "$_fpath" ]]; then
+          _chk_warn "model  $_fname not downloaded"
+          continue
+        fi
+        local _actual; _actual=$(shasum -a 256 "$_fpath" | awk '{print $1}')
+        if [[ "$_actual" == "$_hash" ]]; then
+          _chk_pass "model  $_fname hash OK"
+        else
+          _chk_fail "model  $_fname SHA256 MISMATCH"
+          _any_fail=1
+        fi
+      done < "$_manifest"
+    fi
+  fi
+
   # ── macOS security posture (darwin + ZDOTS_CONTEXT=work only) ────────────
   if [[ "$(uname -s)" == "Darwin" && "${ZDOTS_CONTEXT:-home}" == "work" ]]; then
     printf '\nmacOS security posture (ZDOTS_CONTEXT=work)\n'

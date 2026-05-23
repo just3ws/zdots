@@ -266,6 +266,7 @@ start_llama() {
     printf 'llama-ctl: error: model not found — run '"'"'llama-ctl model-download'"'"' then '"'"'llama-ctl start'"'"'\n' >&2
     exit 1
   fi
+  zdots_model_verify "$_mp" || exit 1
   zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
 }
 
@@ -566,6 +567,7 @@ case "${1:-}" in
   config)         shift; config_dump "${@}" ;;
   model-list)     model_list ;;
   model-download) model_download ;;
+  model-verify)   local _vp; _vp=$(_active_model_path); zdots_model_verify "${_vp:-}" ;;
   model-switch)   model_switch "${2:-}" ;;
   model-prune)    model_prune ;;
   model-df)       model_df ;;
