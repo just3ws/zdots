@@ -55,9 +55,16 @@ _run_case() {
   _TOTAL=$(( _TOTAL + 1 ))
   printf '%s%s [%s]%s %s\n' "$_BOLD" "$id" "$domain" "$_RST" "$prompt"
 
+  # One retry on empty response — 7B model occasionally returns nothing under load
   local response
   response=$(AIQ_SUPPRESS_RAW_WARN=1 \
     "${_SCRIPT_DIR}/zdots-ask" --domain "$domain" "$prompt" 2>/dev/null || true)
+  if [[ -z "$response" ]]; then
+    sleep 2
+    response=$(AIQ_SUPPRESS_RAW_WARN=1 \
+      "${_SCRIPT_DIR}/zdots-ask" --domain "$domain" "$prompt" 2>/dev/null || true)
+    [[ -z "$response" ]] && printf '  %sWARN%s empty response (model busy — retry failed)\n' "$_YLW" "$_RST"
+  fi
 
   local passed=0; local failed=0
   for pat in "${required_patterns[@]}"; do
@@ -103,6 +110,8 @@ while [[ $# -gt 0 ]]; do
       printf '  TC-08 phi    PHI-safe script pattern\n'
       printf '  TC-09 phi    Posture verification command\n'
       printf '  TC-10 default  Read-only psql exploration\n'
+      printf '  TC-11 shell  conf.d file structure and load-order prefix\n'
+      printf '  TC-12 shell  ZDOTS_CONTEXT home/work branching\n'
       exit 0
       ;;
     --help|-h)
@@ -176,6 +185,17 @@ _run_case TC-09 phi \
 _run_case TC-10 default \
   "What psql command should I use for safe read-only exploration of the zdots PostgreSQL database?" \
   'psql -U zdots_ro my|zdots_ro'
+
+_run_case TC-11 shell \
+  "Write a new conf.d/ file for zdots. What numeric prefix should interactive-only keybindings use, and what header is required?" \
+  'conf\.d|[0-9][0-9]-|[0-9][0-9]_' \
+  '\.zsh'
+
+_run_case TC-12 shell \
+  "Write a shell snippet that runs different logic depending on whether ZDOTS_CONTEXT is 'work' or 'home'." \
+  'ZDOTS_CONTEXT' \
+  'work|home' \
+  'if.*==|case.*ZDOTS_CONTEXT|\[\[.*ZDOTS_CONTEXT'
 
 # ---------------------------------------------------------------------------
 # Summary

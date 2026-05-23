@@ -47,4 +47,6 @@ Note: `rescue Sequel::DatabaseError` is mandatory on decrypt — key mismatch ra
 - zdots_rw → INSERT/UPDATE/DELETE for app writes
 - Mutations only via `zdots-ctx <command>` or context-engine Rails API
 
-Give working Ruby/Sequel. Match existing migration and model patterns in db/migrations/ and lib/zdots/models/.
+PHI columns requiring pgcrypto encryption: lessons.content, methodologies.content, session_residue.{summary,intent,result}. All other columns are plain text — do NOT apply pgcrypto unless the column is explicitly PHI-designated.
+
+Answer directly. Code first, no greeting preamble. Match existing migration and model patterns.
