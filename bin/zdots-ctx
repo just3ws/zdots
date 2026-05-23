@@ -34,12 +34,15 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 # Source the lifecycle engine for logging and output helpers
 # shellcheck source=lib/lifecycle.bash
 source "${ZDOTDIR}/lib/lifecycle.bash"
+# shellcheck source=lib/ai_boundary.bash
+source "${ZDOTDIR}/lib/ai_boundary.bash"
 
 # 1. Ensure basics (handle unbound variables for complex environment files)
 [[ -z "${ZDOTS_DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
 
 SVC_NAME="zdots-ctx"
 MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
+_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
 
 usage() {
   cat <<EOF
@@ -151,12 +154,14 @@ cmd_query() {
   _require_psql
   
   if $semantic; then
+    zdots_ai_gate "zdots-ctx"
+    zdots_assert_local_endpoint "$_AI_ENDPOINT"
     _svc_log "generating embedding for query: '${term}'..."
     local tmp_json; tmp_json=$(mktemp)
     jq -n --arg m "local" --arg i "$term" '{model: $m, input: $i}' > "$tmp_json"
-    
+
     local embedding
-    embedding=$(curl -sf "http://127.0.0.1:8080/v1/embeddings" \
+    embedding=$(curl -sf "${_AI_ENDPOINT}/v1/embeddings" \
       -H "Content-Type: application/json" \
       -d @"$tmp_json" \
       | jq -c '.data[0].embedding' 2>/dev/null)
@@ -255,10 +260,12 @@ INSTRUCTIONS:
 EOF
 )
 
+  zdots_ai_gate "zdots-ctx"
+  zdots_assert_local_endpoint "$_AI_ENDPOINT"
   _svc_log "distilling with local AI..."
   local distillation
   if ! distillation=$(echo "$prompt" | ai-query --mode raw 2>/dev/null); then
-    _svc_die "AI distillation failed. Ensure llama-server is running."
+    _svc_die "AI distillation failed. Ensure llama-server is running (or set ZDOTS_AI_MODE=none to disable)."
   fi
 
   # Clean up the AI output to ensure it's valid JSON
@@ -341,12 +348,14 @@ cmd_hydrate() {
   # Fetch semantically relevant lessons if we have a tag/topic
   local lessons
   if [[ -n "$tag" && "$tag" != "--json" ]]; then
+    zdots_ai_gate "zdots-ctx"
+    zdots_assert_local_endpoint "$_AI_ENDPOINT"
     _svc_log "fetching semantically relevant lessons for: ${tag}..."
-    
+
     local tmp_json; tmp_json=$(mktemp)
     jq -n --arg m "local" --arg i "$tag" '{model: $m, input: $i}' > "$tmp_json"
     local embedding
-    embedding=$(curl -sf "http://127.0.0.1:8080/v1/embeddings" \
+    embedding=$(curl -sf "${_AI_ENDPOINT}/v1/embeddings" \
       -H "Content-Type: application/json" \
       -d @"$tmp_json" \
       | jq -c '.data[0].embedding' 2>/dev/null)

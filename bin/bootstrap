@@ -117,14 +117,29 @@ brew bundle --file "$REPO_ROOT/Brewfile"
 #   zdots-ctx hydrate [tag]          — context for AI tasks
 #   zdots-brain                      — background job worker
 echo ""
+_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
 echo "================================================================"
 echo "  AI SECURITY BOUNDARY: LOCAL MODELS ONLY"
-echo "  ZDOTS_AI_MODE=local (no cloud API keys configured)"
-echo "  Endpoint: ${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+echo "  ZDOTS_AI_MODE=${ZDOTS_AI_MODE:-local} (no cloud API keys configured)"
+echo "  Endpoint: ${_AI_ENDPOINT}"
 echo "  To use a remote LAN machine, set ZDOTS_AI_ENDPOINT in .zdots.local"
 echo "  To enable cloud AI: add keys to .zdots.secrets + set ZDOTS_AI_MODE=cloud"
 echo "================================================================"
 echo ""
+
+# Probe endpoint reachability. On an unknown network (corporate proxy, air-gap),
+# the local server may not be accessible yet. Set ZDOTS_AI_MODE=none for the
+# session so all AI tools exit cleanly rather than hang or error opaquely.
+if [ "${ZDOTS_AI_MODE:-local}" != "cloud" ] && [ "${ZDOTS_AI_MODE:-local}" != "none" ]; then
+  if ! curl -sf -m 2 --connect-timeout 2 "${_AI_ENDPOINT}/health" >/dev/null 2>&1; then
+    echo "bootstrap: WARNING: AI endpoint unreachable at ${_AI_ENDPOINT}"
+    echo "bootstrap: Setting ZDOTS_AI_MODE=none for this session."
+    echo "bootstrap: AI tools will exit cleanly until the endpoint is available."
+    echo "bootstrap: To persist: add ZDOTS_AI_MODE=none to .zdots.local until resolved."
+    export ZDOTS_AI_MODE=none
+  fi
+fi
+
 if command -v llama-server >/dev/null 2>&1; then
   if command -v llama-ctl >/dev/null 2>&1; then
     echo "bootstrap: registering llama.cpp launchd service..."
