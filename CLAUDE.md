@@ -53,3 +53,19 @@ Pi and Aider are complementary: Pi explores and plans, Aider executes and commit
 - This environment is optimized for `claude-code` via the `cl` alias.
 - Follow the **RTK** guidance in [AGENTS.md](AGENTS.md#2-token-optimization-rtk) for all high-output commands.
 - Use `repomix` to ingest the entire project structure if high-density context is required.
+
+## Agent Skills
+
+Engineering and productivity skills from [mattpocock/skills](https://github.com/mattpocock/skills) are installed in `.claude/commands/`. Run any with `/skill-name`.
+
+### Issue tracker
+
+Tasks live in `backlog/tasks/` managed by the `backlog` CLI; agent-filed issues use `zdots-issue`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical triage roles map to backlog priorities and labels (`agent-ready`, `needs-info`, `agent-reported`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo. Primary doc is `AGENTS.md`. No `CONTEXT.md` or `docs/adr/` yet. See `docs/agents/domain.md`.
