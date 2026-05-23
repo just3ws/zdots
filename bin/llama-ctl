@@ -176,6 +176,7 @@ install_llama() {
     brew install llama.cpp
   fi
   mkdir -p "$MODELS_DIR"
+  chmod 700 "$MODELS_DIR"
   printf 'llama-ctl: model directory: %s\n' "$MODELS_DIR" >&2
 
   # Always (re-)register plist. Model path may have changed since last install.
