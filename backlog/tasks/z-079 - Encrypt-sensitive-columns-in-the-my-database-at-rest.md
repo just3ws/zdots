@@ -1,10 +1,10 @@
 ---
 id: Z-079
 title: Encrypt sensitive columns in the 'my' database at rest
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-22 23:47'
-updated_date: '2026-05-23 01:21'
+updated_date: '2026-05-23 12:58'
 labels:
   - phi
   - security
@@ -37,6 +37,12 @@ FileVault provides disk-level encryption but offers no protection from a running
 <!-- SECTION:NOTES:BEGIN -->
 Key source updated: ZDOTS_DB_ENCRYPTION_KEY must be retrieved from macOS Keychain via zdots-secrets-get (Z-087), not read from .zdots.secrets plaintext. Z-087 is now a prerequisite.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Migration 20260523100000_encrypt_phi_columns.rb: pgcrypto enabled, lessons.content → content_enc (bytea), methodologies.content → content_enc (bytea), session_residue.{summary,intent,result} → {summary,intent,result}_enc (bytea). Uses pgp_sym_encrypt/decrypt with ZDOTS_DB_ENCRYPTION_KEY from env (Keychain-backed). Migration aborts if key unset. Idempotent. FTS indexes dropped. Lesson/Methodology models updated with transparent content getter/setter. SessionResidue model created. zdots_ro sees only ciphertext.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
