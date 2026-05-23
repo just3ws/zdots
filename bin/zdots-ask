@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# bin/zdots-ask — Local-first prompt router for zdots tasks.
+#
+# Routes to local llama.cpp (always — ZDOTS_AI_MODE=local enforced).
+# Detects the task domain from prompt keywords and prepends the matching
+# system prompt from etc/prompts/, giving the model zdots-specific context.
+# The system prompt is consistent across calls — llama.cpp reuses the KV
+# prefix cache after the first request (cache_reuse: 256 in ai-models.yaml).
+#
+# Usage:
+#   zdots-ask "explain how ZLE widgets work"
+#   zdots-ask --domain ruby "write a Sequel migration to add a column"
+#   echo "snippet" | zdots-ask --domain shell "review this for zdots conventions"
+#   zdots-ask --dry-run "what psql command for read-only exploration?"
+#   zdots-ask --list-domains
+#
+# Domains (auto-detected unless --domain is given):
+#   default   General zdots stack context
+#   shell     zsh/bash scripting, ZLE widgets, zdots-ctl helpers
+#   ruby      Sequel migrations, model encryption, DB roles
+#   phi       PHI boundary enforcement, pgcrypto, audit trail
+
+set -euo pipefail
+trap '' PIPE
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+_PROMPTS_DIR="${_ZDOTDIR}/etc/prompts"
+
+source "${_ZDOTDIR}/lib/ai_boundary.bash"
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_usage() {
+  cat >&2 <<'EOF'
+Usage: zdots-ask [OPTIONS] PROMPT
+       echo data | zdots-ask [OPTIONS] TASK
+
+Options:
+  --domain DOMAIN    Force a specific domain (default: auto-detect)
+  --dry-run          Print detected domain and system prompt; no inference
+  --list-domains     List available domains and exit
+  --help, -h         Show this help
+
+Domains: default  shell  ruby  phi
+EOF
+  exit 2
+}
+
+_list_domains() {
+  printf 'Available domains:\n'
+  for _f in "${_PROMPTS_DIR}"/zdots-*.md; do
+    [[ -f "$_f" ]] || continue
+    _d="${_f##*/zdots-}"
+    printf '  %s\n' "${_d%.md}"
+  done
+}
+
+_detect_domain() {
+  local prompt="$1"
+  local lower; lower=$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')
+
+  # PHI: security/privacy keywords
+  if printf '%s' "$lower" | grep -qE 'phi|hipaa|ssn|mrn|\bdob\b|pgcrypto|pgp_sym|encrypt|keychain|audit.log|phi.boundary|scrub|redact|compliance'; then
+    printf 'phi'; return
+  fi
+
+  # Ruby: Sequel/migration keywords
+  if printf '%s' "$lower" | grep -qE '\bruby\b|sequel|migration|\.rb\b|\bmodel\b|zdots_rw|zdots_ro|database.url|pgp_sym|zdots_schema'; then
+    printf 'ruby'; return
+  fi
+
+  # Shell: zsh/bash/script keywords
+  if printf '%s' "$lower" | grep -qE '\bzsh\b|\bbash\b|\bzle\b|widget|bindkey|conf\.d|set -e|trap|\.zsh\b|zdots-ctl|zdash|ztask|ai.query|\.bash\b|_chk_pass|_chk_fail|umask|launchd|plist'; then
+    printf 'shell'; return
+  fi
+
+  printf 'default'
+}
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+DOMAIN=""
+DRY_RUN=0
+PROMPT_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --domain|-d)    DOMAIN="$2"; shift 2 ;;
+    --dry-run)      DRY_RUN=1;   shift   ;;
+    --list-domains) _list_domains; exit 0 ;;
+    --help|-h)      _usage ;;
+    --)             shift; PROMPT_ARGS+=("$@"); break ;;
+    -*)             printf 'zdots-ask: unknown flag: %s\n' "$1" >&2; _usage ;;
+    *)              PROMPT_ARGS+=("$1"); shift ;;
+  esac
+done
+
+PROMPT="${PROMPT_ARGS[*]:-}"
+
+if [[ -z "$PROMPT" && -t 0 ]]; then
+  _usage
+fi
+
+# ---------------------------------------------------------------------------
+# Domain detection (before gate so dry-run works even when AI is disabled)
+# ---------------------------------------------------------------------------
+if [[ -z "$DOMAIN" ]]; then
+  DOMAIN=$(_detect_domain "$PROMPT")
+fi
+
+SYS_FILE="${_PROMPTS_DIR}/zdots-${DOMAIN}.md"
+if [[ ! -f "$SYS_FILE" ]]; then
+  printf 'zdots-ask: unknown domain %q (no file: %s)\n' "$DOMAIN" "$SYS_FILE" >&2
+  printf 'zdots-ask: ' >&2; _list_domains >&2
+  exit 2
+fi
+
+SYS_CONTENT=$(cat "$SYS_FILE")
+
+# ---------------------------------------------------------------------------
+# Dry-run: show routing decision without calling model (no AI gate needed)
+# ---------------------------------------------------------------------------
+if (( DRY_RUN )); then
+  printf '[zdots-ask] domain=%s  system_prompt=%s\n\n' "$DOMAIN" "$SYS_FILE"
+  printf '=== system prompt ===\n%s\n\n' "$SYS_CONTENT"
+  printf '=== prompt ===\n%s\n' "$PROMPT"
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# PHI boundary enforcement
+# ---------------------------------------------------------------------------
+zdots_ai_gate "zdots-ask"
+
+# ---------------------------------------------------------------------------
+# Route to local model
+# Suppress raw-mode warning: zdots-ask constructs prompts internally (trusted).
+# ---------------------------------------------------------------------------
+if [[ -t 0 ]]; then
+  AIQ_SUPPRESS_RAW_WARN=1 \
+    "${_SCRIPT_DIR}/ai-query" --mode raw --system "$SYS_CONTENT" "$PROMPT"
+else
+  AIQ_SUPPRESS_RAW_WARN=1 \
+    "${_SCRIPT_DIR}/ai-query" --mode raw --system "$SYS_CONTENT" "$PROMPT"
+fi

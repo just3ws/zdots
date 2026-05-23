@@ -179,7 +179,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Emit raw mode warning even when set via --mode (not --no-wrap)
-if [[ "$MODE" == "raw" && "${_RAW_WARNED:-}" != "1" ]]; then
+# AIQ_SUPPRESS_RAW_WARN=1: suppress for trusted callers that construct prompts internally
+if [[ "$MODE" == "raw" && "${_RAW_WARNED:-}" != "1" && "${AIQ_SUPPRESS_RAW_WARN:-}" != "1" ]]; then
   printf 'ai-query: WARNING: raw mode — no trust-boundary wrapping applied.\n' >&2
   _RAW_WARNED=1
 fi
