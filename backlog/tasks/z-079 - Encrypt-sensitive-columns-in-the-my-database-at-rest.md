@@ -4,12 +4,14 @@ title: Encrypt sensitive columns in the 'my' database at rest
 status: To Do
 assignee: []
 created_date: '2026-05-22 23:47'
+updated_date: '2026-05-23 01:21'
 labels:
   - phi
   - security
   - database
 milestone: m-5
-dependencies: []
+dependencies:
+  - Z-087
 priority: medium
 ---
 
@@ -29,6 +31,12 @@ FileVault provides disk-level encryption but offers no protection from a running
 - [ ] #6 Migration is idempotent; existing plaintext rows are re-encrypted on first migrate run
 - [ ] #7 bootstrap warns clearly if ZDOTS_DB_ENCRYPTION_KEY is unset on a work profile
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Key source updated: ZDOTS_DB_ENCRYPTION_KEY must be retrieved from macOS Keychain via zdots-secrets-get (Z-087), not read from .zdots.secrets plaintext. Z-087 is now a prerequisite.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
