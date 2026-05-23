@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "base"
-require "ruby_llm"
 
 module Zdots
   module Jobs
@@ -12,7 +11,7 @@ module Zdots
 
         vid = extract_video_id(url)
         transcript_path = File.join(ENV["HOME"], "Downloads", "transcripts", vid, "#{vid}.txt")
-        
+
         unless File.exist?(transcript_path)
           raise "Transcript file not found: #{transcript_path}"
         end
@@ -20,12 +19,7 @@ module Zdots
         content = File.read(transcript_path)
         puts "  --> Distilling transcript for #{vid} using RubyLLM..."
 
-        # Configure RubyLLM for local llama.cpp
-        # Assuming OpenAI-compatible local server on port 8080
-        llm = RubyLLM::Provider::OpenAI.new(
-          api_key: "local",
-          base_url: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080/v1")
-        )
+        llm = Zdots::AI.client
 
         prompt = <<~PROMPT
           You are the Knowledge Distiller for the Sentient Workbench.
