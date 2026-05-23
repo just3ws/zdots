@@ -9,11 +9,13 @@
 # Values set here override anything from .zdots.env.
 
 # ---------------------------------------------------------------------------
-# Machine context
-# Selects work vs. home profile. Affects git identity, proxies, etc.
-# Options: home, work
+# Machine context — REQUIRED on every machine.
+# Options: home | work
+# work: enforces ZDOTS_AI_MODE=local, ZDOTS_CAPTURE_ENABLED=0,
+#       ZDOTS_HISTORY_REDACT=1, and triggers SIP/FileVault checks in
+#       zdots-ctl check. Do not leave as 'home' on a regulated machine.
 # ---------------------------------------------------------------------------
-# ZDOTS_CONTEXT=home
+ZDOTS_CONTEXT=home
 
 # ---------------------------------------------------------------------------
 # Database

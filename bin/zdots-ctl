@@ -382,6 +382,58 @@ cmd_check() {
     _fix "open a new shell session to start tracing"
   fi
 
+  # ── macOS security posture (darwin + ZDOTS_CONTEXT=work only) ────────────
+  if [[ "$(uname -s)" == "Darwin" && "${ZDOTS_CONTEXT:-home}" == "work" ]]; then
+    printf '\nmacOS security posture (ZDOTS_CONTEXT=work)\n'
+
+    # FileVault — hard failure; disk encryption is a PHI prerequisite
+    if fdesetup status 2>/dev/null | grep -q "FileVault is On"; then
+      _chk_pass "FileVault  enabled"
+    else
+      _chk_fail "FileVault  NOT enabled — required for PHI work"
+      _fix "sudo fdesetup enable"
+      errors=$((errors + 1))
+    fi
+
+    # SIP — hard failure; kernel integrity is a PHI prerequisite
+    if csrutil status 2>/dev/null | grep -q "enabled"; then
+      _chk_pass "SIP  enabled"
+    else
+      _chk_fail "SIP  NOT enabled — required for PHI work"
+      _fix "Boot to Recovery OS and run: csrutil enable"
+      errors=$((errors + 1))
+    fi
+
+    # Application Firewall — warning; operator may have network-level controls
+    local fw_state
+    fw_state=$(/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>/dev/null || echo "unknown")
+    if [[ "$fw_state" == *"enabled"* ]]; then
+      _chk_pass "Application Firewall  enabled"
+    else
+      if [[ -z "${ZDOTS_SKIP_FIREWALL_CHECK:-}" ]]; then
+        _chk_warn "Application Firewall  not enabled (set ZDOTS_SKIP_FIREWALL_CHECK=1 to suppress)"
+        _fix "sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on"
+      fi
+    fi
+
+    # PHI safety env vars
+    if [[ "${ZDOTS_AI_MODE:-local}" == "local" || "${ZDOTS_AI_MODE:-local}" == "none" ]]; then
+      _chk_pass "AI mode  ${ZDOTS_AI_MODE:-local} (no cloud endpoints)"
+    else
+      _chk_warn "AI mode  ${ZDOTS_AI_MODE} — cloud endpoints active on work machine"
+    fi
+    if [[ "${ZDOTS_CAPTURE_ENABLED:-0}" == "0" ]]; then
+      _chk_pass "Capture  disabled (ZDOTS_CAPTURE_ENABLED=0)"
+    else
+      _chk_warn "Capture  ENABLED on work machine — ensure PHI scrubber and DB encryption are active"
+    fi
+    if [[ "${ZDOTS_HISTORY_REDACT:-1}" == "1" ]]; then
+      _chk_pass "History redaction  enabled"
+    else
+      _chk_warn "History redaction  DISABLED on work machine (ZDOTS_HISTORY_REDACT=0)"
+    fi
+  fi
+
   # ── Summary ───────────────────────────────────────────────────────────────
   printf '\n'
   if [[ $errors -eq 0 && $warnings -eq 0 ]]; then
