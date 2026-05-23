@@ -83,6 +83,7 @@ case "$_cmd" in
 
     # Source the file and check each var
     set +u
+    # shellcheck source=/dev/null
     source "$secrets_file"
     ok=0 missing=0
     for v in "${vars[@]}"; do
