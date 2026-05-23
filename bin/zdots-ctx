@@ -153,64 +153,14 @@ cmd_query() {
     _svc_die "usage: zdots-ctx query [--semantic] <search-term>"
   fi
 
-  _require_psql
-  
   if $semantic; then
     zdots_ai_gate "zdots-ctx"
     zdots_assert_local_endpoint "$_AI_ENDPOINT"
-    _svc_log "generating embedding for query: '${term}'..."
-    local tmp_json; tmp_json=$(mktemp)
-    jq -n --arg m "local" --arg i "$term" '{model: $m, input: $i}' > "$tmp_json"
-
-    local embedding
-    embedding=$(curl -sf "${_AI_ENDPOINT}/v1/embeddings" \
-      -H "Content-Type: application/json" \
-      -d @"$tmp_json" \
-      | jq -c '.data[0].embedding' 2>/dev/null)
-    
-    rm -f "$tmp_json"
-
-    if [[ -z "$embedding" || "$embedding" == "null" ]]; then
-      _svc_die "failed to generate embedding for semantic search."
-    fi
-
-    _svc_log "performing semantic search..."
-    printf "\n### SEMANTIC MATCHES: METHODOLOGIES\n"
-    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-      SELECT slug, title, (1 - (embedding <=> '${embedding}')) as similarity
-      FROM methodologies 
-      WHERE embedding IS NOT NULL
-      ORDER BY embedding <=> '${embedding}' 
-      LIMIT 5;
-    " | column -t -s '|'
-
-    printf "\n### SEMANTIC MATCHES: LESSONS\n"
-    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-      SELECT created_at::date, (1 - (embedding <=> '${embedding}')) as similarity, content
-      FROM lessons 
-      WHERE embedding IS NOT NULL
-      ORDER BY embedding <=> '${embedding}' 
-      LIMIT 5;
-    " | column -t -s '|'
-  else
-    _svc_log "searching methodologies (text)..."
-    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-      SELECT slug, title 
-      FROM methodologies 
-      WHERE to_tsvector('english', title || ' ' || content) @@ plainto_tsquery('english', '${term}')
-      OR title ILIKE '%${term}%'
-      OR content ILIKE '%${term}%';
-    " | column -t -s '|'
-
-    _svc_log "searching lessons (text)..."
-    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-      SELECT created_at::date as date, content 
-      FROM lessons 
-      WHERE to_tsvector('english', content || ' ' || coalesce(context, '')) @@ plainto_tsquery('english', '${term}')
-      OR content ILIKE '%${term}%'
-      OR context ILIKE '%${term}%';
-    " | column -t -s '|'
   fi
+
+  local brain_flags=()
+  $semantic && brain_flags+=("--semantic")
+  "${ZDOTDIR}/sbin/zdots-brain" "${brain_flags[@]}" query "$term"
 }
 
 cmd_capture() {
@@ -343,83 +293,22 @@ EOF
 }
 
 cmd_hydrate() {
-  local tag="${1:-}"
-  local json=false
-  [[ "${1:-}" == "--json" || "${2:-}" == "--json" ]] && json=true
+  local tag=""
+  local brain_flags=()
 
-  _require_psql
+  for arg in "$@"; do
+    case "$arg" in
+      --json) brain_flags+=("--json") ;;
+      *) [[ -z "$tag" ]] && tag="$arg" ;;
+    esac
+  done
 
-  _svc_log "hydrating AI context..."
-
-  # Fetch methodologies by tag or limit
-  local methodologies
-  if [[ -n "$tag" && "$tag" != "--json" ]]; then
-    methodologies=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT title, content FROM methodologies WHERE '$tag' = ANY(tags) OR slug ILIKE '%$tag%';" 2>/dev/null)
-  else
-    methodologies=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT title, content FROM methodologies ORDER BY updated_at DESC LIMIT 5;" 2>/dev/null)
-  fi
-
-  # Fetch semantically relevant lessons if we have a tag/topic
-  local lessons
-  if [[ -n "$tag" && "$tag" != "--json" ]]; then
+  if [[ -n "$tag" ]]; then
     zdots_ai_gate "zdots-ctx"
     zdots_assert_local_endpoint "$_AI_ENDPOINT"
-    _svc_log "fetching semantically relevant lessons for: ${tag}..."
-
-    local tmp_json; tmp_json=$(mktemp)
-    jq -n --arg m "local" --arg i "$tag" '{model: $m, input: $i}' > "$tmp_json"
-    local embedding
-    embedding=$(curl -sf "${_AI_ENDPOINT}/v1/embeddings" \
-      -H "Content-Type: application/json" \
-      -d @"$tmp_json" \
-      | jq -c '.data[0].embedding' 2>/dev/null)
-    rm -f "$tmp_json"
-
-    if [[ -n "$embedding" && "$embedding" != "null" ]]; then
-      lessons=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-        SELECT context, content FROM lessons 
-        WHERE embedding IS NOT NULL
-        ORDER BY embedding <=> '${embedding}' 
-        LIMIT 5;
-      " 2>/dev/null)
-    fi
   fi
 
-  # Fallback to recent lessons if no semantic match or no tag
-  if [[ -z "$lessons" ]]; then
-    lessons=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT context, content FROM lessons ORDER BY created_at DESC LIMIT 5;" 2>/dev/null)
-  fi
-
-  if $json; then
-    # We use a simple JSON structure for AI tool parsing
-    psql "${ZDOTS_DATABASE_URL}" -tAc "
-      SELECT json_build_object(
-        'methodologies', (SELECT json_agg(m) FROM (SELECT title, content, tags FROM methodologies ORDER BY updated_at DESC LIMIT 10) m),
-        'relevant_lessons', (SELECT json_agg(l) FROM (SELECT context, content, tags FROM lessons ORDER BY created_at DESC LIMIT 10) l)
-      );
-    "
-    return
-  fi
-
-  # Text output (AI-targeted markdown)
-  printf "The following context has been retrieved from the Cerebral Control Plane:\n\n"
-  printf "### PREFERRED METHODOLOGIES\n"
-  if [[ -n "$methodologies" ]]; then
-    echo "$methodologies" | while IFS='|' read -r title content; do
-      printf "#### %s\n%s\n\n" "$title" "$content"
-    done
-  else
-    printf "None found.\n\n"
-  fi
-
-  printf "### RECENT/RELEVANT LESSONS LEARNT\n"
-  if [[ -n "$lessons" ]]; then
-    echo "$lessons" | while IFS='|' read -r context content; do
-      printf "* **Context**: %s\n  **Lesson**: %s\n\n" "$context" "$content"
-    done
-  else
-    printf "None found.\n\n"
-  fi
+  "${ZDOTDIR}/sbin/zdots-brain" "${brain_flags[@]}" hydrate ${tag:+"$tag"}
 }
 
 cmd_add_methodology() {
