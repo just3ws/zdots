@@ -24,12 +24,8 @@ teardown() {
 # Mocking launchctl
 launchctl() {
   if [[ "$1" == "print" ]]; then
-    # Return 0 for "running-label", 1 for anything else
-    [[ "$2" == *"running-label"* ]] && return 0 || return 1
-  fi
-  if [[ "$1" == "list" ]]; then
-    if [[ "$2" == "running-label" ]]; then
-      echo '"PID" = 1234;'
+    if [[ "$2" == *"running-label"* ]]; then
+      printf 'state = running\npid = 1234\n'
       return 0
     fi
     return 1
