@@ -280,7 +280,9 @@
       "Bash(bash -n /Users/mike/.config/zsh/env.sh)",
       "Bash(log help *)",
       "Bash(/usr/bin/log help *)",
-      "Bash(/usr/bin/log emit *)"
+      "Bash(/usr/bin/log emit *)",
+      "Bash(ZDOTS_AI_MODE=none /Users/mike/.config/zsh/bin/ai-query \"test\")",
+      "Bash(ZDOTS_AI_MODE=none zsh -c 'source /Users/mike/.config/zsh/providers/ai/aider.zsh && zaider --help')"
     ]
   }
 }
