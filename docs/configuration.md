@@ -37,10 +37,66 @@ Docker Compose configuration for the observability hub.
 
 ## 3. Secrets
 
-**NEVER commit secrets.**
+**NEVER commit secrets.** All secrets live in macOS Keychain.
 
-- **`.zdots.secrets`**: Local-only file for API keys (e.g., `HUGGINGFACE_TOKEN`).
-- **`.zdots.secrets.example`**: Template for required secrets.
+- **`.zdots.secrets`**: Keychain-backed loader — calls `security find-generic-password` at shell startup. No literal values. Gitignored.
+- **`.zdots.secrets.example`**: Shows the Keychain pattern. Safe to commit.
+
+### Managing secrets
+
+```bash
+zdots-keychain add VARNAME value      # store or update
+zdots-keychain get VARNAME            # retrieve
+zdots-keychain list                   # list all stored names
+zdots-keychain verify                 # confirm all .zdots.secrets vars resolve
+```
+
+### Required secrets
+
+| Variable | Purpose | Generate |
+|---|---|---|
+| `ZDOTS_DB_ENCRYPTION_KEY` | pgcrypto key for PHI columns | `openssl rand -hex 32` |
+| `HUGGINGFACE_TOKEN` | Gated model downloads | HuggingFace settings |
+| `MAXMIND_ACCOUNT_ID` / `MAXMIND_LICENSE_KEY` | GeoIP database | MaxMind account |
+
+### Agent sessions
+
+Agent environments may not inherit the full login shell. If a tool reports `ZDOTS_DB_ENCRYPTION_KEY` is missing:
+```bash
+export ZDOTS_DB_ENCRYPTION_KEY=$(zdots-keychain get ZDOTS_DB_ENCRYPTION_KEY)
+```
+
+## 4. Interactive Workflow Tools
+
+### Session ritual
+
+```bash
+zmorning          # brief (date/git/db/AI status) → drops into zdash
+zmorning --brief  # status only, no launcher
+zmorning --pi     # status → Pi conversational orientation
+```
+
+### zdash — task launcher
+
+fzf-powered task picker. Keybindings:
+
+| Key | Action |
+|---|---|
+| `enter` | `ztask start` — activate task environment |
+| `ctrl-p` | `zpi` — explore/plan with Pi |
+| `ctrl-a` | `zaider` — implement with Aider |
+| `ctrl-s` | `zdots-status` — full platform health TUI |
+| `ctrl-d` | `ztask done` — complete active task |
+| `?` | toggle preview pane |
+| `Alt-z` | open zdash from anywhere at the shell prompt |
+
+### ZLE AI keybindings
+
+| Key | Action |
+|---|---|
+| `Alt-e` | Explain current command buffer (calls local llama.cpp) |
+| `Alt-f` | Suggest fix for last failed command |
+| `Alt-z` | Open zdash task launcher in-place |
 
 ## 4. Hardware Overrides
 
