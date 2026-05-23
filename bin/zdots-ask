@@ -73,7 +73,7 @@ _detect_domain() {
   fi
 
   # Shell: zsh/bash/script keywords
-  if printf '%s' "$lower" | grep -qE '\bzsh\b|\bbash\b|\bzle\b|widget|bindkey|conf\.d|set -e|trap|\.zsh\b|zdots-ctl|zdash|ztask|ai.query|\.bash\b|_chk_pass|_chk_fail|umask|launchd|plist'; then
+  if printf '%s' "$lower" | grep -qE '\bzsh\b|\bbash\b|\bzle\b|widget|bindkey|conf\.d|set -e|trap|\.zsh\b|zdots-ctl|zdash|ztask|ai.query|\.bash\b|_chk_pass|_chk_fail|umask|launchd|plist|zdots_context|conf\.d'; then
     printf 'shell'; return
   fi
 

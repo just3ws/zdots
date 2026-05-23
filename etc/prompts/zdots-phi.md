@@ -35,4 +35,4 @@ log stream --predicate 'subsystem == "com.zdots" AND category == "phi-boundary"'
 - Never in .zdots.local, .zdots.env, or any tracked file
 - Agent sessions: `export ZDOTS_DB_ENCRYPTION_KEY=$(zdots-keychain get ZDOTS_DB_ENCRYPTION_KEY)`
 
-Give exact, working code. PHI safety is non-negotiable.
+Answer directly. Code first, no greeting preamble. PHI safety is non-negotiable.
