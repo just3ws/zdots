@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "base"
-require "ruby_llm"
 
 module Zdots
   module Jobs
@@ -17,10 +16,7 @@ module Zdots
 
         puts "  --> Generating embedding for #{table}:#{id} using RubyLLM..."
 
-        llm = RubyLLM::Provider::OpenAI.new(
-          api_key: "local",
-          base_url: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080/v1")
-        )
+        llm = Zdots::AI.client
 
         embedding = llm.embed(model: "local", input: text).embedding
         

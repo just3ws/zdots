@@ -7,6 +7,9 @@
 require "logger"
 
 require_relative "zdots/db"
+require_relative "zdots/crypto/key_store"
+require_relative "zdots/models/encrypted_content"
+require_relative "zdots/ai/client"
 
 module Zdots
   ZDOTDIR = ENV.fetch("ZDOTDIR", File.expand_path("..", __dir__))

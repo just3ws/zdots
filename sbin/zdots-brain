@@ -14,7 +14,6 @@ require_relative "../lib/zdots/jobs/docs_sync"
 require "optparse"
 require "json"
 require "digest"
-require "ruby_llm"
 
 module Zdots
   class CLI
@@ -190,10 +189,7 @@ module Zdots
                end
 
       # 3. Distill using RubyLLM
-      llm = RubyLLM::Provider::OpenAI.new(
-        api_key: "local",
-        base_url: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080/v1")
-      )
+      llm = Zdots::AI.client
 
       prompt = <<~PROMPT
         You are the Distiller for the Cerebral Control Plane.
@@ -299,10 +295,7 @@ module Zdots
 
       if @options[:semantic]
         puts "zdots-brain: generating embedding for query: '#{term}'..."
-        llm = RubyLLM::Provider::OpenAI.new(
-          api_key: "local",
-          base_url: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080/v1")
-        )
+        llm = Zdots::AI.client
         embedding = llm.embed(model: "local", input: term).embedding
         
         puts "\n### SEMANTIC MATCHES: METHODOLOGIES"
@@ -428,21 +421,11 @@ module Zdots
         exit 1
       end
 
-      old_key = ENV["ZDOTS_DB_OLD_KEY"]
-      new_key = ENV["ZDOTS_DB_ENCRYPTION_KEY"]
-
-      if old_key.nil? || old_key.strip.empty?
-        puts "zdots-brain: ZDOTS_DB_OLD_KEY is not set — set it for this invocation only:"
-        puts "  ZDOTS_DB_OLD_KEY=<burned_key> zdots-brain rekey [table]"
-        exit 1
-      end
-      if new_key.nil? || new_key.strip.empty?
-        puts "zdots-brain: ZDOTS_DB_ENCRYPTION_KEY is not set"
-        exit 1
-      end
-      if old_key == new_key
-        puts "zdots-brain: ZDOTS_DB_OLD_KEY and ZDOTS_DB_ENCRYPTION_KEY are identical — nothing to do"
-        exit 0
+      begin
+        old_key, new_key = Zdots::Crypto::KeyStore.rotation_keys
+      rescue KeyError => e
+        puts "zdots-brain: #{e.message}"
+        exit e.message.include?("identical") ? 0 : 1
       end
 
       puts "zdots-brain: re-keying #{table}#{dry_run ? " (dry run)" : ""}..."
