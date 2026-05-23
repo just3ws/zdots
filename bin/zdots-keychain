@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# bin/zdots-keychain — Manage zdots secrets in macOS Keychain.
+#
+# Usage:
+#   zdots-keychain add VARNAME VALUE       store/update a secret
+#   zdots-keychain get VARNAME             print a secret value
+#   zdots-keychain delete VARNAME          remove a secret
+#   zdots-keychain list                    list stored variable names
+#   zdots-keychain migrate                 import from .zdots.secrets into Keychain
+#   zdots-keychain verify                  confirm all loaded secrets resolve
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+# shellcheck source=lib/keychain.bash
+source "${ZDOTDIR}/lib/keychain.bash"
+
+_cmd="${1:-help}"; shift || true
+
+case "$_cmd" in
+
+  add)
+    [[ $# -ge 2 ]] || { echo "usage: zdots-keychain add VARNAME VALUE" >&2; exit 1; }
+    zdots_keychain_set "$1" "$2"
+    echo "stored: $1"
+    ;;
+
+  get)
+    [[ $# -ge 1 ]] || { echo "usage: zdots-keychain get VARNAME" >&2; exit 1; }
+    zdots_keychain_get "$1"
+    ;;
+
+  delete)
+    [[ $# -ge 1 ]] || { echo "usage: zdots-keychain delete VARNAME" >&2; exit 1; }
+    zdots_keychain_delete "$1"
+    echo "deleted: $1"
+    ;;
+
+  list)
+    echo "zdots Keychain entries:"
+    zdots_keychain_list | sort | sed 's/^/  /'
+    ;;
+
+  migrate)
+    # Import variables from .zdots.secrets that have literal values.
+    # Any line matching: export VAR='value' or export VAR="value"
+    secrets_file="${ZDOTDIR}/.zdots.secrets"
+    if [[ ! -f "$secrets_file" ]]; then
+      echo "migrate: .zdots.secrets not found at $secrets_file" >&2
+      exit 1
+    fi
+
+    migrated=0
+    while IFS= read -r line; do
+      # Match: export VARNAME='...' or export VARNAME="..."
+      if [[ "$line" =~ ^export[[:space:]]+([A-Z_][A-Z0-9_]*)=[\'\"](.*)[\'\"]$ ]]; then
+        varname="${BASH_REMATCH[1]}"
+        varval="${BASH_REMATCH[2]}"
+        zdots_keychain_set "$varname" "$varval"
+        echo "migrated: $varname"
+        (( migrated++ )) || true
+      fi
+    done < "$secrets_file"
+
+    echo "done: $migrated secret(s) added to Keychain"
+    echo ""
+    echo "Next: replace literal values in .zdots.secrets with Keychain calls."
+    echo "Run: zdots-keychain verify"
+    ;;
+
+  verify)
+    # Source .zdots.secrets and confirm each exported var has a non-empty value.
+    secrets_file="${ZDOTDIR}/.zdots.secrets"
+    [[ -f "$secrets_file" ]] || { echo "verify: .zdots.secrets not found" >&2; exit 1; }
+
+    # Collect variable names declared in secrets file
+    vars=()
+    while IFS= read -r line; do
+      if [[ "$line" =~ ^export[[:space:]]+([A-Z_][A-Z0-9_]*) ]]; then
+        vars+=("${BASH_REMATCH[1]}")
+      fi
+    done < "$secrets_file"
+
+    # Source the file and check each var
+    set +u
+    source "$secrets_file"
+    ok=0 missing=0
+    for v in "${vars[@]}"; do
+      if [[ -n "${!v:-}" ]]; then
+        printf "  %-35s OK\n" "$v"
+        (( ok++ )) || true
+      else
+        printf "  %-35s MISSING\n" "$v"
+        (( missing++ )) || true
+      fi
+    done
+
+    echo ""
+    echo "result: $ok OK, $missing missing"
+    [[ $missing -eq 0 ]]
+    ;;
+
+  help|--help|-h)
+    cat <<'HELP'
+zdots-keychain — manage zdots secrets in macOS Keychain
+
+Commands:
+  add VARNAME VALUE    store or update a secret
+  get VARNAME          print a secret value
+  delete VARNAME       remove a secret entry
+  list                 list all stored variable names
+  migrate              import .zdots.secrets literal values into Keychain
+  verify               confirm all .zdots.secrets vars resolve to non-empty values
+
+Secrets are stored under service "zdots" in your login Keychain.
+Variable names are used as the account name (e.g., MAXMIND_LICENSE_KEY).
+
+On a fresh machine:
+  1. zdots-keychain add VARNAME VALUE   (for each secret)
+  OR
+  1. Restore from Keychain backup / 1Password / etc.
+
+Then verify:
+  zdots-keychain verify
+HELP
+    ;;
+
+  *)
+    echo "zdots-keychain: unknown command '$_cmd'" >&2
+    echo "Run: zdots-keychain help" >&2
+    exit 1
+    ;;
+
+esac
