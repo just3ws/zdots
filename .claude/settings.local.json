@@ -268,7 +268,16 @@
       "Bash(env *)",
       "Bash(bin/agent-guide --json)",
       "Bash(jq '{services: .services, env: .env}')",
-      "Bash(jq '{migration_user: .database.migration_user, env_keys: \\(.env | keys\\)}')"
+      "Bash(jq '{migration_user: .database.migration_user, env_keys: \\(.env | keys\\)}')",
+      "Bash(gh api *)",
+      "Bash(sed -n '400,445p' /Users/mike/.config/zsh/bin/zdots-ctx)",
+      "Bash(sed -n '680,725p' /Users/mike/.config/zsh/bin/zdots-ctx)",
+      "mcp__backlog__document_create",
+      "Bash(bash -n /Users/mike/.config/zsh/bin/bootstrap)",
+      "Bash(bash -n /Users/mike/.config/zsh/bin/zdots-ctx)",
+      "Bash(bash -n /Users/mike/.config/zsh/bin/zdots-ctl)",
+      "Bash(bash -n /Users/mike/.config/zsh/bin/secret-scan)",
+      "Bash(bash -n /Users/mike/.config/zsh/env.sh)"
     ]
   }
 }

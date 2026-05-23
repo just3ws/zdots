@@ -67,19 +67,22 @@ export ZDOTS_SESSION_ID="${ZDOTS_TRACE_ID}"
 
 # 4. Observability Utilities (Core)
 # zdots_trace_redact DATA
-# Returns redacted data masking common secrets. (POSIX-compliant)
+# Returns redacted data masking common secrets AND PHI patterns. (POSIX-compatible via sed fallback)
+# Patterns covered:
+#   - Flag-based secrets:  --password, --api-key, --token, --secret, --auth, --authorization
+#   - PHI: SSN (NNN-NN-NNNN), MRN labels, DOB labels, DB connection strings with credentials
 zdots_trace_redact() {
   local data="$1"
-  # Zsh path: parameter expansion with extended glob — zero forks.
-  # Falls back to echo|sed for bash/sh contexts.
-  if [ -n "${ZSH_VERSION:-}" ]; then
-    setopt local_options extended_glob
-    # (X b) enables backrefs; ${match[1]} = captured flag name.
-    data="${data//(#b)(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]:]##[^[:space:]]##/${match[1]} [REDACTED]}"
-    echo "$data"
-  else
-    echo "$data" | sed -E 's/(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]:]+[^[:space:]]+/\1 [REDACTED]/g'
-  fi
+
+  # Apply via sed (single pass, POSIX-compatible). Used for both Zsh and non-Zsh contexts.
+  # sed is available on every supported platform; this avoids the Zsh-only glob path while
+  # still covering all PHI patterns consistently.
+  echo "$data" | sed -E \
+    -e 's/(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]:]+[^[:space:]]+/\1 [REDACTED]/g' \
+    -e 's/[0-9]{3}-[0-9]{2}-[0-9]{4}/[REDACTED-SSN]/g' \
+    -e 's/MRN[[:space:]]*:?[[:space:]]*[0-9]+/[REDACTED-MRN]/g' \
+    -e 's/(DOB|[Dd]ate[[:space:]]+[Oo]f[[:space:]]+[Bb]irth)[[:space:]]*:?[[:space:]]*[0-9]{1,2}[/\-][0-9]{1,2}[/\-][0-9]{2,4}/[REDACTED-DOB]/g' \
+    -e 's;(postgresql|mysql|redis)://[^@[:space:]]+@[^/[:space:]]*;[REDACTED-CONN];g'
 }
 
 # 5. Dependency Injection (DI) Helper
@@ -155,8 +158,8 @@ export PYTHONSTARTUP="$XDG_CONFIG_HOME/python/pythonrc"
 export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
 
 # 5. General Environment
-OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
-OTEL_SERVICE_NAME="zdots-shell"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
+OTEL_SERVICE_NAME="zdots-shell"   # intentionally not exported — must not bleed into child processes
 export LANG='en_US.UTF-8'
 export EDITOR='vi'
 export VISUAL="$EDITOR"
