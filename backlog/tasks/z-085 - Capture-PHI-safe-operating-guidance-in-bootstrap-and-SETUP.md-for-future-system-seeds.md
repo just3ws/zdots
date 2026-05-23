@@ -3,9 +3,10 @@ id: Z-085
 title: >-
   Capture PHI-safe operating guidance in bootstrap and SETUP.md for future
   system seeds
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-22 23:49'
+updated_date: '2026-05-23 06:34'
 labels:
   - phi
   - security
@@ -32,6 +33,12 @@ A fresh clone on a regulated machine must self-configure for PHI safety without 
 - [ ] #4 zdots-ctl check includes a phi-posture assertion: fails with clear message if ZDOTS_CONTEXT=work but capture or history-redact are misconfigured
 - [ ] #5 AGENTS.md Section 8 (or equivalent) summarises PHI operating mode for agent context
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+bootstrap now prints a PHI-SAFE OPERATING MODE banner when ZDOTS_CONTEXT=work: lists capture/history-redact/ai-mode/db-encryption status. Warns (non-fatal) if ZDOTS_DB_ENCRYPTION_KEY unset with generation and Keychain storage steps. zdots-ctl check already had phi-posture assertions (AI mode, capture, history-redact). SETUP.md already had a complete PHI safety work machine checklist section.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
