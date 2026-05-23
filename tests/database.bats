@@ -88,7 +88,7 @@ _pg_up() {
 @test "database: zdots_ro cannot INSERT into lessons" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
   run psql -q -U zdots_ro my -c \
-    "INSERT INTO lessons (content) VALUES ('test-permission-check')"
+    "INSERT INTO lessons (context) VALUES ('test-permission-check')"
   [ "$status" -ne 0 ]
   [[ "$output" == *"permission denied"* ]]
 }
