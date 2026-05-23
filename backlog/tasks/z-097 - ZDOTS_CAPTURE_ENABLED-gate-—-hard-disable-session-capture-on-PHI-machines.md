@@ -1,9 +1,10 @@
 ---
 id: Z-097
 title: ZDOTS_CAPTURE_ENABLED gate — hard-disable session capture on PHI machines
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-23 21:40'
+updated_date: '2026-05-23 21:49'
 labels:
   - phi-safe
   - security
@@ -12,8 +13,6 @@ milestone: m-5
 dependencies: []
 modified_files:
   - bin/zdots-ctx
-  - .zdots.env
-  - lib/ai_boundary.bash
 priority: high
 ordinal: 810
 ---
@@ -30,13 +29,19 @@ The `Zdots::AI.client` gate already enforces locality for Ruby callers. This tas
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 bin/zdots-ctx capture exits 2 immediately when ZDOTS_CAPTURE_ENABLED=0, printing a clear message naming the env var
-- [ ] #2 zdots_audit_log capture_blocked fires on exit — visible in os_log stream
-- [ ] #3 ZDOTS_CAPTURE_ENABLED defaults to 0 in .zdots.env (not 1)
+- [x] #1 bin/zdots-ctx capture exits 2 immediately when ZDOTS_CAPTURE_ENABLED=0, printing a clear message naming the env var
+- [x] #2 zdots_audit_log capture_blocked fires on exit — visible in os_log stream
+- [x] #3 ZDOTS_CAPTURE_ENABLED defaults to 0 in .zdots.env (not 1)
 - [ ] #4 Work machine profile (Z-084) sets ZDOTS_CAPTURE_ENABLED=0 explicitly so it cannot be accidentally inherited as 1
-- [ ] #5 zdots-ctl check reports capture status (enabled/disabled) as part of its PHI section
-- [ ] #6 Existing capture flow is unchanged when ZDOTS_CAPTURE_ENABLED=1
+- [x] #5 zdots-ctl check reports capture status (enabled/disabled) as part of its PHI section
+- [x] #6 Existing capture flow is unchanged when ZDOTS_CAPTURE_ENABLED=1
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Gate was already wired — only gap was exit 0 instead of exit 2. Fixed in 448c908. AC#4 (work machine profile) is covered by Z-098 (.zdots.work hard-sets ZDOTS_CAPTURE_ENABLED=0).
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
