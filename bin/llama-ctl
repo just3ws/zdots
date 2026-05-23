@@ -567,7 +567,7 @@ case "${1:-}" in
   config)         shift; config_dump "${@}" ;;
   model-list)     model_list ;;
   model-download) model_download ;;
-  model-verify)   local _vp; _vp=$(_active_model_path); zdots_model_verify "${_vp:-}" ;;
+  model-verify)   _vp=$(_active_model_path); zdots_model_verify "${_vp:-}" ;;
   model-switch)   model_switch "${2:-}" ;;
   model-prune)    model_prune ;;
   model-df)       model_df ;;
