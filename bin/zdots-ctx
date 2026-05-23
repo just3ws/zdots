@@ -216,6 +216,7 @@ cmd_query() {
 cmd_capture() {
   # PHI safety gate — capture is opt-in
   if [[ "${ZDOTS_CAPTURE_ENABLED:-0}" != "1" ]]; then
+    zdots_audit_log "capture_blocked" "sid=${ZDOTS_SESSION_ID:-unknown}"
     printf 'zdots-ctx: capture disabled (set ZDOTS_CAPTURE_ENABLED=1 in .zdots.local to enable)\n' >&2
     exit 0
   fi
@@ -334,6 +335,7 @@ EOF
       cmd_enqueue "embed" "$payload" >/dev/null
     fi
 
+    zdots_audit_log "capture_invoked" "sid=${sid} lesson_id=${id:-none}"
     _svc_ok "residue and lesson saved to database."
   else
     _svc_log "capture aborted."
