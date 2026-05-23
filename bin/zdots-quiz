@@ -1,0 +1,199 @@
+#!/usr/bin/env bash
+# bin/zdots-quiz — Probe local model capability on zdots-specific tasks.
+#
+# Runs a curated suite of prompts against the local Qwen2.5-Coder model via
+# zdots-ask and scores responses by keyword presence. Use to calibrate what
+# the local model knows about zdots conventions before trusting it with real
+# work, and to detect regressions after model swaps.
+#
+# Usage:
+#   zdots-quiz              # run all cases
+#   zdots-quiz --domain shell   # run only shell domain cases
+#   zdots-quiz --verbose    # print model responses alongside scores
+#   zdots-quiz --list       # list test case IDs
+#   zdots-quiz TC-01 TC-05  # run specific cases by ID
+
+set -euo pipefail
+trap '' PIPE
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+source "${_ZDOTDIR}/lib/ai_boundary.bash"
+zdots_ai_gate "zdots-quiz"
+
+# ---------------------------------------------------------------------------
+# Scoring helpers
+# ---------------------------------------------------------------------------
+_PASS=0; _FAIL=0; _TOTAL=0
+_CYN=$'\033[0;36m'; _GRN=$'\033[0;32m'; _RED=$'\033[0;31m'; _YLW=$'\033[0;33m'; _RST=$'\033[0m'; _BOLD=$'\033[1m'
+VERBOSE=0
+FILTER_DOMAIN=""
+RUN_IDS=()
+
+# Run a single test case and score it.
+# Args: ID DOMAIN PROMPT REQUIRED_KEYWORDS...
+# REQUIRED_KEYWORDS: pipe-separated regex patterns (at least one per arg must match)
+_run_case() {
+  local id="$1"; local domain="$2"; local prompt="$3"; shift 3
+  local required_patterns=("$@")
+
+  # Apply domain filter
+  if [[ -n "$FILTER_DOMAIN" && "$domain" != "$FILTER_DOMAIN" ]]; then
+    return
+  fi
+
+  # Apply ID filter
+  if [[ ${#RUN_IDS[@]} -gt 0 ]]; then
+    local found=0
+    for _rid in "${RUN_IDS[@]}"; do
+      [[ "$_rid" == "$id" ]] && { found=1; break; }
+    done
+    (( found )) || return 0
+  fi
+
+  _TOTAL=$(( _TOTAL + 1 ))
+  printf '%s%s [%s]%s %s\n' "$_BOLD" "$id" "$domain" "$_RST" "$prompt"
+
+  local response
+  response=$(AIQ_SUPPRESS_RAW_WARN=1 \
+    "${_SCRIPT_DIR}/zdots-ask" --domain "$domain" "$prompt" 2>/dev/null || true)
+
+  local passed=0; local failed=0
+  for pat in "${required_patterns[@]}"; do
+    if printf '%s' "$response" | grep -qiE "$pat"; then
+      passed=$(( passed + 1 ))
+    else
+      printf '  %sMISS%s %s\n' "$_YLW" "$_RST" "$pat"
+      failed=$(( failed + 1 ))
+    fi
+  done
+
+  if (( failed == 0 )); then
+    printf '  %sPASS%s (%d/%d patterns matched)\n' "$_GRN" "$_RST" "$passed" "${#required_patterns[@]}"
+    _PASS=$(( _PASS + 1 ))
+  else
+    printf '  %sFAIL%s (%d/%d patterns matched)\n' "$_RED" "$_RST" "$passed" "${#required_patterns[@]}"
+    _FAIL=$(( _FAIL + 1 ))
+  fi
+
+  if (( VERBOSE )); then
+    printf '  %s--- response ---%s\n' "$_CYN" "$_RST"
+    printf '%s\n' "$response" | sed 's/^/  /'
+    printf '\n'
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verbose|-v)     VERBOSE=1; shift ;;
+    --domain|-d)      FILTER_DOMAIN="$2"; shift 2 ;;
+    --list)
+      printf 'Test cases:\n'
+      printf '  TC-01 shell  ZLE widget skeleton\n'
+      printf '  TC-02 shell  zdots-ctl check helper pattern\n'
+      printf '  TC-03 shell  ai-query PHI-safe call pattern\n'
+      printf '  TC-04 shell  Keychain retrieval\n'
+      printf '  TC-05 ruby   Sequel migration skeleton\n'
+      printf '  TC-06 ruby   pgcrypto encrypt/decrypt in Sequel\n'
+      printf '  TC-07 ruby   Transparent column encryption accessor\n'
+      printf '  TC-08 phi    PHI-safe script pattern\n'
+      printf '  TC-09 phi    Posture verification command\n'
+      printf '  TC-10 default  Read-only psql exploration\n'
+      exit 0
+      ;;
+    --help|-h)
+      sed -n '2,15p' "$0" | sed 's/^# \?//' >&2; exit 0 ;;
+    TC-*)             RUN_IDS+=("$1"); shift ;;
+    *)                printf 'zdots-quiz: unknown arg: %s\n' "$1" >&2; exit 2 ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
+# Test suite
+# ---------------------------------------------------------------------------
+
+printf '\n%s=== zdots-quiz: local model capability probe ===%s\n\n' "$_BOLD" "$_RST"
+
+# Shell domain
+_run_case TC-01 shell \
+  "Write a minimal ZLE widget that saves BUFFER, clears it, runs a command, and restores the prompt." \
+  'zle -[NI]' \
+  'BUFFER' \
+  'zle reset-prompt|zle redisplay'
+
+_run_case TC-02 shell \
+  "Write a zdots-ctl check helper that verifies a directory has mode 700 and calls _chk_pass or _chk_fail." \
+  '_chk_pass|_chk_fail' \
+  'stat -f|chmod' \
+  '700'
+
+_run_case TC-03 shell \
+  "What is the correct shell pattern to make a PHI-safe AI call in a zdots script?" \
+  'ai_boundary\.bash' \
+  'zdots_ai_gate' \
+  'zdots_assert_local_endpoint|zdots_scrub_phi|ai-query'
+
+_run_case TC-04 shell \
+  "How do you retrieve a secret named API_TOKEN from the macOS Keychain in a zdots script?" \
+  'keychain\.bash|_zdots_kc|zdots-keychain' \
+  'API_TOKEN|security find-generic-password'
+
+# Ruby domain
+_run_case TC-05 ruby \
+  "Write a Sequel migration skeleton that adds a nullable text column to the lessons table." \
+  'Sequel\.migration' \
+  'up do' \
+  'alter_table.*lessons|add_column'
+
+_run_case TC-06 ruby \
+  "How do you use pgcrypto to encrypt and decrypt a text value in a Sequel expression?" \
+  'pgp_sym_encrypt|pgp_sym_decrypt' \
+  'Sequel\.function|Sequel\.blob'
+
+_run_case TC-07 ruby \
+  "Write a Sequel model accessor method that transparently decrypts a bytea column named content_enc." \
+  'def content' \
+  'pgp_sym_decrypt|content_enc' \
+  'rescue.*DatabaseError|Sequel::DatabaseError'
+
+# PHI domain
+_run_case TC-08 phi \
+  "Write the PHI-safe script preamble required before any AI call in a zdots bash script." \
+  'ai_boundary\.bash' \
+  'zdots_ai_gate' \
+  'zdots_assert_local_endpoint|zdots_scrub_phi'
+
+_run_case TC-09 phi \
+  "What command verifies the PHI security posture on a work machine?" \
+  'zdots-ctl check' \
+  'ZDOTS_CONTEXT=work|FileVault|SIP'
+
+# General
+_run_case TC-10 default \
+  "What psql command should I use for safe read-only exploration of the zdots PostgreSQL database?" \
+  'psql -U zdots_ro my|zdots_ro'
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+printf '\n%s=== Summary ===%s\n' "$_BOLD" "$_RST"
+printf 'Total: %d  ' "$_TOTAL"
+printf '%sPASS: %d%s  ' "$_GRN" "$_PASS" "$_RST"
+if (( _FAIL > 0 )); then
+  printf '%sFAIL: %d%s\n' "$_RED" "$_FAIL" "$_RST"
+else
+  printf '%sFAIL: 0%s\n' "$_GRN" "$_RST"
+fi
+
+if (( _FAIL == 0 )); then
+  printf '\nLocal model meets zdots conventions baseline.\n'
+  exit 0
+else
+  printf '\n%d case(s) below baseline. Run with --verbose to inspect responses.\n' "$_FAIL"
+  printf 'Tune prompts in etc/prompts/ or seed knowledge base with zdots-ctx.\n'
+  exit 1
+fi
