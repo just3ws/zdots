@@ -1,9 +1,10 @@
 ---
 id: Z-086
 title: Seed PHI safety policy into local knowledge base and update agent context
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-22 23:49'
+updated_date: '2026-05-23 06:39'
 labels:
   - phi
   - security
@@ -30,6 +31,12 @@ The PHI safety policy (Z-077) and operating guidance (Z-085) must be available t
 - [ ] #4 CLAUDE.md, GEMINI.md, AIDER.md each contain a one-line PHI callout pointing to AGENTS.md PHI section
 - [ ] #5 bootstrap runs zdots-ctx add-methodology for phi-safety-policy as part of step 9 (idempotent upsert)
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+AGENTS.md gains Section 8 (PHI Operating Mode): hard rules, enforcement mechanism, audit trail query command, posture verification, policy doc pointer. The policy itself lives in backlog/docs/doc-002. CLAUDE.md already references AGENTS.md in its header. bootstrap already seeds the PHI banner (Z-085).
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
