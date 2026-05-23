@@ -16,3 +16,9 @@ fi
 if [[ -r "$ZDOTDIR/providers/ai/aider.zsh" ]]; then
   source "$ZDOTDIR/providers/ai/aider.zsh"
 fi
+
+# Pi sidecar — wires pi coding agent to local llama.cpp.
+# Provides the zpi() function; session history lands in XDG state dir.
+if [[ -r "$ZDOTDIR/providers/ai/pi.zsh" ]]; then
+  source "$ZDOTDIR/providers/ai/pi.zsh"
+fi

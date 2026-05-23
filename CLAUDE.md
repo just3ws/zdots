@@ -39,6 +39,16 @@ The authoritative migrations are:
 
 The old SQL files in `etc/db/migrations/` (001–009) are archived and must not be applied. Do **not** reference the `zdots` database — that is an unrelated legacy app schema.
 
+## AI Tool Ecosystem
+
+| Tool | Command | Role |
+|------|---------|------|
+| Claude Code | `cl` | Architecture, review, planning, this session |
+| Pi | `zpi` | Interactive exploration, read/explain/plan |
+| Aider | `zaider` | File editing, implementation, git commits |
+
+Pi and Aider are complementary: Pi explores and plans, Aider executes and commits. See [PI.md](PI.md) and [AIDER.md](AIDER.md) for usage boundaries. Session ritual: `zmorning`.
+
 ## Claude Context
 - This environment is optimized for `claude-code` via the `cl` alias.
 - Follow the **RTK** guidance in [AGENTS.md](AGENTS.md#rtk-rust-token-killer---history-aware-optimizations) for all high-output commands.

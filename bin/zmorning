@@ -1,0 +1,94 @@
+#!/usr/bin/env zsh
+# bin/zmorning — session-open ritual: orient, prioritize, begin.
+#
+# Prints a structured context brief for the current machine and day,
+# then optionally opens Pi for an AI-assisted orientation session.
+#
+# Usage:
+#   zmorning          # brief + Pi session (if AI available)
+#   zmorning --brief  # brief only, no Pi
+#   zmorning --pi     # skip brief, open Pi directly
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+[[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
+
+_brief_only=0
+_pi_only=0
+for arg in "$@"; do
+  case "$arg" in
+    --brief) _brief_only=1 ;;
+    --pi)    _pi_only=1    ;;
+  esac
+done
+
+# ── Brief ─────────────────────────────────────────────────────────────────────
+
+if (( ! _pi_only )); then
+  print ""
+  print "━━━  zmorning  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  print "  date     : $(date '+%A, %Y-%m-%d %H:%M')"
+  print "  machine  : $(hostname -s) [${ZDOTS_CONTEXT:-unset}]"
+  print "  ai mode  : ${ZDOTS_AI_MODE:-local}"
+
+  # AI server status
+  local _endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  if curl -sf -m 2 "$_endpoint/health" >/dev/null 2>&1; then
+    print "  llama    : up at $_endpoint"
+  else
+    print "  llama    : DOWN — run: llama-ctl start"
+  fi
+
+  # Database status
+  if command -v zdots-ctx >/dev/null 2>&1; then
+    local _db_status
+    _db_status=$(zdots-ctx status 2>&1 | head -1)
+    print "  db       : $_db_status"
+  fi
+
+  # Git status for CWD (if in a repo)
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    local _branch _ahead _dirty
+    _branch=$(git branch --show-current 2>/dev/null || echo "detached")
+    _ahead=$(git rev-list --count HEAD@{upstream}..HEAD 2>/dev/null || echo "?")
+    _dirty=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    print "  git      : ${_branch} (${_ahead} ahead, ${_dirty} dirty)"
+  fi
+
+  # Active backlog tasks (if backlog available)
+  if command -v backlog >/dev/null 2>&1; then
+    local _tasks_raw _tasks
+    _tasks_raw=$(backlog task list --status "In Progress" 2>/dev/null) || true
+    _tasks=$(printf '%s\n' "$_tasks_raw" | grep '^\[' 2>/dev/null | wc -l | tr -d ' ') || _tasks=0
+    print "  in-flight: ${_tasks} active"
+  fi
+
+  print "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  print ""
+fi
+
+(( _brief_only )) && exit 0
+
+# ── Pi orientation session ────────────────────────────────────────────────────
+
+# Gate: skip Pi if AI unavailable
+if [[ "${ZDOTS_AI_MODE:-local}" == "none" ]]; then
+  print "AI unavailable (ZDOTS_AI_MODE=none) — brief only"
+  exit 0
+fi
+
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+  print "llama.cpp not responding — run: llama-ctl start"
+  exit 1
+fi
+
+# Source Pi provider so zpi() is available
+[[ -r "${ZDOTDIR}/providers/ai/pi.zsh" ]] && source "${ZDOTDIR}/providers/ai/pi.zsh"
+
+# Launch Pi with a morning orientation system prompt
+PI_SYSTEM_PROMPT="You are a focused engineering assistant helping the developer orient for their work session.
+When asked, help them: review what's in progress, identify the highest-leverage next action,
+surface blockers, and keep scope tight. Be concise — bullet points preferred.
+Do NOT add tasks or make git commits unless explicitly asked." \
+  zpi "$@"
