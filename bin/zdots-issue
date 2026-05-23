@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# bin/zdots-issue — Agent help desk: report a zdots issue or ask a capability question.
+#
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  AGENTS: zdots is not yours to fix. File an issue and stop.             │
+# │  Unauthorized modifications break the environment for everyone.         │
+# │  The operator maintains zdots. Your job is to use it.                   │
+# └─────────────────────────────────────────────────────────────────────────┘
+#
+# Usage:
+#   zdots-issue "Short description of the problem or question"
+#   zdots-issue --type bug       "Tool X does not behave as documented"
+#   zdots-issue --type question  "Does zdots support capability Y?"
+#   zdots-issue --type request   "I need zdots to do Z to complete my task"
+#   zdots-issue --high           "Critical blocker"
+#
+# What to include in the description:
+#   - What you were trying to do
+#   - What you expected to happen
+#   - What actually happened (error message, exit code)
+#   - The command you ran
+#
+# The operator will review and resolve. Do NOT attempt to fix zdots yourself.
+
+set -uo pipefail
+
+ISSUE_TYPE="bug"
+PRIORITY="medium"
+DESCRIPTION=""
+
+_usage() {
+  cat >&2 <<'EOF'
+zdots-issue — Agent help desk
+
+RULE: When zdots behaves unexpectedly, file an issue here. Do not modify
+      zdots scripts, libraries, or config to work around the problem.
+      The operator maintains zdots. Your job is to use it.
+
+Usage:
+  zdots-issue [--type bug|question|request] [--high|--low] "description"
+
+Types:
+  bug       Tool or service does not behave as documented (default)
+  question  You are unsure whether zdots supports something
+  request   You need a new zdots capability to complete your task
+
+Options:
+  --high    Blocking your current task
+  --low     Not urgent, noting for later
+
+What to put in the description:
+  - What you were trying to do
+  - What command you ran
+  - What happened vs. what you expected
+  - Your trace ID if available: $ZDOTS_TRACE_ID
+
+Examples:
+  zdots-issue "zdots-ask exits 1 even with llama.cpp healthy"
+  zdots-issue --type question "Does zdots-ctx support batch hydration?"
+  zdots-issue --type request --high "Need zdots-ask --domain sql for context-engine work"
+EOF
+  exit 2
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --type)    ISSUE_TYPE="${2:?--type requires a value}"; shift 2 ;;
+    --bug)     ISSUE_TYPE="bug"; shift ;;
+    --question) ISSUE_TYPE="question"; shift ;;
+    --request) ISSUE_TYPE="request"; shift ;;
+    --high)    PRIORITY="high"; shift ;;
+    --low)     PRIORITY="low"; shift ;;
+    --help|-h) _usage ;;
+    --)        shift; DESCRIPTION="$*"; break ;;
+    -*)        printf 'zdots-issue: unknown option: %s\n' "$1" >&2; exit 2 ;;
+    *)         DESCRIPTION="$1"; shift ;;
+  esac
+done
+
+[[ -z "$DESCRIPTION" ]] && _usage
+
+TRACE_ID="${ZDOTS_TRACE_ID:-}"
+TRACE_LINE=""
+[[ -n "$TRACE_ID" ]] && TRACE_LINE="**Trace ID:** \`${TRACE_ID}\`"
+
+TASK_TITLE="[agent-issue] ${DESCRIPTION}"
+
+BODY="**Type:** ${ISSUE_TYPE}
+**Priority:** ${PRIORITY}
+${TRACE_LINE}
+
+${DESCRIPTION}
+
+---
+*Filed via \`zdots-issue\`. Operator review required before any changes are made.*
+*Do not modify zdots to work around this issue — wait for operator resolution.*"
+
+if ! command -v backlog >/dev/null 2>&1; then
+  printf 'zdots-issue: backlog CLI not found — writing to var/agent-issues.jsonl\n' >&2
+  ISSUES_DIR="${ZDOTDIR:-$HOME/.config/zsh}/var"
+  mkdir -p "$ISSUES_DIR"
+  printf '{"ts":"%s","type":"%s","priority":"%s","trace":"%s","description":"%s"}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "$ISSUE_TYPE" "$PRIORITY" "${TRACE_ID:-}" \
+    "$DESCRIPTION" >> "${ISSUES_DIR}/agent-issues.jsonl"
+  printf 'zdots-issue: logged to %s/agent-issues.jsonl\n' "$ISSUES_DIR"
+  exit 0
+fi
+
+backlog task create \
+  --priority "$PRIORITY" \
+  --labels "agent-reported,${ISSUE_TYPE}" \
+  --description "$BODY" \
+  --no-dod-defaults \
+  --plain \
+  "$TASK_TITLE"
+
+printf '\nzdots-issue: filed. The operator will review and resolve.\n'
+printf 'Your job is done here. Do not attempt to fix zdots yourself.\n'
