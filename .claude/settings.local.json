@@ -277,7 +277,10 @@
       "Bash(bash -n /Users/mike/.config/zsh/bin/zdots-ctx)",
       "Bash(bash -n /Users/mike/.config/zsh/bin/zdots-ctl)",
       "Bash(bash -n /Users/mike/.config/zsh/bin/secret-scan)",
-      "Bash(bash -n /Users/mike/.config/zsh/env.sh)"
+      "Bash(bash -n /Users/mike/.config/zsh/env.sh)",
+      "Bash(log help *)",
+      "Bash(/usr/bin/log help *)",
+      "Bash(/usr/bin/log emit *)"
     ]
   }
 }
