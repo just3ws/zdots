@@ -98,7 +98,7 @@ fzf-powered task picker. Keybindings:
 | `Alt-f` | Suggest fix for last failed command |
 | `Alt-z` | Open zdash task launcher in-place |
 
-## 4. Hardware Overrides
+## 5. Hardware Overrides
 
 If running on hardware with limited RAM (e.g., 8GB), override the AI profile in `.zdots.env`:
 ```sh

@@ -75,6 +75,8 @@ All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are co
 | Tool | Purpose | Invocation |
 |---|---|---|
 | `ai-query` | Scripted / piped inference | `ai-query "prompt"` or `cmd \| ai-query "task"` |
+| `zdots-ask` | Domain-aware prompt router (local LLM) | `zdots-ask "prompt"` or `zdots-ask --domain ruby "..."` |
+| `zdots-quiz` | 14-case capability probe for local model | `zdots-quiz --quick` (3 cases) or `zdots-quiz` (full) |
 | `zaider` | Aider wired to local llama.cpp | `zaider` (from any repo directory) |
 | `laid` | Low-priority Aider | `laid` (nice +19, reduced threads) |
 | `zdots-ctx query` | Search local knowledge base | `zdots-ctx query <term>` |

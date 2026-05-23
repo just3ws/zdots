@@ -2,7 +2,7 @@
 
 Claude-specific instructions for Zdots.
 
-**CRITICAL:** Read [AGENTS.md](AGENTS.md) first for the core architectural guidelines, performance standards, and **RTK token-optimization rules**.
+**CRITICAL:** Read [AGENTS.md](AGENTS.md) first for the core architectural guidelines, performance standards, **RTK token-optimization rules**, and **PHI Operating Mode** (Section 8 — non-negotiable on work machines).
 
 ## Platform Control
 
@@ -51,5 +51,5 @@ Pi and Aider are complementary: Pi explores and plans, Aider executes and commit
 
 ## Claude Context
 - This environment is optimized for `claude-code` via the `cl` alias.
-- Follow the **RTK** guidance in [AGENTS.md](AGENTS.md#rtk-rust-token-killer---history-aware-optimizations) for all high-output commands.
+- Follow the **RTK** guidance in [AGENTS.md](AGENTS.md#2-token-optimization-rtk) for all high-output commands.
 - Use `repomix` to ingest the entire project structure if high-density context is required.
