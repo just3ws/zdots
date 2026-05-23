@@ -87,3 +87,22 @@ All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are co
 - `/drop file.rb` — free context when done
 - `/clear` — wipe history between tasks
 - `/tokens` — check budget before adding large files
+
+## 8. PHI Operating Mode
+
+This codebase operates near protected health information. The following rules are **non-negotiable** and enforced at the kernel/OS boundary — not just by convention.
+
+**Hard rules:**
+- `ZDOTS_AI_MODE=local` is the default. Never change it to `cloud` without an explicit security review for that machine.
+- `ZDOTS_CAPTURE_ENABLED=0` until `ZDOTS_DB_ENCRYPTION_KEY` is provisioned in Keychain and DB encryption is verified.
+- All AI calls pass through `lib/phi_scrubber.bash` before sending. The scrubber is the **first** gate, not the last — do not send raw patient records.
+- `lib/ai_boundary.bash` enforces locality: exits 2 if `ZDOTS_AI_MODE=none`, exits 1 if endpoint is not loopback/RFC-1918 in local mode.
+
+**Audit trail:**
+- Every PHI-adjacent operation emits to macOS Unified Logging: `subsystem=com.zdots category=phi-boundary`
+- Query: `log show --predicate 'subsystem == "com.zdots"' --last 1h`
+- This survives OTel being down and cannot be cleared without root.
+
+**Verify posture:** `zdots-ctl check` (hard-fails on FileVault/SIP; checks AI mode, capture, history-redact, llama-server bind, model provenance).
+
+Full policy: `backlog/docs/doc-002 - PHI-Safety-Policy.md`
