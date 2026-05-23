@@ -46,9 +46,25 @@ _fix()  { printf '         fix: %s\n' "$*"; }
 # Live probes — Enforce opaque service control seam
 # ---------------------------------------------------------------------------
 
-_ai_up()      { "$BIN/llama-ctl" health >/dev/null 2>&1; }
-_otel_up()    { "$BIN/otel-collector" health >/dev/null 2>&1; }
-_grafana_up() { "$BIN/local-ci" health >/dev/null 2>&1; }
+_loopback_listening() {
+  local url="$1"
+  local host_port="${url#*://}"
+  host_port="${host_port%%/*}"
+  local host="${host_port%%:*}"
+  local port="${host_port##*:}"
+
+  [[ "$host" == "127.0.0.1" || "$host" == "localhost" || "$host" == "::1" ]] || return 1
+  [[ "$port" =~ ^[0-9]+$ ]] || return 1
+
+  lsof -nP -i "TCP:${port}" -sTCP:LISTEN 2>/dev/null \
+    | awk 'NR>1 {print $9}' \
+    | grep -Eq '^(127\.0\.0\.1|\[::1\]|localhost):'
+}
+
+_ai_http_up() { curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; }
+_ai_up()      { _ai_http_up || _loopback_listening "$AI_ENDPOINT"; }
+_otel_up()    { "$BIN/otel-collector" health >/dev/null 2>&1 || _loopback_listening "$OTLP_ENDPOINT"; }
+_grafana_up() { "$BIN/local-ci" health >/dev/null 2>&1 || _loopback_listening "$GRAFANA_URL"; }
 _colima_up()  { colima status >/dev/null 2>&1; }
 _ctx_up()     { "$BIN/zdots-ctx" status >/dev/null 2>&1; }
 
@@ -318,6 +334,46 @@ cmd_check() {
     _fix "zdots-ctl up"
   fi
 
+  # ── AI server network sandbox (darwin) ────────────────────────────────────
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    local _llama_plist="$HOME/Library/LaunchAgents/com.zdots.llama-server.plist"
+    if [[ -f "$_llama_plist" ]]; then
+      if grep -q '<string>127.0.0.1</string>' "$_llama_plist" \
+        && ! grep -qE '<string>(0\.0\.0\.0|\*)</string>' "$_llama_plist"; then
+        _chk_pass "llama-server plist  bound to 127.0.0.1"
+      else
+        _chk_fail "llama-server plist  may bind to all interfaces — run: llama-ctl install"
+        errors=$((errors + 1))
+      fi
+    fi
+
+    # Runtime socket check — only if server is up
+    if _ai_up; then
+      local _ai_port; _ai_port=$(printf '%s' "${AI_ENDPOINT:-http://127.0.0.1:8080}" | grep -oE '[0-9]+$')
+      local _non_lo
+      _non_lo=$(lsof -nP -i "TCP:${_ai_port}" -sTCP:LISTEN 2>/dev/null \
+        | awk '$1 ~ /^llama-ser/ {print $9}' | grep -v '^127\.' || true)
+      if [[ -n "$_non_lo" ]]; then
+        _chk_fail "llama-server  socket exposed on non-loopback: $_non_lo"
+        errors=$((errors + 1))
+      else
+        _chk_pass "llama-server  socket bound to loopback only"
+      fi
+    fi
+
+    # Models directory permissions
+    local _models_dir="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
+    if [[ -d "$_models_dir" ]]; then
+      local _mperm; _mperm=$(stat -f '%OLp' "$_models_dir" 2>/dev/null || echo "???")
+      if [[ "$_mperm" == "700" ]]; then
+        _chk_pass "llama models dir  700 ($_models_dir)"
+      else
+        _chk_warn "llama models dir  permissions $_mperm (expected 700)"
+        _fix "chmod 700 $_models_dir"
+      fi
+    fi
+  fi
+
   if _ctx_up; then
     _chk_pass "intelligence  connected (postgres)"
   else
@@ -337,7 +393,7 @@ cmd_check() {
   elif ! "$_ruby_bin" -e 'require "ruby_llm"' >/dev/null 2>&1; then
     _chk_warn "ruby_llm gem not available — AI integration test skipped"
     _fix "gem install ruby_llm"
-  elif ! _ai_up; then
+  elif ! _ai_http_up; then
     _chk_warn "AI integration test skipped (server not running)"
     _fix "zdots-ctl up"
   else
@@ -361,6 +417,8 @@ cmd_check() {
       -d '{"resourceSpans":[]}' 2>/dev/null || echo "000")
     if [[ "$otlp_code" == "200" ]]; then
       _chk_pass "OTLP endpoint  accepting spans ($OTLP_ENDPOINT/v1/traces)"
+    elif _loopback_listening "$OTLP_ENDPOINT"; then
+      _chk_pass "OTLP endpoint  listening on loopback ($OTLP_ENDPOINT)"
     else
       _chk_warn "OTLP endpoint  responded $otlp_code (expected 200)"
       _fix "otel-collector logs  — check for pipeline errors"

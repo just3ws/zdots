@@ -79,7 +79,15 @@ PLIST
 zdots_svc_launchd_start() {
   local label="$1" plist="$2"
   if launchctl print "gui/$(id -u)/${label}" >/dev/null 2>&1; then
-    _svc_ok "${label} is already running"
+    local state
+    state=$(launchctl print "gui/$(id -u)/${label}" 2>/dev/null || true)
+    if printf '%s\n' "$state" | grep -q 'state = running' &&
+      printf '%s\n' "$state" | grep -q 'pid = [0-9]'; then
+      _svc_ok "${label} is already running"
+    else
+      _svc_log "kickstarting ${label}..."
+      launchctl kickstart -k "gui/$(id -u)/${label}"
+    fi
     return 0
   fi
   _svc_log "starting ${label}..."
@@ -95,9 +103,12 @@ zdots_svc_launchd_stop() {
 zdots_svc_launchd_status() {
   local label="$1"
   local running=false pid=""
-  if launchctl list "$label" >/dev/null 2>&1; then
-    pid=$(launchctl list "$label" 2>/dev/null | grep '"PID"' | awk '{print $3}' | tr -d ';' || true)
-    [[ -n "$pid" ]] && running=true
+  local state
+  if state=$(launchctl print "gui/$(id -u)/${label}" 2>/dev/null); then
+    if printf '%s\n' "$state" | grep -q 'state = running'; then
+      running=true
+      pid=$(printf '%s\n' "$state" | awk -F'= ' '/pid = / {print $2; exit}')
+    fi
   fi
   echo "$running $pid"
 }
@@ -183,10 +194,22 @@ zdots_svc_health_check_url() {
   local method="${2:-GET}"
   local payload="${3:-}"
   if [[ "$method" == "POST" ]]; then
-    curl -sf -m 2 -X POST "$url" -H "Content-Type: application/json" -d "$payload" >/dev/null 2>&1
+    curl -sf -m 2 -X POST "$url" -H "Content-Type: application/json" -d "$payload" >/dev/null 2>&1 && return 0
   else
-    curl -sf -m 2 "$url" >/dev/null 2>&1
+    curl -sf -m 2 "$url" >/dev/null 2>&1 && return 0
   fi
+
+  local host_port="${url#*://}"
+  host_port="${host_port%%/*}"
+  local host="${host_port%%:*}"
+  local port="${host_port##*:}"
+
+  [[ "$host" == "127.0.0.1" || "$host" == "localhost" || "$host" == "::1" ]] || return 1
+  [[ "$port" =~ ^[0-9]+$ ]] || return 1
+
+  lsof -nP -i "TCP:${port}" -sTCP:LISTEN 2>/dev/null \
+    | awk 'NR>1 {print $9}' \
+    | grep -Eq '^(127\.0\.0\.1|\[::1\]|localhost):'
 }
 
 # ---------------------------------------------------------------------------
