@@ -563,6 +563,22 @@ cmd_check() {
     else
       _chk_warn "History redaction  DISABLED on work machine (ZDOTS_HISTORY_REDACT=0)"
     fi
+
+    # Secrets file should be absent — Keychain is the source of truth on macOS
+    if [[ -f "${ZDOTDIR}/.zdots.secrets" ]]; then
+      _chk_warn "Secrets file  .zdots.secrets still present — run: zdots-keychain migrate && zdots-keychain verify, then delete the file"
+      warnings=$((warnings + 1))
+    else
+      _chk_pass "Secrets file  absent (Keychain-only mode)"
+    fi
+
+    # Encryption key reachable
+    if [[ -n "${ZDOTS_DB_ENCRYPTION_KEY:-}" ]]; then
+      _chk_pass "DB encryption key  present (${#ZDOTS_DB_ENCRYPTION_KEY} chars)"
+    else
+      _chk_fail "DB encryption key  ZDOTS_DB_ENCRYPTION_KEY not set — run: zdots-keychain add ZDOTS_DB_ENCRYPTION_KEY <value>"
+      errors=$((errors + 1))
+    fi
   fi
 
   # ── Summary ───────────────────────────────────────────────────────────────

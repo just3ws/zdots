@@ -69,35 +69,48 @@ case "$_cmd" in
     ;;
 
   verify)
-    # Source .zdots.secrets and confirm each exported var has a non-empty value.
-    secrets_file="${ZDOTDIR}/.zdots.secrets"
-    [[ -f "$secrets_file" ]] || { echo "verify: .zdots.secrets not found" >&2; exit 1; }
+    # Verify all known zdots secrets are reachable — from Keychain on darwin,
+    # or from .zdots.secrets on non-darwin. Does not require the file to exist.
+    known_vars=(
+      ZDOTS_DB_ENCRYPTION_KEY
+      MAXMIND_ACCOUNT_ID MAXMIND_LICENSE_KEY MAXMIND_EDITION_IDS
+      HUGGINGFACE_TOKEN
+      HOMEBREW_GITHUB_API_TOKEN GITHUB_TOKEN MISE_GITHUB_TOKEN
+      ANTHROPIC_API_KEY OPENAI_API_KEY
+    )
 
-    # Collect variable names declared in secrets file
-    vars=()
-    while IFS= read -r line; do
-      if [[ "$line" =~ ^export[[:space:]]+([A-Z_][A-Z0-9_]*) ]]; then
-        vars+=("${BASH_REMATCH[1]}")
-      fi
-    done < "$secrets_file"
-
-    # Source the file and check each var
-    set +u
-    # shellcheck source=/dev/null
-    source "$secrets_file"
     ok=0 missing=0
-    for v in "${vars[@]}"; do
-      if [[ -n "${!v:-}" ]]; then
-        printf "  %-35s OK\n" "$v"
-        (( ok++ )) || true
-      else
-        printf "  %-35s MISSING\n" "$v"
-        (( missing++ )) || true
-      fi
-    done
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      echo "Verifying via Keychain (service: zdots)..."
+      for v in "${known_vars[@]}"; do
+        if val=$(zdots_keychain_get "$v" 2>/dev/null) && [[ -n "$val" ]]; then
+          printf "  %-35s OK\n" "$v"
+          (( ok++ )) || true
+        else
+          printf "  %-35s missing\n" "$v"
+          (( missing++ )) || true
+        fi
+      done
+    else
+      secrets_file="${ZDOTDIR}/.zdots.secrets"
+      [[ -f "$secrets_file" ]] || { echo "verify: .zdots.secrets not found (non-darwin fallback)" >&2; exit 1; }
+      echo "Verifying via .zdots.secrets (non-darwin)..."
+      set +u
+      # shellcheck source=/dev/null
+      source "$secrets_file"
+      for v in "${known_vars[@]}"; do
+        if [[ -n "${!v:-}" ]]; then
+          printf "  %-35s OK\n" "$v"
+          (( ok++ )) || true
+        else
+          printf "  %-35s missing\n" "$v"
+          (( missing++ )) || true
+        fi
+      done
+    fi
 
     echo ""
-    echo "result: $ok OK, $missing missing"
+    echo "result: $ok present, $missing missing"
     [[ $missing -eq 0 ]]
     ;;
 
