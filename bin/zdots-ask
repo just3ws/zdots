@@ -9,6 +9,8 @@
 #
 # Usage:
 #   zdots-ask "explain how ZLE widgets work"
+#   zdots-ask --context "what should I work on next?"
+#   zdots-ask --context doctrine "how do I handle a zdots failure?"
 #   zdots-ask --domain ruby "write a Sequel migration to add a column"
 #   echo "snippet" | zdots-ask --domain shell "review this for zdots conventions"
 #   zdots-ask --dry-run "what psql command for read-only exploration?"
@@ -40,6 +42,8 @@ Usage: zdots-ask [OPTIONS] PROMPT
 
 Options:
   --domain DOMAIN    Force a specific domain (default: auto-detect)
+  --context [TAG]    Prepend zdots-ctx hydrate output to prompt; TAG defaults
+                     to the detected domain. Fails open if DB unavailable.
   --dry-run          Print detected domain and system prompt; no inference
   --list-domains     List available domains and exit
   --help, -h         Show this help
@@ -85,11 +89,22 @@ _detect_domain() {
 # ---------------------------------------------------------------------------
 DOMAIN=""
 DRY_RUN=0
+CONTEXT_ENABLED=0
+CONTEXT_TAG=""
 PROMPT_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --domain|-d)    DOMAIN="$2"; shift 2 ;;
+    --context|-c)
+      CONTEXT_ENABLED=1
+      # Consume optional TAG (next arg that doesn't start with '-')
+      if [[ -n "${2:-}" && "${2:0:1}" != "-" ]]; then
+        CONTEXT_TAG="$2"; shift 2
+      else
+        shift
+      fi
+      ;;
     --dry-run)      DRY_RUN=1;   shift   ;;
     --list-domains) _list_domains; exit 0 ;;
     --help|-h)      _usage ;;
@@ -126,6 +141,9 @@ SYS_CONTENT=$(cat "$SYS_FILE")
 # ---------------------------------------------------------------------------
 if (( DRY_RUN )); then
   printf '[zdots-ask] domain=%s  system_prompt=%s\n\n' "$DOMAIN" "$SYS_FILE"
+  if (( CONTEXT_ENABLED )); then
+    printf '[zdots-ask] context=enabled  tag=%s\n\n' "${CONTEXT_TAG:-$DOMAIN}"
+  fi
   printf '=== system prompt ===\n%s\n\n' "$SYS_CONTENT"
   printf '=== prompt ===\n%s\n' "$PROMPT"
   exit 0
@@ -137,13 +155,33 @@ fi
 zdots_ai_gate "zdots-ask"
 
 # ---------------------------------------------------------------------------
+# Context hydration (--context only)
+# Context blob prepended to user prompt — not system prompt — so the static
+# system prompt remains cacheable across calls (KV cache prefix reuse).
+# Limit: ~4096 tokens (16384 chars). Fails open: warn and continue if DB down.
+# ---------------------------------------------------------------------------
+if (( CONTEXT_ENABLED )); then
+  _hydrate_tag="${CONTEXT_TAG:-$DOMAIN}"
+  _hydrate_max=16384  # 4096 tokens × ~4 chars/token
+  if _ctx_raw=$("${_ZDOTDIR}/bin/zdots-ctx" hydrate "$_hydrate_tag" 2>/dev/null); then
+    if (( ${#_ctx_raw} > _hydrate_max )); then
+      printf 'zdots-ask: context truncated at ~4096 tokens (%d → %d chars)\n' \
+        "${#_ctx_raw}" "$_hydrate_max" >&2
+      _ctx_raw="${_ctx_raw:0:$_hydrate_max}"
+    fi
+    PROMPT="${_ctx_raw}
+
+---
+
+${PROMPT}"
+  else
+    printf 'zdots-ask: zdots-ctx hydrate unavailable, proceeding without context\n' >&2
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Route to local model
 # Suppress raw-mode warning: zdots-ask constructs prompts internally (trusted).
 # ---------------------------------------------------------------------------
-if [[ -t 0 ]]; then
-  AIQ_SUPPRESS_RAW_WARN=1 \
-    "${_SCRIPT_DIR}/ai-query" --mode raw --system "$SYS_CONTENT" "$PROMPT"
-else
-  AIQ_SUPPRESS_RAW_WARN=1 \
-    "${_SCRIPT_DIR}/ai-query" --mode raw --system "$SYS_CONTENT" "$PROMPT"
-fi
+AIQ_SUPPRESS_RAW_WARN=1 \
+  "${_SCRIPT_DIR}/ai-query" --mode raw --system "$SYS_CONTENT" "$PROMPT"
