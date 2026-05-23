@@ -73,7 +73,8 @@ llama-ctl logs
 
 | Command | What it does |
 |---|---|
-| `llama-ctl model-download` | Download active profile's GGUF from HuggingFace. Supports `HUGGINGFACE_TOKEN`. |
+| `llama-ctl model-download` | Download active profile's GGUF from HuggingFace. Verifies SHA256 against `lib/llama-models.sha256` after download. |
+| `llama-ctl model-verify` | Verify active model file's SHA256 against the tracked manifest. Hard-fails on mismatch. |
 | `llama-ctl hydrate` | Alias for `model-download` |
 | `llama-ctl model-list` | List downloaded GGUFs with sizes; marks active model |
 | `llama-ctl model-switch <p>` | Print step-by-step instructions to switch to profile `<p>` |
