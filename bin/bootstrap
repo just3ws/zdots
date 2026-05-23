@@ -210,4 +210,54 @@ else
   echo "           Install PostgreSQL then run: zdots-ctx init-db"
 fi
 
+# 10. Pi coding agent configuration
+# Creates ~/.pi/agent/settings.json and models.json if absent.
+# These wire Pi to the local llamacpp endpoint and disable cloud providers.
+_PI_AGENT_DIR="$HOME/.pi/agent"
+if command -v pi >/dev/null 2>&1 || [ -f "$HOME/.local/share/mise/installs/node/24/bin/pi" ]; then
+  echo "bootstrap: configuring Pi coding agent..."
+  mkdir -p "$_PI_AGENT_DIR"
+  if [ ! -f "$_PI_AGENT_DIR/settings.json" ]; then
+    cat > "$_PI_AGENT_DIR/settings.json" <<'PISETTINGS'
+{
+  "defaultModel": "local",
+  "defaultProvider": "llamacpp",
+  "defaultThinkingLevel": "off"
+}
+PISETTINGS
+    echo "bootstrap: created ~/.pi/agent/settings.json (llamacpp default)"
+  fi
+  if [ ! -f "$_PI_AGENT_DIR/models.json" ]; then
+    _AI_BASE="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/v1"
+    cat > "$_PI_AGENT_DIR/models.json" <<PIMODELS
+{
+  "providers": {
+    "llamacpp": {
+      "api": "openai-completions",
+      "apiKey": "local",
+      "baseUrl": "${_AI_BASE}",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsUsageInStreaming": false,
+        "maxTokensField": "max_tokens"
+      },
+      "models": [
+        {
+          "id": "local",
+          "name": "Qwen2.5-Coder 7B (llama.cpp)",
+          "contextWindow": 32768,
+          "maxTokens": 2048,
+          "input": ["text"],
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    }
+  }
+}
+PIMODELS
+    echo "bootstrap: created ~/.pi/agent/models.json (endpoint: ${_AI_BASE})"
+  fi
+fi
+
 echo "bootstrap: complete. Restart your shell or run 'exec zsh'."

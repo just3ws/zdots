@@ -203,6 +203,22 @@ zdots-ctx hydrate [tag]              # context blob for AI tasks
 zdots-brain                          # background job worker (embed, distill)
 ```
 
+### Pi coding agent
+
+`bootstrap` creates `~/.pi/agent/settings.json` and `~/.pi/agent/models.json` automatically.
+These wire Pi to the local llamacpp endpoint. No further config is needed.
+
+To verify Pi is working after bootstrap:
+
+```bash
+PI_TELEMETRY=0 pi -p --no-session "hello"   # should return a response
+zpi "what services are running?"             # interactive sanity check
+```
+
+Project-level skills (`.pi/skills/`) travel with the repo via git clone.
+Global skills (`~/.pi/agent/skills/`) are machine-local — only the 14 project skills
+are available on a fresh machine. That is expected and sufficient for zdots work.
+
 ### Using a more powerful machine on your LAN
 
 If you have a workstation running llama.cpp, point everything at it in `.zdots.local`:
