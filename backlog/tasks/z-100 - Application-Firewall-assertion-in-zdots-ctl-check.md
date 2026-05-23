@@ -1,9 +1,10 @@
 ---
 id: Z-100
 title: Application Firewall assertion in zdots-ctl check
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-23 21:40'
+updated_date: '2026-05-23 21:49'
 labels:
   - phi-safe
   - security
@@ -27,11 +28,17 @@ Check state via `defaults read /Library/Preferences/com.apple.alf globalstate` (
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `zdots-ctl check` reports Application Firewall state under PHI section
-- [ ] #2 WARN (not FAIL) if firewall is off — does not block `zdots-ctl up`
-- [ ] #3 macOS-only; skipped on non-darwin
-- [ ] #4 Output follows PASS/WARN/FAIL structured format established in Z-091
+- [x] #1 `zdots-ctl check` reports Application Firewall state under PHI section
+- [x] #2 WARN (not FAIL) if firewall is off — does not block `zdots-ctl up`
+- [x] #3 macOS-only; skipped on non-darwin
+- [x] #4 Output follows PASS/WARN/FAIL structured format established in Z-091
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Already fully implemented in bin/zdots-ctl cmd_check (lines 539-548). Uses socketfilterfw --getglobalstate, _chk_warn (not _chk_fail) when off, ZDOTS_SKIP_FIREWALL_CHECK=1 escape hatch. macOS-only via ZDOTS_CONTEXT=work guard. No code changes needed.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
