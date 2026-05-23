@@ -1,9 +1,10 @@
 ---
 id: Z-090
 title: Assert macOS Application Firewall is enabled in zdots-ctl check
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-23 01:21'
+updated_date: '2026-05-23 05:59'
 labels:
   - phi
   - security
@@ -29,6 +30,12 @@ The macOS Application Firewall (socketfilterfw) provides OS-level network filter
 - [ ] #4 SETUP.md 'Regulated / PHI work' section documents enabling the firewall and optionally adding block rules for known cloud AI hostnames
 - [ ] #5 Assertion failure is non-fatal by default (warning, not error) — operator may have network-level controls instead; ZDOTS_SKIP_FIREWALL_CHECK=1 suppresses it
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Application Firewall assertion added to zdots-ctl check (macOS security posture section, ZDOTS_CONTEXT=work). Checks /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate; warns if not enabled with ZDOTS_SKIP_FIREWALL_CHECK=1 escape hatch. Fix hint: sudo socketfilterfw --setglobalstate on.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
