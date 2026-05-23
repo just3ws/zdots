@@ -36,6 +36,8 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 source "${ZDOTDIR}/lib/lifecycle.bash"
 # shellcheck source=lib/ai_boundary.bash
 source "${ZDOTDIR}/lib/ai_boundary.bash"
+# shellcheck source=lib/phi_scrubber.bash
+source "${ZDOTDIR}/lib/phi_scrubber.bash"
 
 # 1. Ensure basics (handle unbound variables for complex environment files)
 [[ -z "${ZDOTS_DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
@@ -212,6 +214,12 @@ cmd_query() {
 }
 
 cmd_capture() {
+  # PHI safety gate — capture is opt-in
+  if [[ "${ZDOTS_CAPTURE_ENABLED:-0}" != "1" ]]; then
+    printf 'zdots-ctx: capture disabled (set ZDOTS_CAPTURE_ENABLED=1 in .zdots.local to enable)\n' >&2
+    exit 0
+  fi
+
   local sid="${ZDOTS_SESSION_ID:-}"
   if [[ -z "$sid" ]]; then
     _svc_die "ZDOTS_SESSION_ID not set. Session capture requires an active observable shell."
@@ -219,15 +227,18 @@ cmd_capture() {
 
   _svc_log "capturing residue for session: ${sid}..."
 
-  # 1. Extract recent history (last 50 commands)
+  # 1. Extract and scrub recent history (last 50 commands)
   local history_snippet
-  history_snippet=$(tail -n 50 "${HISTFILE:-$HOME/.zsh_history}" 2>/dev/null | sed 's/^: [0-9]*:[0-9];//' || echo "history not available")
+  history_snippet=$(tail -n 50 "${HISTFILE:-$HOME/.zsh_history}" 2>/dev/null \
+    | sed 's/^: [0-9]*:[0-9];//' \
+    | phi_scrub \
+    || echo "history not available")
 
-  # 2. Extract traces for this session
+  # 2. Extract and scrub traces for this session
   local trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
   local trace_snippet="no traces found"
   if [[ -f "$trace_file" ]]; then
-    trace_snippet=$(grep "\"sid\":\"${sid}\"" "$trace_file" | tail -n 100 || echo "no traces found")
+    trace_snippet=$(grep "\"sid\":\"${sid}\"" "$trace_file" | tail -n 100 | phi_scrub || echo "no traces found")
   fi
 
   # 3. Construct the distillation prompt
@@ -281,10 +292,11 @@ EOF
   fi
 
   # Propose the lesson to the user
+  # Scrub PHI from all fields before display or DB write
   local lesson intent result
-  lesson=$(echo "$distillation" | jq -r '.lesson' 2>/dev/null || echo "error parsing lesson")
-  intent=$(echo "$distillation" | jq -r '.intent' 2>/dev/null || echo "error parsing intent")
-  result=$(echo "$distillation" | jq -r '.result' 2>/dev/null || echo "error parsing result")
+  lesson=$(echo "$distillation" | jq -r '.lesson' 2>/dev/null | phi_scrub || echo "error parsing lesson")
+  intent=$(echo "$distillation" | jq -r '.intent' 2>/dev/null | phi_scrub || echo "error parsing intent")
+  result=$(echo "$distillation" | jq -r '.result' 2>/dev/null | phi_scrub || echo "error parsing result")
 
   printf -- "\n--- PROPOSED SESSION RESIDUE ---\n"
   printf "INTENT: %s\n" "$intent"
