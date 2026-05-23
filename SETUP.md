@@ -99,16 +99,41 @@ ZDOTS_CAPTURE_ENABLED=0 # capture is opt-in; do NOT enable until DB encryption i
 ZDOTS_HISTORY_REDACT=1  # already the default; confirm it is set
 ```
 
-### 2 — Verify security posture
+### 2 — Provision the database encryption key
 
 ```bash
-zdots-ctl check   # verifies FileVault, SIP, and Application Firewall on darwin
+# Generate
+openssl rand -hex 32
+
+# Store in Keychain
+zdots-keychain add ZDOTS_DB_ENCRYPTION_KEY <value>
+
+# Wire into .zdots.secrets (add this line)
+export ZDOTS_DB_ENCRYPTION_KEY="$(_zdots_kc ZDOTS_DB_ENCRYPTION_KEY)"
+
+# Run the encryption migration
+zdots-ctx migrate
+```
+
+`zdots-ctx migrate` will hard-fail if `ZDOTS_DB_ENCRYPTION_KEY` is unset. After it runs,
+`lessons.content`, `methodologies.content`, and `session_residue.{summary,intent,result}`
+are encrypted at rest with pgcrypto. `zdots_ro` sees ciphertext only.
+
+**Agent sessions:** If another AI agent reports the key is missing, tell it:
+```bash
+export ZDOTS_DB_ENCRYPTION_KEY=$(zdots-keychain get ZDOTS_DB_ENCRYPTION_KEY)
+```
+
+### 3 — Verify security posture
+
+```bash
+zdots-ctl check   # verifies FileVault, SIP, Firewall, llama-server loopback, model provenance
 ```
 
 `zdots-ctl check` will **hard-fail** if FileVault or SIP is disabled on a work machine.
 Fix before proceeding.
 
-### 3 — Zero-AI mode for unknown network environments
+### 4 — Zero-AI mode for unknown network environments
 
 If the corporate proxy situation is unresolved or llama.cpp is not yet running,
 disable AI entirely. The system runs fully without it:
@@ -130,7 +155,7 @@ ZDOTS_AI_MODE=local       # back in .zdots.local
 ai-query "hello"          # smoke test
 ```
 
-### 4 — Understand what the PHI scrubber covers
+### 5 — Understand what the PHI scrubber covers
 
 Every AI call pipes content through `lib/phi_scrubber.bash` before sending or
 storing. Patterns scrubbed automatically:

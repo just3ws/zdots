@@ -306,7 +306,13 @@
       "Bash(ZDOTDIR=/Users/mike/.config/zsh backlog task list)",
       "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdash --list)",
       "Bash(ZDOTDIR=/dev/null zsh *)",
-      "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdash --preview Z-088)"
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdash --preview Z-088)",
+      "Bash(zdots-keychain get *)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/llama-ctl model-verify *)",
+      "Bash(openssl rand *)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdots-keychain add *)",
+      "Bash(ZDOTS_DB_ENCRYPTION_KEY=\"47343e0d92e06a3a72c5baf0dc62decd49461f37b7a3c09019142891046d5374\" ZDOTDIR=/Users/mike/.config/zsh /Users/mike/.config/zsh/bin/zdots-ctx migrate *)",
+      "Bash(ZDOTDIR=/Users/mike/.config/zsh ZDOTS_CONTEXT=work ZDOTS_DB_ENCRYPTION_KEY=\"47343e0d92e06a3a72c5baf0dc62decd49461f37b7a3c09019142891046d5374\" /Users/mike/.config/zsh/bin/zdots-ctl check *)"
     ]
   }
 }
