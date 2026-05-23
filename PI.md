@@ -12,7 +12,7 @@ Pi is `@earendil-works/pi-coding-agent` — a session-aware AI coding agent with
 |---------|---------|
 | `zpi` | Interactive Pi session |
 | `zpi "question"` | One-shot question |
-| `zpi --print -p "prompt"` | Non-interactive, print output only |
+| `zpi -p "prompt"` | Non-interactive, print output only |
 | `zmorning` | Session-open ritual: brief + Pi orientation |
 | `zmorning --brief` | Brief only, no Pi |
 
