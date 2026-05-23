@@ -1,9 +1,10 @@
 ---
 id: Z-091
 title: Assert SIP and FileVault status in zdots-ctl check on darwin work machines
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-23 01:21'
+updated_date: '2026-05-23 05:59'
 labels:
   - phi
   - security
@@ -31,6 +32,12 @@ On a regulated work machine, System Integrity Protection (SIP) and FileVault are
 - [ ] #5 SETUP.md 'Regulated / PHI work' section documents both requirements and how to verify
 - [ ] #6 Assertions use only standard macOS CLI tools (csrutil, fdesetup) — no third-party dependencies
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+FileVault (fdesetup status) and SIP (csrutil status) assertions added to zdots-ctl check as hard failures (errors++). Gated on darwin + ZDOTS_CONTEXT=work. Both required for PHI compliance; fix hints provided inline.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
