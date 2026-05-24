@@ -5,6 +5,8 @@ require_relative "base"
 module Zdots
   module Jobs
     class Embed < Base
+      Jobs.register "embed", self
+
       def run
         table = payload["table"]
         id = payload["id"]

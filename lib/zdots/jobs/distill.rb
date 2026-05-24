@@ -5,6 +5,8 @@ require_relative "base"
 module Zdots
   module Jobs
     class Distill < Base
+      Jobs.register "distill", self
+
       def run
         url = payload["url"]
         raise "Missing URL in payload" if url.nil? || url.empty?
@@ -20,22 +22,7 @@ module Zdots
         puts "  --> Distilling transcript for #{vid} using RubyLLM..."
 
         llm = Zdots::AI.client
-
-        prompt = <<~PROMPT
-          You are the Knowledge Distiller for the Sentient Workbench.
-          The following is a transcript from a YouTube video. 
-          Extract 1-2 core technical lessons or architectural methodologies described in this text.
-
-          VIDEO_URL: #{url}
-
-          TRANSCRIPT:
-          #{content}
-
-          INSTRUCTIONS:
-          1. Be extremely concise.
-          2. Output a single paragraph summarizing the key engineering insight.
-          3. If the video is purely entertainment, output "No technical lessons identified."
-        PROMPT
+        prompt = load_prompt("distill", url: url, content: content)
 
         response = llm.chat(
           model: "local",
