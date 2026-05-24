@@ -138,7 +138,7 @@ cmd_init_db() {
 }
 
 cmd_migrate() {
-  (cd "${ZDOTDIR}" && bundle exec ruby "${ZDOTDIR}/lib/zdots/migrator.rb")
+  zdots-ruby "${ZDOTDIR}/lib/zdots/migrator.rb"
 }
 
 cmd_query() {

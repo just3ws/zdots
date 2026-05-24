@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# bin/zdots-ruby — Version-isolated Ruby launcher for zdots infrastructure.
+#
+# Always runs the zdots-pinned Ruby via mise, bypassing whatever Ruby the
+# project shell has activated. Protects zdots AI/DB scripts from breaking
+# when invoked inside a project with a different .ruby-version or a broken
+# mise install.
+#
+# Resolution order:
+#   1. $ZDOTS_RUBY_VERSION env var (override for CI or one-off pinning)
+#   2. $ZDOTDIR/etc/ruby-version  (the canonical pin — edit this file)
+#   3. `mise current ruby`        (fallback; less reproducible)
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+_zdots_ruby_version() {
+  [[ -n "${ZDOTS_RUBY_VERSION:-}" ]] && { printf '%s' "$ZDOTS_RUBY_VERSION"; return; }
+  local vf="${ZDOTDIR}/etc/ruby-version"
+  [[ -f "$vf" ]] && { tr -d '[:space:]' < "$vf"; return; }
+  if command -v mise >/dev/null 2>&1; then
+    mise current ruby 2>/dev/null | awk '{print $1; exit}' && return
+  fi
+  printf ''
+}
+
+_ver=$(_zdots_ruby_version)
+if [[ -z "$_ver" ]]; then
+  printf 'zdots-ruby: cannot determine Ruby version\n' >&2
+  printf 'zdots-ruby: create %s/etc/ruby-version or set ZDOTS_RUBY_VERSION\n' "$ZDOTDIR" >&2
+  exit 1
+fi
+
+_mise_root="${HOME}/.local/share/mise/installs/ruby/${_ver}"
+_ruby_bin="${_mise_root}/bin/ruby"
+_bundle_bin="${_mise_root}/bin/bundle"
+
+if [[ ! -x "$_ruby_bin" ]]; then
+  printf 'zdots-ruby: Ruby %s not installed via mise\n' "$_ver" >&2
+  printf 'zdots-ruby: expected: %s\n' "$_ruby_bin" >&2
+  printf 'zdots-ruby: run: mise install ruby@%s\n' "$_ver" >&2
+  exit 1
+fi
+
+# Pin bundler to zdots' Gemfile regardless of $PWD or project Gemfile
+export BUNDLE_GEMFILE="${ZDOTDIR}/Gemfile"
+
+exec "$_bundle_bin" exec "$_ruby_bin" "$@"
