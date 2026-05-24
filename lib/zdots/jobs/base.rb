@@ -4,6 +4,20 @@ require "opentelemetry"
 
 module Zdots
   module Jobs
+    @registry = {}
+
+    def self.register(type, klass)
+      @registry[type.to_s] = klass
+    end
+
+    # Returns the job class for a given type string.
+    # Raises ArgumentError if the type is unknown — fail loudly, never silently drop a job.
+    def self.for(type)
+      @registry.fetch(type.to_s) do
+        raise ArgumentError, "unknown job type: #{type.inspect} (registered: #{@registry.keys.sort.join(", ")})"
+      end
+    end
+
     class Base
       attr_reader :job
 
@@ -44,6 +58,16 @@ module Zdots
 
       def payload
         job.payload
+      end
+
+      private
+
+      # Loads a job prompt template from etc/prompts/jobs/<name>.txt and
+      # interpolates {{key}} placeholders with the provided vars.
+      def load_prompt(name, **vars)
+        path = File.join(Zdots::ZDOTDIR, "etc", "prompts", "jobs", "#{name}.txt")
+        raise "prompt not found: #{path}" unless File.exist?(path)
+        vars.reduce(File.read(path)) { |t, (k, v)| t.gsub("{{#{k}}}", v.to_s) }
       end
     end
   end
