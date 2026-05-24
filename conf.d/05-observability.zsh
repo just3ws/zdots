@@ -1,5 +1,8 @@
 # conf.d/05-observability.zsh — Shell observability and tracing hooks
 
+# Guard: trace provider may be intentionally disabled (ZDOTS_SERVICE_TRACE=none).
+# zdots_require guarantees contract delivery when a provider is loaded — if this
+# function is absent, tracing is off by design, not a DI failure.
 if [[ -n "$(command -v zdots_trace_init)" ]]; then
   if [[ -z "${_ZDOTS_TRACE_INITIALIZED:-}" ]]; then
     zdots_trace_init
