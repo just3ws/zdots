@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+#!/usr/bin/env zdots-ruby
 # bin/llama-mcp — MCP server for the local llama.cpp inference service.
 #
 # Exposes live, callable tools that any MCP client (Claude Code, Cursor, etc.)
@@ -249,7 +249,7 @@ end
 
 def tool_llama_run_test(args)
   mode = args.fetch("mode", "quick")
-  ruby_bin = `command -v ruby 2>/dev/null`.strip
+  ruby_bin = `command -v zdots-ruby 2>/dev/null`.strip
   test_script = File.join(ZDOTDIR, "tests", "llama_integration.rb")
 
   unless File.exist?(test_script)
@@ -257,7 +257,7 @@ def tool_llama_run_test(args)
   end
 
   if ruby_bin.empty?
-    return "Ruby not found. Install with: mise install ruby"
+    return "zdots-ruby not found — ensure #{ZDOTDIR}/bin is in PATH"
   end
 
   cmd_args = [ruby_bin, test_script]
