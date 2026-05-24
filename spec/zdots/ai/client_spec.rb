@@ -115,7 +115,7 @@ RSpec.describe Zdots::AI do
       end
 
       it "memoizes the client across calls" do
-        fake_client = double("RubyLLM::Provider::OpenAI")
+        fake_client = instance_double(Zdots::AI::Connection)
         expect(described_class).to receive(:build_client).once.and_return(fake_client)
         described_class.client
         described_class.client
@@ -129,7 +129,7 @@ RSpec.describe Zdots::AI do
       end
 
       it "rebuilds the client after reset!" do
-        fake = double("RubyLLM::Provider::OpenAI")
+        fake = instance_double(Zdots::AI::Connection)
         expect(described_class).to receive(:build_client).twice.and_return(fake)
         described_class.client
         described_class.reset!
