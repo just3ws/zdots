@@ -51,14 +51,23 @@ source "${ZDOTDIR}/lib/lifecycle.bash"
 source "${ZDOTDIR}/lib/model-store.bash"
 
 # Resolve all AI configuration via the unified metadata service.
-# This populates ZDOTS_AI_* variables.
+# Single JSON fetch — no eval, no code injection risk.
+_META_JSON=""
 if [[ -f "$META_LIB" ]]; then
-  eval "$(bash "$META_LIB" env ai)"
+  _META_JSON=$(bash "$META_LIB" dump ai 2>/dev/null) || _META_JSON=""
 fi
 
-# Use the resolved values
-AI_PROFILE="${ZDOTS_AI_ACTIVE_PROFILE:-standard}"
-AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+# Safe field accessor — jq parses the JSON, never executes it.
+_meta_get() {
+  local key="$1" default="${2:-}"
+  [[ -z "$_META_JSON" ]] && { printf '%s' "$default"; return; }
+  local val
+  val=$(printf '%s' "$_META_JSON" | jq -r ".${key} | select(. != null) | tostring" 2>/dev/null)
+  printf '%s' "${val:-$default}"
+}
+
+AI_PROFILE=$(_meta_get active_profile "standard")
+AI_ENDPOINT=$(_meta_get endpoint "http://127.0.0.1:8080")
 
 _has_yq() { command -v yq >/dev/null 2>&1; }
 
@@ -133,26 +142,14 @@ _require_yq() {
   fi
 }
 
-_profile_field() {
-  local field="$1" default="${2:-}"
-  local var_name
-  var_name="ZDOTS_AI_$(echo "$field" | tr '[:lower:]' '[:upper:]')"
-  # Use indirect expansion for Bash
-  echo "${!var_name:-$default}"
-}
-
-_server_field() {
-  local field="$1" default="${2:-}"
-  local var_name
-  var_name="ZDOTS_AI_$(echo "$field" | tr '[:lower:]' '[:upper:]')"
-  echo "${!var_name:-$default}"
-}
+_profile_field() { _meta_get "$1" "${2:-}"; }
+_server_field()  { _meta_get "$1" "${2:-}"; }
 
 _active_model_file() {
-  if [[ -n "${ZDOTS_AI_MODEL_FILE:-}" ]]; then
-    echo "$ZDOTS_AI_MODEL_FILE"
-    return
-  fi
+  # Explicit env var overrides metadata (user override path).
+  [[ -n "${ZDOTS_AI_MODEL_FILE:-}" ]] && { echo "$ZDOTS_AI_MODEL_FILE"; return; }
+  local mf; mf=$(_meta_get model_file "")
+  [[ -n "$mf" ]] && { echo "$mf"; return; }
   # Fallback: first gguf in models dir
   find "$MODELS_DIR" -maxdepth 1 -name '*.gguf' 2>/dev/null | head -1 | xargs -I{} basename {} 2>/dev/null || true
 }
@@ -160,10 +157,6 @@ _active_model_file() {
 _active_model_path() {
   local file; file=$(_active_model_file)
   [[ -n "$file" ]] && echo "$MODELS_DIR/$file" || echo ""
-}
-
-_endpoint() {
-  bash "$META_LIB" get ai endpoint
 }
 
 install_llama() {
@@ -495,7 +488,7 @@ config_dump() {
   metrics=$(_server_field metrics "false")
   model_file=$(_active_model_file)
   model_path=$(_active_model_path)
-  endpoint=$(_endpoint)
+  endpoint=$(_meta_get endpoint "http://127.0.0.1:8080")
 
   if $json; then
     local emb_j flash_j metrics_j
