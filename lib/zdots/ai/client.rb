@@ -36,10 +36,15 @@ module Zdots
 
       def build_client
         require "ruby_llm"
-        RubyLLM::Provider::OpenAI.new(
-          api_key: "local",
-          base_url: "#{endpoint}/v1"
-        )
+        ep = endpoint
+        RubyLLM.configure do |c|
+          c.openai_api_key         = "local"
+          c.openai_api_base        = "#{ep}/v1"
+          c.openai_use_system_role = true
+          c.default_model          = "local"
+          c.request_timeout        = 90
+        end
+        Connection.new
       end
 
       def local_endpoint?(url)
@@ -71,6 +76,24 @@ module Zdots
           "event=#{event} #{detail}",
           exception: false
         )
+      end
+    end
+
+    # Thin adapter over the RubyLLM 1.15 module-level API.
+    class Connection
+      CALL_OPTS = { provider: "openai", assume_model_exists: true }.freeze
+
+      def chat(model:, messages:, temperature:)
+        c = RubyLLM.chat(**CALL_OPTS.merge(model: model))
+        c.with_temperature(temperature) if temperature
+        sys  = messages.find { |m| m[:role] == "system" }
+        user = messages.find { |m| m[:role] == "user" }
+        c.with_instructions(sys[:content]) if sys
+        c.ask(user[:content])
+      end
+
+      def embed(model:, input:)
+        RubyLLM.embed(input, **CALL_OPTS.merge(model: model))
       end
     end
   end
