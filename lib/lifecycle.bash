@@ -192,6 +192,13 @@ zdots_svc_wait_for_url() {
 # zdots_svc_loopback_listening URL
 # Returns 0 if a process is actively listening on the loopback port of URL.
 # Only meaningful for loopback addresses — returns 1 immediately for anything else.
+#
+# Tool detection (jQuery-style: use the best available, fall through):
+#   ss    — preferred on Linux (iproute2); absent on macOS
+#   lsof  — BSD (macOS) and GNU; -F n emits structured n<addr> lines,
+#            avoiding the fragile column-index approach that breaks on wide FD values
+#   netstat — universal last resort; macOS uses dot-separated port (127.0.0.1.8080),
+#             Linux uses colon-separated (127.0.0.1:8080) — [.:] handles both
 zdots_svc_loopback_listening() {
   local host_port="${1#*://}"
   host_port="${host_port%%/*}"
@@ -201,9 +208,27 @@ zdots_svc_loopback_listening() {
   [[ "$host" == "127.0.0.1" || "$host" == "localhost" || "$host" == "::1" ]] || return 1
   [[ "$port" =~ ^[0-9]+$ ]] || return 1
 
-  lsof -nP -i "TCP:${port}" -sTCP:LISTEN 2>/dev/null \
-    | awk 'NR>1 {print $9}' \
-    | grep -Eq '^(127\.0\.0\.1|\[::1\]|localhost):'
+  if command -v ss >/dev/null 2>&1; then
+    ss -tln 2>/dev/null \
+      | awk '{print $4}' \
+      | grep -qE "^(127\.0\.0\.1|\[::1\]|::1):${port}$"
+    return
+  fi
+
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -i "TCP:${port}" -sTCP:LISTEN -F n 2>/dev/null \
+      | grep -qE "^n(127\.0\.0\.1|\[::1\]|localhost):"
+    return
+  fi
+
+  if command -v netstat >/dev/null 2>&1; then
+    netstat -an 2>/dev/null \
+      | awk '/LISTEN/ {print $4}' \
+      | grep -qE "^(127\.0\.0\.1|::1)[.:]${port}$"
+    return
+  fi
+
+  return 1
 }
 
 zdots_svc_health_check_url() {
