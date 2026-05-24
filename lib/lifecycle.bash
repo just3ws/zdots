@@ -189,17 +189,11 @@ zdots_svc_wait_for_url() {
   _svc_ok "${label} is ready"
 }
 
-zdots_svc_health_check_url() {
-  local url="$1"
-  local method="${2:-GET}"
-  local payload="${3:-}"
-  if [[ "$method" == "POST" ]]; then
-    curl -sf -m 2 -X POST "$url" -H "Content-Type: application/json" -d "$payload" >/dev/null 2>&1 && return 0
-  else
-    curl -sf -m 2 "$url" >/dev/null 2>&1 && return 0
-  fi
-
-  local host_port="${url#*://}"
+# zdots_svc_loopback_listening URL
+# Returns 0 if a process is actively listening on the loopback port of URL.
+# Only meaningful for loopback addresses — returns 1 immediately for anything else.
+zdots_svc_loopback_listening() {
+  local host_port="${1#*://}"
   host_port="${host_port%%/*}"
   local host="${host_port%%:*}"
   local port="${host_port##*:}"
@@ -210,6 +204,18 @@ zdots_svc_health_check_url() {
   lsof -nP -i "TCP:${port}" -sTCP:LISTEN 2>/dev/null \
     | awk 'NR>1 {print $9}' \
     | grep -Eq '^(127\.0\.0\.1|\[::1\]|localhost):'
+}
+
+zdots_svc_health_check_url() {
+  local url="$1"
+  local method="${2:-GET}"
+  local payload="${3:-}"
+  if [[ "$method" == "POST" ]]; then
+    curl -sf -m 2 -X POST "$url" -H "Content-Type: application/json" -d "$payload" >/dev/null 2>&1 && return 0
+  else
+    curl -sf -m 2 "$url" >/dev/null 2>&1 && return 0
+  fi
+  zdots_svc_loopback_listening "$url"
 }
 
 # ---------------------------------------------------------------------------
