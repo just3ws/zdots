@@ -47,3 +47,6 @@ fi
 
 # iTerm2 shell integration is loaded conditionally in conf.d/70-integrations.zsh.
 
+
+test -e "${ZDOTDIR}/.iterm2_shell_integration.zsh" && source "${ZDOTDIR}/.iterm2_shell_integration.zsh" || true
+
