@@ -36,8 +36,8 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 source "${ZDOTDIR}/lib/lifecycle.bash"
 # shellcheck source=lib/ai_boundary.bash
 source "${ZDOTDIR}/lib/ai_boundary.bash"
-# shellcheck source=lib/phi_scrubber.bash
-source "${ZDOTDIR}/lib/phi_scrubber.bash"
+# shellcheck source=lib/message_hygiene.bash
+source "${ZDOTDIR}/lib/message_hygiene.bash"
 
 # 1. Ensure basics (handle unbound variables for complex environment files)
 [[ -z "${ZDOTS_DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
@@ -181,14 +181,14 @@ cmd_capture() {
   local history_snippet
   history_snippet=$(tail -n 50 "${HISTFILE:-$HOME/.zsh_history}" 2>/dev/null \
     | sed 's/^: [0-9]*:[0-9];//' \
-    | phi_scrub \
+    | zdots_message_hygiene \
     || echo "history not available")
 
   # 2. Extract and scrub traces for this session
   local trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
   local trace_snippet="no traces found"
   if [[ -f "$trace_file" ]]; then
-    trace_snippet=$(grep "\"sid\":\"${sid}\"" "$trace_file" | tail -n 100 | phi_scrub || echo "no traces found")
+    trace_snippet=$(grep "\"sid\":\"${sid}\"" "$trace_file" | tail -n 100 | zdots_message_hygiene || echo "no traces found")
   fi
 
   # 3. Construct the distillation prompt
@@ -243,9 +243,9 @@ EOF
   # Propose the lesson to the user
   # Scrub PHI from all fields before display or DB write
   local lesson intent result
-  lesson=$(echo "$distillation" | jq -r '.lesson' 2>/dev/null | phi_scrub || echo "error parsing lesson")
-  intent=$(echo "$distillation" | jq -r '.intent' 2>/dev/null | phi_scrub || echo "error parsing intent")
-  result=$(echo "$distillation" | jq -r '.result' 2>/dev/null | phi_scrub || echo "error parsing result")
+  lesson=$(echo "$distillation" | jq -r '.lesson' 2>/dev/null | zdots_message_hygiene || echo "error parsing lesson")
+  intent=$(echo "$distillation" | jq -r '.intent' 2>/dev/null | zdots_message_hygiene || echo "error parsing intent")
+  result=$(echo "$distillation" | jq -r '.result' 2>/dev/null | zdots_message_hygiene || echo "error parsing result")
 
   printf -- "\n--- PROPOSED SESSION RESIDUE ---\n"
   printf "INTENT: %s\n" "$intent"
