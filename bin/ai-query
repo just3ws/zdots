@@ -314,9 +314,9 @@ fi
 NORM_TMP=$(_mktmp)
 if [[ "$HAS_STDIN" == "true" ]]; then
   if $OPT_DEBUG; then
-    aiq_normalize "$RAW_TMP" > "$NORM_TMP"
+    aiq_normalize "$RAW_TMP" | phi_scrub > "$NORM_TMP"
   else
-    aiq_normalize "$RAW_TMP" > "$NORM_TMP" 2>/dev/null
+    aiq_normalize "$RAW_TMP" 2>/dev/null | phi_scrub > "$NORM_TMP"
   fi
   norm_bytes=$(wc -c < "$NORM_TMP" | tr -d ' ')
   aiq_check_size "$norm_bytes"

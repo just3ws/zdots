@@ -14,6 +14,11 @@
 [[ -n "${_AIQ_LIB_LOADED:-}" ]] && return 0
 readonly _AIQ_LIB_LOADED=1
 
+# shellcheck source=lib/message_hygiene.bash
+_AIQ_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+[[ -r "${_AIQ_LIB_DIR}/message_hygiene.bash" ]] && source "${_AIQ_LIB_DIR}/message_hygiene.bash"
+unset _AIQ_LIB_DIR
+
 # ---------------------------------------------------------------------------
 # Exit code constants — callers must use symbolic names, never bare integers.
 # ---------------------------------------------------------------------------
