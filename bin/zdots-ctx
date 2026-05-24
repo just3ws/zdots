@@ -257,33 +257,18 @@ EOF
   local response
   read -r response
   if [[ "$response" =~ ^[Yy]$ ]]; then
-    _require_psql
-    local tags; tags=$(echo "$distillation" | jq -r '.tags | join(",")' 2>/dev/null || echo "")
-    
-    # Insert into session_residue
-    psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-      INSERT INTO session_residue (trace_id, intent, result, summary, metadata)
-      VALUES ('${sid}', '${intent//\'/''}', '${result//\'/''}', '${lesson//\'/''}', '${distillation//\'/''}'::jsonb)
-      ON CONFLICT (trace_id) DO UPDATE 
-      SET intent = EXCLUDED.intent, result = EXCLUDED.result, summary = EXCLUDED.summary, metadata = EXCLUDED.metadata;
-    " >/dev/null
+    local lesson_id
+    lesson_id=$(jq -n \
+      --arg trace_id   "$sid" \
+      --arg lesson     "$lesson" \
+      --arg intent     "$intent" \
+      --arg result     "$result" \
+      --argjson tags   "$(echo "$distillation" | jq '.tags // []')" \
+      --argjson meta   "$distillation" \
+      '{trace_id: $trace_id, lesson: $lesson, intent: $intent, result: $result, tags: $tags, metadata: $meta}' \
+      | "${ZDOTDIR}/sbin/zdots-brain" save-capture)
 
-    # Also insert the lesson
-    local id
-    id=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-      INSERT INTO lessons (content, context, tags, source_trace_id)
-      VALUES ('${lesson//\'/''}', '${intent//\'/''}', string_to_array('${tags}', ','), '${sid}')
-      RETURNING id;
-    " | head -n 1)
-
-    if [[ -n "$id" ]]; then
-      # Enqueue embedding job
-      local payload
-      payload=$(jq -n --arg t "lessons" --arg i "$id" --arg txt "$lesson" '{table: $t, id: $i, text: $txt}')
-      cmd_enqueue "embed" "$payload" >/dev/null
-    fi
-
-    zdots_audit_log "capture_invoked" "sid=${sid} lesson_id=${id:-none}"
+    zdots_audit_log "capture_invoked" "sid=${sid} lesson_id=${lesson_id:-none}"
     _svc_ok "residue and lesson saved to database."
   else
     _svc_log "capture aborted."
@@ -554,7 +539,6 @@ cmd_restore() {
 }
 
 cmd_seed() {
-  _require_psql
   local standards_dir="${MY_ROOT}/standards"
   if [[ ! -d "$standards_dir" ]]; then
     _svc_die "standards directory not found: $standards_dir"
@@ -564,27 +548,12 @@ cmd_seed() {
 
   for f in "${standards_dir}"/*.md; do
     [[ -e "$f" ]] || continue
-    local slug title content
+    local slug title
     slug=$(basename "$f" .md | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
     title=$(head -n 1 "$f" | sed 's/^# //')
-    content=$(cat "$f")
 
     _svc_log "seeding: ${slug}..."
-    local id
-    id=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-      INSERT INTO methodologies (slug, title, content)
-      VALUES ('${slug}', '${title//\'/''}', '${content//\'/''}')
-      ON CONFLICT (slug) DO UPDATE 
-      SET title = EXCLUDED.title, content = EXCLUDED.content, updated_at = CURRENT_TIMESTAMP
-      RETURNING id;
-    " | head -n 1)
-
-    if [[ -n "$id" ]]; then
-      # Enqueue embedding job
-      local payload
-      payload=$(jq -n --arg t "methodologies" --arg i "$id" --arg txt "$content" '{table: $t, id: $i, text: $txt}')
-      cmd_enqueue "embed" "$payload" >/dev/null
-    fi
+    "${ZDOTDIR}/sbin/zdots-brain" seed-methodology-file "$slug" "$title" "$f"
   done
   _svc_ok "seeding complete."
 }
