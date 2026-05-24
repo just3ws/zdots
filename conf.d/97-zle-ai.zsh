@@ -20,19 +20,15 @@ _zdots_zle_ai_explain() {
   local cmd="$BUFFER"
   [[ -z "$cmd" ]] && return
 
-  # Gate check — load boundary lib lazily, use return-based variants (exit kills the shell)
-  if ! typeset -f zdots_ai_gate_check > /dev/null 2>&1; then
+  # Load boundary lib lazily; use return-based predicate (exit variants kill the shell).
+  if ! typeset -f zdots_ai_gated_endpoint_check > /dev/null 2>&1; then
     [[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
   fi
-  if ! zdots_ai_gate_check "zle-ai"; then
-    zle -M "AI unavailable (ZDOTS_AI_MODE=none)"
+  if ! zdots_ai_gated_endpoint_check "zle-ai"; then
+    zle -M "ai: unavailable — check ZDOTS_AI_MODE and ZDOTS_AI_ENDPOINT"
     return
   fi
   local endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
-  if ! zdots_assert_local_endpoint_check "$endpoint"; then
-    zle -M "ai: SECURITY: endpoint is not local — set ZDOTS_AI_MODE=cloud or fix ZDOTS_AI_ENDPOINT"
-    return
-  fi
 
   if ! curl -sf -m 1 "$endpoint/health" >/dev/null 2>&1; then
     zle -M "ai: llama.cpp not responding — run: llama-ctl start"
@@ -68,15 +64,14 @@ _zdots_zle_ai_fix() {
     return
   fi
 
-  if ! zdots_ai_gate_check "zle-ai"; then
-    zle -M "AI unavailable (ZDOTS_AI_MODE=none)"
+  if ! typeset -f zdots_ai_gated_endpoint_check > /dev/null 2>&1; then
+    [[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
+  fi
+  if ! zdots_ai_gated_endpoint_check "zle-ai"; then
+    zle -M "ai: unavailable — check ZDOTS_AI_MODE and ZDOTS_AI_ENDPOINT"
     return
   fi
   local endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
-  if ! zdots_assert_local_endpoint_check "$endpoint"; then
-    zle -M "ai: SECURITY: endpoint is not local — set ZDOTS_AI_MODE=cloud or fix ZDOTS_AI_ENDPOINT"
-    return
-  fi
 
   if ! curl -sf -m 1 "$endpoint/health" >/dev/null 2>&1; then
     zle -M "ai: llama.cpp not responding — run: llama-ctl start"
