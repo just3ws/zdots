@@ -5,6 +5,8 @@ require_relative "base"
 module Zdots
   module Jobs
     class DocsSync < Base
+      Jobs.register "docs_sync", self
+
       DOCS_TO_MAINTAIN = [
         "README.md",
         "docs/architecture.md",
@@ -29,27 +31,12 @@ module Zdots
           puts "      - Processing #{doc_rel_path}..."
           current_content = File.read(full_path)
 
-          prompt = <<~PROMPT
-            You are the Documentation Architect for the Sentient Workbench.
-            Your task is to update the following document to reflect new technical capabilities or architectural changes identified in a recent session.
-
-            DOCUMENT_PATH: #{doc_rel_path}
-            RECENT_SESSION_SUMMARY: #{residue[:summary]}
-            RECENT_SESSION_RESULT: #{residue[:result]}
-
-            CURRENT_CONTENT:
-            ---
-            #{current_content}
-            ---
-
-            INSTRUCTIONS:
-            1. Analyze if the session residue contains new information that SHOULD be in this document.
-            2. If yes, update the document content.
-            3. PAY SPECIAL ATTENTION TO MERMAID DIAGRAMS. If a new service flow or component is mentioned, update the Mermaid code.
-            4. Maintain the existing tone, formatting, and W3C OTel standards.
-            5. If no changes are needed, output "NO_CHANGES_REQUIRED".
-            6. Otherwise, output the FULL updated document content. Do not include preambles or wrap in markdown blocks.
-          PROMPT
+          prompt = load_prompt("docs_sync",
+            doc_path: doc_rel_path,
+            summary: residue[:summary].to_s,
+            result: residue[:result].to_s,
+            current_content: current_content
+          )
 
           response = llm.chat(
             model: "local",

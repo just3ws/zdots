@@ -91,14 +91,7 @@ module Zdots
         puts "\e[1;34m==> [JOB #{job.id.to_s[0..7]}] Starting #{job.type} (#{pending_count} remaining in queue)\e[0m"
         
         begin
-          job_class = case job.type
-                      when "transcription" then Zdots::Jobs::Transcription
-                      when "distill"       then Zdots::Jobs::Distill
-                      when "embed"         then Zdots::Jobs::Embed
-                      when "docs_sync"     then Zdots::Jobs::DocsSync
-                      else raise "Unknown job type: #{job.type}"
-                      end
-          
+          job_class = Zdots::Jobs.for(job.type)
           job_class.perform(job)
           puts "\e[1;32m==> [JOB #{job.id.to_s[0..7]}] SUCCESS\e[0m"
         rescue => e

@@ -6,6 +6,8 @@ require "open3"
 module Zdots
   module Jobs
     class Transcription < Base
+      Jobs.register "transcription", self
+
       def run
         url = payload["url"]
         raise "Missing URL in payload" if url.nil? || url.empty?
