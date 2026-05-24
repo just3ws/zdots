@@ -5,6 +5,7 @@ require_relative "../lib/zdots"
 require_relative "../lib/zdots/models/job"
 require_relative "../lib/zdots/models/lesson"
 require_relative "../lib/zdots/models/methodology"
+require_relative "../lib/zdots/models/session_residue"
 require_relative "../lib/zdots/jobs/base"
 require_relative "../lib/zdots/jobs/transcription"
 require_relative "../lib/zdots/jobs/distill"
@@ -33,6 +34,10 @@ module Zdots
         cmd_add_methodology(args)
       when "add-lesson"
         cmd_add_lesson(args)
+      when "save-capture"
+        cmd_save_capture
+      when "seed-methodology-file"
+        cmd_seed_methodology_file(args)
       when "capture"
         cmd_capture(args)
       when "query"
@@ -154,6 +159,62 @@ module Zdots
         priority: 10,
         fingerprint: Digest::MD5.hexdigest("embed-lessons-#{l.id}")
       )
+    end
+
+    # save-capture — reads JSON from stdin, writes session_residue + lesson via model layer.
+    # Called by zdots-ctx cmd_capture after AI distillation, so the key is available.
+    # JSON keys: trace_id, intent, result, lesson (content), tags (array), metadata (object)
+    def cmd_save_capture
+      input = $stdin.read
+      data = JSON.parse(input)
+
+      trace_id = data["trace_id"] or raise ArgumentError, "save-capture: trace_id required"
+      lesson_text = data["lesson"] or raise ArgumentError, "save-capture: lesson required"
+      intent_text = data.fetch("intent", "")
+      result_text = data.fetch("result", "")
+      tags = Array(data["tags"])
+      metadata = data.fetch("metadata", {})
+
+      Zdots.db.transaction do
+        residue = Zdots::Models::SessionResidue.find_or_new(trace_id: trace_id)
+        residue.intent   = intent_text
+        residue.result   = result_text
+        residue.summary  = lesson_text
+        residue.metadata = Sequel.pg_jsonb(metadata)
+        residue.save
+
+        lesson = Zdots::Models::Lesson.create(
+          content:         lesson_text,
+          context:         intent_text,
+          tags:            Sequel.pg_array(tags),
+          source_trace_id: trace_id
+        )
+
+        Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+          type:        "embed",
+          payload:     Sequel.pg_jsonb({ table: "lessons", id: lesson.id, text: lesson_text }),
+          priority:    10,
+          fingerprint: Digest::MD5.hexdigest("embed-lessons-#{lesson.id}")
+        )
+
+        puts lesson.id
+      end
+    end
+
+    # seed-methodology-file — reads content from a file, upserts via model layer.
+    # Usage: zdots-brain seed-methodology-file <slug> <title> <file_path>
+    def cmd_seed_methodology_file(args)
+      slug, title, file_path = args
+      if slug.nil? || title.nil? || file_path.nil?
+        puts "usage: zdots-brain seed-methodology-file <slug> <title> <file_path>"
+        exit 1
+      end
+      unless File.exist?(file_path)
+        puts "zdots-brain: file not found: #{file_path}"
+        exit 1
+      end
+      content = File.read(file_path)
+      cmd_add_methodology([slug, title, content])
     end
 
     def cmd_capture(args)
