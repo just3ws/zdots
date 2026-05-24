@@ -17,6 +17,8 @@ trap '' PIPE
 BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 
+source "${ZDOTDIR}/lib/lifecycle.bash"
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
@@ -46,25 +48,10 @@ _fix()  { printf '         fix: %s\n' "$*"; }
 # Live probes — Enforce opaque service control seam
 # ---------------------------------------------------------------------------
 
-_loopback_listening() {
-  local url="$1"
-  local host_port="${url#*://}"
-  host_port="${host_port%%/*}"
-  local host="${host_port%%:*}"
-  local port="${host_port##*:}"
-
-  [[ "$host" == "127.0.0.1" || "$host" == "localhost" || "$host" == "::1" ]] || return 1
-  [[ "$port" =~ ^[0-9]+$ ]] || return 1
-
-  lsof -nP -i "TCP:${port}" -sTCP:LISTEN 2>/dev/null \
-    | awk 'NR>1 {print $9}' \
-    | grep -Eq '^(127\.0\.0\.1|\[::1\]|localhost):'
-}
-
 _ai_http_up() { curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; }
-_ai_up()      { _ai_http_up || _loopback_listening "$AI_ENDPOINT"; }
-_otel_up()    { "$BIN/otel-collector" health >/dev/null 2>&1 || _loopback_listening "$OTLP_ENDPOINT"; }
-_grafana_up() { "$BIN/local-ci" health >/dev/null 2>&1 || _loopback_listening "$GRAFANA_URL"; }
+_ai_up()      { _ai_http_up || zdots_svc_loopback_listening "$AI_ENDPOINT"; }
+_otel_up()    { "$BIN/otel-collector" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$OTLP_ENDPOINT"; }
+_grafana_up() { "$BIN/local-ci" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$GRAFANA_URL"; }
 _colima_up()  { colima status >/dev/null 2>&1; }
 _ctx_up()     { "$BIN/zdots-ctx" status >/dev/null 2>&1; }
 
@@ -451,7 +438,7 @@ cmd_check() {
       -d '{"resourceSpans":[]}' 2>/dev/null || echo "000")
     if [[ "$otlp_code" == "200" ]]; then
       _chk_pass "OTLP endpoint  accepting spans ($OTLP_ENDPOINT/v1/traces)"
-    elif _loopback_listening "$OTLP_ENDPOINT"; then
+    elif zdots_svc_loopback_listening "$OTLP_ENDPOINT"; then
       _chk_pass "OTLP endpoint  listening on loopback ($OTLP_ENDPOINT)"
     else
       _chk_warn "OTLP endpoint  responded $otlp_code (expected 200)"
