@@ -108,15 +108,72 @@ zdots_trace_redact() {
 }
 
 # 5. Dependency Injection (DI) Helper
-# Loads a service provider implementation.
+# Loads a service provider and verifies it satisfies the service contract.
+# Soft-fail: missing contract functions emit a warning but never abort the shell.
+# Providers may optionally define zdots_<service>_contract() returning a
+# space-separated list of additional exported functions to verify.
+
+# Private helper — checks a single function exists; warns softly if not.
+_zdots_require_fn() {
+  if [ -z "$(command -v "$3" 2>/dev/null)" ]; then
+    printf 'zdots: warning: provider %s/%s: missing required function %s\n' \
+      "$1" "$2" "$3" >&2
+  fi
+}
+
 zdots_require() {
   local service_type="$1"
   local provider="$2"
   local provider_file="${ZDOTDIR}/providers/${service_type}/${provider}.zsh"
 
-  if [ -r "$provider_file" ]; then
-    zdots_safe_source "$provider_file"
+  # Non-existent or intentionally-disabled (e.g. provider="none") — skip silently.
+  [ -r "$provider_file" ] || return 0
+
+  zdots_safe_source "$provider_file"
+
+  # Base contract: one explicit check per required function to avoid
+  # word-splitting ambiguity across sh/bash/zsh contexts.
+  case "$service_type" in
+    ai)
+      _zdots_require_fn ai      "$provider" zdots_ai_init
+      _zdots_require_fn ai      "$provider" zdots_ai_infer
+      ;;
+    trace)
+      _zdots_require_fn trace   "$provider" zdots_trace_init
+      _zdots_require_fn trace   "$provider" zdots_trace_log
+      ;;
+    pkg)
+      _zdots_require_fn pkg     "$provider" zdots_pkg_manager_init
+      _zdots_require_fn pkg     "$provider" zdots_pkg_manager_paths
+      ;;
+    node)
+      _zdots_require_fn node    "$provider" zdots_node_runtime_init
+      _zdots_require_fn node    "$provider" zdots_node_runtime_paths
+      ;;
+    python)
+      _zdots_require_fn python  "$provider" zdots_python_runtime_init
+      _zdots_require_fn python  "$provider" zdots_python_runtime_paths
+      ;;
+    whisper)
+      _zdots_require_fn whisper "$provider" zdots_whisper_init
+      ;;
+  esac
+
+  # Extended contract: provider may declare additional exports via
+  # zdots_<service>_contract() returning a space-separated function list.
+  local _contract_fn="zdots_${service_type}_contract"
+  if [ -n "$(command -v "$_contract_fn" 2>/dev/null)" ]; then
+    local _fn
+    # shellcheck disable=SC2046
+    for _fn in $( "$_contract_fn" ); do
+      if [ -z "$(command -v "$_fn" 2>/dev/null)" ]; then
+        printf 'zdots: warning: provider %s/%s: declared but missing %s\n' \
+          "$service_type" "$provider" "$_fn" >&2
+      fi
+    done
   fi
+
+  return 0
 }
 
 # 5. Circuit Breaker (The Submarine Standard)
