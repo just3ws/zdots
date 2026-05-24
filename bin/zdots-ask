@@ -30,6 +30,7 @@ _ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 _PROMPTS_DIR="${_ZDOTDIR}/etc/prompts"
 
 source "${_ZDOTDIR}/lib/ai_boundary.bash"
+source "${_ZDOTDIR}/lib/message_hygiene.bash"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -115,6 +116,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 PROMPT="${PROMPT_ARGS[*]:-}"
+# Run through the full hygiene pipeline before any use: domain detection,
+# context hydration, and inference all see scrubbed input.
+[[ -n "$PROMPT" ]] && PROMPT=$(printf '%s' "$PROMPT" | zdots_message_hygiene)
 
 if [[ -z "$PROMPT" && -t 0 ]]; then
   _usage
