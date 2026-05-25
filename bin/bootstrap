@@ -91,9 +91,49 @@ if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$REPO_ROOT" config --local core.hooksPath .githooks
 fi
 
-# 5. Toolchain
-echo "bootstrap: installing brew dependencies (this may take a while)..."
+# 5. Toolchain — Homebrew packages
+echo "bootstrap: installing Homebrew packages (this may take a while)..."
 brew bundle --file "$REPO_ROOT/Brewfile"
+
+# 5b. Runtime versions — mise installs Ruby from mise.toml
+#
+# SEQUENCING: brew bundle installs mise the tool, but mise does not
+# automatically install language runtimes. We must run `mise install`
+# explicitly here, before step 7 (bundle install) and step 9 (DB init).
+#
+# On Apple Silicon, Ruby is compiled from source with jemalloc and the
+# Homebrew openssl@3 — expect 5–10 minutes on first run.
+_mise_bin="$(command -v mise 2>/dev/null || true)"
+if [ -z "$_mise_bin" ]; then
+  # Homebrew may not have updated PATH in this shell session yet
+  _mise_bin="/opt/homebrew/bin/mise"
+fi
+
+if [ -x "$_mise_bin" ]; then
+  # Trust the repo's mise.toml so mise installs without an interactive prompt
+  "$_mise_bin" trust "$REPO_ROOT/mise.toml" 2>/dev/null || true
+
+  # Apple Silicon: compile Ruby with jemalloc allocator and the correct
+  # openssl@3 prefix. Both are installed by Brewfile; this wires them in.
+  _brew_prefix="$(brew --prefix 2>/dev/null || printf '/opt/homebrew')"
+  _ruby_opts="--with-openssl-dir=${_brew_prefix}/opt/openssl@3"
+  if [ "$(uname -m)" = "arm64" ] && [ -d "${_brew_prefix}/opt/jemalloc" ]; then
+    _ruby_opts="${_ruby_opts} --with-jemalloc"
+    echo "bootstrap: Apple Silicon + jemalloc detected — enabling jemalloc for Ruby"
+  fi
+
+  echo "bootstrap: installing Ruby $(cat "$REPO_ROOT/etc/ruby-version") via mise..."
+  echo "bootstrap: (first run compiles from source — allow 5–10 minutes)"
+  RUBY_CONFIGURE_OPTS="$_ruby_opts" \
+    "$_mise_bin" install --cd "$REPO_ROOT" \
+    || echo "bootstrap: WARNING: mise install failed — run: RUBY_CONFIGURE_OPTS=\"$_ruby_opts\" mise install"
+  unset _brew_prefix _ruby_opts
+else
+  echo "bootstrap: mise not found after brew bundle — skipping Ruby install."
+  echo "           mise should have been installed above. Try restarting your shell"
+  echo "           or run: brew install mise && mise install"
+fi
+unset _mise_bin
 
 # 6. AI Stack Setup — LOCAL MODELS ONLY
 #
@@ -179,15 +219,30 @@ else
   echo "           Run: llama-ctl install && llama-ctl model-download && llama-ctl install"
 fi
 
-# 7. Ruby ecosystem for AI and Platform control plane
-if command -v bundle >/dev/null 2>&1 || [ -x "$HOME/.local/share/mise/shims/bundle" ]; then
-  _bundle_bin="bundle"
-  if ! command -v bundle >/dev/null 2>&1; then _bundle_bin="$HOME/.local/share/mise/shims/bundle"; fi
-  echo "bootstrap: installing ruby dependencies via bundler..."
-  "$_bundle_bin" install || echo "bootstrap: warning: bundle install failed — run 'bundle install' after mise activates ruby"
+# 7. Ruby gems — AI pipeline, PHI scrubber, DB bridge
+#
+# Uses the mise-managed Ruby pinned in etc/ruby-version — never the system Ruby
+# or any project-activated version. postgresql@18 is keg-only so pg_config is
+# not in PATH; we pass it explicitly so the pg native gem compiles cleanly.
+_ruby_ver="$(cat "$REPO_ROOT/etc/ruby-version")"
+_mise_bundle="$HOME/.local/share/mise/installs/ruby/${_ruby_ver}/bin/bundle"
+
+if [ -x "$_mise_bundle" ]; then
+  echo "bootstrap: installing Ruby gems (Ruby ${_ruby_ver})..."
+  _brew_prefix="$(brew --prefix 2>/dev/null || printf '/opt/homebrew')"
+  _pg_config="${_brew_prefix}/opt/postgresql@18/bin/pg_config"
+
+  BUNDLE_GEMFILE="$REPO_ROOT/Gemfile" \
+  BUNDLE_BUILD__PG="${_pg_config:+--with-pg-config=${_pg_config}}" \
+    "$_mise_bundle" install \
+    || echo "bootstrap: WARNING: bundle install failed — run: zdots-ruby -S bundle install"
+
+  unset _brew_prefix _pg_config
 else
-  echo "bootstrap: bundler not found — skipping bundle install."
+  echo "bootstrap: Ruby ${_ruby_ver} not installed via mise — skipping gem install."
+  echo "           Run: mise install && zdots-ruby -S bundle install"
 fi
+unset _ruby_ver _mise_bundle
 
 # 8. Machine-local identity file
 if [ ! -f "$REPO_ROOT/.zdots.local" ]; then
