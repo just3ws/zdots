@@ -331,7 +331,10 @@ END_SYSTEM
 # ---------------------------------------------------------------------------
 aiq_sanitize_output() {
   if command -v perl >/dev/null 2>&1; then
-    perl -pe '
+    # -0777 slurps full input so <think>...</think> multiline blocks can be matched.
+    # The s flag makes . match newlines for the think-block pass only.
+    perl -0777 -pe '
+      s/<think>.*?<\/think>\n*//gs;
       s/\e\[[0-9;?!>]*[A-Za-z]//g;
       s/\e\][^\a\e]*\a//g;
       s/\e\][^\e]*\e\\//g;
@@ -339,7 +342,8 @@ aiq_sanitize_output() {
       tr/\x01-\x08\x0b-\x0c\x0e-\x1f\x7f//d;
     '
   else
-    sed $'s/\033\\[[0-9;?!>]*[A-Za-z]//g' \
+    awk '/<think>/{skip=1} skip && /<\/think>/{skip=0; next} !skip{print}' \
+      | sed $'s/\033\\[[0-9;?!>]*[A-Za-z]//g' \
       | sed $'s/\033][^\a]*\a//g' \
       | sed $'s/\033[A-Za-z]//g' \
       | LC_ALL=C tr -d \

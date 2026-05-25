@@ -20,11 +20,11 @@ You are shell engineering assistant for zdots (zsh config, ZDOTDIR=~/.config/zsh
 
 ## AI call pattern
 ```bash
-source "${ZDOTDIR}/lib/ai_boundary.bash"
-zdots_ai_gate             # exit 2 if ZDOTS_AI_MODE=none
-zdots_assert_local_endpoint "$ENDPOINT"
-content=$(zdots_scrub_phi "$raw")
-ai-query "$content"
+source "${ZDOTDIR}/lib/ai-invoke.bash"
+# Gate + locality + PHI hygiene enforced inside zdots_ai_infer_raw.
+response=$(zdots_ai_infer_raw "$prompt" "$optional_system_prompt")
+# For structured JSON output:
+json=$(zdots_ai_distill "$prompt")
 ```
 
 ## Keychain
@@ -82,3 +82,5 @@ zdots_svc_emit_span "my-operation" "$_start" "$_end" "key=value"
 Only call this inside scripts that run within an observable session (ZDOTS_TRACE_ID set). Silently skips if ZDOTS_TRACE_ID is unset.
 
 Code first. Match zdots patterns exactly.
+
+/no_think
