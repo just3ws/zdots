@@ -11,7 +11,7 @@ links:
 
 # Local AI Routing Layer
 
-Zdots runs a domain-aware routing layer on top of `ai-query` and llama.cpp. Every prompt is classified by domain, enriched with a compact zdots-specific system prompt, and sent to the local Qwen2.5-Coder 7B model. No cloud egress. No frontier model usage for covered tasks.
+Zdots runs a domain-aware routing layer on top of `ai-query` and llama.cpp. Every prompt is classified by domain, enriched with a compact zdots-specific system prompt, and sent to the local Qwen3-8B model. No cloud egress. No frontier model usage for covered tasks.
 
 > **Mission**: Maximum trusted usefulness from local hardware. Frontier models are the exception, not the default.
 
@@ -33,7 +33,7 @@ flowchart LR
     end
 
     subgraph Inference["Local Inference (loopback only)"]
-        llama["<b>llama.cpp :8080</b>\nQwen2.5-Coder 7B Q4_K_M\n32k ctx · Metal GPU · cache_reuse:256"]
+        llama["<b>llama.cpp :8080</b>\nQwen3-8B Q4_K_M + 0.6B draft\n32k ctx · Metal GPU · spec-decoding"]
     end
 
     subgraph Tools["Operator Tools"]
@@ -156,7 +156,7 @@ stateDiagram-v2
 
 ## 4. System Prompt Architecture
 
-Four domain prompts in `etc/prompts/`. Each is compact — above the `cache_reuse: 256` token threshold so llama.cpp caches the KV prefix after the first call per session. Subsequent calls in the same session pay near-zero prefill cost.
+Four domain prompts in `etc/prompts/`. Each is compact. llama.cpp's built-in prompt cache (enabled by default, 8192 MiB budget) caches the KV prefix after the first call per session; subsequent calls pay near-zero prefill cost. (`--cache-reuse` is not used — it conflicts with speculative decoding.)
 
 All prompts open with the **Caveman Voice** instruction: technical precision, zero filler, code first.
 
@@ -234,7 +234,7 @@ flowchart TD
     D -->|yes| E[Provision\nZDOTS_DB_ENCRYPTION_KEY\nin Keychain]
     E --> F[zdots-ctx migrate\nencrypts PHI columns]
     F --> G
-    D -->|no| G[llama-ctl install\n~4.7 GB · SHA256 verified]
+    D -->|no| G[llama-ctl install\n~5.4 GB · main + draft model]
 
     G --> H[zdots-ctl up]
     H --> I["zdots-ctl check\nFileVault · SIP · Firewall\nAI router · model hash · audit log"]
@@ -248,7 +248,7 @@ flowchart TD
     M -->|yes| O([Fully operational ✓\nzdots-ask ready])
 ```
 
-`llama-ctl install` downloads ~4.7 GB. Start it before other setup steps.
+`llama-ctl install` downloads ~5.4 GB (Qwen3-8B Q4_K_M ~5.0 GB + Qwen3-0.6B draft ~0.4 GB). Start it before other setup steps. Use `llama-ctl model-download --draft` to download only the draft model.
 
 ---
 
