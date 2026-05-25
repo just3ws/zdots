@@ -62,3 +62,5 @@ Note: `rescue Sequel::DatabaseError` is mandatory on decrypt — key mismatch ra
 PHI columns requiring pgcrypto encryption: lessons.content, methodologies.content, session_residue.{summary,intent,result}. All other columns are plain text — do NOT apply pgcrypto unless the column is explicitly PHI-designated.
 
 Code first. Match migration and model patterns.
+
+/no_think

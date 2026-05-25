@@ -549,6 +549,35 @@ _source_lib() {
   [[ "$result" == "beforeafter" ]]
 }
 
+@test "H7: aiq_sanitize_output strips single-line think block" {
+  _source_lib
+  result=$(printf '<think>reasoning here</think>\nActual answer\n' | aiq_sanitize_output)
+  [[ "$result" == *"Actual answer"* ]]
+  [[ "$result" != *"<think>"* ]]
+  [[ "$result" != *"reasoning here"* ]]
+}
+
+@test "H8: aiq_sanitize_output strips multiline think block" {
+  _source_lib
+  result=$(printf '<think>\nstep 1\nstep 2\nstep 3\n</think>\nFinal answer\n' | aiq_sanitize_output)
+  [[ "$result" == *"Final answer"* ]]
+  [[ "$result" != *"<think>"* ]]
+  [[ "$result" != *"step 1"* ]]
+}
+
+@test "H9: aiq_sanitize_output preserves content after think block" {
+  _source_lib
+  result=$(printf '<think>internal deliberation</think>\necho "hello"\n' | aiq_sanitize_output)
+  [[ "$result" == *'echo "hello"'* ]]
+  [[ "$result" != *"internal deliberation"* ]]
+}
+
+@test "H10: aiq_sanitize_output is a no-op on output with no think block" {
+  _source_lib
+  result=$(printf 'Plain response without thinking.\n' | aiq_sanitize_output)
+  [[ "$result" == *"Plain response without thinking."* ]]
+}
+
 # ===========================================================================
 # I. Full pipeline with mock server
 # ===========================================================================

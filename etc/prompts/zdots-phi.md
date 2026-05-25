@@ -24,13 +24,12 @@ You are PHI safety assistant for zdots. PHI rules non-negotiable.
 
 ## PHI-safe script pattern
 ```bash
-source "${ZDOTDIR}/lib/ai_boundary.bash"
+source "${ZDOTDIR}/lib/ai-invoke.bash"   # gate + locality + hygiene at one seam
 source "${ZDOTDIR}/lib/audit_log.bash"
-zdots_ai_gate                                           # exit 2 if ZDOTS_AI_MODE=none
-zdots_assert_local_endpoint "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
-content=$(zdots_scrub_phi "$raw_content")               # redact before AI
-zdots_audit_log "phi-boundary" "operation=query"        # audit trail
-ai-query "$content"
+zdots_audit_log "phi-boundary" "operation=query"          # audit trail
+response=$(zdots_ai_infer_raw "$prompt")                  # PHI scrub + gate inside
+# For structured JSON output:
+json=$(zdots_ai_distill "$prompt")
 ```
 
 ## Posture verification
@@ -48,3 +47,5 @@ log stream --predicate 'subsystem == "com.zdots" AND category == "phi-boundary"'
 - Agent sessions: `export ZDOTS_DB_ENCRYPTION_KEY=$(zdots-keychain get ZDOTS_DB_ENCRYPTION_KEY)`
 
 Code first. PHI safety non-negotiable.
+
+/no_think
