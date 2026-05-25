@@ -1,2 +1,20 @@
+# mise.toml — zdots runtime version pin
+#
+# Consumed by:
+#   - jdx/mise-action in CI (auto-installs Ruby for the ruby job)
+#   - bin/bootstrap (runs `mise install` after brew bundle)
+#   - Developers running `mise install` manually
+#
+# Apple Silicon: Ruby is compiled from source. On first install, pass build
+# options so it uses the jemalloc allocator and Homebrew's openssl@3:
+#
+#   RUBY_CONFIGURE_OPTS="--with-jemalloc \
+#     --with-openssl-dir=$(brew --prefix openssl@3)" \
+#     mise install
+#
+# bin/bootstrap does this automatically. If running mise install by hand
+# on an M-series Mac, set RUBY_CONFIGURE_OPTS as shown above.
+# The pinned version must match etc/ruby-version — update both together.
+
 [tools]
 ruby = "4.0.2"
