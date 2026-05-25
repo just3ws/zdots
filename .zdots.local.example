@@ -38,31 +38,38 @@ ZDOTS_CONTEXT=home
 # ---------------------------------------------------------------------------
 ZDOTS_AI_MODE=local
 
-# AI endpoint — local (default) or a trusted machine on your LAN.
-# Aider (zaider), ai-query, and zdots-ctx all read this single variable.
+# AI endpoints — local defaults or a trusted LAN machine.
+# ZDOTS_AI_ENDPOINT:       chat/completions (port 8080, Qwen3-8B)
+# ZDOTS_AI_EMBED_ENDPOINT: embeddings only  (port 8090, Nomic embed-v2 MoE)
+# Both are used by zdots-ctx, zdots-brain, and ai-query.
 #
-# Examples:
-#   local llama.cpp:              http://127.0.0.1:8080   (default)
-#   remote powerful workstation:  http://powerstation.local:8080
-#   remote Pi/NAS:                http://192.168.1.100:11434
+# Override for a remote inference machine:
+#   ZDOTS_AI_ENDPOINT=http://powerstation.local:8080
+#   ZDOTS_AI_EMBED_ENDPOINT=http://powerstation.local:8090
 # ---------------------------------------------------------------------------
 # ZDOTS_AI_ENDPOINT=http://127.0.0.1:8080
-# ZDOTS_AI_PROFILE=standard
+# ZDOTS_AI_EMBED_ENDPOINT=http://127.0.0.1:8090
+# ZDOTS_AI_PROFILE=qwen3-8b
 
 # ---------------------------------------------------------------------------
 # PHI safety controls (relevant when ZDOTS_CONTEXT=work or near regulated data)
 # ---------------------------------------------------------------------------
 
-# Database encryption key — REQUIRED on work machines before enabling capture.
-# Generate: openssl rand -hex 32
-# Store in Keychain: zdots-keychain add ZDOTS_DB_ENCRYPTION_KEY <value>
-# Retrieve at runtime via .zdots.secrets:
-#   export ZDOTS_DB_ENCRYPTION_KEY="$(_zdots_kc ZDOTS_DB_ENCRYPTION_KEY)"
-# Do NOT paste the key here — this file is templated from the repo.
-# ZDOTS_DB_ENCRYPTION_KEY is set via .zdots.secrets (Keychain-backed).
+# Database encryption key — required before enabling session capture.
+# Generate a key and store it in macOS Keychain (never commit it):
+#   security add-generic-password \
+#     -a "$USER" -s "ZDOTS_DB_ENCRYPTION_KEY" \
+#     -w "$(openssl rand -hex 32)" -T "" ~/Library/Keychains/login.keychain-db
+# Then retrieve it here at runtime:
+export ZDOTS_DB_ENCRYPTION_KEY=$(
+  security find-generic-password -a "$USER" -s "ZDOTS_DB_ENCRYPTION_KEY" -w 2>/dev/null
+)
 
-# Session capture — disabled by default (see: zdots-ctx capture).
-# Set to 1 only after ZDOTS_DB_ENCRYPTION_KEY is in Keychain and DB encryption is verified.
+# Session capture — disabled by default. Requires:
+#   1. ZDOTS_DB_ENCRYPTION_KEY set above (Keychain-backed)
+#   2. Embedding server running on ZDOTS_AI_EMBED_ENDPOINT (:8090)
+#   3. zdots-ctx migrate run to apply the latest schema
+#   4. ZDOTS_CONTEXT=home (capture is always off on work machines)
 # ZDOTS_CAPTURE_ENABLED=1
 
 # History redaction — on by default (1). Set to 0 to disable (not recommended

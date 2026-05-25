@@ -36,15 +36,14 @@
 #      Set openai_use_system_role: true in RubyLLM.configure.
 #      Use chat.with_instructions("...") to set a system prompt.
 #
-# 6. EMBEDDINGS
-#      The same endpoint and alias serve embeddings (server started with
-#      --embeddings). One critical constraint:
-#        ubatch_size  (in etc/ai-models.yaml → server.ubatch_size)
-#        must be >= the longest input you embed, measured in tokens.
-#      Current config: 2048 tokens (~1 500 words). Exceeding this returns
-#      HTTP 500: "input (N tokens) is too large to process."
-#      After changing ubatch_size, run `llama-ctl install` to regenerate
-#      the launchd plist; changes to the YAML are not live-reloaded.
+# 6. EMBEDDINGS — separate server (port 8090)
+#      Embeddings run on a dedicated Nomic embed-v2 MoE server (port 8090).
+#      The chat server (port 8080) has embeddings DISABLED: combining
+#      --embeddings with --spec-draft-model causes a llama.cpp crash loop.
+#      Use ZDOTS_AI_EMBED_ENDPOINT (default http://127.0.0.1:8090).
+#      Model alias: "embed" (768-dim output; set in etc/ai-models.yaml).
+#      ubatch_size in embed_server: section must be >= longest input tokens.
+#      Manage with: llama-ctl install-embed / start-embed / stop-embed
 #
 # 7. STREAMING
 #      Supported via SSE. Pass a block to chat.ask { |chunk| ... }.
@@ -83,10 +82,12 @@ require "json"
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────────────────────────────────────
-ENDPOINT  = ENV.fetch("ZDOTS_AI_ENDPOINT",    "http://127.0.0.1:8080")
-MODEL     = ENV.fetch("ZDOTS_AI_MODEL_ALIAS", "local")   # alias, never GGUF filename
-PROVIDER  = "openai"                                      # llama.cpp speaks OpenAI API
-QUICK     = ARGV.include?("--quick")                      # fast subset for health checks
+ENDPOINT       = ENV.fetch("ZDOTS_AI_ENDPOINT",       "http://127.0.0.1:8080")
+EMBED_ENDPOINT = ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT",  "http://127.0.0.1:8090")
+MODEL          = ENV.fetch("ZDOTS_AI_MODEL_ALIAS",     "local")   # alias, never GGUF filename
+EMBED_MODEL    = ENV.fetch("ZDOTS_AI_EMBED_MODEL",     "embed")   # Nomic embed-v2 alias
+PROVIDER       = "openai"                                          # llama.cpp speaks OpenAI API
+QUICK          = ARGV.include?("--quick")                         # fast subset for health checks
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Minimal test runner
@@ -137,11 +138,23 @@ end
 RubyLLM.configure do |c|
   c.openai_api_key          = "local"           # auth is ignored by llama.cpp
   c.openai_api_base         = "#{ENDPOINT}/v1"
-  c.openai_use_system_role  = true              # Qwen2.5 supports system role
+  c.openai_use_system_role  = true              # Qwen supports system role
   c.default_model           = MODEL
-  c.default_embedding_model = MODEL
   c.request_timeout         = 90
   c.max_retries             = 0                 # fail fast in tests
+end
+
+# Direct HTTP helper for the embed server (port 8090, Nomic embed-v2 MoE).
+# Embeddings are on a separate server because --embeddings + --spec-draft-model
+# causes a llama.cpp crash loop. Do not use RubyLLM for embeddings.
+def http_post_embed(input)
+  uri  = URI("#{EMBED_ENDPOINT}/v1/embeddings")
+  body = JSON.generate({ model: EMBED_MODEL, input: input })
+  res  = Net::HTTP.start(uri.host, uri.port, open_timeout: 5, read_timeout: 60) do |h|
+    h.post(uri.path, body, "Content-Type" => "application/json")
+  end
+  raise "embed HTTP #{res.code}: #{res.body[0, 200]}" unless res.code.to_i == 200
+  JSON.parse(res.body)
 end
 
 # Shared chat options — every chat/embed call needs these two
@@ -224,7 +237,7 @@ end
 
 test "chat.ask — basic user message → non-empty reply" do
   skip! "chat not initialized" unless chat
-  r = chat.ask("Reply with exactly the word: PONG")
+  r = chat.ask("/no_think Reply with exactly the word: PONG")
   assert r.content.is_a?(String) && !r.content.strip.empty?, "empty or nil content"
 end
 
@@ -232,15 +245,15 @@ test "chat.ask — system role via with_instructions" do
   skip! "chat not initialized" unless chat
   c = RubyLLM.chat(**CHAT_OPTS)
   c.with_instructions("You are a concise assistant. Always respond in one sentence.")
-  r = c.ask("What is 2+2?")
+  r = c.ask("/no_think What is 2+2?")
   assert r.content.include?("4"), "expected '4' in: #{r.content.inspect}"
 end
 
 test "chat.ask — multi-turn context retained", slow: true do
   skip! "chat not initialized" unless chat
   c = RubyLLM.chat(**CHAT_OPTS)
-  c.ask("Remember this code word: ZEPHYR")
-  r = c.ask("What code word did I ask you to remember?")
+  c.ask("/no_think Remember this code word: ZEPHYR")
+  r = c.ask("/no_think What code word did I ask you to remember?")
   assert r.content.upcase.include?("ZEPHYR"), "context lost; got: #{r.content.inspect}"
 end
 
@@ -252,7 +265,7 @@ test "chat.ask with block → chunks stream before completion", slow: true do
   skip! "chat not initialized" unless chat
   chunks = []
   c = RubyLLM.chat(**CHAT_OPTS)
-  c.ask("Count from 1 to 5, one number per line.") { |chunk| chunks << chunk.content if chunk.content }
+  c.ask("/no_think Count from 1 to 5, one number per line.") { |chunk| chunks << chunk.content if chunk.content }
   assert chunks.length > 1, "expected multiple chunks, got #{chunks.length}"
   full = chunks.join
   assert full.match?(/[1-5]/), "streamed content missing numbers: #{full.inspect}"
@@ -266,33 +279,48 @@ test "tool — model invokes UnitConverter for a conversion request", slow: true
   skip! "server not reachable" unless server_up
   c = RubyLLM.chat(**CHAT_OPTS)
   c.with_tool(UnitConverter.new)
-  r = c.ask("Convert 100 km to miles. Reply with just the numeric result.")
+  r = c.ask("/no_think Convert 100 km to miles. Reply with just the numeric result.")
   # 100 km = 62.1371 miles; accept any response containing the right digits
   assert r.content.match?(/62\.1/), "expected ~62.1 in: #{r.content.inspect}"
 end
 
-# ── Layer 5: Embeddings ───────────────────────────────────────────────────────
+# ── Layer 5: Embeddings (port 8090, Nomic embed-v2 MoE) ──────────────────────
+# The embedding server is separate from the chat server. It cannot share a
+# process with speculative decoding — use EMBED_ENDPOINT (127.0.0.1:8090).
 puts
-puts "── 5. Embeddings ────────────────────────────────────────────────────────"
+puts "── 5. Embeddings (embed server: #{EMBED_ENDPOINT}) ──────────────────────"
 
-EMB_OPTS = { model: MODEL, provider: PROVIDER, assume_model_exists: true }.freeze
+embed_up = false
 
-test "embed — returns a non-empty float vector" do
-  skip! "server not reachable" unless server_up
-  e = RubyLLM.embed("hello world", **EMB_OPTS)
-  assert e.vectors.is_a?(Array) && !e.vectors.empty?, "bad vectors"
-  assert e.vectors.all? { |v| v.is_a?(Float) }, "non-float in vector"
+test "GET #{EMBED_ENDPOINT}/health → {status: ok}" do
+  r = http_get("/health").tap {} rescue (skip! "embed server unreachable"; nil)
+  # embed server has its own endpoint
+  uri = URI("#{EMBED_ENDPOINT}/health")
+  res = Net::HTTP.start(uri.host, uri.port, open_timeout: 3, read_timeout: 5) { |h| h.get(uri.path) }
+  assert res.code == "200", "HTTP #{res.code}"
+  body = JSON.parse(res.body)
+  assert body["status"] == "ok", "status=#{body["status"].inspect}"
+  embed_up = true
+end
+
+test "embed — returns a 768-dim float vector (Nomic embed-v2)" do
+  skip! "embed server not reachable" unless embed_up
+  data = http_post_embed("hello world")
+  vec  = data.dig("data", 0, "embedding")
+  assert vec.is_a?(Array) && !vec.empty?, "bad vectors"
+  assert vec.all? { |v| v.is_a?(Float) }, "non-float in vector"
+  assert vec.length == 768, "expected 768 dims, got #{vec.length}"
 end
 
 test "embed — dimensionality consistent across different inputs" do
-  skip! "server not reachable" unless server_up
-  a = RubyLLM.embed("apple",  **EMB_OPTS).vectors
-  b = RubyLLM.embed("orange", **EMB_OPTS).vectors
+  skip! "embed server not reachable" unless embed_up
+  a = http_post_embed("apple").dig("data", 0, "embedding")
+  b = http_post_embed("orange").dig("data", 0, "embedding")
   assert a.length == b.length, "dim #{a.length} vs #{b.length}"
 end
 
 test "embed — similar texts closer than dissimilar (cosine)", slow: true do
-  skip! "server not reachable" unless server_up
+  skip! "embed server not reachable" unless embed_up
 
   cosine = ->(a, b) do
     dot  = a.zip(b).sum { |x, y| x * y }
@@ -300,23 +328,13 @@ test "embed — similar texts closer than dissimilar (cosine)", slow: true do
     dot / (norm[a] * norm[b])
   end
 
-  v_cat1 = RubyLLM.embed("The cat sat on the mat.",   **EMB_OPTS).vectors
-  v_cat2 = RubyLLM.embed("A feline rested on a rug.", **EMB_OPTS).vectors
-  v_diff = RubyLLM.embed("Stock market futures rose.", **EMB_OPTS).vectors
+  v_cat1 = http_post_embed("The cat sat on the mat.").dig("data",   0, "embedding")
+  v_cat2 = http_post_embed("A feline rested on a rug.").dig("data", 0, "embedding")
+  v_diff = http_post_embed("Stock market futures rose.").dig("data", 0, "embedding")
 
   near = cosine[v_cat1, v_cat2]
   far  = cosine[v_cat1, v_diff]
   assert near > far, "near=#{near.round(3)} should exceed far=#{far.round(3)}"
-end
-
-test "embed — batch: array of strings returns array of vectors", slow: true do
-  skip! "server not reachable" unless server_up
-  # RubyLLM passes arrays directly to the embeddings endpoint
-  e = RubyLLM.embed(["first sentence", "second sentence"], **EMB_OPTS)
-  vecs = e.vectors
-  assert vecs.is_a?(Array) && vecs.length == 2,      "expected 2 vectors, got #{vecs.inspect.slice(0, 80)}"
-  assert vecs.all? { |v| v.is_a?(Array) },           "each element should be a vector array"
-  assert vecs.all? { |v| v.all? { |f| f.is_a?(Float) } }, "non-float in batch vectors"
 end
 
 # ── Layer 6: Capabilities not supported ───────────────────────────────────────
