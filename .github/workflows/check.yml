@@ -39,6 +39,30 @@ jobs:
       - name: 'Run Fast Sanity Checks'
         run: ZDOTS_CHECK_SKIP_EXTERNAL=1 ZDOTS_CHECK_REPORT_STARTUP=1 ZDOTS_ENV_PROFILE=ci-act ./bin/check
 
+  ruby:
+    runs-on: macos-latest
+    env:
+      ZDOTDIR: ${{ github.workspace }}
+      ZDOTS_AI_MODE: none
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install mise + Ruby
+        uses: jdx/mise-action@v2
+
+      - name: Install PostgreSQL client (required by pg gem)
+        run: brew install libpq
+
+      - name: Install gems
+        run: |
+          VER=$(cat etc/ruby-version)
+          BUNDLE_BUILD__PG="--with-pg-config=/opt/homebrew/opt/libpq/bin/pg_config" \
+            ~/.local/share/mise/installs/ruby/${VER}/bin/bundle install
+
+      - name: Run RSpec
+        run: bin/zdots-ruby -S rspec
+
   full:
     runs-on: macos-latest
     needs: sanity
