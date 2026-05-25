@@ -374,10 +374,13 @@ aiq_submit() {
   local sys_msg user_msg
   sys_msg=$(cat "$sysfile")
   user_msg=$(cat "$userfile")
-  # AIQ_ENABLE_THINKING=1: prepend Qwen3 /think token to activate reasoning mode.
-  # aiq_sanitize_output strips <think> blocks from output — callers see clean text.
-  [[ "${AIQ_ENABLE_THINKING:-0}" == "1" ]] && user_msg="/think
-${user_msg}"
+
+  # Qwen3 thinking mode via chat_template_kwargs (cleaner than /think token prefix).
+  # Default: off — shell/code queries don't need deep reasoning and cold-start
+  # thinking chains can exceed the read timeout.
+  # Set AIQ_ENABLE_THINKING=1 (via ai-query --think or zdots-ask --think) to enable.
+  local _thinking="false"
+  [[ "${AIQ_ENABLE_THINKING:-0}" == "1" ]] && _thinking="true"
 
   local tmp_resp; tmp_resp=$(mktemp)
   # Caller owns the EXIT trap for cleanup; we remove on error paths below.
@@ -389,9 +392,10 @@ ${user_msg}"
   fi
 
   http_code=$(jq -nc \
-    --arg model  "$model" \
-    --arg system "$sys_msg" \
-    --arg user   "$user_msg" \
+    --arg  model    "$model" \
+    --arg  system   "$sys_msg" \
+    --arg  user     "$user_msg" \
+    --argjson thinking "$_thinking" \
     '{
       model: $model,
       messages: [
@@ -399,7 +403,8 @@ ${user_msg}"
         {role: "user",   content: $user}
       ],
       stream: false,
-      temperature: 0.2
+      temperature: 0.2,
+      chat_template_kwargs: {enable_thinking: $thinking}
     }' \
     | curl -s -o "$tmp_resp" -w '%{http_code}' \
         -X POST "${endpoint}/v1/chat/completions" \
