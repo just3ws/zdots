@@ -199,9 +199,12 @@ cmd_check() {
 
   # ── Required tools ─────────────────────────────────────────────────────────
   printf 'Required tools\n'
-  for tool in brew git curl jq yq colima docker llama-server otelcol-contrib; do
+  for tool in brew git curl jq yq colima docker llama-server otelcol-contrib nginx mkcert; do
     if command -v "$tool" >/dev/null 2>&1; then
       _chk_pass "$tool  $(command -v "$tool")"
+    elif [[ "$tool" == "nginx" ]] && [[ -L /opt/homebrew/bin/nginx ]]; then
+      # nginx run as root (sudo brew services) makes the binary non-executable by the user
+      _chk_pass "$tool  /opt/homebrew/bin/nginx (system service)"
     else
       _chk_fail "$tool  not found"
       _fix "brew install $tool"
@@ -226,12 +229,19 @@ cmd_check() {
   _check_file "docker-compose.lgtm" "$ZDOTDIR/etc/docker-compose.lgtm.yaml" ""
 
   local llama_plist="$HOME/Library/LaunchAgents/com.zdots.llama-server.plist"
+  local embed_plist="$HOME/Library/LaunchAgents/com.zdots.llama-embed.plist"
   local otel_plist="$HOME/Library/LaunchAgents/com.zdots.otel-collector.plist"
   if [[ -f "$llama_plist" ]]; then
     _chk_pass "llama-server plist  $llama_plist"
   else
     _chk_warn "llama-server plist  not registered"
     _fix "llama-ctl install"
+  fi
+  if [[ -f "$embed_plist" ]]; then
+    _chk_pass "llama-embed plist   $embed_plist"
+  else
+    _chk_warn "llama-embed plist   not registered (embed server / RAG disabled)"
+    _fix "ZDOTS_AI_PROFILE=embed llama-ctl model-download && llama-ctl install-embed"
   fi
   if [[ -f "$otel_plist" ]]; then
     _chk_pass "otel-collector plist  $otel_plist"
@@ -321,6 +331,14 @@ cmd_check() {
     _fix "zdots-ctl up"
   fi
 
+  local embed_endpoint="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:8090}"
+  if curl -sf -m 2 "${embed_endpoint}/health" >/dev/null 2>&1; then
+    _chk_pass "embed server  reachable ($embed_endpoint)"
+  else
+    _chk_warn "embed server  unreachable — RAG/capture disabled"
+    _fix "llama-ctl install-embed  (then reload your shell)"
+  fi
+
   # ── AI server network sandbox (darwin) ────────────────────────────────────
   if [[ "$(uname -s)" == "Darwin" ]]; then
     local _llama_plist="$HOME/Library/LaunchAgents/com.zdots.llama-server.plist"
@@ -365,6 +383,86 @@ cmd_check() {
     _chk_warn "intelligence  unreachable (check ~/my/config or DATABASE_URL)"
     _fix "zdots-ctx status"
   fi
+
+  # ── Local proxy (nginx + mkcert + /etc/hosts) ─────────────────────────────
+  printf '\nLocal proxy\n'
+
+  # nginx running on port 80 (not 8080 — that conflicts with llama-server)
+  # Use HTTP probe: lsof and nginx -t require root when managed via sudo brew services.
+  if [[ -L /opt/homebrew/bin/nginx ]] || command -v nginx >/dev/null 2>&1; then
+    local nginx_server_header
+    nginx_server_header=$(curl -sI --max-time 2 http://127.0.0.1 2>/dev/null | grep -i '^Server:' | head -1) || true
+    if echo "$nginx_server_header" | grep -qi nginx; then
+      _chk_pass "nginx  running on port 80"
+      # Config is valid by definition if nginx is serving — sudo nginx -t can't run non-interactively
+      _chk_pass "nginx config  valid (inferred — service is running)"
+    else
+      local nginx_8080_header
+      nginx_8080_header=$(curl -sI --max-time 2 http://127.0.0.1:8080 2>/dev/null | grep -i '^Server:' | head -1) || true
+      if echo "$nginx_8080_header" | grep -qi nginx; then
+        _chk_fail "nginx  running on port 8080 (conflicts with llama-server)"
+        _fix "sudo brew services stop nginx && edit $(brew --prefix)/etc/nginx/nginx.conf (8080→80) && sudo brew services start nginx"
+      else
+        _chk_warn "nginx  not running"
+        _fix "sudo brew services start nginx"
+        # Only validate config when nginx is stopped — helps diagnose startup failures
+        local nginx_t_rc=0
+        sudo nginx -t >/dev/null 2>&1 || nginx_t_rc=$?
+        if [[ $nginx_t_rc -eq 0 ]]; then
+          _chk_pass "nginx config  valid (nginx stopped but config is clean)"
+        elif [[ $nginx_t_rc -ne 126 ]]; then
+          _chk_fail "nginx config  invalid"
+          _fix "sudo nginx -t  (see errors above)"
+        fi
+      fi
+    fi
+  else
+    _chk_warn "nginx  not installed"
+    _fix "brew install nginx"
+  fi
+
+  # mkcert local CA trusted in system keychain
+  if command -v mkcert >/dev/null 2>&1; then
+    local mkcert_root; mkcert_root=$(mkcert -CAROOT 2>/dev/null) || true
+    if [[ -f "${mkcert_root}/rootCA.pem" ]]; then
+      if security verify-cert -c "${mkcert_root}/rootCA.pem" >/dev/null 2>&1; then
+        _chk_pass "mkcert CA  trusted in system keychain"
+      else
+        _chk_warn "mkcert CA  present but NOT trusted — HTTPS certs will show browser warnings"
+        _fix "mkcert -install  (needs macOS password)"
+      fi
+    else
+      _chk_warn "mkcert CA  not generated yet"
+      _fix "mkcert -install"
+    fi
+    # TLS cert files present
+    local brew_pfx; brew_pfx=$(brew --prefix 2>/dev/null) || brew_pfx="/opt/homebrew"
+    local cert_file="${brew_pfx}/etc/nginx/certs/zdots-local.pem"
+    if [[ -f "$cert_file" ]]; then
+      _chk_pass "nginx TLS certs  present ($cert_file)"
+    else
+      _chk_warn "nginx TLS certs  missing"
+      _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.local embed.local grafana.local my.local dev.my.local localhost 127.0.0.1"
+    fi
+  else
+    _chk_warn "mkcert  not installed"
+    _fix "brew install mkcert && mkcert -install"
+  fi
+
+  # /etc/hosts entries for nginx virtual hosts
+  local _missing_hosts=""
+  for _h in llama.local embed.local grafana.local; do
+    grep -qF "$_h" /etc/hosts 2>/dev/null || _missing_hosts="$_missing_hosts $_h"
+  done
+  if [[ -z "$_missing_hosts" ]]; then
+    _chk_pass "/etc/hosts  llama.local embed.local grafana.local all present"
+  else
+    _chk_warn "/etc/hosts  missing entries:${_missing_hosts}"
+    for _h in $_missing_hosts; do
+      _fix "sudo sh -c 'echo \"127.0.0.1 ${_h}\" >> /etc/hosts'"
+    done
+  fi
+  unset _missing_hosts _h
 
   # ── AI router structural check (fast — no model call) ─────────────────────
   printf '\nAI router\n'
@@ -419,7 +517,7 @@ cmd_check() {
   else
     local _ai_out
     if _ai_out=$(timeout 60 zdots-ruby "$_llama_test" --quick 2>/dev/null); then
-      _chk_pass "AI integration  chat + embeddings verified via RubyLLM"
+      _chk_pass "AI integration  chat (RubyLLM) + embeddings (embed server) verified"
     else
       _chk_fail "AI integration  RubyLLM × llama.cpp test failed"
       _fix "zdots-ruby $ZDOTDIR/tests/llama_integration.rb  (full output)"

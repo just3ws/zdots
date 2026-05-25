@@ -8,7 +8,7 @@ How engineering skills should consume this repo's documentation.
 - **`CLAUDE.md`** at the repo root — Claude Code-specific conventions and platform control
 - **`docs/`** — supplementary docs (llama-cpp, otel, testing, quality rubric)
 
-No `CONTEXT.md` or `docs/adr/` exist yet. Proceed silently if absent.
+No `CONTEXT.md` exists yet. `docs/adr/` exists — check it before re-litigating architectural decisions.
 
 ## File structure
 
@@ -43,4 +43,8 @@ Single-context repo:
 
 ## ADRs
 
-No `docs/adr/` exists yet. Architectural decisions are documented in AGENTS.md and commit messages.
+`docs/adr/` contains binding architectural decisions. Read relevant ADRs before proposing changes in their area.
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| [0001](../adr/0001-nginx-not-in-ai-query-path.md) | nginx is not in the CLI AI-query path | Accepted |
