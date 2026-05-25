@@ -11,16 +11,51 @@ set -eu
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-# 1. Prerequisites
-if [ ! -f "$REPO_ROOT/Brewfile" ]; then
-  echo "bootstrap: Brewfile not found at $REPO_ROOT/Brewfile" >&2
+# 0. Xcode Command Line Tools
+# Required for git, compilers, and Homebrew itself. If you ran `git clone` to
+# get here, CLT is likely installed already — this handles the edge case where
+# it isn't (fresh out-of-box Mac, System Integrity Protection reset, etc.).
+if ! xcode-select -p >/dev/null 2>&1; then
+  echo "bootstrap: Xcode Command Line Tools not found — starting installation."
+  echo "           A dialog will appear: click Install and wait for it to finish."
+  echo "           Then re-run: $0"
+  xcode-select --install 2>/dev/null || true
   exit 1
 fi
 
+# 1. Homebrew
+# Three states handled in sequence:
+#   a) Installed + in PATH → nothing to do
+#   b) Installed at known prefix but PATH not yet updated → activate shellenv
+#   c) Not installed → download + install, then activate
+#
+# The shellenv eval makes brew (and everything it installs) available for the
+# rest of this script without requiring a new shell. On Apple Silicon the
+# prefix is /opt/homebrew; on Intel it's /usr/local.
+_brew_activate() {
+  if   [ -x "/opt/homebrew/bin/brew" ]; then eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [ -x "/usr/local/bin/brew"    ]; then eval "$(/usr/local/bin/brew shellenv)"
+  fi
+}
+
+if ! command -v brew >/dev/null 2>&1; then _brew_activate; fi
+
 if ! command -v brew >/dev/null 2>&1; then
-  echo "bootstrap: Homebrew is required." >&2
-  echo "Install with:" >&2
-  echo "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"" >&2
+  echo "bootstrap: Homebrew not found — installing..."
+  echo "           You may be prompted for your password."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  _brew_activate
+fi
+
+if ! command -v brew >/dev/null 2>&1; then
+  echo "bootstrap: ERROR: Homebrew unavailable after install attempt." >&2
+  echo "           Open a new Terminal window and re-run: $0" >&2
+  exit 1
+fi
+echo "bootstrap: $(brew --version | head -1)"
+
+if [ ! -f "$REPO_ROOT/Brewfile" ]; then
+  echo "bootstrap: Brewfile not found at $REPO_ROOT/Brewfile" >&2
   exit 1
 fi
 
