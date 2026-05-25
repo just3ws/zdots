@@ -185,10 +185,9 @@ fi
 # Route to local model via the AI Invocation Interface.
 # PHI gate + hygiene enforced inside zdots_ai_infer_raw.
 # ---------------------------------------------------------------------------
-# --think: prefix the Qwen3 /think control token to enable reasoning mode.
-# Output is still clean — aiq_sanitize_output strips <think> blocks.
+# --think: signal via AIQ_ENABLE_THINKING so aiq_submit uses chat_template_kwargs.
+# Inherited by the ai-query subprocess spawned inside zdots_ai_infer_raw.
 if (( THINK_MODE )); then
-  PROMPT="/think
-${PROMPT}"
+  export AIQ_ENABLE_THINKING=1
 fi
 zdots_ai_infer_raw "$PROMPT" "$SYS_CONTENT"
