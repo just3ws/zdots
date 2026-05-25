@@ -244,3 +244,74 @@ setup() {
   len=$(echo "$output" | grep -Eo '^[0-9]+$' | tail -1)
   [ "$len" -le 512 ]
 }
+
+# ---------------------------------------------------------------------------
+# PHI Pattern Registry — etc/phi-patterns.yaml + lib/phi_scrubber.bash
+# ---------------------------------------------------------------------------
+
+@test "phi_registry: yq required — fails hard when absent" {
+  # PATH keeps bash but excludes Homebrew (where yq lives)
+  run bash -c "
+    PATH='/usr/bin:/bin' \
+    ZDOTDIR='$ZDOTDIR' \
+    bash -c 'source $ZDOTDIR/lib/phi_scrubber.bash && phi_scrub <<< test 2>&1; exit \$?'
+  "
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"yq"* ]]
+}
+
+@test "phi_registry: patterns file missing — fails hard" {
+  run bash -c "
+    ZDOTDIR='$BATS_TEST_TMPDIR' \
+    bash -c 'source $ZDOTDIR/lib/phi_scrubber.bash && printf test | phi_scrub'
+  "
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"pattern registry not found"* ]]
+}
+
+@test "phi_registry: compiles SSN pattern from YAML" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf '123-45-6789' | phi_scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED-SSN]"* ]]
+  [[ "$output" != *"123-45-6789"* ]]
+}
+
+@test "phi_registry: compiles MRN pattern from YAML" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'MRN: 00123456' | phi_scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED-MRN]"* ]]
+}
+
+@test "phi_registry: compiles DOB pattern from YAML" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'DOB: 01/15/1980' | phi_scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED-DOB]"* ]]
+}
+
+@test "phi_registry: compiles conn_string pattern from YAML" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'postgresql://user:secret@db.internal/mydb' | phi_scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED-CONN]"* ]]
+  [[ "$output" != *"secret"* ]]
+}
+
+@test "phi_registry: cached — _PHI_SED_ARGS populated after first scrub" {
+  # Use herestring (not pipe) so phi_scrub runs in current process, not a subshell
+  run bash -c "
+    ZDOTDIR='$ZDOTDIR'
+    source $ZDOTDIR/lib/phi_scrubber.bash
+    phi_scrub <<< 'test input' > /dev/null
+    echo \"\${#_PHI_SED_ARGS[@]}\"
+  "
+  [ "$status" -eq 0 ]
+  [ "$output" -gt 0 ]
+}
+
+@test "phi_registry: all four patterns active in one pass" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'SSN 123-45-6789 MRN: 99 DOB: 01/01/2000 postgresql://u:p@h/db' | phi_scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED-SSN]"* ]]
+  [[ "$output" == *"[REDACTED-MRN]"* ]]
+  [[ "$output" == *"[REDACTED-DOB]"* ]]
+  [[ "$output" == *"[REDACTED-CONN]"* ]]
+}

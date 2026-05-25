@@ -34,10 +34,8 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 # Source the lifecycle engine for logging and output helpers
 # shellcheck source=lib/lifecycle.bash
 source "${ZDOTDIR}/lib/lifecycle.bash"
-# shellcheck source=lib/ai_boundary.bash
-source "${ZDOTDIR}/lib/ai_boundary.bash"
-# shellcheck source=lib/message_hygiene.bash
-source "${ZDOTDIR}/lib/message_hygiene.bash"
+# shellcheck source=lib/ai-invoke.bash
+source "${ZDOTDIR}/lib/ai-invoke.bash"
 
 # 1. Ensure basics (handle unbound variables for complex environment files)
 [[ -z "${ZDOTS_DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
@@ -221,18 +219,10 @@ INSTRUCTIONS:
 EOF
 )
 
-  _AI_ENDPOINT=$(zdots_ai_gated_endpoint "zdots-ctx")
   _svc_log "distilling with local AI..."
   local distillation
-  if ! distillation=$(echo "$prompt" | ai-query --mode raw 2>/dev/null); then
+  if ! distillation=$(zdots_ai_distill "$prompt"); then
     _svc_die "AI distillation failed. Ensure llama-server is running (or set ZDOTS_AI_MODE=none to disable)."
-  fi
-
-  # Clean up the AI output to ensure it's valid JSON
-  distillation=$(echo "$distillation" | sed -n '/{/,/}/p')
-
-  if [[ -z "$distillation" ]]; then
-    _svc_die "AI returned empty or invalid response."
   fi
 
   if [[ "${1:-}" == "--json" ]]; then
