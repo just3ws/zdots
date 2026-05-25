@@ -25,16 +25,27 @@ Run specific tests:
 bats tests/metadata.bats
 ```
 
-## 3. Integration Testing (RubyLLM)
+## 3. Ruby Unit Testing (RSpec)
 
-End-to-end validation of the AI stack (chat, embeddings, tool use) is handled via Ruby integration tests.
+Ruby infrastructure (AI pipeline, PHI scrubber, encryption) is covered by an RSpec suite in `spec/`. All specs run isolated — no database or AI server required. Integration specs are tagged `:integration` and excluded by default.
 
 ```sh
-ruby tests/llama_integration.rb --quick  # Fast health + chat check
-ruby tests/llama_integration.rb          # Full suite (includes streaming/tools)
+zdots-ruby -S rspec                  # all unit specs (fast, no services)
+zdots-ruby -S rspec --tag integration  # integration specs (requires live DB)
 ```
 
-## 4. Contract Testing
+The suite runs in CI on every push and PR via the `ruby` job in `check.yml`. Use `zdots-ruby` (not the ambient `ruby`) so the specs always run on the pinned version from `etc/ruby-version`.
+
+## 4. Integration Testing (RubyLLM × llama.cpp)
+
+End-to-end validation of the AI stack (chat, embeddings, tool use). Requires a running llama.cpp server (`zdots-ctl up`).
+
+```sh
+zdots-ruby tests/llama_integration.rb --quick  # fast: health + chat
+zdots-ruby tests/llama_integration.rb          # full suite (streaming, tools)
+```
+
+## 5. Contract Testing
 
 The `bin/capabilities` script performs live contract testing on the current environment. It verifies that all active providers fulfill their defined interface requirements.
 
@@ -42,7 +53,7 @@ The `bin/capabilities` script performs live contract testing on the current envi
 capabilities --json
 ```
 
-## 5. Performance Benchmarking
+## 6. Performance Benchmarking
 
 Shell startup time is a critical metric.
 ```sh
@@ -50,6 +61,6 @@ make bench
 ```
 Target interactive startup: **< 80ms**.
 
-## 6. Manual Verification
+## 7. Manual Verification
 
 Use `zdots-ctl check` for a comprehensive environment audit that includes tool presence, configuration validity, and service health.
