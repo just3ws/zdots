@@ -27,3 +27,4 @@ traces-collected.json
 .aider.input.history
 .aider*
 .claude/settings.local.json
+.bundle/config
