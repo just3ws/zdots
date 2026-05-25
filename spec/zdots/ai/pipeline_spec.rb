@@ -111,41 +111,42 @@ RSpec.describe Zdots::AI::Pipeline do
   # ── Embed pipeline ─────────────────────────────────────────────────────────
 
   describe ".embed" do
-    let(:fake_client) { instance_double(Zdots::AI::Connection) }
-    let(:vector)      { Array.new(16) { rand } }
+    let(:fake_embed_client) { instance_double(Zdots::AI::EmbedConnection) }
+    let(:vector)            { Array.new(768) { rand } }
 
     before do
-      ENV["ZDOTS_AI_MODE"]     = "local"
-      ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:8080"
-      allow(Zdots::AI).to receive(:build_client).and_return(fake_client)
+      ENV["ZDOTS_AI_MODE"]          = "local"
+      ENV["ZDOTS_AI_ENDPOINT"]      = "http://127.0.0.1:8080"
+      ENV["ZDOTS_AI_EMBED_ENDPOINT"] = "http://127.0.0.1:8090"
+      allow(Zdots::AI).to receive(:embed_client).and_return(fake_embed_client)
     end
 
     it "returns Success(vector) on a valid response" do
-      fake_result = double("RubyLLM::EmbeddingResult", vectors: vector)
-      allow(fake_client).to receive(:embed).and_return(fake_result)
+      fake_result = Zdots::AI::EmbedConnection::EmbedResult.new(vector, vector)
+      allow(fake_embed_client).to receive(:embed).and_return(fake_result)
       result = described_class.embed("hello world")
       expect(result).to be_success
       expect(result.value!).to eq(vector)
     end
 
     it "returns Failure[:embed_error, …] when vectors is nil" do
-      fake_result = double("RubyLLM::EmbeddingResult", vectors: nil)
-      allow(fake_client).to receive(:embed).and_return(fake_result)
+      fake_result = Zdots::AI::EmbedConnection::EmbedResult.new(nil, nil)
+      allow(fake_embed_client).to receive(:embed).and_return(fake_result)
       result = described_class.embed("hello")
       expect(result).to be_failure
       expect(result.failure.first).to eq(:embed_error)
     end
 
     it "returns Failure[:embed_error, …] when vectors is empty" do
-      fake_result = double("RubyLLM::EmbeddingResult", vectors: [])
-      allow(fake_client).to receive(:embed).and_return(fake_result)
+      fake_result = Zdots::AI::EmbedConnection::EmbedResult.new([], [])
+      allow(fake_embed_client).to receive(:embed).and_return(fake_result)
       result = described_class.embed("hello")
       expect(result).to be_failure
       expect(result.failure.first).to eq(:embed_error)
     end
 
     it "returns Failure[:embed_error, …] when the client raises" do
-      allow(fake_client).to receive(:embed).and_raise(RuntimeError, "embed failed")
+      allow(fake_embed_client).to receive(:embed).and_raise(RuntimeError, "embed failed")
       result = described_class.embed("hello")
       expect(result).to be_failure
       reason, msg = result.failure

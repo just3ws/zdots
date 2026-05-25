@@ -81,6 +81,20 @@ whisper_profiles:
 default_profile: "qwen3-8b"
 default_whisper_profile: "standard"
 
+# Settings for the dedicated embedding server (com.zdots.llama-embed, port 8090).
+# Separate from server: because embeddings + spec-decoding crash llama.cpp.
+# Managed by: llama-ctl install-embed / start-embed / stop-embed
+embed_server:
+  host: "127.0.0.1"
+  port: 8090
+  parallel: 1
+  batch_size: 2048
+  # Must match batch_size so any embedding input up to 2048 tokens succeeds.
+  ubatch_size: 2048
+  cache_type_k: f16
+  cache_type_v: f16
+  alias: "embed"
+
 # llama-server startup defaults (M4 / 16GB tuning)
 server:
   host: "127.0.0.1"
