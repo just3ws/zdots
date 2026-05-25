@@ -1,3 +1,8 @@
+---
+name: zdots
+description: Operational context for working inside the zdots zsh configuration and local dev platform. Use when working in /Users/mike/.config/zsh, operating zdots tools, checking services, handling local AI/PHI boundaries, or following zdots project protocols.
+---
+
 # /zdots — Zdots Operational Context
 
 You are working inside **zdots** — a zsh-based shell configuration and local dev platform.

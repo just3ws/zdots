@@ -715,7 +715,7 @@ case "${1:-}" in
   validate)       validate_llama ;;
   config)         shift; config_dump "${@}" ;;
   model-list)     model_list ;;
-  model-download) model_download ;;
+  model-download) shift; model_download "${@}" ;;
   model-verify)   _vp=$(_active_model_path); zdots_model_verify "${_vp:-}" ;;
   model-switch)   model_switch "${2:-}" ;;
   model-prune)    model_prune ;;

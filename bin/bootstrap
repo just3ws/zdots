@@ -254,6 +254,100 @@ else
   echo "           Run: llama-ctl install && llama-ctl model-download && llama-ctl install"
 fi
 
+# 6b. Embedding server — Nomic embed-v2 MoE (port 8090)
+# Must be a separate process from the chat server: --embeddings + --spec-draft-model
+# causes a llama.cpp crash loop. 0.5 GB model, runs alongside the 5 GB chat model.
+if command -v llama-server >/dev/null 2>&1 && command -v llama-ctl >/dev/null 2>&1; then
+  echo "bootstrap: downloading Nomic embed model (profile: embed, ~0.5 GB)..."
+  ZDOTS_AI_PROFILE=embed llama-ctl model-download \
+    || echo "bootstrap: warning: embed model download failed — run: ZDOTS_AI_PROFILE=embed llama-ctl model-download"
+  echo "bootstrap: registering embedding server launchd service..."
+  llama-ctl install-embed \
+    || echo "bootstrap: warning: llama-ctl install-embed failed — run manually after model download"
+else
+  echo "bootstrap: llama-server not found — skipping embed server setup."
+fi
+
+# 6c. Local TLS: mkcert CA + service certs
+# mkcert creates a locally-trusted CA and issues certs for *.local hostnames.
+# nginx uses these certs for https://llama.local, https://embed.local, etc.
+_NGINX_PREFIX="$(brew --prefix)/etc/nginx"
+if command -v mkcert >/dev/null 2>&1; then
+  echo "bootstrap: installing local CA via mkcert (macOS will prompt for your password)..."
+  mkcert -install 2>&1 \
+    || echo "bootstrap: WARNING: mkcert -install failed — run 'mkcert -install' manually."
+  _CERT_PEM="$_NGINX_PREFIX/certs/zdots-local.pem"
+  if [ ! -f "$_CERT_PEM" ]; then
+    echo "bootstrap: generating TLS certs for local service hostnames..."
+    mkdir -p "$_NGINX_PREFIX/certs"
+    mkcert \
+      -cert-file "$_NGINX_PREFIX/certs/zdots-local.pem" \
+      -key-file  "$_NGINX_PREFIX/certs/zdots-local-key.pem" \
+      llama.local embed.local grafana.local my.local dev.my.local localhost 127.0.0.1 \
+      || echo "bootstrap: WARNING: cert generation failed — run mkcert manually."
+  else
+    echo "bootstrap: TLS certs already present ($_CERT_PEM)"
+  fi
+else
+  echo "bootstrap: mkcert not found — skipping TLS cert setup."
+  echo "           mkcert should have been installed via Brewfile above."
+  echo "           Run: brew install mkcert && mkcert -install"
+fi
+
+# 6d. nginx: local reverse proxy on port 80/443
+# Fixes the default Homebrew nginx (listens on 8080, conflicts with llama-server)
+# and installs zdots service configs.
+if command -v nginx >/dev/null 2>&1; then
+  _NGINX_CONF="$_NGINX_PREFIX/nginx.conf"
+  # Fix default server port: 8080 (Homebrew default) conflicts with llama-server.
+  if grep -qE 'listen[[:space:]]+8080[^0-9]' "$_NGINX_CONF" 2>/dev/null; then
+    echo "bootstrap: fixing nginx default server port 8080 → 80..."
+    sed -i.bak 's/listen       8080;/listen       80 default_server;/' "$_NGINX_CONF"
+  fi
+  # Install zdots nginx configs (ssl_params.conf and servers/zdots.conf).
+  _REPO_NGINX="$REPO_ROOT/etc/nginx"
+  if [ -f "$_REPO_NGINX/ssl_params.conf" ]; then
+    cp "$_REPO_NGINX/ssl_params.conf" "$_NGINX_PREFIX/ssl_params.conf"
+    echo "bootstrap: installed nginx ssl_params.conf"
+  fi
+  if [ ! -f "$_NGINX_PREFIX/servers/zdots.conf" ] && [ -f "$_REPO_NGINX/servers/zdots.conf" ]; then
+    cp "$_REPO_NGINX/servers/zdots.conf" "$_NGINX_PREFIX/servers/zdots.conf"
+    echo "bootstrap: installed nginx servers/zdots.conf"
+  fi
+  # Validate config before attempting start.
+  if nginx -t 2>/dev/null; then
+    echo "bootstrap: nginx config valid."
+    echo "bootstrap: MANUAL STEP REQUIRED: start nginx on port 80."
+    echo "           Run: sudo brew services start nginx"
+  else
+    echo "bootstrap: WARNING: nginx config validation failed — run: nginx -t"
+  fi
+  unset _NGINX_CONF _REPO_NGINX
+else
+  echo "bootstrap: nginx not found — skipping local proxy setup."
+  echo "           Run: brew install nginx && sudo brew services start nginx"
+fi
+unset _NGINX_PREFIX
+
+# 6e. /etc/hosts — local service hostnames
+# nginx routes requests by Host header; /etc/hosts maps hostnames to 127.0.0.1.
+# These entries require sudo — bootstrap prints the commands.
+_NEEDED_HOSTS="llama.local embed.local grafana.local"
+_MISSING_HOSTS=""
+for _HOST in $_NEEDED_HOSTS; do
+  grep -qF "$_HOST" /etc/hosts 2>/dev/null || _MISSING_HOSTS="$_MISSING_HOSTS $_HOST"
+done
+if [ -n "$_MISSING_HOSTS" ]; then
+  echo ""
+  echo "bootstrap: MANUAL STEP REQUIRED: /etc/hosts entries missing for:$_MISSING_HOSTS"
+  echo "           Run the following (one-time, requires sudo):"
+  for _HOST in $_MISSING_HOSTS; do
+    echo "             sudo sh -c 'echo \"127.0.0.1 ${_HOST}\" >> /etc/hosts'"
+  done
+  echo ""
+fi
+unset _NEEDED_HOSTS _MISSING_HOSTS _HOST
+
 # 7. Ruby gems — AI pipeline, PHI scrubber, DB bridge
 #
 # Uses the mise-managed Ruby pinned in etc/ruby-version — never the system Ruby
