@@ -207,15 +207,22 @@ INSTRUCTIONS:
 1. Identify the primary goal of this session.
 2. Summarize the technical challenges encountered (especially those reflected in trace errors).
 3. State the final result (did it succeed? what was fixed?).
-4. Output the result as a single concise paragraph for a "Lesson" and a few bullet points for "Residue".
-5. Use the following JSON format:
+4. Respond ONLY with a JSON object — no prose, no markdown, no code fences.
+
+REQUIRED OUTPUT SCHEMA (all fields required, no extras):
 {
-  "lesson": "Concise paragraph summarizing the key learning or fix.",
-  "summary": "High-level summary of work done.",
-  "intent": "What the user was trying to achieve.",
-  "result": "Final outcome.",
-  "tags": ["tag1", "tag2"]
+  "lesson":  string  — 1-3 sentences: the key learning, fix, or insight from this session,
+  "summary": string  — ≤25 words: what was done,
+  "intent":  string  — ≤15 words: what the user was trying to achieve,
+  "result":  string  — one of: "success", "partial", "failed", or a short phrase,
+  "tags":    array   — 2-5 lowercase strings: relevant domain tags (e.g. "zsh", "pgvector", "ai", "security")
 }
+
+CONSTRAINTS:
+- "lesson" must be a non-empty string (not null, not "").
+- "tags" must be a JSON array with at least 1 element.
+- Do not include additional fields beyond those listed above.
+- Output the JSON object only. Begin with '{' and end with '}'.
 EOF
 )
 

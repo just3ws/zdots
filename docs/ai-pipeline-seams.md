@@ -43,7 +43,8 @@ lib/ai-invoke.bash          ← AI Invocation Interface seam
 2. `zdots_assert_local_endpoint` enforces loopback/RFC-1918 in local mode — exits 1 on violation
 3. `zdots_message_hygiene` runs on every prompt before submission — PHI scrubbed, ANSI stripped
 4. `ai-query` binary is resolved via `ZDOTS_AI_QUERY` env var (test injection) or `${ZDOTDIR}/bin/ai-query` (production)
-5. `zdots_ai_distill` validates JSON via `jq empty` before returning — exits 2 on invalid JSON
+5. `zdots_ai_distill` validates JSON via `jq empty` AND verifies all 5 required fields (lesson, summary, intent, result, tags) are non-empty — exits 2 on invalid or incomplete JSON
+6. `--think` flag in `zdots-ask` / `ai-query` prepends `/think\n` to prompt — Qwen3 thinking mode. Output always clean (`aiq_sanitize_output` strips `<think>` blocks regardless)
 
 **Exit codes**:
 - 0: success
@@ -176,16 +177,31 @@ printf '<think>\nstep 1\nstep 2\n</think>\nFinal answer\n' | bash -c 'source lib
 **What it is**: The inference endpoint. All AI requests POST to `/v1/chat/completions`.
 
 **Current model**: Qwen3-8B Q4_K_M (`Qwen_Qwen3-8B-Q4_K_M.gguf`)
+**Draft model**: Qwen3-0.6B Q4_K_M (`Qwen_Qwen3-0.6B-Q4_K_M.gguf`) — speculative decoding
 **Profile**: `qwen3-8b` in `etc/ai-models.yaml`
-**Context**: 8192 tokens/slot × 2 parallel slots = 16384 total
-**n_embd**: 4096 (vector dimension for embeddings)
+**Context**: 16384 tokens/slot × 2 parallel slots (32768 total KV budget)
 
-**Server flags** (from `etc/ai-models.yaml::server`):
-- `--embeddings --pooling mean`: enables `/v1/embeddings` for RAG
+**Server flags** (from `etc/ai-models.yaml::server` + `qwen3-8b` profile):
+- `--spec-draft-model ... --spec-draft-n-max 5`: speculative decoding, 5 candidate tokens
+- `--spec-draft-type-k/v q8_0`: draft model KV quantized
 - `--flash-attn on`: ~2-4× KV cache reduction on M4
 - `--cache-type-k/v q8_0`: halved KV cache memory
-- `--cache-reuse 256`: KV prefix cache reuse (amortizes system prompt prefill)
 - `--alias local`: stable model name for API callers
+- `--temp 0.4`: server default temperature (per-request overrides honored)
+- `--metrics`: Prometheus metrics at /metrics for LGTM stack
+
+**Embeddings**: DISABLED on chat server. `--embeddings` + speculative decoding causes a
+llama.cpp crash loop (`embeddings required but tokens not marked as outputs`). RAG requires
+a dedicated embedding server on a separate port (see docs/rag-activation.md).
+
+**KV cache prefix**: llama.cpp's built-in prompt cache (enabled by default, 8192 MiB limit)
+replaces the old `--cache-reuse` flag. `--cache-reuse` is suppressed when a draft model is
+present (KV position conflict between cache-reuse and speculative decoding).
+
+**Known conflicts**:
+- `--embeddings` + `--spec-draft-model` → crash loop — do NOT combine on same server
+- `--cache-reuse` + `--spec-draft-model` → KV position mismatch — suppressed in `_register_plist()`
+- Homebrew nginx defaults to `*:8080` — conflicts with llama-server; stop it: `brew services stop nginx`
 
 **Locality invariant**: `zdots_assert_local_endpoint` ensures this is always a loopback/RFC-1918 address when `ZDOTS_AI_MODE=local`. `ZDOTS_AI_MODE=cloud` bypasses the check (future cloud path).
 

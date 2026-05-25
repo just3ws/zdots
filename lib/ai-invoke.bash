@@ -105,5 +105,15 @@ zdots_ai_distill() {
     return 2
   fi
 
+  # Validate required fields are present and non-empty.
+  local _field _val
+  for _field in lesson summary intent result tags; do
+    _val=$(printf '%s' "$json" | jq -r ".${_field} // empty" 2>/dev/null)
+    if [[ -z "$_val" ]]; then
+      printf 'zdots_ai_distill: required field missing or empty: .%s\n' "$_field" >&2
+      return 2
+    fi
+  done
+
   printf '%s' "$json"
 }
