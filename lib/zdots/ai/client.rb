@@ -17,6 +17,15 @@ module Zdots
       ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080")
     end
 
+    def self.embed_endpoint
+      ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT", "http://127.0.0.1:8090")
+    end
+
+    def self.embed_client
+      assert_local!
+      @embed_client ||= EmbedConnection.new
+    end
+
     def self.assert_local!
       mode = ENV.fetch("ZDOTS_AI_MODE", "local")
       if mode == "none"
@@ -33,6 +42,11 @@ module Zdots
 
     class << self
       private
+
+      def reset_clients!
+        @client = nil
+        @embed_client = nil
+      end
 
       def build_client
         require "ruby_llm"
@@ -76,6 +90,33 @@ module Zdots
           "event=#{event} #{detail}",
           exception: false
         )
+      end
+    end
+
+    # Direct HTTP adapter for the embedding server (port 8090).
+    # Bypasses RubyLLM global config — the embed server is a separate process.
+    class EmbedConnection
+      require "net/http"
+      require "json"
+
+      EmbedResult = Struct.new(:vectors, :embedding)
+
+      def embed(model:, input:)
+        ep  = Zdots::AI.embed_endpoint
+        uri = URI("#{ep}/v1/embeddings")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.read_timeout = 60
+
+        req = Net::HTTP::Post.new(uri.path, "Content-Type" => "application/json")
+        req.body = JSON.generate({ model: model, input: input })
+
+        res = http.request(req)
+        raise "Embed server returned #{res.code}: #{res.body[0, 200]}" unless res.code.to_i == 200
+
+        vector = JSON.parse(res.body).dig("data", 0, "embedding")
+        raise "Empty embedding in response" if vector.nil? || vector.empty?
+
+        EmbedResult.new(vector, vector)
       end
     end
 

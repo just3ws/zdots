@@ -52,7 +52,7 @@ module Zdots
         end
 
         def vectorize(text, model:)
-          result = Zdots::AI.client.embed(model: model, input: text)
+          result = Zdots::AI.embed_client.embed(model: "embed", input: text)
           vector = result.vectors
           return Failure[:embed_error, "empty embedding returned"] if vector.nil? || vector.empty?
           Success(vector)
