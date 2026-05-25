@@ -29,8 +29,7 @@ _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 _PROMPTS_DIR="${_ZDOTDIR}/etc/prompts"
 
-source "${_ZDOTDIR}/lib/ai_boundary.bash"
-source "${_ZDOTDIR}/lib/message_hygiene.bash"
+source "${_ZDOTDIR}/lib/ai-invoke.bash"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -154,11 +153,6 @@ if (( DRY_RUN )); then
 fi
 
 # ---------------------------------------------------------------------------
-# PHI boundary enforcement
-# ---------------------------------------------------------------------------
-zdots_ai_gate "zdots-ask"
-
-# ---------------------------------------------------------------------------
 # Context hydration (--context only)
 # Context blob prepended to user prompt — not system prompt — so the static
 # system prompt remains cacheable across calls (KV cache prefix reuse).
@@ -184,8 +178,7 @@ ${PROMPT}"
 fi
 
 # ---------------------------------------------------------------------------
-# Route to local model
-# Suppress raw-mode warning: zdots-ask constructs prompts internally (trusted).
+# Route to local model via the AI Invocation Interface.
+# PHI gate + hygiene enforced inside zdots_ai_infer_raw.
 # ---------------------------------------------------------------------------
-AIQ_SUPPRESS_RAW_WARN=1 \
-  "${_SCRIPT_DIR}/ai-query" --mode raw --system "$SYS_CONTENT" "$PROMPT"
+zdots_ai_infer_raw "$PROMPT" "$SYS_CONTENT"
