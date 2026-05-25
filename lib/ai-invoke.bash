@@ -84,6 +84,16 @@ zdots_ai_distill() {
     return 2
   fi
 
+  # response_format: json_schema is NOT used here — grammar-based constrained
+  # decoding conflicts with speculative decoding (draft tokens don't satisfy the
+  # grammar; main model rejects them all and the server stalls). The schema is
+  # enforced through the prompt and validated below. See AIQ_JSON_SCHEMA in
+  # aiq_submit for the wiring; activate it once spec-draft is disabled.
+  #
+  # Lower temperature (0.1) for deterministic field values. Safe to export here
+  # because zdots_ai_distill is always called in command substitution (subshell).
+  export AIQ_TEMPERATURE="0.1"
+
   local raw
   if ! raw=$(zdots_ai_infer_raw "$prompt"); then
     printf 'zdots_ai_distill: inference failed\n' >&2

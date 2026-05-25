@@ -382,6 +382,16 @@ aiq_submit() {
   local _thinking="false"
   [[ "${AIQ_ENABLE_THINKING:-0}" == "1" ]] && _thinking="true"
 
+  # Constrained JSON output via response_format (llama.cpp grammar-based generation).
+  # Set AIQ_JSON_SCHEMA to a JSON schema object string to enforce structured output.
+  # When set, the model is guaranteed to emit valid JSON matching the schema;
+  # prose extraction heuristics are unnecessary.
+  local _schema="${AIQ_JSON_SCHEMA:-null}"
+
+  # Per-call temperature override (default 0.2 suits interactive shell/code queries;
+  # structured distillation callers set AIQ_TEMPERATURE=0.1 for determinism).
+  local _temp="${AIQ_TEMPERATURE:-0.2}"
+
   local tmp_resp; tmp_resp=$(mktemp)
   # Caller owns the EXIT trap for cleanup; we remove on error paths below.
 
@@ -396,6 +406,8 @@ aiq_submit() {
     --arg  system   "$sys_msg" \
     --arg  user     "$user_msg" \
     --argjson thinking "$_thinking" \
+    --argjson temp    "$_temp" \
+    --argjson schema  "$_schema" \
     '{
       model: $model,
       messages: [
@@ -403,9 +415,14 @@ aiq_submit() {
         {role: "user",   content: $user}
       ],
       stream: false,
-      temperature: 0.2,
+      temperature: $temp,
       chat_template_kwargs: {enable_thinking: $thinking}
-    }' \
+    } + if $schema != null then {
+      response_format: {
+        type: "json_schema",
+        json_schema: {name: "output", schema: $schema, strict: true}
+      }
+    } else {} end' \
     | curl -s -o "$tmp_resp" -w '%{http_code}' \
         -X POST "${endpoint}/v1/chat/completions" \
         -H "Content-Type: application/json" \
