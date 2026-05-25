@@ -44,6 +44,8 @@ Options:
   --domain DOMAIN    Force a specific domain (default: auto-detect)
   --context [TAG]    Prepend zdots-ctx hydrate output to prompt; TAG defaults
                      to the detected domain. Fails open if DB unavailable.
+  --think            Enable Qwen3 thinking mode (/think token). Output is still
+                     clean — think blocks are stripped. Use for complex reasoning.
   --dry-run          Print detected domain and system prompt; no inference
   --list-domains     List available domains and exit
   --help, -h         Show this help
@@ -89,6 +91,7 @@ _detect_domain() {
 # ---------------------------------------------------------------------------
 DOMAIN=""
 DRY_RUN=0
+THINK_MODE=0
 CONTEXT_ENABLED=0
 CONTEXT_TAG=""
 PROMPT_ARGS=()
@@ -105,6 +108,7 @@ while [[ $# -gt 0 ]]; do
         shift
       fi
       ;;
+    --think)        THINK_MODE=1; shift   ;;
     --dry-run)      DRY_RUN=1;   shift   ;;
     --list-domains) _list_domains; exit 0 ;;
     --help|-h)      _usage ;;
@@ -181,4 +185,10 @@ fi
 # Route to local model via the AI Invocation Interface.
 # PHI gate + hygiene enforced inside zdots_ai_infer_raw.
 # ---------------------------------------------------------------------------
+# --think: prefix the Qwen3 /think control token to enable reasoning mode.
+# Output is still clean — aiq_sanitize_output strips <think> blocks.
+if (( THINK_MODE )); then
+  PROMPT="/think
+${PROMPT}"
+fi
 zdots_ai_infer_raw "$PROMPT" "$SYS_CONTENT"

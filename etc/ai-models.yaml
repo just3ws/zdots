@@ -16,10 +16,13 @@ profiles:
   qwen3-8b:
     model_file: "Qwen_Qwen3-8B-Q4_K_M.gguf"
     hf_repo: "bartowski/Qwen_Qwen3-8B-GGUF"
+    draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
+    draft_hf_repo: "bartowski/Qwen_Qwen3-0.6B-GGUF"
     size_gb: 5.0
-    ctx_size: 16384
+    draft_size_gb: 0.4
+    ctx_size: 32768
     n_gpu_layers: 99
-    description: "Qwen3-8B with hybrid thinking mode. /no_think in system prompts for interactive queries; thinking available for complex reasoning. n_embd=4096."
+    description: "Qwen3-8B with hybrid thinking mode + speculative decoding (0.6B draft). /no_think for interactive queries; thinking available via --think. n_embd=4096."
 
   standard:
     model_file: "qwen2.5-coder-7b-instruct-q4_k_m.gguf"
@@ -112,21 +115,29 @@ server:
   # this eliminates redundant prefill work after the first call.
   # Value is the minimum matching prefix length in tokens to trigger reuse.
   cache_reuse: 256
-  # Cap generation length per request. Prevents a runaway prompt from
-  # occupying a slot indefinitely. 2048 is generous for shell assistant use.
-  # Set to -1 to remove the cap.
-  n_predict: 2048
+  # Cap generation length per request. -1 = unlimited (generation stops at EOS).
+  # 2048 was the previous cap; removed because it silently truncated migration
+  # scripts, security audits, and any long explanation mid-generation.
+  n_predict: -1
+  # Speculative decoding: draft model generates N candidate tokens; main model
+  # verifies in one forward pass. Typical speedup: 1.5–2× generation.
+  # draft model must be the same family/tokenizer as the main model.
+  spec_draft_n_max: 5
   # Stable API-facing model name. Integrations use this value in the `model`
   # field of requests. Decouples callers from the GGUF filename so switching
   # profiles (e.g. standard → reasoning) doesn't break anything.
   alias: "local"
-  # Enable /v1/embeddings endpoint (OpenAI-compatible). Required by RAG and
-  # semantic-search integrations. pooling controls how token vectors are
-  # combined: "mean" is the correct default for most embedding models.
-  embeddings: true
+  # Embeddings disabled on the chat server — conflicts with speculative decoding
+  # in llama.cpp (crashes completions endpoint). RAG requires a dedicated
+  # embedding server on a separate port (see docs/rag-activation.md task).
+  embeddings: false
   pooling: mean
   # Flash Attention: ~2-4x KV cache memory reduction on Apple Silicon.
   # Speeds up longer-context inference; safe to enable on M4.
   flash_attn: true
   # Prometheus metrics at /metrics. Scraped by otelcol for the LGTM stack.
   metrics: true
+  # Server-level default temperature for requests that don't specify it.
+  # aiq_submit (ai-query pipeline) overrides this per-request via AIQ_TEMPERATURE.
+  # 0.4 is better than the llama.cpp default (0.8) for a code/shell assistant.
+  temperature: 0.4
