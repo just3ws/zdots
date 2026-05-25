@@ -13,13 +13,21 @@
 #   description  — usage guidance
 
 profiles:
+  qwen3-8b:
+    model_file: "Qwen_Qwen3-8B-Q4_K_M.gguf"
+    hf_repo: "bartowski/Qwen_Qwen3-8B-GGUF"
+    size_gb: 5.0
+    ctx_size: 16384
+    n_gpu_layers: 99
+    description: "Qwen3-8B with hybrid thinking mode. /no_think in system prompts for interactive queries; thinking available for complex reasoning. n_embd=4096."
+
   standard:
     model_file: "qwen2.5-coder-7b-instruct-q4_k_m.gguf"
     hf_repo: "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF"
     size_gb: 4.7
     ctx_size: 32768
     n_gpu_layers: 99
-    description: "Verified 2026 SOTA coding model. High-speed agentic reasoning."
+    description: "Rollback: Qwen2.5-Coder 7B. n_embd=3584 (requires vector dimension migration to revert)."
 
   llama-3.1:
     model_file: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
@@ -67,7 +75,7 @@ whisper_profiles:
     url_prefix: "models/"
     description: "Fast, English-only transcription for background tasks."
 
-default_profile: "standard"
+default_profile: "qwen3-8b"
 default_whisper_profile: "standard"
 
 # llama-server startup defaults (M4 / 16GB tuning)
