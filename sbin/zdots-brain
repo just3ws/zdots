@@ -349,8 +349,7 @@ module Zdots
 
       if @options[:semantic]
         puts "zdots-brain: generating embedding for query: '#{term}'..."
-        llm = Zdots::AI.client
-        embedding = llm.embed(model: "local", input: term).embedding
+        embedding = Zdots::AI.embed_client.embed(model: "embed", input: term).vectors
         
         puts "\n### SEMANTIC MATCHES: METHODOLOGIES"
         matches = Zdots::Models::Methodology.where(Sequel.is_not(:embedding, nil)).order(Sequel.lit("embedding <=> ?", Sequel.pg_array(embedding))).limit(5).all
