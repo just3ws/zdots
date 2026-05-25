@@ -374,6 +374,10 @@ aiq_submit() {
   local sys_msg user_msg
   sys_msg=$(cat "$sysfile")
   user_msg=$(cat "$userfile")
+  # AIQ_ENABLE_THINKING=1: prepend Qwen3 /think token to activate reasoning mode.
+  # aiq_sanitize_output strips <think> blocks from output — callers see clean text.
+  [[ "${AIQ_ENABLE_THINKING:-0}" == "1" ]] && user_msg="/think
+${user_msg}"
 
   local tmp_resp; tmp_resp=$(mktemp)
   # Caller owns the EXIT trap for cleanup; we remove on error paths below.

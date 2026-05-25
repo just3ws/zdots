@@ -94,7 +94,8 @@ Service Lifecycle:
 
 Model Management:
   model-list        List downloaded GGUFs with disk sizes; marks active model
-  model-download    Download active profile's GGUF from HuggingFace (resumable)
+  model-download [--draft]  Download active profile's GGUF from HuggingFace (resumable).
+                            --draft also downloads the speculative draft model if defined.
   model-switch <p>  Print step-by-step instructions to switch to profile <p>
   model-prune       Delete all GGUFs except the active profile's model — DESTRUCTIVE
   model-df          Disk usage summary for the model directory
@@ -146,11 +147,13 @@ _profile_field() { _meta_get "$1" "${2:-}"; }
 _server_field()  { _meta_get "$1" "${2:-}"; }
 
 _active_model_file() {
-  # Explicit env var overrides metadata (user override path).
-  [[ -n "${ZDOTS_AI_MODEL_FILE:-}" ]] && { echo "$ZDOTS_AI_MODEL_FILE"; return; }
+  # Profile metadata takes precedence — ZDOTS_AI_MODEL_FILE is stale once
+  # zdots_ai_init exports it from a previous profile run.
   local mf; mf=$(_meta_get model_file "")
   [[ -n "$mf" ]] && { echo "$mf"; return; }
-  # Fallback: first gguf in models dir
+  # Env var fallback: honoured only when no profile metadata is available.
+  [[ -n "${ZDOTS_AI_MODEL_FILE:-}" ]] && { echo "$ZDOTS_AI_MODEL_FILE"; return; }
+  # Last resort: first gguf in models dir
   find "$MODELS_DIR" -maxdepth 1 -name '*.gguf' 2>/dev/null | head -1 | xargs -I{} basename {} 2>/dev/null || true
 }
 
@@ -196,7 +199,8 @@ _register_plist() {
   local model_path; model_path=$(_active_model_path)
   local host port ctx_size n_gpu_layers parallel batch_size ubatch_size
   local cache_type_k cache_type_v n_predict cache_reuse alias
-  local embeddings pooling flash_attn metrics
+  local embeddings pooling flash_attn metrics temperature
+  local draft_model_file spec_draft_n_max
 
   if [[ -z "$model_path" || ! -f "$model_path" ]]; then
     echo "llama-ctl: warning: active model not found — plist will use placeholder path." >&2
@@ -220,6 +224,9 @@ _register_plist() {
   pooling=$(_server_field pooling "mean")
   flash_attn=$(_server_field flash_attn "false")
   metrics=$(_server_field metrics "false")
+  temperature=$(_server_field temperature "")
+  draft_model_file=$(_profile_field draft_model_file "")
+  spec_draft_n_max=$(_server_field spec_draft_n_max "5")
 
   # Build ProgramArguments array.
   local -a args=(
@@ -239,8 +246,26 @@ _register_plist() {
   [[ "$flash_attn" == "true" ]] && args+=("--flash-attn" "on")
   [[ "$metrics" == "true" ]]    && args+=("--metrics")
   [[ "$n_predict" != "-1" && -n "$n_predict" ]] && args+=("--predict" "${n_predict}")
-  [[ "$cache_reuse" != "0" && -n "$cache_reuse" ]] && args+=("--cache-reuse" "${cache_reuse}")
+  # cache-reuse conflicts with speculative decoding (KV position mismatch); skip when draft model present.
+  if [[ -z "$draft_model_file" || "$draft_model_file" == "null" ]]; then
+    [[ "$cache_reuse" != "0" && -n "$cache_reuse" ]] && args+=("--cache-reuse" "${cache_reuse}")
+  fi
   [[ -n "$alias" && "$alias" != "null" ]] && args+=("--alias" "${alias}")
+  [[ -n "$temperature" && "$temperature" != "null" ]] && args+=("--temp" "${temperature}")
+
+  # Speculative decoding: add draft model if file exists on disk.
+  if [[ -n "$draft_model_file" && "$draft_model_file" != "null" ]]; then
+    local draft_path="${MODELS_DIR}/${draft_model_file}"
+    if [[ -f "$draft_path" ]]; then
+      args+=("--spec-draft-model" "${draft_path}")
+      args+=("--spec-draft-n-max" "${spec_draft_n_max}")
+      args+=("--spec-draft-type-k" "q8_0")
+      args+=("--spec-draft-type-v" "q8_0")
+    else
+      echo "llama-ctl: note: draft model not found (${draft_model_file}) — speculative decoding disabled." >&2
+      echo "  Run: ZDOTS_AI_PROFILE=${AI_PROFILE} llama-ctl model-download --draft" >&2
+    fi
+  fi
 
   export ZDOTS_AI_PROFILE="${AI_PROFILE}"
   export ZDOTS_AI_MODELS_DIR="${MODELS_DIR}"
@@ -325,16 +350,32 @@ model_list() {
 
 model_download() {
   _require_yq
-  local hf_repo model_file
-  hf_repo=$(_profile_field hf_repo "")
-  model_file=$(_profile_field model_file "")
+  local draft_only=false
+  [[ "${1:-}" == "--draft" ]] && draft_only=true
 
-  if [[ -z "$hf_repo" || "$hf_repo" == "null" || -z "$model_file" || "$model_file" == "null" ]]; then
-    echo "llama-ctl: error: no hf_repo or model_file for profile '${AI_PROFILE}'" >&2
-    exit 1
+  if ! $draft_only; then
+    local hf_repo model_file
+    hf_repo=$(_profile_field hf_repo "")
+    model_file=$(_profile_field model_file "")
+
+    if [[ -z "$hf_repo" || "$hf_repo" == "null" || -z "$model_file" || "$model_file" == "null" ]]; then
+      echo "llama-ctl: error: no hf_repo or model_file for profile '${AI_PROFILE}'" >&2
+      exit 1
+    fi
+    zdots_model_download "$hf_repo" "$model_file" "$MODELS_DIR"
   fi
 
-  zdots_model_download "$hf_repo" "$model_file" "$MODELS_DIR"
+  # Draft model download (if profile defines one).
+  local draft_hf_repo draft_model_file
+  draft_hf_repo=$(_profile_field draft_hf_repo "")
+  draft_model_file=$(_profile_field draft_model_file "")
+  if [[ -n "$draft_hf_repo" && "$draft_hf_repo" != "null" && \
+        -n "$draft_model_file" && "$draft_model_file" != "null" ]]; then
+    zdots_model_download "$draft_hf_repo" "$draft_model_file" "$MODELS_DIR"
+  elif $draft_only; then
+    echo "llama-ctl: error: no draft_hf_repo / draft_model_file for profile '${AI_PROFILE}'" >&2
+    exit 1
+  fi
 }
 
 model_switch() {
