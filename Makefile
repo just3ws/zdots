@@ -91,3 +91,11 @@ context:
 tags:
 	@ctags -R --exclude=.git --exclude=node_modules .
 	@echo "Tags file generated"
+
+# CHANGELOG generation from conventional commits (requires git-cliff)
+changelog:
+	@git-cliff --output CHANGELOG.md
+	@echo "CHANGELOG.md updated"
+
+changelog-preview:
+	@git-cliff --unreleased

@@ -17,4 +17,14 @@
 # The pinned version must match etc/ruby-version — update both together.
 
 [tools]
-ruby = "4.0.2"
+ruby   = "4.0.2"   # pinned; matches etc/ruby-version — update both together
+node   = "26.0.0"  # mise upgrade --bump node to move forward deliberately
+go     = "1.26.3"
+python = "3.14.5"  # shell default; project-level python managed by uv
+
+[env]
+# mise-managed Go toolchain — takes precedence over Homebrew go
+GOPATH = "{{env.HOME}}/go"
+
+[settings]
+experimental = true  # required for hooks
