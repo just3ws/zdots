@@ -86,8 +86,8 @@ mkdir -p \
   "$HOME/.local/share/rustup" \
   "$HOME/.local/share/gnupg"
 
-# Initialize required files
-touch "$HOME/.config/git/config" "$HOME/.config/git/ignore"
+# Initialize required files (ignore is always safe to touch; config comes from gdots below)
+touch "$HOME/.config/git/ignore"
 
 # 2b. Companion repos — adots (home dotfiles) and vdots (neovim)
 #
@@ -149,16 +149,19 @@ elif ! grep -Fq '.config/git/config' "$HOME/.gitconfig"; then
   } >> "$HOME/.gitconfig"
 fi
 
-# Write a minimal ~/.config/git/config if adots didn't restore it or it's empty.
-# This ensures 'git commit' works on a fresh machine. Extend via gdots if you
-# track signing keys and advanced settings there separately.
-if [ ! -s "$HOME/.config/git/config" ]; then
-  _git_name="$(git config --global user.name 2>/dev/null || echo '')"
-  _git_email="$(git config --global user.email 2>/dev/null || echo '')"
-  cat > "$HOME/.config/git/config" <<GITCFG
+# gdots: global git configuration (~/.config/git).
+# Clone if the directory is not already a git repo. Falls back to a minimal
+# inline config if the clone fails so 'git commit' still works on first run.
+echo "bootstrap: setting up gdots git config (~/.config/git)..."
+if [ ! -d "$HOME/.config/git/.git" ]; then
+  git clone https://github.com/just3ws/gdots.git "$HOME/.config/git" \
+    && echo "bootstrap: gdots cloned." \
+    || {
+      echo "bootstrap: WARNING: gdots clone failed — writing minimal fallback config."
+      cat > "$HOME/.config/git/config" <<'GITCFG'
 [user]
-	name = ${_git_name:-Mike Hall}
-	email = ${_git_email:-mike@just3ws.com}
+	name = Mike Hall
+	email = mike@just3ws.com
 
 [core]
 	editor = nvim
@@ -198,8 +201,9 @@ if [ ! -s "$HOME/.config/git/config" ]; then
 [diff]
 	colorMoved = default
 GITCFG
-  echo "bootstrap: wrote minimal ~/.config/git/config (review and extend as needed)"
-  unset _git_name _git_email
+    }
+else
+  echo "bootstrap: gdots already present ($HOME/.config/git)"
 fi
 
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
