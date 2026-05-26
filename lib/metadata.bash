@@ -13,6 +13,11 @@
 
 ZDOTS_META_DIR="${ZDOTDIR:-$HOME/.config/zsh}/etc"
 
+# Process-level cache: keyed by "service:profile" so that profile env var
+# changes invalidate correctly. Populated on first call per (service, profile)
+# pair; subsequent calls use jq on the cached JSON — no yq re-parse.
+declare -A _ZDOTS_META_CACHE=()
+
 _zdots_meta_die() { printf 'metadata: error: %s\n' "$*" >&2; exit 1; }
 
 _has_yq() { command -v yq >/dev/null 2>&1; }
@@ -56,28 +61,46 @@ _zdots_meta_resolve_profile() {
 }
 
 # zdots_meta_resolve_yaml <service> <path>
+# Full JSON dump is cached per (service, active-profile) on first call.
+# Field lookups run jq on the cache — no yq re-parse per field.
 zdots_meta_resolve_yaml() {
   local service="$1"
   local path="${2:-}"
-  local file; file=$(_zdots_meta_get_file "$service")
-  [[ -f "$file" ]] || return 1
-  _has_yq || _zdots_meta_die "yq required"
 
+  # Cache key includes the active profile so env-var overrides invalidate correctly.
+  local _ckey
   case "$service" in
-    ai)
-      _zdots_meta_resolve_profile "$file" "profiles" ".default_profile" "ZDOTS_AI_PROFILE" ".server" "$path"
-      ;;
-    whisper)
-      _zdots_meta_resolve_profile "$file" "whisper_profiles" ".default_whisper_profile" "ZDOTS_WHISPER_PROFILE" "" "$path"
-      ;;
-    *)
-      if [[ -z "$path" ]]; then
-        yq -o json "." "$file" 2>/dev/null
-      else
-        yq ".${path}" "$file" 2>/dev/null
-      fi
-      ;;
+    ai)      _ckey="${service}:${ZDOTS_AI_PROFILE:-}" ;;
+    whisper) _ckey="${service}:${ZDOTS_WHISPER_PROFILE:-}" ;;
+    *)       _ckey="$service" ;;
   esac
+
+  if [[ -z "${_ZDOTS_META_CACHE[$_ckey]:-}" ]]; then
+    local file; file=$(_zdots_meta_get_file "$service")
+    [[ -f "$file" ]] || return 1
+    _has_yq || _zdots_meta_die "yq required"
+
+    local _json
+    case "$service" in
+      ai)
+        _json=$(_zdots_meta_resolve_profile "$file" "profiles" ".default_profile" "ZDOTS_AI_PROFILE" ".server" "")
+        ;;
+      whisper)
+        _json=$(_zdots_meta_resolve_profile "$file" "whisper_profiles" ".default_whisper_profile" "ZDOTS_WHISPER_PROFILE" "" "")
+        ;;
+      *)
+        _json=$(yq -o json "." "$file" 2>/dev/null)
+        ;;
+    esac
+    [[ -n "$_json" ]] || return 1
+    _ZDOTS_META_CACHE[$_ckey]="$_json"
+  fi
+
+  if [[ -z "$path" ]]; then
+    printf '%s\n' "${_ZDOTS_META_CACHE[$_ckey]}"
+  else
+    printf '%s\n' "${_ZDOTS_META_CACHE[$_ckey]}" | jq -r ".${path} // empty" 2>/dev/null
+  fi
 }
 
 # zdots_meta_dump <service>
