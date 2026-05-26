@@ -43,9 +43,8 @@ PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 META_LIB="$ZDOTDIR/lib/metadata.bash"
 
 SVC_NAME="llama-server"
-# Source the lifecycle engine
-# shellcheck source=lib/lifecycle.bash
-source "${ZDOTDIR}/lib/lifecycle.bash"
+# shellcheck source=lib/svc-launchd.bash
+source "${ZDOTDIR}/lib/svc-launchd.bash"
 # Source the model store
 # shellcheck source=lib/model-store.bash
 source "${ZDOTDIR}/lib/model-store.bash"

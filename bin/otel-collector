@@ -31,9 +31,10 @@ PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 OTLP_ENDPOINT="http://127.0.0.1:4318"
 
 SVC_NAME="otel-collector"
-# Source the lifecycle engine
-# shellcheck source=lib/lifecycle.bash
-source "${ZDOTDIR:-$(pwd)}/lib/lifecycle.bash"
+# shellcheck source=lib/svc-launchd.bash
+source "${ZDOTDIR:-$(pwd)}/lib/svc-launchd.bash"
+# shellcheck source=lib/svc-process.bash
+source "${ZDOTDIR:-$(pwd)}/lib/svc-process.bash"
 
 # ---------------------------------------------------------------------------
 # Internal helpers
