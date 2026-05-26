@@ -267,6 +267,12 @@ EOF
 
     zdots_audit_log "capture_invoked" "sid=${sid} lesson_id=${lesson_id:-none}"
     _svc_ok "residue and lesson saved to database."
+
+    # Enqueue docs_sync so the async worker can update documentation from this session.
+    "${ZDOTDIR}/sbin/zdots-brain" enqueue docs_sync \
+      "$(jq -n --arg tid "$sid" '{"trace_id":$tid}')" 5 2>/dev/null \
+      && _svc_log "enqueued docs_sync job." \
+      || _svc_log "docs_sync enqueue failed (non-fatal)."
   else
     _svc_log "capture aborted."
   fi
@@ -310,11 +316,7 @@ cmd_requeue() {
 
   _require_psql
   _svc_log "re-queuing job ${id}..."
-  psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-    UPDATE jobs 
-    SET status = 'pending', attempts = 0, error_message = NULL, updated_at = CURRENT_TIMESTAMP, next_run_at = CURRENT_TIMESTAMP 
-    WHERE id = '${id}';
-  " >/dev/null
+  psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT requeue_job('${id}');" >/dev/null
   _svc_ok "job reset to pending."
 }
 
@@ -363,11 +365,7 @@ EOF
     read -r action </dev/tty || action="s"
     
     if [[ "$action" == "r" ]]; then
-      psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-        UPDATE jobs 
-        SET status = 'pending', attempts = 0, error_message = NULL, updated_at = CURRENT_TIMESTAMP, next_run_at = CURRENT_TIMESTAMP 
-        WHERE id = '${id}';
-      " >/dev/null
+      psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT requeue_job('${id}');" >/dev/null
       _svc_ok "job reset to pending."
     elif [[ "$action" == "d" ]]; then
       psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "DELETE FROM jobs WHERE id = '${id}';" >/dev/null
@@ -381,18 +379,11 @@ EOF
 cmd_clear_stale_jobs() {
   _require_psql
   local timeout_interval="${1:-3 minutes}"
-  
+
   _svc_log "clearing jobs stuck in 'running' for more than ${timeout_interval}..."
-  
-  psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "
-    UPDATE jobs 
-    SET status = 'failed', 
-        error_message = 'Job timed out or worker crashed (stale for ${timeout_interval})',
-        updated_at = CURRENT_TIMESTAMP 
-    WHERE status = 'running' 
-    AND updated_at < CURRENT_TIMESTAMP - INTERVAL '${timeout_interval}';
-  "
-  _svc_ok "stale jobs updated to 'failed'."
+  local count
+  count=$(psql "${ZDOTS_DATABASE_URL}" -X -t -A -q -c "SELECT clear_stale_jobs('${timeout_interval}'::interval);")
+  _svc_ok "stale jobs updated to 'failed': ${count:-0} affected."
 }
 
 cmd_metrics_loop() {
