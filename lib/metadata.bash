@@ -28,6 +28,33 @@ _zdots_meta_get_file() {
   esac
 }
 
+# _zdots_meta_resolve_profile <file> <profiles_key> <default_key> <env_var> <merge_base> <path>
+#   profiles_key  — top-level yq key holding profiles map (e.g. "profiles", "whisper_profiles")
+#   default_key   — yq path to the default profile name (e.g. ".default_profile")
+#   env_var       — env var that overrides the active profile (e.g. ZDOTS_AI_PROFILE)
+#   merge_base    — yq key merged into profile for full view, empty to skip (e.g. ".server")
+#   path          — field to extract; empty returns full merged JSON
+_zdots_meta_resolve_profile() {
+  local file="$1" profiles_key="$2" default_key="$3" env_var="$4" merge_base="$5" path="${6:-}"
+
+  local profile="${!env_var:-}"
+  if [[ -z "$profile" || "$profile" == "null" ]]; then
+    profile=$(yq "${default_key}" "$file" 2>/dev/null)
+  fi
+
+  if [[ -z "$path" ]]; then
+    local expr=".${profiles_key}.${profile}"
+    [[ -n "$merge_base" ]] && expr="${expr} * ${merge_base}"
+    yq -o json "${expr} | .active_profile = \"${profile}\" | .endpoint = \"http://\" + .host + \":\" + (.port | tostring)" "$file" 2>/dev/null
+  else
+    local val; val=$(yq ".${profiles_key}.${profile}.${path}" "$file" 2>/dev/null)
+    if [[ "$val" == "null" || -z "$val" ]] && [[ -n "$merge_base" ]]; then
+      val=$(yq "${merge_base}.${path}" "$file" 2>/dev/null)
+    fi
+    echo "$val"
+  fi
+}
+
 # zdots_meta_resolve_yaml <service> <path>
 zdots_meta_resolve_yaml() {
   local service="$1"
@@ -36,40 +63,21 @@ zdots_meta_resolve_yaml() {
   [[ -f "$file" ]] || return 1
   _has_yq || _zdots_meta_die "yq required"
 
-  if [[ "$service" == "ai" ]]; then
-    local profile="${ZDOTS_AI_PROFILE:-}"
-    if [[ -z "$profile" || "$profile" == "null" ]]; then
-      profile=$(yq ".default_profile" "$file" 2>/dev/null)
-    fi
-
-    if [[ -z "$path" ]]; then
-      # Merge profile with server defaults and add derived fields
-      yq -o json ".profiles.${profile} * .server | .active_profile = \"${profile}\" | .endpoint = \"http://\" + .host + \":\" + (.port | tostring)" "$file" 2>/dev/null
-    else
-      local val; val=$(yq ".profiles.${profile}.${path}" "$file" 2>/dev/null)
-      if [[ "$val" == "null" || -z "$val" ]]; then
-        val=$(yq ".server.${path}" "$file" 2>/dev/null)
+  case "$service" in
+    ai)
+      _zdots_meta_resolve_profile "$file" "profiles" ".default_profile" "ZDOTS_AI_PROFILE" ".server" "$path"
+      ;;
+    whisper)
+      _zdots_meta_resolve_profile "$file" "whisper_profiles" ".default_whisper_profile" "ZDOTS_WHISPER_PROFILE" "" "$path"
+      ;;
+    *)
+      if [[ -z "$path" ]]; then
+        yq -o json "." "$file" 2>/dev/null
+      else
+        yq ".${path}" "$file" 2>/dev/null
       fi
-      echo "$val"
-    fi
-  elif [[ "$service" == "whisper" ]]; then
-    local profile="${ZDOTS_WHISPER_PROFILE:-}"
-    if [[ -z "$profile" || "$profile" == "null" ]]; then
-      profile=$(yq ".default_whisper_profile" "$file" 2>/dev/null)
-    fi
-
-    if [[ -z "$path" ]]; then
-      yq -o json ".whisper_profiles.${profile} | .active_profile = \"${profile}\" | .endpoint = \"http://\" + .host + \":\" + (.port | tostring)" "$file" 2>/dev/null
-    else
-      yq ".whisper_profiles.${profile}.${path}" "$file" 2>/dev/null
-    fi
-  else
-    if [[ -z "$path" ]]; then
-      yq -o json "." "$file" 2>/dev/null
-    else
-      yq ".${path}" "$file" 2>/dev/null
-    fi
-  fi
+      ;;
+  esac
 }
 
 # zdots_meta_dump <service>
@@ -89,7 +97,8 @@ zdots_meta_dump() {
 zdots_meta_env() {
   local service="$1"
   local prefix; prefix="ZDOTS_$(echo "$service" | tr '[:lower:]' '[:upper:]')"
-  zdots_meta_resolve_yaml "$service" | jq -r "to_entries | .[] | \"export ${prefix}_\\(.key | ascii_upcase)=\\\"\\(.value)\\\"\""
+  zdots_meta_resolve_yaml "$service" | jq -r --arg p "${prefix}" \
+    'to_entries | .[] | "export " + $p + "_" + (.key | ascii_upcase) + "=" + (.value | tostring | @sh)'
 }
 
 # Entry point for CLI usage
