@@ -38,10 +38,18 @@ source "${_AI_INVOKE_LIB_DIR}/message_hygiene.bash"
 #
 # Args:
 #   $1  — user prompt (required; PHI-scrubbed internally by this function)
-#   $2  — system prompt text (optional)
+#   $2  — system prompt text (optional; pass "" to use the generic fallback)
 #
 # Stdout: raw model response text
 # Exit:   0 on success, non-zero on gate failure or inference error
+#
+# Env-var call context (export before calling if non-default behaviour needed):
+#   AIQ_TEMPERATURE      — inference temperature (default: 0.2 in aiq_submit)
+#                          Set to 0.1 for deterministic outputs (distill, ZLE widgets).
+#   AIQ_ENABLE_THINKING  — set to 1 for Qwen3 thinking mode; default 0.
+#                          Output is always clean: think blocks stripped by aiq_sanitize_output.
+#   AIQ_JSON_SCHEMA      — JSON schema string for constrained decoding; default null.
+#                          Currently blocked while spec-decoding is active (see zdots_ai_distill).
 # ---------------------------------------------------------------------------
 zdots_ai_infer_raw() {
   local prompt="${1:-}"

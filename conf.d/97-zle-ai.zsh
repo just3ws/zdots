@@ -16,23 +16,48 @@
 
 [[ -o interactive ]] || return
 
+# Shell domain system prompt for ZLE widgets — loaded once on first use.
+# Empty string means "not yet loaded"; widgets pass it to zdots_ai_infer_raw.
+_ZLE_SYS_PROMPT=""
+
 # ---------------------------------------------------------------------------
-# _zdots_zle_ai_load — lazy-load the AI Invocation Interface.
+# _zdots_zle_ai_load — lazy-load the AI Invocation Interface, system prompt,
+# and liveness probe. Called at the start of every widget.
 #
-# Idempotent: no-ops if zdots_ai_infer_raw is already defined. On failure,
-# emits a zle -M error and returns 1 so callers can `|| return` cleanly.
+# - Lib load and system prompt load are idempotent (skip if already done).
+# - Server liveness probe runs every call — server may go down between uses.
+# - Returns 1 and emits a zle -M message on any failure.
 # ---------------------------------------------------------------------------
 _zdots_zle_ai_load() {
-  typeset -f zdots_ai_infer_raw > /dev/null 2>&1 && return 0
-  [[ -r "${ZDOTDIR}/lib/ai-invoke.bash" ]] || {
-    zle -M "ai: lib/ai-invoke.bash not found"
+  # Load AI lib (idempotent).
+  if ! typeset -f zdots_ai_infer_raw > /dev/null 2>&1; then
+    [[ -r "${ZDOTDIR}/lib/ai-invoke.bash" ]] || {
+      zle -M "ai: lib/ai-invoke.bash not found"
+      return 1
+    }
+    source "${ZDOTDIR}/lib/ai-invoke.bash"
+    typeset -f zdots_ai_infer_raw > /dev/null 2>&1 || {
+      zle -M "ai: zdots_ai_infer_raw unavailable after source"
+      return 1
+    }
+  fi
+
+  # Load shell domain system prompt (idempotent; all ZLE widgets use shell domain).
+  if [[ -z "$_ZLE_SYS_PROMPT" ]]; then
+    local _sp="${ZDOTDIR}/etc/prompts/zdots-shell.md"
+    if [[ -r "$_sp" ]]; then
+      _ZLE_SYS_PROMPT=$(cat "$_sp")
+    else
+      zle -M "ai: zdots-shell.md not found — using generic system prompt"
+    fi
+  fi
+
+  # Server liveness — fast probe before each inference call.
+  local _ep="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  if ! curl -sf -m 1 "${_ep}/health" >/dev/null 2>&1; then
+    zle -M "ai: llama.cpp not responding — run: llama-ctl start"
     return 1
-  }
-  source "${ZDOTDIR}/lib/ai-invoke.bash"
-  typeset -f zdots_ai_infer_raw > /dev/null 2>&1 || {
-    zle -M "ai: zdots_ai_infer_raw unavailable after source"
-    return 1
-  }
+  fi
 }
 
 _zdots_zle_ai_explain() {
@@ -40,14 +65,6 @@ _zdots_zle_ai_explain() {
   [[ -z "$cmd" ]] && return
 
   _zdots_zle_ai_load || return
-
-  # Fast server probe — fail in ~1s rather than waiting for the inference timeout.
-  local endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
-  if ! curl -sf -m 1 "${endpoint}/health" >/dev/null 2>&1; then
-    zle -M "ai: llama.cpp not responding — run: llama-ctl start"
-    return
-  fi
-
   zle -M "ai: explaining..."
 
   local prompt
@@ -56,7 +73,7 @@ _zdots_zle_ai_explain() {
   local response
   response=$(
     export AIQ_TEMPERATURE=0.1
-    zdots_ai_infer_raw "$prompt" 2>/dev/null
+    zdots_ai_infer_raw "$prompt" "${_ZLE_SYS_PROMPT:-}" 2>/dev/null
   ) || true
 
   zle -M "${response:-ai: no response}"
@@ -72,14 +89,6 @@ _zdots_zle_ai_fix() {
   fi
 
   _zdots_zle_ai_load || return
-
-  # Fast server probe — fail in ~1s rather than waiting for the inference timeout.
-  local endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
-  if ! curl -sf -m 1 "${endpoint}/health" >/dev/null 2>&1; then
-    zle -M "ai: llama.cpp not responding — run: llama-ctl start"
-    return
-  fi
-
   zle -M "ai: diagnosing..."
 
   local prompt
@@ -88,7 +97,7 @@ _zdots_zle_ai_fix() {
   local response
   response=$(
     export AIQ_TEMPERATURE=0.1
-    zdots_ai_infer_raw "$prompt" 2>/dev/null
+    zdots_ai_infer_raw "$prompt" "${_ZLE_SYS_PROMPT:-}" 2>/dev/null
   ) || true
 
   zle -M "${response:-ai: no response}"
