@@ -83,7 +83,7 @@ if (( _pi_only )); then
     print "llama.cpp not responding — run: llama-ctl start"
     exit 1
   fi
-  [[ -r "${ZDOTDIR}/providers/ai/pi.zsh" ]] && source "${ZDOTDIR}/providers/ai/pi.zsh"
+  [[ -r "${ZDOTDIR}/providers/tools/pi.zsh" ]] && source "${ZDOTDIR}/providers/tools/pi.zsh"
   PI_SYSTEM_PROMPT="You are a focused engineering assistant. Help the developer orient: \
 review what's in progress, identify the highest-leverage next action, surface blockers. \
 Concise — bullet points. Do NOT add tasks or commit unless asked." \

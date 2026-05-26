@@ -13,12 +13,12 @@ fi
 
 # Aider sidecar — wires aider to the active llama.cpp endpoint.
 # Provides the zaider() function; does not affect the ZDOTS_SERVICE_AI chain.
-if [[ -r "$ZDOTDIR/providers/ai/aider.zsh" ]]; then
-  source "$ZDOTDIR/providers/ai/aider.zsh"
+if [[ -r "$ZDOTDIR/providers/tools/aider.zsh" ]]; then
+  source "$ZDOTDIR/providers/tools/aider.zsh"
 fi
 
 # Pi sidecar — wires pi coding agent to local llama.cpp.
 # Provides the zpi() function; session history lands in XDG state dir.
-if [[ -r "$ZDOTDIR/providers/ai/pi.zsh" ]]; then
-  source "$ZDOTDIR/providers/ai/pi.zsh"
+if [[ -r "$ZDOTDIR/providers/tools/pi.zsh" ]]; then
+  source "$ZDOTDIR/providers/tools/pi.zsh"
 fi
