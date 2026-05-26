@@ -89,6 +89,33 @@ mkdir -p \
 # Initialize required files
 touch "$HOME/.config/git/config" "$HOME/.config/git/ignore"
 
+# 2b. Companion repos — adots (home dotfiles) and vdots (neovim)
+#
+# adots: bare git repo at ~/.homegit, work-tree at ~.
+# Tracks root dotfiles (.bashrc, .tmux.conf, etc.) and ~/.config/* entries.
+# On a clean restore, git-restore pulls them back without a separate clone.
+echo "bootstrap: setting up adots home-dotfiles repo (~/.homegit)..."
+if [ ! -d "$HOME/.homegit" ]; then
+  git clone --bare https://github.com/just3ws/adots.git "$HOME/.homegit" \
+    && echo "bootstrap: adots cloned." \
+    || echo "bootstrap: WARNING: adots clone failed — run: git clone --bare https://github.com/just3ws/adots.git ~/.homegit"
+fi
+if [ -d "$HOME/.homegit" ]; then
+  GIT_DIR="$HOME/.homegit" GIT_WORK_TREE="$HOME" git restore --source=HEAD -- . 2>/dev/null \
+    && echo "bootstrap: adots files restored." \
+    || echo "bootstrap: WARNING: adots restore failed — run: GIT_DIR=~/.homegit GIT_WORK_TREE=~ git restore --source=HEAD -- ."
+fi
+
+# vdots: neovim config at ~/.config/nvim.
+echo "bootstrap: setting up vdots neovim config (~/.config/nvim)..."
+if [ ! -d "$HOME/.config/nvim" ]; then
+  git clone https://github.com/just3ws/vdots.git "$HOME/.config/nvim" \
+    && echo "bootstrap: vdots cloned." \
+    || echo "bootstrap: WARNING: vdots clone failed — run: git clone https://github.com/just3ws/vdots.git ~/.config/nvim"
+else
+  echo "bootstrap: vdots already present ($HOME/.config/nvim)"
+fi
+
 # 3. Shell Entry Points (Symlinks)
 echo "bootstrap: linking shell entry points..."
 if [ ! -e "$HOME/.zshenv" ]; then ln -s "$REPO_ROOT/.zshenv" "$HOME/.zshenv"; fi
@@ -120,6 +147,59 @@ elif ! grep -Fq '.config/git/config' "$HOME/.gitconfig"; then
     echo "[include]"
     echo "  path = ~/.config/git/config"
   } >> "$HOME/.gitconfig"
+fi
+
+# Write a minimal ~/.config/git/config if adots didn't restore it or it's empty.
+# This ensures 'git commit' works on a fresh machine. Extend via gdots if you
+# track signing keys and advanced settings there separately.
+if [ ! -s "$HOME/.config/git/config" ]; then
+  _git_name="$(git config --global user.name 2>/dev/null || echo '')"
+  _git_email="$(git config --global user.email 2>/dev/null || echo '')"
+  cat > "$HOME/.config/git/config" <<GITCFG
+[user]
+	name = ${_git_name:-Mike Hall}
+	email = ${_git_email:-mike@just3ws.com}
+
+[core]
+	editor = nvim
+	excludesfile = ~/.gitignore_global
+	autocrlf = input
+	pager = delta
+
+[pull]
+	rebase = true
+
+[push]
+	default = current
+	autoSetupRemote = true
+
+[rebase]
+	autosquash = true
+	autostash = true
+
+[merge]
+	conflictstyle = zdiff3
+
+[delta]
+	navigate = true
+	light = false
+	line-numbers = true
+	side-by-side = true
+
+[interactive]
+	diffFilter = delta --color-only
+
+[init]
+	defaultBranch = main
+
+[fetch]
+	prune = true
+
+[diff]
+	colorMoved = default
+GITCFG
+  echo "bootstrap: wrote minimal ~/.config/git/config (review and extend as needed)"
+  unset _git_name _git_email
 fi
 
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -245,7 +325,7 @@ if command -v llama-server >/dev/null 2>&1; then
     echo "bootstrap: registering llama.cpp launchd service..."
     llama-ctl install || echo "bootstrap: warning: llama-ctl install failed (non-blocking)"
     echo "bootstrap: downloading AI model (profile: ${ZDOTS_AI_PROFILE:-standard}, ~4.7 GB)..."
-    llama-ctl model-download || echo "bootstrap: warning: model download failed — run 'llama-ctl model-download' manually"
+    llama-ctl model-download --draft || echo "bootstrap: warning: model download failed — run 'llama-ctl model-download --draft' manually"
     echo "bootstrap: re-registering plist with model path..."
     llama-ctl install || true
   fi
@@ -266,6 +346,17 @@ if command -v llama-server >/dev/null 2>&1 && command -v llama-ctl >/dev/null 2>
     || echo "bootstrap: warning: llama-ctl install-embed failed — run manually after model download"
 else
   echo "bootstrap: llama-server not found — skipping embed server setup."
+fi
+
+# 6b2. OTel Collector — binary not in Homebrew; managed by bin/otel-collector
+# Installs ~/.local/bin/otelcol-contrib and registers the launchd plist.
+echo "bootstrap: installing OpenTelemetry Collector..."
+if command -v otel-collector >/dev/null 2>&1; then
+  otel-collector install \
+    && echo "bootstrap: otelcol-contrib installed." \
+    || echo "bootstrap: WARNING: otel-collector install failed — run: otel-collector install"
+else
+  echo "bootstrap: otel-collector script not found — skipping (run after zdots is on PATH)."
 fi
 
 # 6c. Local TLS: mkcert CA + service certs
