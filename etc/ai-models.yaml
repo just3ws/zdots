@@ -155,3 +155,7 @@ server:
   # aiq_submit (ai-query pipeline) overrides this per-request via AIQ_TEMPERATURE.
   # 0.4 is better than the llama.cpp default (0.8) for a code/shell assistant.
   temperature: 0.4
+  # Disable Qwen3 thinking mode globally. Thinking generates extended <think>...</think>
+  # chains that consume unbounded GPU memory, causing OOM crashes on multi-turn inference.
+  # Pass /think in a user message to re-enable thinking for a specific request.
+  no_thinking: true
