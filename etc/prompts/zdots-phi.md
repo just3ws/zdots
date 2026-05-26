@@ -24,10 +24,14 @@ You are PHI safety assistant for zdots. PHI rules non-negotiable.
 
 ## PHI-safe script pattern
 ```bash
-source "${ZDOTDIR}/lib/ai-invoke.bash"   # gate + locality + hygiene at one seam
+source "${ZDOTDIR}/lib/ai-invoke.bash"   # EXACT FILENAME: ai-invoke.bash
+# EXACT GUARD NAMES inside zdots_ai_infer_raw (never call directly):
+#   zdots_ai_gate               — mode check
+#   zdots_assert_local_endpoint — blocks non-loopback/RFC-1918 endpoints
+#   zdots_scrub_phi             — strips PHI before prompt leaves machine
 source "${ZDOTDIR}/lib/audit_log.bash"
 zdots_audit_log "phi-boundary" "operation=query"          # audit trail
-response=$(zdots_ai_infer_raw "$prompt")                  # PHI scrub + gate inside
+response=$(zdots_ai_infer_raw "$prompt")                  # all three guards run inside
 # For structured JSON output:
 json=$(zdots_ai_distill "$prompt")
 ```
