@@ -17,7 +17,8 @@ trap '' PIPE
 BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 
-source "${ZDOTDIR}/lib/lifecycle.bash"
+# shellcheck source=lib/svc-health.bash
+source "${ZDOTDIR}/lib/svc-health.bash"
 
 # ---------------------------------------------------------------------------
 # Config
