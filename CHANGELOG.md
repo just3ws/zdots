@@ -1,94 +1,440 @@
-# Changelog
+## [unreleased]
 
-This changelog summarizes the historical evolution of this repository from existing commit history.
+### 🚀 Features
 
-## May 2026 — Local AI Routing Layer
+- Implement modular theme switching with dracula and nord
+- Add and integrate zsh-vi-mode, autopair, alias coach, and substring search
+- Integrate fzf-tab and refine fzf search precision
+- Integrate bat, eza, git-delta, direnv, and tealdeer
+- Restore pipeline DSL and service aliases
+- Theme-specific zsh-autosuggestions styling
+- Integrate dracula-pro refined color palette
+- Set dracula-pro as the default theme
+- Add aliases based on history analysis
+- Integrate atuin, lazygit, jless, fx, hyperfine, bottom, and ast-grep
+- Properly configure OpenJDK and JAVA_HOME
+- Align language environments with XDG and optimize brew config
+- Implement Agent-Ready infrastructure
+- Integrate rtk and backlog-md for agent efficiency
+- Implement token-efficient environment inquiry for agents
+- Include alias definitions in capabilities card for one-turn efficiency
+- Implement standardized Agent API via Makefile
+- Implement last-mile efficiency and safety tools
+- Implement JSON Discovery API for AI agents
+- Make zdots bin/ globally accessible
+- Implement AI-friendly Bash bridge
+- Implement automated shell script validation and formatting
+- Implement modular upgrade orchestrator
+- Complete modular upgrade system with all modules
+- Add performance benchmarking suite (bin/bench)
+- Decouple p10k overrides and automate theme updates
+- Evolve environment into a modular observability control plane
+- Implement local AI inference service and offloading
+- Centralize AI model management and base images
+- Implement llama-cpp AI provider and formalize AI contract
+- Implement central LGTM hub and hybrid OTel routing
+- Establish bare-metal OTel collector and hybrid routing
+- Expand observability control plane and narrate the saga
+- Transform shell into a self-describing OTel platform
+- Implement AI-powered history analysis engine
+- Codify Task Completion Protocol and milestone gates
+- Implement ZDOTS_SAFE_MODE bypass for heavy integrations (Z-028)
+- Formalize TTY state and capability discovery (Z-016)
+- Add timeout protection for provider initialization (Z-029)
+- Integrate rogue ~/.zshrc entries into zdots
+- Authoritative OTel collector management via launchctl
+- Enable CORS and wildcard listening for OTLP/HTTP receiver
+- Add secrets file loading and GitHub token propagation
+- Wire llama.cpp as primary AI runtime, add lifecycle control plane
+- Ai --help shows usage, runtime state, and manage commands
+- Add llama-ctl hydrate command and bootstrap AI model step (Z-025)
+- Add colima-autostart launchd service for boot persistence
+- Enable embeddings, audit and harden llama.cpp service, add ai-query
+- Add agent-guide — live status + usage reference for AI agents
+- Add zdots-ctl platform orchestrator with check health command
+- Add AI shell intelligence helpers (commit-msg, diff-review, alias-suggest, history-analyze)
+- *(aliases)* Add zlogs aliases for service log tailing
+- Add recipes/ directory with AI-powered workflow scenarios
+- *(ai)* Upgrade to 2026 SOTA models and enable authenticated downloads
+- *(arch)* Implement deep metadata and lifecycle modules
+- *(ai)* Integrate whisper.cpp for local transcription
+- *(arch)* Implement declarative service lifecycle module
+- *(arch)* Unify configuration registry and service metadata
+- *(ai)* Unified model asset management module
+- *(arch)* Enforce opaque service control seam in orchestrator
+- *(ai)* High-performance YouTube transcription pipeline
+- *(ai)* Finalize YouTube transcription pipeline and documentation
+- *(otel)* Add config command to otel-collector
+- *(ctx)* Implement zdots-ctx CLI bridge and integrate with platform
+- *(ctx)* Implement postgres intelligence suite schema and lifecycle
+- *(ctx)* Implement automated session residue distillation
+- *(ai)* Expose intelligence suite via ctx-mcp
+- *(ctx)* Update platform capabilities with intelligence suite and MCP
+- *(ctx)* Implement Side-Effect Broker for asynchronous jobs
+- *(ctx)* Enhance worker visibility and fix transcription recipe
+- *(ctx)* Implement job idempotency and requeueing
+- *(ctx)* Implement worker resilience with heartbeats and graceful shutdown
+- *(ctx)* Implement job backoff strategy
+- *(ctx)* Implement DLQ triage and AI-assisted debugging
+- *(ctx)* Implement OTel metrics export loop for queue visibility
+- *(ctx)* Implement async embed worker and robust psql noise suppression
+- *(db)* Add vector schema migration
+- *(ctx)* Implement semantic search and AI hydration
+- *(ctx)* Refactor worker to use PostgreSQL 'Smart State Machine'
+- *(sentient)* Implement Trace Propagation, Task Hydration, and Cognitive Load Awareness
+- *(ctx)* Implement autonomous job chaining via PostgreSQL triggers
+- *(ctx)* Industrialize platform with Ruby, Sequel, and RubyLLM
+- *(context)* Bootstrap philosophical values and core manifestos
+- *(sync)* Add GEMINI.md to living docs pipeline
+- *(intel)* Upgrade intelligence suite and database schema
+- *(db)* Add zdots_ro/zdots_rw roles and decouple migration from app credentials
+- *(portability)* Clean clone support — .zdots.local, firewall, setup guide
+- *(ai)* Enforce local-only AI boundary on fresh clone
+- *(agents)* Equal baseline context for Aider alongside Claude and Gemini
+- *(phi)* Enforce AI boundary and implement zero-AI degradation mode
+- *(phi)* PHI scrubber, capture gate, and shell history redaction hook
+- *(phi)* Operation Martian — PHI-safe operating mode
+- *(aider)* Wire PHI boundary enforcement and XDG history into Aider
+- *(ai)* Wire Pi coding agent to local llama.cpp — complete Pi↔Aider workflow
+- *(security)* Z-087 — replace .zdots.secrets literal values with macOS Keychain
+- *(tui)* Zdash interactive launcher + zdots-status PHI/DB/tasks sections
+- *(tui)* Complete zdash polish — Alt-z, zdash-first morning, task-start confirmation
+- *(security)* Harden PHI posture — Z-084, Z-085, Z-088, Z-090, Z-091
+- *(security)* Model provenance, audit log, PHI agent context — Z-078, Z-086, Z-089
+- *(security)* Encrypt PHI columns at rest with pgcrypto — Z-079
+- *(local-ai)* Domain-aware prompt router and capability quiz
+- *(local-ai)* Gap closure — router checks, prompt coverage, EOD verification
+- *(local-ai)* Caveman voice + full diagram documentation
+- *(agents)* Add zdots-issue help desk + agent boundary rule
+- *(prompts)* Codify Kevin's Law and Schrute Test across all LLM prompts
+- *(zdots-ask)* Add --context flag for live knowledge base hydration
+- *(skills)* Install mattpocock/skills and configure for zdots
+- *(skills)* Add mattpocock/skills — portable across all agents
+- *(pi)* First-day-of-school readiness pack
+- *(brain)* Add rekey command for key rotation
+- *(phi)* Activate PHI-safe operating mode — .zdots.work profile + capture gate
+- *(phi/keychain)* Wire Keychain-first secret loading — eliminates .zdots.secrets dependency
+- *(ai)* Dry-monads Result pipeline — gate → scrub → infer
+- *(infra)* Zdots-ruby version-isolated launcher + etc/ruby-version pin
+- *(bootstrap)* Explicit mise install + Apple Silicon Ruby build opts
+- *(ai)* Upgrade to Qwen3-8B with think-block stripping and pipeline seams docs
+- *(ai)* Speculative decoding, --think flag, distillation schema
+- *(ai)* Eval suite, RAG activation guide, and learning map
+- *(ai)* Embed server + nginx proxy layer — RAG pipeline unblocked
+- *(env)* Wire ZDOTS_AI_EMBED_ENDPOINT default (port 8090)
+- *(infra)* Nginx TLS proxy, embed server, speculative decoding — battlestation operational
+- *(ai)* Thread enable_thinking via chat_template_kwargs instead of /think token
+- *(ai)* AIQ_TEMPERATURE + AIQ_JSON_SCHEMA plumbing in aiq_submit; distillation uses 0.1
+- *(safety)* Rm guard blocking home dir and critical system paths
+- *(bootstrap)* Clone gdots from just3ws/gdots instead of writing inline fallback
 
-- `bin/zdots-ask`: domain-aware prompt router — keyword scan → inject system prompt → local llama.cpp; `--dry-run`, `--domain`, `--list-domains` flags.
-- `bin/zdots-quiz`: 14-case capability probe with `--quick` (3-case) and `--verbose` flags; retry logic on empty model response.
-- `etc/prompts/zdots-{default,shell,ruby,phi}.md`: compact system prompts above 256-token `cache_reuse` threshold; caveman voice enshrined.
-- `bin/ai-query`: `AIQ_SUPPRESS_RAW_WARN=1` suppresses raw-mode warning for trusted internal callers.
-- `bin/zdots-ctl check`: AI router structural verification section (files, domains, dry-run test).
-- `docs/local-ai.md`: full architecture, routing decision tree, failure state diagram, capability delegation map, new-machine verification sequence.
-- Backlog: Z-092 (context hydration), Z-093 (zdash/llama-ctl quiz), DRAFT-001 (output contracts).
+### 🐛 Bug Fixes
 
-## May 2026 — Operation Martian (PHI Security + TUI)
+- Load fzf in all interactive shells and harden fallback tests
+- Update history-analyze to reflect merged .aliasrc
+- Revert to unescaped $EDITOR for editor aliases
+- Make ollama model updates dynamic and safe
+- Prevent premature shell reload during upgrade
+- Resolve secret-scan rg dependency and add grep fallback
+- Improve shell safety, POSIX compatibility, and tool decoupling
+- Resolve check and secret-scan GHA failures
+- Harden Homebrew and Mise caching for robust startup
+- Harden startup by ensuring ZDOTDIR and checking file existence
+- Guard zle bindings with interactive mode check
+- Make node path check resilient to missing mise in CI
+- Resolve GHA CI failures in 'full' job
+- Make ZLE widget assertions non-blocking in CI
+- Eliminate Zsh-specific syntax in providers to restore POSIX/Bash compatibility
+- Restore GHA stability with noise-tolerant tests and robust cache updates
+- Resolve silent GHA failures in secret-scan
+- Resolve silent GHA failures in secret-scan
+- Harden environment security and observability stack
+- Resolve 'invalid character' errors in local AI inference
+- Optimize environment for finite disk space
+- Refine capabilities report formatting and encoding
+- Resolve trace verification failures and unbound variable errors in CI
+- Resolve early script termination in bin/capabilities
+- Resolve 'command not found' in security.bats due to misquoting
+- Resolve lifecycle race conditions and improve test reliability
+- Resolve '_avail' unbound variable error in capabilities report
+- Restore regression suite to green
+- Prevent provider init guards from leaking to child shells
+- Scope OTEL env vars and silence background job noise
+- Use absolute path and rotation for collector file exporter
+- Use explicit IPv4 for collector→LGTM gRPC endpoint
+- Correct otel-cli protocol and update collector guide accuracy
+- Remove global GEM_HOME and GEM_PATH to resolve mise conflicts
+- Correct llama-server circular binary detection and plist registration
+- Three ai function bugs — noclobber redirect, read-only status var, stale endpoint
+- Rename bin/llama-server -> bin/llama-ctl to eliminate Homebrew name collision
+- Restore OTel → LGTM pipeline (gRPC→HTTP, enable otelcol logs)
+- Shellcheck warnings in colima-autostart (SC2034, SC2015)
+- Replace A && B || C anti-pattern in validate_llama (SC2015)
+- Remove dead ai-start/stop/status/logs aliases and fix stale AI server detection
+- Replace deprecated launchctl load/unload with bootstrap/bootout
+- *(recipes/morning)* Use otel-collector health for OTel status probe
+- *(upgrade)* Resolve pnpm update, pre-commit path, and reset builtin errors
+- *(cli)* Resolve JSON schema and test contract failures
+- *(deps)* Correct whisper-cpp formula name in Brewfile
+- *(ci)* Vendor bats helpers and correct Brewfile formulas
+- *(ci)* Remove invalid bats formulas from Brewfile
+- *(ci)* Reduce false positives in secret-scan
+- *(ci)* Further harden secret-scan exclusions
+- *(ci)* Exclude templates and tests from secret-scan
+- *(ci)* Skip external service checks in full validation job
+- *(cli)* Ensure zdots-ctl uses live health probes for OTel
+- *(local-ci)* Resolve unbound variable error in colima-autostart
+- *(aliases)* Use absolute paths for AI recipes
+- *(ai)* Harden whisper model downloads and multi-format output
+- *(ai)* Harden model pruning and optimize storage
+- *(arch)* Resolve ZLE configuration noise and test pollution
+- *(ctx)* Resolve worker job ID corruption from psql status
+- *(ctx)* Resolve worker job claiming and enhance visibility
+- *(ctx)* Add job timeout and stale job recovery
+- *(lint)* Remove unused variables in zdots-ctx and gemini-invoke
+- *(db)* Point DATABASE_URL at correct 'my' database and add startup validation
+- *(migration)* Drop claim_next_job before recreating to allow signature change
+- *(db)* Remove all remaining references to dropped zdots databases
+- *(jobs)* Correct RubyLLM API usage in Embed job
+- *(agent-guide)* Accurate service probes and complete env block
+- Remove dead code and fix postgresql version in docs
+- *(audit)* Surgical fixes from Zsh config audit
+- Tighten PHI audit trail and close deferred audit items
+- *(security)* Shellcheck SC1090 directive for dynamic source in zdots-keychain
+- *(tui)* Zdash self-hosting subcommands + zsh local-in-loop variable dump bug
+- Harden local service checks
+- Llama-ctl model-verify — remove local from top-level case statement
+- *(tests)* Update tests broken by PHI migration and lifecycle refactor
+- *(ctx)* Repair query/hydrate after PHI migration renamed content→content_enc
+- *(skills)* Replace .claude/skills symlinks with real files
+- *(skills)* Remove duplicate skill sources
+- *(phi)* Z-101 DB column encryption audit — close three gaps
+- *(arch)* Portable socket probe — ss → lsof -F → netstat
+- *(arch)* Replace eval config injection with safe JSON pipeline in llama-ctl
+- *(bootstrap)* Self-bootstrap from truly empty Mac
+- *(ctl)* Replace symlink gate with HTTP probe for nginx detection
+- *(bootstrap)* Close recovery gaps exposed by accidental home dir deletion
 
-**PHI Safety (15-task DAG, Z-077–Z-091 — all complete):**
+### 💼 Other
 
-- Defined PHI data boundary policy (`backlog/docs/doc-002`).
-- `lib/ai_boundary.bash`: `zdots_ai_gate` (exit 2 on `ZDOTS_AI_MODE=none`) and `zdots_assert_local_endpoint` (hard-fail if non-RFC-1918 in local mode).
-- `lib/phi_scrubber.bash`: SSN, MRN, DOB, connection string redaction before every AI call and history write.
-- `zshaddhistory` hook: PHI patterns stripped from shell history (`ZDOTS_HISTORY_REDACT=1`).
-- `ZDOTS_AI_MODE=none` graceful degradation: all AI tools exit cleanly with exit code 2.
-- Secrets migrated to macOS Keychain: `lib/keychain.bash` + `bin/zdots-keychain` CLI. `.zdots.secrets` is now credential-free.
-- `ZDOTS_DB_ENCRYPTION_KEY` in Keychain; pgcrypto migration encrypts PHI columns at rest; `zdots_ro` sees ciphertext only.
-- `lib/audit_log.bash`: PHI-adjacent operations logged to macOS Unified Logging (`com.zdots/phi-boundary`).
-- `lib/llama-models.sha256`: SHA256 manifest; `llama-ctl start` refuses mismatched model files.
-- llama-server loopback-only (`127.0.0.1`), models dir `chmod 700` enforced at install.
-- `zdots-ctl check`: llama plist/socket/models, model hash, audit log, macOS posture (FileVault/SIP/Firewall hard-fail on work).
-- Bootstrap PHI-SAFE OPERATING MODE banner; `ZDOTS_DB_ENCRYPTION_KEY` warning on work context.
-- `AGENTS.md` Section 8: PHI Operating Mode. `AIDER.md`/`GEMINI.md` callouts added.
+- Add decision decision-001
+- Add decision decision-005
+- Complete task Z-001
+- Complete task Z-002
+- Complete task Z-003
+- Complete task Z-004
+- Complete task Z-005
+- Complete task Z-006
+- Complete task Z-007
+- Complete task Z-008
+- Complete task Z-009
+- Complete task Z-011
+- Complete task Z-012
+- Complete task Z-014
+- Complete task Z-015
+- Complete task Z-017
+- Complete task Z-018
+- Complete task Z-019
+- Complete task Z-020
+- Complete task Z-021
+- Complete task Z-022
+- Complete task Z-023
+- Complete task Z-024
+- Complete task Z-028
+- Complete task Z-016
+- Complete task Z-029
+- Archive milestone m-0
+- Archive task Z-032
+- Add document doc-001
+- Complete task Z-035
+- Complete task Z-046
+- Complete task Z-058
+- Complete task Z-059
+- Complete task Z-060
+- Complete task Z-061
+- Complete task Z-062
+- Complete task Z-064
+- Complete task Z-065
+- Complete task Z-066
+- Complete task Z-067
+- Complete task Z-055
+- Complete task Z-053
+- Complete task Z-068
+- Complete task Z-069
+- Complete task Z-070
+- Complete task Z-071
+- Complete task Z-072
+- Complete task Z-073
+- Add document doc-002
+- *(local-ai)* Harden prompts and expand quiz to 12 cases
+- Remove settings.local.json from tracking, gitignore it
+- Complete task Z-077
+- Complete task Z-080
+- Complete task Z-081
+- Complete task Z-082
+- Complete task Z-083
+- Complete task Z-084
+- Complete task Z-085
+- Complete task Z-087
+- Archive task Z-094
+- Complete task Z-092
 
-**TUI + Workflow:**
+### 🚜 Refactor
 
-- `bin/zdash`: fzf task launcher with Pi/Aider/status/done keybindings; self-hosting `--list`/`--preview`.
-- `bin/zmorning`: session ritual → zdash by default; `--pi` for conversational orientation.
-- `conf.d/97-zle-ai.zsh`: Alt-e (explain), Alt-f (fix last failure), Alt-z (open zdash).
-- `providers/ai/pi.zsh`: `zpi()` with boundary enforcement and Keychain session dir.
-- `PI.md`: Pi usage guide and Pi↔Aider boundary.
+- Consolidate env and path in .zshenv
+- Restructure aliases for Bash and Zsh compatibility
+- Prefer Bash-compatible alias and function definitions
+- Implement POSIX-compatible environment core
+- Optimize XDG compliance, security, and reproducibility
+- Eliminate redundant sub-shell in assert_safe_mode
+- Guard .zshrc bindkey calls with zle check and clarify test scope
+- Standardize all OTLP endpoints on 127.0.0.1
+- Consistent CLI grammar and Unix citizenship across bin/ scripts
+- *(lifecycle)* Centralize service output and implement Grafana password reset
+- Simplify dependencies and update config path
+- *(db)* Rename DATABASE_URL → ZDOTS_DATABASE_URL across all zdots tooling
+- *(brain)* Deepen AI/crypto seam — Zdots::AI, Zdots::Crypto::KeyStore, EncryptedContent
+- *(phi)* Make AI endpoint gate structural
+- *(arch)* Search seam, job registry, prompt extraction
+- *(arch)* Centralize ZDOTS_AI_ENDPOINT default + iTerm2 integration
+- *(phi)* Introduce Message Hygiene Pipeline seam
+- *(arch)* Enforce provider contract in zdots_require
+- *(arch)* Deduplicate loopback port check into lifecycle.bash
+- *(arch)* Functional pipeline for AI boundary — predicates + adapters
+- *(phi+ai)* Centralize PHI patterns and extract AI invocation seam
+- *(zle)* Route widgets through AI Invocation Interface
+- *(phi)* Single pattern registry for bash and Ruby scrubbers
+- *(bootstrap)* Remove gdots clone — git config now in adots
 
-## May 2026 - SOTA AI Upgrade
+### 📚 Documentation
 
-- Integrated Taoism, Zen, Agile, and Software Craftsmanship manifestos into `GEMINI.md` as foundational architectural values.
-- Implemented `DocsSync` pipeline for `GEMINI.md` to ensure automatic alignment with session residues.
-- Added baseline database migration for intelligence suite.
-- Integrated character-based heuristics (Schrute, Costanza, Malone, et al.) into global memory (local).
-- Fixed: set explicit migration table (`zdots_schema_migrations`) in `zdots-migrator` to prevent collision.
+- Document ZDOTS_THEME and new color theme features
+- Restructure Brewfile with categories and purpose comments
+- Finalize Brewfile with full toolset and agent context
+- Restructure agent context into shared source of truth
+- Refine rtk instructions to be history-aware and token-efficient
+- Integrate history-aware rtk instructions for Gemini
+- Centralize rtk instructions in AGENTS.md
+- Establish Backlog.md as the source of truth in AGENTS.md
+- Refresh README with latest baseline and full feature set
+- Add ADR for local CI execution via Colima and Act
+- Add comprehensive architecture and loading sequence diagrams
+- Fix YAML frontmatter parsing errors
+- Reconcile documentation with system reality
+- Close Milestone 1 (Interchangeable Parts)
+- Add OTel collector connection guide for local services
+- Expand collector guide with traces, metrics, and logs sections
+- Add llama-server and storage hygiene documentation + docker-reclaim script
+- Add YAML frontmatter to all docs (Z-010)
+- Add .zdots.secrets.example template
+- Frame machine as central AI + OTel hub in AGENTS.md and README
+- Make agent-guide and capabilities mandatory orientation steps
+- Establish zdots-ctl as canonical platform control in all orientation docs
+- Add dedication to docs/zen.md
+- Fix name in dedication
+- Correct full name in dedication — Aneta Łucja Hall, née Zalewska
+- Add AI tool selection guide and RTK/aider integration boundary
+- Document May 2026 SOTA upgrade and load management strategy
+- Streamline architecture and service documentation
+- Finalize new documentation structure and milestones
+- Redefine Zdots as a Deepened Shell Platform in README
+- Include m-4 milestone file
+- Document YouTube transcription pipeline and harden CLI help
+- *(plan)* Add design spec for OTel AI Sniffer
+- *(readme)* Integrate architectural mermaid diagrams
+- Add migration guide for new machine setup
+- *(readme)* Integrate shell brain and sentient workbench features
+- *(ctx)* Document job queue and update system context
+- Document embedding dimension size
+- Finalize Sentient Workbench guidance and documentation audit
+- Upgrade to high-fidelity Mermaid v11 diagrams
+- Add Agent Context & Observability instructions
+- *(changelog)* Record manifestos, pipeline, and migration updates
+- Update all documentation for Operation Martian + TUI
+- Audit pass — fix drift, stale content, and broken anchors
+- Second audit pass — delete stale docs, fix references, update narrative
+- *(pi)* Fix PHI callout, invocation flag typo
+- *(agents)* Strengthen §5 with coordination rationale
+- *(phi)* Document PHI-safe transition process in SETUP.md
+- *(rag)* Update activation guide — embed server blocker resolved
+- *(ai-invoke)* Correct trust contract — module owns hygiene, not callers
 
+### ⚡ Performance
 
-## 2026 (36 commits) - Hardening + Modernization
+- Cache LS_COLORS and optimize compinit startup
+- Integrate zsh-defer and zsh-history-enquirer
+- Implement caching for Homebrew and mise, and optimize reset
+- Unify Homebrew and Mise caching across login and interactive shells
+- *(otel)* Eliminate fork overhead and fix span quality (Z-031)
+- Eliminate redundant forks in observability hot paths (Z-031)
 
-- Modularized startup and removed legacy helper stack.
-- Added and expanded `bin/check`, Make workflows, and CI validation gates.
-- Hardened shell defaults and diagnostics (startup, compaudit, linting ergonomics).
-- Added history import/analyze pipeline with redaction and documentation.
-- Strengthened keybinding behavior (`^R`/FZF), history mode policy, and regressions checks.
-- Added startup performance budget and non-blocking timing reporting.
+### 🎨 Styling
 
-## 2025 (1 commit) - Snapshot
+- Fix trailing whitespace and end-of-file issues
 
-- Snapshot before larger refactor/hardening work.
+### 🧪 Testing
 
-## 2022 (13 commits) - Toolchain + Environment Maintenance
+- Add fzf-tab regression check to bin/check
+- Add Tab (Ctrl-I) binding check to bin/check
+- Make bin/check robust for minimal CI environments
+- Improve Bats test reliability and error reporting
+- Resolve command not found for assert_success in CI
+- Add debug output and ensure ZDOTDIR propagation in Bats tests
+- Add CLI contract tests for service manager grammar and interface
+- *(db)* Add database contract tests and document access levels
+- *(phi)* 26-test PHI boundary suite + fix phi_scrub return value
+- Add RSpec suite for encryption and AI gate seams
+- *(ai)* Add RSpec coverage for Pipeline and PhiScrubber
+- *(eval)* Add A-group coverage for aiq_submit env var wiring
 
-- Iterative updates around asdf/nvim and language tooling.
-- Additional iTerm/prompt and config tidy-up passes.
-- Mostly maintenance and checkpoint-style changes.
+### ⚙️ Miscellaneous Tasks
 
-## 2021 (43 commits) - Expansion + Workflow Helpers
+- Remove merged .aliasrc.claude
+- Switch to Fira Code Nerd Font in Brewfile
+- Update postgresql path to version 18
+- Prime local rtk instructions for Claude
+- Apply automated whitespace and end-of-file hygiene
+- Update actions to v6 and opt-in to Node 24 runtime
+- Improve error reporting in bin/check
+- Update p10k configuration (v3 nerdfont + updated segments)
+- Complete Gemini GHA integration
+- Rename primary branch to main
+- Fix secret-scan false positives and triage failures; add check diagnostics
+- Fix secret-scan broad pattern and check glob errors
+- Debug check failure with set -x
+- Capture zsh exit code and output in check
+- Debug zsh startup with -x
+- Add local GitHub Actions environment via Colima and act
+- Clean working tree and gitignore ephemeral telemetry
+- Upgrade LGTM stack from v0.8.1 to v0.22.1
+- *(ai)* Cleanup AI stack and upgrade to May 2026 SOTA
+- *(ci)* Simplify secret-scan to high-confidence patterns
+- *(backlog)* Complete DLQ task
+- Update Gemfile.lock
+- *(permissions)* Update Claude Code permissions — rename DATABASE_URL refs
+- Allow log emit in Claude Code tool permissions
+- Update Claude Code tool permissions
+- Add Ruby/RSpec job, fix vivid guard, document test tiers
 
-- Large update cycle with restoration/cleanup and helper tooling growth.
-- Migration toward Powerlevel10k prompt configuration.
-- Added/iterated project helper commands and shell ergonomics.
+### 🛡️ Security
 
-## 2020 (1 commit) - Checkpoint
+- Close secret-scan gap for inline hex key assignments
+## [2026.03-shell-baseline] - 2026-03-02
 
-- Single repository checkpoint.
+### 💼 Other
 
-## 2019 (2 commits) - Sparse Maintenance
+- Streamline startup and harden interactive loading
+- Remove antigen maintenance paths
+- Fix wsp dispatch and simplify legacy scripts
+- Remove legacy workspace helper stack
+- Modularize runtime config and add lazy asdf loading
+- Add bootstrap/check workflow and maintenance policies
+- Replace lazy wrapper with explicit init and check
+- Vendor nord dircolors and align ls color fallbacks
+- Add import/analyze pipeline with docs
 
-- Minor RVM/employer helper adjustments.
+### 📚 Documentation
 
-## 2018 (14 commits) - Prompt/UI Cleanup Cycle
-
-- Prompt and icon refinement.
-- General refactoring and cleanup.
-- Removed dead or unused config pieces.
-
-## 2017 (90 commits) - Foundation + Initial Structure
-
-- Initial Zsh setup and bootstrap behavior.
-- Heavy reorganization of aliases, functions, prompt, and docs.
-- Added iTerm2 integration and zstyle/vcs prompt improvements.
-- Reduced hardcoded paths and improved portability.
+- Add brew bundle manifest and update architecture notes
+- Drop obsolete workspace wording
+- Prioritize and track asdf loading follow-up

@@ -13,6 +13,15 @@ links:
 
 # Zdots: The Deepened Shell Platform
 
+```bash
+# Cold start — new machine to fully operational in one command:
+git clone https://github.com/just3ws/zdots.git ~/.config/zsh && ~/.config/zsh/bin/bootstrap
+```
+
+> Local AI · PHI-safe · OTel-instrumented · 22-test eval suite · Single-command restore
+
+---
+
 Zdots is more than a Zsh configuration; it is a **Deepened Shell Platform** engineered for local AI development and systemic observability. While traditional dotfiles focus on visual aesthetics and aliases, Zdots provides a high-leverage **Control Plane** for local inference, distributed tracing, and declarative service management.
 
 ---
