@@ -31,40 +31,55 @@ RED=$(_c '0;31'); YEL=$(_c '0;33'); GRN=$(_c '0;32'); CYN=$(_c '0;36')
 
 # ── Task list (also: zdash --list) ───────────────────────────────────────────
 # Tab-separated: ICON  ID  PRIORITY  TITLE
+# Reads task frontmatter directly — stable contract vs. backlog CLI text output.
 _cmd_list() {
-  local active_id="" section="" skip=0
-  local pri id title pri_col pri_abbr icon icol
-  [[ -f "$ACTIVE_TASK_FILE" ]] && active_id=$(cat "$ACTIVE_TASK_FILE")
+  local active_id=""
+  if [[ -f "$ACTIVE_TASK_FILE" ]]; then
+    local _at; _at=$(< "$ACTIVE_TASK_FILE")
+    active_id="${_at:l}"
+  fi
 
-  while IFS= read -r line; do
-    if [[ "$line" == "To Do:"* ]];       then section="todo"; skip=0; continue; fi
-    if [[ "$line" == "In Progress:"* ]]; then section="wip";  skip=0; continue; fi
-    if [[ "$line" == "Done:"* ]];        then skip=1; continue; fi
-    [[ $skip -eq 1 ]] && continue
-    [[ -z "${line// }" ]] && continue
+  local -a _task_files
+  _task_files=( "${TASKS_DIR}"/z-*.md(N) )
+  [[ ${#_task_files[@]} -eq 0 ]] && return
 
-    if [[ "$line" =~ '^ +\[([A-Z]+)\] (Z-[0-9]+) - (.+)$' ]]; then
-      pri="$match[1]"; id="$match[2]"; title="$match[3]"
+  local id title status priority pri_col pri_abbr icon icol
+  while IFS=$'\t' read -r id title status priority; do
+    [[ -z "$id" ]] && continue
+    [[ "${status:l}" == "done" ]] && continue
 
-      case "$pri" in
-        HIGH)   pri_col="$RED";  pri_abbr="HIGH" ;;
-        MEDIUM) pri_col="$YEL";  pri_abbr="MED " ;;
-        LOW)    pri_col="$DIM";  pri_abbr="LOW " ;;
-        *)      pri_col="$RST";  pri_abbr="    " ;;
-      esac
+    case "${(U)priority}" in
+      HIGH)   pri_col="$RED"; pri_abbr="HIGH" ;;
+      MEDIUM) pri_col="$YEL"; pri_abbr="MED " ;;
+      LOW)    pri_col="$DIM"; pri_abbr="LOW " ;;
+      *)      pri_col="$RST"; pri_abbr="    " ;;
+    esac
 
-      if   [[ "$id" == "$active_id" ]]; then icon="★"; icol="$GRN"
-      elif [[ "$section" == "wip" ]];   then icon="◒"; icol="$CYN"
-      else                                   icon="○"; icol="$DIM"
-      fi
-
-      printf '%s%s%s\t%s\t%s%s%s\t%s\n' \
-        "$icol" "$icon" "$RST" \
-        "$id" \
-        "$pri_col" "$pri_abbr" "$RST" \
-        "$title"
+    if   [[ "${id:l}" == "$active_id" ]];          then icon="★"; icol="$GRN"
+    elif [[ "${status:l}" == "in progress" ]];      then icon="◒"; icol="$CYN"
+    else                                                 icon="○"; icol="$DIM"
     fi
-  done < <(backlog task list 2>/dev/null)
+
+    printf '%s%s%s\t%s\t%s%s%s\t%s\n' \
+      "$icol" "$icon" "$RST" \
+      "$id" \
+      "$pri_col" "$pri_abbr" "$RST" \
+      "$title"
+  done < <(
+    awk '
+      FNR==1 { in_front=0; id=""; title=""; status=""; priority="" }
+      /^---/ {
+        if (in_front == 0) { in_front = 1; next }
+        print id "\t" title "\t" status "\t" priority
+        nextfile
+      }
+      in_front != 1 { next }
+      /^id:/       { sub(/^id:[[:space:]]*/, "");       id = $0 }
+      /^title:/    { sub(/^title:[[:space:]]*/, "");    title = $0 }
+      /^status:/   { sub(/^status:[[:space:]]*/, "");   status = $0 }
+      /^priority:/ { sub(/^priority:[[:space:]]*/, ""); priority = $0 }
+    ' "${_task_files[@]}" 2>/dev/null
+  )
 }
 
 # ── Preview renderer (also: zdash --preview ID) ───────────────────────────────
