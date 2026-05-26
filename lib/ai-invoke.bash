@@ -60,8 +60,10 @@ zdots_ai_infer_raw() {
     return 2
   fi
 
-  # Gate + locality enforced; exits 1 or 2 on violation
-  zdots_ai_gate "zdots_ai_infer_raw"
+  # Gate + locality enforced; exits 1 or 2 on violation.
+  # zdots_ai_gated_endpoint validates mode AND endpoint locality in one call —
+  # zdots_ai_gate alone would pass a non-local endpoint in local mode.
+  zdots_ai_gated_endpoint "zdots_ai_infer_raw" >/dev/null
 
   # Run hygiene pipeline: normalize → phi_scrub
   local clean_prompt
