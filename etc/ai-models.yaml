@@ -16,13 +16,12 @@ profiles:
   qwen3-8b:
     model_file: "Qwen_Qwen3-8B-Q4_K_M.gguf"
     hf_repo: "bartowski/Qwen_Qwen3-8B-GGUF"
-    draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
-    draft_hf_repo: "bartowski/Qwen_Qwen3-0.6B-GGUF"
+    # draft_model_file disabled — speculative decoding + parallel=2 caused 278 GPU OOM crashes.
+    # Re-enable once confirmed stable: draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
     size_gb: 5.0
-    draft_size_gb: 0.4
     ctx_size: 32768
     n_gpu_layers: 99
-    description: "Qwen3-8B with hybrid thinking mode + speculative decoding (0.6B draft). /no_think for interactive queries; thinking available via --think. n_embd=4096."
+    description: "Qwen3-8B. Thinking off by default (--reasoning off); use /think in prompt to enable. n_embd=4096."
 
   standard:
     model_file: "qwen2.5-coder-7b-instruct-q4_k_m.gguf"
@@ -99,8 +98,9 @@ embed_server:
 server:
   host: "127.0.0.1"
   port: 8080
-  # Parallel decode slots. 2 is safe for 16GB; drop to 1 if OOM.
-  parallel: 2
+  # Parallel decode slots. Reduced to 1 to prevent GPU OOM with Qwen3-8B.
+  # Each slot holds a full KV cache; 2 slots caused 278 OOM crashes under sequential load.
+  parallel: 1
   # Logical maximum batch size: upper bound on tokens per scheduling cycle.
   # Must be >= longest single input (embedding chunk, long prompt). 2048
   # covers typical RAG payloads up to ~1500 words.
@@ -128,7 +128,7 @@ server:
   # a common prefix — every `ai` shell call sends the same system prompt, so
   # this eliminates redundant prefill work after the first call.
   # Value is the minimum matching prefix length in tokens to trigger reuse.
-  cache_reuse: 256
+  cache_reuse: 256  # re-enabled: no draft model conflict
   # Cap generation length per request. -1 = unlimited (generation stops at EOS).
   # 2048 was the previous cap; removed because it silently truncated migration
   # scripts, security audits, and any long explanation mid-generation.
