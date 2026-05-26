@@ -31,9 +31,8 @@ set -eo pipefail
 trap '' PIPE
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
-# Source the lifecycle engine for logging and output helpers
-# shellcheck source=lib/lifecycle.bash
-source "${ZDOTDIR}/lib/lifecycle.bash"
+# shellcheck source=lib/svc-health.bash
+source "${ZDOTDIR}/lib/svc-health.bash"
 # shellcheck source=lib/ai-invoke.bash
 source "${ZDOTDIR}/lib/ai-invoke.bash"
 
