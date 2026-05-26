@@ -14,6 +14,11 @@
 # If a future pattern requires ';', update _phi_load_patterns in lib/phi_scrubber.bash.
 
 patterns:
+  - name: cli_credentials
+    regex: '(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]]+[^[:space:]]+'
+    replace: '\1 [REDACTED]'
+    weight: 80
+
   - name: ssn
     regex: '[0-9]{3}-[0-9]{2}-[0-9]{4}'
     replace: '[REDACTED-SSN]'
@@ -30,6 +35,6 @@ patterns:
     weight: 60
 
   - name: conn_string
-    regex: '(postgresql|mysql|redis)://[^@[:space:]]+@[^/[:space:]]*'
+    regex: '(postgresql|mysql|redis)://[^@[:space:]]+@[^[:space:]]*'
     replace: '[REDACTED-CONN]'
     weight: 85
