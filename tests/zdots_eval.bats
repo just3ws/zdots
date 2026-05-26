@@ -67,6 +67,23 @@ JSON
 exit 0
 MOCK
   chmod +x "$BATS_TEST_TMPDIR/ai-query-missing-field"
+
+  # Mock curl for A-group tests: captures stdin (request body from jq), returns
+  # a fake 200 with a minimal chat-completion response. Tests set MOCK_CAPTURE_FILE
+  # to the path where the captured JSON body should be written.
+  mkdir -p "$BATS_TEST_TMPDIR/curl-bin"
+  cat > "$BATS_TEST_TMPDIR/curl-bin/curl" <<'MOCK'
+#!/usr/bin/env bash
+resp=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in -o) resp="$2"; shift 2 ;; *) shift ;; esac
+done
+[[ -n "${MOCK_CAPTURE_FILE:-}" ]] && cat > "$MOCK_CAPTURE_FILE" || cat > /dev/null
+[[ -n "$resp" ]] && \
+  printf '{"choices":[{"message":{"content":"ok"},"finish_reason":"stop"}]}' > "$resp"
+printf '200'
+MOCK
+  chmod +x "$BATS_TEST_TMPDIR/curl-bin/curl"
 }
 
 # ---------------------------------------------------------------------------
@@ -244,4 +261,87 @@ MOCK
       zdots_ai_distill 'analyze this session'
     "
   [ "$status" -eq 2 ]
+}
+
+# ---------------------------------------------------------------------------
+# A. aiq_submit request body — env var wiring (curl mocked, no live server)
+#
+# Each test calls aiq_submit directly with a mock curl that captures the JSON
+# body piped from jq. Assertions read the captured file with jq.
+# ---------------------------------------------------------------------------
+
+@test "A1: AIQ_ENABLE_THINKING=1 sets enable_thinking to true in request body" {
+  local sysfile userfile capture
+  sysfile=$(mktemp); printf 'system' > "$sysfile"
+  userfile=$(mktemp); printf 'user'   > "$userfile"
+  capture=$(mktemp)
+
+  MOCK_CAPTURE_FILE="$capture" AIQ_ENABLE_THINKING=1 \
+    PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
+    run bash -c "source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+
+  [ "$status" -eq 0 ]
+  [[ "$(jq -r '.chat_template_kwargs.enable_thinking' "$capture")" == "true" ]]
+  rm -f "$sysfile" "$userfile" "$capture"
+}
+
+@test "A2: AIQ_ENABLE_THINKING unset defaults enable_thinking to false" {
+  local sysfile userfile capture
+  sysfile=$(mktemp); printf 'system' > "$sysfile"
+  userfile=$(mktemp); printf 'user'   > "$userfile"
+  capture=$(mktemp)
+
+  MOCK_CAPTURE_FILE="$capture" \
+    PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
+    run bash -c "unset AIQ_ENABLE_THINKING; source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+
+  [ "$status" -eq 0 ]
+  [[ "$(jq -r '.chat_template_kwargs.enable_thinking' "$capture")" == "false" ]]
+  rm -f "$sysfile" "$userfile" "$capture"
+}
+
+@test "A3: AIQ_TEMPERATURE=0.1 overrides default temperature in request body" {
+  local sysfile userfile capture
+  sysfile=$(mktemp); printf 'system' > "$sysfile"
+  userfile=$(mktemp); printf 'user'   > "$userfile"
+  capture=$(mktemp)
+
+  MOCK_CAPTURE_FILE="$capture" AIQ_TEMPERATURE=0.1 \
+    PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
+    run bash -c "source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+
+  [ "$status" -eq 0 ]
+  [[ "$(jq -r '.temperature' "$capture")" == "0.1" ]]
+  rm -f "$sysfile" "$userfile" "$capture"
+}
+
+@test "A4: AIQ_JSON_SCHEMA set adds response_format to request body" {
+  local sysfile userfile capture schema
+  sysfile=$(mktemp); printf 'system' > "$sysfile"
+  userfile=$(mktemp); printf 'user'   > "$userfile"
+  capture=$(mktemp)
+  schema='{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"]}'
+
+  MOCK_CAPTURE_FILE="$capture" AIQ_JSON_SCHEMA="$schema" \
+    PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
+    run bash -c "source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+
+  [ "$status" -eq 0 ]
+  [[ "$(jq -r '.response_format.type' "$capture")" == "json_schema" ]]
+  rm -f "$sysfile" "$userfile" "$capture"
+}
+
+@test "A5: AIQ_JSON_SCHEMA unset omits response_format from request body" {
+  local sysfile userfile capture
+  sysfile=$(mktemp); printf 'system' > "$sysfile"
+  userfile=$(mktemp); printf 'user'   > "$userfile"
+  capture=$(mktemp)
+
+  MOCK_CAPTURE_FILE="$capture" \
+    PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
+    run bash -c "unset AIQ_JSON_SCHEMA; source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+
+  [ "$status" -eq 0 ]
+  [[ "$(jq 'has("response_format")' "$capture")" == "false" ]]
+  rm -f "$sysfile" "$userfile" "$capture"
 }
