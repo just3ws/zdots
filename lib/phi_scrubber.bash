@@ -36,20 +36,19 @@ _phi_load_patterns() {
     return 1
   fi
 
-  local count
-  count=$(yq '.patterns | length' "$_PHI_PATTERNS_FILE" 2>/dev/null) || {
-    printf 'phi_scrubber: failed to parse %s\n' "$_PHI_PATTERNS_FILE" >&2
-    return 1
-  }
-
-  local i=0
-  while (( i < count )); do
-    local regex replace
-    regex=$(yq ".patterns[$i].regex" "$_PHI_PATTERNS_FILE")
-    replace=$(yq ".patterns[$i].replace" "$_PHI_PATTERNS_FILE")
+  # One yq call emits all patterns as TSV; loop builds _PHI_SED_ARGS in-process.
+  # Previously: 1 (count) + 2×N (regex+replace per pattern) = N+1 subprocesses.
+  # Now: always 1 subprocess regardless of pattern count.
+  local regex replace
+  while IFS=$'\t' read -r regex replace; do
+    [[ -n "$regex" ]] || continue
     _PHI_SED_ARGS+=(-e "s;${regex};${replace};g")
-    (( i++ ))
-  done
+  done < <(yq -o tsv '.patterns[] | [.regex, .replace]' "$_PHI_PATTERNS_FILE" 2>/dev/null)
+
+  if [[ ${#_PHI_SED_ARGS[@]} -eq 0 ]]; then
+    printf 'phi_scrubber: failed to parse %s (no patterns loaded)\n' "$_PHI_PATTERNS_FILE" >&2
+    return 1
+  fi
 }
 
 phi_scrub() {
