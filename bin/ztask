@@ -9,8 +9,8 @@ set -eo pipefail
 trap '' PIPE
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
-# shellcheck source=lib/lifecycle.bash
-source "${ZDOTDIR}/lib/lifecycle.bash"
+# shellcheck source=lib/svc-health.bash
+source "${ZDOTDIR}/lib/svc-health.bash"
 
 # 1. Ensure environment is loaded (no set -u to avoid .zdots.env errors)
 [[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true

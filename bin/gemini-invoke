@@ -10,8 +10,8 @@ set -euo pipefail
 trap '' PIPE
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
-# shellcheck source=lib/lifecycle.bash
-source "${ZDOTDIR}/lib/lifecycle.bash"
+# shellcheck source=lib/svc-health.bash
+source "${ZDOTDIR}/lib/svc-health.bash"
 
 # 1. Ensure environment is loaded (Trace IDs, etc.)
 if [[ -z "${ZDOTS_TRACE_ID:-}" ]]; then
