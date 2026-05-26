@@ -149,62 +149,10 @@ elif ! grep -Fq '.config/git/config' "$HOME/.gitconfig"; then
   } >> "$HOME/.gitconfig"
 fi
 
-# gdots: global git configuration (~/.config/git).
-# Clone if the directory is not already a git repo. Falls back to a minimal
-# inline config if the clone fails so 'git commit' still works on first run.
-echo "bootstrap: setting up gdots git config (~/.config/git)..."
-if [ ! -d "$HOME/.config/git/.git" ]; then
-  git clone https://github.com/just3ws/gdots.git "$HOME/.config/git" \
-    && echo "bootstrap: gdots cloned." \
-    || {
-      echo "bootstrap: WARNING: gdots clone failed — writing minimal fallback config."
-      cat > "$HOME/.config/git/config" <<'GITCFG'
-[user]
-	name = Mike Hall
-	email = mike@just3ws.com
-
-[core]
-	editor = nvim
-	excludesfile = ~/.gitignore_global
-	autocrlf = input
-	pager = delta
-
-[pull]
-	rebase = true
-
-[push]
-	default = current
-	autoSetupRemote = true
-
-[rebase]
-	autosquash = true
-	autostash = true
-
-[merge]
-	conflictstyle = zdiff3
-
-[delta]
-	navigate = true
-	light = false
-	line-numbers = true
-	side-by-side = true
-
-[interactive]
-	diffFilter = delta --color-only
-
-[init]
-	defaultBranch = main
-
-[fetch]
-	prune = true
-
-[diff]
-	colorMoved = default
-GITCFG
-    }
-else
-  echo "bootstrap: gdots already present ($HOME/.config/git)"
-fi
+# ~/.config/git/config is tracked in adots — restored by the git restore step above.
+# Ensure the directory exists in case adots restore hasn't run yet.
+mkdir -p "$HOME/.config/git"
+touch "$HOME/.config/git/config" "$HOME/.config/git/ignore"
 
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$REPO_ROOT" config --local core.hooksPath .githooks
