@@ -159,9 +159,15 @@ cmd_status() {
   _colima_up  && colima_up=true || colima_up=false
   _ctx_up     && ctx_up=true    || ctx_up=false
 
+  local ai_model="unknown"
+  if [[ "$ai_up" == "true" ]]; then
+    ai_model=$(curl -sf -m 2 "${AI_ENDPOINT}/v1/models" 2>/dev/null \
+      | jq -r '.data[0].id // "local"' 2>/dev/null || echo "local")
+  fi
+
   if $json; then
-    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"intelligence_suite":%s,"grafana_url":"%s","ai_endpoint":"%s","otlp_endpoint":"%s"}\n' \
-      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" "$ctx_up" \
+    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"ai_model":"%s","intelligence_suite":%s,"grafana_url":"%s","ai_endpoint":"%s","otlp_endpoint":"%s"}\n' \
+      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" "$ai_model" "$ctx_up" \
       "$GRAFANA_URL" "$AI_ENDPOINT" "$OTLP_ENDPOINT"
     return
   fi
