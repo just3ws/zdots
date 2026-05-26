@@ -89,27 +89,7 @@ aiq_normalize() {
   printf 'normalize: bytes=%s lines=%s null=%s crlf=%s ansi=%s binary=%s\n' \
     "$bytes_in" "$line_count" "$has_null" "$has_crlf" "$has_ansi" "$has_binary" >&2
 
-  # Strip pipeline — prefer perl (expressive, reliable on macOS); fall back to sed+tr.
-  if command -v perl >/dev/null 2>&1; then
-    perl -pe '
-      s/\x00//g;
-      s/\r\n/\n/g; s/\r/\n/g;
-      s/\e\[[0-9;?!>]*[A-Za-z]//g;
-      s/\e\][^\a\e]*\a//g;
-      s/\e\][^\e]*\e\\//g;
-      s/\e[A-Za-z]//g;
-      tr/\x01-\x08\x0b-\x0c\x0e-\x1f\x7f//d;
-    ' < "$infile"
-  else
-    # BSD sed fallback: $'"'"'..'"'"' lets bash expand \033 to ESC before sed sees it.
-    LC_ALL=C tr -d '\0' < "$infile" \
-      | LC_ALL=C tr -d '\r' \
-      | sed $'s/\033\\[[0-9;?!>]*[A-Za-z]//g' \
-      | sed $'s/\033][^\a]*\a//g' \
-      | sed $'s/\033[A-Za-z]//g' \
-      | LC_ALL=C tr -d \
-          '\001\002\003\004\005\006\007\010\013\014\016\017\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037\177'
-  fi
+  _mh_normalize < "$infile"
 }
 
 # ---------------------------------------------------------------------------
