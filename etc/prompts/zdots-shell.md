@@ -74,13 +74,13 @@ fi
 ## OTel span emission (requires active observable session)
 ```bash
 source "${ZDOTDIR}/lib/lifecycle.bash"
-# ZDOTS_TRACE_ID must be set (set by the observable shell session)
+[[ -z "${ZDOTS_TRACE_ID:-}" ]] && return 0  # no-op outside observable session
 _start=$(date +%s%N)
 # ... do work ...
 _end=$(date +%s%N)
 zdots_svc_emit_span "my-operation" "$_start" "$_end" "key=value"
 ```
-Only call this inside scripts that run within an observable session (ZDOTS_TRACE_ID set). Silently skips if ZDOTS_TRACE_ID is unset.
+ZDOTS_TRACE_ID is set by the shell session. Always guard with the check above — zdots_svc_emit_span silently skips if unset, but explicit guard is the documented pattern.
 
 Code first. Match zdots patterns exactly.
 
