@@ -21,7 +21,10 @@
 [[ -n "${_AI_INVOKE_LOADED:-}" ]] && return 0
 readonly _AI_INVOKE_LOADED=1
 
-_AI_INVOKE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+# Prefer $ZDOTDIR/lib when available — works in both bash (BASH_SOURCE) and zsh
+# (no BASH_SOURCE) contexts. Falls back to BASH_SOURCE for standalone bash use.
+_AI_INVOKE_LIB_DIR="${ZDOTDIR:+${ZDOTDIR}/lib}"
+_AI_INVOKE_LIB_DIR="${_AI_INVOKE_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)}"
 
 # shellcheck source=lib/ai_boundary.bash
 source "${_AI_INVOKE_LIB_DIR}/ai_boundary.bash"
