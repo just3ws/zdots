@@ -167,7 +167,7 @@ brew "zsh-syntax-highlighting"
 brew "zsh-vi-mode"
 brew "zsh-you-should-use"
 brew "dust"         # better du — fast, tree-structured disk usage
-brew "dlvhdr/gh-dash/gh-dash"  # GitHub dashboard (config tracked in adots)
+# gh-dash is a gh extension, not a Homebrew formula: gh extension install dlvhdr/gh-dash
 brew "git-cliff"    # CHANGELOG generation from conventional commits
 brew "lazydocker"   # Docker TUI — companion to lazygit
 # otelcol-contrib is intentionally absent — custom binary managed by
