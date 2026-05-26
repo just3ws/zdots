@@ -202,9 +202,9 @@ cmd_check() {
   for tool in brew git curl jq yq colima docker llama-server otelcol-contrib nginx mkcert; do
     if command -v "$tool" >/dev/null 2>&1; then
       _chk_pass "$tool  $(command -v "$tool")"
-    elif [[ "$tool" == "nginx" ]] && [[ -L /opt/homebrew/bin/nginx ]]; then
-      # nginx run as root (sudo brew services) makes the binary non-executable by the user
-      _chk_pass "$tool  /opt/homebrew/bin/nginx (system service)"
+    elif [[ "$tool" == "nginx" ]] && curl -sI --max-time 1 http://127.0.0.1 2>/dev/null | grep -qi '^Server: nginx'; then
+      # nginx run as root (sudo brew services) — binary not in user PATH; detect via HTTP probe
+      _chk_pass "$tool  running as system service (port 80)"
     else
       _chk_fail "$tool  not found"
       _fix "brew install $tool"
@@ -387,38 +387,35 @@ cmd_check() {
   # ── Local proxy (nginx + mkcert + /etc/hosts) ─────────────────────────────
   printf '\nLocal proxy\n'
 
-  # nginx running on port 80 (not 8080 — that conflicts with llama-server)
-  # Use HTTP probe: lsof and nginx -t require root when managed via sudo brew services.
-  if [[ -L /opt/homebrew/bin/nginx ]] || command -v nginx >/dev/null 2>&1; then
-    local nginx_server_header
-    nginx_server_header=$(curl -sI --max-time 2 http://127.0.0.1 2>/dev/null | grep -i '^Server:' | head -1) || true
-    if echo "$nginx_server_header" | grep -qi nginx; then
-      _chk_pass "nginx  running on port 80"
-      # Config is valid by definition if nginx is serving — sudo nginx -t can't run non-interactively
-      _chk_pass "nginx config  valid (inferred — service is running)"
+  # nginx running on port 80 (not 8080 — that conflicts with llama-server).
+  # Always probe via HTTP — binary not in user PATH when managed via sudo brew
+  # services. Never gate on symlink existence; symlinks are unreliable across
+  # brew upgrades (may be removed or root-owned after sudo service restart).
+  local nginx_server_header
+  nginx_server_header=$(curl -sI --max-time 2 http://127.0.0.1 2>/dev/null | grep -i '^Server:' | head -1) || true
+  if echo "$nginx_server_header" | grep -qi nginx; then
+    _chk_pass "nginx  running on port 80"
+    # Config valid by definition when serving — sudo nginx -t can't run non-interactively
+    _chk_pass "nginx config  valid (inferred — service is running)"
+  else
+    local nginx_8080_header
+    nginx_8080_header=$(curl -sI --max-time 2 http://127.0.0.1:8080 2>/dev/null | grep -i '^Server:' | head -1) || true
+    if echo "$nginx_8080_header" | grep -qi nginx; then
+      _chk_fail "nginx  running on port 8080 (conflicts with llama-server)"
+      _fix "sudo brew services stop nginx && edit $(brew --prefix)/etc/nginx/nginx.conf (8080→80) && sudo brew services start nginx"
     else
-      local nginx_8080_header
-      nginx_8080_header=$(curl -sI --max-time 2 http://127.0.0.1:8080 2>/dev/null | grep -i '^Server:' | head -1) || true
-      if echo "$nginx_8080_header" | grep -qi nginx; then
-        _chk_fail "nginx  running on port 8080 (conflicts with llama-server)"
-        _fix "sudo brew services stop nginx && edit $(brew --prefix)/etc/nginx/nginx.conf (8080→80) && sudo brew services start nginx"
-      else
-        _chk_warn "nginx  not running"
-        _fix "sudo brew services start nginx"
-        # Only validate config when nginx is stopped — helps diagnose startup failures
-        local nginx_t_rc=0
-        sudo nginx -t >/dev/null 2>&1 || nginx_t_rc=$?
-        if [[ $nginx_t_rc -eq 0 ]]; then
-          _chk_pass "nginx config  valid (nginx stopped but config is clean)"
-        elif [[ $nginx_t_rc -ne 126 ]]; then
-          _chk_fail "nginx config  invalid"
-          _fix "sudo nginx -t  (see errors above)"
-        fi
+      _chk_warn "nginx  not running"
+      _fix "sudo brew services start nginx"
+      # Only validate config when nginx is stopped — helps diagnose startup failures
+      local nginx_t_rc=0
+      sudo nginx -t >/dev/null 2>&1 || nginx_t_rc=$?
+      if [[ $nginx_t_rc -eq 0 ]]; then
+        _chk_pass "nginx config  valid (nginx stopped but config is clean)"
+      elif [[ $nginx_t_rc -ne 126 ]]; then
+        _chk_fail "nginx config  invalid"
+        _fix "sudo nginx -t  (see errors above)"
       fi
     fi
-  else
-    _chk_warn "nginx  not installed"
-    _fix "brew install nginx"
   fi
 
   # mkcert local CA trusted in system keychain
