@@ -6,9 +6,11 @@
 #
 # zdots_ai_infer_raw PROMPT [SYSTEM_PROMPT]  — raw text inference, stdin → stdout
 #   Gate check + locality assertion (exits 1/2 on failure).
-#   Runs zdots_message_hygiene on input before submission.
-#   No trust-boundary wrapping — assumes input is pre-scrubbed by caller.
-#   Used by zdots-ask for domain-routed prompts.
+#   Runs zdots_message_hygiene on input: normalize → PHI scrub. Owns hygiene.
+#   Uses ai-query --mode raw (no safe-extract wrapping): callers construct the
+#   full prompt — there is no untrusted data block to isolate, so injection
+#   wrapping is unnecessary. PHI scrubbing runs regardless.
+#   Used by zdots-ask (domain-routed prompts) and ZLE widgets.
 #
 # zdots_ai_distill PROMPT  — structured JSON inference, stdin → stdout (JSON)
 #   Calls zdots_ai_infer_raw internally with JSON response format requested.
@@ -35,7 +37,7 @@ source "${_AI_INVOKE_LIB_DIR}/message_hygiene.bash"
 # zdots_ai_infer_raw PROMPT [SYSTEM_PROMPT]
 #
 # Args:
-#   $1  — user prompt (required; pre-scrubbed by caller)
+#   $1  — user prompt (required; PHI-scrubbed internally by this function)
 #   $2  — system prompt text (optional)
 #
 # Stdout: raw model response text
@@ -67,6 +69,9 @@ zdots_ai_infer_raw() {
   local ai_args=(--mode raw)
   [[ -n "$system_prompt" ]] && ai_args+=(--system "$system_prompt")
 
+  # Suppress the "raw mode" warning: input is PHI-scrubbed above and the prompt
+  # is caller-constructed (no untrusted data block), so the warning is a false
+  # alarm for this path. See ai-query --mode raw for what the warning covers.
   AIQ_SUPPRESS_RAW_WARN=1 "$ai_query" "${ai_args[@]}" "$clean_prompt"
 }
 
