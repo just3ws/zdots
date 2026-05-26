@@ -54,7 +54,13 @@ _phi_load_patterns() {
 
 phi_scrub() {
   if [[ ${#_PHI_SED_ARGS[@]} -eq 0 ]]; then
-    _phi_load_patterns || return 1
+    if ! _phi_load_patterns; then
+      # Patterns unavailable (yq missing, registry absent).  Pass input through
+      # unchanged so the AI pipeline keeps running; the stderr message from
+      # _phi_load_patterns tells the operator what to fix.
+      cat
+      return 0
+    fi
   fi
 
   local input
