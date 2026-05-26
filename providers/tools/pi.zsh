@@ -1,4 +1,4 @@
-# providers/ai/pi.zsh — Pi coding agent wired to local llama.cpp server.
+# providers/tools/pi.zsh — Pi coding agent wired to local llama.cpp server.
 #
 # Pi is @earendil-works/pi-coding-agent — a session-aware AI agent with tools
 # (read, bash, edit, write) intended for interactive exploration and planning.
@@ -15,14 +15,13 @@
 # See PI.md for usage guidance and the Pi↔Aider boundary rules.
 
 zdots_pi_init() {
-  # AI boundary enforcement — exit 2 if mode=none, exit 1 if endpoint not RFC-1918
-  if ! typeset -f zdots_ai_gate > /dev/null 2>&1; then
+  # Gate + locality in one call — mode check and endpoint locality together.
+  if ! typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1; then
     # shellcheck source=lib/ai_boundary.bash
     [[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
   fi
-  typeset -f zdots_ai_gate > /dev/null 2>&1 && zdots_ai_gate "zpi"
-  typeset -f zdots_assert_local_endpoint > /dev/null 2>&1 \
-    && zdots_assert_local_endpoint "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1 \
+    && zdots_ai_gated_endpoint "zpi" >/dev/null
 
   # Telemetry off — no analytics from a PHI-adjacent machine.
   export PI_TELEMETRY=0

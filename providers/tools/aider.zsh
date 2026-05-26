@@ -1,4 +1,4 @@
-# providers/ai/aider.zsh — Aider integration wired to the local llama.cpp server.
+# providers/tools/aider.zsh — Aider integration wired to the local llama.cpp server.
 #
 # Aider reads AIDER_* env vars via its auto_env_var_prefix="AIDER_" argparse config,
 # so every --flag maps to AIDER_FLAG. All env vars are set in zdots_aider_init so
@@ -13,14 +13,13 @@
 #   ZDOTS_AI_ENDPOINT=http://other:8080 zaider  # override endpoint
 
 zdots_aider_init() {
-  # AI boundary enforcement — exit 2 if mode=none, exit 1 if endpoint not RFC-1918
-  if ! typeset -f zdots_ai_gate > /dev/null 2>&1; then
+  # Gate + locality in one call — mode check and endpoint locality together.
+  if ! typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1; then
     # shellcheck source=lib/ai_boundary.bash
     [[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
   fi
-  typeset -f zdots_ai_gate > /dev/null 2>&1 && zdots_ai_gate "zaider"
-  typeset -f zdots_assert_local_endpoint > /dev/null 2>&1 \
-    && zdots_assert_local_endpoint "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1 \
+    && zdots_ai_gated_endpoint "zaider" >/dev/null
 
   # Derive endpoint from the active llama.cpp provider so both always agree.
   # ZDOTS_AI_ENDPOINT is set by providers/ai/llama-cpp.zsh before this runs.
