@@ -66,6 +66,9 @@ _run_case() {
     [[ -z "$response" ]] && printf '  %sWARN%s empty response (model busy — retry failed)\n' "$_YLW" "$_RST"
   fi
 
+  # Let model settle between cases — 8B with speculative decoding needs ~3s to drain KV cache.
+  sleep 3
+
   local passed=0; local failed=0
   for pat in "${required_patterns[@]}"; do
     if printf '%s' "$response" | grep -qiE "$pat"; then
