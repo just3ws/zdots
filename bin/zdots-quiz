@@ -55,12 +55,12 @@ _run_case() {
   _TOTAL=$(( _TOTAL + 1 ))
   printf '%s%s [%s]%s %s\n' "$_BOLD" "$id" "$domain" "$_RST" "$prompt"
 
-  # One retry on empty response — 7B model occasionally returns nothing under load
+  # One retry on empty/failed response — 8B model needs settling time between sequential calls.
   local response
   response=$(AIQ_SUPPRESS_RAW_WARN=1 \
     "${_SCRIPT_DIR}/zdots-ask" --domain "$domain" "$prompt" 2>/dev/null || true)
   if [[ -z "$response" ]]; then
-    sleep 2
+    sleep 8
     response=$(AIQ_SUPPRESS_RAW_WARN=1 \
       "${_SCRIPT_DIR}/zdots-ask" --domain "$domain" "$prompt" 2>/dev/null || true)
     [[ -z "$response" ]] && printf '  %sWARN%s empty response (model busy — retry failed)\n' "$_YLW" "$_RST"
@@ -145,9 +145,9 @@ _run_case TC-02 shell \
 
 _run_case TC-03 shell \
   "What is the correct shell pattern to make a PHI-safe AI call in a zdots script?" \
-  'ai_boundary\.bash' \
-  'zdots_ai_gate' \
-  'zdots_assert_local_endpoint|zdots_scrub_phi|ai-query'
+  'ai-invoke\.bash|ai-infer\.bash' \
+  'zdots_ai_infer_raw' \
+  'zdots_assert_local_endpoint|zdots_scrub_phi|ai-query|zdots_ai_gate'
 
 _run_case TC-04 shell \
   "How do you retrieve a secret named API_TOKEN from the macOS Keychain in a zdots script?" \
@@ -175,8 +175,8 @@ _run_case TC-07 ruby \
 # PHI domain
 _run_case TC-08 phi \
   "Write the PHI-safe script preamble required before any AI call in a zdots bash script." \
-  'ai_boundary\.bash' \
-  'zdots_ai_gate' \
+  'ai-invoke\.bash' \
+  'zdots_ai_infer_raw|zdots_ai_gate' \
   'zdots_assert_local_endpoint|zdots_scrub_phi'
 
 _run_case TC-09 phi \
