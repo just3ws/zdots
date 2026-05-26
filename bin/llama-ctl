@@ -211,7 +211,7 @@ _register_plist() {
   local model_path; model_path=$(_active_model_path)
   local host port ctx_size n_gpu_layers parallel batch_size ubatch_size
   local cache_type_k cache_type_v n_predict cache_reuse alias
-  local embeddings pooling flash_attn metrics temperature
+  local embeddings pooling flash_attn metrics temperature no_thinking
   local draft_model_file spec_draft_n_max
 
   if [[ -z "$model_path" || ! -f "$model_path" ]]; then
@@ -237,6 +237,7 @@ _register_plist() {
   flash_attn=$(_server_field flash_attn "false")
   metrics=$(_server_field metrics "false")
   temperature=$(_server_field temperature "")
+  no_thinking=$(_server_field no_thinking "false")
   draft_model_file=$(_profile_field draft_model_file "")
   spec_draft_n_max=$(_server_field spec_draft_n_max "5")
 
@@ -264,6 +265,7 @@ _register_plist() {
   fi
   [[ -n "$alias" && "$alias" != "null" ]] && args+=("--alias" "${alias}")
   [[ -n "$temperature" && "$temperature" != "null" ]] && args+=("--temp" "${temperature}")
+  [[ "$no_thinking" == "true" ]] && args+=("--reasoning" "off")
 
   # Speculative decoding: add draft model if file exists on disk.
   if [[ -n "$draft_model_file" && "$draft_model_file" != "null" ]]; then
