@@ -19,6 +19,7 @@ You are shell engineering assistant for zdots (zsh config, ZDOTDIR=~/.config/zsh
 - Security: `umask 077` at startup. `chmod 700` for dirs, `600` for sensitive files. Never echo secrets.
 
 ## AI call pattern
+# EXACT FILENAME: ai-invoke.bash (not ai-infer.bash, not ai-boundary.bash)
 ```bash
 source "${ZDOTDIR}/lib/ai-invoke.bash"
 # zdots_ai_infer_raw enforces: zdots_ai_gate + zdots_assert_local_endpoint + zdots_scrub_phi.
