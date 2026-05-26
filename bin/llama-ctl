@@ -158,6 +158,65 @@ _require_yq() {
 _profile_field() { _meta_get "$1" "${2:-}"; }
 _server_field()  { _meta_get "$1" "${2:-}"; }
 
+# ─── Resolved server configuration ───────────────────────────────────────────
+# _resolve_config() reads _META_JSON once with a single jq invocation and
+# populates the _CFG_* module-level variables below.  Both _register_plist and
+# config_dump call it; repeated calls are no-ops (_CFG_RESOLVED guard).
+_CFG_RESOLVED=0
+_CFG_HOST="" _CFG_PORT="" _CFG_CTX_SIZE="" _CFG_N_GPU_LAYERS=""
+_CFG_PARALLEL="" _CFG_BATCH_SIZE="" _CFG_UBATCH_SIZE=""
+_CFG_CACHE_TYPE_K="" _CFG_CACHE_TYPE_V="" _CFG_N_PREDICT="" _CFG_CACHE_REUSE=""
+_CFG_ALIAS="" _CFG_EMBEDDINGS="" _CFG_POOLING="" _CFG_FLASH_ATTN="" _CFG_METRICS=""
+_CFG_TEMPERATURE="" _CFG_NO_THINKING="" _CFG_DRAFT_MODEL_FILE="" _CFG_SPEC_DRAFT_N_MAX=""
+
+_resolve_config() {
+  [[ "$_CFG_RESOLVED" -eq 1 ]] && return 0
+  local -a _v
+  mapfile -t _v < <(printf '%s' "${_META_JSON:-{\}}" | jq -r '
+    (.host           // "127.0.0.1"),
+    ((.port          // "8080")  | tostring),
+    ((.ctx_size      // "4096")  | tostring),
+    ((.n_gpu_layers  // "99")    | tostring),
+    ((.parallel      // "2")     | tostring),
+    ((.batch_size    // "2048")  | tostring),
+    ((.ubatch_size   // "512")   | tostring),
+    (.cache_type_k   // "f16"),
+    (.cache_type_v   // "f16"),
+    ((.n_predict     // "-1")    | tostring),
+    ((.cache_reuse   // "0")     | tostring),
+    (.alias          // ""),
+    ((.embeddings    // false)   | tostring),
+    (.pooling        // "mean"),
+    ((.flash_attn    // false)   | tostring),
+    ((.metrics       // false)   | tostring),
+    (.temperature    // ""),
+    ((.no_thinking   // false)   | tostring),
+    (.draft_model_file  // ""),
+    ((.spec_draft_n_max // "5")  | tostring)
+  ' 2>/dev/null)
+  _CFG_HOST="${_v[0]:-127.0.0.1}"
+  _CFG_PORT="${_v[1]:-8080}"
+  _CFG_CTX_SIZE="${_v[2]:-4096}"
+  _CFG_N_GPU_LAYERS="${_v[3]:-99}"
+  _CFG_PARALLEL="${_v[4]:-2}"
+  _CFG_BATCH_SIZE="${_v[5]:-2048}"
+  _CFG_UBATCH_SIZE="${_v[6]:-512}"
+  _CFG_CACHE_TYPE_K="${_v[7]:-f16}"
+  _CFG_CACHE_TYPE_V="${_v[8]:-f16}"
+  _CFG_N_PREDICT="${_v[9]:--1}"
+  _CFG_CACHE_REUSE="${_v[10]:-0}"
+  _CFG_ALIAS="${_v[11]:-}"
+  _CFG_EMBEDDINGS="${_v[12]:-false}"
+  _CFG_POOLING="${_v[13]:-mean}"
+  _CFG_FLASH_ATTN="${_v[14]:-false}"
+  _CFG_METRICS="${_v[15]:-false}"
+  _CFG_TEMPERATURE="${_v[16]:-}"
+  _CFG_NO_THINKING="${_v[17]:-false}"
+  _CFG_DRAFT_MODEL_FILE="${_v[18]:-}"
+  _CFG_SPEC_DRAFT_N_MAX="${_v[19]:-5}"
+  _CFG_RESOLVED=1
+}
+
 _active_model_file() {
   # Profile metadata takes precedence — ZDOTS_AI_MODEL_FILE is stale once
   # zdots_ai_init exports it from a previous profile run.
@@ -187,96 +246,72 @@ install_llama() {
   chmod 700 "$MODELS_DIR"
   printf 'llama-ctl: model directory: %s\n' "$MODELS_DIR" >&2
 
-  # Always (re-)register plist. Model path may have changed since last install.
-  # Unload first if already loaded so the updated plist takes effect.
+  # Guard: model must be present before writing the plist.  Starting launchd
+  # with a missing --model path causes a crash loop that requires manual unload.
+  local _mp; _mp=$(_active_model_path)
+  if [[ -z "$_mp" || ! -f "$_mp" ]]; then
+    printf 'llama-ctl: model not found — run '"'"'llama-ctl model-download'"'"' then '"'"'llama-ctl install'"'"'\n' >&2
+    exit 1
+  fi
+
+  # (Re-)register plist. Unload first if already loaded so the updated plist takes effect.
   if [[ -f "$PLIST_FILE" ]]; then
     launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
   fi
   _register_plist
 
-  # Auto-reload if the model is present. If not, the user needs to run
-  # model-download first — starting with a missing model causes a crash loop.
-  local _mp; _mp=$(_active_model_path)
-  if [[ -n "$_mp" && -f "$_mp" ]]; then
-    printf 'llama-ctl: loading service...\n' >&2
-    launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
-    printf 'llama-ctl: server started\n' >&2
-  else
-    printf 'llama-ctl: model not found — run '"'"'llama-ctl model-download'"'"' then '"'"'llama-ctl start'"'"'\n' >&2
-  fi
+  printf 'llama-ctl: loading service...\n' >&2
+  launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
+  printf 'llama-ctl: server started\n' >&2
 }
 
 _register_plist() {
   local bin; bin=$(_require_binary)
-  local model_path; model_path=$(_active_model_path)
-  local host port ctx_size n_gpu_layers parallel batch_size ubatch_size
-  local cache_type_k cache_type_v n_predict cache_reuse alias
-  local embeddings pooling flash_attn metrics temperature no_thinking
-  local draft_model_file spec_draft_n_max
+  _resolve_config
 
-  if [[ -z "$model_path" || ! -f "$model_path" ]]; then
-    echo "llama-ctl: warning: active model not found — plist will use placeholder path." >&2
-    echo "  Run 'llama-ctl model-download' then re-run 'llama-ctl install'." >&2
-    model_path="${MODELS_DIR}/model.gguf"
+  # Authoritative model guard — fail fast rather than write a crash-loop plist.
+  local model_file; model_file=$(_active_model_file)
+  local model_path="${MODELS_DIR}/${model_file:-}"
+  if [[ -z "$model_file" || ! -f "$model_path" ]]; then
+    printf 'llama-ctl: error: model not found: %s\n' "${model_path:-<not configured>}" >&2
+    printf '  Run: llama-ctl model-download\n' >&2
+    exit 1
   fi
 
-  host=$(_server_field host "127.0.0.1")
-  port=$(_server_field port "8080")
-  ctx_size=$(_profile_field ctx_size "4096")
-  n_gpu_layers=$(_profile_field n_gpu_layers "99")
-  parallel=$(_server_field parallel "2")
-  batch_size=$(_server_field batch_size "2048")
-  ubatch_size=$(_server_field ubatch_size "512")
-  cache_type_k=$(_server_field cache_type_k "f16")
-  cache_type_v=$(_server_field cache_type_v "f16")
-  n_predict=$(_server_field n_predict "-1")
-  cache_reuse=$(_server_field cache_reuse "0")
-  alias=$(_server_field alias "")
-  embeddings=$(_server_field embeddings "false")
-  pooling=$(_server_field pooling "mean")
-  flash_attn=$(_server_field flash_attn "false")
-  metrics=$(_server_field metrics "false")
-  temperature=$(_server_field temperature "")
-  no_thinking=$(_server_field no_thinking "false")
-  draft_model_file=$(_profile_field draft_model_file "")
-  spec_draft_n_max=$(_server_field spec_draft_n_max "5")
-
-  # Build ProgramArguments array.
   local -a args=(
-    "--host" "${host}"
-    "--port" "${port}"
-    "--model" "${model_path}"
-    "--ctx-size" "${ctx_size}"
-    "--n-gpu-layers" "${n_gpu_layers}"
-    "--parallel" "${parallel}"
-    "--batch-size" "${batch_size}"
-    "--ubatch-size" "${ubatch_size}"
-    "--cache-type-k" "${cache_type_k}"
-    "--cache-type-v" "${cache_type_v}"
+    "--host"         "${_CFG_HOST}"
+    "--port"         "${_CFG_PORT}"
+    "--model"        "${model_path}"
+    "--ctx-size"     "${_CFG_CTX_SIZE}"
+    "--n-gpu-layers" "${_CFG_N_GPU_LAYERS}"
+    "--parallel"     "${_CFG_PARALLEL}"
+    "--batch-size"   "${_CFG_BATCH_SIZE}"
+    "--ubatch-size"  "${_CFG_UBATCH_SIZE}"
+    "--cache-type-k" "${_CFG_CACHE_TYPE_K}"
+    "--cache-type-v" "${_CFG_CACHE_TYPE_V}"
   )
 
-  [[ "$embeddings" == "true" ]] && args+=("--embeddings" "--pooling" "${pooling}")
-  [[ "$flash_attn" == "true" ]] && args+=("--flash-attn" "on")
-  [[ "$metrics" == "true" ]]    && args+=("--metrics")
-  [[ "$n_predict" != "-1" && -n "$n_predict" ]] && args+=("--predict" "${n_predict}")
+  [[ "$_CFG_EMBEDDINGS" == "true" ]] && args+=("--embeddings" "--pooling" "${_CFG_POOLING}")
+  [[ "$_CFG_FLASH_ATTN" == "true" ]] && args+=("--flash-attn" "on")
+  [[ "$_CFG_METRICS"    == "true" ]] && args+=("--metrics")
+  [[ "$_CFG_N_PREDICT" != "-1" && -n "$_CFG_N_PREDICT" ]] && args+=("--predict" "${_CFG_N_PREDICT}")
   # cache-reuse conflicts with speculative decoding (KV position mismatch); skip when draft model present.
-  if [[ -z "$draft_model_file" || "$draft_model_file" == "null" ]]; then
-    [[ "$cache_reuse" != "0" && -n "$cache_reuse" ]] && args+=("--cache-reuse" "${cache_reuse}")
+  if [[ -z "$_CFG_DRAFT_MODEL_FILE" || "$_CFG_DRAFT_MODEL_FILE" == "null" ]]; then
+    [[ "$_CFG_CACHE_REUSE" != "0" && -n "$_CFG_CACHE_REUSE" ]] && args+=("--cache-reuse" "${_CFG_CACHE_REUSE}")
   fi
-  [[ -n "$alias" && "$alias" != "null" ]] && args+=("--alias" "${alias}")
-  [[ -n "$temperature" && "$temperature" != "null" ]] && args+=("--temp" "${temperature}")
-  [[ "$no_thinking" == "true" ]] && args+=("--reasoning" "off")
+  [[ -n "$_CFG_ALIAS"       && "$_CFG_ALIAS"       != "null" ]] && args+=("--alias" "${_CFG_ALIAS}")
+  [[ -n "$_CFG_TEMPERATURE" && "$_CFG_TEMPERATURE" != "null" ]] && args+=("--temp"  "${_CFG_TEMPERATURE}")
+  [[ "$_CFG_NO_THINKING" == "true" ]] && args+=("--reasoning" "off")
 
-  # Speculative decoding: add draft model if file exists on disk.
-  if [[ -n "$draft_model_file" && "$draft_model_file" != "null" ]]; then
-    local draft_path="${MODELS_DIR}/${draft_model_file}"
+  if [[ -n "$_CFG_DRAFT_MODEL_FILE" && "$_CFG_DRAFT_MODEL_FILE" != "null" ]]; then
+    local draft_path="${MODELS_DIR}/${_CFG_DRAFT_MODEL_FILE}"
     if [[ -f "$draft_path" ]]; then
       args+=("--spec-draft-model" "${draft_path}")
-      args+=("--spec-draft-n-max" "${spec_draft_n_max}")
+      args+=("--spec-draft-n-max" "${_CFG_SPEC_DRAFT_N_MAX}")
       args+=("--spec-draft-type-k" "q8_0")
       args+=("--spec-draft-type-v" "q8_0")
     else
-      echo "llama-ctl: note: draft model not found (${draft_model_file}) — speculative decoding disabled." >&2
+      echo "llama-ctl: note: draft model not found (${_CFG_DRAFT_MODEL_FILE}) — speculative decoding disabled." >&2
       echo "  Run: ZDOTS_AI_PROFILE=${AI_PROFILE} llama-ctl model-download --draft" >&2
     fi
   fi
@@ -520,60 +555,42 @@ config_dump() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local host port ctx_size n_gpu_layers parallel batch_size ubatch_size
-  local cache_type_k cache_type_v n_predict cache_reuse srv_alias
-  local embeddings pooling flash_attn metrics
-  local model_file model_path endpoint
+  _resolve_config
 
-  host=$(_server_field host "127.0.0.1")
-  port=$(_server_field port "8080")
-  ctx_size=$(_profile_field ctx_size "4096")
-  n_gpu_layers=$(_profile_field n_gpu_layers "99")
-  parallel=$(_server_field parallel "2")
-  batch_size=$(_server_field batch_size "2048")
-  ubatch_size=$(_server_field ubatch_size "512")
-  cache_type_k=$(_server_field cache_type_k "f16")
-  cache_type_v=$(_server_field cache_type_v "f16")
-  n_predict=$(_server_field n_predict "-1")
-  cache_reuse=$(_server_field cache_reuse "0")
-  srv_alias=$(_server_field alias "")
-  embeddings=$(_server_field embeddings "false")
-  pooling=$(_server_field pooling "mean")
-  flash_attn=$(_server_field flash_attn "false")
-  metrics=$(_server_field metrics "false")
+  local model_file model_path endpoint
   model_file=$(_active_model_file)
   model_path=$(_active_model_path)
   endpoint=$(_meta_get endpoint "http://127.0.0.1:8080")
 
   if $json; then
     local emb_j flash_j metrics_j
-    emb_j=$(   [[ "$embeddings" == "true" ]] && echo "true" || echo "false")
-    flash_j=$(  [[ "$flash_attn" == "true" ]] && echo "true" || echo "false")
-    metrics_j=$([[ "$metrics"   == "true" ]] && echo "true" || echo "false")
+    emb_j=$(   [[ "$_CFG_EMBEDDINGS" == "true" ]] && echo "true" || echo "false")
+    flash_j=$(  [[ "$_CFG_FLASH_ATTN" == "true" ]] && echo "true" || echo "false")
+    metrics_j=$([[ "$_CFG_METRICS"   == "true" ]] && echo "true" || echo "false")
     printf '{\n'
     printf '  "profile":      "%s",\n' "$AI_PROFILE"
     printf '  "endpoint":     "%s",\n' "$endpoint"
-    printf '  "host":         "%s",\n' "$host"
-    printf '  "port":         %s,\n'   "$port"
+    printf '  "host":         "%s",\n' "$_CFG_HOST"
+    printf '  "port":         %s,\n'   "$_CFG_PORT"
     printf '  "model_file":   "%s",\n' "${model_file:-}"
     printf '  "model_path":   "%s",\n' "${model_path:-}"
-    printf '  "alias":        "%s",\n' "${srv_alias:-}"
-    printf '  "ctx_size":     %s,\n'   "$ctx_size"
-    printf '  "n_gpu_layers": %s,\n'   "$n_gpu_layers"
-    printf '  "parallel":     %s,\n'   "$parallel"
-    printf '  "batch_size":   %s,\n'   "$batch_size"
-    printf '  "ubatch_size":  %s,\n'   "$ubatch_size"
-    printf '  "cache_type_k": "%s",\n' "$cache_type_k"
-    printf '  "cache_type_v": "%s",\n' "$cache_type_v"
-    printf '  "n_predict":    %s,\n'   "$n_predict"
-    printf '  "cache_reuse":  %s,\n'   "$cache_reuse"
+    printf '  "alias":        "%s",\n' "${_CFG_ALIAS:-}"
+    printf '  "ctx_size":     %s,\n'   "$_CFG_CTX_SIZE"
+    printf '  "n_gpu_layers": %s,\n'   "$_CFG_N_GPU_LAYERS"
+    printf '  "parallel":     %s,\n'   "$_CFG_PARALLEL"
+    printf '  "batch_size":   %s,\n'   "$_CFG_BATCH_SIZE"
+    printf '  "ubatch_size":  %s,\n'   "$_CFG_UBATCH_SIZE"
+    printf '  "cache_type_k": "%s",\n' "$_CFG_CACHE_TYPE_K"
+    printf '  "cache_type_v": "%s",\n' "$_CFG_CACHE_TYPE_V"
+    printf '  "n_predict":    %s,\n'   "$_CFG_N_PREDICT"
+    printf '  "cache_reuse":  %s,\n'   "$_CFG_CACHE_REUSE"
     printf '  "embeddings":   %s,\n'   "$emb_j"
-    printf '  "pooling":      "%s",\n' "$pooling"
+    printf '  "pooling":      "%s",\n' "$_CFG_POOLING"
     printf '  "flash_attn":   %s,\n'   "$flash_j"
     printf '  "metrics":      %s,\n'   "$metrics_j"
     printf '  "_discovery": {\n'
     printf '    "model_name_rule":    "Always use alias in API calls — never model_file",\n'
-    printf '    "max_embed_tokens":   %s,\n'  "$ubatch_size"
+    printf '    "max_embed_tokens":   %s,\n'  "$_CFG_UBATCH_SIZE"
     printf '    "mcp_server":         "%s/bin/llama-mcp",\n'  "$ZDOTDIR"
     printf '    "caps_command":       "%s/bin/llama-caps --json",\n' "$ZDOTDIR"
     printf '    "caps_md_command":    "%s/bin/llama-caps --md",\n'   "$ZDOTDIR"
@@ -586,20 +603,20 @@ config_dump() {
     printf '%-16s %s\n' "profile:"      "$AI_PROFILE"
     printf '%-16s %s\n' "endpoint:"     "$endpoint"
     printf '%-16s %s\n' "model_file:"   "${model_file:-(not set)}"
-    printf '%-16s %s\n' "alias:"        "${srv_alias:-(none)}"
-    printf '%-16s %s\n' "ctx_size:"     "$ctx_size"
-    printf '%-16s %s\n' "n_gpu_layers:" "$n_gpu_layers"
-    printf '%-16s %s\n' "parallel:"     "$parallel"
-    printf '%-16s %s\n' "batch_size:"   "$batch_size"
-    printf '%-16s %s\n' "ubatch_size:"  "$ubatch_size"
-    printf '%-16s %s\n' "cache_type_k:" "$cache_type_k"
-    printf '%-16s %s\n' "cache_type_v:" "$cache_type_v"
-    printf '%-16s %s\n' "n_predict:"    "$n_predict"
-    printf '%-16s %s\n' "cache_reuse:"  "$cache_reuse"
-    printf '%-16s %s\n' "embeddings:"   "$embeddings"
-    printf '%-16s %s\n' "pooling:"      "$pooling"
-    printf '%-16s %s\n' "flash_attn:"   "$flash_attn"
-    printf '%-16s %s\n' "metrics:"      "$metrics"
+    printf '%-16s %s\n' "alias:"        "${_CFG_ALIAS:-(none)}"
+    printf '%-16s %s\n' "ctx_size:"     "$_CFG_CTX_SIZE"
+    printf '%-16s %s\n' "n_gpu_layers:" "$_CFG_N_GPU_LAYERS"
+    printf '%-16s %s\n' "parallel:"     "$_CFG_PARALLEL"
+    printf '%-16s %s\n' "batch_size:"   "$_CFG_BATCH_SIZE"
+    printf '%-16s %s\n' "ubatch_size:"  "$_CFG_UBATCH_SIZE"
+    printf '%-16s %s\n' "cache_type_k:" "$_CFG_CACHE_TYPE_K"
+    printf '%-16s %s\n' "cache_type_v:" "$_CFG_CACHE_TYPE_V"
+    printf '%-16s %s\n' "n_predict:"    "$_CFG_N_PREDICT"
+    printf '%-16s %s\n' "cache_reuse:"  "$_CFG_CACHE_REUSE"
+    printf '%-16s %s\n' "embeddings:"   "$_CFG_EMBEDDINGS"
+    printf '%-16s %s\n' "pooling:"      "$_CFG_POOLING"
+    printf '%-16s %s\n' "flash_attn:"   "$_CFG_FLASH_ATTN"
+    printf '%-16s %s\n' "metrics:"      "$_CFG_METRICS"
   fi
 }
 
