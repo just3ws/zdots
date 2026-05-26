@@ -133,8 +133,8 @@ _build_header() {
 }
 
 # ── Source AI providers ───────────────────────────────────────────────────────
-[[ -r "${ZDOTDIR}/providers/ai/pi.zsh" ]]    && source "${ZDOTDIR}/providers/ai/pi.zsh"
-[[ -r "${ZDOTDIR}/providers/ai/aider.zsh" ]] && source "${ZDOTDIR}/providers/ai/aider.zsh"
+[[ -r "${ZDOTDIR}/providers/tools/pi.zsh" ]]    && source "${ZDOTDIR}/providers/tools/pi.zsh"
+[[ -r "${ZDOTDIR}/providers/tools/aider.zsh" ]] && source "${ZDOTDIR}/providers/tools/aider.zsh"
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 _self="${0:A}"   # absolute path to this script — safe for fzf subcommands
