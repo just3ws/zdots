@@ -44,8 +44,8 @@ The seam through which all local AI inference is called. Lives in `lib/ai-invoke
 
 **`zdots_ai_infer_raw()`** — stdin → stdout (raw text).
 - Gate check + locality assertion (fails hard if `ZDOTS_AI_MODE=none` or endpoint is non-local).
-- Runs `zdots_message_hygiene` on input.
-- Submits without trust-boundary wrapping (assumes input is pre-scrubbed).
+- Runs `zdots_message_hygiene` on input (normalize → PHI scrub). This function owns hygiene; callers do not pre-scrub.
+- Uses `--mode raw` (no safe-extract wrapping): caller constructs the full prompt, so there is no untrusted data block to isolate.
 - Used by: `zdots-ask` (domain-routed prompts), ZLE widgets `_zdots_zle_ai_explain` / `_zdots_zle_ai_fix` (buffer explain/fix).
 
 **`zdots_ai_distill()`** — stdin → stdout (JSON).
