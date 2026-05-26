@@ -28,6 +28,8 @@ trap '' PIPE
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 _PROMPTS_DIR="${_ZDOTDIR}/etc/prompts"
+# ZDOTS_DOMAINS_FILE — override for tests (points at a fixture); defaults to registry.
+_DOMAINS_FILE="${ZDOTS_DOMAINS_FILE:-${_PROMPTS_DIR}/domains.yaml}"
 
 source "${_ZDOTDIR}/lib/ai-invoke.bash"
 
@@ -68,20 +70,21 @@ _detect_domain() {
   local prompt="$1"
   local lower; lower=$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')
 
-  # PHI: security/privacy keywords
-  if printf '%s' "$lower" | grep -qE 'phi|hipaa|ssn|mrn|\bdob\b|pgcrypto|pgp_sym|encrypt|keychain|audit.log|phi.boundary|scrub|redact|compliance'; then
-    printf 'phi'; return
+  if [[ ! -f "$_DOMAINS_FILE" ]]; then
+    printf 'zdots-ask: domains.yaml not found: %s\n' "$_DOMAINS_FILE" >&2
+    printf 'default'; return
+  fi
+  if ! command -v yq >/dev/null 2>&1; then
+    printf 'zdots-ask: yq required for domain detection\n' >&2
+    printf 'default'; return
   fi
 
-  # Ruby: Sequel/migration keywords
-  if printf '%s' "$lower" | grep -qE '\bruby\b|sequel|migration|\.rb\b|\bmodel\b|zdots_rw|zdots_ro|database.url|pgp_sym|zdots_schema'; then
-    printf 'ruby'; return
-  fi
-
-  # Shell: zsh/bash/script keywords
-  if printf '%s' "$lower" | grep -qE '\bzsh\b|\bbash\b|\bzle\b|widget|bindkey|conf\.d|set -e|trap|\.zsh\b|zdots-ctl|zdash|ztask|ai.query|\.bash\b|_chk_pass|_chk_fail|umask|launchd|plist|zdots_context|conf\.d'; then
-    printf 'shell'; return
-  fi
+  # One yq call reads all entries; first matching pattern wins.
+  local name pattern
+  while IFS=$'\t' read -r name pattern; do
+    [[ -z "$name" || -z "$pattern" ]] && continue
+    printf '%s' "$lower" | grep -qE "$pattern" 2>/dev/null && { printf '%s' "$name"; return; }
+  done < <(yq -r '.domains[] | (.name + "\t" + .pattern)' "$_DOMAINS_FILE" 2>/dev/null | tr -d '\r')
 
   printf 'default'
 }
@@ -142,6 +145,14 @@ if [[ ! -f "$SYS_FILE" ]]; then
 fi
 
 SYS_CONTENT=$(cat "$SYS_FILE")
+
+# Invariant: every domain prompt must end with /no_think to suppress Qwen3
+# thinking mode for interactive queries. See docs/ai-pipeline-seams.md Seam 5.
+_last_line=$(grep -v '^[[:space:]]*$' "$SYS_FILE" | tail -1 | tr -d '[:space:]')
+if [[ "$_last_line" != "/no_think" ]]; then
+  printf 'zdots-ask: %s must end with /no_think (found: %q)\n' "$SYS_FILE" "$_last_line" >&2
+  exit 2
+fi
 
 # ---------------------------------------------------------------------------
 # Dry-run: show routing decision without calling model (no AI gate needed)

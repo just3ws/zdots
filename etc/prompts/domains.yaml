@@ -1,0 +1,21 @@
+# etc/prompts/domains.yaml — Domain Routing Registry
+#
+# Single source of truth for prompt domain detection.
+# Consumed by _detect_domain() in bin/zdots-ask via yq.
+#
+# Fields:
+#   name     — domain identifier; must correspond to etc/prompts/zdots-<name>.md
+#   pattern  — POSIX ERE matched against the lowercased prompt (grep -qE)
+#
+# Order matters: first match wins. PHI before Ruby (pgp_sym shared by both).
+# Constraint: pattern must not contain literal tab characters (used as field separator).
+
+domains:
+  - name: phi
+    pattern: 'phi|hipaa|ssn|mrn|\bdob\b|pgcrypto|pgp_sym|encrypt|keychain|audit.log|phi.boundary|scrub|redact|compliance'
+
+  - name: ruby
+    pattern: '\bruby\b|sequel|migration|\.rb\b|\bmodel\b|zdots_rw|zdots_ro|database.url|pgp_sym|zdots_schema'
+
+  - name: shell
+    pattern: '\bzsh\b|\bbash\b|\bzle\b|widget|bindkey|conf\.d|set -e|trap|\.zsh\b|zdots-ctl|zdash|ztask|ai.query|\.bash\b|_chk_pass|_chk_fail|umask|launchd|plist|zdots_context'
