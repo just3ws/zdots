@@ -7,10 +7,11 @@ module Zdots
     class DocsSync < Base
       Jobs.register "docs_sync", self
 
+      # AGENTS.md is intentionally excluded: it is the canonical AI agent context
+      # file and must only be updated by the operator, not by an async job.
       DOCS_TO_MAINTAIN = [
         "README.md",
         "docs/architecture.md",
-        "AGENTS.md",
         "GEMINI.md"
       ].freeze
 
