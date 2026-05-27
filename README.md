@@ -76,7 +76,9 @@ architecture-beta
     service zsh(logos:zsh-icon)[Zsh Shell] in host
     service collector(logos:opentelemetry)[OTel Collector] in host
     service brain(logos:postgresql)[Postgres Brain] in host
-    service ai(logos:cpu)[llama.cpp] in host
+    service ai(logos:cpu)[llama.cpp :8080] in host
+    service embed(logos:cpu)[llama.cpp :8090] in host
+    service cache(logos:redis)[Redis] in host
 
     service grafana(logos:grafana)[Grafana] in colima
     service tempo(logos:opentelemetry)[Tempo] in colima
@@ -88,6 +90,8 @@ architecture-beta
     zsh:B -- T:brain
     zsh:L -- R:ai
     brain:R -- L:ai
+    zsh:T -- B:cache
+    brain:L -- R:embed
 ```
 
 ### Telemetry Signal Flow
@@ -99,10 +103,9 @@ sequenceDiagram
     participant Collector as OTel Collector (Host)
     participant LGTM as LGTM Stack (Colima)
     participant Disk as Local Storage
-    participant AI as Local AI (llama.cpp)
 
     Note over Shell: Command Executed
-    Shell->>Collector: OLP Trace Span (HTTP:4318)
+    Shell->>Collector: OTLP Trace Span (HTTP:4318)
     
     par Parallel Export
         Collector->>Disk: Write to collector-traces.json
@@ -111,11 +114,6 @@ sequenceDiagram
 
     Note over LGTM: Data Indexed
     LGTM->>LGTM: Correlate Logs + Traces
-    
-    opt Sentient Feedback
-        Collector->>AI: Trigger "Sniffer" Insight
-        AI-->>Disk: Append to ai-insights.log
-    end
 ```
 
 ### Unified Service Lifecycle
@@ -236,7 +234,7 @@ flowchart LR
     end
 
     subgraph Inference["Local Inference (loopback only)"]
-        llama["<b>llama.cpp :8080</b><br/>Qwen2.5-Coder 7B Q4_K_M<br/>32k ctx · Metal GPU · KV cache reuse"]
+        llama["<b>llama.cpp :8080</b><br/>Qwen3-8B Q4_K_M + 0.6B draft<br/>32k ctx · Metal GPU · spec-decoding"]
     end
 
     subgraph Ops["Verification"]
