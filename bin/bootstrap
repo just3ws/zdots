@@ -477,7 +477,7 @@ PISETTINGS
       "models": [
         {
           "id": "local",
-          "name": "Qwen2.5-Coder 7B (llama.cpp)",
+          "name": "Qwen3-8B (llama.cpp)",
           "contextWindow": 32768,
           "maxTokens": 2048,
           "input": ["text"],
