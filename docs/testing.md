@@ -64,3 +64,26 @@ Target interactive startup: **< 80ms**.
 ## 7. Manual Verification
 
 Use `zdots-ctl check` for a comprehensive environment audit that includes tool presence, configuration validity, and service health.
+
+---
+
+## Known Limitations & Pitfalls
+
+### Non-TTY plugin warnings (p10k, zsh-vi-mode)
+
+When zsh is invoked interactively but without a real PTY (e.g. `zsh -i` with piped output, or subshells in automated scripts), `p10k` and `zsh-vi-mode` emit:
+
+```
+(anon):setopt:7: can't change option: monitor
+(eval):1: can't change option: zle
+```
+
+These are in external plugin internals — not fixable in zdots. The `-t 1` guard in `conf.d/20-prompt.zsh` prevents `gitstatus` from failing in this scenario, but does not suppress all plugin noise.
+
+**Mitigation for scripts/CI that need to source zdots:** use `ZDOTS_SAFE_MODE=1` (loads only `conf.d/05–60`, skips heavy integrations) or suppress with `2>/dev/null` around the source call.
+
+### Environment variable bleed-through in bats tests
+
+Real shell environment variables (e.g. `ZDOTS_AI_PROFILE`, `ZDOTS_WHISPER_PROFILE`) bleed into bats test subshells. `tests/setup.bash::setup_environment()` does **not** clear service-profile vars.
+
+**Rule:** every `tests/*.bats` `setup()` function must explicitly `unset` any env var its fixture overrides. Failure mode: tests pass in a clean shell but fail when the matching var is set in the developer's session (or vice versa).
