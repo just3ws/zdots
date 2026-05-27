@@ -54,13 +54,28 @@ agent-guide          # detailed usage guide for all services
 
 ## 3. Tool Selection
 
+Full tool reference with usage examples: [docs/tooling.md](docs/tooling.md)
+
+**By task:**
+
 | Need | Tool |
 |---|---|
-| Multi-file reasoning | Claude Code (`cl`) or `zaider` (Aider) |
-| Interactive code edit | `zaider` — Aider wired to local llama.cpp |
+| Multi-file reasoning | Claude Code (`cl`) or `zaider` (Aider wired to local llama.cpp) |
+| Interactive code edit | `zaider` |
 | Low-priority / background edits | `laid` — `zaider` at nice +19, reduced threads |
 | Scripted inference | `ai-query` |
 | Context reduction | `rtk` |
+| Full codebase context | `repomix --output context.xml` |
+| Explore command analytics (SQLite) | `litecli ~/.local/state/zdots/history.sqlite3` |
+| Explore knowledge base (PostgreSQL) | `pgcli -U zdots_ro my` |
+| Pivot/analyze command_runs | `visidata ~/.local/state/zdots/history.sqlite3` |
+| Script SQLite queries | `sqlite-utils query <db> "SELECT ..."` |
+| Inspect Redis analytics buffer | `redis-cli KEYS 'zdots:cmds:*'` |
+| Verify AI stays on loopback | `sudo bandwhich` |
+| Run tests once | `bats tests/` |
+| Run tests on save | `watchexec -e zsh,bash,bats -- bats tests/` |
+| Check YAML validity | `yamllint etc/phi-patterns.yaml` |
+| Secret scan before commit | `bin/secret-scan` (or `gitleaks detect`) |
 
 ## 4. Project Protocols
 
