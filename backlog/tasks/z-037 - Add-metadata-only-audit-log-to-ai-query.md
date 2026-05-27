@@ -1,14 +1,19 @@
 ---
 id: Z-037
 title: Add metadata-only audit log to ai-query
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-04-19 02:32'
+updated_date: '2026-05-27 17:46'
 labels:
   - ai-query
   - security
   - observability
 dependencies: []
+modified_files:
+  - bin/ai-query
+  - tests/ai_query.bats
+  - docs/ai-query.md
 priority: high
 ---
 
@@ -20,8 +25,14 @@ Injection attempts currently leave no local trace. When ai-query processes suspi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Each invocation appends one JSONL line containing: timestamp, mode, risk_score, risk_level, input_bytes, content_hash (SHA256 of normalized input), model, endpoint,Raw content is never written to the log under any circumstance,Default log location is $XDG_STATE_HOME/zsh/ai-query-audit.jsonl and is documented,Audit logging is disabled by default and enabled via AIQ_AUDIT_LOG=1 env var or --audit flag,Log file is created with permissions 600,docs/ai-query.md documents the log format log location and how to enable it,Tests verify: log file is created with 600 permissions; log line contains all expected fields; raw content is absent from the log
+- [x] #1 Each invocation appends one JSONL line containing: timestamp, mode, risk_score, risk_level, input_bytes, content_hash (SHA256 of normalized input), model, endpoint,Raw content is never written to the log under any circumstance,Default log location is $XDG_STATE_HOME/zsh/ai-query-audit.jsonl and is documented,Audit logging is disabled by default and enabled via AIQ_AUDIT_LOG=1 env var or --audit flag,Log file is created with permissions 600,docs/ai-query.md documents the log format log location and how to enable it,Tests verify: log file is created with 600 permissions; log line contains all expected fields; raw content is absent from the log
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added metadata-only JSONL audit log. Enabled via AIQ_AUDIT_LOG=1 or --audit. Logs ts/mode/risk_score/risk_level/input_bytes/content_hash/model/endpoint — never raw content. File created 600. Blocked invocations logged before exit. 6 tests (L1-L6), all 86 ai_query tests pass.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
