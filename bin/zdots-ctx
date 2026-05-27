@@ -80,6 +80,9 @@ Environment:
   ZDOTS_MIGRATION_URL  Superuser connection for migrations (default: postgresql:///my)
                        Used only by 'migrate' and 'init-db'; requires CREATE/ALTER/DROP
   ZDOTS_DATABASE_URL_OVERRIDE  Set to force ZDOTS_DATABASE_URL regardless of env sourcing
+  ZDOTS_CMD_ANALYTICS  1 = capture every command to SQLite command_runs via 56-cmd-analytics.zsh
+                       sync-history pushes buffered rows to PostgreSQL (auto-fires on capture)
+                       Default: 0; enable in .zdots.local; enforced 0 on work machines
 
 Database access levels:
   zdots_rw   INSERT/UPDATE/DELETE/SELECT + stored procedures — app user (this tool)

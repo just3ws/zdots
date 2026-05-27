@@ -18,8 +18,26 @@ _brief_only=0
 _pi_only=0
 for arg in "$@"; do
   case "$arg" in
-    --brief) _brief_only=1 ;;
-    --pi)    _pi_only=1    ;;
+    --brief)    _brief_only=1 ;;
+    --pi)       _pi_only=1    ;;
+    -h|--help)
+      cat <<'EOF'
+Usage: zmorning [--brief | --pi]
+
+Session-open ritual: brief + task picker (default), or targeted modes.
+
+  zmorning          brief → zdash task picker
+  zmorning --brief  brief only (no interactive launcher)
+  zmorning --pi     skip brief, open Pi for conversational orientation
+
+The brief shows: date, machine context, AI status, db status, git state,
+and active in-flight backlog tasks.
+
+For a richer morning report (top commands, workflow suggestions, alias
+candidates) run:  recipes/morning
+EOF
+      exit 0
+      ;;
   esac
 done
 

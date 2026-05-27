@@ -151,24 +151,32 @@ if $OPT_AI; then
   _header "AI Optimization Suggestions"
   if ! _ai_check; then exit 1; fi
 
+  # Strip bash-format timestamp lines (#...) and group by first word so the
+  # AI sees clean "count command" pairs — not raw history noise.
   HISTORY=$(atuin search --limit "$LIMIT" --cmd-only -- "" 2>/dev/null \
+    | grep -v '^[[:space:]]*#' \
+    | awk 'NF>0{print $1}' \
     | sort | uniq -c | sort -rn | head -40)
 
-  PROMPT="You are a shell productivity expert analyzing a developer's command history.
-The data shows: <count> <command> sorted by frequency.
-
-Suggest exactly 3-5 concrete improvements. For each:
-- One sentence explaining what the developer is doing and why it could be better
-- One concrete action (new alias, shell function, tool to try, config change)
-
-Focus on: repetition that aliases would eliminate, long pipelines worth wrapping,
-missing tools (fzf, eza, zoxide, etc.), or patterns suggesting a workflow gap.
-Be specific — reference the actual commands from the data.
-Output as markdown bullets."
-
-  if command -v rtk >/dev/null 2>&1; then
-    printf '%s' "$HISTORY" | rtk | "$AI_QUERY" --mode safe-extract "$PROMPT"
+  if [[ -z "$HISTORY" ]]; then
+    printf '  (no history available)\n'
   else
-    printf '%s' "$HISTORY" | "$AI_QUERY" --mode safe-extract "$PROMPT"
+    PROMPT="Below is a developer's command frequency list. Each line is:
+  <run_count> <command_name>
+
+RULES — you must follow these exactly:
+1. Only discuss commands that appear in the list above. Do not mention any command not in this data.
+2. Suggest exactly 3-5 improvements. Each improvement must name the specific command from the list.
+3. Format: markdown bullet. Start each with the command name in backticks.
+4. For each: one sentence on the pattern, one concrete action (alias, function, or tool swap).
+5. If the history is too short or uniform to find 3 patterns, say so rather than inventing patterns.
+
+Data:"
+
+    if command -v rtk >/dev/null 2>&1; then
+      printf '%s' "$HISTORY" | rtk | "$AI_QUERY" --mode safe-extract "$PROMPT"
+    else
+      printf '%s' "$HISTORY" | "$AI_QUERY" --mode safe-extract "$PROMPT"
+    fi
   fi
 fi
