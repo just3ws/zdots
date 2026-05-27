@@ -18,7 +18,9 @@ links:
 git clone https://github.com/just3ws/zdots.git ~/.config/zsh && ~/.config/zsh/bin/bootstrap
 ```
 
-> Local AI · PHI-safe · OTel-instrumented · 22-test eval suite · Single-command restore
+> **Work machine?** Create `.zdots.local` with `ZDOTS_CONTEXT=work` before running bootstrap. See [SETUP.md](SETUP.md).
+
+> Local AI · PHI-safe · OTel-instrumented · 14-case model eval · 303-test Bats suite · Single-command restore
 
 ---
 
@@ -48,7 +50,7 @@ Traditional shell configs are **shallow**: a bug in one service's management log
 
 1.  **Opaque Service Seams**: The orchestrator (`zdots-ctl`) interacts with services (AI, OTel, LGTM) only through their CLI grammar. You can swap a background process for a Docker container without changing the orchestrator.
 2.  **Locality of Logic**: `launchd` plist generation, HuggingFace model downloads, and endpoint construction are concentrated in core libraries.
-3.  **High-Signal Validation**: Includes a 160+ test Bats suite and a high-confidence `secret-scan` to ensure platform integrity on every commit.
+3.  **High-Signal Validation**: Includes a 303-test Bats suite and a high-confidence `secret-scan` to ensure platform integrity on every commit.
 
 ---
 
@@ -56,10 +58,10 @@ Traditional shell configs are **shallow**: a bug in one service's management log
 
 Zdots includes a production-grade local AI runtime out of the box:
 
-*   **Inference**: llama.cpp (OpenAI-compatible) using Qwen2.5-Coder and Nomic v2.
+*   **Inference**: llama.cpp (OpenAI-compatible) using Qwen3-8B Q4_K_M and Nomic embed-v2 MoE.
 *   **Transcription**: whisper.cpp for high-speed local audio-to-text.
 *   **Guardrails**: `ai-query` wraps LLM calls in security and normalization layers.
-*   **Recipies**: Built-in workflows like `transcribe` (audio → transcript → AI summary).
+*   **Recipes**: Built-in workflows like `transcribe` (audio → transcript → AI summary).
 
 ---
 
@@ -241,7 +243,7 @@ flowchart LR
     end
 
     subgraph Inference["Local Inference (loopback only)"]
-        llama["<b>llama.cpp :8080</b><br/>Qwen3-8B Q4_K_M + 0.6B draft<br/>32k ctx · Metal GPU · spec-decoding"]
+        llama["<b>llama.cpp :8080</b><br/>Qwen3-8B Q4_K_M<br/>32k ctx · Metal GPU"]
     end
 
     subgraph Ops["Verification"]
