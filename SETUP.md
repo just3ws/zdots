@@ -21,6 +21,8 @@ All steps are idempotent — safe to re-run.
 git clone <your-remote> ~/.config/zsh
 ```
 
+> **Username agnosticism:** all paths in the repo use `$HOME`, `$USER`, or XDG variables — no hardcoded usernames. The launchd plist files written to `~/Library/LaunchAgents/` contain absolute paths (launchd requirement), but they are generated at install time by `bootstrap` / `llama-ctl install` using `$HOME`, so they are correct for any username on any machine.
+
 ## Bootstrap (automated)
 
 ```bash
