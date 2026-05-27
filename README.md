@@ -78,8 +78,8 @@ architecture-beta
     service zsh(logos:zsh-icon)[Zsh Shell] in host
     service collector(logos:opentelemetry)[OTel Collector] in host
     service brain(logos:postgresql)[Postgres Brain] in host
-    service ai(logos:meta)[llama cpp 8080] in host
-    service embed(logos:meta)[llama cpp 8090] in host
+    service ai(logos:meta)[llama cpp 8080 Inference] in host
+    service embed(logos:meta)[llama cpp 8090 Embedding] in host
     service cache(logos:redis)[Redis] in host
 
     service grafana(logos:grafana)[Grafana] in colima
