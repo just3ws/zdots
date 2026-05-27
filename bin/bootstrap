@@ -94,6 +94,10 @@ touch "$HOME/.config/git/ignore"
 # adots: bare git repo at ~/.homegit, work-tree at ~.
 # Tracks root dotfiles (.bashrc, .tmux.conf, etc.) and ~/.config/* entries.
 # On a clean restore, git-restore pulls them back without a separate clone.
+#
+# WARNING: the git restore step below overwrites files in $HOME. On a
+# corporate machine, IT-managed files (.gitconfig, .bashrc, etc.) will be
+# replaced. Back them up before this runs if your employer manages those files.
 echo "bootstrap: setting up adots home-dotfiles repo (~/.homegit)..."
 if [ ! -d "$HOME/.homegit" ]; then
   git clone --bare https://github.com/just3ws/adots.git "$HOME/.homegit" \

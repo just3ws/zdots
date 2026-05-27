@@ -23,6 +23,31 @@ git clone <your-remote> ~/.config/zsh
 
 > **Username agnosticism:** all paths in the repo use `$HOME`, `$USER`, or XDG variables — no hardcoded usernames. The launchd plist files written to `~/Library/LaunchAgents/` contain absolute paths (launchd requirement), but they are generated at install time by `bootstrap` / `llama-ctl install` using `$HOME`, so they are correct for any username on any machine.
 
+## Before running bootstrap on a work machine
+
+**Do these steps before `bootstrap` — not after.** Bootstrap reads `.zdots.local` at runtime; if the file isn't present before it runs, PHI warnings are skipped and `ZDOTS_CONTEXT` defaults to `home`.
+
+```bash
+# 1. Create your local config from the template
+cp ~/.config/zsh/.zdots.local.example ~/.config/zsh/.zdots.local
+
+# 2. Set work context and corporate network — required before brew bundle runs
+$EDITOR ~/.config/zsh/.zdots.local
+```
+
+Minimum changes for a work machine:
+
+```bash
+ZDOTS_CONTEXT=work                           # activates all PHI-safe defaults
+HTTP_PROXY=http://corporate-proxy:8080       # if your network requires a proxy
+HTTPS_PROXY=http://corporate-proxy:8080
+NO_PROXY=localhost,127.0.0.1,.internal
+GIT_AUTHOR_EMAIL=firstname.lastname@company.com
+GIT_COMMITTER_EMAIL=firstname.lastname@company.com
+```
+
+> **adots warning:** bootstrap clones and restores `adots` (home dotfiles) to `$HOME`. On a corporate Mac, any IT-managed files at `~/.gitconfig`, `~/.bashrc`, etc. will be overwritten by the adots restore step. Back them up first or skip adots restore if your employer manages those files.
+
 ## Bootstrap (automated)
 
 ```bash
@@ -35,32 +60,17 @@ This single command:
 - Installs all Homebrew packages from `Brewfile`
 - Registers llama.cpp launchd service and downloads the AI model (~4.7 GB)
 - Installs Ruby dependencies via Bundler
-- Creates `.zdots.local` from the example template (gitignored)
+- Creates `.zdots.local` from the example template if it doesn't exist
 - Creates and migrates the `my` PostgreSQL database
+
+Model downloads (~5.2 GB total) are **non-blocking** — if HuggingFace is unreachable on a corporate network, bootstrap warns and continues. Run `llama-ctl model-download --draft` later when off the corporate network or after proxy config is confirmed.
 
 ## Machine identity (required after bootstrap)
 
-Edit `.zdots.local` — this file is **gitignored** and never committed:
+Edit `.zdots.local` to confirm or adjust settings:
 
 ```bash
 $EDITOR ~/.config/zsh/.zdots.local
-```
-
-At minimum, set your context:
-
-```bash
-ZDOTS_CONTEXT=home   # or: work
-```
-
-For a **work machine**, also add corporate identity and network config:
-
-```bash
-ZDOTS_CONTEXT=work
-GIT_AUTHOR_EMAIL=firstname.lastname@company.com
-GIT_COMMITTER_EMAIL=firstname.lastname@company.com
-HTTP_PROXY=http://corporate-proxy:8080
-HTTPS_PROXY=http://corporate-proxy:8080
-NO_PROXY=localhost,127.0.0.1,.internal
 ```
 
 See `.zdots.local.example` for the full reference.
