@@ -64,35 +64,25 @@ else
   _warn "Grafana / LGTM down  (local-ci start)"
 fi
 
-# 1.5 Intelligence Suite & Queue
+# 1.5 Knowledge Layer & Queue
 if _ctx_status=$("${ZDOTDIR}/bin/zdots-ctx" status --json 2>/dev/null); then
   if echo "$_ctx_status" | grep -q '"connected": true'; then
-    _ok "Intelligence suite connected"
-    
-    local pending dead
-    pending=$(echo "$_ctx_status" | grep -o '"pending_jobs": [0-9]*' | awk '{print $2}')
-    dead=$(echo "$_ctx_status" | grep -o '"residue": [0-9]*' | awk '{print $2}') # We should actually query dead jobs, but we can just use zdots-ctx jobs if needed.
-    
-    # Actually let's just query the database for pending and dead jobs
-    local db_url; db_url=$(echo "$_ctx_status" | sed -n 's/.*"database_url": "\([^"]*\)".*/\1/p')
-    if [[ -n "$db_url" ]]; then
-      pending=$(psql "$db_url" -tAc "SELECT count(*) FROM jobs WHERE status = 'pending';" 2>/dev/null || echo 0)
-      dead=$(psql "$db_url" -tAc "SELECT count(*) FROM jobs WHERE status = 'dead';" 2>/dev/null || echo 0)
-      
-      if [[ "$pending" -gt 0 ]]; then
-        _warn "$pending jobs pending (zdots-ctx worker)"
-      else
-        _ok "0 jobs pending"
-      fi
-      
-      if [[ "$dead" -gt 0 ]]; then
-        _err "$dead dead jobs require triage (zdots-ctx triage)"
-      else
-        _ok "0 dead jobs"
-      fi
+    _pending=$(echo "$_ctx_status" | grep -o '"pending_jobs": [0-9]*' | awk '{print $2}')
+    _dead=$(echo "$_ctx_status"    | grep -o '"dead_jobs": [0-9]*'    | awk '{print $2}')
+    _pending=${_pending:-0}; _dead=${_dead:-0}
+    _ok "Knowledge Layer connected"
+    if [[ "$_pending" -gt 0 ]]; then
+      _warn "$_pending jobs pending (zdots-ctx worker)"
+    else
+      _ok "0 jobs pending"
+    fi
+    if [[ "$_dead" -gt 0 ]]; then
+      _err "$_dead dead jobs require triage (zdots-ctx triage)"
+    else
+      _ok "0 dead jobs"
     fi
   else
-    _warn "Intelligence suite disconnected"
+    _warn "Knowledge Layer disconnected"
   fi
 fi
 
@@ -106,9 +96,13 @@ if (( ${#ERRANT[@]} > 0 )); then
 fi
 
 # 2. Command frequency (always runs)
+# Group by first word (command name) — strips bash history timestamp lines (#...)
+# and blank entries before counting, so each command name tallies across all its args.
 _header "Top Commands — last 500"
 if command -v atuin >/dev/null 2>&1; then
   atuin search --limit 500 --cmd-only -- "" 2>/dev/null \
+    | grep -v '^[[:space:]]*#' \
+    | awk 'NF>0{print $1}' \
     | sort | uniq -c | sort -rn | head -12 \
     | awk '{printf "  %5d  %s\n", $1, $2}'
 else
