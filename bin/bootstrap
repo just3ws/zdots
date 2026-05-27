@@ -281,7 +281,7 @@ if command -v llama-server >/dev/null 2>&1; then
     echo "bootstrap: registering llama.cpp launchd service..."
     llama-ctl install || echo "bootstrap: warning: llama-ctl install failed (non-blocking)"
     echo "bootstrap: downloading AI model (profile: ${ZDOTS_AI_PROFILE:-standard}, ~4.7 GB)..."
-    llama-ctl model-download --draft || echo "bootstrap: warning: model download failed — run 'llama-ctl model-download --draft' manually"
+    llama-ctl model-download || echo "bootstrap: warning: model download failed — run 'llama-ctl model-download' manually"
     echo "bootstrap: re-registering plist with model path..."
     llama-ctl install || true
   fi
