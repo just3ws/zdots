@@ -233,6 +233,33 @@ The scanner runs on every invocation with stdin input. It checks for patterns as
 
 ---
 
+## Audit Log
+
+Enable with `AIQ_AUDIT_LOG=1` or `--audit`. Each invocation appends one JSONL line to:
+
+```
+${XDG_STATE_HOME:-~/.local/state}/zsh/ai-query-audit.jsonl
+```
+
+The file is created with permissions `600`. Raw input is **never** written — only metadata:
+
+```json
+{
+  "ts":           1716825600,
+  "mode":         "safe-extract",
+  "risk_score":   42,
+  "risk_level":   "medium",
+  "input_bytes":  1234,
+  "content_hash": "sha256-of-normalized-input",
+  "model":        "local",
+  "endpoint":     "http://127.0.0.1:8080"
+}
+```
+
+Blocked invocations (`--block-high`) are logged before exit with their actual `risk_level`.
+
+---
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -242,6 +269,7 @@ The scanner runs on every invocation with stdin input. It checks for patterns as
 | `AIQ_DEFAULT_MODE` | `safe-extract` | Default mode |
 | `AIQ_MAX_BYTES` | `32768` | Hard input ceiling |
 | `AIQ_WARN_BYTES` | `16384` | Soft warning threshold |
+| `AIQ_AUDIT_LOG` | `0` | Set to `1` to enable audit logging |
 
 ---
 
