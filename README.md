@@ -5,7 +5,7 @@ purpose: Primary entry point and system overview for the Zdots environment.
 links:
   - id: architecture
     rel: child
-  - id: development
+  - id: setup
     rel: child
   - id: configuration
     rel: child
@@ -273,7 +273,7 @@ zdots-quiz --quick                                              # 3-case smoke t
 
 ## 7. Setup & Documentation
 
-Refer to [docs/development.md](docs/development.md) for installation.
+Refer to [SETUP.md](SETUP.md) for the full clone-to-running walkthrough.
 
 ```sh
 make bootstrap          # Full platform installation & model hydration
@@ -282,6 +282,6 @@ zdots-ctl status        # Confirm entire stack is green
 
 *   [docs/architecture.md](docs/architecture.md) — The DI pattern and loading sequence.
 *   [docs/local-ai.md](docs/local-ai.md) — Local AI routing layer: architecture, prompts, capability map, quiz.
-*   [docs/migration.md](docs/migration.md) — How to set up on a new machine.
+*   [SETUP.md](SETUP.md) — Clone-to-running on a fresh machine, PHI checklist, work machine setup.
 *   [docs/testing.md](docs/testing.md) — How we ensure the build is always green.
 *   [AGENTS.md](AGENTS.md) — Orientation for AI agents (Claude, Gemini) including RTK rules.

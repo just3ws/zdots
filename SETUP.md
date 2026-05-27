@@ -241,14 +241,20 @@ Stream live: `log stream --predicate 'subsystem == "com.zdots"'`
 **AI call scrubber** (`lib/phi_scrubber.bash`) applies the same patterns to all
 content before it is sent to the inference endpoint or stored in the DB.
 
-Site-specific patterns (patient account numbers, employee IDs) go in `.zdots.local`:
+Site-specific patterns (patient account numbers, employee IDs) belong in
+`etc/phi-patterns.yaml` — the **PHI Pattern Registry** and sole source of truth
+for all patterns. Add a YAML entry:
 
-```bash
-ZDOTS_HISTORY_REDACT_PATTERNS=(
-  'ACC[0-9]{8}'
-  'EMP-[A-Z]{2}[0-9]{5}'
-)
+```yaml
+- name: patient_account
+  regex: 'ACC[0-9]{8}'
+  replace: '[REDACTED-ACC]'
+  weight: 85
 ```
+
+The registry is committed to git (it is configuration, not a secret). Patterns
+compile at shell startup and apply to all layers (history hook, analytics
+capture, AI pipeline) automatically — no per-layer wiring required.
 
 The scrubber is the **first** layer, not the last. Do not send raw patient record
 excerpts to AI — patterns are not exhaustive.

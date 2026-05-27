@@ -1,13 +1,19 @@
 # etc/phi-patterns.yaml — PHI Pattern Registry
 #
-# Single source of truth for all PHI redaction patterns and risk weights.
-# Consumed by lib/phi_scrubber.bash (redaction) and lib/ai-query-lib.bash (risk scoring).
+# Single source of truth for all sensitive-pattern redaction and suppression.
+# Consumed by lib/phi_scrubber.bash (redaction/suppression) and
+# lib/ai-query-lib.bash (risk scoring). All enforcement layers — AI inference,
+# shell history hook, command analytics — read from this file. No file other
+# than this one may define PHI or credential patterns.
 #
 # Fields:
 #   name     — identifier used in tests and audit logs
 #   regex    — POSIX ERE passed to sed -E (must be single-line safe)
-#   replace  — replacement string (the redaction marker)
+#   replace  — replacement string (the redaction marker); unused for suppress patterns
 #   weight   — integer risk score for aiq_scan; omit for redaction-only patterns
+#   suppress — if true, matching input causes phi_scrub to fail-hard (non-zero)
+#              rather than redact. In the history hook, phi_should_suppress() uses
+#              this to drop the history entry entirely instead of redacting.
 #
 # Constraint: regex and replace values must not contain ';' — it is used as
 # the sed substitution delimiter to avoid conflicts with patterns containing '/'.
@@ -17,6 +23,11 @@ patterns:
   - name: cli_credentials
     regex: '(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]]+[^[:space:]]+'
     replace: '\1 [REDACTED]'
+    weight: 80
+
+  - name: inline_credentials
+    regex: '(password|passwd|token|secret|api[._-]?key|access[._-]?token|auth)=[^[:space:];]+'
+    replace: '\1=[REDACTED]'
     weight: 80
 
   - name: ssn
@@ -37,4 +48,5 @@ patterns:
   - name: conn_string
     regex: '(postgresql|mysql|redis)://[^@[:space:]]+@[^[:space:]]*'
     replace: '[REDACTED-CONN]'
+    suppress: true
     weight: 85
