@@ -164,8 +164,11 @@ This codebase operates near protected health information. The following rules ar
 **Hard rules:**
 - `ZDOTS_AI_MODE=local` is the default. Never change it to `cloud` without an explicit security review for that machine.
 - `ZDOTS_CAPTURE_ENABLED=0` until `ZDOTS_DB_ENCRYPTION_KEY` is provisioned in Keychain and DB encryption is verified.
+- `ZDOTS_CMD_ANALYTICS=0` on work machines — `.zdots.work` enforces this. Never enable it without checking `ZDOTS_CONTEXT`.
 - All AI calls pass through `lib/phi_scrubber.bash` before sending. The scrubber is the **first** gate, not the last — do not send raw patient records.
+- All shell commands pass through `_zca_redact` (suppress + scrub) before reaching the analytics store. Suppress-flagged commands (connection strings) are dropped entirely — not redacted. This is enforced in `conf.d/56-cmd-analytics.zsh`.
 - `lib/ai_boundary.bash` enforces locality: exits 2 if `ZDOTS_AI_MODE=none`, exits 1 if endpoint is not loopback/RFC-1918 in local mode.
+- To add a PHI or credential pattern, edit `etc/phi-patterns.yaml` **only**. No other file may define patterns. The registry auto-compiles at shell startup and applies to all layers.
 
 **Audit trail:**
 - Every PHI-adjacent operation emits to macOS Unified Logging: `subsystem=com.zdots category=phi-boundary`

@@ -15,6 +15,16 @@ set -euo pipefail
 # SIGPIPE: write failures from broken pipes exit cleanly.
 trap '' PIPE
 
+# Colima uses a profile-specific socket, not /var/run/docker.sock.
+# Set DOCKER_HOST if not already set and Colima socket is present.
+if [[ -z "${DOCKER_HOST:-}" ]]; then
+  if [[ -S "${HOME}/.colima/default/docker.sock" ]]; then
+    export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
+  elif [[ -S "${HOME}/.colima/docker.sock" ]]; then
+    export DOCKER_HOST="unix://${HOME}/.colima/docker.sock"
+  fi
+fi
+
 usage() {
   cat <<EOF
 Usage: docker-reclaim [-f]

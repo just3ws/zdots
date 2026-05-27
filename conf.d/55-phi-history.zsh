@@ -3,61 +3,52 @@
 #
 # Behavior:
 #   - Connection strings (postgresql://, mysql://, redis:// with credentials)
-#     are SUPPRESSED entirely — the entry is not written to history.
-#   - SSN, MRN, DOB patterns are REDACTED in-place with [REDACTED-*] markers.
-#   - Site-specific patterns in ZDOTS_HISTORY_REDACT_PATTERNS are also redacted.
-#   - Adds <1ms overhead on clean commands (Zsh built-in =~ only).
-#   - Warns to stderr if overhead exceeds 1ms.
+#     are SUPPRESSED entirely via phi_should_suppress() — entry not written.
+#   - All other patterns from etc/phi-patterns.yaml are REDACTED in-place
+#     via phi_scrub(). Single sed pass over compiled patterns.
+#   - If PHI protection is unavailable (yq absent), all commands are suppressed
+#     until the system is correctly configured.
+#
+# Pattern source: etc/phi-patterns.yaml (PHI Pattern Registry). No patterns
+# are defined in this file. To add a pattern, edit the registry.
 
 [[ "${ZDOTS_HISTORY_REDACT:-1}" == "1" ]] || return 0
 
 [[ -r "${ZDOTDIR}/lib/audit_log.bash" ]] && source "${ZDOTDIR}/lib/audit_log.bash"
 
+# Eagerly compile patterns at shell startup — not inside the hook.
+if [[ -r "${ZDOTDIR}/lib/phi_scrubber.bash" ]]; then
+  source "${ZDOTDIR}/lib/phi_scrubber.bash"
+  if ! phi_scrubber_init; then
+    printf 'zdots: phi-history: PHI protection unavailable — all history suppressed until fixed\n' >&2
+  fi
+fi
+
 zshaddhistory() {
   local line="${1%%$'\n'}"
   local t0=$EPOCHREALTIME
 
-  # Suppress connection strings with credentials entirely — no redaction attempt,
-  # the entry must not appear in history at all.
-  if [[ "$line" =~ '(postgresql|mysql|redis)://[^@[:space:]]+@' ]]; then
-    zdots_audit_log "history_redacted" "reason=connection_string"
+  # Suppress-flagged patterns (connection strings): drop entry entirely.
+  if phi_should_suppress "$line"; then
+    zdots_audit_log "history_suppressed" "reason=suppress_pattern"
     return 1
   fi
 
-  local changed=0
+  # Redact remaining patterns via compiled registry (single sed pass).
+  local redacted
+  redacted="$(phi_scrub <<< "$line")"
+  local scrub_status=$?
 
-  # SSN: NNN-NN-NNNN — Zsh built-in substitution, no fork
-  if [[ "$line" =~ '[0-9]{3}-[0-9]{2}-[0-9]{4}' ]]; then
-    # Zsh glob approximation (no quantifiers): cover the fixed-length pattern
-    line="${line//[0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]/[REDACTED-SSN]}"
-    changed=1
+  if (( scrub_status != 0 )); then
+    # phi_scrub failed (patterns unavailable or unexpected suppress match).
+    # Suppress the entry rather than risk writing sensitive data.
+    zdots_audit_log "history_suppressed" "reason=scrub_failure"
+    return 1
   fi
 
-  # MRN / DOB — require sed for variable-length whitespace and digit runs
-  if [[ "$line" =~ 'MRN[[:space:]]*:?[[:space:]]*[0-9]' ]]; then
-    line=$(printf '%s' "$line" | command sed -E 's/MRN[[:space:]]*:?[[:space:]]*[0-9]+/[REDACTED-MRN]/g')
-    changed=1
-  fi
-
-  if [[ "$line" =~ 'DOB[[:space:]]*:?[[:space:]]*[0-9]' ]]; then
-    line=$(printf '%s' "$line" | command sed -E 's/DOB[[:space:]]*:?[[:space:]]*[0-9]{1,2}[\/\-][0-9]{1,2}[\/\-][0-9]{2,4}/[REDACTED-DOB]/g')
-    changed=1
-  fi
-
-  # Site-specific patterns from .zdots.local — applied only when set
-  if (( ${#ZDOTS_HISTORY_REDACT_PATTERNS[@]} > 0 )); then
-    local p
-    for p in "${ZDOTS_HISTORY_REDACT_PATTERNS[@]}"; do
-      if [[ "$line" =~ "$p" ]]; then
-        line=$(printf '%s' "$line" | command sed -E "s/${p}/[REDACTED]/g")
-        changed=1
-      fi
-    done
-  fi
-
-  if (( changed )); then
+  if [[ "$redacted" != "$line" ]]; then
     zdots_audit_log "history_redacted" "reason=phi_pattern"
-    print -s -- "$line"
+    print -s -- "$redacted"
     return 1
   fi
 

@@ -31,11 +31,11 @@ setup() {
   [[ "$output" != *"01/15/1980"* ]]
 }
 
-@test "phi_scrubber: redacts DB connection string" {
+@test "phi_scrubber: connection string — fails hard (suppress-flagged)" {
   run bash -c "source $ZDOTDIR/lib/phi_scrubber.bash && printf 'postgresql://user:secret@db.internal/mydb' | phi_scrub"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"[REDACTED-CONN]"* ]]
+  [ "$status" -ne 0 ]
   [[ "$output" != *"secret"* ]]
+  [[ "$output" == *"suppress-flagged"* ]]
 }
 
 @test "phi_scrubber: clean input passes through unchanged" {
@@ -51,6 +51,27 @@ setup() {
   [[ "$output" == *"[REDACTED-MRN]"* ]]
   [[ "$output" == *"[REDACTED-DOB]"* ]]
   [[ "$output" != *"123-45-6789"* ]]
+}
+
+@test "phi_scrubber: redacts cli_credentials --password flag" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'psql --password secretval host' | phi_scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED]"* ]]
+  [[ "$output" != *"secretval"* ]]
+}
+
+@test "phi_scrubber: redacts cli_credentials -p flag" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'mysql -p mypassword mydb' | phi_scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED]"* ]]
+  [[ "$output" != *"mypassword"* ]]
+}
+
+@test "phi_scrubber: redacts cli_credentials --api-key flag" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'curl https://api.example.com --api-key token123abc' | phi_scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED]"* ]]
+  [[ "$output" != *"token123abc"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -230,19 +251,52 @@ setup() {
   [[ "$output" == *"skipped"* ]]
 }
 
+@test "phi_history: suppressed command emits audit event" {
+  run zsh -c '
+    ZDOTDIR="'"$ZDOTDIR"'"
+    source '"$ZDOTDIR"'/conf.d/55-phi-history.zsh
+    # Stub audit_log after sourcing (55-phi-history sources audit_log.bash which defines it)
+    _audit_tmp=$(mktemp)
+    zdots_audit_log() { printf "%s\n" "$1" >> "$_audit_tmp"; }
+    ZDOTS_HISTORY_REDACT=1
+    zshaddhistory "psql postgresql://user:pass@host/db"
+    cat "$_audit_tmp"; rm -f "$_audit_tmp"
+  '
+  [[ "$output" == *"history_suppressed"* ]]
+}
+
+@test "phi_history: redacted command emits audit event" {
+  run zsh -c '
+    ZDOTDIR="'"$ZDOTDIR"'"
+    source '"$ZDOTDIR"'/conf.d/55-phi-history.zsh
+    _audit_tmp=$(mktemp)
+    zdots_audit_log() { printf "%s\n" "$1" >> "$_audit_tmp"; }
+    ZDOTS_HISTORY_REDACT=1
+    HISTFILE=$(mktemp)
+    zshaddhistory "cmd with SSN 123-45-6789 here"
+    cat "$_audit_tmp"; rm -f "$_audit_tmp"
+  '
+  [[ "$output" == *"history_redacted"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # ZDOTS_LAST_COMMAND truncation
 # ---------------------------------------------------------------------------
 
 @test "observability: ZDOTS_LAST_COMMAND capped at 512 bytes" {
-  run zsh -i -c '
+  # zdots_trace_init guard in 05-observability.zsh requires the function to exist
+  # before the file is sourced; stub it and zdots_trace_log to avoid real tracing.
+  run zsh -c '
+    autoload -Uz add-zsh-hook
+    function zdots_trace_init { :; }
+    function zdots_trace_log  { :; }
+    source '"$ZDOTDIR"'/conf.d/05-observability.zsh
     long=$(printf "%0.s-" {1..600})
     _zdots_trace_preexec "$long"
-    echo "${#ZDOTS_LAST_COMMAND}"
-  ' 2>/dev/null
-  local len
-  len=$(echo "$output" | grep -Eo '^[0-9]+$' | tail -1)
-  [ "$len" -le 512 ]
+    printf "%d\n" "${#ZDOTS_LAST_COMMAND}"
+  '
+  [ "$status" -eq 0 ]
+  [ "$output" -le 512 ]
 }
 
 # ---------------------------------------------------------------------------
@@ -288,11 +342,55 @@ setup() {
   [[ "$output" == *"[REDACTED-DOB]"* ]]
 }
 
-@test "phi_registry: compiles conn_string pattern from YAML" {
+@test "phi_registry: conn_string is suppress-flagged — phi_scrub fails hard" {
   run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'postgresql://user:secret@db.internal/mydb' | phi_scrub"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"[REDACTED-CONN]"* ]]
+  [ "$status" -ne 0 ]
   [[ "$output" != *"secret"* ]]
+}
+
+@test "phi_registry: phi_should_suppress true for conn_string" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress 'psql postgresql://user:pass@host/db'"
+  [ "$status" -eq 0 ]
+}
+
+@test "phi_registry: phi_should_suppress false for SSN (redact, not suppress)" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress '123-45-6789' && echo suppressed || echo redact"
+  [[ "$output" == *"redact"* ]]
+}
+
+@test "phi_registry: phi_should_suppress false for clean input" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress 'git status' && echo suppressed || echo clean"
+  [[ "$output" == *"clean"* ]]
+}
+
+@test "phi_registry: phi_should_suppress true for mysql conn string" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress 'mysql://user:pass@host/db'"
+  [ "$status" -eq 0 ]
+}
+
+@test "phi_registry: phi_should_suppress true for redis conn string" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress 'redis://user:pass@host:6379/0'"
+  [ "$status" -eq 0 ]
+}
+
+@test "phi_registry: inline_credentials pattern redacted" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'export api_key=abc123secret' | phi_scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED]"* ]]
+  [[ "$output" != *"abc123secret"* ]]
+}
+
+@test "phi_registry: phi_scrubber_init eager compilation" {
+  run bash -c "
+    ZDOTDIR='$ZDOTDIR'
+    source $ZDOTDIR/lib/phi_scrubber.bash
+    phi_scrubber_init
+    echo \"sed_args=\${#_PHI_SED_ARGS[@]}\"
+    echo \"suppress_pattern=\${#_PHI_SUPPRESS_PATTERN}\"
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"sed_args="[1-9]* ]]
+  [[ "$output" == *"suppress_pattern="[1-9]* ]]
 }
 
 @test "phi_registry: cached — _PHI_SED_ARGS populated after first scrub" {
@@ -307,11 +405,80 @@ setup() {
   [ "$output" -gt 0 ]
 }
 
-@test "phi_registry: all four patterns active in one pass" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'SSN 123-45-6789 MRN: 99 DOB: 01/01/2000 postgresql://u:p@h/db' | phi_scrub"
+@test "phi_registry: three redact patterns active in one pass" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'SSN 123-45-6789 MRN: 99 DOB: 01/01/2000' | phi_scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED-SSN]"* ]]
   [[ "$output" == *"[REDACTED-MRN]"* ]]
   [[ "$output" == *"[REDACTED-DOB]"* ]]
-  [[ "$output" == *"[REDACTED-CONN]"* ]]
+}
+
+@test "phi_registry: cross-layer — history hook uses registry suppress pattern" {
+  run zsh -c '
+    ZDOTDIR="'"$ZDOTDIR"'"
+    source '"$ZDOTDIR"'/conf.d/55-phi-history.zsh
+    ZDOTS_HISTORY_REDACT=1
+    zshaddhistory "psql postgresql://user:pass@host/db"
+    echo "return:$?"
+  '
+  [[ "$output" == *"return:1"* ]]
+}
+
+@test "phi_registry: cross-layer — history hook uses registry credential pattern" {
+  run zsh -c '
+    ZDOTDIR="'"$ZDOTDIR"'"
+    source '"$ZDOTDIR"'/conf.d/55-phi-history.zsh
+    ZDOTS_HISTORY_REDACT=1
+    HISTFILE=$(mktemp)
+    zshaddhistory "curl https://api.example.com --token abc123"
+    fc -l 1 2>/dev/null
+    rm -f "$HISTFILE"
+  '
+  [[ "$output" == *"[REDACTED]"* ]]
+  [[ "$output" != *"abc123"* ]]
+}
+
+@test "phi_registry: cross-layer — history hook redacts cli_credentials" {
+  run zsh -c '
+    ZDOTDIR="'"$ZDOTDIR"'"
+    source '"$ZDOTDIR"'/conf.d/55-phi-history.zsh
+    ZDOTS_HISTORY_REDACT=1
+    HISTFILE=$(mktemp)
+    zshaddhistory "psql --password secretval mydb"
+    fc -l 1 2>/dev/null
+    rm -f "$HISTFILE"
+  '
+  [[ "$output" == *"[REDACTED]"* ]]
+  [[ "$output" != *"secretval"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# Message Hygiene Pipeline
+# ---------------------------------------------------------------------------
+
+@test "message_hygiene: clean input passes through" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/message_hygiene.bash && printf 'SELECT count(*) FROM users' | zdots_message_hygiene"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "SELECT count(*) FROM users" ]]
+}
+
+@test "message_hygiene: redacts SSN in pipeline" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/message_hygiene.bash && printf 'patient SSN 123-45-6789 admitted' | zdots_message_hygiene"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED-SSN]"* ]]
+  [[ "$output" != *"123-45-6789"* ]]
+}
+
+@test "message_hygiene: fails hard on conn_string" {
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/message_hygiene.bash && printf 'postgresql://user:secret@db.internal/mydb' | zdots_message_hygiene 2>&1; printf 'exit:%d\n' \$?"
+  [[ "$output" == *"exit:1"* ]]
+  [[ "$output" != *"secret"* ]]
+}
+
+@test "message_hygiene: strips ANSI escapes before PHI matching" {
+  # Normalization runs before phi_scrub — ANSI-wrapped credentials must still be redacted.
+  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/message_hygiene.bash && printf 'token=\033[1mabc123\033[0m' | zdots_message_hygiene"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED]"* ]]
+  [[ "$output" != *"abc123"* ]]
 }
