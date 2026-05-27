@@ -63,6 +63,37 @@ NO_PROXY=localhost,127.0.0.1,.internal
 
 See `.zdots.local.example` for the full reference.
 
+## Manual steps bootstrap can't automate
+
+Two steps require `sudo` and are printed by bootstrap but not done automatically.
+Complete them after `bootstrap` finishes:
+
+### 1. Start nginx (port 80, requires sudo)
+
+```bash
+sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
+```
+
+To verify: `curl -sk https://llama.local/health | head -1` (after local AI is up)
+
+> **Do not use `sudo brew services restart nginx`** — it takes root ownership of
+> Homebrew paths and breaks subsequent `brew link` / `brew install` operations.
+> Use `sudo launchctl kickstart -k system/homebrew.mxcl.nginx` for restarts.
+
+### 2. Add local service hostnames to /etc/hosts
+
+```bash
+sudo sh -c 'echo "127.0.0.1 llama.local" >> /etc/hosts'
+sudo sh -c 'echo "127.0.0.1 embed.local" >> /etc/hosts'
+sudo sh -c 'echo "127.0.0.1 grafana.local" >> /etc/hosts'
+```
+
+These map the TLS hostnames nginx routes by Host header. Without them,
+`https://llama.local` never resolves — `ai-query` falls back to the port-8080
+plain URL, but browser access and cert validation won't work.
+
+---
+
 ## Database
 
 The `bootstrap` script runs `zdots-ctx init-db` automatically. If it was
