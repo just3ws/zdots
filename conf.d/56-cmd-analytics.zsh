@@ -30,7 +30,7 @@ typeset -g _ZCA_CWD=""
 if [[ -z "${_ZCA_INIT:-}" ]]; then
   (
     mkdir -p "${_ZCA_DB:h}" 2>/dev/null
-    sqlite3 "$_ZCA_DB" 2>/dev/null <<'SQL'
+    sqlite3 "$_ZCA_DB" >/dev/null 2>&1 <<'SQL'
 PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS command_runs (
   id          INTEGER PRIMARY KEY,
