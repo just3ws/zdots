@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# bin/ctx-mcp-register — Register ctx-mcp in ~/.claude.json as an MCP server
+#
+# ctx-mcp is the zdots knowledge-base server (lessons, methodologies, session
+# residue). Until it is registered, AI agents cannot query the KB during sessions.
+#
+# Safe to run multiple times — exits 0 without modifying the file if the
+# server is already registered.
+#
+# Usage:
+#   ctx-mcp-register [--force]
+#
+# Options:
+#   --force   Re-register even if already present (updates command path / env)
+#
+# After registration, restart your Claude Code session for the server to appear.
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+CLAUDE_JSON="${HOME}/.claude.json"
+SERVER_NAME="ctx"
+SERVER_CMD="${ZDOTDIR}/bin/ctx-mcp"
+
+FORCE=0
+[[ "${1:-}" == "--force" ]] && FORCE=1
+
+# ── Guards ──────────────────────────────────────────────────────────────────
+
+if [[ ! -f "$CLAUDE_JSON" ]]; then
+  echo "error: $CLAUDE_JSON not found — is Claude Code installed?" >&2
+  exit 1
+fi
+
+if [[ ! -x "$SERVER_CMD" ]]; then
+  echo "error: $SERVER_CMD not found or not executable" >&2
+  exit 1
+fi
+
+# ── Idempotency check ────────────────────────────────────────────────────────
+
+if [[ "$FORCE" -eq 0 ]]; then
+  existing=$(jq -r --arg name "$SERVER_NAME" '.mcpServers[$name] // empty' "$CLAUDE_JSON")
+  if [[ -n "$existing" ]]; then
+    echo "ctx-mcp already registered (use --force to overwrite)"
+    exit 0
+  fi
+fi
+
+# ── Registration ─────────────────────────────────────────────────────────────
+
+tmp=$(mktemp)
+jq --arg name "$SERVER_NAME" \
+   --arg cmd "$SERVER_CMD" \
+   --arg zdotdir "$ZDOTDIR" \
+   '.mcpServers[$name] = {"type": "stdio", "command": $cmd, "env": {"ZDOTDIR": $zdotdir}}' \
+   "$CLAUDE_JSON" > "$tmp"
+
+mv "$tmp" "$CLAUDE_JSON"
+echo "ctx-mcp registered → $CLAUDE_JSON"
+echo "  server: $SERVER_NAME"
+echo "  command: $SERVER_CMD"
+echo ""
+echo "Restart your Claude Code session to connect."
