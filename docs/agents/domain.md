@@ -8,7 +8,7 @@ How engineering skills should consume this repo's documentation.
 - **`CLAUDE.md`** at the repo root — Claude Code-specific conventions and platform control
 - **`docs/`** — supplementary docs (llama-cpp, otel, testing, quality rubric)
 
-No `CONTEXT.md` exists yet. `docs/adr/` exists — check it before re-litigating architectural decisions.
+`CONTEXT.md` exists at the repo root — read it for the domain glossary. `docs/adr/` exists — check it before re-litigating architectural decisions.
 
 ## File structure
 
