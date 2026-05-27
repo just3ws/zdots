@@ -49,6 +49,8 @@ module Zdots
         cmd_jobs
       when "ingest"
         cmd_ingest(args)
+      when "sync-history"
+        cmd_sync_history(args)
       when "rekey"
         cmd_rekey(args)
       else
@@ -480,6 +482,85 @@ module Zdots
       [fm, body]
     rescue
       [nil, raw]
+    end
+
+    def cmd_sync_history(args)
+      require "sqlite3"
+
+      dry_run  = args.include?("--dry-run")
+      db_path  = args.find { |a| !a.start_with?("--") } ||
+                 File.join(ENV.fetch("XDG_STATE_HOME", File.expand_path("~/.local/state")),
+                           "zdots", "history.sqlite3")
+
+      unless File.exist?(db_path)
+        puts "sync-history: SQLite DB not found at #{db_path}"
+        puts "  Enable ZDOTS_CMD_ANALYTICS=1 in .zdots.local and run a few commands first."
+        exit 1
+      end
+
+      sqlite  = SQLite3::Database.new(db_path, readonly: true)
+      sqlite.results_as_hash = true
+
+      # Read cursor — last SQLite id successfully synced to PostgreSQL.
+      cursor_row = Zdots.db[:sync_state].where(key: "command_runs_last_id").first
+      last_id    = cursor_row ? cursor_row[:value].to_i : 0
+
+      rows = sqlite.execute(
+        "SELECT id, session_id, ts, cwd, cmd, args, exit_code, duration_ms, profile
+           FROM command_runs
+          WHERE id > ?
+          ORDER BY id ASC
+          LIMIT 5000",
+        last_id
+      )
+
+      if rows.empty?
+        puts "sync-history: nothing new (cursor=#{last_id})"
+        sqlite.close
+        return
+      end
+
+      host = ENV.fetch("HOST", Socket.gethostname rescue "unknown")
+
+      synced = 0
+      new_cursor = last_id
+
+      rows.each do |row|
+        record = {
+          session_id:  row["session_id"],
+          ts:          row["ts"],
+          cwd:         row["cwd"],
+          cmd:         row["cmd"],
+          args:        row["args"],
+          exit_code:   row["exit_code"],
+          duration_ms: row["duration_ms"],
+          profile:     row["profile"],
+          host:        host
+        }
+
+        unless dry_run
+          Zdots.db[:command_runs]
+               .insert_conflict(
+                 target:  [:session_id, :ts, :cmd, Sequel.function(:coalesce, :args, "")],
+                 action:  :nothing
+               )
+               .insert(record)
+        end
+
+        synced     += 1
+        new_cursor  = row["id"]
+      end
+
+      unless dry_run
+        Zdots.db[:sync_state]
+             .insert_conflict(target: :key, action: :update,
+                              update: { value: new_cursor.to_s,
+                                        updated_at: Sequel::CURRENT_TIMESTAMP })
+             .insert(key: "command_runs_last_id", value: new_cursor.to_s)
+      end
+
+      sqlite.close
+      puts "sync-history: #{dry_run ? "[dry-run] would sync" : "synced"} #{synced} records (cursor #{last_id} → #{new_cursor})"
     end
 
     def cmd_rekey(args)
