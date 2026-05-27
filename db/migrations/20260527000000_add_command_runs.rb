@@ -40,7 +40,7 @@ Sequel.migration do
 
       GRANT SELECT, INSERT, UPDATE, DELETE ON command_runs TO zdots_rw;
       GRANT SELECT ON command_runs TO zdots_ro;
-      GRANT SELECT, INSERT, UPDATE, DELETE ON command_runs_id_seq TO zdots_rw;
+      GRANT USAGE, SELECT, UPDATE ON command_runs_id_seq TO zdots_rw;
 
       GRANT SELECT, INSERT, UPDATE, DELETE ON sync_state TO zdots_rw;
       GRANT SELECT ON sync_state TO zdots_ro;

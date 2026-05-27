@@ -76,6 +76,14 @@ export ZDOTS_DB_ENCRYPTION_KEY=$(
 # on machines that may handle PHI).
 # ZDOTS_HISTORY_REDACT=1
 
+# Command analytics — captures every executed command to SQLite with exit code,
+# duration, CWD, and session ID (conf.d/56-cmd-analytics.zsh). Syncs to the
+# PostgreSQL command_runs table via `zdots-ctx sync-history` (auto-runs on capture).
+# Prerequisite: zdots-ctx migrate (adds command_runs + sync_state tables).
+# Credential patterns in args are redacted inline before write.
+# Disabled unconditionally on work machines (.zdots.work enforces CMD_ANALYTICS=0).
+# ZDOTS_CMD_ANALYTICS=1
+
 # Site-specific redaction patterns (Zsh array, ERE syntax for sed).
 # Added on top of the built-in SSN / MRN / DOB patterns.
 # Each entry is an ERE pattern; matching tokens are replaced with [REDACTED].

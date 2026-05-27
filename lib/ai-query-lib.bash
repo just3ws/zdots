@@ -302,33 +302,19 @@ END_SYSTEM
 # ---------------------------------------------------------------------------
 # aiq_sanitize_output — filter stdin; write safe text to stdout.
 #
-# Strips ANSI/CSI/OSC escape sequences and C0 control characters from model
-# output before it reaches the terminal. Keeps: printable chars, UTF-8
-# sequences, HT (0x09), LF (0x0a).
+# Strips <think>...</think> blocks (multiline), then delegates ANSI/CSI/OSC
+# and C0 control-character stripping to _mh_normalize (message_hygiene.bash).
 #
 # Why: a model can include terminal escape sequences in its output that would
 # change terminal title, hide text, move cursor, or corrupt display.
 # ---------------------------------------------------------------------------
 aiq_sanitize_output() {
+  # -0777 slurps full input so multiline <think>...</think> blocks are matched.
   if command -v perl >/dev/null 2>&1; then
-    # -0777 slurps full input so <think>...</think> multiline blocks can be matched.
-    # The s flag makes . match newlines for the think-block pass only.
-    perl -0777 -pe '
-      s/<think>.*?<\/think>\n*//gs;
-      s/\e\[[0-9;?!>]*[A-Za-z]//g;
-      s/\e\][^\a\e]*\a//g;
-      s/\e\][^\e]*\e\\//g;
-      s/\e[A-Za-z]//g;
-      tr/\x01-\x08\x0b-\x0c\x0e-\x1f\x7f//d;
-    '
+    perl -0777 -pe 's/<think>.*?<\/think>\n*//gs'
   else
-    awk '/<think>/{skip=1} skip && /<\/think>/{skip=0; next} !skip{print}' \
-      | sed $'s/\033\\[[0-9;?!>]*[A-Za-z]//g' \
-      | sed $'s/\033][^\a]*\a//g' \
-      | sed $'s/\033[A-Za-z]//g' \
-      | LC_ALL=C tr -d \
-          '\001\002\003\004\005\006\007\010\013\014\016\017\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037\177'
-  fi
+    awk '/<think>/{skip=1} skip && /<\/think>/{skip=0; next} !skip{print}'
+  fi | _mh_normalize
 }
 
 # ---------------------------------------------------------------------------
