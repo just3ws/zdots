@@ -11,12 +11,12 @@
 # - Provides high-leverage resolved views (--json).
 # - Minimizes subshells and redundant parsing.
 
-ZDOTS_META_DIR="${ZDOTDIR:-$HOME/.config/zsh}/etc"
+ZDOTS_META_DIR="${ZDOTS_META_DIR:-${ZDOTDIR:-$HOME/.config/zsh}/etc}"
 
 # Process-level cache: keyed by "service:profile" so that profile env var
 # changes invalidate correctly. Populated on first call per (service, profile)
 # pair; subsequent calls use jq on the cached JSON — no yq re-parse.
-declare -A _ZDOTS_META_CACHE=()
+declare -gA _ZDOTS_META_CACHE=()
 
 _zdots_meta_die() { printf 'metadata: error: %s\n' "$*" >&2; exit 1; }
 
@@ -49,7 +49,8 @@ _zdots_meta_resolve_profile() {
 
   if [[ -z "$path" ]]; then
     local expr=".${profiles_key}.${profile}"
-    [[ -n "$merge_base" ]] && expr="${expr} * ${merge_base}"
+    # merge_base provides defaults; profile overrides — base * profile, not profile * base
+    [[ -n "$merge_base" ]] && expr="${merge_base} * ${expr}"
     yq -o json "${expr} | .active_profile = \"${profile}\" | .endpoint = \"http://\" + .host + \":\" + (.port | tostring)" "$file" 2>/dev/null
   else
     local val; val=$(yq ".${profiles_key}.${profile}.${path}" "$file" 2>/dev/null)

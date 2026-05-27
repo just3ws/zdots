@@ -405,7 +405,7 @@ READ-ONLY EXPLORATION — safe for ad-hoc queries:
   zdots-ctx query <term>       full-text search via the safe interface
   zdots-ctx status             connection check + record counts
 
-DO NOT connect as mike (superuser) for routine queries — use zdots_ro.
+DO NOT connect as the OS superuser for routine queries — use zdots_ro.
 Migrations (zdots-ctx migrate) use ZDOTS_MIGRATION_URL (superuser) automatically.
 EOF
 
