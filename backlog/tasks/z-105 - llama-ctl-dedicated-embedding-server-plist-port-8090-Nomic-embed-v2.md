@@ -1,9 +1,10 @@
 ---
 id: Z-105
 title: 'llama-ctl: dedicated embedding server plist (port 8090, Nomic embed-v2)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-25 13:52'
+updated_date: '2026-05-27 18:42'
 labels:
   - ai
   - rag
@@ -18,6 +19,9 @@ references:
 documentation:
   - docs/rag-activation.md
   - docs/ai-learning-map.md#1-rag-pipeline-retrieval-augmented-generation
+modified_files:
+  - bin/zdots-ctl
+  - bin/llama-ctl
 priority: medium
 ordinal: 3890
 ---
@@ -48,16 +52,22 @@ See docs/rag-activation.md for the full activation checklist.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 llama-ctl install creates com.zdots.llama-embed.plist
-- [ ] #2 curl http://127.0.0.1:8090/v1/embeddings returns 768-dim vector
-- [ ] #3 zdots-ctl check reports embed server status
-- [ ] #4 pgvector schema migrated to vector(768)
+- [x] #1 llama-ctl install creates com.zdots.llama-embed.plist
+- [x] #2 curl http://127.0.0.1:8090/v1/embeddings returns 768-dim vector
+- [x] #3 zdots-ctl check reports embed server status
+- [x] #4 pgvector schema migrated to vector(768)
 - [ ] #5 ZDOTS_CAPTURE_ENABLED=1 can be set after Keychain key provisioned
 <!-- AC:END -->
 
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+- `llama-ctl install-embed` fixed: was calling `model_download` (reads `_META_JSON` from chat profile) — replaced with direct `_yq_field` + `zdots_model_download` to correctly pull embed profile from yaml.\n- `zdots-ctl`: added `EMBED_ENDPOINT` config var, `_embed_up()` probe, step 4 in `cmd_up`, stop in `cmd_down`, `install-embed` in `cmd_install`, embed row in `cmd_status` (text + JSON).\n- Embed model downloaded (497MB, sha256 verified), plist registered at `com.zdots.llama-embed`, server running on 8090.\n- Verified: `curl .../v1/embeddings` returns 768-dim vector.\n- pgvector already migrated to `vector(768)` (migration `20260525120000_embed_dimension_nomic.rb`).\n- 309 tests pass.
+<!-- SECTION:FINAL_SUMMARY:END -->
+
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
