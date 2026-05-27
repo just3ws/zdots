@@ -84,17 +84,11 @@ export ZDOTS_DB_ENCRYPTION_KEY=$(
 # Disabled unconditionally on work machines (.zdots.work enforces CMD_ANALYTICS=0).
 # ZDOTS_CMD_ANALYTICS=1
 
-# Site-specific redaction patterns (Zsh array, ERE syntax for sed).
-# Added on top of the built-in SSN / MRN / DOB patterns.
-# Each entry is an ERE pattern; matching tokens are replaced with [REDACTED].
-# Examples:
-#   Patient account numbers:   'ACC[0-9]{8}'
-#   Internal employee IDs:     'EMP-[A-Z]{2}[0-9]{5}'
-#   Ticket identifiers:        'JIRA-[0-9]+'
-# ZDOTS_HISTORY_REDACT_PATTERNS=(
-#   'ACC[0-9]{8}'
-#   'EMP-[A-Z]{2}[0-9]{5}'
-# )
+# Site-specific redaction patterns belong in etc/phi-patterns.yaml (committed
+# to git — it is configuration, not a secret). The PHI Pattern Registry is the
+# sole source of truth: patterns defined there apply automatically to the
+# history hook, analytics capture, and AI pipeline with no per-layer wiring.
+# See the POSIX ERE + YAML format already used in that file.
 
 # ---------------------------------------------------------------------------
 # Work context overrides (only relevant when ZDOTS_CONTEXT=work)
