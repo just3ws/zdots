@@ -20,6 +20,10 @@
 # Empty string means "not yet loaded"; widgets pass it to zdots_ai_infer_raw.
 _ZLE_SYS_PROMPT=""
 
+# Health probe TTL — tracks when the last successful /health check ran.
+# 0 means "never checked"; reset to 0 on failure to force recheck on next call.
+_ZLE_HEALTH_CHECKED_AT=0
+
 # ---------------------------------------------------------------------------
 # _zdots_zle_ai_load — lazy-load the AI Invocation Interface, system prompt,
 # and liveness probe. Called at the start of every widget.
@@ -52,11 +56,16 @@ _zdots_zle_ai_load() {
     fi
   fi
 
-  # Server liveness — fast probe before each inference call.
+  # Server liveness — probe at most once per 30 s; reset TTL on failure so the
+  # next keystroke rechecks immediately after the server recovers.
   local _ep="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
-  if ! curl -sf -m 1 "${_ep}/health" >/dev/null 2>&1; then
-    zle -M "ai: llama.cpp not responding — run: llama-ctl start"
-    return 1
+  if (( SECONDS - _ZLE_HEALTH_CHECKED_AT > 30 )); then
+    if ! curl -sf -m 1 "${_ep}/health" >/dev/null 2>&1; then
+      _ZLE_HEALTH_CHECKED_AT=0
+      zle -M "ai: llama.cpp not responding — run: llama-ctl start"
+      return 1
+    fi
+    _ZLE_HEALTH_CHECKED_AT=$SECONDS
   fi
 }
 

@@ -8,6 +8,7 @@
 export ZDOTS_CONTEXT=work
 export ZDOTS_CAPTURE_ENABLED=0
 export ZDOTS_HISTORY_REDACT=1
+export ZDOTS_CMD_ANALYTICS=0   # command args may contain PHI; never capture on work machines
 
 # Hard-block cloud AI mode — local and none are both safe; cloud is not.
 case "${ZDOTS_AI_MODE:-local}" in
