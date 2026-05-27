@@ -58,6 +58,7 @@ Knowledge Layer Interface:
   add-methodology <slug> <title> <content> [tags...]
   add-lesson <content> [context] [tags...]
   ingest [--dry-run] <file.md | dir/> | --all  Ingest Knowledge Vault documents
+  sync-history [--dry-run] [db-path]  Sync SQLite command_runs → PostgreSQL
   enqueue [--force] <type> <payload_json> [priority]
   requeue <job_id>
   jobs      List pending and recent jobs
@@ -274,6 +275,13 @@ EOF
       "$(jq -n --arg tid "$sid" '{"trace_id":$tid}')" 5 2>/dev/null \
       && _svc_log "enqueued docs_sync job." \
       || _svc_log "docs_sync enqueue failed (non-fatal)."
+
+    # Sync buffered command analytics to PostgreSQL (non-fatal; SQLite is durable).
+    if [[ "${ZDOTS_CMD_ANALYTICS:-0}" == "1" ]]; then
+      cmd_sync_history 2>/dev/null \
+        && _svc_log "command analytics synced." \
+        || _svc_log "command analytics sync failed (non-fatal; SQLite buffer intact)."
+    fi
   else
     _svc_log "capture aborted."
   fi
@@ -307,6 +315,10 @@ cmd_add_lesson() {
 
 cmd_ingest() {
   "${ZDOTDIR}/sbin/zdots-brain" ingest "$@"
+}
+
+cmd_sync_history() {
+  "${ZDOTDIR}/sbin/zdots-brain" sync-history "$@"
 }
 
 cmd_enqueue() {
@@ -566,6 +578,7 @@ case "${1:-}" in
   add-methodology) shift; cmd_add_methodology "${@}" ;;
   add-lesson)      shift; cmd_add_lesson "${@}" ;;
   ingest)          shift; cmd_ingest "${@}" ;;
+  sync-history)    shift; cmd_sync_history "${@}" ;;
   enqueue)         shift; cmd_enqueue "${@}" ;;
   requeue)         shift; cmd_requeue "${@}" ;;
   jobs)            shift; cmd_jobs "${@}" ;;
