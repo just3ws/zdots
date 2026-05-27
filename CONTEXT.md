@@ -10,6 +10,8 @@ Any long-running process managed by `zdots-ctl`: startable, stoppable, health-pr
 
 **Core Service** — a Platform Service zdots itself depends on to function. Always present on any zdots host. Examples: llama.cpp (AI inference), whisper (transcription), otel-collector (observability), context engine (knowledge persistence).
 
+**Cache Service** — a Platform Service that improves throughput but degrades gracefully when absent. zdots continues to operate if a Cache Service is down, with automatic fallback to a slower path. Current instance: Redis (command analytics write buffer; falls back to async SQLite when unreachable). Tracked in `zdots-ctl status` and warned (not failed) in `zdots-ctl check`.
+
 **Hosted Service** — a Platform Service zdots manages on behalf of a project or workload. zdots does not depend on it; it is host-profile-selected. Examples: wwworkremote (job search automation), Phalanx Duel (game management).
 
 A service can hold both roles simultaneously: context engine is a Core Service (zdots-ctx depends on it) and a Hosted Service (external tools consume it directly).
@@ -31,6 +33,8 @@ The ordered sequence of transformations applied to any text before it enters the
 
 **Interface:** `zdots_message_hygiene` in `lib/message_hygiene.bash` — stdin → stdout. Always runs the full pipeline. Callers never compose stages individually.
 
+**Failure:** returns non-zero if PHI protection is unavailable (yq absent, registry missing) or if input contains a suppress-flagged pattern. Callers must treat non-zero exit as a hard failure — do not continue inference or persistence.
+
 **Scope:** all text entering inference (`ai-query`, `zdots-ask`) or persistence (`zdots-ctx` DB writes and captured session data).
 
 **Not in scope:** observability data, span payloads, and trace metadata — these use `zdots_trace_redact` (providers/trace).
@@ -39,18 +43,26 @@ The ordered sequence of transformations applied to any text before it enters the
 
 ## PHI Pattern Registry
 
-The canonical list of PHI redaction patterns and their risk weights, defined once and consumed by all enforcement contexts.
+The canonical list of all sensitive-pattern redaction and suppression rules, defined once and consumed by all enforcement contexts. Scope covers PHI (SSN, MRN, DOB, connection strings) and credential patterns (inline `key=value`, flag-style `--flag value`).
 
-**Source:** `etc/phi-patterns.yaml` — each entry carries a `name`, POSIX `regex`, `replace` string, and optional `weight`.
+**Source:** `etc/phi-patterns.yaml` — each entry carries a `name`, POSIX `regex`, `replace` string, optional `weight`, and optional `suppress: true` flag.
 
-**Compilation:** `lib/phi_scrubber.bash` compiles the YAML into `PHI_SED_SCRIPT` at first use via `_phi_load_patterns`. Fails hard if `yq` is absent. The compiled script is cached for the shell session.
+**Suppress flag:** patterns with `suppress: true` are treated differently by each enforcement layer:
+- `phi_scrub` — fails hard (non-zero, no stdout) when input matches a suppress pattern.
+- `phi_should_suppress(line)` — returns 0 (true) if the line matches any suppress pattern; used as a fast no-fork pre-flight in the history hook.
+- History hook — calls `phi_should_suppress` first; if true, drops the history entry silently.
+- Analytics hook — calls `phi_should_suppress` first; if true, skips the SQLite insert.
+
+**Compilation:** `lib/phi_scrubber.bash` compiles the YAML at first use via `_phi_load_patterns`. Fails hard if `yq` is absent or the registry is missing. `phi_scrubber_init()` triggers eager compilation at shell startup. Two caches are produced: `_PHI_SED_ARGS` (redact patterns, for sed) and `_PHI_SUPPRESS_PATTERN` (suppress patterns, OR'd ERE for `=~` checks).
 
 **Consumers:**
-- `phi_scrub` — applies `PHI_SED_SCRIPT` via sed (redaction)
+- `phi_scrub` — applies `_PHI_SED_ARGS` via sed; fails hard on suppress-pattern match
+- `phi_should_suppress` — fast `=~` check against `_PHI_SUPPRESS_PATTERN`; no fork
 - `aiq_scan` — reads entries with `weight` set for risk scoring
-- `conf.d/55-phi-history.zsh` — reads compiled script via `phi_scrub`
+- `conf.d/55-phi-history.zsh` — sources scrubber; uses `phi_should_suppress` + `phi_scrub`
+- `conf.d/56-cmd-analytics.zsh` — sources scrubber; uses `phi_should_suppress` + `phi_scrub`
 
-**Invariant:** a new PHI pattern type requires exactly one file edit (`etc/phi-patterns.yaml`). No other file should define PHI patterns.
+**Invariant:** a new sensitive pattern type requires exactly one file edit (`etc/phi-patterns.yaml`). No other file defines PHI or credential patterns.
 
 ---
 
@@ -70,6 +82,20 @@ The seam through which all local AI inference is called. Lives in `lib/ai-invoke
 - Used by: `zdots-ctx capture` (distillation of session history/traces).
 
 **Caller contract:** callers build and own the prompt. These functions own gate, hygiene, submission, and output parsing. Neither function constructs prompts.
+
+---
+
+## Command Analytics
+
+The real-time capture layer that records every shell command with exit code, duration, CWD, and session context. Feeds the Knowledge Base via `zdots-ctx sync-history`.
+
+**Write path:** `conf.d/56-cmd-analytics.zsh` captures commands in `_zca_precmd`. Primary write target is Redis (`zdots:cmds:<session_id>`, TTL 24h, synchronous RPUSH). Falls back to async SQLite (`$XDG_STATE_HOME/zdots/history.sqlite3`) when Redis is unreachable.
+
+**Drain path:** `zdots-ctx sync-history` calls `_drain_redis_to_sqlite` before invoking `zdots-brain sync-history`. The drain moves all Redis-buffered entries into SQLite in a single transaction per key, then DELs the key. This ensures Redis-written entries reach PostgreSQL on the next sync.
+
+**PHI contract:** all commands pass through `_zca_redact` (which calls `phi_should_suppress` + `phi_scrub`) before any write. Suppress-flagged commands (connection strings) are dropped entirely — `_ZCA_CMD` is cleared and the function returns early. No unredacted command ever reaches Redis, SQLite, or PostgreSQL.
+
+**Enable:** `ZDOTS_CMD_ANALYTICS=1` in `.zdots.local`. Off by default. Disabled unconditionally on work machines (`.zdots.work` enforces `ZDOTS_CMD_ANALYTICS=0`).
 
 ---
 

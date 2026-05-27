@@ -5,10 +5,13 @@
 #
 # Pipeline (always runs in full, in order):
 #   1. normalize  — strip null bytes, ANSI escapes, CRLF, C0 control chars.
-#   2. phi_scrub  — redact SSN, MRN, DOB, connection strings with credentials.
+#   2. phi_scrub  — redact SSN, MRN, DOB, credentials; fail-hard on conn strings.
 #
 # Normalize runs first: format artifacts can prevent PHI patterns from matching.
-# Always returns 0 — callers always receive usable output.
+#
+# Fails hard (non-zero) if PHI protection is unavailable (yq absent, registry
+# missing) or if input contains a suppress-flagged pattern (connection strings).
+# Callers must treat non-zero exit as a hard failure — do not continue.
 #
 # Callers: source this file. Do not source lib/phi_scrubber.bash directly.
 
