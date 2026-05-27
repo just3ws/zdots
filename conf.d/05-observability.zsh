@@ -44,21 +44,6 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
       zdots_trace_log "error" "status=$last_status, cmd=$ZDOTS_LAST_COMMAND"
     fi
 
-    # 2. Cognitive Load Awareness (Frustration Detection)
-    # Periodically check error velocity to trigger Calm Mode assistance.
-    # We use a static counter to avoid checking every single command.
-    (( _ZDOTS_CMD_COUNT++ ))
-    if (( _ZDOTS_CMD_COUNT % 5 == 0 )); then
-      # Source once (guard on function existence); never re-parse on every check.
-      if (( ! ${+functions[zdots_check_cognitive_load]} )) && [[ -r "$ZDOTDIR/lib/cognitive-load.bash" ]]; then
-        source "$ZDOTDIR/lib/cognitive-load.bash"
-      fi
-      if (( ${+functions[zdots_check_cognitive_load]} )); then
-        if zdots_check_cognitive_load 3 5; then
-          zdots_calm_mode
-        fi
-      fi
-    fi
   }
   typeset -gi _ZDOTS_CMD_COUNT=0
   add-zsh-hook precmd _zdots_trace_precmd
