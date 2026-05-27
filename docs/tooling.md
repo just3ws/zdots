@@ -6,8 +6,8 @@ purpose: Authoritative map of Brewfile tools to workflows. What to reach for and
 
 # Key Tools Reference
 
-All tools listed are installed via the Brewfile unless noted. Organized by workflow,
-not alphabetically. For service lifecycle, see [architecture.md](architecture.md).
+All tools listed are installed via the Brewfile unless noted (`bin/` prefix = zdots-native, not Homebrew).
+Organized by workflow, not alphabetically. For service lifecycle, see [architecture.md](architecture.md).
 
 ---
 
@@ -19,12 +19,17 @@ The zdots-specific stack. Every agent session should orient here first.
 |------|---------|---------|
 | Platform orchestrator | `zdots-ctl up/down/check/status` | Start, stop, health-check all services |
 | Knowledge layer CLI | `zdots-ctx query/capture/hydrate/sync-history` | Shell→PostgreSQL brain interface |
+| Task orchestrator | `ztask start/done/stop/status <id>` | Hydrate shell env to a specific task; links trace to work |
 | Service guide | `agent-guide` | Live status + endpoint map for agents |
 | Environment contract | `capabilities --json` | Machine capability report |
+| Status TUI | `zdots-status` | Self-refreshing service + env + storage panel |
 | Issue filing | `zdots-issue "description"` | File a backlog task with trace ID attached |
 | AI router | `zdots-ask "prompt"` | Domain-aware prompt routing (shell/ruby/phi/default) |
 | AI smoke test | `zdots-quiz --quick` | 3-case probe of the local model |
-| Morning ritual | `zmorning` | Daily context + history sync + posture check |
+| Startup benchmark | `bench` | Measure cold/warm shell startup latency; guards 80ms budget |
+| Morning ritual | `zmorning` | Daily context brief + optional Pi orientation session |
+| Task picker | `zdash` | fzf task picker wired to Pi↔Aider↔ztask cycle |
+| Secrets | `zdots-keychain add/get/list` | Store and load secrets from macOS Keychain |
 
 ---
 
@@ -35,6 +40,9 @@ The zdots-specific stack. Every agent session should orient here first.
 | llama.cpp | `llama-ctl status/start/stop` | Manage local chat server (Qwen3-8B, port 8080) |
 | Embedding server | `ZDOTS_AI_PROFILE=embed llama-ctl start` | Nomic embed-v2, port 8090 |
 | One-shot inference | `ai-query "prompt"` | Guarded LLM call with PHI scrubbing |
+| Capability doc | `llama-caps` | Full endpoint/capability/constraint doc for local stack |
+| llama MCP server | `llama-mcp` | MCP stdio server: health, config, test, snippet tools for Claude/Cursor |
+| Context MCP server | `ctx-mcp` | MCP stdio server: query/capture knowledge base from AI agents |
 | Aider (local) | `zaider` | Aider wired to local llama.cpp — file editing + git |
 | Pi coding agent | `zpi "prompt"` | Interactive session agent (earendil pi) |
 | Gemini CLI | `gemini` | Google Gemini from the shell |
@@ -48,10 +56,23 @@ from scripts — they apply the PHI scrubber and locality check automatically.
 
 ---
 
+## History & Analytics (write side)
+
+Tools that feed data into the Knowledge Layer.
+
+| Tool | Command | Purpose |
+|------|---------|---------|
+| History import | `history-import` | Bulk-import zsh/bash/atuin/fish history into SQLite |
+| History analysis | `history-analyze` | Pattern analysis: inefficiencies, alias candidates, failure rates |
+| Docker reclaim | `docker-reclaim` | `docker system prune` + `fstrim` to shrink Colima disk image |
+| OTel verifier | `trace-verify` | Contract test shell control plane via OTel JSONL trace stream |
+
+---
+
 ## Data Exploration (analytics read side)
 
 The command analytics pipeline writes to Redis → SQLite → PostgreSQL. These tools are the
-read side — none of them were installed before this session.
+read side.
 
 | Tool | Command | Purpose |
 |------|---------|---------|
@@ -136,6 +157,9 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 | `git-absorb` | `git absorb` | Auto-fixup: squash staged changes into the right commit |
 | `gh` | `gh pr create`, `gh dash` | GitHub CLI + gh-dash TUI for PR review |
 | `diff-so-fancy` | (configured in gitconfig) | Opinionated diff post-processor |
+| `commit-msg` | `bin/commit-msg` | AI commit message from staged diff via RTK+ai-query |
+| `diff-review` | `bin/diff-review` | AI review of staged or arbitrary diff before committing |
+| `alias-suggest` | `bin/alias-suggest` | Scan atuin history, suggest zsh aliases for repeated commands |
 
 ---
 
