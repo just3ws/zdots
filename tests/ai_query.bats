@@ -14,6 +14,8 @@
 #   J. Exit codes
 #   K. Live tests (skipped when server not running)
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   load "setup.bash"
   setup_environment
@@ -672,6 +674,30 @@ ANSI_MOCK
   [ "$status" -eq 0 ]
   # stdout should not contain ESC bytes
   [[ "$output" != *$'\033'* ]]
+}
+
+@test "I10b: --json output includes findings array on all invocations" {
+  PATH="$MOCK_BIN:$PATH" run "$BIN/ai-query" --json "test prompt"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.findings | arrays' >/dev/null
+}
+
+@test "I10c: findings is empty array on clean input" {
+  PATH="$MOCK_BIN:$PATH" run "$BIN/ai-query" --json "test prompt" \
+    < "$FIXTURES/plain.txt"
+  [ "$status" -eq 0 ]
+  count=$(echo "$output" | jq '.findings | length')
+  [ "$count" -eq 0 ]
+}
+
+@test "I10d: findings array is populated on injection fixture input" {
+  # --separate-stderr: high-risk content triggers stderr risk-scan output; keep $output JSON-only
+  PATH="$MOCK_BIN:$PATH" run --separate-stderr "$BIN/ai-query" --json "analyze" \
+    < "$FIXTURES/injection_obvious.txt"
+  [ "$status" -eq 0 ]
+  count=$(echo "$output" | jq '.findings | length')
+  [ "${count:-0}" -gt 0 ]
+  echo "$output" | jq -e '.findings[0] | .weight and (.name | strings) and (.excerpt | strings)' >/dev/null
 }
 
 @test "I11: default mode is safe-extract (not raw)" {
