@@ -5,7 +5,7 @@ P10K_THEME_CANDIDATES=(
   "$HOME/.local/share/powerlevel10k/powerlevel10k.zsh-theme"
 )
 for P10K_THEME in $P10K_THEME_CANDIDATES; do
-  if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" && -r "$P10K_THEME" ]]; then
+  if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" && -t 1 && -r "$P10K_THEME" ]]; then
     source "$P10K_THEME"
     break
   fi
