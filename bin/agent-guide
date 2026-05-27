@@ -148,7 +148,7 @@ if $JSON; then
           {
             name:  "ctx-mcp",
             tools: ["ctx_status","ctx_query","ctx_hydrate","ctx_add_methodology","ctx_add_lesson","ctx_capture","ctx_enqueue","ctx_jobs"],
-            note:  "Intelligence suite / Second brain"
+            note:  "Knowledge Layer — second brain (lessons, methodologies, session residue)"
           }
         ],
         note: "Registered in ~/.claude.json; available natively in Claude Code sessions"
@@ -251,7 +251,7 @@ CAPABILITY DISCOVERY — start here when integrating or debugging:
     llama_run_test        run integration test suite (quick or full)
     llama_integration_snippet  working code for ruby_llm / python / node / curl
 
-  Intelligence Suite MCP tools (ctx-mcp):
+  Knowledge Layer MCP tools (ctx-mcp):
     ctx_status            check intelligence suite connectivity
     ctx_query             search methodologies and lessons
     ctx_hydrate           get context for AI tasks

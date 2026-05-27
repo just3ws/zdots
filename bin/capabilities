@@ -34,10 +34,29 @@ CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
 RESET='\033[0m'
 
+usage() {
+  cat <<EOF
+Usage: capabilities [--json] [-h|--help]
+
+Environment health and service contract validator.
+Checks service providers, critical paths, observability, Knowledge Layer,
+and tooling reality against the .zdots.env manifest.
+
+Options:
+  --json      Machine-readable JSON output
+  -h, --help  Show this help
+EOF
+}
+
 OUTPUT_FORMAT="text"
-if [ "${1:-}" = "--json" ]; then
-  OUTPUT_FORMAT="json"
-fi
+for _arg in "$@"; do
+  case "$_arg" in
+    --json)      OUTPUT_FORMAT="json" ;;
+    -h|--help)   usage; exit 0 ;;
+    *)           printf 'capabilities: unknown option: %s\n' "$_arg" >&2; usage >&2; exit 1 ;;
+  esac
+done
+unset _arg
 
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo "${BOLD}Zdots Environment Capabilities Report${RESET}"
@@ -203,10 +222,10 @@ if [ -n "${ZDOTS_SERVICE_AI:-}" ] && [ "$ZDOTS_SERVICE_AI" != "none" ]; then
   fi
 fi
 
-# 5. Intelligence Suite & MCP (The "Brain")
+# 5. Knowledge Layer & MCP
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo ""
-  echo "${BOLD}Intelligence Suite (Brain):${RESET}"
+  echo "${BOLD}Knowledge Layer:${RESET}"
 fi
 
 _ctx_live=0
@@ -226,9 +245,9 @@ fi
 
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   if [ "$_ctx_live" = "1" ]; then
-    printf "  %bIntelligence:%b %bonline (%s) [%s pending jobs]%b\n" "$CYAN" "$RESET" "$GREEN" "$_ctx_db" "$_ctx_pending" "$RESET"
+    printf "  %bKnowledge DB:%b  %bonline (%s) [%s pending jobs]%b\n" "$CYAN" "$RESET" "$GREEN" "$_ctx_db" "$_ctx_pending" "$RESET"
   else
-    printf "  %bIntelligence:%b %boffline/uninitialized%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
+    printf "  %bKnowledge DB:%b  %boffline/uninitialized%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
   fi
 
   # Check MCP servers
