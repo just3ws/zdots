@@ -119,8 +119,8 @@ _zca_precmd() {
   local raw
   raw="$(_zca_redact "$_ZCA_CMD")" || { _ZCA_CMD=""; return 0; }
 
-  local duration_ms=$(( int(($EPOCHREALTIME - _ZCA_START) * 1000) ))
-  local ts=$(( int($EPOCHREALTIME) ))
+  typeset -i duration_ms=$(( ($EPOCHREALTIME - _ZCA_START) * 1000 ))
+  typeset -i ts=$(( $EPOCHREALTIME ))
   local session_id="${ZDOTS_TRACE_ID:-session-$$}"
   local profile="${ZDOTS_ENV_PROFILE:-unknown}"
   local cmd="${raw[(w)1]}"
