@@ -47,7 +47,7 @@ usage() {
   cat <<EOF
 Usage: zdots-ctx <command> [--json]
 
-Intelligence Suite Interface:
+Knowledge Layer Interface:
   status    Check connection and report database metadata
   init-db   Create the database and apply initial schema
   migrate   Apply pending SQL migrations from etc/db/migrations
@@ -57,6 +57,7 @@ Intelligence Suite Interface:
   seed      Import existing standards from ~/my/standards
   add-methodology <slug> <title> <content> [tags...]
   add-lesson <content> [context] [tags...]
+  ingest [--dry-run] <file.md | dir/> | --all  Ingest Knowledge Vault documents
   enqueue [--force] <type> <payload_json> [priority]
   requeue <job_id>
   jobs      List pending and recent jobs
@@ -236,12 +237,13 @@ EOF
     return
   fi
 
-  # Propose the lesson to the user
-  # Scrub PHI from all fields before display or DB write
+  # Propose the lesson to the user.
+  # No hygiene here — output already passed through aiq_sanitize_output (→ _mh_normalize)
+  # in bin/ai-query; model can only echo content it received, which was PHI-scrubbed on input.
   local lesson intent result
-  lesson=$(echo "$distillation" | jq -r '.lesson' 2>/dev/null | zdots_message_hygiene || echo "error parsing lesson")
-  intent=$(echo "$distillation" | jq -r '.intent' 2>/dev/null | zdots_message_hygiene || echo "error parsing intent")
-  result=$(echo "$distillation" | jq -r '.result' 2>/dev/null | zdots_message_hygiene || echo "error parsing result")
+  lesson=$(echo "$distillation" | jq -r '.lesson' 2>/dev/null || echo "error parsing lesson")
+  intent=$(echo "$distillation" | jq -r '.intent' 2>/dev/null || echo "error parsing intent")
+  result=$(echo "$distillation" | jq -r '.result' 2>/dev/null || echo "error parsing result")
 
   printf -- "\n--- PROPOSED SESSION RESIDUE ---\n"
   printf "INTENT: %s\n" "$intent"
@@ -301,6 +303,10 @@ cmd_add_methodology() {
 
 cmd_add_lesson() {
   "${ZDOTDIR}/sbin/zdots-brain" add-lesson "$@"
+}
+
+cmd_ingest() {
+  "${ZDOTDIR}/sbin/zdots-brain" ingest "$@"
 }
 
 cmd_enqueue() {
@@ -559,6 +565,7 @@ case "${1:-}" in
   seed)     shift; cmd_seed "${@}" ;;
   add-methodology) shift; cmd_add_methodology "${@}" ;;
   add-lesson)      shift; cmd_add_lesson "${@}" ;;
+  ingest)          shift; cmd_ingest "${@}" ;;
   enqueue)         shift; cmd_enqueue "${@}" ;;
   requeue)         shift; cmd_requeue "${@}" ;;
   jobs)            shift; cmd_jobs "${@}" ;;
