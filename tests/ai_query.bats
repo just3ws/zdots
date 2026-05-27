@@ -761,3 +761,66 @@ ANSI_MOCK
   result=$("$BIN/ai-query" "Respond with the word: hello")
   [[ "$result" != *$'\033'* ]]
 }
+
+# ===========================================================================
+# L. Audit log
+# ===========================================================================
+
+@test "L1: audit log created with 600 permissions when AIQ_AUDIT_LOG=1" {
+  local log_file="$BATS_TEST_TMPDIR/state/zsh/ai-query-audit.jsonl"
+  PATH="$MOCK_BIN:$PATH" XDG_STATE_HOME="$BATS_TEST_TMPDIR/state" \
+    AIQ_AUDIT_LOG=1 run "$BIN/ai-query" "test prompt"
+  [ "$status" -eq 0 ]
+  [ -f "$log_file" ]
+  perms=$(stat -f '%A' "$log_file" 2>/dev/null || stat -c '%a' "$log_file")
+  [ "$perms" = "600" ]
+}
+
+@test "L2: audit log line contains all required fields" {
+  local log_file="$BATS_TEST_TMPDIR/state2/zsh/ai-query-audit.jsonl"
+  printf 'some content\n' \
+    | PATH="$MOCK_BIN:$PATH" XDG_STATE_HOME="$BATS_TEST_TMPDIR/state2" \
+        AIQ_AUDIT_LOG=1 "$BIN/ai-query" "analyze" >/dev/null
+  [ -f "$log_file" ]
+  line=$(head -1 "$log_file")
+  echo "$line" | jq -e '
+    .ts and .mode and (.risk_score != null) and .risk_level
+    and (.input_bytes != null) and .content_hash and .model and .endpoint
+  ' >/dev/null
+}
+
+@test "L3: audit log never contains raw input content" {
+  local log_file="$BATS_TEST_TMPDIR/state3/zsh/ai-query-audit.jsonl"
+  local sentinel="SUPER_SECRET_SENTINEL_xyz123"
+  printf '%s\n' "$sentinel" \
+    | PATH="$MOCK_BIN:$PATH" XDG_STATE_HOME="$BATS_TEST_TMPDIR/state3" \
+        AIQ_AUDIT_LOG=1 "$BIN/ai-query" "analyze" >/dev/null
+  [ -f "$log_file" ]
+  run grep -q "$sentinel" "$log_file"
+  [ "$status" -ne 0 ]
+}
+
+@test "L4: audit log not written when AIQ_AUDIT_LOG unset" {
+  local log_file="$BATS_TEST_TMPDIR/state4/zsh/ai-query-audit.jsonl"
+  PATH="$MOCK_BIN:$PATH" XDG_STATE_HOME="$BATS_TEST_TMPDIR/state4" \
+    run "$BIN/ai-query" "test prompt"
+  [ "$status" -eq 0 ]
+  [ ! -f "$log_file" ]
+}
+
+@test "L5: --audit flag enables audit log" {
+  local log_file="$BATS_TEST_TMPDIR/state5/zsh/ai-query-audit.jsonl"
+  PATH="$MOCK_BIN:$PATH" XDG_STATE_HOME="$BATS_TEST_TMPDIR/state5" \
+    run "$BIN/ai-query" --audit "test prompt"
+  [ "$status" -eq 0 ]
+  [ -f "$log_file" ]
+}
+
+@test "L6: blocked high-risk input is logged with risk_level=high" {
+  local log_file="$BATS_TEST_TMPDIR/state6/zsh/ai-query-audit.jsonl"
+  XDG_STATE_HOME="$BATS_TEST_TMPDIR/state6" AIQ_AUDIT_LOG=1 \
+    run "$BIN/ai-query" --block-high "analyze" < "$FIXTURES/injection_obvious.txt"
+  [ "$status" -eq 4 ]
+  [ -f "$log_file" ]
+  echo "$(head -1 "$log_file")" | jq -e '.risk_level == "high"' >/dev/null
+}
