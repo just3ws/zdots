@@ -306,6 +306,7 @@ fi
 RISK_SCORE=0
 RISK_LEVEL="low"
 SCAN_OUTPUT=""
+FINDINGS_JSON="[]"
 
 if [[ "$HAS_STDIN" == "true" ]]; then
   # Capture scan output; aiq_scan prints findings + SCORE line to stdout
@@ -350,6 +351,11 @@ elif [[ -n "$TASK" ]]; then
     | grep '^SCORE:' | tail -1 | sed 's/.*LEVEL://' | tr -d '[:space:]' || printf 'low')
   $OPT_SHOW_RISK && printf '%s\n' "$SCAN_OUTPUT" >&2 || true
 fi
+
+FINDINGS_JSON=$(printf '%s\n' "$SCAN_OUTPUT" \
+  | { grep '^FINDING_JSON:' || true; } \
+  | sed 's/^FINDING_JSON://' \
+  | jq -s '.')
 
 # ---------------------------------------------------------------------------
 # Normalize input
@@ -441,6 +447,7 @@ if $OPT_JSON; then
     --argjson risk_score  "${RISK_SCORE:-0}" \
     --arg risk_level "${RISK_LEVEL:-low}" \
     --argjson bytes  "${norm_bytes:-0}" \
+    --argjson findings "$FINDINGS_JSON" \
     '{
       content:    $content,
       mode:       $mode,
@@ -448,7 +455,8 @@ if $OPT_JSON; then
       endpoint:   $endpoint,
       risk_score: $risk_score,
       risk_level: $risk_level,
-      input_bytes: $bytes
+      input_bytes: $bytes,
+      findings:   $findings
     }'
 else
   printf '%s\n' "$SAFE_RESPONSE"
