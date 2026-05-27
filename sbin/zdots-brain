@@ -520,7 +520,7 @@ module Zdots
         return
       end
 
-      host = ENV.fetch("HOST", Socket.gethostname rescue "unknown")
+      host = ENV.fetch("HOST", (Socket.gethostname rescue "unknown"))
 
       synced = 0
       new_cursor = last_id

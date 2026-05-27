@@ -398,31 +398,31 @@ model_list() {
 
 model_download() {
   _require_yq
-  local draft_only=false
-  [[ "${1:-}" == "--draft" ]] && draft_only=true
+  local also_draft=false
+  [[ "${1:-}" == "--draft" ]] && also_draft=true
 
-  if ! $draft_only; then
-    local hf_repo model_file
-    hf_repo=$(_profile_field hf_repo "")
-    model_file=$(_profile_field model_file "")
+  local hf_repo model_file
+  hf_repo=$(_profile_field hf_repo "")
+  model_file=$(_profile_field model_file "")
 
-    if [[ -z "$hf_repo" || "$hf_repo" == "null" || -z "$model_file" || "$model_file" == "null" ]]; then
-      echo "llama-ctl: error: no hf_repo or model_file for profile '${AI_PROFILE}'" >&2
+  if [[ -z "$hf_repo" || "$hf_repo" == "null" || -z "$model_file" || "$model_file" == "null" ]]; then
+    echo "llama-ctl: error: no hf_repo or model_file for profile '${AI_PROFILE}'" >&2
+    exit 1
+  fi
+  zdots_model_download "$hf_repo" "$model_file" "$MODELS_DIR"
+
+  # Draft model download: only when --draft is passed.
+  if $also_draft; then
+    local draft_hf_repo draft_model_file
+    draft_hf_repo=$(_profile_field draft_hf_repo "")
+    draft_model_file=$(_profile_field draft_model_file "")
+    if [[ -n "$draft_hf_repo" && "$draft_hf_repo" != "null" && \
+          -n "$draft_model_file" && "$draft_model_file" != "null" ]]; then
+      zdots_model_download "$draft_hf_repo" "$draft_model_file" "$MODELS_DIR"
+    else
+      echo "llama-ctl: error: no draft_hf_repo / draft_model_file for profile '${AI_PROFILE}'" >&2
       exit 1
     fi
-    zdots_model_download "$hf_repo" "$model_file" "$MODELS_DIR"
-  fi
-
-  # Draft model download (if profile defines one).
-  local draft_hf_repo draft_model_file
-  draft_hf_repo=$(_profile_field draft_hf_repo "")
-  draft_model_file=$(_profile_field draft_model_file "")
-  if [[ -n "$draft_hf_repo" && "$draft_hf_repo" != "null" && \
-        -n "$draft_model_file" && "$draft_model_file" != "null" ]]; then
-    zdots_model_download "$draft_hf_repo" "$draft_model_file" "$MODELS_DIR"
-  elif $draft_only; then
-    echo "llama-ctl: error: no draft_hf_repo / draft_model_file for profile '${AI_PROFILE}'" >&2
-    exit 1
   fi
 }
 
