@@ -37,9 +37,13 @@ zdots_pi_init() {
 #   zpi                        # interactive session
 #   zpi "explain this module"  # one-shot prompt
 #   zpi --print -p "explain"   # non-interactive, print output only
+#
+# Auto-appends AGENT.md from $PWD if present, after the zdots PI.md.
+# Any project can define a token-efficient local guide this way.
 zpi() {
   zdots_pi_init
   local _pi_system_append=()
-  [[ -r "${ZDOTDIR}/PI.md" ]] && _pi_system_append=(--append-system-prompt "${ZDOTDIR}/PI.md")
+  [[ -r "${ZDOTDIR}/PI.md" ]] && _pi_system_append+=(--append-system-prompt "${ZDOTDIR}/PI.md")
+  [[ -r "${PWD}/AGENT.md" ]] && _pi_system_append+=(--append-system-prompt "${PWD}/AGENT.md")
   pi "${_pi_system_append[@]}" "$@"
 }
