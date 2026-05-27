@@ -1,14 +1,18 @@
 ---
 id: Z-036
 title: Set AIQ_DEFAULT_MODE=safe-extract as platform default in .zdots.env
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-04-19 02:32'
+updated_date: '2026-05-27 17:42'
 labels:
   - ai-query
   - security
   - config
 dependencies: []
+modified_files:
+  - .zdots.env
+  - docs/ai-query.md
 priority: high
 ---
 
@@ -20,8 +24,14 @@ All tooling that calls ai-query should get safe-extract mode without requiring p
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 AIQ_DEFAULT_MODE=safe-extract is present in .zdots.env (or the canonical platform environment config file),docs/ai-query.md reflects AIQ_DEFAULT_MODE=safe-extract as the documented platform default,Existing ai-query tests pass with no regressions after the config change
+- [x] #1 AIQ_DEFAULT_MODE=safe-extract is present in .zdots.env (or the canonical platform environment config file),docs/ai-query.md reflects AIQ_DEFAULT_MODE=safe-extract as the documented platform default,Existing ai-query tests pass with no regressions after the config change
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added AIQ_DEFAULT_MODE=safe-extract to .zdots.env section 4 (AI Tool Defaults). Uses parameter expansion default so local overrides still work. docs/ai-query.md already documented this as the platform default.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
