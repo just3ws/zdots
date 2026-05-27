@@ -74,6 +74,7 @@ OPT_SHOW_RISK=false
 OPT_BLOCK_HIGH=false
 OPT_JSON=false
 OPT_DEBUG=false
+OPT_AUDIT=false
 
 # ---------------------------------------------------------------------------
 # usage — goes to stdout so it can be paged/redirected
@@ -110,6 +111,7 @@ Options:
   --no-wrap                Alias for --mode raw (emits loud warning)
   --system TEXT            Override system prompt (raw mode only; ignored otherwise)
   --json                   Output response + metadata as JSON on stdout
+  --audit                  Enable metadata-only audit log (or set AIQ_AUDIT_LOG=1)
   --debug                  Verbose diagnostics to stderr
   -h, --help               Show this help
 
@@ -119,6 +121,7 @@ Environment:
   AIQ_DEFAULT_MODE         Default mode (overrides built-in default of safe-extract)
   AIQ_MAX_BYTES            Hard input ceiling
   AIQ_WARN_BYTES           Soft warning threshold
+  AIQ_AUDIT_LOG            Set to 1 to enable metadata-only audit log
 
 Exit codes:
   0  success
@@ -168,6 +171,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --json)          OPT_JSON=true;       shift   ;;
+    --audit)         AIQ_AUDIT_LOG=1;     shift   ;;
     --debug)         OPT_DEBUG=true;      shift   ;;
     --help|-h)       usage; exit 0 ;;
     --)              shift; break ;;
@@ -179,6 +183,8 @@ while [[ $# -gt 0 ]]; do
     *) break ;;
   esac
 done
+
+[[ "${AIQ_AUDIT_LOG:-0}" == "1" ]] && OPT_AUDIT=true
 
 # Emit raw mode warning even when set via --mode (not --no-wrap)
 # AIQ_SUPPRESS_RAW_WARN=1: suppress for trusted callers that construct prompts internally
@@ -219,6 +225,38 @@ _mktmp() {
   printf '%s' "$f"
 }
 trap 'rm -f "${_TMP_FILES[@]}" 2>/dev/null || true' EXIT
+
+# ---------------------------------------------------------------------------
+# Audit log helpers
+# ---------------------------------------------------------------------------
+_aiq_sha256() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    printf 'unavailable'
+  fi
+}
+
+_aiq_write_audit() {
+  local input_bytes="${1:-0}" content_hash="${2:-}"
+  local log_dir="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+  local log_file="${log_dir}/ai-query-audit.jsonl"
+  mkdir -p "$log_dir"
+  [[ ! -f "$log_file" ]] && (umask 177; touch "$log_file")
+  jq -cn \
+    --argjson ts          "$(date -u +%s)" \
+    --arg     mode        "$MODE" \
+    --argjson risk_score  "${RISK_SCORE:-0}" \
+    --arg     risk_level  "${RISK_LEVEL:-low}" \
+    --argjson input_bytes "$input_bytes" \
+    --arg     content_hash "$content_hash" \
+    --arg     model       "$MODEL" \
+    --arg     endpoint    "$ENDPOINT" \
+    '{ts:$ts,mode:$mode,risk_score:$risk_score,risk_level:$risk_level,input_bytes:$input_bytes,content_hash:$content_hash,model:$model,endpoint:$endpoint}' \
+    >> "$log_file"
+}
 
 # ---------------------------------------------------------------------------
 # Read stdin (bounded)
@@ -294,6 +332,9 @@ if [[ "$HAS_STDIN" == "true" ]]; then
     printf 'ai-query: blocked: high-risk content detected (score=%s)\n' "$RISK_SCORE" >&2
     printf 'ai-query: use --mode classify-risk or --mode inspect-prompt-injection to inspect\n' >&2
     printf 'ai-query: remove --block-high to submit anyway (not recommended)\n' >&2
+    if $OPT_AUDIT; then
+      _aiq_write_audit "${raw_bytes:-0}" "$(_aiq_sha256 "$RAW_TMP")"
+    fi
     exit "${AIQ_BLOCKED}"
   fi
 elif [[ -n "$TASK" ]]; then
@@ -374,6 +415,19 @@ fi
 
 # Sanitize model output before printing to terminal
 SAFE_RESPONSE=$(printf '%s\n' "$RAW_RESPONSE" | aiq_sanitize_output)
+
+# ---------------------------------------------------------------------------
+# Audit log (success path) — metadata only, never raw content
+# ---------------------------------------------------------------------------
+if $OPT_AUDIT; then
+  if [[ -f "${NORM_TMP:-}" && -s "${NORM_TMP:-}" ]]; then
+    _aiq_audit_hash=$(_aiq_sha256 "$NORM_TMP")
+  else
+    # SHA256 of empty string
+    _aiq_audit_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  fi
+  _aiq_write_audit "${norm_bytes:-0}" "$_aiq_audit_hash"
+fi
 
 # ---------------------------------------------------------------------------
 # Output
