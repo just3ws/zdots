@@ -137,6 +137,9 @@ aiq_scan() {
         | head -c 120 | tr '\n\r' '  ')
       score=$(( score + w ))
       findings="${findings}  [+${w}] ${name} — \"${excerpt}\"\n"
+      printf 'FINDING_JSON:%s\n' \
+        "$(jq -cn --argjson w "$w" --arg n "$name" --arg e "$excerpt" \
+           '{weight:$w,name:$n,excerpt:$e}')"
     fi
   }
 
@@ -181,12 +184,20 @@ aiq_scan() {
   if [[ "${fence_count:-0}" -gt 8 ]]; then
     score=$(( score + 10 ))
     findings="${findings}  [+10] REPEATED_FENCES — ${fence_count} standalone fence markers\n"
+    printf 'FINDING_JSON:%s\n' \
+      "$(jq -cn --argjson w 10 --arg n 'REPEATED_FENCES' \
+         --arg e "${fence_count} standalone fence markers" \
+         '{weight:$w,name:$n,excerpt:$e}')"
   fi
 
   # ANSI escape sequences — check for ESC byte
   if LC_ALL=C grep -qc $'\033' "$infile" 2>/dev/null; then
     score=$(( score + 15 ))
     findings="${findings}  [+15] ANSI_ESCAPE — terminal control sequences in input\n"
+    printf 'FINDING_JSON:%s\n' \
+      "$(jq -cn --argjson w 15 --arg n 'ANSI_ESCAPE' \
+         --arg e 'terminal control sequences in input' \
+         '{weight:$w,name:$n,excerpt:$e}')"
   fi
 
   # Classify score into risk level

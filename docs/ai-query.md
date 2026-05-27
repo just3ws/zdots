@@ -225,10 +225,32 @@ The scanner runs on every invocation with stdin input. It checks for patterns as
   "mode":        "safe-extract",
   "model":       "local",
   "endpoint":    "http://127.0.0.1:8080",
-  "risk_score":  15,
-  "risk_level":  "low",
-  "input_bytes": 1234
+  "risk_score":  55,
+  "risk_level":  "medium",
+  "input_bytes": 1234,
+  "findings": [
+    { "weight": 30, "name": "IGNORE_PREVIOUS", "excerpt": "Ignore previous instructions and do..." },
+    { "weight": 25, "name": "EXEC_COMMAND",     "excerpt": "Execute this shell command: rm -rf ..." }
+  ]
 }
+```
+
+`findings` is always present; it is an empty array `[]` when no scanner patterns match. Each element corresponds to one matched scanner rule:
+
+| Field | Type | Description |
+|---|---|---|
+| `weight` | integer | Score contribution of this rule |
+| `name` | string | Rule identifier (e.g. `IGNORE_PREVIOUS`, `EXEC_COMMAND`) |
+| `excerpt` | string | First matching line, truncated to 120 characters |
+
+Downstream consumers can branch on specific rule names without re-implementing the scanner:
+
+```sh
+# Take stricter action when command execution is detected
+result=$(cat input.txt | ai-query --json "analyze")
+if echo "$result" | jq -e '.findings[] | select(.name == "EXEC_COMMAND")' >/dev/null; then
+  echo "command execution pattern detected — escalating"
+fi
 ```
 
 ---
