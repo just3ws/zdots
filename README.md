@@ -149,32 +149,39 @@ graph LR
 
 ## 5. Operational Commands
 
-All components are standalone executables in `bin/`.
+All components are standalone executables in `bin/`. Full tool reference: [docs/tooling.md](docs/tooling.md).
 
 | Command | Purpose |
 |---|---|
 | `zdots-ctl` | Platform orchestrator: `up/down/reset/install/check/status` |
-| `zdots-ctx` | Intelligence suite manager: `query/capture/hydrate/backup/seed` |
-| `ztask` | Task-driven orchestrator: `start/done/stop/status` |
-| `gemini-invoke` | Observable agent bridge (aliased to `gm`). |
-| `llama-ctl` | Manages local LLM lifecycle, profiles, and hardware tuning. |
-| `whisper-ctl` | Manages local transcription engine and model management. |
-| `ai-query` | Secure, normalized AI inference from any shell context. |
-| `otel-collector` | Manages the bare-metal OTel collector and tracing pipeline. |
-| `local-ci` | Manages the containerized LGTM (Grafana/Loki/Tempo) stack. |
-| `secret-scan` | High-confidence leak detection for AWS, GitHub, and SSH keys. |
-| `zdots-issue` | Agent help desk: file a bug, question, or capability request. Do not modify zdots — file an issue. |
+| `zdots-ctx` | Knowledge layer CLI: `query/capture/hydrate/sync-history/backup/seed` |
+| `ztask` | Task orchestrator: `start/done/stop/status <id>` — hydrates env to a task |
+| `zdots-ask` | Domain-aware AI router (shell/ruby/phi/default) |
+| `zdots-quiz` | Local model capability probe: `--quick` (3 cases) or full (14 cases) |
+| `zdots-keychain` | Secrets management: `add/get/list` — stores to macOS Keychain |
+| `zdots-status` | Self-refreshing service + env + storage status panel |
+| `zmorning` | Daily context brief + optional Pi orientation |
+| `zdash` | fzf task picker wired to Pi↔Aider↔ztask cycle |
+| `agent-guide` | Live endpoint + capability map for agent sessions |
+| `bench` | Shell startup benchmark; guards 80ms performance budget |
+| `gemini-invoke` | Observable Gemini bridge (aliased to `gm`) |
+| `llama-ctl` | Local LLM lifecycle, profiles, and hardware tuning |
+| `whisper-ctl` | Local transcription engine and model management |
+| `ai-query` | Guarded LLM inference with PHI scrubbing |
+| `otel-collector` | Bare-metal OTel collector and tracing pipeline |
+| `local-ci` | Containerized LGTM stack (Grafana/Loki/Tempo) |
+| `secret-scan` | High-confidence credential leak detection |
+| `zdots-issue` | Agent help desk: file a bug, question, or capability request |
 
 ---
 
-## 5. High-Value Superpowers
+## 6. High-Value Superpowers
 
 ### Sentient Workbench
-The shell is your prompt interface, providing deep context and emotional intelligence.
+The shell is your prompt interface, providing deep context and task-driven orchestration.
 
 *   **Collaborative Hand-off**: Every agent session (via `gm`) is linked to the shell trace.
 *   **Task Hydration**: `ztask start <id>` morphs the environment to match your intent.
-*   **Cognitive Load Awareness**: Detects frustration bursts and triggers **Calm Mode**.
 
 ### Autonomous Shell Brain (`zdots-ctx`)
 Your shell learns as you work, distilling complex sessions into structured knowledge.
@@ -185,7 +192,7 @@ zdots-ctx capture
 
 *   **Semantic Memory**: Uses local AI to distill "Intent vs Result" from your OTel traces and history.
 *   **Methodology Store**: A permanent PostgreSQL brain for your architectural standards.
-*   **AI Bridge (MCP)**: Exposes your brain to AI agents via the Model Context Protocol, allowing me (Gemini) to read your standards and contribute new lessons.
+*   **AI Bridge (MCP)**: Exposes your brain to AI agents via the Model Context Protocol (`ctx-mcp`) — agents can query standards and contribute new lessons.
 *   **Full-Text Search**: Sub-second lookups over your entire history of technical lessons.
 
 ### Side-Effect Broker (Job Queue)
@@ -216,7 +223,7 @@ ztranscribe 'https://www.youtube.com/watch?v=...' --diarize
 
 ---
 
-## 6. Local AI Routing Layer
+## 7. Local AI Routing Layer
 
 Zdots routes every prompt through a domain-aware local LLM layer before any frontier model is considered. The 7B model runs entirely on-device — no cloud egress, no API keys required for covered tasks.
 
@@ -269,7 +276,7 @@ zdots-quiz --quick                                              # 3-case smoke t
 
 ---
 
-## 7. Setup & Documentation
+## 8. Setup & Documentation
 
 Refer to [SETUP.md](SETUP.md) for the full clone-to-running walkthrough.
 
