@@ -15,6 +15,7 @@ require_relative "../lib/zdots/jobs/docs_sync"
 require "optparse"
 require "json"
 require "digest"
+require "yaml"
 
 module Zdots
   class CLI
@@ -46,6 +47,8 @@ module Zdots
         cmd_enqueue(args)
       when "jobs"
         cmd_jobs
+      when "ingest"
+        cmd_ingest(args)
       when "rekey"
         cmd_rekey(args)
       else
@@ -59,11 +62,13 @@ module Zdots
     def parse_options
       @options[:type] = nil
       @options[:dry_run] = false
+      @options[:all] = false
       OptionParser.new do |opts|
         opts.on("--json", "Output as JSON") { @options[:format] = "json" }
         opts.on("--semantic", "Perform semantic search") { @options[:semantic] = true }
         opts.on("--type TYPE", "Filter by job type") { |t| @options[:type] = t }
         opts.on("--dry-run", "Scan without writing changes") { @options[:dry_run] = true }
+        opts.on("--all", "Ingest full Knowledge Vault") { @options[:all] = true }
       end.parse!
     end
 
@@ -264,7 +269,7 @@ module Zdots
         return
       end
 
-      puts "The following context has been retrieved from the Cerebral Control Plane:\n\n"
+      puts "The following context has been retrieved from the Knowledge Layer:\n\n"
       puts "### PREFERRED METHODOLOGIES"
       if methodologies.any?
         methodologies.each do |m|
@@ -339,6 +344,142 @@ module Zdots
           printf "%-38s | %-13s | %-9s | %-8d | %-8d\n", j.id, j.type, j.status, j.priority, j.attempts
         end
       end
+    end
+
+    # ingest — read Knowledge Vault documents and upsert into the Knowledge Base.
+    #
+    # Usage:
+    #   zdots-brain ingest <file.md>          — single file
+    #   zdots-brain ingest <dir/>             — all .md files in directory (non-recursive)
+    #   zdots-brain ingest --all              — full vault (ZDOTS_MY_ROOT/knowledge)
+    #
+    # Each file must have YAML frontmatter with: type, slug, title, tags[].
+    # Files in inbox/ are skipped — they have no frontmatter and are not yet curated.
+    # Idempotent: upserts by slug; re-ingesting a file updates the existing record.
+    def cmd_ingest(args)
+      dry_run = @options[:dry_run]
+      vault_root = File.join(ENV.fetch("ZDOTS_MY_ROOT", File.expand_path("~/my")), "knowledge")
+
+      targets = if @options[:all]
+        Dir.glob(File.join(vault_root, "{lessons,methodologies,references}", "*.md"))
+      elsif args.empty?
+        puts "usage: zdots-brain ingest [--dry-run] <file.md | dir/> | --all"
+        exit 1
+      else
+        path = args.first
+        if File.directory?(path)
+          Dir.glob(File.join(path, "*.md"))
+        else
+          [path]
+        end
+      end
+
+      ingested = 0
+      skipped  = 0
+      errors   = 0
+
+      targets.each do |file|
+        unless File.exist?(file)
+          puts "  [skip] not found: #{file}"
+          skipped += 1
+          next
+        end
+
+        raw = File.read(file)
+        fm, body = parse_frontmatter(raw)
+
+        if fm.nil?
+          puts "  [skip] no frontmatter: #{File.basename(file)}"
+          skipped += 1
+          next
+        end
+
+        type = fm["type"]
+        slug = fm["slug"]
+        title = fm["title"]
+        tags = Array(fm["tags"])
+
+        unless %w[lesson methodology reference].include?(type)
+          puts "  [skip] unknown type '#{type}': #{File.basename(file)}"
+          skipped += 1
+          next
+        end
+
+        if slug.nil? || slug.empty?
+          puts "  [skip] missing slug: #{File.basename(file)}"
+          skipped += 1
+          next
+        end
+
+        if dry_run
+          puts "  [dry-run] would ingest #{type} '#{slug}': #{title}"
+          ingested += 1
+          next
+        end
+
+        begin
+          case type
+          when "methodology", "reference"
+            title ||= slug
+            m = Zdots::Models::Methodology.first(slug: slug) || Zdots::Models::Methodology.new(slug: slug)
+            m.title   = title
+            m.content = body.strip
+            m.tags    = Sequel.pg_array(tags)
+            m.save
+            Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+              type:        "embed",
+              payload:     Sequel.pg_jsonb({ table: "methodologies", id: m.id, text: body.strip }),
+              priority:    10,
+              fingerprint: Digest::MD5.hexdigest("embed-methodologies-#{m.id}")
+            )
+            puts "  [ok] #{type} '#{slug}'"
+          when "lesson"
+            fingerprint = Digest::MD5.hexdigest("ingest-lesson-#{slug}")
+            existing = Zdots::Models::Lesson.where(source_trace_id: "ingest:#{slug}").first
+            if existing
+              existing.content = body.strip
+              existing.context = title
+              existing.tags    = Sequel.pg_array(tags)
+              existing.save
+              l = existing
+              puts "  [updated] lesson '#{slug}'"
+            else
+              l = Zdots::Models::Lesson.create(
+                content:         body.strip,
+                context:         title,
+                tags:            Sequel.pg_array(tags),
+                source_trace_id: "ingest:#{slug}"
+              )
+              puts "  [ok] lesson '#{slug}'"
+            end
+            Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+              type:        "embed",
+              payload:     Sequel.pg_jsonb({ table: "lessons", id: l.id, text: body.strip }),
+              priority:    10,
+              fingerprint: Digest::MD5.hexdigest("embed-lessons-#{l.id}")
+            )
+          end
+          ingested += 1
+        rescue => e
+          puts "  [error] #{File.basename(file)}: #{e.message}"
+          errors += 1
+        end
+      end
+
+      puts "\nzdots-brain ingest#{dry_run ? " (dry run)" : ""}: #{ingested} ingested, #{skipped} skipped, #{errors} errors"
+      exit(errors > 0 ? 1 : 0)
+    end
+
+    def parse_frontmatter(raw)
+      return [nil, raw] unless raw.start_with?("---\n")
+      close = raw.index("\n---\n", 4)
+      return [nil, raw] if close.nil?
+      fm_text = raw[4...close]
+      body    = raw[(close + 5)..]
+      fm = YAML.safe_load(fm_text, permitted_classes: [Symbol])
+      [fm, body]
+    rescue
+      [nil, raw]
     end
 
     def cmd_rekey(args)

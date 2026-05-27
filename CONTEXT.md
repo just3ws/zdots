@@ -4,6 +4,22 @@ Terms used in code, docs, and agent instructions. Use exact names.
 
 ---
 
+## Platform Service
+
+Any long-running process managed by `zdots-ctl`: startable, stoppable, health-probeable, and tracked in `zdots-ctl status --json`. The umbrella category — does not imply a tier.
+
+**Core Service** — a Platform Service zdots itself depends on to function. Always present on any zdots host. Examples: llama.cpp (AI inference), whisper (transcription), otel-collector (observability), context engine (knowledge persistence).
+
+**Hosted Service** — a Platform Service zdots manages on behalf of a project or workload. zdots does not depend on it; it is host-profile-selected. Examples: wwworkremote (job search automation), Phalanx Duel (game management).
+
+A service can hold both roles simultaneously: context engine is a Core Service (zdots-ctx depends on it) and a Hosted Service (external tools consume it directly).
+
+**Hosted Service interaction patterns:**
+- **CLI Pipeline** — caller passes input on the command line; the service owns the automation. Pattern: `command <input>` → async processing. Examples: video transcription, wwworkremote.
+- **AI Interface** — MCP-backed; AI mediates all interactions with the system. Examples: Phalanx Duel.
+
+---
+
 ## Message Hygiene Pipeline
 
 The ordered sequence of transformations applied to any text before it enters the system for inference or persistence.
@@ -54,3 +70,58 @@ The seam through which all local AI inference is called. Lives in `lib/ai-invoke
 - Used by: `zdots-ctx capture` (distillation of session history/traces).
 
 **Caller contract:** callers build and own the prompt. These functions own gate, hygiene, submission, and output parsing. Neither function constructs prompts.
+
+---
+
+## Knowledge Layer
+
+The layer above the platform services that makes zdots more than a shell config. Encompasses: zdots-brain (gateway), the Knowledge Base (PostgreSQL), the Knowledge Vault (Obsidian source documents), and the Virtuous Loop (the feedback cycle that keeps it healthy).
+
+Previously called "Intelligence Suite" in `.zdots.env` — that name is retired. Use **Knowledge Layer** everywhere.
+
+The Knowledge Layer is local-only. Nothing in it reaches cloud services.
+
+---
+
+## Knowledge Base
+
+The personal "second brain" stored in the `my` PostgreSQL database. Contains engineering lessons, aesthetic preferences, insights, and reference material accumulated over time. Not a product or shared system — a personal knowledge layer.
+
+**Gateway:** `zdots-brain` (Ruby CLI, `sbin/zdots-brain`) is the sole owner of read/write access. `zdots-ctx` is the shell interface to `zdots-brain`. No other tool writes to the knowledge base directly.
+
+**Stored entities (in order of abstraction):**
+- **Session Residue** — raw distillation of a captured shell session: `intent`, `result`, `summary`, linked by `trace_id`. Written by `zdots-ctx capture`. Has a `processed_into_docs_at` lifecycle flag; unset means not yet curated.
+- **Lesson** — a curated knowledge unit: `content`, `context`, `tags`. Can be promoted from Session Residue or authored directly (no source trace required).
+- **Methodology** — a synthesized, higher-level knowledge artifact: `slug`, `title`, `content`, `tags`. Authored deliberately; represents stable principles rather than individual session observations.
+
+---
+
+## Knowledge Vault
+
+The Obsidian-managed document directory that is the source of truth for the Knowledge Base. Lives at `~/my/knowledge/`. Documents are edited in Obsidian; ingestion into PostgreSQL is a derived operation — the markdown files are always authoritative.
+
+**Structure:**
+- `inbox/` — fast capture; unprocessed drafts; never ingested until promoted
+- `lessons/` — atomic curated knowledge units; maps to the `lessons` table
+- `methodologies/` — synthesized principles and reference documents; maps to the `methodologies` table
+- `references/` — external source documents (manifestos, standards); maps to the `methodologies` table
+
+**Frontmatter contract** (required for ingestion): `type`, `tags[]`, `slug`. The `slug` is the stable upsert key — re-ingesting a file updates the existing DB record without creating a duplicate.
+
+**Correction discipline:** corrections discovered in Pi conversations are applied by editing the source document in Obsidian and re-ingesting. The database is never edited directly.
+
+---
+
+## Virtuous Loop
+
+The positive feedback cycle that makes AI-assisted work improve over time:
+
+1. **Work** — do real work in shell sessions with AI agents.
+2. **Capture** — `zdots-ctx capture` distills the session into Session Residue.
+3. **Curate** — review Session Residue, promote to Lessons; synthesize Lessons into Methodologies. Curation can be done via Pi interacting with the Knowledge Base directly.
+4. **Infer** — future AI calls (`zdots-ctx hydrate`, `zdots-ask`) pull curated context from the Knowledge Base, improving response quality.
+5. Repeat — each cycle deposits better signal and withdraws sharper context.
+
+The loop is only valuable if curation happens. Uncurated session residue (`processed_into_docs_at` is null) is raw material, not signal.
+
+**Trust property:** the Virtuous Loop is what makes `zdots-*` commands safe to auto-permit in local AI agents. Because all agent actions are captured, curated, and fed back as lessons, unexpected or wrong behavior becomes a learning event rather than an invisible failure. The loop is the governance mechanism — not just policy.
