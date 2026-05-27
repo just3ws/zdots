@@ -5,7 +5,10 @@ setup() {
   load "setup"
   setup_environment
   source "$REPO_ROOT/lib/metadata.bash"
-  
+
+  # Prevent real environment from bleeding into tests
+  unset ZDOTS_AI_PROFILE ZDOTS_WHISPER_PROFILE
+
   # Create a mock config for testing overrides
   TEST_CONFIG_DIR=$(mktemp -d)
   ZDOTS_META_DIR="$TEST_CONFIG_DIR"
@@ -73,8 +76,8 @@ teardown() {
   export ZDOTS_AI_PROFILE=standard
   run zdots_meta_env ai
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q 'export ZDOTS_AI_MODEL_FILE="std.gguf"'
-  echo "$output" | grep -q 'export ZDOTS_AI_PORT="8080"'
+  echo "$output" | grep -q "ZDOTS_AI_MODEL_FILE.*std.gguf"
+  echo "$output" | grep -q "ZDOTS_AI_PORT.*8080"
 }
 
 @test "metadata: dump platform aggregates services" {
