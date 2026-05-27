@@ -10,6 +10,7 @@
 #      └── LGTM stack (docker-compose in Colima)
 #            └── otel-collector (bare-metal, forwards to LGTM)
 #   2. llama-ctl / AI server (independent, launchd)
+#   3. llama-ctl embed server (independent, launchd, port 8090)
 
 set -euo pipefail
 trap '' PIPE
@@ -25,6 +26,7 @@ source "${ZDOTDIR}/lib/svc-health.bash"
 # ---------------------------------------------------------------------------
 
 AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+EMBED_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:8090}"
 OTLP_ENDPOINT="http://127.0.0.1:4318"
 GRAFANA_URL="http://127.0.0.1:3000"
 REDIS_HOST="${ZDOTS_REDIS_HOST:-127.0.0.1}"
@@ -51,13 +53,14 @@ _fix()  { printf '         fix: %s\n' "$*"; }
 # Live probes — Enforce opaque service control seam
 # ---------------------------------------------------------------------------
 
-_ai_http_up() { curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; }
-_ai_up()      { _ai_http_up || zdots_svc_loopback_listening "$AI_ENDPOINT"; }
-_otel_up()    { "$BIN/otel-collector" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$OTLP_ENDPOINT"; }
-_grafana_up() { "$BIN/local-ci" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$GRAFANA_URL"; }
-_colima_up()  { colima status >/dev/null 2>&1; }
-_ctx_up()     { "$BIN/zdots-ctx" status >/dev/null 2>&1; }
-_redis_up()   { redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping >/dev/null 2>&1; }
+_ai_http_up()    { curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; }
+_ai_up()         { _ai_http_up || zdots_svc_loopback_listening "$AI_ENDPOINT"; }
+_embed_up()      { curl -sf -m 2 "${EMBED_ENDPOINT}/health" >/dev/null 2>&1; }
+_otel_up()       { "$BIN/otel-collector" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$OTLP_ENDPOINT"; }
+_grafana_up()    { "$BIN/local-ci" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$GRAFANA_URL"; }
+_colima_up()     { colima status >/dev/null 2>&1; }
+_ctx_up()        { "$BIN/zdots-ctx" status >/dev/null 2>&1; }
+_redis_up()      { redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping >/dev/null 2>&1; }
 
 _wait_for() {
   local label="$1" url="$2" timeout="${3:-$WAIT_TIMEOUT}"
@@ -116,6 +119,16 @@ cmd_up() {
     _ok "AI server up"
   fi
 
+  # 4. Embed server (independent, port 8090)
+  if _embed_up; then
+    _ok "embed server already up"
+  else
+    _info "starting embed server..."
+    "$BIN/llama-ctl" start-embed
+    _wait_for "embed server" "${EMBED_ENDPOINT}/health" 60
+    _ok "embed server up"
+  fi
+
   _section "Platform status"
   cmd_status
 }
@@ -125,6 +138,8 @@ cmd_down() {
   # Reverse dependency order
   _info "stopping otel-collector..."
   "$BIN/otel-collector" stop 2>/dev/null || true
+  _info "stopping embed server..."
+  "$BIN/llama-ctl" stop-embed 2>/dev/null || true
   _info "stopping AI server..."
   "$BIN/llama-ctl" stop 2>/dev/null || true
   _info "stopping LGTM stack and Colima..."
@@ -143,6 +158,8 @@ cmd_install() {
   _section "Installing platform (first-time setup)"
   _info "installing llama.cpp..."
   "$BIN/llama-ctl" install
+  _info "installing embed server..."
+  "$BIN/llama-ctl" install-embed
   _info "installing otel-collector..."
   "$BIN/otel-collector" install
   _section "Starting platform"
@@ -155,9 +172,10 @@ cmd_status() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local lgtm_up ai_up otel_up colima_up ctx_up redis_up
+  local lgtm_up ai_up embed_up otel_up colima_up ctx_up redis_up
   _grafana_up && lgtm_up=true   || lgtm_up=false
   _ai_up      && ai_up=true     || ai_up=false
+  _embed_up   && embed_up=true  || embed_up=false
   _otel_up    && otel_up=true   || otel_up=false
   _colima_up  && colima_up=true || colima_up=false
   _ctx_up     && ctx_up=true    || ctx_up=false
@@ -170,9 +188,9 @@ cmd_status() {
   fi
 
   if $json; then
-    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"grafana_url":"%s","ai_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
-      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" "$ai_model" "$ctx_up" "$redis_up" \
-      "$GRAFANA_URL" "$AI_ENDPOINT" "$OTLP_ENDPOINT" "$REDIS_HOST" "$REDIS_PORT"
+    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"embed_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"grafana_url":"%s","ai_endpoint":"%s","embed_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
+      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" "$embed_up" "$ai_model" "$ctx_up" "$redis_up" \
+      "$GRAFANA_URL" "$AI_ENDPOINT" "$EMBED_ENDPOINT" "$OTLP_ENDPOINT" "$REDIS_HOST" "$REDIS_PORT"
     return
   fi
 
@@ -185,10 +203,11 @@ cmd_status() {
   printf '  %-20s %s  %s\n' "LGTM stack"     "$(_sym "$lgtm_up")"  "$GRAFANA_URL"
   printf '  %-20s %s  %s\n' "otel-collector" "$(_sym "$otel_up")"  "$OTLP_ENDPOINT"
   printf '  %-20s %s  %s\n' "AI server"      "$(_sym "$ai_up")"    "$AI_ENDPOINT"
+  printf '  %-20s %s  %s\n' "embed server"   "$(_sym "$embed_up")" "$EMBED_ENDPOINT"
   printf '  %-20s %s  %s\n' "intelligence"   "$(_sym "$ctx_up")"   "postgres"
   printf '  %-20s %s  %s\n' "cache"          "$(_sym "$redis_up")" "${REDIS_HOST}:${REDIS_PORT}"
 
-  if [[ "$lgtm_up" == false || "$ai_up" == false || "$otel_up" == false ]]; then
+  if [[ "$lgtm_up" == false || "$ai_up" == false || "$embed_up" == false || "$otel_up" == false ]]; then
     printf '\nzdots-ctl: to start all: zdots-ctl up\n'
   fi
 }
