@@ -56,9 +56,8 @@ flowchart LR
     end
 
     boundary -->|127.0.0.1:8080 only| llama
-    ask -.->|--context flag Z-092| ctxcli
     zaider -->|local model| llama
-    cl -->|frontier| ext["Anthropic API\n(ZDOTS_AI_MODE=local blocks)"]
+    cl -->|frontier · unaffected by ZDOTS_AI_MODE| ext["Anthropic API"]
 ```
 
 ---

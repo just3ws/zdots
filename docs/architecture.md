@@ -147,6 +147,7 @@ erDiagram
     methodologies ||--o{ jobs : "triggers embedding"
     lessons ||--o{ jobs : "triggers embedding"
     jobs ||--o{ jobs : "chains follow-up"
+    session_residue ||--o{ lessons : "promotes to"
     
     methodologies {
         uuid id PK
@@ -182,6 +183,38 @@ erDiagram
         timestamptz next_run_at
         timestamptz created_at
     }
+
+    session_residue {
+        uuid id PK
+        text trace_id UK
+        text summary
+        text intent
+        text result
+        int command_count
+        jsonb metadata
+        timestamptz processed_into_docs_at
+        timestamptz created_at
+    }
+
+    command_runs {
+        bigserial id PK
+        text session_id
+        bigint ts
+        text cwd
+        text cmd
+        text args
+        int exit_code
+        int duration_ms
+        text profile
+        text host
+        timestamptz synced_at
+    }
+
+    sync_state {
+        text key PK
+        text value
+        timestamptz updated_at
+    }
 ```
 
 ### Job Broker Lifecycle (State Diagram)
@@ -213,7 +246,48 @@ stateDiagram-v2
 
 ---
 
-## 8. Local AI Routing Architecture
+## 8. Command Analytics Pipeline
+
+Shell commands flow through a two-stage write path before landing in PostgreSQL.
+
+```mermaid
+flowchart LR
+    subgraph Shell["Zsh Shell (conf.d/56-cmd-analytics.zsh)"]
+        precmd["_zca_precmd\npreexec hook"]
+        redact["_zca_redact\nPHI scrub · suppress check"]
+        precmd --> redact
+    end
+
+    subgraph WriteBuffer["Write Buffer"]
+        redis["Redis\nzdots:cmds:<session> TTL 24h\nRPUSH synchronous"]
+        sqlite["SQLite\nhistory.sqlite3\nasync fallback"]
+        redis -. "unreachable" .-> sqlite
+    end
+
+    subgraph Drain["zdots-ctx sync-history"]
+        drain["_drain_redis_to_sqlite\nper-key transaction · DEL after drain"]
+        sqlite2["SQLite\nconsolidated"]
+        sync["zdots-brain sync-history\nSQLite → PostgreSQL"]
+        drain --> sqlite2 --> sync
+    end
+
+    subgraph PG["PostgreSQL: my"]
+        cr["command_runs\n(dedup by session+ts+cmd)"]
+        ss["sync_state\ncursor: last synced rowid"]
+    end
+
+    redact -->|"suppressed → dropped"| drop(["dropped"])
+    redact -->|"clean / redacted"| redis
+    Shell --> Drain
+    sync --> cr
+    sync --> ss
+```
+
+**PHI contract:** `_zca_redact` runs `phi_should_suppress` first. Suppress-flagged commands (connection strings) set `_ZCA_CMD=""` and return — no write to Redis, SQLite, or PostgreSQL. Redact patterns apply `phi_scrub` (sed substitution) before the write.
+
+---
+
+## 9. Local AI Routing Architecture
 
 The AI layer sits between the operator and llama.cpp, enforcing PHI boundaries and injecting domain-specific system prompts. See [local-ai.md](local-ai.md) for full documentation.
 
@@ -228,7 +302,7 @@ flowchart LR
     domain -->|phi/encrypt/ssn| pp["zdots-phi.md"]
     domain -->|default| dp["zdots-default.md"]
     sp & rp & pp & dp --> gate[zdots_ai_gate\nPHI boundary]
-    gate -->|ZDOTS_AI_MODE=local| llama["llama.cpp\n127.0.0.1:8080\nQwen2.5-Coder 7B"]
+    gate -->|ZDOTS_AI_MODE=local| llama["llama.cpp\n127.0.0.1:8080\nQwen3-8B"]
     gate -->|ZDOTS_AI_MODE=none| exit2([exit 2])
 ```
 
@@ -243,7 +317,7 @@ flowchart LR
 
 ---
 
-## 9. CI/CD Lifecycle & Contract Validation
+## 10. CI/CD Lifecycle & Contract Validation
 
 Zdots uses a tiered validation strategy to ensure environmental stability.
 
