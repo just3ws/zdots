@@ -2,13 +2,16 @@
 SHELL := /bin/sh
 ZDOTDIR ?= $(HOME)/.config/zsh
 
-.PHONY: bootstrap check check-fast test health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
+.PHONY: bootstrap update-local check check-fast test health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
 
 # ------------------------------------------------------------------------------
 # CORE & VALIDATION
 # ------------------------------------------------------------------------------
 bootstrap:
 	$(ZDOTDIR)/bin/bootstrap
+
+update-local:
+	$(ZDOTDIR)/bin/zdots-update-local
 
 # Shell integrity: zsh syntax, bats suite, shellcheck, startup timing
 check:

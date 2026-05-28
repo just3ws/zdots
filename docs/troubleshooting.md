@@ -587,10 +587,13 @@ For normal update:
 ```sh
 cd "$ZDOTDIR"
 git pull --rebase
-brew bundle --file Brewfile
-mise install --cd "$ZDOTDIR"
-bin/llama-ctl install
-bin/llama-ctl install-embed
+make update-local
+```
+
+Preview without changing local state:
+
+```sh
+bin/zdots-update-local --dry-run
 ```
 
 ### Setup changed files in `$HOME`
