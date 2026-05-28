@@ -359,6 +359,19 @@ ls -t ~/.local/state/zsh/upgrade-homebrew-*.summary.md ~/.local/state/zsh/upgrad
 Feed the `*.summary.md` first to Pi, then the full `*.log` only if it needs
 command output. Override the destination with `ZDOTS_LOG_DIR=/path`.
 
+Use `zdots-log-analyze` to package logs with a diagnostic prompt:
+
+```bash
+zdots-log-analyze update
+zdots-log-analyze bootstrap --tail 400 | zpi
+zdots-log-analyze upgrade --ai
+```
+
+The helper includes a non-OTel system snapshot by default: disk, command
+availability, zdots context, Brewfile selection, and AI endpoint reachability.
+
+Full guide: [docs/deploy-log-analysis.md](docs/deploy-log-analysis.md)
+
 ### Using a more powerful machine on your LAN
 
 If you have a workstation running llama.cpp, point everything at it in `.zdots.local`:
