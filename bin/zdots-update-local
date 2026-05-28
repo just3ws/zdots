@@ -20,6 +20,10 @@ SKIP_LLAMA=0
 SKIP_OTEL=0
 SKIP_FABRIC=0
 SKIP_CHECK=0
+PHASE_TOTAL=7
+PHASE_INDEX=0
+CURRENT_PHASE="preflight"
+RUN_ID="$(date '+%Y%m%dT%H%M%S')-$$"
 
 usage() {
   cat <<EOF
@@ -30,7 +34,7 @@ This is intentionally narrower than bin/bootstrap: it does not restore adots,
 rewrite home dotfiles, install certs, edit nginx, or initialize databases.
 
 Steps:
-  1. brew bundle --file Brewfile
+  1. brew bundle --file Brewfile.home|Brewfile.work
   2. mise install --cd ZDOTDIR
   3. llama-ctl install
   4. llama-ctl install-embed
@@ -47,6 +51,11 @@ Options:
   --skip-otel       Skip otel-collector validation
   --skip-check      Skip make check-fast
   -h, --help        Show this help
+
+Logs:
+  ${XDG_STATE_HOME:-~/.local/state}/zsh/zdots-update-local-*.log
+  ${XDG_STATE_HOME:-~/.local/state}/zsh/zdots-update-local-*.summary.md
+  Override directory with ZDOTS_LOG_DIR.
 EOF
 }
 
@@ -72,38 +81,120 @@ fi
 
 cd "$ZDOTDIR"
 
+LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
+mkdir -p "$LOG_DIR"
+LOG_FILE="${ZDOTS_UPDATE_LOCAL_LOG:-$LOG_DIR/zdots-update-local-${RUN_ID}.log}"
+SUMMARY_FILE="${LOG_FILE%.log}.summary.md"
+LATEST_LOG="$LOG_DIR/zdots-update-local-latest.log"
+ln -sf "$LOG_FILE" "$LATEST_LOG" 2>/dev/null || true
+if [[ "${ZDOTS_TRANSCRIPT_TEE:-1}" == "1" ]] && command -v tee >/dev/null 2>&1 && command -v mkfifo >/dev/null 2>&1; then
+  LOG_FIFO="${LOG_FILE}.fifo"
+  rm -f "$LOG_FIFO"
+  mkfifo "$LOG_FIFO"
+  tee -a "$LOG_FILE" < "$LOG_FIFO" &
+  exec > "$LOG_FIFO" 2>&1
+  rm -f "$LOG_FIFO"
+else
+  exec >> "$LOG_FILE" 2>&1
+fi
+
+timestamp() {
+  date '+%Y-%m-%dT%H:%M:%S%z'
+}
+
+log() {
+  printf '%s zdots-update-local: %s\n' "$(timestamp)" "$*" >&2
+}
+
+summary() {
+  printf '%s\n' "$*" >> "$SUMMARY_FILE"
+}
+
+phase() {
+  PHASE_INDEX=$((PHASE_INDEX + 1))
+  CURRENT_PHASE="$1"
+  printf '\n==> zdots-update-local phase %02d/%02d: %s\n' "$PHASE_INDEX" "$PHASE_TOTAL" "$CURRENT_PHASE" >&2
+  summary "- phase ${PHASE_INDEX}/${PHASE_TOTAL}: ${CURRENT_PHASE}"
+}
+
+finish() {
+  status=$?
+  if [[ "$status" -eq 0 ]]; then
+    log "complete status=0 log=$LOG_FILE summary=$SUMMARY_FILE"
+    summary "- result: complete"
+  else
+    log "failed status=$status phase=$CURRENT_PHASE log=$LOG_FILE summary=$SUMMARY_FILE"
+    summary "- result: failed status=${status} phase=${CURRENT_PHASE}"
+  fi
+  exit "$status"
+}
+trap finish EXIT
+
+{
+  printf '# zdots-update-local run\n'
+  printf -- '- started: %s\n' "$(timestamp)"
+  printf -- '- repo: %s\n' "$ZDOTDIR"
+  printf -- '- log: %s\n' "$LOG_FILE"
+  printf -- '- latest: %s\n' "$LATEST_LOG"
+  printf -- '- context: %s\n' "${ZDOTS_CONTEXT:-home}"
+  printf -- '- dry_run: %s\n' "$DRY_RUN"
+} > "$SUMMARY_FILE"
+
 run() {
-  printf 'zdots-update-local: %s\n' "$*" >&2
+  log "run: $*"
   if [[ "$DRY_RUN" -eq 0 ]]; then
-    "$@"
+    if "$@"; then
+      log "ok: $*"
+    else
+      status=$?
+      log "failed status=$status command=$*"
+      return "$status"
+    fi
+  else
+    log "dry-run: skipped execution"
   fi
 }
 
 warn() {
-  printf 'zdots-update-local: warning: %s\n' "$*" >&2
+  log "warning: $*"
 }
 
-printf 'zdots-update-local: repo=%s\n' "$ZDOTDIR" >&2
+log "run_id=$RUN_ID repo=$ZDOTDIR log=$LOG_FILE summary=$SUMMARY_FILE"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  printf 'zdots-update-local: commit=%s\n' "$(git rev-parse --short HEAD)" >&2
+  log "commit=$(git rev-parse --short HEAD)"
 fi
 
+phase "brew: reconcile selected Brewfile"
 if [[ "$SKIP_BREW" -eq 0 ]]; then
   if command -v brew >/dev/null 2>&1; then
-    run brew bundle --file "$ZDOTDIR/Brewfile"
+    case "${ZDOTS_CONTEXT:-home}" in
+      work) brewfile="$ZDOTDIR/Brewfile.work" ;;
+      *)    brewfile="$ZDOTDIR/Brewfile.home" ;;
+    esac
+    case "${HOMEBREW_BUNDLE_FILE:-}" in
+      ""|"$ZDOTDIR/Brewfile"|"$ZDOTDIR/Brewfile.home"|"$ZDOTDIR/Brewfile.work") ;;
+      *) brewfile="$HOMEBREW_BUNDLE_FILE" ;;
+    esac
+    run brew bundle --file "$brewfile"
   else
     warn "brew not found; skipping brew bundle"
   fi
+else
+  warn "skipping brew phase (--skip-brew)"
 fi
 
+phase "mise: install pinned runtimes"
 if [[ "$SKIP_MISE" -eq 0 ]]; then
   if command -v mise >/dev/null 2>&1; then
     run mise install --cd "$ZDOTDIR"
   else
     warn "mise not found; skipping mise install"
   fi
+else
+  warn "skipping mise phase (--skip-mise)"
 fi
 
+phase "llama: regenerate launchd plists"
 if [[ "$SKIP_LLAMA" -eq 0 ]]; then
   if [[ -x "$ZDOTDIR/bin/llama-ctl" ]]; then
     run "$ZDOTDIR/bin/llama-ctl" install
@@ -111,8 +202,11 @@ if [[ "$SKIP_LLAMA" -eq 0 ]]; then
   else
     warn "bin/llama-ctl not executable; skipping llama plist regeneration"
   fi
+else
+  warn "skipping llama phase (--skip-llama)"
 fi
 
+phase "fabric: refresh local pattern library"
 if [[ "$SKIP_FABRIC" -eq 0 ]]; then
   if command -v fabric-ai >/dev/null 2>&1; then
     # Ensure config exists for local LLM
@@ -127,22 +221,31 @@ if [[ "$SKIP_FABRIC" -eq 0 ]]; then
   else
     warn "fabric-ai not found; skipping pattern update"
   fi
+else
+  warn "skipping fabric phase (--skip-fabric)"
 fi
 
+phase "otel: validate collector config"
 if [[ "$SKIP_OTEL" -eq 0 ]]; then
   if [[ -x "$ZDOTDIR/bin/otel-collector" ]]; then
     run "$ZDOTDIR/bin/otel-collector" validate
   else
     warn "bin/otel-collector not executable; skipping otel validation"
   fi
+else
+  warn "skipping otel phase (--skip-otel)"
 fi
 
+phase "checks: make check-fast"
 if [[ "$SKIP_CHECK" -eq 0 ]]; then
   if command -v make >/dev/null 2>&1; then
     run make check-fast
   else
     warn "make not found; skipping check-fast"
   fi
+else
+  warn "skipping check phase (--skip-check)"
 fi
 
-printf 'zdots-update-local: complete\n' >&2
+phase "handoff: log location for Pi/HI analysis"
+log "handoff: feed this to Pi or HI: $SUMMARY_FILE then $LOG_FILE"

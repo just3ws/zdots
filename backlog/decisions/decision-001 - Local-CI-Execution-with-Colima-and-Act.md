@@ -29,4 +29,4 @@ We will use **[act](https://github.com/nektos/act)** in combination with **[Coli
 
 **Negative / Trade-offs:**
 - **Environment Discrepancy:** Since we are proxying `macos-latest` to an Ubuntu container locally, OS-specific edge cases (e.g., BSD vs GNU coreutils, specific filesystem layouts) might behave differently locally than they do in the actual GitHub macOS runners.
-- **Additional Tooling:** Developers must have `colima`, `docker`, and `act` installed (now codified in the `Brewfile`).
+- **Additional Tooling:** Developers must have `colima`, `docker`, and `act` installed (now codified in `Brewfile.home` and `Brewfile.work`).

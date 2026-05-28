@@ -1,6 +1,6 @@
-# Brewfile — home machine configuration (everything)
+# Brewfile.home — home machine configuration (everything)
 #
-# Install: brew bundle
+# Install: brew bundle --file=Brewfile.home
 # Work machines: brew bundle --file=Brewfile.work
 
 tap "arimxyer/tap"

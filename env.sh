@@ -266,7 +266,19 @@ if [ -n "${HOMEBREW_PREFIX:-}" ]; then
   export HOMEBREW_CASK_OPTS='--appdir=/Applications'
   export HOMEBREW_NO_ANALYTICS=1
   export HOMEBREW_NO_INSECURE_REDIRECT=1
-  export HOMEBREW_BUNDLE_FILE="$ZDOTDIR/Brewfile"
+  case "${ZDOTS_CONTEXT:-home}" in
+    work) _zdots_brewfile="$ZDOTDIR/Brewfile.work" ;;
+    *)    _zdots_brewfile="$ZDOTDIR/Brewfile.home" ;;
+  esac
+  case "${HOMEBREW_BUNDLE_FILE:-}" in
+    ""|"$ZDOTDIR/Brewfile"|"$ZDOTDIR/Brewfile.home"|"$ZDOTDIR/Brewfile.work")
+      export HOMEBREW_BUNDLE_FILE="$_zdots_brewfile"
+      ;;
+    *)
+      export HOMEBREW_BUNDLE_FILE
+      ;;
+  esac
+  unset _zdots_brewfile
   export HOMEBREW_BAT=1
 
   if [ -x "$HOMEBREW_PREFIX/bin/nvim" ]; then
