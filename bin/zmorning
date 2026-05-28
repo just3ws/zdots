@@ -51,7 +51,7 @@ if (( ! _pi_only )); then
   print "  ai mode  : ${ZDOTS_AI_MODE:-local}"
 
   # AI server status
-  local _endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  local _endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
   if curl -sf -m 2 "$_endpoint/health" >/dev/null 2>&1; then
     print "  llama    : up at $_endpoint"
   else
@@ -97,7 +97,7 @@ if (( _pi_only )); then
     print "AI unavailable (ZDOTS_AI_MODE=none)"
     exit 0
   fi
-  if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+  if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/health" >/dev/null 2>&1; then
     print "llama.cpp not responding — run: llama-ctl start"
     exit 1
   fi

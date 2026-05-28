@@ -85,7 +85,7 @@ if [[ ! -x "$AI_QUERY" ]]; then
   printf 'alias-suggest: ai-query not found at %s\n' "$AI_QUERY" >&2
   exit 1
 fi
-if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/health" >/dev/null 2>&1; then
   printf 'alias-suggest: llama.cpp is not running. Start with: llama-ctl start\n' >&2
   exit 1
 fi

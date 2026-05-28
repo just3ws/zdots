@@ -25,7 +25,7 @@ lib/ai-invoke.bash          ← AI Invocation Interface seam
             └── aiq_sanitize_output ← strip <think> + escape sequences
                     │
                     ▼
-            llama-server (127.0.0.1:8080)
+            llama-server (127.0.0.1:11500)
 ```
 
 ---
@@ -172,7 +172,7 @@ printf '<think>\nstep 1\nstep 2\n</think>\nFinal answer\n' | bash -c 'source lib
 
 ---
 
-## Seam 6: `llama-server` (127.0.0.1:8080)
+## Seam 6: `llama-server` (127.0.0.1:11500)
 
 **What it is**: The inference endpoint. All AI requests POST to `/v1/chat/completions`.
 
@@ -201,7 +201,7 @@ present (KV position conflict between cache-reuse and speculative decoding).
 **Known conflicts**:
 - `--embeddings` + `--spec-draft-model` → crash loop — do NOT combine on same server
 - `--cache-reuse` + `--spec-draft-model` → KV position mismatch — suppressed in `_register_plist()`
-- Homebrew nginx defaults to `*:8080` — conflicts with llama-server; stop it: `brew services stop nginx`
+- Homebrew nginx defaults to `*:11500` — conflicts with llama-server; stop it: `brew services stop nginx`
 
 **Locality invariant**: `zdots_assert_local_endpoint` ensures this is always a loopback/RFC-1918 address when `ZDOTS_AI_MODE=local`. `ZDOTS_AI_MODE=cloud` bypasses the check (future cloud path).
 
@@ -209,7 +209,7 @@ present (KV position conflict between cache-reuse and speculative decoding).
 ```bash
 llama-ctl health          # exits 0 if up
 llama-ctl status          # human-readable with active_model
-curl -s http://127.0.0.1:8080/health | jq .status
+curl -s http://127.0.0.1:11500/health | jq .status
 ```
 
 **Model rollback** (if regression found):

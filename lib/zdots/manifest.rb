@@ -5,7 +5,7 @@ module Zdots
     SERVICES = {
       llama_cpp: {
         title: "llama.cpp (AI inference)",
-        endpoint: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080"),
+        endpoint: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500"),
         start_cmd: "llama-ctl start",
         status_cmd: "llama-ctl status"
       },

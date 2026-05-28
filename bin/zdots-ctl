@@ -10,7 +10,7 @@
 #      └── LGTM stack (docker-compose in Colima)
 #            └── otel-collector (bare-metal, forwards to LGTM)
 #   2. llama-ctl / AI server (independent, launchd)
-#   3. llama-ctl embed server (independent, launchd, port 8090)
+#   3. llama-ctl embed server (independent, launchd, port 11501)
 
 set -euo pipefail
 trap '' PIPE
@@ -25,8 +25,8 @@ source "${ZDOTDIR}/lib/svc-health.bash"
 # Config
 # ---------------------------------------------------------------------------
 
-AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
-EMBED_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:8090}"
+AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+EMBED_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
 OTLP_ENDPOINT="http://127.0.0.1:4318"
 GRAFANA_URL="http://127.0.0.1:3000"
 REDIS_HOST="${ZDOTS_REDIS_HOST:-127.0.0.1}"
@@ -119,7 +119,7 @@ cmd_up() {
     _ok "AI server up"
   fi
 
-  # 4. Embed server (independent, port 8090)
+  # 4. Embed server (independent, port 11501)
   if _embed_up; then
     _ok "embed server already up"
   else
@@ -362,7 +362,7 @@ cmd_check() {
     _fix "zdots-ctl up"
   fi
 
-  local embed_endpoint="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:8090}"
+  local embed_endpoint="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
   if curl -sf -m 2 "${embed_endpoint}/health" >/dev/null 2>&1; then
     _chk_pass "embed server  reachable ($embed_endpoint)"
   else
@@ -384,7 +384,7 @@ cmd_check() {
 
     # Runtime socket check — only if server is up
     if _ai_up; then
-      local _ai_port; _ai_port=$(printf '%s' "${AI_ENDPOINT:-http://127.0.0.1:8080}" | grep -oE '[0-9]+$')
+      local _ai_port; _ai_port=$(printf '%s' "${AI_ENDPOINT:-http://127.0.0.1:11500}" | grep -oE '[0-9]+$')
       local _non_lo
       _non_lo=$(lsof -nP -i "TCP:${_ai_port}" -sTCP:LISTEN 2>/dev/null \
         | awk '$1 ~ /^llama-ser/ {print $9}' | grep -v '^127\.' || true)
@@ -425,7 +425,7 @@ cmd_check() {
   # ── Local proxy (nginx + mkcert + /etc/hosts) ─────────────────────────────
   printf '\nLocal proxy\n'
 
-  # nginx running on port 80 (not 8080 — that conflicts with llama-server).
+  # nginx should run on port 80 (managed via launchctl, not brew services).
   # Always probe via HTTP — binary not in user PATH when managed via sudo brew
   # services. Never gate on symlink existence; symlinks are unreliable across
   # brew upgrades (may be removed or root-owned after sudo service restart).
@@ -436,14 +436,8 @@ cmd_check() {
     # Config valid by definition when serving — sudo nginx -t can't run non-interactively
     _chk_pass "nginx config  valid (inferred — service is running)"
   else
-    local nginx_8080_header
-    nginx_8080_header=$(curl -sI --max-time 2 http://127.0.0.1:8080 2>/dev/null | grep -i '^Server:' | head -1) || true
-    if echo "$nginx_8080_header" | grep -qi nginx; then
-      _chk_fail "nginx  running on port 8080 (conflicts with llama-server)"
-      _fix "sudo brew services stop nginx && edit $(brew --prefix)/etc/nginx/nginx.conf (8080→80) && sudo brew services start nginx"
-    else
-      _chk_warn "nginx  not running"
-      _fix "sudo brew services start nginx"
+    _chk_warn "nginx  not running"
+    _fix "sudo brew services start nginx"
       # Only validate config when nginx is stopped — helps diagnose startup failures
       local nginx_t_rc=0
       sudo nginx -t >/dev/null 2>&1 || nginx_t_rc=$?
@@ -739,7 +733,7 @@ Dependency order (up):
 
 Environment:
   ZDOTS_BOOT_TIMEOUT   Seconds to wait per service health check (default: 90)
-  ZDOTS_AI_ENDPOINT    AI server base URL (default: http://127.0.0.1:8080)
+  ZDOTS_AI_ENDPOINT    AI server base URL (default: http://127.0.0.1:11500)
 
 Options:
   -h, --help    Show this help

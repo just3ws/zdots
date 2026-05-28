@@ -164,7 +164,7 @@ All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are co
 | `zdots-ctx query` | Search local knowledge base | `zdots-ctx query <term>` |
 | `zdots-ctx hydrate` | Context blob for AI tasks | `zdots-ctx hydrate [tag]` |
 
-**Endpoint:** `ZDOTS_AI_ENDPOINT` (default `http://127.0.0.1:8080`). Override in `.zdots.local` to point at a remote LAN machine.
+**Endpoint:** `ZDOTS_AI_ENDPOINT` (default `http://127.0.0.1:11500`). Override in `.zdots.local` to point at a remote LAN machine.
 
 **Aider context management** (7B model — be deliberate):
 - `/add file.rb` — add only what you're editing

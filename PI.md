@@ -94,4 +94,4 @@ ls "${XDG_STATE_HOME}/pi/agent/sessions"
 | `~/.pi/agent/models.json` | Provider definitions (llamacpp, ollama) |
 | `providers/ai/pi.zsh` | Zsh integration, boundary enforcement, `zpi()` |
 
-The `llamacpp` provider in `models.json` points at `http://127.0.0.1:8080/v1` — the local llama.cpp OpenAI-compatible endpoint. Changing `ZDOTS_AI_ENDPOINT` in `.zdots.local` does **not** automatically update Pi's `models.json`; they must be kept in sync manually.
+The `llamacpp` provider in `models.json` points at `http://127.0.0.1:11500/v1` — the local llama.cpp OpenAI-compatible endpoint. Changing `ZDOTS_AI_ENDPOINT` in `.zdots.local` does **not** automatically update Pi's `models.json`; they must be kept in sync manually.

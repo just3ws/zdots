@@ -22,10 +22,10 @@ This means the GGUF file is actually a text file (likely a 401 error page from H
 - Add a valid `HUGGINGFACE_TOKEN` to your `.env`.
 - Re-run `llama-ctl model-download`.
 
-### AI server unreachable (8080)
+### AI server unreachable (11500)
 - Confirm the server is running: `llama-ctl status`.
 - Check logs for crashes: `llama-ctl logs`.
-- Check if another process is using port 8080: `lsof -i :8080`.
+- Check if another process is using port 11500: `lsof -i :11500`.
 
 ## 3. Observability
 

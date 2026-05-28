@@ -101,13 +101,13 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "ai_boundary: loopback 127.0.0.1 passes" {
-  run bash -c "source $ZDOTDIR/lib/ai_boundary.bash && ZDOTS_AI_MODE=local zdots_assert_local_endpoint http://127.0.0.1:8080 && echo ok"
+  run bash -c "source $ZDOTDIR/lib/ai_boundary.bash && ZDOTS_AI_MODE=local zdots_assert_local_endpoint http://127.0.0.1:11500 && echo ok"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
 }
 
 @test "ai_boundary: RFC-1918 10.x passes" {
-  run bash -c "source $ZDOTDIR/lib/ai_boundary.bash && ZDOTS_AI_MODE=local zdots_assert_local_endpoint http://10.0.1.50:8080 && echo ok"
+  run bash -c "source $ZDOTDIR/lib/ai_boundary.bash && ZDOTS_AI_MODE=local zdots_assert_local_endpoint http://10.0.1.50:11500 && echo ok"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
 }
@@ -119,7 +119,7 @@ setup() {
 }
 
 @test "ai_boundary: RFC-1918 172.16-31.x passes" {
-  run bash -c "source $ZDOTDIR/lib/ai_boundary.bash && ZDOTS_AI_MODE=local zdots_assert_local_endpoint http://172.20.0.1:8080 && echo ok"
+  run bash -c "source $ZDOTDIR/lib/ai_boundary.bash && ZDOTS_AI_MODE=local zdots_assert_local_endpoint http://172.20.0.1:11500 && echo ok"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
 }
