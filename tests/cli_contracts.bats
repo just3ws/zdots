@@ -141,6 +141,23 @@ _grafana_up() {
   [[ "$output" == *"--json"* ]]
 }
 
+@test "llama-ctl: chat endpoint is not legacy 8080 or 8090" {
+  run "$BIN/llama-ctl" config --json
+  [ "$status" -eq 0 ]
+  port=$(printf '%s' "$output" | jq -r .port)
+  [ "$port" = "11500" ]
+  [ "$port" != "8080" ]
+  [ "$port" != "8090" ]
+}
+
+@test "llama-ctl: embed endpoint is not legacy 8080 or 8090" {
+  command -v yq >/dev/null 2>&1 || skip "yq required"
+  port=$(yq '.embed_server.port' "$REPO_ROOT/etc/ai-models.yaml")
+  [ "$port" = "11501" ]
+  [ "$port" != "8080" ]
+  [ "$port" != "8090" ]
+}
+
 @test "otel-collector: help mentions --json" {
   run "$BIN/otel-collector" --help
   [[ "$output" == *"--json"* ]]

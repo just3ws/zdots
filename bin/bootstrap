@@ -477,11 +477,11 @@ else
 fi
 
 # 6d. nginx: local reverse proxy on port 80/443
-# Fixes the default Homebrew nginx (listens on 8080, conflicts with llama-server)
+# Fixes the default Homebrew nginx listener so the local web edge is predictable.
 # and installs zdots service configs.
 if command -v nginx >/dev/null 2>&1; then
   _NGINX_CONF="$_NGINX_PREFIX/nginx.conf"
-  # Fix default server port: 8080 (Homebrew default) conflicts with llama-server.
+  # Fix default server port: Homebrew nginx ships on 8080; zdots expects 80.
   if grep -qE 'listen[[:space:]]+8080[^0-9]' "$_NGINX_CONF" 2>/dev/null; then
     echo "bootstrap: fixing nginx default server port 8080 → 80..."
     sed -i.bak 's/listen       8080;/listen       80 default_server;/' "$_NGINX_CONF"
