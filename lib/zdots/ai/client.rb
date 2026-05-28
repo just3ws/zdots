@@ -14,11 +14,11 @@ module Zdots
     end
 
     def self.endpoint
-      ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080")
+      ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")
     end
 
     def self.embed_endpoint
-      ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT", "http://127.0.0.1:8090")
+      ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT", "http://127.0.0.1:11501")
     end
 
     def self.embed_client
@@ -93,7 +93,7 @@ module Zdots
       end
     end
 
-    # Direct HTTP adapter for the embedding server (port 8090).
+    # Direct HTTP adapter for the embedding server (port 11501).
     # Bypasses RubyLLM global config — the embed server is a separate process.
     class EmbedConnection
       require "net/http"

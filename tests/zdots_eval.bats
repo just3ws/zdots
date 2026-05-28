@@ -278,7 +278,7 @@ MOCK
 
   MOCK_CAPTURE_FILE="$capture" AIQ_ENABLE_THINKING=1 \
     PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
-    run bash -c "source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+    run bash -c "source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:11500' 'test-model' 5"
 
   [ "$status" -eq 0 ]
   [[ "$(jq -r '.chat_template_kwargs.enable_thinking' "$capture")" == "true" ]]
@@ -293,7 +293,7 @@ MOCK
 
   MOCK_CAPTURE_FILE="$capture" \
     PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
-    run bash -c "unset AIQ_ENABLE_THINKING; source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+    run bash -c "unset AIQ_ENABLE_THINKING; source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:11500' 'test-model' 5"
 
   [ "$status" -eq 0 ]
   [[ "$(jq -r '.chat_template_kwargs.enable_thinking' "$capture")" == "false" ]]
@@ -308,7 +308,7 @@ MOCK
 
   MOCK_CAPTURE_FILE="$capture" AIQ_TEMPERATURE=0.1 \
     PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
-    run bash -c "source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+    run bash -c "source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:11500' 'test-model' 5"
 
   [ "$status" -eq 0 ]
   [[ "$(jq -r '.temperature' "$capture")" == "0.1" ]]
@@ -324,7 +324,7 @@ MOCK
 
   MOCK_CAPTURE_FILE="$capture" AIQ_JSON_SCHEMA="$schema" \
     PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
-    run bash -c "source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+    run bash -c "source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:11500' 'test-model' 5"
 
   [ "$status" -eq 0 ]
   [[ "$(jq -r '.response_format.type' "$capture")" == "json_schema" ]]
@@ -339,7 +339,7 @@ MOCK
 
   MOCK_CAPTURE_FILE="$capture" \
     PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
-    run bash -c "unset AIQ_JSON_SCHEMA; source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:8080' 'test-model' 5"
+    run bash -c "unset AIQ_JSON_SCHEMA; source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://127.0.0.1:11500' 'test-model' 5"
 
   [ "$status" -eq 0 ]
   [[ "$(jq 'has("response_format")' "$capture")" == "false" ]]

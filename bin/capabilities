@@ -206,7 +206,7 @@ fi
 if [ -n "${ZDOTS_SERVICE_AI:-}" ] && [ "$ZDOTS_SERVICE_AI" != "none" ]; then
   # Probe the AI server live — _ZDOTS_AI_SERVER_UP is set at shell init and
   # goes stale if the server is started/stopped after the session begins.
-  _ai_endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  _ai_endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
   if curl -sf -m 2 "${_ai_endpoint}/health" >/dev/null 2>&1; then
     _ai_live=1
   else

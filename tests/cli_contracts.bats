@@ -13,7 +13,7 @@ setup() {
   load "setup.bash"
   setup_environment
   BIN="$REPO_ROOT/bin"
-  AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
   OTEL_ENDPOINT="http://127.0.0.1:4318"
   GRAFANA_URL="http://127.0.0.1:3000"
 }

@@ -22,7 +22,7 @@ MOCK
 
   # Default env: local AI mode, loopback endpoint
   export ZDOTS_AI_MODE=local
-  export ZDOTS_AI_ENDPOINT=http://127.0.0.1:8080
+  export ZDOTS_AI_ENDPOINT=http://127.0.0.1:11500
   export ZDOTDIR="$REPO_ROOT"
 }
 

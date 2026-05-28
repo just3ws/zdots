@@ -58,7 +58,7 @@ _zdots_zle_ai_load() {
 
   # Server liveness — probe at most once per 30 s; reset TTL on failure so the
   # next keystroke rechecks immediately after the server recovers.
-  local _ep="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  local _ep="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
   if (( SECONDS - _ZLE_HEALTH_CHECKED_AT > 30 )); then
     if ! curl -sf -m 1 "${_ep}/health" >/dev/null 2>&1; then
       _ZLE_HEALTH_CHECKED_AT=0

@@ -13,7 +13,7 @@ links:
 
 `llama.cpp` is the primary local inference runtime. All AI features in Zdots
 (`ai` function, `history-analyze --ai`, `?` shell assistant) route through a
-local `llama-server` binary via its OpenAI-compatible HTTP API on port 8080.
+local `llama-server` binary via its OpenAI-compatible HTTP API on port 11500.
 
 **Managed by** `bin/llama-ctl` — a single control script for install, lifecycle,
 model management, and config.  
@@ -191,7 +191,7 @@ model file, bad flag).
 ## API Endpoints
 
 The server exposes an OpenAI-compatible API. All endpoints are on
-`http://127.0.0.1:8080` by default.
+`http://127.0.0.1:11500` by default.
 
 | Endpoint | Method | Description |
 |---|---|---|
@@ -216,12 +216,12 @@ The `/v1/embeddings` endpoint is enabled by default. The current `max-accuracy` 
 
 ```sh
 # Quick test — confirm dimensions
-curl -sf http://127.0.0.1:8080/v1/embeddings \
+curl -sf http://127.0.0.1:11500/v1/embeddings \
   -H "Content-Type: application/json" \
   -d '{"model":"local","input":"hello world"}' | jq '.data[0].embedding | length'
 
 # Batch input
-curl -sf http://127.0.0.1:8080/v1/embeddings \
+curl -sf http://127.0.0.1:11500/v1/embeddings \
   -H "Content-Type: application/json" \
   -d '{"model":"local","input":["first document","second document"]}' \
   | jq '[.data[].embedding | length]'
@@ -295,9 +295,9 @@ Example JSON output:
 ```json
 {
   "profile":      "standard",
-  "endpoint":     "http://127.0.0.1:8080",
+  "endpoint":     "http://127.0.0.1:11500",
   "host":         "127.0.0.1",
-  "port":         8080,
+  "port":         11500,
   "model_file":   "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
   "model_path":   "/Users/you/.local/share/llama-cpp/models/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
   "alias":        "local",
@@ -336,7 +336,7 @@ Example JSON output:
 config = JSON.parse(`llama-ctl config --json`)
 # Respect the physical batch limit when chunking documents for embedding
 MAX_EMBED_TOKENS = config['ubatch_size']   # 2048
-ENDPOINT         = config['endpoint']      # http://127.0.0.1:8080
+ENDPOINT         = config['endpoint']      # http://127.0.0.1:11500
 MODEL_ALIAS      = config['alias']         # "local"
 ```
 
@@ -366,7 +366,7 @@ Then `llama-ctl install` to apply.
 Prometheus-format metrics are available at `/metrics` (enabled by default).
 
 ```sh
-curl -sf http://127.0.0.1:8080/metrics | grep '^llamacpp:'
+curl -sf http://127.0.0.1:11500/metrics | grep '^llamacpp:'
 ```
 
 Key metrics (prefix: `llamacpp:`):
@@ -414,7 +414,7 @@ Every `ai` call emits an OTel span to the local collector (service: `zdots-shell
 If the server is down, `ai` fails fast:
 
 ```
-ai: llama.cpp server not responding at http://127.0.0.1:8080
+ai: llama.cpp server not responding at http://127.0.0.1:11500
     Start it with: llama-ctl start
 ```
 
@@ -436,7 +436,7 @@ cat error.log | ai-query "Find the root cause"
 
 # Extra options
 ai-query --system "You are a JSON formatter" "pretty print this" < data.json
-ai-query --model local --endpoint http://127.0.0.1:8080 "prompt"
+ai-query --model local --endpoint http://127.0.0.1:11500 "prompt"
 ai-query --help
 ```
 
@@ -453,7 +453,7 @@ ai-query --help
 
 | Variable | Default | Description |
 |---|---|---|
-| `ZDOTS_AI_ENDPOINT` | `http://127.0.0.1:8080` | Server base URL |
+| `ZDOTS_AI_ENDPOINT` | `http://127.0.0.1:11500` | Server base URL |
 | `ZDOTS_AI_MODEL` | `local` | Model name / alias |
 
 `ai-query` does not emit OTel spans (no shell environment to read trace IDs from).
@@ -467,11 +467,11 @@ Use `llama-ctl health` to check server state from a subprocess.
 llama-ctl health && echo "up" || echo "down"
 
 # Raw endpoints
-curl -sf http://127.0.0.1:8080/health
-curl -sf http://127.0.0.1:8080/v1/models | jq '.data[0].id'
+curl -sf http://127.0.0.1:11500/health
+curl -sf http://127.0.0.1:11500/v1/models | jq '.data[0].id'
 
 # Full server properties
-curl -sf http://127.0.0.1:8080/props | jq '{total_slots, model_path}'
+curl -sf http://127.0.0.1:11500/props | jq '{total_slots, model_path}'
 
 # Integration test (validates RubyLLM × llama.cpp end-to-end)
 ruby tests/llama_integration.rb --quick   # 8 tests, ~15s
@@ -557,7 +557,7 @@ server:
 - **Calling AI from a subprocess/agent:** Do NOT use the `ai` zsh function —
   it requires an interactive zsh session. Use instead:
   - `ai-query <prompt>` — the subprocess-safe bash script in `bin/`
-  - `curl` directly to `http://127.0.0.1:8080/v1/chat/completions`
+  - `curl` directly to `http://127.0.0.1:11500/v1/chat/completions`
   - `llama-ctl <command>` — the lifecycle script works from any bash context
 - **Discovering server limits:** Run `llama-ctl config --json` to get all
   resolved server parameters. Use `ubatch_size` as the maximum safe embedding

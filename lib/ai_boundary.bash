@@ -46,7 +46,7 @@ zdots_ai_gate_check() {
 }
 
 zdots_assert_local_endpoint_check() {
-  local endpoint="${1:-${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}}"
+  local endpoint="${1:-${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}}"
   local mode="${ZDOTS_AI_MODE:-local}"
   [[ "$mode" == "cloud" ]] && return 0
   [[ "$mode" == "none"  ]] && return 0
@@ -61,7 +61,7 @@ zdots_assert_local_endpoint_check() {
 # Combined predicate for ZLE widgets — gate + locality in one call.
 zdots_ai_gated_endpoint_check() {
   local tool="${1:-ai}"
-  local endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  local endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
   zdots_ai_gate_check "$tool" && zdots_assert_local_endpoint_check "$endpoint"
 }
 
@@ -80,7 +80,7 @@ zdots_ai_gate() {
 }
 
 zdots_assert_local_endpoint() {
-  local endpoint="${1:-${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}}"
+  local endpoint="${1:-${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}}"
   if ! zdots_assert_local_endpoint_check "$endpoint"; then
     printf 'zdots: SECURITY: AI endpoint is not local: %s\n' "$endpoint" >&2
     printf 'zdots: ZDOTS_AI_MODE=local requires a loopback or RFC-1918 address.\n' >&2
@@ -95,7 +95,7 @@ zdots_assert_local_endpoint() {
 zdots_ai_gated_endpoint() {
   local tool="${1:-ai}"
   zdots_ai_gate "$tool"
-  local endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  local endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
   zdots_assert_local_endpoint "$endpoint"
   printf '%s' "$endpoint"
 }

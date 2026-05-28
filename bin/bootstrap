@@ -215,9 +215,9 @@ unset _mise_bin
 #
 # What "local" means:
 #   - ai-query, zaider (Aider), and zdots-ctx all use ZDOTS_AI_ENDPOINT
-#   - ZDOTS_AI_ENDPOINT defaults to http://127.0.0.1:8080 (this machine)
+#   - ZDOTS_AI_ENDPOINT defaults to http://127.0.0.1:11500 (this machine)
 #   - To use a more powerful machine on your LAN, set in .zdots.local:
-#       ZDOTS_AI_ENDPOINT=http://powerstation.local:8080
+#       ZDOTS_AI_ENDPOINT=http://powerstation.local:11500
 #   - No OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY are set
 #   - Cloud API keys go in .zdots.secrets ONLY — never in this repo
 #
@@ -228,7 +228,7 @@ unset _mise_bin
 #   zdots-ctx hydrate [tag]          — context for AI tasks
 #   zdots-brain                      — background job worker
 echo ""
-_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 echo "================================================================"
 echo "  AI SECURITY BOUNDARY: LOCAL MODELS ONLY"
 echo "  ZDOTS_AI_MODE=${ZDOTS_AI_MODE:-local} (no cloud API keys configured)"
@@ -464,7 +464,7 @@ PISETTINGS
     echo "bootstrap: created ~/.pi/agent/settings.json (llamacpp default)"
   fi
   if [ ! -f "$_PI_AGENT_DIR/models.json" ]; then
-    _AI_BASE="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/v1"
+    _AI_BASE="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/v1"
     cat > "$_PI_AGENT_DIR/models.json" <<PIMODELS
 {
   "providers": {

@@ -37,8 +37,8 @@ The zdots-specific stack. Every agent session should orient here first.
 
 | Tool | Command | Purpose |
 |------|---------|---------|
-| llama.cpp | `llama-ctl status/start/stop` | Manage local chat server (Qwen3-8B, port 8080) |
-| Embedding server | `ZDOTS_AI_PROFILE=embed llama-ctl start` | Nomic embed-v2, port 8090 |
+| llama.cpp | `llama-ctl status/start/stop` | Manage local chat server (Qwen3-8B, port 11500) |
+| Embedding server | `ZDOTS_AI_PROFILE=embed llama-ctl start` | Nomic embed-v2, port 11501 |
 | One-shot inference | `ai-query "prompt"` | Guarded LLM call with PHI scrubbing |
 | Capability doc | `llama-caps` | Full endpoint/capability/constraint doc for local stack |
 | llama MCP server | `llama-mcp` | MCP stdio server: health, config, test, snippet tools for Claude/Cursor |

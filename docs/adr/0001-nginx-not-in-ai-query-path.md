@@ -6,7 +6,7 @@
 ## Context
 
 nginx is deployed as a local reverse proxy (`https://llama.local`, `https://embed.local`)
-serving the llama.cpp chat server (port 8080) and embedding server (port 8090) over TLS
+serving the llama.cpp chat server (port 11500) and embedding server (port 11501) over TLS
 via mkcert-issued certs. The question arose: should CLI tools (`ai-query`, `zdots-ask`,
 the Ruby pipeline) route through nginx rather than hitting the backends directly?
 
@@ -27,8 +27,8 @@ Two constraints made the answer non-trivial:
 CLI tools (`ai-query`, `zdots-ask`, `lib/zdots/ai/client.rb`, `sbin/zdots-brain`) use
 direct loopback endpoints:
 
-- Chat: `ZDOTS_AI_ENDPOINT=http://127.0.0.1:8080` (default)
-- Embed: `ZDOTS_AI_EMBED_ENDPOINT=http://127.0.0.1:8090` (default)
+- Chat: `ZDOTS_AI_ENDPOINT=http://127.0.0.1:11500` (default)
+- Embed: `ZDOTS_AI_EMBED_ENDPOINT=http://127.0.0.1:11501` (default)
 
 nginx serves `https://llama.local` and `https://embed.local` for browser and human
 `curl` access only. It is not in the hot path for any automated AI call.

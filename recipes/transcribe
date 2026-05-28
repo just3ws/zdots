@@ -48,7 +48,7 @@ if [[ -z "$AUDIO_FILE" ]]; then
 fi
 
 # Pre-flight
-if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/health" >/dev/null 2>&1; then
   printf 'recipe/transcribe: llama.cpp is not running (required for summary).\n' >&2
   exit 1
 fi

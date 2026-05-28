@@ -10,7 +10,7 @@
 # Usage:
 #   zaider                    # launch aider in current repo
 #   zaider --no-auto-commits  # review diffs before committing
-#   ZDOTS_AI_ENDPOINT=http://other:8080 zaider  # override endpoint
+#   ZDOTS_AI_ENDPOINT=http://other:11500 zaider  # override endpoint
 
 zdots_aider_init() {
   # Gate + locality in one call — mode check and endpoint locality together.
@@ -23,7 +23,7 @@ zdots_aider_init() {
 
   # Derive endpoint from the active llama.cpp provider so both always agree.
   # ZDOTS_AI_ENDPOINT is set by providers/ai/llama-cpp.zsh before this runs.
-  local _endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  local _endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 
   export AIDER_OPENAI_API_BASE="${_endpoint}/v1"
   export AIDER_OPENAI_API_KEY="local"   # llama.cpp ignores the key; any non-empty value works

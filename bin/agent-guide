@@ -39,7 +39,7 @@ done
 # ---------------------------------------------------------------------------
 # Live status probes (all silent — results stored in variables)
 # ---------------------------------------------------------------------------
-AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 OTEL_ENDPOINT="http://127.0.0.1:4318"
 GRAFANA_URL="http://127.0.0.1:3000"
 
@@ -418,7 +418,7 @@ Environment variables (set by providers/ai/llama-cpp.zsh in interactive zsh):
   ZDOTS_AI_PROFILE    Active model profile (default: standard)
 
 Override at call time:
-  ZDOTS_AI_ENDPOINT=http://other:8080 ai-query "prompt"
+  ZDOTS_AI_ENDPOINT=http://other:11500 ai-query "prompt"
 
 Platform control:
   zdots-ctl check                deep diagnostic (run when something is wrong)
