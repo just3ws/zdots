@@ -22,6 +22,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | Task orchestrator | `ztask start/done/stop/status <id>` | Hydrate shell env to a specific task; links trace to work |
 | Service guide | `agent-guide` | Live status + endpoint map for agents |
 | Environment contract | `capabilities --json` | Machine capability report |
+| Local state updater | `zdots-update-local` | Post-pull reconciliation without full bootstrap |
 | Status TUI | `zdots-status` | Self-refreshing service + env + storage panel |
 | Issue filing | `zdots-issue "description"` | File a backlog task with trace ID attached |
 | AI router | `zdots-ask "prompt"` | Domain-aware prompt routing (shell/ruby/phi/default) |
