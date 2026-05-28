@@ -3,7 +3,7 @@ id: Z-113
 title: >-
   [agent-issue] zdots-ctl status fails with syntax error near unexpected token
   fi at bin/zdots-ctl line 451
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-28 13:35'
 labels:
@@ -27,3 +27,9 @@ zdots-ctl status fails with syntax error near unexpected token fi at bin/zdots-c
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Resolution
+
+<!-- SECTION:RESOLUTION:BEGIN -->
+Removed the stray `fi` in `bin/zdots-ctl` local proxy diagnostics and verified `zsh -n bin/zdots-ctl`.
+<!-- SECTION:RESOLUTION:END -->

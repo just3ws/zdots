@@ -165,6 +165,7 @@ All components are standalone executables in `bin/`. Full tool reference: [docs/
 | `zmorning` | Daily context brief + optional Pi orientation |
 | `zdash` | fzf task picker wired to Pi↔Aider↔ztask cycle |
 | `agent-guide` | Live endpoint + capability map for agent sessions |
+| `zdots-log-analyze` | Package bootstrap/update/upgrade logs for Pi, `ai-query`, or human diagnostics |
 | `bench` | Shell startup benchmark; guards 80ms performance budget |
 | `gemini-invoke` | Observable Gemini bridge (aliased to `gm`) |
 | `llama-ctl` | Local LLM lifecycle, profiles, and hardware tuning |
@@ -196,6 +197,18 @@ zdots-ctx capture
 *   **Methodology Store**: A permanent PostgreSQL brain for your architectural standards.
 *   **AI Bridge (MCP)**: Exposes your brain to AI agents via the Model Context Protocol (`ctx-mcp`) — agents can query standards and contribute new lessons.
 *   **Full-Text Search**: Sub-second lookups over your entire history of technical lessons.
+
+### Deploy Diagnostics Without OTel
+Bootstrap, update, and upgrade runs emit phase-marked logs and summaries under `~/.local/state/zsh`.
+Use `zdots-log-analyze` when the remote host is constrained or the OTel stack is down:
+
+```bash
+zdots-log-analyze update --tail 160
+zdots-log-analyze bootstrap --ai
+zdots-ctx diagnose-log upgrade
+```
+
+The helper includes local system context, Brewfile selection, tool availability, and AI endpoint health before asking the model to diagnose the run.
 
 ### Side-Effect Broker (Job Queue)
 Manage high-cost operations (like batch media transcription) securely via PostgreSQL.

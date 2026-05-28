@@ -40,7 +40,7 @@ Usage: capabilities [--json] [-h|--help]
 
 Environment health and service contract validator.
 Checks service providers, critical paths, observability, Knowledge Layer,
-and tooling reality against the .zdots.env manifest.
+deploy diagnostics, and tooling reality against the .zdots.env manifest.
 
 Options:
   --json      Machine-readable JSON output
@@ -166,6 +166,29 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
   printf "  %-15s : %b%s%b\n" "Multiplexer" "$CYAN" "$_mux" "$RESET"
 
   printf "  %-15s : %b%sx%s%b\n" "Dimensions" "$CYAN" "${LINES:-?}" "${COLUMNS:-?}" "$RESET"
+fi
+
+# Deploy Diagnostics
+_diag_cmd="${ZDOTDIR}/bin/zdots-log-analyze"
+_diag_available=0
+_diag_dir="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+# shellcheck disable=SC2012
+_latest_update_log="$(ls -t "$_diag_dir"/zdots-update-local-*.log 2>/dev/null | head -1 || true)"
+if [ -x "$_diag_cmd" ]; then
+  _diag_available=1
+fi
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo ""
+  echo "${BOLD}Deploy Diagnostics:${RESET}"
+  if [ "$_diag_available" = "1" ]; then
+    printf "  %-15s : %b%s%b\n" "log analyzer" "$GREEN" "$_diag_cmd" "$RESET"
+    printf "  %-15s : %s\n" "log dir" "$_diag_dir"
+    if [ -n "$_latest_update_log" ]; then
+      printf "  %-15s : %s\n" "latest update" "$_latest_update_log"
+    fi
+  else
+    printf "  %-15s : %bmissing%b\n" "log analyzer" "$YELLOW" "$RESET"
+  fi
 fi
 
 # 4. Observability Health
@@ -308,6 +331,9 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg ctx_live "$_ctx_live" \
       --arg ctx_db "$_ctx_db" \
       --arg ctx_pending "$_ctx_pending" \
+      --arg diag_available "$_diag_available" \
+      --arg diag_dir "$_diag_dir" \
+      --arg latest_update_log "$_latest_update_log" \
       --arg mcp_llama "$([ -x "${ZDOTDIR}/bin/llama-mcp" ] && echo 1 || echo 0)" \
       --arg mcp_ctx "$([ -x "${ZDOTDIR}/bin/ctx-mcp" ] && echo 1 || echo 0)" \
       --arg errors "$errors" \
@@ -341,6 +367,14 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
         observability: {
           trace_file: $trace_file,
           last_trace: $last_trace
+        },
+        diagnostics: {
+          log_analyzer: ($diag_available | tonumber),
+          log_dir: $diag_dir,
+          latest_update_log: $latest_update_log,
+          analyze_update: "zdots-log-analyze update",
+          analyze_bootstrap: "zdots-log-analyze bootstrap",
+          analyze_upgrade: "zdots-log-analyze upgrade"
         },
         brain: {
           intelligence_live: ($ctx_live | tonumber),
@@ -377,7 +411,7 @@ if command -v otel-cli >/dev/null 2>&1; then
 fi
 
 # Cleanup
-unset _avail _p_status _z_services _z_state_dir _z_trace_file _z_last_trace _ts _m_status _tools _path _status _tty_stdin _tty_stdout _tty_stderr _mux _json_stdin_tty _json_stdout_tty _json_stderr_tty _json_mux
+unset _avail _p_status _z_services _z_state_dir _z_trace_file _z_last_trace _ts _m_status _tools _path _status _tty_stdin _tty_stdout _tty_stderr _mux _json_stdin_tty _json_stdout_tty _json_stderr_tty _json_mux _diag_cmd _diag_available _diag_dir _latest_update_log
 
 if [ "$errors" -gt 0 ]; then
   if [ "$OUTPUT_FORMAT" = "text" ]; then
@@ -390,4 +424,3 @@ else
   fi
   exit 0
 fi
-

@@ -3,6 +3,31 @@
 # Scoped options for function only (won't exit your interactive shell).
 setopt localoptions errexit pipefail
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'EOF'
+Usage: upgrade-homebrew
+
+Update Homebrew metadata, upgrade packages, reconcile the selected Brewfile,
+and run cleanup-homebrew.
+
+Environment:
+  ZDOTS_CONTEXT=home|work         Selects Brewfile.home or Brewfile.work
+  HOMEBREW_BUNDLE_FILE=path      Custom bundle override
+  ZDOTS_UPGRADE_DRY_RUN=1        Print phases and commands without execution
+  ZDOTS_HOMEBREW_AGGRESSIVE=1    Use brew upgrade --greedy
+  ZDOTS_LOG_DIR=path             Override transcript directory
+
+Logs:
+  ${XDG_STATE_HOME:-~/.local/state}/zsh/upgrade-homebrew-*.log
+  ${XDG_STATE_HOME:-~/.local/state}/zsh/upgrade-homebrew-*.summary.md
+
+Diagnostics:
+  zdots-log-analyze upgrade
+  zdots-log-analyze upgrade --ai
+EOF
+  return 0
+fi
+
 aggressive_upgrade="${ZDOTS_HOMEBREW_AGGRESSIVE:-0}"
 dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
 run_id="$(date '+%Y%m%dT%H%M%S')-$$"

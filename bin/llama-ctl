@@ -42,6 +42,7 @@ PLIST_LABEL="com.zdots.llama-server"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 META_LIB="$ZDOTDIR/lib/metadata.bash"
 
+# shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
 SVC_NAME="llama-server"
 # shellcheck source=lib/svc-launchd.bash
 source "${ZDOTDIR}/lib/svc-launchd.bash"
