@@ -74,6 +74,11 @@ if command -v whisper-cpp >/dev/null 2>&1; then
   WHISPER_UP=true
 fi
 
+FABRIC_UP=false
+if command -v fabric-ai >/dev/null 2>&1; then
+  FABRIC_UP=true
+fi
+
 CURRENT_USER="$(id -un 2>/dev/null || printf 'unknown')"
 AI_MODE="${ZDOTS_AI_MODE:-local}"
 
@@ -96,6 +101,7 @@ if $JSON; then
     --argjson grafana_up   "$GRAFANA_UP" \
     --arg     grafana_url  "$GRAFANA_URL" \
     --argjson whisper_up   "$WHISPER_UP" \
+    --argjson fabric_up    "$FABRIC_UP" \
     --arg     current_user "$CURRENT_USER" \
     --arg     ai_mode        "$AI_MODE" \
     --argjson cloud_keys_set "$CLOUD_KEYS_SET" \
@@ -103,6 +109,7 @@ if $JSON; then
       services: {
         llama_cpp:   { up: $ai_up,      endpoint: $ai_ep,     model: $ai_model, start: "llama-ctl start" },
         whisper_cpp: { up: $whisper_up,                                          start: "whisper-ctl install" },
+        fabric_ai:   { up: $fabric_up,                                           start: "brew install fabric-ai" },
         otelcol:     { up: $otel_up,    endpoint: $otel_ep,                      start: "otel-collector start" },
         colima:      { up: $colima_up,                                            start: "local-ci start" },
         grafana:     { up: $grafana_up, url: $grafana_url,                       start: "local-ci start" }
@@ -116,6 +123,7 @@ if $JSON; then
         interactive_only:  ["ai"],
         aider_command:     "zaider",
         knowledge_base:    "zdots-ctx query / zdots-ctx hydrate",
+        expert_patterns:   "zdots-ask --pattern <name> / zdots-pattern",
         cloud_keys_set:    $cloud_keys_set
       },
       otel: {
@@ -304,6 +312,24 @@ HARDWARE LIMITS (M4 MBA, 16GB RAM, 256GB disk):
     ZDOTS_AI_PROFILE=constrained llama-ctl install
   Full config: etc/ai-models.yaml
   Full guide:  docs/llama-cpp.md
+EOF
+
+_head "Expert Patterns — fabric-ai"
+
+if $FABRIC_UP; then
+  printf '%s\n' "$(_ok "fabric-ai (pattern library)")"
+else
+  printf '%s\n' "$(_down "fabric-ai (pattern library)")"
+fi
+
+cat <<EOF
+Usage:
+  zdots-pattern               # Interactive selection via fzf
+  zdots-pattern --context     # Prepend real-time zdots context to pattern
+  zdots-ask --pattern <name>  # One-shot usage of a specific pattern
+
+Patterns are stored in: ~/.config/fabric/patterns
+Update with: fabric-ai --updatepatterns
 EOF
 
 _head "Transcription — whisper.cpp"

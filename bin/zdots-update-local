@@ -18,6 +18,7 @@ SKIP_BREW=0
 SKIP_MISE=0
 SKIP_LLAMA=0
 SKIP_OTEL=0
+SKIP_FABRIC=0
 SKIP_CHECK=0
 
 usage() {
@@ -33,14 +34,16 @@ Steps:
   2. mise install --cd ZDOTDIR
   3. llama-ctl install
   4. llama-ctl install-embed
-  5. otel-collector validate
-  6. make check-fast
+  5. fabric-ai --updatepatterns
+  6. otel-collector validate
+  7. make check-fast
 
 Options:
   -n, --dry-run     Print commands without running them
   --skip-brew       Skip brew bundle
   --skip-mise       Skip mise install
   --skip-llama      Skip llama plist regeneration
+  --skip-fabric     Skip fabric-ai pattern update
   --skip-otel       Skip otel-collector validation
   --skip-check      Skip make check-fast
   -h, --help        Show this help
@@ -53,6 +56,7 @@ while [[ $# -gt 0 ]]; do
     --skip-brew)  SKIP_BREW=1 ;;
     --skip-mise)  SKIP_MISE=1 ;;
     --skip-llama) SKIP_LLAMA=1 ;;
+    --skip-fabric) SKIP_FABRIC=1 ;;
     --skip-otel)  SKIP_OTEL=1 ;;
     --skip-check) SKIP_CHECK=1 ;;
     -h|--help)    usage; exit 0 ;;
@@ -106,6 +110,22 @@ if [[ "$SKIP_LLAMA" -eq 0 ]]; then
     run "$ZDOTDIR/bin/llama-ctl" install-embed
   else
     warn "bin/llama-ctl not executable; skipping llama plist regeneration"
+  fi
+fi
+
+if [[ "$SKIP_FABRIC" -eq 0 ]]; then
+  if command -v fabric-ai >/dev/null 2>&1; then
+    # Ensure config exists for local LLM
+    FABRIC_CONF="$HOME/.config/fabric"
+    if [[ ! -f "$FABRIC_CONF/.env" ]]; then
+      run mkdir -p "$FABRIC_CONF"
+      if [[ "$DRY_RUN" -eq 0 ]]; then
+        printf "OPENAI_API_KEY=local\nOPENAI_BASE_URL=http://127.0.0.1:11500/v1\nDEFAULT_MODEL=qwen3-8b\n" > "$FABRIC_CONF/.env"
+      fi
+    fi
+    run fabric-ai --updatepatterns
+  else
+    warn "fabric-ai not found; skipping pattern update"
   fi
 fi
 

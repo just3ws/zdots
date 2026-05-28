@@ -1,0 +1,24 @@
+#compdef zdots-ask
+
+_zdots-ask() {
+  local -a domains patterns
+  local patterns_dir="$HOME/.config/fabric/patterns"
+
+  domains=(default shell ruby phi)
+  if [[ -d "$patterns_dir" ]]; then
+    patterns=($(ls "$patterns_dir"))
+  fi
+
+  _arguments \
+    '--domain[Force a specific domain]:domain:compadd -a domains' \
+    '--pattern[Use a fabric-ai pattern]:pattern:compadd -a patterns' \
+    '--context[Prepend zdots-ctx hydrate output]:tag:compadd -a domains' \
+    '--think[Enable Qwen3 thinking mode]' \
+    '--dry-run[Dry run mode]' \
+    '--list-domains[List available domains]' \
+    '--list-patterns[List fabric patterns]' \
+    '--help[Show help]' \
+    '*:prompt:_files'
+}
+
+_zdots-ask "$@"

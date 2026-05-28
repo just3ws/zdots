@@ -364,6 +364,25 @@ ZDOTS_AI_ENDPOINT=http://powerstation.local:11500
 
 Cloud keys live in the Keychain only — never in `.zdots.secrets`, `.zdots.local`, `.zdots.env`, or any tracked file. `env.sh` loads them automatically via `zdots_keychain_load` on every shell start.
 
+## fabric-ai (Pattern-based Intelligence)
+
+`bootstrap` installs `fabric-ai` via Homebrew, but it requires a one-time pattern download and local LLM configuration:
+
+```bash
+# 1. Initialize local configuration (~/.config/fabric/.env)
+mkdir -p ~/.config/fabric
+cat <<EOF > ~/.config/fabric/.env
+OPENAI_API_KEY=local
+OPENAI_BASE_URL=http://127.0.0.1:11500/v1
+DEFAULT_MODEL=qwen3-8b
+EOF
+
+# 2. Download patterns (~250+ expert prompts)
+fabric-ai --updatepatterns
+```
+
+The zdots integration (`zdots-ask --pattern` and `zdots-pattern`) uses this local configuration.
+
 ## Verify
 
 ```bash
