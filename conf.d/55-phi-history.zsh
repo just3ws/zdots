@@ -15,6 +15,7 @@
 [[ "${ZDOTS_HISTORY_REDACT:-1}" == "1" ]] || return 0
 
 [[ -r "${ZDOTDIR}/lib/audit_log.bash" ]] && source "${ZDOTDIR}/lib/audit_log.bash"
+[[ -r "${ZDOTDIR}/lib/shell_hook_metrics.bash" ]] && source "${ZDOTDIR}/lib/shell_hook_metrics.bash"
 
 # Eagerly compile patterns at shell startup — not inside the hook.
 if [[ -r "${ZDOTDIR}/lib/phi_scrubber.bash" ]]; then
@@ -24,12 +25,26 @@ if [[ -r "${ZDOTDIR}/lib/phi_scrubber.bash" ]]; then
   fi
 fi
 
+_phi_history_maybe_record_overhead() {
+  local metric_status="$1"
+  local elapsed="$2"
+  local threshold_ms="$3"
+  local ts_ms="$4"
+
+  (( elapsed > threshold_ms )) || return 0
+  shell_hook_metrics_record "phi-history" "$metric_status" "$elapsed" "$threshold_ms" "$ts_ms"
+}
+
 zshaddhistory() {
   local line="${1%%$'\n'}"
   local t0=$EPOCHREALTIME
+  local threshold_ms=1 elapsed ts_ms
 
   # Suppress-flagged patterns (connection strings): drop entry entirely.
   if phi_should_suppress "$line"; then
+    elapsed=$(( (EPOCHREALTIME - t0) * 1000 ))
+    ts_ms=$(( EPOCHREALTIME * 1000 ))
+    _phi_history_maybe_record_overhead "suppressed" "$elapsed" "$threshold_ms" "$ts_ms"
     zdots_audit_log "history_suppressed" "reason=suppress_pattern"
     return 1
   fi
@@ -38,23 +53,27 @@ zshaddhistory() {
   local redacted
   redacted="$(phi_scrub <<< "$line")"
   local scrub_status=$?
+  elapsed=$(( (EPOCHREALTIME - t0) * 1000 ))
+  ts_ms=$(( EPOCHREALTIME * 1000 ))
 
   if (( scrub_status != 0 )); then
     # phi_scrub failed (patterns unavailable or unexpected suppress match).
     # Suppress the entry rather than risk writing sensitive data.
+    _phi_history_maybe_record_overhead "scrub_failure" "$elapsed" "$threshold_ms" "$ts_ms"
     zdots_audit_log "history_suppressed" "reason=scrub_failure"
     return 1
   fi
 
   if [[ "$redacted" != "$line" ]]; then
+    _phi_history_maybe_record_overhead "redacted" "$elapsed" "$threshold_ms" "$ts_ms"
     zdots_audit_log "history_redacted" "reason=phi_pattern"
     print -s -- "$redacted"
     return 1
   fi
 
   # Performance guard — warn if hook exceeded 1ms on a clean command
-  local elapsed=$(( (EPOCHREALTIME - t0) * 1000 ))
-  (( elapsed > 1 )) && print -u2 "zdots: phi-history: ${elapsed}ms overhead (threshold 1ms)" || true
+  _phi_history_maybe_record_overhead "clean" "$elapsed" "$threshold_ms" "$ts_ms"
+  (( elapsed > threshold_ms )) && print -u2 "zdots: phi-history: ${elapsed}ms overhead (threshold ${threshold_ms}ms)" || true
 
   return 0
 }

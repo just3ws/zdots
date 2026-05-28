@@ -285,6 +285,10 @@ flowchart LR
 
 **PHI contract:** `_zca_redact` runs `phi_should_suppress` first. Suppress-flagged commands (connection strings) set `_ZCA_CMD=""` and return — no write to Redis, SQLite, or PostgreSQL. Redact patterns apply `phi_scrub` (sed substitution) before the write.
 
+`shell_hook_metrics` uses the same SQLite buffer and sync path to capture rare
+`phi-history` overhead samples above the warning threshold, so slow hook
+branches can be queried alongside command analytics.
+
 ---
 
 ## 9. Local AI Routing Architecture

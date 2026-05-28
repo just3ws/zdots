@@ -472,6 +472,41 @@ module Zdots
       exit(errors > 0 ? 1 : 0)
     end
 
+    def sync_incremental_table(sqlite, select_sql, cursor_key, conflict_target, target_table, dry_run)
+      cursor_row = Zdots.db[:sync_state].where(key: cursor_key).first
+      last_id = cursor_row ? cursor_row[:value].to_i : 0
+
+      rows = sqlite.execute(select_sql, last_id)
+      return [0, last_id, last_id] if rows.empty?
+
+      host = ENV.fetch("HOST", (Socket.gethostname rescue "unknown"))
+      synced = 0
+      new_cursor = last_id
+
+      rows.each do |row|
+        record = yield(row, host)
+
+        unless dry_run
+          Zdots.db[target_table]
+               .insert_conflict(target: conflict_target, action: :nothing)
+               .insert(record)
+        end
+
+        synced += 1
+        new_cursor = row["id"]
+      end
+
+      unless dry_run
+        Zdots.db[:sync_state]
+             .insert_conflict(target: :key, action: :update,
+                              update: { value: new_cursor.to_s,
+                                        updated_at: Sequel::CURRENT_TIMESTAMP })
+             .insert(key: cursor_key, value: new_cursor.to_s)
+      end
+
+      [synced, last_id, new_cursor]
+    end
+
     def parse_frontmatter(raw)
       return [nil, raw] unless raw.start_with?("---\n")
       close = raw.index("\n---\n", 4)
@@ -494,39 +529,30 @@ module Zdots
 
       unless File.exist?(db_path)
         puts "sync-history: SQLite DB not found at #{db_path}"
-        puts "  Enable ZDOTS_CMD_ANALYTICS=1 in .zdots.local and run a few commands first."
+        puts "  Enable ZDOTS_CMD_ANALYTICS=1 in .zdots.local and run a few commands first,"
+        puts "  or let shell_hook_metrics create the buffer by crossing the hook threshold."
         exit 1
       end
 
       sqlite  = SQLite3::Database.new(db_path, readonly: true)
       sqlite.results_as_hash = true
+      shell_hook_metrics_exists = sqlite.get_first_value(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'shell_hook_metrics' LIMIT 1"
+      )
 
-      # Read cursor — last SQLite id successfully synced to PostgreSQL.
-      cursor_row = Zdots.db[:sync_state].where(key: "command_runs_last_id").first
-      last_id    = cursor_row ? cursor_row[:value].to_i : 0
-
-      rows = sqlite.execute(
+      command_synced, command_last, command_new = sync_incremental_table(
+        sqlite,
         "SELECT id, session_id, ts, cwd, cmd, args, exit_code, duration_ms, profile
            FROM command_runs
           WHERE id > ?
           ORDER BY id ASC
           LIMIT 5000",
-        last_id
-      )
-
-      if rows.empty?
-        puts "sync-history: nothing new (cursor=#{last_id})"
-        sqlite.close
-        return
-      end
-
-      host = ENV.fetch("HOST", (Socket.gethostname rescue "unknown"))
-
-      synced = 0
-      new_cursor = last_id
-
-      rows.each do |row|
-        record = {
+        "command_runs_last_id",
+        [:session_id, :ts, :cmd, Sequel.function(:coalesce, :args, "")],
+        :command_runs,
+        dry_run
+      ) do |row, host|
+        {
           session_id:  row["session_id"],
           ts:          row["ts"],
           cwd:         row["cwd"],
@@ -537,30 +563,46 @@ module Zdots
           profile:     row["profile"],
           host:        host
         }
-
-        unless dry_run
-          Zdots.db[:command_runs]
-               .insert_conflict(
-                 target:  [:session_id, :ts, :cmd, Sequel.function(:coalesce, :args, "")],
-                 action:  :nothing
-               )
-               .insert(record)
-        end
-
-        synced     += 1
-        new_cursor  = row["id"]
       end
 
-      unless dry_run
-        Zdots.db[:sync_state]
-             .insert_conflict(target: :key, action: :update,
-                              update: { value: new_cursor.to_s,
-                                        updated_at: Sequel::CURRENT_TIMESTAMP })
-             .insert(key: "command_runs_last_id", value: new_cursor.to_s)
+      if shell_hook_metrics_exists
+        hook_synced, hook_last, hook_new = sync_incremental_table(
+          sqlite,
+          "SELECT id, session_id, ts_ms, hook, status, elapsed_ms, threshold_ms, host
+             FROM shell_hook_metrics
+            WHERE id > ?
+            ORDER BY id ASC
+            LIMIT 5000",
+          "shell_hook_metrics_last_id",
+          [:session_id, :ts_ms, :hook, :status, :elapsed_ms, :threshold_ms],
+          :shell_hook_metrics,
+          dry_run
+        ) do |row, host|
+          {
+            session_id:   row["session_id"],
+            ts_ms:        row["ts_ms"],
+            hook:         row["hook"],
+            status:       row["status"],
+            elapsed_ms:   row["elapsed_ms"],
+            threshold_ms: row["threshold_ms"],
+            host:         row["host"] || host
+          }
+        end
+      else
+        hook_synced = 0
+        hook_last   = 0
+        hook_new    = 0
+      end
+
+      if command_synced.zero? && hook_synced.zero?
+        puts "sync-history: nothing new (command_runs=#{command_last}, shell_hook_metrics=#{hook_last})"
+        sqlite.close
+        return
       end
 
       sqlite.close
-      puts "sync-history: #{dry_run ? "[dry-run] would sync" : "synced"} #{synced} records (cursor #{last_id} → #{new_cursor})"
+      puts "sync-history: #{dry_run ? '[dry-run] would sync' : 'synced'} #{command_synced} command_runs (cursor #{command_last} → #{command_new})"
+      puts "sync-history: #{dry_run ? '[dry-run] would sync' : 'synced'} #{hook_synced} shell_hook_metrics (cursor #{hook_last} → #{hook_new})"
     end
 
     def cmd_rekey(args)
