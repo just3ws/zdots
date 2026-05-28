@@ -56,6 +56,10 @@ Logs:
   ${XDG_STATE_HOME:-~/.local/state}/zsh/zdots-update-local-*.log
   ${XDG_STATE_HOME:-~/.local/state}/zsh/zdots-update-local-*.summary.md
   Override directory with ZDOTS_LOG_DIR.
+
+Diagnostics:
+  zdots-log-analyze update
+  zdots-log-analyze update --ai
 EOF
 }
 

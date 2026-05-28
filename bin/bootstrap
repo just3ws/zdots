@@ -10,6 +10,38 @@
 set -eu
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+case "${1:-}" in
+  -h|--help)
+    cat <<EOF
+Usage: bootstrap
+
+First-time zdots setup for a new machine.
+
+Phases include Homebrew bundle selection, XDG directories, companion repos,
+shell links, local AI launchd setup, OTel collector setup, nginx/mkcert,
+Ruby gems, database initialization, Pi config, and gh extensions.
+
+Logs:
+  \${XDG_STATE_HOME:-~/.local/state}/zsh/bootstrap-*.log
+  \${XDG_STATE_HOME:-~/.local/state}/zsh/bootstrap-*.summary.md
+  Override directory with ZDOTS_LOG_DIR.
+
+Diagnostics:
+  zdots-log-analyze bootstrap
+  zdots-log-analyze bootstrap --ai
+EOF
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    printf 'bootstrap: unknown option: %s\n' "$1" >&2
+    printf 'Run: bootstrap --help\n' >&2
+    exit 2
+    ;;
+esac
+
 _BOOTSTRAP_STARTED_AT="$(date '+%Y-%m-%dT%H:%M:%S%z')"
 _BOOTSTRAP_RUN_ID="$(date '+%Y%m%dT%H%M%S')-$$"
 _BOOTSTRAP_LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"

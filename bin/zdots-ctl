@@ -447,7 +447,6 @@ cmd_check() {
         _chk_fail "nginx config  invalid"
         _fix "sudo nginx -t  (see errors above)"
       fi
-    fi
   fi
 
   # mkcert local CA trusted in system keychain

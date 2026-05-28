@@ -12,6 +12,7 @@
 #   query [--semantic] <t>  Search methodologies or lessons for <t>
 #   capture   Distill current session (traces/history) into a lesson
 #   hydrate [tag] Get semantically relevant context for AI tasks
+#   diagnose-log <bootstrap|update|upgrade> [args...] Package deploy logs for AI/HI diagnostics
 #   seed      Import existing standards from ~/my/standards
 #   add-methodology <slug> <title> <content> [tags...]
 #   add-lesson <content> [context] [tags...]
@@ -54,6 +55,7 @@ Knowledge Layer Interface:
   query [--semantic] <t>  Search methodologies or lessons for <t>
   capture   Distill current session (traces/history) into a lesson
   hydrate [tag] Get semantically relevant context for AI tasks
+  diagnose-log <bootstrap|update|upgrade> [args...]  Package deploy logs for AI/HI diagnostics
   seed      Import existing standards from ~/my/standards
   add-methodology <slug> <title> <content> [tags...]
   add-lesson <content> [context] [tags...]
@@ -88,6 +90,11 @@ Environment:
 Database access levels:
   zdots_rw   INSERT/UPDATE/DELETE/SELECT + stored procedures — app user (this tool)
   zdots_ro   SELECT only — safe for psql exploration: psql -U zdots_ro my
+
+Log diagnostics:
+  zdots-ctx diagnose-log update --tail 160
+  zdots-ctx diagnose-log bootstrap --ai
+  Uses zdots-log-analyze and does not require OTel.
 EOF
 }
 
@@ -142,6 +149,10 @@ cmd_init_db() {
 
 cmd_migrate() {
   zdots-ruby "${ZDOTDIR}/lib/zdots/migrator.rb"
+}
+
+cmd_diagnose_log() {
+  "${ZDOTDIR}/bin/zdots-log-analyze" "$@"
 }
 
 cmd_query() {
@@ -640,6 +651,7 @@ case "${1:-}" in
   query)    shift; cmd_query "${@}" ;;
   capture)  shift; cmd_capture "${@}" ;;
   hydrate)  shift; cmd_hydrate "${@}" ;;
+  diagnose-log) shift; cmd_diagnose_log "${@}" ;;
   seed)     shift; cmd_seed "${@}" ;;
   add-methodology) shift; cmd_add_methodology "${@}" ;;
   add-lesson)      shift; cmd_add_lesson "${@}" ;;
