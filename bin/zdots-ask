@@ -44,6 +44,7 @@ Usage: zdots-ask [OPTIONS] PROMPT
 
 Options:
   --domain DOMAIN    Force a specific domain (default: auto-detect)
+  --pattern PATTERN  Use a fabric-ai pattern instead of zdots system prompt
   --context [TAG]    Prepend zdots-ctx hydrate output to prompt; TAG defaults
                      to the detected domain. Fails open if DB unavailable.
   --think            Enable Qwen3 thinking mode (/think token). Output is still
@@ -64,6 +65,14 @@ _list_domains() {
     _d="${_f##*/zdots-}"
     printf '  %s\n' "${_d%.md}"
   done
+}
+
+_list_patterns() {
+  if command -v fabric-ai >/dev/null 2>&1; then
+     fabric-ai --listpatterns
+  else
+     printf 'zdots-ask: fabric-ai not installed\n' >&2
+  fi
 }
 
 _detect_domain() {
@@ -93,6 +102,7 @@ _detect_domain() {
 # Argument parsing
 # ---------------------------------------------------------------------------
 DOMAIN=""
+PATTERN=""
 DRY_RUN=0
 THINK_MODE=0
 CONTEXT_ENABLED=0
@@ -102,6 +112,7 @@ PROMPT_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --domain|-d)    DOMAIN="$2"; shift 2 ;;
+    --pattern|-p)   PATTERN="$2"; shift 2 ;;
     --context|-c)
       CONTEXT_ENABLED=1
       # Consume optional TAG (next arg that doesn't start with '-')
@@ -114,6 +125,7 @@ while [[ $# -gt 0 ]]; do
     --think)        THINK_MODE=1; shift   ;;
     --dry-run)      DRY_RUN=1;   shift   ;;
     --list-domains) _list_domains; exit 0 ;;
+    --list-patterns) _list_patterns; exit 0 ;;
     --help|-h)      _usage ;;
     --)             shift; PROMPT_ARGS+=("$@"); break ;;
     -*)             printf 'zdots-ask: unknown flag: %s\n' "$1" >&2; _usage ;;
@@ -137,21 +149,27 @@ if [[ -z "$DOMAIN" ]]; then
   DOMAIN=$(_detect_domain "$PROMPT")
 fi
 
-SYS_FILE="${_PROMPTS_DIR}/zdots-${DOMAIN}.md"
-if [[ ! -f "$SYS_FILE" ]]; then
-  printf 'zdots-ask: unknown domain %q (no file: %s)\n' "$DOMAIN" "$SYS_FILE" >&2
-  printf 'zdots-ask: ' >&2; _list_domains >&2
-  exit 2
-fi
+if [[ -n "$PATTERN" ]]; then
+    # When a pattern is used, we bypass the zdots system prompt domain
+    SYS_CONTENT=""
+    SYS_FILE="fabric-pattern:${PATTERN}"
+else
+    SYS_FILE="${_PROMPTS_DIR}/zdots-${DOMAIN}.md"
+    if [[ ! -f "$SYS_FILE" ]]; then
+      printf 'zdots-ask: unknown domain %q (no file: %s)\n' "$DOMAIN" "$SYS_FILE" >&2
+      printf 'zdots-ask: ' >&2; _list_domains >&2
+      exit 2
+    fi
 
-SYS_CONTENT=$(cat "$SYS_FILE")
+    SYS_CONTENT=$(cat "$SYS_FILE")
 
-# Invariant: every domain prompt must end with /no_think to suppress Qwen3
-# thinking mode for interactive queries. See docs/ai-pipeline-seams.md Seam 5.
-_last_line=$(grep -v '^[[:space:]]*$' "$SYS_FILE" | tail -1 | tr -d '[:space:]')
-if [[ "$_last_line" != "/no_think" ]]; then
-  printf 'zdots-ask: %s must end with /no_think (found: %q)\n' "$SYS_FILE" "$_last_line" >&2
-  exit 2
+    # Invariant: every domain prompt must end with /no_think to suppress Qwen3
+    # thinking mode for interactive queries. See docs/ai-pipeline-seams.md Seam 5.
+    _last_line=$(grep -v '^[[:space:]]*$' "$SYS_FILE" | tail -1 | tr -d '[:space:]')
+    if [[ "$_last_line" != "/no_think" ]]; then
+      printf 'zdots-ask: %s must end with /no_think (found: %q)\n' "$SYS_FILE" "$_last_line" >&2
+      exit 2
+    fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -159,10 +177,15 @@ fi
 # ---------------------------------------------------------------------------
 if (( DRY_RUN )); then
   printf '[zdots-ask] domain=%s  system_prompt=%s\n\n' "$DOMAIN" "$SYS_FILE"
+  if [[ -n "$PATTERN" ]]; then
+    printf '[zdots-ask] fabric_pattern=%s\n\n' "$PATTERN"
+  fi
   if (( CONTEXT_ENABLED )); then
     printf '[zdots-ask] context=enabled  tag=%s\n\n' "${CONTEXT_TAG:-$DOMAIN}"
   fi
-  printf '=== system prompt ===\n%s\n\n' "$SYS_CONTENT"
+  if [[ -n "$SYS_CONTENT" ]]; then
+    printf '=== system prompt ===\n%s\n\n' "$SYS_CONTENT"
+  fi
   printf '=== prompt ===\n%s\n' "$PROMPT"
   exit 0
 fi
@@ -201,4 +224,11 @@ fi
 if (( THINK_MODE )); then
   export AIQ_ENABLE_THINKING=1
 fi
-zdots_ai_infer_raw "$PROMPT" "$SYS_CONTENT"
+
+if [[ -n "$PATTERN" ]]; then
+    # Route to fabric-ai with local endpoint
+    # fabric-ai reads from stdin if present
+    printf '%s' "$PROMPT" | fabric-ai --pattern "$PATTERN"
+else
+    zdots_ai_infer_raw "$PROMPT" "$SYS_CONTENT"
+fi
