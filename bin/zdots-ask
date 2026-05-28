@@ -14,6 +14,7 @@
 #   zdots-ask --domain ruby "write a Sequel migration to add a column"
 #   echo "snippet" | zdots-ask --domain shell "review this for zdots conventions"
 #   zdots-ask --dry-run "what psql command for read-only exploration?"
+#   zdots-log-analyze update --ai    # preferred for deploy/update logs
 #   zdots-ask --list-domains
 #
 # Domains (auto-detected unless --domain is given):
@@ -54,6 +55,10 @@ Options:
   --help, -h         Show this help
 
 Domains: default  shell  ruby  phi
+
+Deploy/update logs:
+  Use zdots-log-analyze update|bootstrap|upgrade [--ai]. It packages phase
+  summaries, transcript tails, and non-OTel system context for local models.
 EOF
   exit 2
 }

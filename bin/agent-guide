@@ -42,6 +42,8 @@ done
 AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 OTEL_ENDPOINT="http://127.0.0.1:4318"
 GRAFANA_URL="http://127.0.0.1:3000"
+LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
+LOG_ANALYZER="${ZDOTDIR:-$HOME/.config/zsh}/bin/zdots-log-analyze"
 
 AI_UP=false
 AI_MODEL_ID="unknown"
@@ -123,6 +125,7 @@ if $JSON; then
         interactive_only:  ["ai"],
         aider_command:     "zaider",
         knowledge_base:    "zdots-ctx query / zdots-ctx hydrate",
+        deploy_logs:       "zdots-log-analyze update|bootstrap|upgrade [--ai]",
         expert_patterns:   "zdots-ask --pattern <name> / zdots-pattern",
         cloud_keys_set:    $cloud_keys_set
       },
@@ -174,8 +177,17 @@ if $JSON; then
       docs: {
         platform_control: "zdots-ctl check / up / down / reset / status",
         ai:               "docs/llama-cpp.md",
+        deploy_logs:      "docs/deploy-log-analysis.md",
         otel:             "docs/otel-collector-guide.md",
         agents:           "AGENTS.md"
+      },
+      diagnostics: {
+        log_dir:       "'"$LOG_DIR"'",
+        log_analyzer:  "'"$LOG_ANALYZER"'",
+        update:        "zdots-log-analyze update",
+        bootstrap:     "zdots-log-analyze bootstrap",
+        upgrade:       "zdots-log-analyze upgrade",
+        ai:            "zdots-log-analyze update --ai"
       }
     }'
   exit 0
@@ -208,6 +220,24 @@ zdots-ctl is the single command to manage the full Zdots platform.
   zdots-ctl reset        full platform restart (down + up)
   zdots-ctl install      first-time setup on a new workstation
   zdots-ctl status --json  machine-readable JSON
+EOF
+
+_head "Deploy Logs — Non-OTel Diagnostics"
+
+cat <<EOF
+Phase-marked transcripts:
+  ${LOG_DIR}/bootstrap-*.log
+  ${LOG_DIR}/zdots-update-local-*.log
+  ${LOG_DIR}/upgrade-homebrew-*.log
+
+AI/HI handoff:
+  zdots-log-analyze update
+  zdots-log-analyze bootstrap --tail 400
+  zdots-log-analyze upgrade --ai
+  zdots-ctx diagnose-log update --tail 160
+
+These packs include a non-OTel system snapshot, so diagnostics still work when
+the collector, LGTM stack, or Grafana are down.
 EOF
 
 _head "Live Service Status"

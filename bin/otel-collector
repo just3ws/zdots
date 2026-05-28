@@ -30,6 +30,7 @@ PLIST_LABEL="com.zdots.otel-collector"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 OTLP_ENDPOINT="http://127.0.0.1:4318"
 
+# shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
 SVC_NAME="otel-collector"
 # shellcheck source=lib/svc-launchd.bash
 source "${ZDOTDIR:-$(pwd)}/lib/svc-launchd.bash"
