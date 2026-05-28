@@ -47,7 +47,7 @@ _compose() {
   elif command -v docker-compose >/dev/null 2>&1; then
     docker-compose "$@"
   else
-    _die "docker compose not found. Run: brew bundle"
+    _die "docker compose not found. Run: brew bundle --file \"${HOMEBREW_BUNDLE_FILE:-$REPO_ROOT/Brewfile.home}\""
   fi
 }
 
@@ -59,7 +59,7 @@ _check_deps() {
   if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
     missing+=("docker-compose")
   fi
-  (( ${#missing[@]} == 0 )) || _die "missing dependencies: ${missing[*]}. Run: brew bundle"
+  (( ${#missing[@]} == 0 )) || _die "missing dependencies: ${missing[*]}. Run: brew bundle --file \"${HOMEBREW_BUNDLE_FILE:-$REPO_ROOT/Brewfile.home}\""
 }
 
 _grafana_healthy() {

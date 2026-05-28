@@ -7,7 +7,7 @@
 # speaker identification.
 #
 # DEPENDENCIES:
-# - yt-dlp, ffmpeg, whisper.cpp (via Brewfile)
+# - yt-dlp, ffmpeg, whisper.cpp (via selected Brewfile.home/work)
 # - bin/whisper-ctl (for model management)
 # - bin/diarize (for optional speaker labeling)
 

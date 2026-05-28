@@ -57,7 +57,8 @@ GIT_COMMITTER_EMAIL=firstname.lastname@company.com
 This single command:
 - Creates XDG directory structure with correct permissions
 - Links shell entry points (`~/.zshenv`, `~/.bashrc`, `~/.bash_profile`)
-- Installs all Homebrew packages from `Brewfile`
+- Installs Homebrew packages from `Brewfile.home` or `Brewfile.work`, selected by `ZDOTS_CONTEXT`
+- Writes a timestamped transcript and summary under `~/.local/state/zsh/`
 - Registers llama.cpp launchd service and downloads the AI model (~4.7 GB)
 - Installs Ruby dependencies via Bundler
 - Creates `.zdots.local` from the example template if it doesn't exist
@@ -341,6 +342,22 @@ zpi "what services are running?"             # interactive sanity check
 Project-level skills (`.pi/skills/`) travel with the repo via git clone.
 Global skills (`~/.pi/agent/skills/`) are machine-local — only the 14 project skills
 are available on a fresh machine. That is expected and sufficient for zdots work.
+
+## Bootstrap and update logs
+
+Bootstrap, local updates, and Homebrew upgrades emit phase-marked transcripts
+under `${XDG_STATE_HOME:-~/.local/state}/zsh/`.
+
+Useful handoff files:
+
+```bash
+ls -t ~/.local/state/zsh/bootstrap-*.summary.md ~/.local/state/zsh/bootstrap-*.log | head
+ls -t ~/.local/state/zsh/zdots-update-local-*.summary.md ~/.local/state/zsh/zdots-update-local-*.log | head
+ls -t ~/.local/state/zsh/upgrade-homebrew-*.summary.md ~/.local/state/zsh/upgrade-homebrew-*.log | head
+```
+
+Feed the `*.summary.md` first to Pi, then the full `*.log` only if it needs
+command output. Override the destination with `ZDOTS_LOG_DIR=/path`.
 
 ### Using a more powerful machine on your LAN
 

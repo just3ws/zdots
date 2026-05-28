@@ -154,7 +154,7 @@ HOMEBREW_PREFIX=/opt/homebrew
 If `brew` exists but tools are missing, run:
 
 ```sh
-brew bundle --file "$ZDOTDIR/Brewfile"
+brew bundle --file "$HOMEBREW_BUNDLE_FILE"
 ```
 
 ### mise or Ruby commands fail
@@ -595,7 +595,7 @@ Only run full `make check` after shell syntax and service blockers are clear.
 
 Mostly, but it is not a narrow updater. It may:
 - restore adots files into `$HOME`
-- run `brew bundle`
+- run `brew bundle --file "$HOMEBREW_BUNDLE_FILE"`
 - run `mise install`
 - download models
 - rewrite launchd plists

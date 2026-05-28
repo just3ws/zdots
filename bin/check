@@ -496,14 +496,19 @@ if [[ "$SKIP_EXTERNAL" != "1" ]]; then
     exit 1
   fi
 
-  if command -v brew >/dev/null 2>&1 && [[ -f "$REPO_ROOT/Brewfile" ]]; then
-    if ! HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file "$REPO_ROOT/Brewfile"; then
+  case "${ZDOTS_CONTEXT:-home}" in
+    work) _zdots_brewfile="$REPO_ROOT/Brewfile.work" ;;
+    *)    _zdots_brewfile="$REPO_ROOT/Brewfile.home" ;;
+  esac
+  if command -v brew >/dev/null 2>&1 && [[ -f "$_zdots_brewfile" ]]; then
+    if ! HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file "$_zdots_brewfile"; then
       echo "check: warning: brew bundle check failed (non-blocking)" >&2
       if [[ "${ZDOTS_CHECK_STRICT_BREW:-0}" == "1" ]]; then
         exit 1
       fi
     fi
   fi
+  unset _zdots_brewfile
   
   if command -v bats >/dev/null 2>&1; then
     echo "check: running Bats tests..."
