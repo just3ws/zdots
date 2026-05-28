@@ -58,7 +58,7 @@ Knowledge Layer Interface:
   add-methodology <slug> <title> <content> [tags...]
   add-lesson <content> [context] [tags...]
   ingest [--dry-run] <file.md | dir/> | --all  Ingest Knowledge Vault documents
-  sync-history [--dry-run] [db-path]  Sync SQLite command_runs → PostgreSQL
+  sync-history [--dry-run] [db-path]  Sync SQLite analytics → PostgreSQL
   enqueue [--force] <type> <payload_json> [priority]
   requeue <job_id>
   jobs      List pending and recent jobs
@@ -81,6 +81,7 @@ Environment:
                        Used only by 'migrate' and 'init-db'; requires CREATE/ALTER/DROP
   ZDOTS_DATABASE_URL_OVERRIDE  Set to force ZDOTS_DATABASE_URL regardless of env sourcing
   ZDOTS_CMD_ANALYTICS  1 = capture every command to SQLite command_runs via 56-cmd-analytics.zsh
+                       shell_hook_metrics from 55-phi-history.zsh shares the same buffer
                        sync-history pushes buffered rows to PostgreSQL (auto-fires on capture)
                        Default: 0; enable in .zdots.local; enforced 0 on work machines
 

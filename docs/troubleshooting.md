@@ -518,6 +518,29 @@ sqlite-utils query "$XDG_STATE_HOME/zdots/history.sqlite3" \
   "select cmd, count(*) n from command_runs group by cmd order by n desc limit 10"
 ```
 
+### Shell hook overhead
+
+The `phi-history` hook records slow invocations into `shell_hook_metrics` when
+the hook exceeds its 1ms threshold. Use this to separate slow clean-path
+history writes from redaction or suppression work:
+
+```sh
+sqlite-utils query "$XDG_STATE_HOME/zdots/history.sqlite3" \
+  "select datetime(ts_ms / 1000, 'unixepoch', 'localtime') as time,
+          hook, status, elapsed_ms, threshold_ms, session_id, host
+     from shell_hook_metrics
+    order by elapsed_ms desc
+    limit 20"
+```
+
+If the SQLite table has rows but PostgreSQL does not, run:
+
+```sh
+zdots-ctx sync-history
+```
+
+That syncs both `command_runs` and `shell_hook_metrics` into `my`.
+
 ## 10. Backlog, Git, and Updates
 
 ### Pull conflicts on `bin/llama-ctl`

@@ -202,6 +202,33 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# Shell hook metrics
+# ---------------------------------------------------------------------------
+
+@test "shell_hook_metrics: records slow hook overhead in SQLite" {
+  local state_dir
+  state_dir=$(mktemp -d)
+
+  run zsh -c '
+    XDG_STATE_HOME="'"$state_dir"'"
+    ZDOTDIR="'"$ZDOTDIR"'"
+    source "$ZDOTDIR/lib/shell_hook_metrics.bash"
+    shell_hook_metrics_record "phi-history" "clean" 18 1 1700000000000
+    result=""
+    for _ in 1 2 3 4 5; do
+      result=$(sqlite3 "$XDG_STATE_HOME/zdots/history.sqlite3" "SELECT hook, status, elapsed_ms, threshold_ms FROM shell_hook_metrics;" 2>/dev/null || true)
+      [[ -n "$result" ]] && break
+      sleep 0.2
+    done
+    printf "%s\n" "$result"
+    rm -rf "$XDG_STATE_HOME"
+  '
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"phi-history|clean|18|1"* ]]
+}
+
+# ---------------------------------------------------------------------------
 # PHI history hook
 # ---------------------------------------------------------------------------
 
