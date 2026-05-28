@@ -26,7 +26,7 @@ default_profile: "standard"
 
 server:
   host: "127.0.0.1"
-  port: 8080
+  port: 11500
   ctx_size: 2048
 EOF
 }
@@ -53,7 +53,7 @@ teardown() {
   export ZDOTS_AI_PROFILE=tiny
   run zdots_meta_resolve_yaml ai port
   [ "$status" -eq 0 ]
-  [ "$output" = "8080" ]
+  [ "$output" = "11500" ]
 }
 
 @test "metadata: profile overrides server defaults" {
@@ -68,7 +68,7 @@ teardown() {
   run zdots_meta_dump ai
   [ "$status" -eq 0 ]
   [ "$(echo "$output" | jq -r .model_file)" = "std.gguf" ]
-  [ "$(echo "$output" | jq -r .port)" = "8080" ]
+  [ "$(echo "$output" | jq -r .port)" = "11500" ]
   [ "$(echo "$output" | jq -r .active_profile)" = "standard" ]
 }
 
@@ -77,7 +77,7 @@ teardown() {
   run zdots_meta_env ai
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "ZDOTS_AI_MODEL_FILE.*std.gguf"
-  echo "$output" | grep -q "ZDOTS_AI_PORT.*8080"
+  echo "$output" | grep -q "ZDOTS_AI_PORT.*11500"
 }
 
 @test "metadata: dump platform aggregates services" {
