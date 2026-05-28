@@ -554,7 +554,7 @@ fi
 _bootstrap_phase "pi: self-hosted coding agent configuration"
 
 # 10. Pi coding agent configuration
-# Creates ~/.pi/agent/settings.json and models.json if absent.
+# Creates or reconciles ~/.pi/agent/settings.json and models.json.
 # These wire Pi to the local llamacpp endpoint and disable cloud providers.
 _PI_AGENT_DIR="$HOME/.pi/agent"
 _pi_bin="$(command -v pi 2>/dev/null || true)"
@@ -572,8 +572,12 @@ if [ -n "$_pi_bin" ]; then
 PISETTINGS
     echo "bootstrap: created ~/.pi/agent/settings.json (llamacpp default)"
   fi
-  if [ ! -f "$_PI_AGENT_DIR/models.json" ]; then
-    _AI_BASE="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/v1"
+  _AI_BASE="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/v1"
+  if [ ! -f "$_PI_AGENT_DIR/models.json" ] || ! grep -Fq "\"baseUrl\": \"${_AI_BASE}\"" "$_PI_AGENT_DIR/models.json"; then
+    if [ -f "$_PI_AGENT_DIR/models.json" ]; then
+      cp "$_PI_AGENT_DIR/models.json" "$_PI_AGENT_DIR/models.json.bak"
+      echo "bootstrap: backed up stale ~/.pi/agent/models.json"
+    fi
     cat > "$_PI_AGENT_DIR/models.json" <<PIMODELS
 {
   "providers": {
@@ -601,10 +605,10 @@ PISETTINGS
   }
 }
 PIMODELS
-    echo "bootstrap: created ~/.pi/agent/models.json (endpoint: ${_AI_BASE})"
+    echo "bootstrap: wrote ~/.pi/agent/models.json (endpoint: ${_AI_BASE})"
   fi
 fi
-unset _pi_bin _PI_AGENT_DIR
+unset _pi_bin _PI_AGENT_DIR _AI_BASE
 
 _bootstrap_phase "github: gh extensions"
 

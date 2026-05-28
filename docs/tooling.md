@@ -7,6 +7,11 @@ purpose: Authoritative map of Brewfile.home and Brewfile.work tools to workflows
 # Key Tools Reference
 
 All tools listed are installed via `Brewfile.home` or `Brewfile.work` unless noted (`bin/` prefix = zdots-native, not Homebrew).
+
+| Need | Tool |
+|---|---|
+| Diagnose bootstrap/update/upgrade logs | `zdots-log-analyze update|bootstrap|upgrade [--ai]` |
+
 Organized by workflow, not alphabetically. For service lifecycle, see [architecture.md](architecture.md).
 
 ---

@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+# ---
+# id: zdots-log-analyze
+# title: "Zdots Deploy Log Analyzer"
+# purpose: Package bootstrap/update/upgrade logs with diagnostic context for local AI or human review.
+# rationale: Remote hosts may only have a small local Pi/llama.cpp agent, so the prompt must carry repo and operating context.
+# ---
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
+AI_QUERY="${ZDOTDIR}/bin/ai-query"
+KIND=""
+SUMMARY_FILE=""
+LOG_FILE=""
+TAIL_LINES=220
+OPT_AI=false
+OPT_FULL=false
+OPT_PROMPT_ONLY=false
+OPT_LIST=false
+OPT_NO_SNAPSHOT=false
+
+usage() {
+  cat <<EOF
+Usage: zdots-log-analyze KIND [OPTIONS]
+
+Package zdots deployment logs with enough context for Pi, ai-query, or HI review.
+
+Kinds:
+  bootstrap   Analyze bin/bootstrap logs
+  update      Analyze bin/zdots-update-local logs
+  upgrade     Analyze upgrade-homebrew logs
+
+Options:
+  --summary FILE   Use this summary file instead of the latest matching summary
+  --log FILE       Use this transcript file instead of the latest matching log
+  --tail N         Include last N log lines (default: $TAIL_LINES)
+  --full           Include the full transcript instead of a tail
+  --ai             Send the diagnostic pack to local ai-query
+  --no-snapshot    Do not include local non-OTel system snapshot
+  --prompt-only    Print only the analysis prompt, no log content
+  --list           List recent known summaries/logs
+  -h, --help       Show this help
+
+Examples:
+  zdots-log-analyze update
+  zdots-log-analyze bootstrap --tail 400 | zpi
+  zdots-log-analyze upgrade --ai
+  ZDOTS_LOG_DIR=/tmp/zdots-logs zdots-log-analyze update --list
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    bootstrap|update|upgrade) KIND="$1" ;;
+    --summary) SUMMARY_FILE="${2:-}"; shift ;;
+    --log) LOG_FILE="${2:-}"; shift ;;
+    --tail) TAIL_LINES="${2:-}"; shift ;;
+    --full) OPT_FULL=true ;;
+    --ai) OPT_AI=true ;;
+    --no-snapshot) OPT_NO_SNAPSHOT=true ;;
+    --prompt-only) OPT_PROMPT_ONLY=true ;;
+    --list) OPT_LIST=true ;;
+    -h|--help) usage; exit 0 ;;
+    *) printf 'zdots-log-analyze: unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+  esac
+  shift
+done
+
+if [[ -z "$KIND" && "$OPT_LIST" != true ]]; then
+  printf 'zdots-log-analyze: KIND is required\n' >&2
+  usage >&2
+  exit 1
+fi
+
+case "$KIND" in
+  bootstrap)
+    PREFIX="bootstrap"
+    COMMAND_NAME="bin/bootstrap"
+    ;;
+  update)
+    PREFIX="zdots-update-local"
+    COMMAND_NAME="bin/zdots-update-local"
+    ;;
+  upgrade)
+    PREFIX="upgrade-homebrew"
+    COMMAND_NAME="functions/enabled/upgrade-homebrew"
+    ;;
+  "")
+    PREFIX="*"
+    COMMAND_NAME="zdots deploy command"
+    ;;
+esac
+
+latest_matching() {
+  local pattern="$1"
+  # shellcheck disable=SC2012,SC2086
+  ls -t $pattern 2>/dev/null | head -1 || true
+}
+
+if [[ "$OPT_LIST" == true ]]; then
+  printf 'zdots-log-analyze: log_dir=%s\n' "$LOG_DIR"
+  for prefix in bootstrap zdots-update-local upgrade-homebrew; do
+    printf '\n%s\n' "$prefix"
+    latest_matching "$LOG_DIR/${prefix}-*.summary.md" | sed 's/^/  summary: /'
+    latest_matching "$LOG_DIR/${prefix}-*.log" | sed 's/^/  log:     /'
+  done
+  exit 0
+fi
+
+if [[ -z "$SUMMARY_FILE" ]]; then
+  SUMMARY_FILE="$(latest_matching "$LOG_DIR/${PREFIX}-*.summary.md")"
+fi
+if [[ -z "$LOG_FILE" ]]; then
+  LOG_FILE="$(latest_matching "$LOG_DIR/${PREFIX}-*.log")"
+fi
+
+if [[ -z "$SUMMARY_FILE" || ! -f "$SUMMARY_FILE" ]]; then
+  printf 'zdots-log-analyze: summary not found for %s in %s\n' "$KIND" "$LOG_DIR" >&2
+  exit 1
+fi
+if [[ -z "$LOG_FILE" || ! -f "$LOG_FILE" ]]; then
+  printf 'zdots-log-analyze: log not found for %s in %s\n' "$KIND" "$LOG_DIR" >&2
+  exit 1
+fi
+
+build_prompt() {
+  cat <<EOF
+You are analyzing zdots deployment diagnostics.
+
+Context:
+- Repo: zdots, a modular high-performance zsh configuration and local dev platform.
+- Command under review: $COMMAND_NAME
+- Run kind: $KIND
+- Environment may be a harsh constrained remote host.
+- The remote may only have a minimal self-hosted Pi/llama.cpp LLM.
+- Cloud AI must not be assumed. Prefer local-only, low-output, shell-portable diagnostics.
+- PHI posture matters: do not recommend cloud upload, telemetry expansion, or raw sensitive-data sharing.
+- Brewfile selection is context-driven: ZDOTS_CONTEXT=home uses Brewfile.home; ZDOTS_CONTEXT=work uses Brewfile.work.
+- Logs are phase-marked. The summary is higher signal; the transcript contains command output.
+- A local system snapshot may be included. It is intentionally non-OTel so it still works when observability is down.
+- If a zdots infrastructure command appears broken, recommend filing or updating a zdots issue instead of patching shared infrastructure ad hoc.
+
+Task:
+1. Identify the failed or suspicious phase.
+2. Explain the most likely root cause using only evidence in the log.
+3. Separate hard failures from warnings and skipped optional steps.
+4. Recommend the next 1-3 non-destructive commands to run on the remote host.
+5. Say whether the issue looks like operator coordination is required.
+6. Keep the answer concise enough for a small local model workflow.
+EOF
+}
+
+emit_snapshot() {
+  printf '\n## Local Non-OTel System Snapshot\n\n'
+  printf 'Captured: %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')"
+  printf 'Host: %s\n' "$(hostname 2>/dev/null || printf unknown)"
+  printf 'Kernel: %s\n' "$(uname -a 2>/dev/null || printf unknown)"
+  printf 'Repo: %s\n' "$ZDOTDIR"
+  if git -C "$ZDOTDIR" rev-parse --short HEAD >/dev/null 2>&1; then
+    printf 'Commit: %s\n' "$(git -C "$ZDOTDIR" rev-parse --short HEAD)"
+  fi
+  printf 'Context: ZDOTS_CONTEXT=%s ZDOTS_ENV_PROFILE=%s ZDOTS_AI_MODE=%s\n' \
+    "${ZDOTS_CONTEXT:-unset}" "${ZDOTS_ENV_PROFILE:-unset}" "${ZDOTS_AI_MODE:-unset}"
+  printf 'AI endpoint: %s\n' "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+  printf 'Embed endpoint: %s\n' "${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
+  printf 'Brew bundle file: %s\n' "${HOMEBREW_BUNDLE_FILE:-unset}"
+  printf 'Disk:\n'
+  df -h "$HOME" 2>/dev/null | sed 's/^/  /' || printf '  unavailable\n'
+  printf 'Tool availability:\n'
+  for cmd in brew git zsh bash curl jq ai-query zdots-ask pi zpi llama-ctl otel-collector; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      printf '  %-16s %s\n' "$cmd" "$(command -v "$cmd")"
+    else
+      printf '  %-16s missing\n' "$cmd"
+    fi
+  done
+  printf 'AI health:\n'
+  if command -v curl >/dev/null 2>&1; then
+    if curl -sf -m 2 --connect-timeout 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/health" >/dev/null 2>&1; then
+      printf '  chat endpoint: reachable\n'
+    else
+      printf '  chat endpoint: unreachable\n'
+    fi
+    if curl -sf -m 2 --connect-timeout 2 "${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}/health" >/dev/null 2>&1; then
+      printf '  embed endpoint: reachable\n'
+    else
+      printf '  embed endpoint: unreachable\n'
+    fi
+  else
+    printf '  curl missing\n'
+  fi
+}
+
+emit_pack() {
+  printf '# zdots diagnostic pack\n\n'
+  printf '## Analysis Prompt\n\n'
+  build_prompt
+  if [[ "$OPT_PROMPT_ONLY" == true ]]; then
+    return 0
+  fi
+  if [[ "$OPT_NO_SNAPSHOT" != true ]]; then
+    emit_snapshot
+  fi
+  printf '\n## Run Summary\n\n'
+  sed -n '1,220p' "$SUMMARY_FILE"
+  printf '\n## Transcript %s\n\n' "$([[ "$OPT_FULL" == true ]] && printf '(full)' || printf '(tail %s lines)' "$TAIL_LINES")"
+  if [[ "$OPT_FULL" == true ]]; then
+    sed -n '1,99999p' "$LOG_FILE"
+  else
+    tail -n "$TAIL_LINES" "$LOG_FILE"
+  fi
+}
+
+if [[ "$OPT_AI" == true ]]; then
+  if [[ ! -x "$AI_QUERY" ]]; then
+    printf 'zdots-log-analyze: ai-query not found at %s\n' "$AI_QUERY" >&2
+    exit 1
+  fi
+  emit_pack | "$AI_QUERY" --mode safe-extract "Diagnose this zdots deployment log. Follow the embedded analysis prompt."
+else
+  emit_pack
+fi
