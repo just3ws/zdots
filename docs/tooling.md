@@ -72,12 +72,13 @@ Tools that feed data into the Knowledge Layer.
 
 ## Data Exploration (analytics read side)
 
-The command analytics pipeline writes to Redis → SQLite → PostgreSQL. These tools are the
-read side.
+The command analytics pipeline writes to Redis → SQLite → PostgreSQL. Shell
+hook metrics write directly to the same SQLite buffer and sync through the same
+PostgreSQL path. These tools are the read side.
 
 | Tool | Command | Purpose |
 |------|---------|---------|
-| `visidata` | `vd ~/.local/state/zdots/history.sqlite3` | TUI spreadsheet — pivot command_runs by cmd, exit code, duration |
+| `visidata` | `vd ~/.local/state/zdots/history.sqlite3` | TUI spreadsheet — pivot command_runs or shell_hook_metrics by cmd, exit code, duration, hook |
 | `pgcli` | `pgcli -U zdots_ro my` | PostgreSQL REPL with autocomplete; replaces raw `psql` for exploration |
 | `litecli` | `litecli ~/.local/state/zdots/history.sqlite3` | SQLite REPL with autocomplete; explore analytics fallback DB |
 | `sqlite-utils` | `sqlite-utils query <db> "SELECT ..."` | CLI analytics — query, export JSON/CSV, script transforms |
@@ -96,6 +97,15 @@ sqlite-utils query ~/.local/state/zdots/history.sqlite3 \
 ```bash
 vd ~/.local/state/zdots/history.sqlite3
 # press Enter on command_runs → g/ to filter → F to frequency-table any column
+```
+
+**Quick workflow — inspect slow shell hooks:**
+```bash
+sqlite-utils query ~/.local/state/zdots/history.sqlite3 \
+  "SELECT hook, status, elapsed_ms, threshold_ms, session_id
+   FROM shell_hook_metrics
+   ORDER BY elapsed_ms DESC
+   LIMIT 20"
 ```
 
 ---
