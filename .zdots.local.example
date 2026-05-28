@@ -39,16 +39,16 @@ ZDOTS_CONTEXT=home
 ZDOTS_AI_MODE=local
 
 # AI endpoints — local defaults or a trusted LAN machine.
-# ZDOTS_AI_ENDPOINT:       chat/completions (port 8080, Qwen3-8B)
-# ZDOTS_AI_EMBED_ENDPOINT: embeddings only  (port 8090, Nomic embed-v2 MoE)
+# ZDOTS_AI_ENDPOINT:       chat/completions (port 11500, Qwen3-8B)
+# ZDOTS_AI_EMBED_ENDPOINT: embeddings only  (port 11501, Nomic embed-v2 MoE)
 # Both are used by zdots-ctx, zdots-brain, and ai-query.
 #
 # Override for a remote inference machine:
-#   ZDOTS_AI_ENDPOINT=http://powerstation.local:8080
-#   ZDOTS_AI_EMBED_ENDPOINT=http://powerstation.local:8090
+#   ZDOTS_AI_ENDPOINT=http://powerstation.local:11500
+#   ZDOTS_AI_EMBED_ENDPOINT=http://powerstation.local:11501
 # ---------------------------------------------------------------------------
-# ZDOTS_AI_ENDPOINT=http://127.0.0.1:8080
-# ZDOTS_AI_EMBED_ENDPOINT=http://127.0.0.1:8090
+# ZDOTS_AI_ENDPOINT=http://127.0.0.1:11500
+# ZDOTS_AI_EMBED_ENDPOINT=http://127.0.0.1:11501
 # ZDOTS_AI_PROFILE=qwen3-8b
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ export ZDOTS_DB_ENCRYPTION_KEY=$(
 
 # Session capture — disabled by default. Requires:
 #   1. ZDOTS_DB_ENCRYPTION_KEY set above (Keychain-backed)
-#   2. Embedding server running on ZDOTS_AI_EMBED_ENDPOINT (:8090)
+#   2. Embedding server running on ZDOTS_AI_EMBED_ENDPOINT (:11501)
 #   3. zdots-ctx migrate run to apply the latest schema
 #   4. ZDOTS_CONTEXT=home (capture is always off on work machines)
 # ZDOTS_CAPTURE_ENABLED=1

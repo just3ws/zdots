@@ -302,7 +302,7 @@ flowchart LR
     domain -->|phi/encrypt/ssn| pp["zdots-phi.md"]
     domain -->|default| dp["zdots-default.md"]
     sp & rp & pp & dp --> gate[zdots_ai_gate\nPHI boundary]
-    gate -->|ZDOTS_AI_MODE=local| llama["llama.cpp\n127.0.0.1:8080\nQwen3-8B"]
+    gate -->|ZDOTS_AI_MODE=local| llama["llama.cpp\n127.0.0.1:11500\nQwen3-8B"]
     gate -->|ZDOTS_AI_MODE=none| exit2([exit 2])
 ```
 

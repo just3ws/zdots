@@ -117,7 +117,7 @@ esac
 # ── Header ────────────────────────────────────────────────────────────────────
 _build_header() {
   local ai_dot ai_txt
-  if curl -sf -m 1 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+  if curl -sf -m 1 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/health" >/dev/null 2>&1; then
     ai_dot="${GRN}●${RST}"; ai_txt="llama.cpp"
   else
     ai_dot="${RED}●${RST}"; ai_txt="DOWN"

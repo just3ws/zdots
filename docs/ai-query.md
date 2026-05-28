@@ -157,7 +157,7 @@ cat email_with_suspicious_instructions.txt | ai-query --mode inspect-prompt-inje
 ```
 --mode MODE              Operating mode (default: safe-extract)
 --model NAME             Model alias (default: local)
---endpoint URL           Server base URL (default: http://127.0.0.1:8080)
+--endpoint URL           Server base URL (default: http://127.0.0.1:11500)
 --max-bytes N            Hard input ceiling in bytes (default: 32768)
 --timeout N              Request timeout in seconds (default: 30)
 --show-risk              Always print heuristic scan findings to stderr
@@ -224,7 +224,7 @@ The scanner runs on every invocation with stdin input. It checks for patterns as
   "content":     "model response here",
   "mode":        "safe-extract",
   "model":       "local",
-  "endpoint":    "http://127.0.0.1:8080",
+  "endpoint":    "http://127.0.0.1:11500",
   "risk_score":  55,
   "risk_level":  "medium",
   "input_bytes": 1234,
@@ -274,7 +274,7 @@ The file is created with permissions `600`. Raw input is **never** written — o
   "input_bytes":  1234,
   "content_hash": "sha256-of-normalized-input",
   "model":        "local",
-  "endpoint":     "http://127.0.0.1:8080"
+  "endpoint":     "http://127.0.0.1:11500"
 }
 ```
 
@@ -286,7 +286,7 @@ Blocked invocations (`--block-high`) are logged before exit with their actual `r
 
 | Variable | Default | Description |
 |---|---|---|
-| `ZDOTS_AI_ENDPOINT` | `http://127.0.0.1:8080` | Server base URL |
+| `ZDOTS_AI_ENDPOINT` | `http://127.0.0.1:11500` | Server base URL |
 | `ZDOTS_AI_MODEL` | `local` | Model alias |
 | `AIQ_DEFAULT_MODE` | `safe-extract` | Default mode |
 | `AIQ_MAX_BYTES` | `32768` | Hard input ceiling |

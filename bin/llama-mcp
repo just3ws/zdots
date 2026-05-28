@@ -19,7 +19,7 @@ require "json"
 require "open3"
 
 ZDOTDIR = ENV.fetch("ZDOTDIR", File.expand_path("~/.config/zsh"))
-AI_ENDPOINT = ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:8080")
+AI_ENDPOINT = ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")
 BIN = File.expand_path("../", __FILE__).then { |d| d }  # bin/ dir
 
 $stdout.sync = true

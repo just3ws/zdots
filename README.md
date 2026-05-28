@@ -243,7 +243,7 @@ flowchart LR
     end
 
     subgraph Inference["Local Inference (loopback only)"]
-        llama["<b>llama.cpp :8080</b><br/>Qwen3-8B Q4_K_M<br/>32k ctx · Metal GPU"]
+        llama["<b>llama.cpp :11500</b><br/>Qwen3-8B Q4_K_M<br/>32k ctx · Metal GPU"]
     end
 
     subgraph Ops["Verification"]
@@ -253,7 +253,7 @@ flowchart LR
         ctl -->|inspects| ask
     end
 
-    boundary -->|127.0.0.1:8080 only| llama
+    boundary -->|127.0.0.1:11500 only| llama
 ```
 
 **Domain routing** — prompt keywords determine which system prompt is injected:

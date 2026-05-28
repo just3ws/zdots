@@ -101,7 +101,7 @@ sudo sh -c 'echo "127.0.0.1 grafana.local" >> /etc/hosts'
 ```
 
 These map the TLS hostnames nginx routes by Host header. Without them,
-`https://llama.local` never resolves — `ai-query` falls back to the port-8080
+`https://llama.local` never resolves — `ai-query` falls back to the port-11500
 plain URL, but browser access and cert validation won't work.
 
 ---
@@ -347,7 +347,7 @@ are available on a fresh machine. That is expected and sufficient for zdots work
 If you have a workstation running llama.cpp, point everything at it in `.zdots.local`:
 
 ```bash
-ZDOTS_AI_ENDPOINT=http://powerstation.local:8080
+ZDOTS_AI_ENDPOINT=http://powerstation.local:11500
 ```
 
 `ai-query`, `zaider`, and `zdots-ctx` all read this single variable — no other config needed.

@@ -20,8 +20,8 @@ RSpec.describe Zdots::AI do
 
   describe ".endpoint" do
     it "returns the env var when set" do
-      ENV["ZDOTS_AI_ENDPOINT"] = "http://10.0.0.5:8080"
-      expect(described_class.endpoint).to eq("http://10.0.0.5:8080")
+      ENV["ZDOTS_AI_ENDPOINT"] = "http://10.0.0.5:11500"
+      expect(described_class.endpoint).to eq("http://10.0.0.5:11500")
     end
 
     it "defaults to loopback when unset" do
@@ -54,7 +54,7 @@ RSpec.describe Zdots::AI do
     context "when ZDOTS_AI_MODE=local with a loopback endpoint" do
       before do
         ENV["ZDOTS_AI_MODE"]     = "local"
-        ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:8080"
+        ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:11500"
       end
 
       it "passes" do
@@ -65,7 +65,7 @@ RSpec.describe Zdots::AI do
     context "when ZDOTS_AI_MODE=local with an RFC-1918 endpoint" do
       before do
         ENV["ZDOTS_AI_MODE"]     = "local"
-        ENV["ZDOTS_AI_ENDPOINT"] = "http://192.168.1.10:8080"
+        ENV["ZDOTS_AI_ENDPOINT"] = "http://192.168.1.10:11500"
       end
 
       it "passes" do
@@ -88,7 +88,7 @@ RSpec.describe Zdots::AI do
     context "when ZDOTS_AI_MODE is unset (defaults to local)" do
       before do
         ENV.delete("ZDOTS_AI_MODE")
-        ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:8080"
+        ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:11500"
       end
 
       it "passes with loopback endpoint" do
@@ -111,7 +111,7 @@ RSpec.describe Zdots::AI do
     context "when mode and endpoint are valid" do
       before do
         ENV["ZDOTS_AI_MODE"]     = "local"
-        ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:8080"
+        ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:11500"
       end
 
       it "memoizes the client across calls" do
@@ -125,7 +125,7 @@ RSpec.describe Zdots::AI do
     context "when reset! is called between calls" do
       before do
         ENV["ZDOTS_AI_MODE"]     = "local"
-        ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:8080"
+        ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:11500"
       end
 
       it "rebuilds the client after reset!" do

@@ -16,7 +16,7 @@ You are technical assistant for zdots, zsh-based shell configuration and local d
 - Shell: zsh (ZDOTDIR=~/.config/zsh). Libs in lib/. Scripts in bin/. zsh config in conf.d/ (01–99 prefix, alphabetical load).
 - Database: PostgreSQL, database name `my`. Sequel migrations in db/migrations/. Migration table: zdots_schema_migrations.
 - Language: Ruby (Sequel ORM). Models in lib/zdots/models/.
-- Local AI: llama.cpp at 127.0.0.1:8080 (Qwen3-8B). No cloud egress.
+- Local AI: llama.cpp at 127.0.0.1:11500 (Qwen3-8B). No cloud egress.
 - macOS Apple Silicon. Homebrew. XDG dirs: data=~/.local/share, state=~/.local/state.
 
 ## DB roles

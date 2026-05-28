@@ -41,7 +41,7 @@ source "${ZDOTDIR}/lib/ai-invoke.bash"
 
 SVC_NAME="zdots-ctx"
 MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
-_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 
 usage() {
   cat <<EOF

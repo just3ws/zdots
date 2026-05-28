@@ -117,7 +117,7 @@ printf '%s\n\n' "$ERRORS"
 [[ "$RAW" == "true" ]] && exit 0
 
 # AI explanation
-if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}/health" >/dev/null 2>&1; then
+if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/health" >/dev/null 2>&1; then
   printf '(AI explanation skipped — llama.cpp is not running)\n'
   exit 0
 fi

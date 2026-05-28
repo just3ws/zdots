@@ -22,7 +22,7 @@ setup() {
   BIN="$REPO_ROOT/bin"
   LIB="$REPO_ROOT/lib/ai-query-lib.bash"
   FIXTURES="$REPO_ROOT/tests/fixtures/ai-query"
-  AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+  AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 
   # Create mock server bin dir — tests that need it put it first in PATH
   MOCK_BIN="$BATS_TEST_TMPDIR/mock-bin"

@@ -13,7 +13,7 @@ set -euo pipefail
 trap '' PIPE
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
-AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 GRAFANA_URL="http://127.0.0.1:3000"
 
 # ---------------------------------------------------------------------------

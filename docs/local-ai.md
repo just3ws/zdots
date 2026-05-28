@@ -33,7 +33,7 @@ flowchart LR
     end
 
     subgraph Inference["Local Inference (loopback only)"]
-        llama["<b>llama.cpp :8080</b>\nQwen3-8B Q4_K_M + 0.6B draft\n32k ctx · Metal GPU · spec-decoding"]
+        llama["<b>llama.cpp :11500</b>\nQwen3-8B Q4_K_M + 0.6B draft\n32k ctx · Metal GPU · spec-decoding"]
     end
 
     subgraph Tools["Operator Tools"]
@@ -55,7 +55,7 @@ flowchart LR
         ctl -->|inspects| ask
     end
 
-    boundary -->|127.0.0.1:8080 only| llama
+    boundary -->|127.0.0.1:11500 only| llama
     zaider -->|local model| llama
     cl -->|frontier · unaffected by ZDOTS_AI_MODE| ext["Anthropic API"]
 ```
