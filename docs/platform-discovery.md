@@ -29,7 +29,8 @@ The following local services are managed by the Zdots control plane:
 | OTel Ingest (Host) | 4318 | OTLP/HTTP | High-performance host-based collector. |
 | OTel Ingest (Hub) | 4418 | OTLP/HTTP | Central LGTM stack in Colima. |
 | Grafana | 3000 | HTTP | UI for log and trace visualization. |
-| AI Inference | 8080 | HTTP | Local LLM service (llama.cpp). |
+| AI Inference | 11500 | HTTP | Local LLM service (llama.cpp). |
+| AI Embeddings | 11501 | HTTP | Dedicated llama.cpp embedding service. |
 
 ## 3. Gemini OTLP Integration
 

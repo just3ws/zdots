@@ -121,7 +121,7 @@
 - *(ai)* Speculative decoding, --think flag, distillation schema
 - *(ai)* Eval suite, RAG activation guide, and learning map
 - *(ai)* Embed server + nginx proxy layer — RAG pipeline unblocked
-- *(env)* Wire ZDOTS_AI_EMBED_ENDPOINT default (port 8090)
+- *(env)* Wire ZDOTS_AI_EMBED_ENDPOINT default (port 11501)
 - *(infra)* Nginx TLS proxy, embed server, speculative decoding — battlestation operational
 - *(ai)* Thread enable_thinking via chat_template_kwargs instead of /think token
 - *(ai)* AIQ_TEMPERATURE + AIQ_JSON_SCHEMA plumbing in aiq_submit; distillation uses 0.1
