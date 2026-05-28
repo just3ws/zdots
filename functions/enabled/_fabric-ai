@@ -1,0 +1,19 @@
+#compdef fabric-ai
+
+_fabric-ai() {
+  local -a patterns
+  local patterns_dir="$HOME/.config/fabric/patterns"
+
+  if [[ -d "$patterns_dir" ]]; then
+    patterns=($(ls "$patterns_dir"))
+  fi
+
+  _arguments \
+    '(-p --pattern)'{-p,--pattern}'[Choose a pattern]:pattern:compadd -a patterns' \
+    '--listpatterns[List all patterns]' \
+    '--updatepatterns[Update patterns]' \
+    '--help[Show help]' \
+    '*:file:_files'
+}
+
+_fabric-ai "$@"

@@ -48,12 +48,14 @@ The zdots-specific stack. Every agent session should orient here first.
 | Pi coding agent | `zpi "prompt"` | Interactive session agent (earendil pi) |
 | Gemini CLI | `gemini` | Google Gemini from the shell |
 | Kimi CLI | `kimi` | MoonshotAI from the shell |
-| Fabric | `fabric` | Prompt pipelines (local or cloud) |
+| Fabric | `fabric-ai` | Expert prompt pipelines (local or cloud) |
+| AI pattern browser | `zdots-pattern` | Interactive `fzf` browser for 250+ Fabric patterns |
 | Whisper transcription | `whisper-ctl` | Local audio-to-text (whisper.cpp) |
 
 **Security boundary:** `ai-query` and `zdots-ask` enforce `ZDOTS_AI_MODE` and route through
 `lib/ai_boundary.bash`. Use them in preference to calling `llama-server` or cloud CLIs directly
-from scripts — they apply the PHI scrubber and locality check automatically.
+from scripts — they apply the PHI scrubber and locality check automatically. `zdots-ask` now supports
+Expert Patterns via `--pattern <name>`.
 
 ---
 

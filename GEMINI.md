@@ -17,6 +17,12 @@ Gemini-specific instructions for Zdots.
 - **Platform Awareness**:
     - **Platform (`zdots`)**: Shell behavior, service lifecycle, real-time observability.
     - **Brain (`my`)**: Long-term context, standards, structured memory.
+- **fabric-ai Integration**:
+    - **Update Patterns**: Run `fabric-ai --updatepatterns` to pull the latest expert prompts.
+    - **Usage**:
+        - `zdots-ask --pattern <name>`: One-shot inference using a Fabric pattern.
+        - `zdots-pattern`: Interactive browser (`fzf`) for pattern selection.
+        - `zdots-pattern --context`: Prepend real-time zdots context to the pattern.
 - **Context Writing**: When making significant architectural decisions or recording project observations, utilize the `~/my/context/` directory (e.g., `observations.md` or `next_prompt.md`) to hydrate the "Cerebral Control Plane."
 
 ## Database Access
