@@ -5,30 +5,100 @@ setopt localoptions errexit pipefail
 
 aggressive_upgrade="${ZDOTS_HOMEBREW_AGGRESSIVE:-0}"
 dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
+run_id="$(date '+%Y%m%dT%H%M%S')-$$"
+log_dir="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
+mkdir -p "$log_dir"
+log_file="${ZDOTS_UPGRADE_HOMEBREW_LOG:-$log_dir/upgrade-homebrew-${run_id}.log}"
+summary_file="${log_file%.log}.summary.md"
+latest_log="$log_dir/upgrade-homebrew-latest.log"
+ln -sf "$log_file" "$latest_log" 2>/dev/null || true
+phase_index=0
+phase_total=5
+current_phase="preflight"
 
-run_cmd() {
-  print -r -- "+ $*"
-  if [[ "$dry_run" == "1" ]]; then
-    return 0
-  fi
-  "$@"
+case "${ZDOTS_CONTEXT:-home}" in
+  work) brewfile="$ZDOTDIR/Brewfile.work" ;;
+  *)    brewfile="$ZDOTDIR/Brewfile.home" ;;
+esac
+case "${HOMEBREW_BUNDLE_FILE:-}" in
+  ""|"$ZDOTDIR/Brewfile"|"$ZDOTDIR/Brewfile.home"|"$ZDOTDIR/Brewfile.work") ;;
+  *) brewfile="$HOMEBREW_BUNDLE_FILE" ;;
+esac
+
+timestamp() {
+  date '+%Y-%m-%dT%H:%M:%S%z'
 }
 
+log_msg() {
+  print -r -- "$(timestamp) upgrade-homebrew: $*" | tee -a "$log_file"
+}
+
+summary_msg() {
+  print -r -- "$*" >> "$summary_file"
+}
+
+phase() {
+  phase_index=$((phase_index + 1))
+  current_phase="$1"
+  print -r -- ""
+  print -r -- "==> upgrade-homebrew phase ${phase_index}/${phase_total}: ${current_phase}" | tee -a "$log_file"
+  summary_msg "- phase ${phase_index}/${phase_total}: ${current_phase}"
+}
+
+{
+  print -r -- "# upgrade-homebrew run"
+  print -r -- "- started: $(timestamp)"
+  print -r -- "- log: $log_file"
+  print -r -- "- latest: $latest_log"
+  print -r -- "- context: ${ZDOTS_CONTEXT:-home}"
+  print -r -- "- brewfile: $brewfile"
+  print -r -- "- dry_run: $dry_run"
+  print -r -- "- aggressive: $aggressive_upgrade"
+} > "$summary_file"
+log_msg "run_id=$run_id log=$log_file summary=$summary_file brewfile=$brewfile dry_run=$dry_run aggressive=$aggressive_upgrade"
+
+run_cmd() {
+  log_msg "run: $*"
+  if [[ "$dry_run" == "1" ]]; then
+    log_msg "dry-run: skipped execution"
+    return 0
+  fi
+  "$@" 2>&1 | tee -a "$log_file"
+  local status=$pipestatus[1]
+  if [[ "$status" == "0" ]]; then
+    log_msg "ok: $*"
+  else
+    log_msg "failed status=$status command=$*"
+  fi
+  return "$status"
+}
+
+phase "brew metadata: update formula and cask indices"
 run_cmd brew update --verbose
 
+phase "brew packages: upgrade installed formulae"
 if [[ "$aggressive_upgrade" == "1" ]]; then
   run_cmd brew upgrade --greedy --verbose
 else
   run_cmd brew upgrade --verbose
 fi
 
-if [[ -f "$ZDOTDIR/Brewfile" ]]; then
+phase "bundle: reconcile selected Brewfile"
+if [[ -f "$brewfile" ]]; then
   if [[ "$dry_run" == "1" ]]; then
-    run_cmd brew bundle check --file "$ZDOTDIR/Brewfile"
-    run_cmd brew bundle --file "$ZDOTDIR/Brewfile"
+    run_cmd brew bundle check --file "$brewfile"
+    run_cmd brew bundle --file "$brewfile"
   else
-    run_cmd brew bundle check --file "$ZDOTDIR/Brewfile" || run_cmd brew bundle --file "$ZDOTDIR/Brewfile"
+    run_cmd brew bundle check --file "$brewfile" || run_cmd brew bundle --file "$brewfile"
   fi
+else
+  log_msg "warning: selected Brewfile missing: $brewfile"
 fi
 
+phase "cleanup: remove stale Homebrew artifacts"
 run_cmd cleanup-homebrew
+
+phase "handoff: log location for Pi/HI analysis"
+log_msg "complete status=0 log=$log_file summary=$summary_file"
+summary_msg "- result: complete"
+summary_msg "- handoff: feed summary first, then transcript log"

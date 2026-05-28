@@ -226,7 +226,7 @@ quadrantChart
 
 ```mermaid
 flowchart TD
-    A([Fresh macOS\nApple Silicon]) --> B[bin/bootstrap\nBrewfile · XDG · Ruby · links]
+    A([Fresh macOS\nApple Silicon]) --> B[bin/bootstrap\nBrewfile.home/work · XDG · Ruby · links]
     B --> C[Edit .zdots.local\nZDOTS_CONTEXT=home or work]
 
     C --> D{work machine?}

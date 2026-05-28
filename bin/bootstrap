@@ -10,6 +10,86 @@
 set -eu
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+_BOOTSTRAP_STARTED_AT="$(date '+%Y-%m-%dT%H:%M:%S%z')"
+_BOOTSTRAP_RUN_ID="$(date '+%Y%m%dT%H%M%S')-$$"
+_BOOTSTRAP_LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
+mkdir -p "$_BOOTSTRAP_LOG_DIR"
+BOOTSTRAP_LOG="${ZDOTS_BOOTSTRAP_LOG:-$_BOOTSTRAP_LOG_DIR/bootstrap-${_BOOTSTRAP_RUN_ID}.log}"
+BOOTSTRAP_SUMMARY="${BOOTSTRAP_LOG%.log}.summary.md"
+BOOTSTRAP_LATEST="$_BOOTSTRAP_LOG_DIR/bootstrap-latest.log"
+if command -v ln >/dev/null 2>&1; then
+  ln -sf "$BOOTSTRAP_LOG" "$BOOTSTRAP_LATEST" 2>/dev/null || true
+fi
+if [ "${ZDOTS_TRANSCRIPT_TEE:-1}" = "1" ] && command -v tee >/dev/null 2>&1 && command -v mkfifo >/dev/null 2>&1; then
+  _BOOTSTRAP_FIFO="${BOOTSTRAP_LOG}.fifo"
+  rm -f "$_BOOTSTRAP_FIFO"
+  mkfifo "$_BOOTSTRAP_FIFO"
+  tee -a "$BOOTSTRAP_LOG" < "$_BOOTSTRAP_FIFO" &
+  exec > "$_BOOTSTRAP_FIFO" 2>&1
+  rm -f "$_BOOTSTRAP_FIFO"
+else
+  exec >> "$BOOTSTRAP_LOG" 2>&1
+fi
+
+_bootstrap_phase_index=0
+_bootstrap_phase_total=16
+_bootstrap_current_phase="preflight"
+
+_bootstrap_log() {
+  printf '%s bootstrap: %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"
+}
+
+_bootstrap_summary() {
+  printf '%s\n' "$*" >> "$BOOTSTRAP_SUMMARY"
+}
+
+_bootstrap_phase() {
+  _bootstrap_phase_index=$((_bootstrap_phase_index + 1))
+  _bootstrap_current_phase="$1"
+  printf '\n==> bootstrap phase %02d/%02d: %s\n' "$_bootstrap_phase_index" "$_bootstrap_phase_total" "$_bootstrap_current_phase"
+  _bootstrap_summary "- phase ${_bootstrap_phase_index}/${_bootstrap_phase_total}: ${_bootstrap_current_phase}"
+}
+
+_bootstrap_finish() {
+  _status=$?
+  if [ "$_status" -eq 0 ]; then
+    _bootstrap_log "complete status=0 log=$BOOTSTRAP_LOG summary=$BOOTSTRAP_SUMMARY"
+    _bootstrap_summary "- result: complete"
+  else
+    _bootstrap_log "failed status=$_status phase=$_bootstrap_current_phase log=$BOOTSTRAP_LOG summary=$BOOTSTRAP_SUMMARY"
+    _bootstrap_summary "- result: failed status=${_status} phase=${_bootstrap_current_phase}"
+  fi
+  exit "$_status"
+}
+trap _bootstrap_finish EXIT
+
+{
+  printf '# zdots bootstrap run\n'
+  printf -- '- started: %s\n' "$_BOOTSTRAP_STARTED_AT"
+  printf -- '- repo: %s\n' "$REPO_ROOT"
+  printf -- '- log: %s\n' "$BOOTSTRAP_LOG"
+  printf -- '- latest: %s\n' "$BOOTSTRAP_LATEST"
+  printf -- '- context: %s\n' "${ZDOTS_CONTEXT:-home}"
+} > "$BOOTSTRAP_SUMMARY"
+_bootstrap_log "run_id=$_BOOTSTRAP_RUN_ID repo=$REPO_ROOT log=$BOOTSTRAP_LOG summary=$BOOTSTRAP_SUMMARY"
+
+if [ -f "$REPO_ROOT/.zdots.local" ]; then
+  . "$REPO_ROOT/.zdots.local"
+fi
+if [ "${ZDOTS_CONTEXT:-home}" = "work" ] && [ -f "$REPO_ROOT/.zdots.work" ]; then
+  . "$REPO_ROOT/.zdots.work"
+fi
+
+case "${ZDOTS_CONTEXT:-home}" in
+  home) BREWFILE="$REPO_ROOT/Brewfile.home" ;;
+  work) BREWFILE="$REPO_ROOT/Brewfile.work" ;;
+  *)
+    echo "bootstrap: ERROR: unknown ZDOTS_CONTEXT=${ZDOTS_CONTEXT}; expected home or work" >&2
+    exit 1
+    ;;
+esac
+
+_bootstrap_phase "preflight: Xcode tools, Homebrew availability, selected Brewfile"
 
 # 0. Xcode Command Line Tools
 # Required for git, compilers, and Homebrew itself. If you ran `git clone` to
@@ -54,10 +134,13 @@ if ! command -v brew >/dev/null 2>&1; then
 fi
 echo "bootstrap: $(brew --version | head -1)"
 
-if [ ! -f "$REPO_ROOT/Brewfile" ]; then
-  echo "bootstrap: Brewfile not found at $REPO_ROOT/Brewfile" >&2
+if [ ! -f "$BREWFILE" ]; then
+  echo "bootstrap: Brewfile not found at $BREWFILE" >&2
   exit 1
 fi
+echo "bootstrap: selected Brewfile: $BREWFILE"
+
+_bootstrap_phase "filesystem: XDG directories and secure local state"
 
 # 2. XDG Infrastructure & Security
 # Create core XDG structure
@@ -88,6 +171,8 @@ mkdir -p \
 
 # Initialize required files (ignore is always safe to touch; config comes from gdots below)
 touch "$HOME/.config/git/ignore"
+
+_bootstrap_phase "companion repos: adots and vdots"
 
 # 2b. Companion repos — adots (home dotfiles) and vdots (neovim)
 #
@@ -120,6 +205,8 @@ else
   echo "bootstrap: vdots already present ($HOME/.config/nvim)"
 fi
 
+_bootstrap_phase "shell entry points: zsh/bash links and startup warnings"
+
 # 3. Shell Entry Points (Symlinks)
 echo "bootstrap: linking shell entry points..."
 if [ ! -e "$HOME/.zshenv" ]; then ln -s "$REPO_ROOT/.zshenv" "$HOME/.zshenv"; fi
@@ -137,6 +224,8 @@ for _f in .zshrc .zprofile .zlogin .zlogout; do
   fi
 done
 unset _f
+
+_bootstrap_phase "git: local include files and hooks path"
 
 # 4. Git Integration
 echo "bootstrap: configuring git..."
@@ -162,9 +251,13 @@ if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$REPO_ROOT" config --local core.hooksPath .githooks
 fi
 
+_bootstrap_phase "toolchain: Homebrew bundle"
+
 # 5. Toolchain — Homebrew packages
 echo "bootstrap: installing Homebrew packages (this may take a while)..."
-brew bundle --file "$REPO_ROOT/Brewfile"
+brew bundle --file "$BREWFILE"
+
+_bootstrap_phase "runtime: mise trust and Ruby install"
 
 # 5b. Runtime versions — mise installs Ruby from mise.toml
 #
@@ -185,7 +278,7 @@ if [ -x "$_mise_bin" ]; then
   "$_mise_bin" trust "$REPO_ROOT/mise.toml" 2>/dev/null || true
 
   # Apple Silicon: compile Ruby with jemalloc allocator and the correct
-  # openssl@3 prefix. Both are installed by Brewfile; this wires them in.
+  # openssl@3 prefix. Both are installed by the selected Brewfile; this wires them in.
   _brew_prefix="$(brew --prefix 2>/dev/null || printf '/opt/homebrew')"
   _ruby_opts="--with-openssl-dir=${_brew_prefix}/opt/openssl@3"
   if [ "$(uname -m)" = "arm64" ] && [ -d "${_brew_prefix}/opt/jemalloc" ]; then
@@ -205,6 +298,8 @@ else
   echo "           or run: brew install mise && mise install"
 fi
 unset _mise_bin
+
+_bootstrap_phase "ai boundary: local model policy and endpoint probe"
 
 # 6. AI Stack Setup — LOCAL MODELS ONLY
 #
@@ -276,6 +371,8 @@ if [ "${ZDOTS_AI_MODE:-local}" != "cloud" ] && [ "${ZDOTS_AI_MODE:-local}" != "n
   fi
 fi
 
+_bootstrap_phase "llama: chat model launchd registration and model hydration"
+
 if command -v llama-server >/dev/null 2>&1; then
   if command -v llama-ctl >/dev/null 2>&1; then
     echo "bootstrap: registering llama.cpp launchd service..."
@@ -289,6 +386,8 @@ else
   echo "bootstrap: llama-server not found — skipping AI setup."
   echo "           Run: llama-ctl install && llama-ctl model-download && llama-ctl install"
 fi
+
+_bootstrap_phase "embedding: Nomic server setup"
 
 # 6b. Embedding server — Nomic embed-v2 MoE (port 11501)
 # Must be a separate process from the chat server: --embeddings + --spec-draft-model
@@ -304,6 +403,8 @@ else
   echo "bootstrap: llama-server not found — skipping embed server setup."
 fi
 
+_bootstrap_phase "observability: OpenTelemetry collector"
+
 # 6b2. OTel Collector — binary not in Homebrew; managed by bin/otel-collector
 # Installs ~/.local/bin/otelcol-contrib and registers the launchd plist.
 echo "bootstrap: installing OpenTelemetry Collector..."
@@ -314,6 +415,8 @@ if command -v otel-collector >/dev/null 2>&1; then
 else
   echo "bootstrap: otel-collector script not found — skipping (run after zdots is on PATH)."
 fi
+
+_bootstrap_phase "local proxy: mkcert, nginx, and hosts guidance"
 
 # 6c. Local TLS: mkcert CA + service certs
 # mkcert creates a locally-trusted CA and issues certs for *.local hostnames.
@@ -337,7 +440,7 @@ if command -v mkcert >/dev/null 2>&1; then
   fi
 else
   echo "bootstrap: mkcert not found — skipping TLS cert setup."
-  echo "           mkcert should have been installed via Brewfile above."
+    echo "           mkcert should have been installed via the selected Brewfile above."
   echo "           Run: brew install mkcert && mkcert -install"
 fi
 
@@ -398,6 +501,8 @@ if [ -n "$_MISSING_HOSTS" ]; then
 fi
 unset _NEEDED_HOSTS _MISSING_HOSTS _HOST
 
+_bootstrap_phase "ruby: gems and pg native extension wiring"
+
 # 7. Ruby gems — AI pipeline, PHI scrubber, DB bridge
 #
 # Uses the mise-managed Ruby pinned in etc/ruby-version — never the system Ruby
@@ -423,6 +528,8 @@ else
 fi
 unset _ruby_ver _mise_bundle
 
+_bootstrap_phase "local identity and database initialization"
+
 # 8. Machine-local identity file
 if [ ! -f "$REPO_ROOT/.zdots.local" ]; then
   echo "bootstrap: creating .zdots.local from template..."
@@ -443,6 +550,8 @@ else
   echo "bootstrap: psql not found — skipping database setup."
   echo "           Install PostgreSQL then run: zdots-ctx init-db"
 fi
+
+_bootstrap_phase "pi: self-hosted coding agent configuration"
 
 # 10. Pi coding agent configuration
 # Creates ~/.pi/agent/settings.json and models.json if absent.
@@ -496,6 +605,8 @@ PIMODELS
   fi
 fi
 unset _pi_bin _PI_AGENT_DIR
+
+_bootstrap_phase "github: gh extensions"
 
 # 11. gh extensions
 if command -v gh >/dev/null 2>&1; then
