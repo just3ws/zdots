@@ -1,12 +1,12 @@
 ---
 id: tooling
 title: "Key Tools Reference"
-purpose: Authoritative map of Brewfile tools to workflows. What to reach for and why.
+purpose: Authoritative map of Brewfile.home and Brewfile.work tools to workflows. What to reach for and why.
 ---
 
 # Key Tools Reference
 
-All tools listed are installed via the Brewfile unless noted (`bin/` prefix = zdots-native, not Homebrew).
+All tools listed are installed via `Brewfile.home` or `Brewfile.work` unless noted (`bin/` prefix = zdots-native, not Homebrew).
 Organized by workflow, not alphabetically. For service lifecycle, see [architecture.md](architecture.md).
 
 ---
