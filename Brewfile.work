@@ -1,15 +1,21 @@
-# Brewfile — home machine configuration (everything)
+# Brewfile.work — work machine configuration
 #
-# Install: brew bundle
-# Work machines: brew bundle --file=Brewfile.work
+# Install: brew bundle --file=Brewfile.work
+#
+# Excludes vs Brewfile (home):
+#   - AI desktop apps and CLI agents (Claude, ChatGPT, Codex, Gemini, Kimi,
+#     fabric-ai, aider, itermai) — not cleared for work yet
+#   - Local inference (llama.cpp, ollama, whisper variants)
+#   - Deployment platforms (railway, flyctl)
+#   - Personal/entertainment (deezer, antigravity, yt-dlp, gource, julia,
+#     vimr, ungoogled-chromium, libreoffice)
+#   - Zdots-specific personal tooling (rtk, models tap, taproom, gogcli)
 
-tap "arimxyer/tap"
 tap "bysiber/cleardisk"
 tap "dracula/install"
-tap "gromgit/brewtils"
 tap "romkatv/powerlevel10k"
-tap "steipete/tap"
 tap "supabase/tap"
+
 brew "ack"
 brew "act"
 brew "shellcheck"
@@ -48,15 +54,12 @@ brew "docker-compose"
 brew "docker-compose-langserver"
 brew "entr"
 brew "eza"
-brew "fabric-ai"
 brew "fd"
 brew "fdupes"
 brew "fish"
-brew "flyctl"
 brew "fswatch"
 brew "fx"
 brew "fzf"
-brew "gemini-cli"
 brew "geoipupdate"
 brew "gh"
 brew "git"
@@ -68,7 +71,6 @@ brew "gitlint"
 brew "glow"
 brew "gnupg"
 brew "go"
-brew "gource"
 brew "graphicsmagick"
 brew "graphviz"
 brew "grep"
@@ -79,12 +81,9 @@ brew "imagemagick"
 brew "jemalloc"
 brew "jless"
 brew "jq"
-brew "julia"
 brew "k6"
-brew "kimi-cli"
 brew "lazygit"
-brew "litecli"      # SQLite REPL with autocomplete — explore command_runs analytics DB
-brew "llama.cpp"
+brew "litecli"      # SQLite REPL with autocomplete
 brew "lnav"
 brew "lua-language-server"
 brew "luacheck"
@@ -99,12 +98,10 @@ brew "mysql-client"
 brew "ncdu"
 brew "tree-sitter"
 brew "neovim"
-brew "nginx"          # local reverse proxy — llama.local, embed.local, grafana.local (TLS via mkcert)
+brew "nginx"          # local reverse proxy — TLS via mkcert
                       # NOTE: start with launchctl, NOT brew services (brew services takes root ownership):
                       #   sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
 brew "nvtop"
-brew "ollama"
-brew "openai-whisper"
 brew "openapi"
 brew "openjdk"
 brew "openapi-diff"
@@ -113,7 +110,7 @@ brew "openapi-tui"
 brew "ossp-uuid"
 brew "otel-cli"
 brew "pandoc"
-brew "pgcli"        # PostgreSQL REPL with autocomplete — replaces raw psql for zdots_ro exploration
+brew "pgcli"        # PostgreSQL REPL with autocomplete
 brew "pgvector"
 brew "pipx"
 brew "pnpm"
@@ -122,18 +119,16 @@ brew "powerlevel10k"
 brew "pre-commit"
 brew "prettier"
 brew "pv"
-brew "railway"
 brew "ranger"
 brew "redis", restart_service: :changed
 brew "rename"
 brew "repomix"
 brew "ripgrep"
 brew "rsync"
-brew "rtk"
 brew "ruby-lsp"
 brew "rustup"
 brew "sd"
-brew "sqlite-utils" # CLI analytics on SQLite — query command_runs, export JSON/CSV
+brew "sqlite-utils" # CLI analytics on SQLite
 brew "sentry-cli"
 brew "sesh"
 brew "shfmt"
@@ -157,19 +152,16 @@ brew "trivy"
 brew "trufflehog"
 brew "universal-ctags"
 brew "uv"
-brew "visidata"     # TUI spreadsheet for SQLite/PostgreSQL — interactive command_runs analysis
+brew "visidata"     # TUI spreadsheet for SQLite/PostgreSQL
 brew "vivid"
 brew "watch"
-brew "watchexec"    # re-run bats on file change — tighter test feedback than entr
+brew "watchexec"    # re-run bats on file change
 brew "wget"
-brew "whisper-cpp"
-brew "whisperkit-cli"
 brew "xcodegen"
 brew "xmlstarlet"
 brew "yamllint"
 brew "yarn"
 brew "yq"
-brew "yt-dlp"
 brew "zoxide"
 brew "zsh"
 brew "zsh-autopair"
@@ -186,26 +178,15 @@ brew "git-cliff"    # CHANGELOG generation from conventional commits
 brew "lazydocker"   # Docker TUI — companion to lazygit
 # otelcol-contrib is intentionally absent — custom binary managed by
 # bin/otel-collector install (not available via Homebrew)
-brew "arimxyer/tap/models"
-brew "gromgit/brewtils/taproom"
-brew "steipete/tap/gogcli"
+
 cask "1password"
 cask "1password-cli"
 cask "alfred"
-cask "antigravity"
-cask "chatgpt"
-cask "claude"
-cask "claude-code"
-cask "claude-devtools"
-cask "claudebar"
 cask "bysiber/cleardisk/cleardisk"
 cask "cmux"
-cask "codex"
-cask "codex-app"
 cask "daisydisk"
 cask "dash"
 cask "dbeaver-community"
-cask "deezer"
 cask "dracula/install/dracula-terminal"
 cask "dracula/install/dracula-xcode"
 cask "firefox"
@@ -213,8 +194,6 @@ cask "font-fira-code-nerd-font"
 cask "font-meslo-lg-nerd-font"
 cask "google-chrome"
 cask "iterm2"
-cask "itermai"
-cask "libreoffice"
 cask "marked-app"
 cask "microsoft-teams"
 cask "miro"
@@ -226,12 +205,7 @@ cask "rectangle"
 cask "slack"
 cask "stats"
 cask "tailscale-app"
-cask "ungoogled-chromium"
-cask "vimr"
 cask "visual-studio-code"
 cask "zoom"
+
 vscode "github.copilot-chat"
-vscode "saoudrizwan.claude-dev"
-uv "aider-chat"
-npm "@anthropic-ai/claude-code"
-npm "@earendil-works/pi-coding-agent"
