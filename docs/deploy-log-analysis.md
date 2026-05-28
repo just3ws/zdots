@@ -78,6 +78,22 @@ zdots-log-analyze update --no-snapshot
 5. Run one non-destructive verification command.
 6. If shared zdots infrastructure is broken, file or update a `zdots-issue`.
 
+## Launchd Failures
+
+`llama-ctl install` and `otel-collector install` use the shared launchd helper.
+If macOS returns `Bootstrap failed: 5: Input/output error`, zdots now logs:
+
+- the launchd label and target domain
+- the generated plist path and metadata
+- `plutil -lint` output
+- `launchctl print` state, when available
+- a bounded `log show` command for the operator to run next
+
+Status 5 commonly means launchd has a stale or damaged registration, the plist
+is invalid, the program path is unavailable, or the command is running outside
+the expected GUI user domain. The helper retries once after `launchctl bootout`
+to repair stale registrations, then fails with the diagnostic pack intact.
+
 ## Prompt Contract
 
 The helper tells the model:
