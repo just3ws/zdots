@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# bin/zdots-pattern — Interactive Fabric pattern browser for zdots.
+#
+# Browses the 250+ Fabric patterns via fzf and executes the selection
+# against your local LLM. Supports optional context hydration from zdots-ctx.
+#
+# Usage:
+#   zdots-pattern                    # Select pattern, then enter prompt
+#   echo "data" | zdots-pattern      # Select pattern, use data as input
+#   zdots-pattern --context          # Select pattern, use zdots context as data
+#   zdots-pattern --context shell    # Select pattern with specific domain context
+
+set -euo pipefail
+trap '' PIPE
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+_usage() {
+  cat >&2 <<'EOF'
+Usage: zdots-pattern [OPTIONS]
+
+Interactive fabric-ai pattern selection via fzf.
+
+Options:
+  --context [TAG]    Prepend zdots-ctx hydrate output to input.
+  --help, -h         Show this help
+EOF
+  exit 2
+}
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+CONTEXT_ENABLED=0
+CONTEXT_TAG=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --context|-c)
+      CONTEXT_ENABLED=1
+      if [[ -n "${2:-}" && "${2:0:1}" != "-" ]]; then
+        CONTEXT_TAG="$2"; shift 2
+      else
+        shift
+      fi
+      ;;
+    --help|-h) _usage ;;
+    -*) printf 'zdots-pattern: unknown flag: %s\n' "$1" >&2; _usage ;;
+    *) break ;;
+  esac
+done
+
+if ! command -v fabric-ai >/dev/null 2>&1; then
+  printf 'zdots-pattern: fabric-ai not found. Install with: brew install fabric-ai\n' >&2
+  exit 1
+fi
+
+if ! command -v fzf >/dev/null 2>&1; then
+  printf 'zdots-pattern: fzf not found. Install with: brew install fzf\n' >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Pick the pattern
+# ---------------------------------------------------------------------------
+PATTERN=$(fabric-ai --listpatterns | fzf --header "Select Fabric Pattern")
+
+if [[ -z "$PATTERN" ]]; then
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Prepare Input
+# ---------------------------------------------------------------------------
+INPUT=""
+if [[ ! -t 0 ]]; then
+  INPUT=$(cat)
+fi
+
+# Hydrate context if requested
+if (( CONTEXT_ENABLED )); then
+  _hydrate_tag="${CONTEXT_TAG:-default}"
+  if _ctx_raw=$("${_ZDOTDIR}/bin/zdots-ctx" hydrate "$_hydrate_tag" 2>/dev/null); then
+    INPUT="${_ctx_raw}
+
+---
+
+${INPUT}"
+  fi
+fi
+
+# If we still have no input and it's a terminal, prompt the user
+if [[ -z "$INPUT" && -t 0 ]]; then
+  printf "Prompt for pattern [%s]: " "$PATTERN" >&2
+  read -r INPUT
+fi
+
+# ---------------------------------------------------------------------------
+# Execute
+# ---------------------------------------------------------------------------
+printf '%s' "$INPUT" | fabric-ai --pattern "$PATTERN"
