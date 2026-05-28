@@ -158,6 +158,18 @@ _require_yq() {
 _profile_field() { _meta_get "$1" "${2:-}"; }
 _server_field()  { _meta_get "$1" "${2:-}"; }
 
+_reject_reserved_llama_port() {
+  local role="$1" port="$2"
+  case "$port" in
+    8080|8090)
+      printf 'llama-ctl: error: refusing %s port %s\n' "$role" "$port" >&2
+      printf '  llama services use 11500 for chat and 11501 for embeddings.\n' >&2
+      printf '  Edit %s, then re-run llama-ctl install.\n' "$CONFIG_FILE" >&2
+      exit 1
+      ;;
+  esac
+}
+
 # ─── Resolved server configuration ───────────────────────────────────────────
 # _resolve_config() reads _META_JSON once with a single jq invocation and
 # populates the _CFG_* module-level variables below.  Both _register_plist and
@@ -214,6 +226,7 @@ _resolve_config() {
   _CFG_NO_THINKING="${_v[17]:-false}"
   _CFG_DRAFT_MODEL_FILE="${_v[18]:-}"
   _CFG_SPEC_DRAFT_N_MAX="${_v[19]:-5}"
+  _reject_reserved_llama_port "chat" "$_CFG_PORT"
   _CFG_RESOLVED=1
 }
 
@@ -261,7 +274,7 @@ install_llama() {
   _register_plist
 
   printf 'llama-ctl: loading service...\n' >&2
-  launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
+  zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
   printf 'llama-ctl: server started\n' >&2
 }
 
@@ -646,6 +659,7 @@ _register_embed_plist() {
   local n_gpu;       n_gpu=$(      _yq_field ".profiles.${EMBED_PROFILE}.n_gpu_layers" "99")
   local host;        host=$(       _yq_field ".embed_server.host"        "127.0.0.1")
   local port;        port=$(       _yq_field ".embed_server.port"        "11501")
+  _reject_reserved_llama_port "embedding" "$port"
   local parallel;    parallel=$(   _yq_field ".embed_server.parallel"    "1")
   local batch;       batch=$(      _yq_field ".embed_server.batch_size"  "2048")
   local ubatch;      ubatch=$(     _yq_field ".embed_server.ubatch_size" "2048")
@@ -701,7 +715,7 @@ install_embed() {
 
   if [[ -f "$model_path" ]]; then
     printf 'llama-ctl: loading embed service...\n' >&2
-    launchctl bootstrap "gui/$(id -u)" "$EMBED_PLIST_FILE"
+    zdots_svc_launchd_start "$EMBED_PLIST_LABEL" "$EMBED_PLIST_FILE"
     printf 'llama-ctl: embed server started on %s\n' "$EMBED_ENDPOINT" >&2
   else
     printf 'llama-ctl: embed model still missing — plist written but service not started\n' >&2
