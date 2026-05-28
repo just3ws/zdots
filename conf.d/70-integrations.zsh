@@ -48,7 +48,7 @@ Examples:
   cat error.log | ai "Find the root cause"
   history-analyze --ai           AI-powered shell history analysis
 
-Runtime:  llama.cpp (local, ${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080})
+Runtime:  llama.cpp (local, ${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500})
 Model:    ${ZDOTS_AI_MODEL:-unknown}   [profile: ${ZDOTS_AI_PROFILE:-standard}]
 Status:   ${_ai_server_status}
 

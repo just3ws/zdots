@@ -66,7 +66,7 @@ _meta_get() {
 }
 
 AI_PROFILE=$(_meta_get active_profile "standard")
-AI_ENDPOINT=$(_meta_get endpoint "http://127.0.0.1:8080")
+AI_ENDPOINT=$(_meta_get endpoint "http://127.0.0.1:11500")
 
 _has_yq() { command -v yq >/dev/null 2>&1; }
 
@@ -103,7 +103,7 @@ Model Management:
                             --draft also downloads the speculative draft model if defined.
   model-switch <p>  Print step-by-step instructions to switch to profile <p>
 
-Embedding Server (dedicated, port 8090):
+Embedding Server (dedicated, port 11501):
   install-embed     Download Nomic embed model if needed; write com.zdots.llama-embed.plist; start server.
   start-embed       Load embed launchd service
   stop-embed        Unload embed launchd service
@@ -559,7 +559,7 @@ config_dump() {
   local model_file model_path endpoint
   model_file=$(_active_model_file)
   model_path=$(_active_model_path)
-  endpoint=$(_meta_get endpoint "http://127.0.0.1:8080")
+  endpoint=$(_meta_get endpoint "http://127.0.0.1:11500")
 
   if $json; then
     local emb_j flash_j metrics_j
@@ -619,12 +619,12 @@ config_dump() {
   fi
 }
 
-# ─── Embedding server (com.zdots.llama-embed, port 8090) ─────────────────────
+# ─── Embedding server (com.zdots.llama-embed, port 11501) ─────────────────────
 EMBED_PLIST_LABEL="com.zdots.llama-embed"
 EMBED_PLIST_FILE="$HOME/Library/LaunchAgents/${EMBED_PLIST_LABEL}.plist"
 EMBED_LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/llama-embed.log"
 EMBED_PROFILE="embed"
-EMBED_ENDPOINT="http://127.0.0.1:8090"
+EMBED_ENDPOINT="http://127.0.0.1:11501"
 
 _register_embed_plist() {
   local bin; bin=$(_require_binary)

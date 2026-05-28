@@ -10,7 +10,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # 1. ENDPOINT
-#      http://127.0.0.1:8080   (read ZDOTS_AI_ENDPOINT; see etc/ai-models.yaml)
+#      http://127.0.0.1:11500   (read ZDOTS_AI_ENDPOINT; see etc/ai-models.yaml)
 #
 # 2. MODEL — use the SERVER ALIAS, not the GGUF filename
 #      alias: "local"  is set in etc/ai-models.yaml → server.alias
@@ -36,11 +36,11 @@
 #      Set openai_use_system_role: true in RubyLLM.configure.
 #      Use chat.with_instructions("...") to set a system prompt.
 #
-# 6. EMBEDDINGS — separate server (port 8090)
-#      Embeddings run on a dedicated Nomic embed-v2 MoE server (port 8090).
-#      The chat server (port 8080) has embeddings DISABLED: combining
+# 6. EMBEDDINGS — separate server (port 11501)
+#      Embeddings run on a dedicated Nomic embed-v2 MoE server (port 11501).
+#      The chat server (port 11500) has embeddings DISABLED: combining
 #      --embeddings with --spec-draft-model causes a llama.cpp crash loop.
-#      Use ZDOTS_AI_EMBED_ENDPOINT (default http://127.0.0.1:8090).
+#      Use ZDOTS_AI_EMBED_ENDPOINT (default http://127.0.0.1:11501).
 #      Model alias: "embed" (768-dim output; set in etc/ai-models.yaml).
 #      ubatch_size in embed_server: section must be >= longest input tokens.
 #      Manage with: llama-ctl install-embed / start-embed / stop-embed
@@ -72,7 +72,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #   ruby tests/llama_integration.rb           # full suite
 #   ruby tests/llama_integration.rb --quick   # health-check mode (fast subset)
-#   ZDOTS_AI_ENDPOINT=http://…:8080 ruby tests/llama_integration.rb
+#   ZDOTS_AI_ENDPOINT=http://…:11500 ruby tests/llama_integration.rb
 
 require "ruby_llm"
 require "net/http"
@@ -82,8 +82,8 @@ require "json"
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────────────────────────────────────
-ENDPOINT       = ENV.fetch("ZDOTS_AI_ENDPOINT",       "http://127.0.0.1:8080")
-EMBED_ENDPOINT = ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT",  "http://127.0.0.1:8090")
+ENDPOINT       = ENV.fetch("ZDOTS_AI_ENDPOINT",       "http://127.0.0.1:11500")
+EMBED_ENDPOINT = ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT",  "http://127.0.0.1:11501")
 MODEL          = ENV.fetch("ZDOTS_AI_MODEL_ALIAS",     "local")   # alias, never GGUF filename
 EMBED_MODEL    = ENV.fetch("ZDOTS_AI_EMBED_MODEL",     "embed")   # Nomic embed-v2 alias
 PROVIDER       = "openai"                                          # llama.cpp speaks OpenAI API
@@ -144,7 +144,7 @@ RubyLLM.configure do |c|
   c.max_retries             = 0                 # fail fast in tests
 end
 
-# Direct HTTP helper for the embed server (port 8090, Nomic embed-v2 MoE).
+# Direct HTTP helper for the embed server (port 11501, Nomic embed-v2 MoE).
 # Embeddings are on a separate server because --embeddings + --spec-draft-model
 # causes a llama.cpp crash loop. Do not use RubyLLM for embeddings.
 def http_post_embed(input)
@@ -284,9 +284,9 @@ test "tool — model invokes UnitConverter for a conversion request", slow: true
   assert r.content.match?(/62\.1/), "expected ~62.1 in: #{r.content.inspect}"
 end
 
-# ── Layer 5: Embeddings (port 8090, Nomic embed-v2 MoE) ──────────────────────
+# ── Layer 5: Embeddings (port 11501, Nomic embed-v2 MoE) ──────────────────────
 # The embedding server is separate from the chat server. It cannot share a
-# process with speculative decoding — use EMBED_ENDPOINT (127.0.0.1:8090).
+# process with speculative decoding — use EMBED_ENDPOINT (127.0.0.1:11501).
 puts
 puts "── 5. Embeddings (embed server: #{EMBED_ENDPOINT}) ──────────────────────"
 

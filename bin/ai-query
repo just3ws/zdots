@@ -67,7 +67,7 @@ source "${_SCRIPT_DIR}/../lib/ai_boundary.bash"
 # ---------------------------------------------------------------------------
 MODE="${AIQ_DEFAULT_MODE:-safe-extract}"
 MODEL="${ZDOTS_AI_MODEL:-local}"
-ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:8080}"
+ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 TIMEOUT=30
 CUSTOM_SYSTEM=""   # only respected in raw mode
 OPT_SHOW_RISK=false

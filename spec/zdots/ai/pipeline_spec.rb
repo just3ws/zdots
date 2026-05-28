@@ -63,7 +63,7 @@ RSpec.describe Zdots::AI::Pipeline do
 
     before do
       ENV["ZDOTS_AI_MODE"]     = "local"
-      ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:8080"
+      ENV["ZDOTS_AI_ENDPOINT"] = "http://127.0.0.1:11500"
       allow(Zdots::AI).to receive(:build_client).and_return(fake_client)
     end
 
@@ -116,8 +116,8 @@ RSpec.describe Zdots::AI::Pipeline do
 
     before do
       ENV["ZDOTS_AI_MODE"]          = "local"
-      ENV["ZDOTS_AI_ENDPOINT"]      = "http://127.0.0.1:8080"
-      ENV["ZDOTS_AI_EMBED_ENDPOINT"] = "http://127.0.0.1:8090"
+      ENV["ZDOTS_AI_ENDPOINT"]      = "http://127.0.0.1:11500"
+      ENV["ZDOTS_AI_EMBED_ENDPOINT"] = "http://127.0.0.1:11501"
       allow(Zdots::AI).to receive(:embed_client).and_return(fake_embed_client)
     end
 
