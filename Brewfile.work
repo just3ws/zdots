@@ -2,8 +2,10 @@
 #
 # Install: brew bundle --file=Brewfile.work
 #
-# Principle: local tools (no data leaves the machine) are fine.
-#            Cloud services and personal tools are excluded.
+# Principle: tools that run locally or can be pointed at local endpoints
+#            are fine. Excluded = the product IS the cloud service
+#            (ChatGPT, Claude app, Gemini, railway, flyctl, etc.) or is
+#            purely personal (deezer, antigravity, gource, julia).
 #
 # To add a tool when cleared, uncomment from the "pending" section below
 # or add it here directly.
@@ -52,6 +54,7 @@ brew "docker-compose"
 brew "docker-compose-langserver"
 brew "entr"
 brew "eza"
+brew "fabric-ai"  # LLM pipeline tool — configurable to local endpoints
 brew "fd"
 brew "fdupes"
 brew "fish"
@@ -126,6 +129,7 @@ brew "rename"
 brew "repomix"
 brew "ripgrep"
 brew "rsync"
+brew "rtk"        # token optimization for local LLM workflows
 brew "ruby-lsp"
 brew "rustup"
 brew "sd"
@@ -165,6 +169,7 @@ brew "xmlstarlet"
 brew "yamllint"
 brew "yarn"
 brew "yq"
+brew "yt-dlp"     # media ingestion — feeds local Whisper pipelines
 brew "zoxide"
 brew "zsh"
 brew "zsh-autopair"
@@ -198,6 +203,7 @@ cask "font-fira-code-nerd-font"
 cask "font-meslo-lg-nerd-font"
 cask "google-chrome"
 cask "iterm2"
+cask "itermai"    # iTerm AI integration — configurable to local endpoints
 cask "marked-app"
 cask "microsoft-teams"
 cask "miro"
@@ -209,15 +215,18 @@ cask "rectangle"
 cask "slack"
 cask "stats"
 cask "tailscale-app"
+cask "vimr"
 cask "visual-studio-code"
 cask "zoom"
 
 vscode "github.copilot-chat"
 
+uv "aider-chat"   # LLM coding assistant — configurable to local endpoints
+
 # ---------------------------------------------------------------------------
 # Pending work approval — uncomment as cleared
 # ---------------------------------------------------------------------------
-# Cloud AI services (send data to third-party APIs):
+# Cloud AI desktop apps (the service IS the cloud):
 # cask "claude"
 # cask "claude-code"
 # cask "claude-devtools"
@@ -227,9 +236,6 @@ vscode "github.copilot-chat"
 # cask "codex-app"
 # brew "gemini-cli"
 # brew "kimi-cli"
-# brew "fabric-ai"
-# cask "itermai"
-# uv "aider-chat"
 # npm "@anthropic-ai/claude-code"
 # npm "@earendil-works/pi-coding-agent"
 # vscode "saoudrizwan.claude-dev"
