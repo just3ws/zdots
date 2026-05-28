@@ -15,7 +15,8 @@ AI_QUERY="${ZDOTDIR}/bin/ai-query"
 KIND=""
 SUMMARY_FILE=""
 LOG_FILE=""
-TAIL_LINES=220
+TAIL_LINES=160
+AI_TIMEOUT="${ZDOTS_LOG_ANALYZE_AI_TIMEOUT:-90}"
 OPT_AI=false
 OPT_FULL=false
 OPT_PROMPT_ONLY=false
@@ -37,6 +38,7 @@ Options:
   --summary FILE   Use this summary file instead of the latest matching summary
   --log FILE       Use this transcript file instead of the latest matching log
   --tail N         Include last N log lines (default: $TAIL_LINES)
+  --ai-timeout N   ai-query timeout in seconds (default: $AI_TIMEOUT)
   --full           Include the full transcript instead of a tail
   --ai             Send the diagnostic pack to local ai-query
   --no-snapshot    Do not include local non-OTel system snapshot
@@ -58,6 +60,7 @@ while [[ $# -gt 0 ]]; do
     --summary) SUMMARY_FILE="${2:-}"; shift ;;
     --log) LOG_FILE="${2:-}"; shift ;;
     --tail) TAIL_LINES="${2:-}"; shift ;;
+    --ai-timeout) AI_TIMEOUT="${2:-}"; shift ;;
     --full) OPT_FULL=true ;;
     --ai) OPT_AI=true ;;
     --no-snapshot) OPT_NO_SNAPSHOT=true ;;
@@ -219,7 +222,7 @@ if [[ "$OPT_AI" == true ]]; then
     printf 'zdots-log-analyze: ai-query not found at %s\n' "$AI_QUERY" >&2
     exit 1
   fi
-  emit_pack | "$AI_QUERY" --mode safe-extract "Diagnose this zdots deployment log. Follow the embedded analysis prompt."
+  emit_pack | "$AI_QUERY" --timeout "$AI_TIMEOUT" --mode safe-extract "Diagnose this zdots deployment log. Follow the embedded analysis prompt."
 else
   emit_pack
 fi

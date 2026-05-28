@@ -34,6 +34,7 @@ zdots-log-analyze update
 zdots-log-analyze bootstrap --tail 400
 zdots-log-analyze upgrade --ai
 zdots-log-analyze update --list
+zdots-ctx diagnose-log update --tail 160
 ```
 
 The diagnostic pack includes a non-OTel system snapshot by default:

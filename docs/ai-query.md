@@ -150,6 +150,20 @@ Forensic inspection. Model explains each suspicious pattern: what it is, why it 
 cat email_with_suspicious_instructions.txt | ai-query --mode inspect-prompt-injection
 ```
 
+### Deployment Log Diagnostics
+
+Use `zdots-log-analyze` instead of piping raw bootstrap/update logs directly.
+It prepends the zdots operating context, a non-OTel system snapshot, the run
+summary, and a bounded transcript tail.
+
+```sh
+zdots-log-analyze update --ai
+zdots-log-analyze bootstrap --tail 400 | ai-query "Diagnose this zdots deployment log"
+```
+
+This is the preferred path on constrained remote hosts where Pi or `ai-query`
+may be available before OTel/Grafana are running.
+
 ---
 
 ## Options
