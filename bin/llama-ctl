@@ -173,7 +173,7 @@ _resolve_config() {
   local -a _v
   mapfile -t _v < <(printf '%s' "${_META_JSON:-{\}}" | jq -r '
     (.host           // "127.0.0.1"),
-    ((.port          // "8080")  | tostring),
+    ((.port          // "11500")  | tostring),
     ((.ctx_size      // "4096")  | tostring),
     ((.n_gpu_layers  // "99")    | tostring),
     ((.parallel      // "2")     | tostring),
@@ -194,7 +194,7 @@ _resolve_config() {
     ((.spec_draft_n_max // "5")  | tostring)
   ' 2>/dev/null)
   _CFG_HOST="${_v[0]:-127.0.0.1}"
-  _CFG_PORT="${_v[1]:-8080}"
+  _CFG_PORT="${_v[1]:-11500}"
   _CFG_CTX_SIZE="${_v[2]:-4096}"
   _CFG_N_GPU_LAYERS="${_v[3]:-99}"
   _CFG_PARALLEL="${_v[4]:-2}"
@@ -644,7 +644,7 @@ _register_embed_plist() {
   local ctx_size;    ctx_size=$(   _yq_field ".profiles.${EMBED_PROFILE}.ctx_size"    "512")
   local n_gpu;       n_gpu=$(      _yq_field ".profiles.${EMBED_PROFILE}.n_gpu_layers" "99")
   local host;        host=$(       _yq_field ".embed_server.host"        "127.0.0.1")
-  local port;        port=$(       _yq_field ".embed_server.port"        "8090")
+  local port;        port=$(       _yq_field ".embed_server.port"        "11501")
   local parallel;    parallel=$(   _yq_field ".embed_server.parallel"    "1")
   local batch;       batch=$(      _yq_field ".embed_server.batch_size"  "2048")
   local ubatch;      ubatch=$(     _yq_field ".embed_server.ubatch_size" "2048")

@@ -152,7 +152,7 @@ non-default (e.g. `true`, non-zero, non-empty).
 | Field | Default in yaml | Flag | Conditional | Description |
 |---|---|---|---|---|
 | `host` | `127.0.0.1` | `--host` | no | Bind address |
-| `port` | `8080` | `--port` | no | Listen port |
+| `port` | `11500` | `--port` | no | Listen port |
 | `parallel` | `2` | `--parallel` | no | Concurrent decode slots; drop to 1 if OOM |
 | `batch_size` | `2048` | `--batch-size` | no | Logical max tokens per scheduling cycle |
 | `ubatch_size` | `2048` | `--ubatch-size` | no | Physical tokens per Metal kernel dispatch; embedding inputs must fit entirely within this limit |

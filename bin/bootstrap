@@ -290,7 +290,7 @@ else
   echo "           Run: llama-ctl install && llama-ctl model-download && llama-ctl install"
 fi
 
-# 6b. Embedding server — Nomic embed-v2 MoE (port 8090)
+# 6b. Embedding server — Nomic embed-v2 MoE (port 11501)
 # Must be a separate process from the chat server: --embeddings + --spec-draft-model
 # causes a llama.cpp crash loop. 0.5 GB model, runs alongside the 5 GB chat model.
 if command -v llama-server >/dev/null 2>&1 && command -v llama-ctl >/dev/null 2>&1; then
