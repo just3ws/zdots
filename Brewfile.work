@@ -2,15 +2,13 @@
 #
 # Install: brew bundle --file=Brewfile.work
 #
-# Excludes vs Brewfile (home):
-#   - AI desktop apps and CLI agents (Claude, ChatGPT, Codex, Gemini, Kimi,
-#     fabric-ai, aider, itermai) — not cleared for work yet
-#   - Local inference (llama.cpp, ollama, whisper variants)
-#   - Deployment platforms (railway, flyctl)
-#   - Personal/entertainment (deezer, antigravity, yt-dlp, gource, julia,
-#     vimr, ungoogled-chromium, libreoffice)
-#   - Zdots-specific personal tooling (rtk, models tap, taproom, gogcli)
+# Principle: local tools (no data leaves the machine) are fine.
+#            Cloud services and personal tools are excluded.
+#
+# To add a tool when cleared, uncomment from the "pending" section below
+# or add it here directly.
 
+tap "arimxyer/tap"            # local AI model management
 tap "bysiber/cleardisk"
 tap "dracula/install"
 tap "romkatv/powerlevel10k"
@@ -84,6 +82,7 @@ brew "jq"
 brew "k6"
 brew "lazygit"
 brew "litecli"      # SQLite REPL with autocomplete
+brew "llama.cpp"    # local inference — no data leaves machine
 brew "lnav"
 brew "lua-language-server"
 brew "luacheck"
@@ -102,6 +101,8 @@ brew "nginx"          # local reverse proxy — TLS via mkcert
                       # NOTE: start with launchctl, NOT brew services (brew services takes root ownership):
                       #   sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
 brew "nvtop"
+brew "ollama"         # local inference — no data leaves machine
+brew "openai-whisper" # local speech recognition — weights run on-device
 brew "openapi"
 brew "openjdk"
 brew "openapi-diff"
@@ -155,8 +156,10 @@ brew "uv"
 brew "visidata"     # TUI spreadsheet for SQLite/PostgreSQL
 brew "vivid"
 brew "watch"
-brew "watchexec"    # re-run bats on file change
+brew "watchexec"
 brew "wget"
+brew "whisper-cpp"    # local speech recognition — runs on-device
+brew "whisperkit-cli" # local speech recognition — runs on-device
 brew "xcodegen"
 brew "xmlstarlet"
 brew "yamllint"
@@ -172,12 +175,13 @@ brew "zsh-history-substring-search"
 brew "zsh-syntax-highlighting"
 brew "zsh-vi-mode"
 brew "zsh-you-should-use"
-brew "dust"         # better du — fast, tree-structured disk usage
+brew "dust"
 # gh-dash is a gh extension, not a Homebrew formula: gh extension install dlvhdr/gh-dash
-brew "git-cliff"    # CHANGELOG generation from conventional commits
-brew "lazydocker"   # Docker TUI — companion to lazygit
+brew "git-cliff"
+brew "lazydocker"
 # otelcol-contrib is intentionally absent — custom binary managed by
 # bin/otel-collector install (not available via Homebrew)
+brew "arimxyer/tap/models"    # local model management
 
 cask "1password"
 cask "1password-cli"
@@ -209,3 +213,27 @@ cask "visual-studio-code"
 cask "zoom"
 
 vscode "github.copilot-chat"
+
+# ---------------------------------------------------------------------------
+# Pending work approval — uncomment as cleared
+# ---------------------------------------------------------------------------
+# Cloud AI services (send data to third-party APIs):
+# cask "claude"
+# cask "claude-code"
+# cask "claude-devtools"
+# cask "claudebar"
+# cask "chatgpt"
+# cask "codex"
+# cask "codex-app"
+# brew "gemini-cli"
+# brew "kimi-cli"
+# brew "fabric-ai"
+# cask "itermai"
+# uv "aider-chat"
+# npm "@anthropic-ai/claude-code"
+# npm "@earendil-works/pi-coding-agent"
+# vscode "saoudrizwan.claude-dev"
+#
+# Cloud deployment platforms:
+# brew "railway"
+# brew "flyctl"
