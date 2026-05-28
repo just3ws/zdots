@@ -30,7 +30,7 @@ else
 fi
 
 # 2. Wait for Docker socket to be ready (up to 30s)
-socket="$HOME/.config/colima/default/docker.sock"
+socket="${XDG_CONFIG_HOME:-${HOME}/.config}/colima/default/docker.sock"
 i=0
 while [ "$i" -lt 30 ]; do
   [ -S "$socket" ] && break
