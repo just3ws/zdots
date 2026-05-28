@@ -33,6 +33,14 @@ setup() {
   [ "$val" == "" ]
 }
 
+@test "env.sh: Sources under nounset when CI variables are absent" {
+  run bash -u -c "export ZDOTDIR=$ZDOTDIR; unset CI GITHUB_ACTIONS ACT; . $ZDOTDIR/env.sh && echo ok"
+  echo "Output: $output"
+  [ "$status" -eq 0 ]
+  local val=$(echo "$output" | tail -n 1)
+  [ "$val" == "ok" ]
+}
+
 @test "env.sh: Selects Brewfile.home by default" {
   run bash -c "repo=$ZDOTDIR; tmp=\$BATS_TEST_TMPDIR/brew-home; mkdir -p \"\$tmp\"; cp \"\$repo/.zdots.env\" \"\$tmp/.zdots.env\"; export ZDOTDIR=\"\$tmp\"; unset ZDOTS_CONTEXT HOMEBREW_BUNDLE_FILE; . \"\$repo/env.sh\" && echo \$HOMEBREW_BUNDLE_FILE"
   echo "Output: $output"
