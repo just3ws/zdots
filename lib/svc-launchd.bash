@@ -99,6 +99,12 @@ _zdots_svc_launchd_bootstrap() {
     else
       status=$?
     fi
+    # Status=5 on retry often means the service is already registered (the old
+    # process is still live). Treat as success if launchd can still print it.
+    if [[ "$status" -eq 5 ]] && launchctl print "$target" >/dev/null 2>&1; then
+      _svc_ok "${label} already registered (bootstrap status=5 is idempotent)"
+      return 0
+    fi
   fi
 
   _zdots_svc_launchd_failure "bootstrap" "$label" "$plist" "$status" "$output"
@@ -172,6 +178,12 @@ zdots_svc_launchd_start() {
     if printf '%s\n' "$state" | grep -q 'state = running' &&
        printf '%s\n' "$state" | grep -q 'pid = [0-9]'; then
       _svc_ok "${label} is already running"
+    elif printf '%s\n' "$state" | grep -q 'state = SIGTERMed' &&
+         printf '%s\n' "$state" | grep -q 'pid = [0-9]'; then
+      # Service was signalled but process is still alive (common for heavy services
+      # like llama-server holding GPU resources). KeepAlive will restart it once
+      # the process exits — do not kickstart or re-bootstrap.
+      _svc_ok "${label} is SIGTERMed and still exiting; KeepAlive will restart it"
     else
       _svc_log "kickstarting ${label}..."
       local output status
