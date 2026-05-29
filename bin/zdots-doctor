@@ -156,32 +156,32 @@ _section "XDG compliance"
 # Homedir zsh shadows (covered by zdots-ctl check too — shown here for visibility)
 for _f in .zshrc .zprofile .zlogin .zlogout; do
   if [[ -f "$HOME/$_f" ]]; then
-    _warn "~/${_f}  present — loaded before ZDOTDIR, may shadow zdots config"
+    _warn "$HOME/${_f}  present — loaded before ZDOTDIR, may shadow zdots config"
     _fix  "mv $HOME/${_f} $ZDOTDIR/conf.d/  (or delete if empty)"
   fi
 done
 
 # Colima XDG drift
 if [[ -d "$HOME/.colima" ]]; then
-  _fail "~/.colima  present — colima ignores XDG_CONFIG_HOME"
-  _fix  "mv ~/.colima \"\${XDG_CONFIG_HOME:-\$HOME/.config}/colima\""
+  _fail "$HOME/.colima  present — colima ignores XDG_CONFIG_HOME"
+  _fix  "mv $HOME/.colima \"\${XDG_CONFIG_HOME:-\$HOME/.config}/colima\""
 else
-  _pass "~/.colima  absent"
+  _pass "$HOME/.colima  absent"
 fi
 
 # Aider XDG drift (~/.aider/ should live in ~/.config/aider or not at all)
 if [[ -d "$HOME/.aider" ]]; then
-  _warn "~/.aider  present — aider config should live in \$XDG_CONFIG_HOME/aider"
-  _fix  "mv ~/.aider ~/.config/aider"
+  _warn "$HOME/.aider  present — aider config should live in \$XDG_CONFIG_HOME/aider"
+  _fix  "mv $HOME/.aider \"\${XDG_CONFIG_HOME:-\$HOME/.config}/aider\""
 else
-  _pass "~/.aider  absent"
+  _pass "$HOME/.aider  absent"
 fi
 
 # Pi config dir — Pi uses ~/.pi; flag if both ~/.pi and XDG-style path exist
 if [[ -d "$HOME/.pi" && -d "${XDG_CONFIG_HOME:-$HOME/.config}/pi" ]]; then
-  _warn "~/.pi  and XDG pi config both present — potential conflict"
+  _warn "$HOME/.pi  and XDG pi config both present — potential conflict"
 else
-  _pass "~/.pi  no XDG conflict"
+  _pass "$HOME/.pi  no XDG conflict"
 fi
 
 # ---------------------------------------------------------------------------
