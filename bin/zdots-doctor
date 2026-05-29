@@ -297,13 +297,21 @@ fi
 # ---------------------------------------------------------------------------
 _section "Runtime health  (zdots-ctl check)"
 
+_runtime_rc=0
 if [[ "$SKIP_RUNTIME" -eq 1 ]]; then
   _skip "skipped  (--no-runtime)"
-  _RUNTIME_OK=0
 else
-  _runtime_rc=0
-  "$BIN/zdots-ctl" check 2>&1 || _runtime_rc=$?
-  _RUNTIME_OK=$_runtime_rc
+  _runtime_out=$("$BIN/zdots-ctl" check 2>&1) || _runtime_rc=$?
+  printf '%s\n' "$_runtime_out"
+
+  # Fold runtime warning/failure counts into the doctor totals so the
+  # summary reflects the full picture, not just the doctor's own checks.
+  _rt_warns=$(printf '%s\n' "$_runtime_out" \
+    | grep -oE '[0-9]+ warning' | grep -oE '^[0-9]+' | tail -1 || true)
+  _rt_fails=$(printf '%s\n' "$_runtime_out" \
+    | grep -oE '[0-9]+ failure' | grep -oE '^[0-9]+' | tail -1 || true)
+  _WARN=$((_WARN + ${_rt_warns:-0}))
+  _FAIL=$((_FAIL + ${_rt_fails:-0}))
 fi
 
 # ---------------------------------------------------------------------------
@@ -312,19 +320,13 @@ fi
 printf '\n'
 printf '%.0s━' $(seq 1 59); printf '\n'
 
-_total=$((_PASS + _WARN + _FAIL))
-if [[ $_FAIL -eq 0 && $_WARN -eq 0 && $_RUNTIME_OK -eq 0 ]]; then
-  printf 'zdots doctor: all %d checks passed\n' "$_total"
-elif [[ $_FAIL -eq 0 && $_RUNTIME_OK -eq 0 ]]; then
+if [[ $_FAIL -eq 0 && $_WARN -eq 0 && $_runtime_rc -eq 0 ]]; then
+  printf 'zdots doctor: all %d checks passed\n' "$((_PASS + _WARN + _FAIL))"
+elif [[ $_FAIL -eq 0 && $_runtime_rc -eq 0 ]]; then
   printf 'zdots doctor: %d passed · %d warning(s) · 0 failures\n' "$_PASS" "$_WARN"
 else
-  printf 'zdots doctor: %d passed · %d warning(s) · %d failure(s)' \
+  printf 'zdots doctor: %d passed · %d warning(s) · %d failure(s)\n' \
     "$_PASS" "$_WARN" "$_FAIL"
-  if [[ "$_RUNTIME_OK" -ne 0 ]]; then
-    printf '  +  runtime check failed (see above)\n'
-  else
-    printf '\n'
-  fi
 fi
 
-[[ $_FAIL -eq 0 && $_RUNTIME_OK -eq 0 ]]
+[[ $_FAIL -eq 0 && $_runtime_rc -eq 0 ]]
