@@ -33,11 +33,28 @@ The Regrounding was the moment Cook Ding "sized up the difficulties and told him
 ## Era III: The Spirit Moves (2025 – Present)
 **Theme:** *The Blade with No Thickness*
 
-Now, we go at it by spirit and don’t look with our eyes. Perception and understanding have come to a stop, and spirit moves where it wants.
+After a dormant period, the repository was revived with a "Snapshot before changes" on **2025-10-23** (`24931be`). Perception and understanding have come to a stop, and spirit moves where it wants.
 
 *   **Operation Martian (May 2026)**: A surgical strike into the "big hollows" of security. We didn't hack at secrets; we inserted a blade with no thickness (the **PHI Scrubber**) into the spaces between the history and the disk.
 *   **The Intelligence Layer**: Implementation of the "Shell Brain" (`zdots-ctx`). The infrastructure now "goes along with the natural makeup," guiding the knife through the big openings of automated session distillation and trace propagation.
 *   **The 2026 SOTA Upgrade**: High-performance inference and transcription. The blade is nineteen years old (conceived in the spirit of a decade of prior hacking), yet it is as good as though it had just come from the grindstone.
+
+---
+
+## 🧭 The Trace of the Blade (Chronology)
+
+To ground the spirit in the reality of the machine, we track the marks left by the knife:
+
+| Date | Hash | Milestone | Era |
+|---|---|---|---|
+| **2017-05-26** | `e25021c` | Genesis: The first perception of the Ox. | Era I |
+| **2017-05-31** | `b8d2b1a` | First Personal Prompt: A sketch in the Mulberry Grove. | Era I |
+| **2021-04-19** | `481fdbf` | The P10k Pivot: Following the natural makeup. | Era II |
+| **2021-10-02** | `65f162a` | `w3r` Commands: The rise of the Project Helper. | Era II |
+| **2025-10-23** | `24931be` | The Snapshot: Sharpening the blade for a modern age. | Era III |
+| **2026-04-18** | `9e188b5` | The AI Pivot: The shell gains a voice and a heartbeat. | Era III |
+| **2026-05-22** | `c50722f` | Operation Martian: Achieving PHI-safe mastery. | Era III |
+| **Today** | `92f84db` | The Way of Cook Ding: The blade has no thickness. | Era III |
 
 ## Today: The Slither and the Zing
 
