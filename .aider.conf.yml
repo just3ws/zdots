@@ -2,10 +2,14 @@
 #
 # Context budget breakdown (32k total):
 #   system prompt      ~1k
-#   repo map           ~2k  (map-tokens)
-#   chat history       ~6k  (max-chat-history-tokens)
-#   file content       ~20k (headroom for files you /add)
+#   repo map           ~2k  (map-tokens: 2048)
+#   chat history       ~2k  (max-chat-history-tokens: 2048 — hard guard)
+#   read files         ~2k  (AGENTS.md + AIDER.md)
+#   file content       ~22k (headroom for /add)
 #   output             ~2k  (n_predict ceiling from llama.cpp)
+#
+# Without max-chat-history-tokens, a long session silently fills the window
+# and the model starts producing garbage before you notice.
 
 model: openai/local
 weak-model: openai/local
@@ -20,6 +24,7 @@ read:
 # Use the local nomic-embed-v2-moe for the repo map
 # This model handles larger maps better than v1.5
 map-tokens: 2048
+max-chat-history-tokens: 2048
 
 # May 2026 SOTA optimization: Use the 'architect' pattern even locally.
 # The 7B Qwen3 is smart enough to plan its own edits.

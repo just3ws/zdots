@@ -2,8 +2,8 @@
 # bin/pi-ctx-query — PHI-safe knowledge-base query for Pi sessions.
 #
 # Scrubs the query term through phi_scrubber before it reaches zdots-ctx,
-# then returns results truncated to stay within Pi's context budget (~100 lines).
-# Use this instead of calling 'zdots-ctx query' directly from Pi's bash tool.
+# strips zdots-brain diagnostic noise, and caps output at 40 lines (~600 tokens)
+# to leave room for Pi's reasoning and file context.
 #
 # Usage:
 #   pi-ctx-query <term> [--semantic]
@@ -24,11 +24,11 @@ for arg in "$@"; do
       cat <<'EOF'
 Usage: pi-ctx-query <term> [--semantic]
 
-PHI-safe knowledge-base search for Pi sessions. Scrubs the query term
-before sending it to zdots-ctx and caps output at 100 lines.
+PHI-safe knowledge-base search for Pi sessions. Scrubs the query term,
+strips diagnostic noise, and caps output at 40 lines (~600 tokens).
 
 Options:
-  --semantic   Vector search (finds related concepts, not just keyword matches)
+  --semantic   Vector search (finds related concepts, not just keywords)
   --help, -h   Show this help
 
 Examples:
@@ -49,17 +49,31 @@ if [[ -z "$TERM" ]]; then
   exit 2
 fi
 
-# PHI scrub the query term — fail hard if scrubber is unavailable or input is suppress-flagged
+# PHI scrub the query term — fail hard if scrubber unavailable or input suppress-flagged
 source "${ZDOTDIR}/lib/phi_scrubber.bash"
 if phi_should_suppress "$TERM"; then
   printf 'pi-ctx-query: query term matches a suppress pattern — refusing\n' >&2
   exit 1
 fi
 clean_term=$(printf '%s' "$TERM" | phi_scrub) || {
-  printf 'pi-ctx-query: PHI scrubber unavailable — aborting query\n' >&2
+  printf 'pi-ctx-query: PHI scrubber unavailable — aborting\n' >&2
   exit 1
 }
 
-# Run query and cap output to protect Pi's context budget
+# Strip zdots-brain diagnostics (stderr) and cap stdout to ~600 tokens.
+# Emit a clear "no results" line instead of silent empty output.
 # shellcheck disable=SC2086
-"${ZDOTDIR}/bin/zdots-ctx" query "$clean_term" $SEMANTIC 2>&1 | head -100
+result=$(
+  "${ZDOTDIR}/bin/zdots-ctx" query "$clean_term" $SEMANTIC 2>/dev/null \
+  | grep -v '^zdots-brain:' \
+  | grep -v '^$' \
+  | head -40 \
+  || true
+)
+
+if [[ -z "$result" ]]; then
+  printf 'no results for: %s\n' "$clean_term"
+  exit 0
+fi
+
+printf '%s\n' "$result"

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# bin/pi-ctx-brief — Ultra-compact zdots context for Pi session opening.
+#
+# Emits ~10 lines (~120 tokens): KB counts, AI mode, and the three most
+# recently updated methodology tags. Feed this to zpi via --append-system-prompt
+# to orient Pi without burning the context budget on a full hydration.
+#
+# Usage:
+#   pi-ctx-brief
+#   zpi --append-system-prompt <(pi-ctx-brief) "your question"
+
+set -euo pipefail
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+case "${1:-}" in
+  -h|--help)
+    cat <<'EOF'
+Usage: pi-ctx-brief
+
+Ultra-compact zdots context for Pi session opening (~10 lines, ~120 tokens).
+Suitable for --append-system-prompt without denting the context budget.
+
+  zpi --append-system-prompt <(pi-ctx-brief) "your question"
+EOF
+    exit 0
+    ;;
+  "") ;;
+  *) printf 'pi-ctx-brief: unknown option: %s\n' "$1" >&2; exit 2 ;;
+esac
+
+printf '## zdots brief\n'
+
+# KB counts on one line
+kb=$(
+  "${ZDOTDIR}/bin/zdots-ctx" status 2>/dev/null \
+  | grep -E 'methodologies|lessons' \
+  | awk '{printf "%s:%s ", $1, $3}' \
+  | sed 's/[[:space:]]*$//'
+)
+printf 'kb: %s\n' "$kb"
+
+# AI mode + endpoint
+printf 'ai: mode=%s endpoint=%s\n' \
+  "${ZDOTS_AI_MODE:-local}" \
+  "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+
+# Available context tools (one line — Pi can call these via bash)
+printf 'tools: pi-ctx-query <term> | pi-ctx-hydrate [tag] | pi-ctx-status\n'

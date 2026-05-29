@@ -49,12 +49,15 @@ Access is via `zdots-brain` (Ruby Sequel) — never raw psql for writes.
 and cap output to fit Pi's context budget. Never call `zdots-ctx` raw from Pi.
 
 ```bash
-pi-ctx-status                          # KB counts + AI stack health
-pi-ctx-hydrate                         # all methodologies, no tag filter
+pi-ctx-brief                           # ~10 lines, ~120 tokens — session opener
+pi-ctx-status                          # KB counts + AI stack health (~15 lines)
+pi-ctx-hydrate                         # methodology context, no tag (~60 lines max)
 pi-ctx-hydrate shell                   # filter by tag "shell"
-pi-ctx-query "Kevin's Law"             # full-text search
+pi-ctx-query "Kevin's Law"             # full-text search (~40 lines max)
 pi-ctx-query "database migration" --semantic   # vector search
 ```
+
+`pi-ctx-brief` is auto-injected by `zpi` — no manual call needed at session start.
 
 Content is PGP-encrypted at rest. `zdots-brain` handles decrypt transparently.
 
