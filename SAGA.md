@@ -54,7 +54,8 @@ To ground the spirit in the reality of the machine, we track the marks left by t
 | **2025-10-23** | `24931be` | The Snapshot: Sharpening the blade for a modern age. | Era III |
 | **2026-04-18** | `9e188b5` | The AI Pivot: The shell gains a voice and a heartbeat. | Era III |
 | **2026-05-22** | `c50722f` | Operation Martian: Achieving PHI-safe mastery. | Era III |
-| **Today** | `92f84db` | The Way of Cook Ding: The blade has no thickness. | Era III |
+| **Today** | `092a60b` | Belief Audit: The Performance Paradox revealed. | Era III |
+| **Today** | `388ad8d` | Coverage: Observing the depth of the blade. | Era III |
 
 ## Today: The Slither and the Zing (Audit May 2026)
 

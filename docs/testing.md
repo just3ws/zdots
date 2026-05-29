@@ -7,6 +7,7 @@ Zdots uses a multi-tier testing strategy to ensure shell stability and contract 
 ```sh
 make check       # Runs all fast checks and tests
 make check-fast  # Shellcheck and sanity checks (no external dependencies)
+make coverage    # Generates unified Ruby (SimpleCov) and Shell (kcov) metrics
 ```
 
 ## 2. Unit Testing (Bats-core)
