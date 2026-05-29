@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# bin/pi-ctx-status — Knowledge-base and AI stack summary for Pi sessions.
+# bin/pi-ctx-status — Compact KB and AI stack status for Pi sessions.
 #
-# Emits a compact status block (KB record counts, llama.cpp health, AI mode)
-# sized for Pi's context budget. Safe to paste into a Pi session as orientation.
+# Emits ~15 lines (~200 tokens) — safe to paste into any Pi session as
+# orientation without meaningfully denting the context budget.
 #
 # Usage:
 #   pi-ctx-status [--help]
@@ -15,8 +15,7 @@ case "${1:-}" in
     cat <<'EOF'
 Usage: pi-ctx-status
 
-Compact knowledge-base and AI stack summary for Pi sessions.
-Shows KB record counts, llama.cpp health, and current AI mode.
+Compact knowledge-base and AI stack status (~15 lines, ~200 tokens).
 EOF
     exit 0
     ;;
@@ -24,15 +23,17 @@ EOF
   *) printf 'pi-ctx-status: unknown option: %s\n' "$1" >&2; exit 2 ;;
 esac
 
-printf '## zdots context status\n\n'
+# KB counts — strip prefix noise, keep the numbers
+kb=$(
+  "${ZDOTDIR}/bin/zdots-ctx" status 2>/dev/null \
+  | grep -E 'methodologies|lessons|pending|dead' \
+  | sed 's/^[[:space:]]*//'
+)
 
-printf '### Knowledge Base\n'
-"${ZDOTDIR}/bin/zdots-ctx" status 2>&1 | grep -v '^$' | head -20
-printf '\n'
+# AI stack — one-line summary
+model=$(llama-ctl status 2>/dev/null | grep 'active_model' | awk '{print $2}' || true)
+healthy=$(llama-ctl status 2>/dev/null | grep '^healthy' | awk '{print $2}' || true)
 
-printf '### AI Stack\n'
-printf 'mode:     %s\n' "${ZDOTS_AI_MODE:-local}"
-printf 'endpoint: %s\n' "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
-if command -v llama-ctl >/dev/null 2>&1; then
-  llama-ctl status 2>/dev/null | grep -E 'running|healthy|model|status' | head -5 || true
-fi
+printf 'kb: %s\n' "${kb//$'\n'/ | }"
+printf 'ai: mode=%s endpoint=%s\n' "${ZDOTS_AI_MODE:-local}" "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+[[ -n "$model" ]] && printf 'model: %s healthy=%s\n' "$model" "${healthy:-unknown}"

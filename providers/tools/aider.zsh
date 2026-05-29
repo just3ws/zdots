@@ -52,13 +52,23 @@ zdots_aider_init() {
 # zaider — launch aider wired to local llama.cpp, from any directory.
 # Always call zdots_aider_init first so env vars reflect current endpoint.
 #
-# Workflow tips for 7B context limits:
-#   /add file.rb      — add only the file you're editing
-#   /drop file.rb     — drop it when done to free context
-#   /clear            — wipe history when starting a new task
-#   /tokens           — show current token usage breakdown
+# Context budget (32k): map ~2k, history ~2k (capped), read files ~2k,
+# leaves ~22k for /add. Use /tokens inside to see live breakdown.
+#
+# Discipline for 7B context limits:
+#   /add file.rb      — add only the file being edited (not whole dirs)
+#   /drop file.rb     — drop when done to free headroom
+#   /clear            — wipe history at the start of each new task
+#   /tokens           — confirm headroom before adding large files
 zaider() {
   zdots_aider_init
+
+  # Warn when the repo map is stale or unavailable — Aider silently degrades
+  # without it, producing edits with no repo awareness.
+  if [[ ! -f "${HOME}/.aider.model.metadata.json" ]]; then
+    printf 'zaider: warning: ~/.aider.model.metadata.json missing — context window unknown to Aider\n' >&2
+  fi
+
   aider "$@"
 }
 
