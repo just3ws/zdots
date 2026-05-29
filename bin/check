@@ -563,6 +563,17 @@ assert_no_home_zsh_configs() {
 }
 assert_no_home_zsh_configs
 
+assert_colima_xdg() {
+  if [[ -d "$HOME/.colima" ]]; then
+    echo "check: XDG drift: ~/.colima exists — colima will ignore \$XDG_CONFIG_HOME" >&2
+    echo "  fix: mv ~/.colima \"\${XDG_CONFIG_HOME:-\$HOME/.config}/colima\"" >&2
+    if [[ "${ZDOTS_CHECK_STRICT_XDG:-0}" == "1" ]]; then
+      exit 1
+    fi
+  fi
+}
+assert_colima_xdg
+
 if [[ "${ZDOTS_CHECK_REPORT_STARTUP:-0}" == "1" ]]; then
   report_startup_timing
 fi
