@@ -19,8 +19,10 @@ SKIP_MISE=0
 SKIP_LLAMA=0
 SKIP_OTEL=0
 SKIP_FABRIC=0
+SKIP_AIDER=0
+SKIP_GEMINI=0
 SKIP_CHECK=0
-PHASE_TOTAL=8
+PHASE_TOTAL=10
 PHASE_INDEX=0
 CURRENT_PHASE="preflight"
 STEP_INDEX=0
@@ -38,11 +40,13 @@ rewrite home dotfiles, install certs, edit nginx, or initialize databases.
 Steps:
   1. brew bundle --file Brewfile.home|Brewfile.work
   2. mise install --cd ZDOTDIR
-  3. llama-ctl install
-  4. llama-ctl install-embed
-  5. fabric-ai --updatepatterns
-  6. otel-collector validate
-  7. make check-fast
+  3. llama-ctl install + install-embed (launchd plists)
+  4. fabric-ai --updatepatterns
+  5. pi: reconcile ~/.pi/agent/settings.json + models.json
+  6. aider: write ~/.aider.model.metadata.json (context window for openai/local)
+  7. gemini-mcp: idempotent gemini-mcp-register (skipped if gemini not installed)
+  8. otel-collector validate
+  9. make check-fast
 
 Options:
   -n, --dry-run     Print commands without running them
@@ -50,6 +54,8 @@ Options:
   --skip-mise       Skip mise install
   --skip-llama      Skip llama plist regeneration
   --skip-fabric     Skip fabric-ai pattern update
+  --skip-aider      Skip Aider model metadata reconciliation
+  --skip-gemini     Skip Gemini MCP registration
   --skip-otel       Skip otel-collector validation
   --skip-check      Skip make check-fast
   -h, --help        Show this help
@@ -72,6 +78,8 @@ while [[ $# -gt 0 ]]; do
     --skip-mise)  SKIP_MISE=1 ;;
     --skip-llama) SKIP_LLAMA=1 ;;
     --skip-fabric) SKIP_FABRIC=1 ;;
+    --skip-aider) SKIP_AIDER=1 ;;
+    --skip-gemini) SKIP_GEMINI=1 ;;
     --skip-otel)  SKIP_OTEL=1 ;;
     --skip-check) SKIP_CHECK=1 ;;
     -h|--help)    usage; exit 0 ;;
@@ -266,17 +274,34 @@ if [[ -n "$pi_bin" ]]; then
   step "ensure Pi agent directory"
   run mkdir -p "$PI_AGENT_DIR"
   step "reconcile Pi settings"
-  if [[ ! -f "$PI_AGENT_DIR/settings.json" && "$DRY_RUN" -eq 0 ]]; then
-    cat > "$PI_AGENT_DIR/settings.json" <<'PISETTINGS'
+  if [[ ! -f "$PI_AGENT_DIR/settings.json" ]]; then
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+      cat > "$PI_AGENT_DIR/settings.json" <<'PISETTINGS'
 {
   "defaultModel": "local",
   "defaultProvider": "llamacpp",
   "defaultThinkingLevel": "off"
 }
 PISETTINGS
-    log "created ~/.pi/agent/settings.json"
-  elif [[ ! -f "$PI_AGENT_DIR/settings.json" ]]; then
-    log "dry-run: would create ~/.pi/agent/settings.json"
+      log "created ~/.pi/agent/settings.json"
+    else
+      log "dry-run: would create ~/.pi/agent/settings.json"
+    fi
+  else
+    # Enforce defaultThinkingLevel=off — thinking mode burns the full 32k window on 7B.
+    thinking=$(jq -r '.defaultThinkingLevel // empty' "$PI_AGENT_DIR/settings.json" 2>/dev/null || true)
+    if [[ "$thinking" != "off" ]]; then
+      if [[ "$DRY_RUN" -eq 0 ]]; then
+        tmp=$(mktemp)
+        jq '.defaultThinkingLevel = "off"' "$PI_AGENT_DIR/settings.json" > "$tmp" \
+          && mv "$tmp" "$PI_AGENT_DIR/settings.json"
+        log "enforced defaultThinkingLevel=off in ~/.pi/agent/settings.json (was: ${thinking:-unset})"
+      else
+        log "dry-run: would set defaultThinkingLevel=off (currently: ${thinking:-unset})"
+      fi
+    else
+      log "Pi settings already correct (defaultThinkingLevel=off)"
+    fi
   fi
   step "reconcile Pi model endpoint"
   if [[ ! -f "$PI_AGENT_DIR/models.json" ]] || ! grep -Fq "\"baseUrl\": \"${AI_BASE}\"" "$PI_AGENT_DIR/models.json"; then
@@ -320,6 +345,63 @@ else
   warn "pi not found; skipping Pi config reconciliation"
 fi
 unset PI_AGENT_DIR pi_bin AI_BASE
+
+phase "aider: reconcile model metadata for context-window budgeting"
+if [[ "$SKIP_AIDER" -eq 0 ]]; then
+  step "detect aider"
+  _aider_bin="$(command -v aider 2>/dev/null \
+    || find "${HOME}/.local/share/uv/tools/aider-chat/bin" -name 'aider' -type f 2>/dev/null | head -1 \
+    || true)"
+  if [[ -n "$_aider_bin" ]]; then
+    METADATA_FILE="${HOME}/.aider.model.metadata.json"
+    # Derive context window from Pi models.json if available; fall back to 32768.
+    CONTEXT_WINDOW=32768
+    MAX_OUTPUT=2048
+    step "write model metadata"
+    # Idempotency: regenerate if the file is missing or the context window changed.
+    CURRENT_CTX=""
+    [[ -f "$METADATA_FILE" ]] \
+      && CURRENT_CTX=$(jq -r '."openai/local".max_input_tokens // empty' "$METADATA_FILE" 2>/dev/null || true)
+    if [[ "$CURRENT_CTX" != "$CONTEXT_WINDOW" ]]; then
+      if [[ "$DRY_RUN" -eq 0 ]]; then
+        cat > "$METADATA_FILE" <<AIDER_META
+{
+  "openai/local": {
+    "max_input_tokens": ${CONTEXT_WINDOW},
+    "max_output_tokens": ${MAX_OUTPUT},
+    "litellm_provider": "openai",
+    "mode": "chat"
+  }
+}
+AIDER_META
+        log "wrote $METADATA_FILE context_window=${CONTEXT_WINDOW}"
+      else
+        log "dry-run: would write $METADATA_FILE context_window=${CONTEXT_WINDOW}"
+      fi
+    else
+      log "aider metadata already correct context_window=${CONTEXT_WINDOW}"
+    fi
+    unset METADATA_FILE CONTEXT_WINDOW MAX_OUTPUT CURRENT_CTX
+  else
+    warn "aider not found; skipping model metadata"
+  fi
+  unset _aider_bin
+else
+  warn "skipping aider phase (--skip-aider)"
+fi
+
+phase "gemini-mcp: register zdots MCP servers with Gemini CLI"
+if [[ "$SKIP_GEMINI" -eq 0 ]]; then
+  step "detect gemini CLI"
+  if command -v gemini >/dev/null 2>&1; then
+    step "run gemini-mcp-register (idempotent)"
+    run "${ZDOTDIR}/bin/gemini-mcp-register"
+  else
+    log "gemini CLI not found; skipping MCP registration"
+  fi
+else
+  warn "skipping gemini-mcp phase (--skip-gemini)"
+fi
 
 phase "otel: validate collector config"
 if [[ "$SKIP_OTEL" -eq 0 ]]; then
