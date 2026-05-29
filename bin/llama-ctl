@@ -275,7 +275,41 @@ install_llama() {
 
   printf 'llama-ctl: loading service...\n' >&2
   zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
+  _wait_inference "${AI_ENDPOINT:-http://127.0.0.1:11500}" "$LOG_FILE"
   printf 'llama-ctl: server started\n' >&2
+}
+
+# Wait for the server to accept actual inference requests (not just /health).
+# Catches GPU OOM crashes that would otherwise go undetected at install time.
+_wait_inference() {
+  local endpoint="$1" log_file="$2"
+  local max_wait=90 interval=5 elapsed=0
+  printf 'llama-server: waiting for inference readiness' >&2
+  while (( elapsed < max_wait )); do
+    if curl -sf -m 3 "${endpoint}/health" >/dev/null 2>&1; then
+      local resp
+      resp=$(curl -s -m 20 "${endpoint}/v1/chat/completions" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"local","messages":[{"role":"user","content":"hi"}],"max_tokens":1}' \
+        2>/dev/null || true)
+      if printf '%s' "$resp" | grep -q '"content"'; then
+        printf ' ready\n' >&2
+        return 0
+      fi
+    fi
+    printf '.' >&2
+    sleep "$interval"
+    elapsed=$(( elapsed + interval ))
+  done
+  printf ' TIMEOUT\n' >&2
+  if grep -q 'kIOGPUCommandBufferCallbackErrorOutOfMemory' "$log_file" 2>/dev/null; then
+    _svc_warn "GPU OOM detected during inference — speculative decoding may need to be disabled"
+    _svc_warn "check logs: grep OutOfMemory $log_file"
+  else
+    _svc_warn "inference not ready after ${max_wait}s — server may still be loading"
+    _svc_warn "check logs: tail -30 $log_file"
+  fi
+  return 1
 }
 
 _register_plist() {

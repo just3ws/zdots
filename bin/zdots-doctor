@@ -306,6 +306,35 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# AI inference readiness (token probe — /health alone is not enough)
+# ---------------------------------------------------------------------------
+_section "AI inference"
+
+_ai_ep="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+_ai_log="${STATE}/llama-server.log"
+
+if curl -sf -m 3 "${_ai_ep}/health" >/dev/null 2>&1; then
+  _infer_resp=$(curl -s -m 20 "${_ai_ep}/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d '{"model":"local","messages":[{"role":"user","content":"hi"}],"max_tokens":1}' \
+    2>/dev/null || true)
+  if printf '%s' "$_infer_resp" | grep -q '"content"'; then
+    _pass "inference  first token ok (${_ai_ep})"
+  else
+    _fail "inference  server up but not responding to chat requests"
+    if [[ -f "$_ai_log" ]] && grep -q 'kIOGPUCommandBufferCallbackErrorOutOfMemory' "$_ai_log" 2>/dev/null; then
+      _fix  "GPU OOM in logs — disable speculative decoding: comment out draft_model_file in etc/ai-models.yaml then: llama-ctl install"
+    else
+      _fix  "zsvc logs llama  (check for startup errors)"
+      _fix  "zsvc restart llama"
+    fi
+  fi
+else
+  _skip "inference  server not running (skipped)"
+fi
+unset _ai_ep _ai_log _infer_resp
+
+# ---------------------------------------------------------------------------
 # Runtime health (zdots-ctl check)
 # ---------------------------------------------------------------------------
 _section "Runtime health  (zdots-ctl check)"
