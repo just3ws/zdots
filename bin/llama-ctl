@@ -302,14 +302,16 @@ _wait_inference() {
     elapsed=$(( elapsed + interval ))
   done
   printf ' TIMEOUT\n' >&2
-  if grep -q 'kIOGPUCommandBufferCallbackErrorOutOfMemory' "$log_file" 2>/dev/null; then
-    _svc_warn "GPU OOM detected during inference — speculative decoding may need to be disabled"
-    _svc_warn "check logs: grep OutOfMemory $log_file"
-  else
-    _svc_warn "inference not ready after ${max_wait}s — server may still be loading"
-    _svc_warn "check logs: tail -30 $log_file"
+  # Only check RECENT log lines — the log accumulates across restarts, so
+  # old OOM entries from previous runs must not trigger a false positive.
+  if tail -100 "$log_file" 2>/dev/null | grep -q 'kIOGPUCommandBufferCallbackErrorOutOfMemory'; then
+    _svc_warn "GPU OOM detected in recent logs — speculative decoding may need to be disabled"
+    _svc_warn "check logs: tail -100 $log_file | grep OutOfMemory"
+    return 1
   fi
-  return 1
+  _svc_warn "inference not ready after ${max_wait}s — server may still be loading"
+  _svc_warn "check logs: tail -30 $log_file"
+  return 0
 }
 
 _register_plist() {
@@ -350,16 +352,34 @@ _register_plist() {
   [[ -n "$_CFG_TEMPERATURE" && "$_CFG_TEMPERATURE" != "null" ]] && args+=("--temp"  "${_CFG_TEMPERATURE}")
   [[ "$_CFG_NO_THINKING" == "true" ]] && args+=("--reasoning" "off")
 
+  # Speculative decoding: enabled only when all three conditions hold:
+  #   1. draft_model_file is set in the profile
+  #   2. ZDOTS_SPEC_DECODING != 0  (explicit opt-out always wins)
+  #   3. ZDOTS_CONTEXT != home     (home machines lack the memory headroom)
+  # Override: set ZDOTS_SPEC_DECODING=1 to force-enable on any context.
+  local _spec_context_ok=false
+  case "${ZDOTS_CONTEXT:-home}" in
+    home) _spec_context_ok=false ;;
+    *)    _spec_context_ok=true  ;;
+  esac
+  [[ "${ZDOTS_SPEC_DECODING:-}" == "1" ]] && _spec_context_ok=true
+  [[ "${ZDOTS_SPEC_DECODING:-}" == "0" ]] && _spec_context_ok=false
+
   if [[ -n "$_CFG_DRAFT_MODEL_FILE" && "$_CFG_DRAFT_MODEL_FILE" != "null" ]]; then
-    local draft_path="${MODELS_DIR}/${_CFG_DRAFT_MODEL_FILE}"
-    if [[ -f "$draft_path" ]]; then
-      args+=("--spec-draft-model" "${draft_path}")
-      args+=("--spec-draft-n-max" "${_CFG_SPEC_DRAFT_N_MAX}")
-      args+=("--spec-draft-type-k" "q8_0")
-      args+=("--spec-draft-type-v" "q8_0")
+    if ! $_spec_context_ok; then
+      echo "llama-ctl: speculative decoding disabled (ZDOTS_CONTEXT=${ZDOTS_CONTEXT:-home}; set ZDOTS_SPEC_DECODING=1 to override)" >&2
     else
-      echo "llama-ctl: note: draft model not found (${_CFG_DRAFT_MODEL_FILE}) — speculative decoding disabled." >&2
-      echo "  Run: ZDOTS_AI_PROFILE=${AI_PROFILE} llama-ctl model-download --draft" >&2
+      local draft_path="${MODELS_DIR}/${_CFG_DRAFT_MODEL_FILE}"
+      if [[ -f "$draft_path" ]]; then
+        args+=("--spec-draft-model" "${draft_path}")
+        args+=("--spec-draft-n-max" "${_CFG_SPEC_DRAFT_N_MAX}")
+        args+=("--spec-draft-type-k" "q8_0")
+        args+=("--spec-draft-type-v" "q8_0")
+        echo "llama-ctl: speculative decoding enabled (draft: ${_CFG_DRAFT_MODEL_FILE})" >&2
+      else
+        echo "llama-ctl: note: draft model not found (${_CFG_DRAFT_MODEL_FILE}) — speculative decoding disabled." >&2
+        echo "  Run: ZDOTS_AI_PROFILE=${AI_PROFILE} llama-ctl model-download --draft" >&2
+      fi
     fi
   fi
 
