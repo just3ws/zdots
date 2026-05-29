@@ -3,9 +3,10 @@ id: Z-116
 title: >-
   [agent-issue] zdots-ask --help prints usage but exits 2 instead of 0;
   docs/help contracts expect --help to be a successful read-only operation
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-29 14:17'
+updated_date: '2026-05-29 16:28'
 labels:
   - agent-reported
   - bug
