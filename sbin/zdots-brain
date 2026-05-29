@@ -233,16 +233,18 @@ module Zdots
         puts "zdots-brain: generating embedding for query: '#{term}'..."
         embedding = Zdots::AI.embed_client.embed(model: "embed", input: term).vectors
 
+        vec_literal = "[#{embedding.join(",")}]"
+
         puts "\n### SEMANTIC MATCHES: METHODOLOGIES"
-        matches = Zdots::Models::Methodology.where(Sequel.is_not(:embedding,
-                                                                 nil)).order(Sequel.lit("embedding <=> ?",
-                                                                                        Sequel.pg_array(embedding))).limit(5).all
+        matches = Zdots::Models::Methodology.exclude(embedding: nil)
+                                            .order(Sequel.lit("embedding <=> ?::vector", vec_literal))
+                                            .limit(5).all
         matches.each { |m| puts "#{m.slug.ljust(30)} | #{m.title.ljust(50)}" }
 
         puts "\n### SEMANTIC MATCHES: LESSONS"
-        matches = Zdots::Models::Lesson.where(Sequel.is_not(:embedding,
-                                                            nil)).order(Sequel.lit("embedding <=> ?",
-                                                                                   Sequel.pg_array(embedding))).limit(5).all
+        matches = Zdots::Models::Lesson.exclude(embedding: nil)
+                                       .order(Sequel.lit("embedding <=> ?::vector", vec_literal))
+                                       .limit(5).all
         matches.each { |l| puts "#{l.created_at.to_date} | #{l.content[0..100]}..." }
       else
         puts "zdots-brain: searching methodologies (text)..."
