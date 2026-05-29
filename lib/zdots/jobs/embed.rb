@@ -19,11 +19,17 @@ module Zdots
 
         puts "  --> Generating embedding for #{table}:#{id}..."
 
-        case Zdots::AI::Pipeline.embed(text)
-        in Success[vector]
-          Zdots.db[table.to_sym].where(id: id).update(embedding: Sequel.pg_array(vector))
-        in Failure[reason, msg]
-          raise "Embed pipeline failed (#{reason}): #{msg}"
+        result = Zdots::AI::Pipeline.embed(text)
+        if result.success?
+          vector = result.value!
+          # pgvector requires a vector literal — Sequel.pg_array produces numeric[]
+          # which the <=> operator does not accept. Cast explicitly via string literal.
+          vec_literal = "[#{vector.join(",")}]"
+          Zdots.db[table.to_sym].where(id: id).update(
+            embedding: Sequel.lit("?::vector", vec_literal)
+          )
+        else
+          raise "Embed pipeline failed: #{result.failure}"
         end
 
         true
