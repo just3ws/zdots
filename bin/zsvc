@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+# bin/zsvc — Zdots service control ("brew services" for zdots)
+#
+# Provides a single interface to start, stop, restart, tail logs, and
+# diagnose every service managed by zdots. Delegates to the authoritative
+# ctl script for each service; adds no logic of its own.
+#
+# Services:  llama  embed  otel  colima
+# Commands:  list  start  stop  restart  status  logs  diag  validate
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+BIN="$ZDOTDIR/bin"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+_LAUNCHD_UID="$(id -u)"
+
+# ---------------------------------------------------------------------------
+# Service registry
+# Sets SVC_* vars for the given service alias.
+# ---------------------------------------------------------------------------
+_svc_meta() {
+  local svc="$1"
+  case "$svc" in
+    llama|llama-server|ai|server)
+      SVC_NAME="llama"
+      SVC_DISPLAY="llama-server"
+      SVC_LABEL="com.zdots.llama-server"
+      SVC_LOG="$STATE/llama-server.log"
+      SVC_CTL="$BIN/llama-ctl"
+      SVC_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+      SVC_TYPE="launchd"
+      SVC_START="start"     SVC_STOP="stop"       SVC_RESTART="restart"
+      SVC_STATUS="status"   SVC_HEALTH="health"   SVC_LOGS="logs"
+      SVC_VALIDATE="validate"
+      ;;
+    embed|llama-embed|embedding)
+      SVC_NAME="embed"
+      SVC_DISPLAY="llama-embed"
+      SVC_LABEL="com.zdots.llama-embed"
+      SVC_LOG="$STATE/llama-embed.log"
+      SVC_CTL="$BIN/llama-ctl"
+      SVC_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
+      SVC_TYPE="launchd"
+      SVC_START="start-embed"  SVC_STOP="stop-embed"  SVC_RESTART=""
+      SVC_STATUS="status-embed" SVC_HEALTH=""          SVC_LOGS=""
+      SVC_VALIDATE=""
+      ;;
+    otel|otel-collector|telemetry|collector)
+      SVC_NAME="otel"
+      SVC_DISPLAY="otel-collector"
+      SVC_LABEL="com.zdots.otel-collector"
+      SVC_LOG="$STATE/otel-collector.log"
+      SVC_CTL="$BIN/otel-collector"
+      SVC_ENDPOINT="http://127.0.0.1:4318"
+      SVC_TYPE="launchd"
+      SVC_START="start"     SVC_STOP="stop"       SVC_RESTART="restart"
+      SVC_STATUS="status"   SVC_HEALTH="health"   SVC_LOGS="logs"
+      SVC_VALIDATE="validate"
+      ;;
+    colima|vm|docker)
+      SVC_NAME="colima"
+      SVC_DISPLAY="colima"
+      SVC_LABEL="com.zdots.colima-autostart"
+      SVC_LOG=""
+      SVC_CTL="colima"
+      SVC_ENDPOINT=""
+      SVC_TYPE="colima"
+      SVC_START="start"   SVC_STOP="stop"   SVC_RESTART=""
+      SVC_STATUS="status" SVC_HEALTH=""     SVC_LOGS="logs"
+      SVC_VALIDATE=""
+      ;;
+    *)
+      printf 'zsvc: unknown service: %s\n' "$svc" >&2
+      printf 'zsvc: known services: llama, embed, otel, colima\n' >&2
+      exit 1
+      ;;
+  esac
+}
+
+ALL_SVCS=(llama embed otel colima)
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_ok()   { printf 'zsvc: [ok]  %s\n' "$*" >&2; }
+_warn() { printf 'zsvc: [!!]  %s\n' "$*" >&2; }
+_info() { printf 'zsvc: %s\n'       "$*" >&2; }
+_die()  { printf 'zsvc: [err] %s\n' "$*" >&2; exit 1; }
+_sep()  { printf '\n--- %s ---\n' "$*"; }
+
+_launchd_state() {
+  local label="$1" out state pid
+  if out=$(launchctl print "gui/${_LAUNCHD_UID}/${label}" 2>/dev/null); then
+    state=$(printf '%s\n' "$out" | awk '/[[:space:]]state = / {print $NF; exit}')
+    pid=$(printf '%s\n'   "$out" | awk '/[[:space:]]pid = /   {print $NF; exit}')
+    printf '%s\t%s' "${state:-unknown}" "${pid:--}"
+  else
+    printf 'not-registered\t-'
+  fi
+}
+
+_colima_state() {
+  if colima status >/dev/null 2>&1; then
+    printf 'running\t-'
+  else
+    printf 'stopped\t-'
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+cmd_list() {
+  printf '%-16s  %-18s  %-8s  %s\n' SERVICE STATE PID ENDPOINT
+  printf '%-16s  %-18s  %-8s  %s\n' '-------' '-----' '---' '--------'
+  local svc state_pid state pid
+  for svc in "${ALL_SVCS[@]}"; do
+    _svc_meta "$svc"
+    if [[ "$SVC_TYPE" == "colima" ]]; then
+      state_pid=$(_colima_state)
+    else
+      state_pid=$(_launchd_state "$SVC_LABEL")
+    fi
+    state="${state_pid%%$'\t'*}"
+    pid="${state_pid##*$'\t'}"
+    printf '%-16s  %-18s  %-8s  %s\n' "$SVC_DISPLAY" "$state" "$pid" "${SVC_ENDPOINT:--}"
+  done
+}
+
+cmd_start() {
+  _svc_meta "$1"
+  _info "starting ${SVC_DISPLAY}..."
+  "$SVC_CTL" "$SVC_START"
+}
+
+cmd_stop() {
+  _svc_meta "$1"
+  _info "stopping ${SVC_DISPLAY}..."
+  "$SVC_CTL" "$SVC_STOP"
+}
+
+cmd_restart() {
+  _svc_meta "$1"
+  if [[ -n "$SVC_RESTART" ]]; then
+    _info "restarting ${SVC_DISPLAY}..."
+    "$SVC_CTL" "$SVC_RESTART"
+  else
+    _info "restarting ${SVC_DISPLAY} (stop + start)..."
+    "$SVC_CTL" "$SVC_STOP" || true
+    sleep 2
+    "$SVC_CTL" "$SVC_START"
+  fi
+}
+
+cmd_status() {
+  local svc="$1"; shift
+  _svc_meta "$svc"
+  "$SVC_CTL" "$SVC_STATUS" "$@"
+}
+
+cmd_logs() {
+  _svc_meta "$1"
+  if [[ -n "$SVC_LOGS" ]]; then
+    "$SVC_CTL" "$SVC_LOGS"
+  elif [[ -n "$SVC_LOG" ]]; then
+    trap 'exit 0' INT TERM
+    mkdir -p "$(dirname "$SVC_LOG")"
+    _info "tailing ${SVC_LOG} — Ctrl+C to stop"
+    tail -f "$SVC_LOG"
+  else
+    _die "${SVC_DISPLAY} has no log source"
+  fi
+}
+
+cmd_diag() {
+  _svc_meta "$1"
+  printf '\n==> zsvc diag: %s\n' "$SVC_DISPLAY"
+
+  _sep "status"
+  "$SVC_CTL" "$SVC_STATUS" 2>&1 || true
+
+  if [[ -n "$SVC_HEALTH" ]]; then
+    _sep "health"
+    "$SVC_CTL" "$SVC_HEALTH" 2>&1 || true
+  fi
+
+  if [[ -n "$SVC_VALIDATE" ]]; then
+    _sep "validate"
+    "$SVC_CTL" "$SVC_VALIDATE" 2>&1 || true
+  fi
+
+  if [[ "$SVC_TYPE" == "launchd" ]]; then
+    _sep "launchd state"
+    launchctl print "gui/${_LAUNCHD_UID}/${SVC_LABEL}" 2>/dev/null || printf '(not registered)\n'
+  fi
+
+  if [[ -n "$SVC_LOG" ]]; then
+    _sep "last 50 log lines — ${SVC_LOG}"
+    if [[ -f "$SVC_LOG" ]]; then
+      tail -50 "$SVC_LOG"
+    else
+      printf '(log not found — service may not have started yet)\n'
+    fi
+  fi
+
+  _sep "suggested commands"
+  printf '  zsvc logs %s\n'    "$SVC_NAME"
+  printf '  zsvc restart %s\n' "$SVC_NAME"
+  [[ -n "$SVC_VALIDATE" ]] && printf '  zsvc validate %s\n' "$SVC_NAME"
+  printf '  log show --style compact --last 5m --predicate '\''eventMessage CONTAINS "%s"'\''\n' "$SVC_LABEL"
+}
+
+cmd_validate() {
+  _svc_meta "$1"
+  if [[ -n "$SVC_VALIDATE" ]]; then
+    "$SVC_CTL" "$SVC_VALIDATE"
+  else
+    _warn "${SVC_DISPLAY} has no validate command"
+    exit 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Usage
+# ---------------------------------------------------------------------------
+
+usage() {
+  cat <<'EOF'
+Usage: zsvc <command> [service] [options]
+
+Unified service control for zdots-managed services.
+
+COMMANDS
+  list                  Table of all services: state, pid, endpoint
+  start   <service>     Start a service
+  stop    <service>     Stop a service
+  restart <service>     Restart a service (stop + start if no native restart)
+  status  <service>     Full status from the service's ctl script
+  logs    <service>     Tail the service log (Ctrl+C to stop)
+  diag    <service>     Status + health + launchd state + last 50 log lines
+  validate <service>    Validate service config (llama, otel)
+
+SERVICES
+  llama     llama-server  — AI inference        port 11500  [aliases: ai, server]
+  embed     llama-embed   — Embedding server    port 11501  [aliases: llama-embed]
+  otel      otel-collector — Telemetry          port 4318   [aliases: telemetry]
+  colima    Colima VM      — Docker runtime               [aliases: vm, docker]
+
+EXAMPLES
+  zsvc list
+  zsvc start llama
+  zsvc restart otel
+  zsvc logs embed
+  zsvc diag llama
+  zsvc status llama --json
+
+NOTES
+  zsvc controls individual services. For the full platform stack use zdots-ctl:
+    zdots-ctl up      start everything in dependency order
+    zdots-ctl down    stop everything
+    zdots-ctl check   deep health diagnostic
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
+[[ $# -ge 1 ]] || { usage >&2; exit 1; }
+
+case "$1" in
+  list)     cmd_list ;;
+  start)    [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_start "$2" ;;
+  stop)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_stop "$2" ;;
+  restart)  [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_restart "$2" ;;
+  status)   [[ $# -ge 2 ]] || { usage >&2; exit 1; }; shift; cmd_status "$@" ;;
+  logs)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_logs "$2" ;;
+  diag)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_diag "$2" ;;
+  validate) [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_validate "$2" ;;
+  -h|--help) usage ;;
+  *) printf 'zsvc: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+esac
