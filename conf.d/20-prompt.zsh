@@ -5,7 +5,7 @@ P10K_THEME_CANDIDATES=(
   "$HOME/.local/share/powerlevel10k/powerlevel10k.zsh-theme"
 )
 for P10K_THEME in $P10K_THEME_CANDIDATES; do
-  if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" && -t 1 && -r "$P10K_THEME" ]]; then
+  if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" && -r "$P10K_THEME" ]]; then
     source "$P10K_THEME"
     break
   fi
@@ -13,6 +13,7 @@ done
 
 # Fallback prompt when p10k is unavailable.
 if [[ -o interactive && -z "${ZSH_EXECUTION_STRING:-}" && ${+functions[p10k]} -eq 0 ]]; then
+  print -u2 "zdots: prompt: p10k not loaded (candidates: ${P10K_THEME_CANDIDATES[*]}); using fallback"
   PROMPT='%F{33}%n@%m%f %1~ %# '
 fi
 
