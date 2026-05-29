@@ -157,6 +157,8 @@ $(printf '%b' "$arg_xml")    </array>
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
     <key>StandardOutPath</key>
     <string>${log_path}</string>
     <key>StandardErrorPath</key>
