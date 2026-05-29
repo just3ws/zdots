@@ -127,7 +127,7 @@ module Zdots
       CALL_OPTS = { provider: "openai", assume_model_exists: true }.freeze
 
       def chat(model:, messages:, temperature:)
-        c = RubyLLM.chat(**CALL_OPTS.merge(model: model))
+        c = RubyLLM.chat(**CALL_OPTS, model: model)
         c.with_temperature(temperature) if temperature
         sys  = messages.find { |m| m[:role] == "system" }
         user = messages.find { |m| m[:role] == "user" }
@@ -136,7 +136,7 @@ module Zdots
       end
 
       def embed(model:, input:)
-        RubyLLM.embed(input, **CALL_OPTS.merge(model: model))
+        RubyLLM.embed(input, **CALL_OPTS, model: model)
       end
     end
   end

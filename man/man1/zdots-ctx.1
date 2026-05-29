@@ -1,0 +1,111 @@
+.Dd May 29, 2026
+.Dt ZDOTS-CTX 1
+.Os zdots
+.Sh NAME
+.Nm zdots-ctx
+.Nd interface to the PostgreSQL-backed zdots knowledge layer
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Fl -json
+.Sh DESCRIPTION
+.Nm
+bridges shell sessions, AI tools, and the PostgreSQL intelligence suite.
+It searches methodologies and lessons, hydrates context for agents, captures
+session residue, manages async jobs, and performs database maintenance.
+.Sh COMMANDS
+.Bl -tag -width clear-stale-jobs
+.It Cm status
+Report database metadata and connection state.
+.It Cm query Op Fl -semantic Ar term
+Search methodologies and lessons.
+.It Cm hydrate Op Ar tag
+Emit AI-ready context.
+.It Cm capture
+Distill current observable session into residue when capture is enabled.
+.It Cm diagnose-log Ar bootstrap|update|upgrade
+Package deploy logs via
+.Xr zdots-log-analyze 1 .
+.It Cm init-db , Cm migrate
+Create or migrate the database using migration privileges.
+.It Cm add-methodology , Cm add-lesson , Cm ingest , Cm seed
+Insert knowledge records.
+.It Cm sync-history
+Sync buffered command analytics.
+.It Cm enqueue , Cm requeue , Cm jobs , Cm worker , Cm triage , Cm clear-stale-jobs , Cm metrics-loop
+Manage async jobs and queue metrics.
+.It Cm backup , Cm restore
+Create or restore SQL dumps.
+.El
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -json
+JSON output for supported commands.
+.It Fl -semantic
+Use embedding-backed semantic retrieval for query.
+.It Fl -dry-run
+Preview supported ingest or sync actions.
+.It Fl -all
+Ingest all supported knowledge-vault documents.
+.It Fl -force
+Force enqueue behavior where supported.
+.It Fl -type Ar type
+Worker job type filter.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_DATABASE_URL_OVERRIDE
+.It Ev ZDOTDIR
+Repository root.
+.It Ev ZDOTS_DATABASE_URL
+Application database URL. Defaults to
+.Li postgresql://zdots_rw@/my .
+.It Ev ZDOTS_MIGRATION_URL
+Migration database URL. Defaults to
+.Li postgresql:///my .
+.It Ev ZDOTS_DATABASE_URL_OVERRIDE
+Force application URL regardless of env sourcing.
+.It Ev ZDOTS_MY_ROOT
+Identity monorepo root. Defaults to
+.Pa ~/my .
+.It Ev ZDOTS_CAPTURE_ENABLED
+Must be
+.Li 1
+for
+.Cm capture .
+.It Ev ZDOTS_CMD_ANALYTICS
+Enables command analytics sync path.
+.It Ev ZDOTS_SESSION_ID
+Session identifier used by capture.
+.It Ev ZDOTS_AI_MODE , Ev ZDOTS_AI_ENDPOINT
+AI boundary and endpoint for semantic retrieval or distillation.
+.It Ev ZDOTS_REDIS_HOST , Ev ZDOTS_REDIS_PORT
+Analytics buffer endpoint.
+.El
+.Sh FILES
+.Bl -tag -width ~/.local/state/zdots/history.sqlite3
+.It Pa db/migrations/
+Sequel migrations.
+.It Pa ~/.local/state/zdots/history.sqlite3
+SQLite analytics buffer.
+.It Pa ~/.local/state/zsh/traces.jsonl
+Trace stream used by capture.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width 2
+.It 0
+Success.
+.It 1
+General failure.
+.It 2
+Capture disabled or usage/policy failure.
+.El
+.Sh PHI SAFETY
+Capture is opt-in and blocked unless
+.Ev ZDOTS_CAPTURE_ENABLED=1 .
+Do not write raw patient records to prompts or tracked files.
+.Sh SEE ALSO
+.Xr ai-query 1 ,
+.Xr zdots-env 5 ,
+.Xr zdots-phi-safety 7

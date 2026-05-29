@@ -1,0 +1,36 @@
+.Dd May 29, 2026
+.Dt ZDOTS-AI-STACK 7
+.Os zdots
+.Sh NAME
+.Nm zdots-ai-stack
+.Nd local AI services and prompt routing in zdots
+.Sh DESCRIPTION
+The AI stack centers on llama.cpp for chat, a dedicated embedding server for
+RAG, guarded one-shot inference through
+.Xr ai-query 1 ,
+and domain-aware routing through
+.Xr zdots-ask 1 .
+.Sh DEFAULT ENDPOINTS
+.Bl -tag -width "Embedding"
+.It Chat
+.Li http://127.0.0.1:11500
+.It Embedding
+.Li http://127.0.0.1:11501
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_AI_MODELS_DIR
+.It Ev ZDOTS_AI_MODE
+`local`, `cloud`, or `none`.
+.It Ev ZDOTS_AI_ENDPOINT
+Chat endpoint.
+.It Ev ZDOTS_AI_EMBED_ENDPOINT
+Embedding endpoint.
+.It Ev ZDOTS_AI_PROFILE
+Model profile.
+.It Ev ZDOTS_AI_MODELS_DIR
+Model storage root.
+.El
+.Sh SEE ALSO
+.Xr llama-ctl 8 ,
+.Xr ai-query 1 ,
+.Xr zdots-ask 1

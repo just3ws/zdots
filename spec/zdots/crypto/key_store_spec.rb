@@ -6,8 +6,8 @@ require "zdots/crypto/key_store"
 RSpec.describe Zdots::Crypto::KeyStore do
   around do |example|
     saved = {
-      "ZDOTS_DB_ENCRYPTION_KEY" => ENV["ZDOTS_DB_ENCRYPTION_KEY"],
-      "ZDOTS_DB_OLD_KEY" => ENV["ZDOTS_DB_OLD_KEY"]
+      "ZDOTS_DB_ENCRYPTION_KEY" => ENV.fetch("ZDOTS_DB_ENCRYPTION_KEY", nil),
+      "ZDOTS_DB_OLD_KEY" => ENV.fetch("ZDOTS_DB_OLD_KEY", nil)
     }
     example.run
     saved.each { |k, v| v ? ENV[k] = v : ENV.delete(k) }

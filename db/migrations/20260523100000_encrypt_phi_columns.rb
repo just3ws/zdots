@@ -21,7 +21,7 @@
 
 Sequel.migration do
   up do
-    key = ENV["ZDOTS_DB_ENCRYPTION_KEY"]
+    key = ENV.fetch("ZDOTS_DB_ENCRYPTION_KEY", nil)
     if key.nil? || key.strip.empty?
       raise <<~MSG
         ZDOTS_DB_ENCRYPTION_KEY is not set.
@@ -75,7 +75,7 @@ Sequel.migration do
   end
 
   down do
-    key = ENV["ZDOTS_DB_ENCRYPTION_KEY"]
+    key = ENV.fetch("ZDOTS_DB_ENCRYPTION_KEY", nil)
     raise "ZDOTS_DB_ENCRYPTION_KEY required to reverse encryption migration" if key.nil? || key.strip.empty?
 
     # Restore lessons.content

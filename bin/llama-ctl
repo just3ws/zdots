@@ -358,17 +358,20 @@ status_llama() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local state running pid healthy
+  local state running pid healthy socket_listening
   state=$(zdots_svc_launchd_status "$PLIST_LABEL")
   running=$(echo "$state" | awk '{print $1}')
   pid=$(echo "$state" | awk '{print $2}')
-  
-  zdots_svc_health_check_url "${AI_ENDPOINT}/health" && healthy=true || healthy=false
+
+  curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1 && healthy=true || healthy=false
+  zdots_svc_loopback_listening "${AI_ENDPOINT}" && socket_listening=true || socket_listening=false
 
   zdots_svc_print_status "$json" "$running" "$pid" "$AI_ENDPOINT" "$LOG_FILE" \
     "profile=${AI_PROFILE}" \
     "active_model=$(_active_model_file)" \
     "healthy=${healthy}" \
+    "http_healthy=${healthy}" \
+    "socket_listening=${socket_listening}" \
     "launchd=$([[ -f "$PLIST_FILE" ]] && echo true || echo false)"
 }
 
@@ -376,10 +379,11 @@ health_llama() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local healthy
-  zdots_svc_health_check_url "${AI_ENDPOINT}/health" && healthy=true || healthy=false
+  local healthy socket_listening
+  curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1 && healthy=true || healthy=false
+  zdots_svc_loopback_listening "${AI_ENDPOINT}" && socket_listening=true || socket_listening=false
   
-  zdots_svc_print_health "$json" "$healthy" "$AI_ENDPOINT"
+  zdots_svc_print_health "$json" "$healthy" "$AI_ENDPOINT" "http_healthy=${healthy}" "socket_listening=${socket_listening}"
 }
 
 
@@ -729,14 +733,17 @@ stop_embed()   { zdots_svc_launchd_stop   "$EMBED_PLIST_LABEL"; }
 status_embed() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
-  local state running pid healthy
+  local state running pid healthy socket_listening
   state=$(zdots_svc_launchd_status "$EMBED_PLIST_LABEL")
   running=$(echo "$state" | awk '{print $1}')
   pid=$(echo "$state" | awk '{print $2}')
-  zdots_svc_health_check_url "${EMBED_ENDPOINT}/health" && healthy=true || healthy=false
+  curl -sf -m 2 "${EMBED_ENDPOINT}/health" >/dev/null 2>&1 && healthy=true || healthy=false
+  zdots_svc_loopback_listening "${EMBED_ENDPOINT}" && socket_listening=true || socket_listening=false
   zdots_svc_print_status "$json" "$running" "$pid" "$EMBED_ENDPOINT" "$EMBED_LOG_FILE" \
     "profile=${EMBED_PROFILE}" \
     "healthy=${healthy}" \
+    "http_healthy=${healthy}" \
+    "socket_listening=${socket_listening}" \
     "launchd=$([[ -f "$EMBED_PLIST_FILE" ]] && echo true || echo false)"
 }
 

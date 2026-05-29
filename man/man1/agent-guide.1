@@ -1,0 +1,38 @@
+.Dd May 29, 2026
+.Dt AGENT-GUIDE 1
+.Os zdots
+.Sh NAME
+.Nm agent-guide
+.Nd live service and usage guide for AI agent sessions
+.Sh SYNOPSIS
+.Nm
+.Op Fl -json
+.Op Fl h | Fl -help
+.Sh DESCRIPTION
+.Nm
+probes the local AI server, OTel collector, Grafana, Colima, and selected
+tooling, then prints connection details and safe usage guidance for agents.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -json
+Emit a JSON object.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_AI_ENDPOINT
+.It Ev ZDOTDIR
+Repository root.
+.It Ev ZDOTS_AI_ENDPOINT
+AI server base URL.
+.It Ev ZDOTS_AI_MODE
+AI operating mode.
+.It Ev ZDOTS_LOG_DIR
+Deploy log directory.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr capabilities 1 ,
+.Xr zdots-ctl 8 ,
+.Xr zdots 7

@@ -1,0 +1,57 @@
+.Dd May 29, 2026
+.Dt CAPABILITIES 1
+.Os zdots
+.Sh NAME
+.Nm capabilities
+.Nd report environment capabilities and service contract health
+.Sh SYNOPSIS
+.Nm
+.Op Fl -json
+.Op Fl h | Fl -help
+.Sh DESCRIPTION
+.Nm
+prints a high-signal report for the current zdots environment.
+It checks provider files, critical paths, terminal state, deploy diagnostics,
+observability state, AI reachability, and the knowledge layer.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl -json
+Emit machine-readable JSON.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_OTEL_RESOURCE_JSON
+.It Ev ZDOTDIR
+Repository root. Defaults to
+.Pa ~/.config/zsh .
+.It Ev ZDOTS_SERVICE_AI
+Configured AI provider.
+.It Ev ZDOTS_AI_ENDPOINT
+AI server base URL.
+.It Ev ZDOTS_AI_MODEL
+Configured model name.
+.It Ev ZDOTS_SESSION_ID , Ev ZDOTS_TRACE_ID
+Observable shell identifiers.
+.It Ev ZDOTS_ENV_PROFILE
+Environment profile label.
+.It Ev ZDOTS_OTEL_RESOURCE_JSON
+OpenTelemetry resource manifest emitted by shell init.
+.It Ev XDG_CONFIG_HOME , Ev XDG_STATE_HOME
+Config and state roots.
+.El
+.Sh FILES
+.Bl -tag -width docs/generated/interface-inventory.json
+.It Pa .zdots.env
+Service composition manifest.
+.It Pa providers/*/*.zsh
+Provider implementations checked by the contract report.
+.It Pa ~/.local/state/zsh/traces.jsonl
+Local trace stream.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr agent-guide 1 ,
+.Xr zdots-ctl 8 ,
+.Xr zdots 7

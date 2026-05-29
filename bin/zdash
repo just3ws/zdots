@@ -29,6 +29,30 @@ _c()  { printf '\033[%sm' "$1"; }
 RST=$(_c 0); BOLD=$(_c 1); DIM=$(_c 2)
 RED=$(_c '0;31'); YEL=$(_c '0;33'); GRN=$(_c '0;32'); CYN=$(_c '0;36')
 
+_usage() {
+  cat <<'EOF'
+Usage: zdash [--list | --preview ID]
+
+Interactive workflow launcher.
+
+Options:
+  --list        Print task list for fzf input
+  --preview ID  Print formatted task file for fzf preview
+  -h, --help    Show this help
+
+Default mode opens the fzf task picker.
+
+Keybindings:
+  enter   ztask start
+  ctrl-p  zpi exploration
+  ctrl-a  zaider implementation
+  ctrl-s  zdots-status
+  ctrl-d  ztask done
+  ctrl-r  refresh task list
+  ?       toggle preview
+EOF
+}
+
 # ── Task list (also: zdash --list) ───────────────────────────────────────────
 # Tab-separated: ICON  ID  PRIORITY  TITLE
 # Reads task frontmatter directly — stable contract vs. backlog CLI text output.
@@ -43,10 +67,10 @@ _cmd_list() {
   _task_files=( "${TASKS_DIR}"/z-*.md(N) )
   [[ ${#_task_files[@]} -eq 0 ]] && return
 
-  local id title status priority pri_col pri_abbr icon icol
-  while IFS=$'\t' read -r id title status priority; do
+  local id title task_status priority pri_col pri_abbr icon icol
+  while IFS=$'\t' read -r id title task_status priority; do
     [[ -z "$id" ]] && continue
-    [[ "${status:l}" == "done" ]] && continue
+    [[ "${task_status:l}" == "done" ]] && continue
 
     case "${(U)priority}" in
       HIGH)   pri_col="$RED"; pri_abbr="HIGH" ;;
@@ -55,8 +79,8 @@ _cmd_list() {
       *)      pri_col="$RST"; pri_abbr="    " ;;
     esac
 
-    if   [[ "${id:l}" == "$active_id" ]];          then icon="★"; icol="$GRN"
-    elif [[ "${status:l}" == "in progress" ]];      then icon="◒"; icol="$CYN"
+    if   [[ "${id:l}" == "$active_id" ]];               then icon="★"; icol="$GRN"
+    elif [[ "${task_status:l}" == "in progress" ]];      then icon="◒"; icol="$CYN"
     else                                                 icon="○"; icol="$DIM"
     fi
 
@@ -110,6 +134,7 @@ _cmd_preview() {
 
 # ── Subcommand dispatch (called by fzf) ───────────────────────────────────────
 case "${1:-}" in
+  -h|--help) _usage; exit 0 ;;
   --list)    _cmd_list;           exit 0 ;;
   --preview) _cmd_preview "${2:-}"; exit 0 ;;
 esac

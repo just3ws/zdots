@@ -36,6 +36,7 @@ RSpec.describe Zdots::Models::EncryptedContent, :integration do
     # Assign a top-level constant so Sequel::Model's internal class name lookup works
     Object.const_set(:EncTest, Class.new(Sequel::Model(@db[:_enc_test])) do
       include Zdots::Models::EncryptedContent
+
       encrypted_attribute :data
     end)
   end
@@ -47,7 +48,7 @@ RSpec.describe Zdots::Models::EncryptedContent, :integration do
   end
 
   around do |example|
-    saved_key = ENV["ZDOTS_DB_ENCRYPTION_KEY"]
+    saved_key = ENV.fetch("ZDOTS_DB_ENCRYPTION_KEY", nil)
     ENV["ZDOTS_DB_ENCRYPTION_KEY"] = "test-key-for-rspec-only"
     example.run
     saved_key ? ENV["ZDOTS_DB_ENCRYPTION_KEY"] = saved_key : ENV.delete("ZDOTS_DB_ENCRYPTION_KEY")
