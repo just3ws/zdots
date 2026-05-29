@@ -1,0 +1,34 @@
+.Dd May 29, 2026
+.Dt OTEL-COLLECTOR 8
+.Os zdots
+.Sh NAME
+.Nm otel-collector
+.Nd manage the local OpenTelemetry collector
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Fl -json
+.Sh COMMANDS
+.Bl -tag -width validate
+.It Cm install , Cm start , Cm stop , Cm restart , Cm status , Cm health , Cm logs
+Manage collector lifecycle.
+.It Cm validate
+Validate collector YAML.
+.It Cm config
+Print resolved configuration.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTDIR
+.It Ev ZDOTDIR
+Repository root.
+.El
+.Sh FILES
+.Bl -tag -width ~/Library/LaunchAgents/com.zdots.otel-collector.plist
+.It Pa etc/otel-collector.yaml
+Collector pipeline.
+.It Pa ~/Library/LaunchAgents/com.zdots.otel-collector.plist
+launchd agent.
+.El
+.Sh SEE ALSO
+.Xr zdots-observability 7 ,
+.Xr zdots-ctl 8

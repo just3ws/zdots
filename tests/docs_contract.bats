@@ -1,0 +1,105 @@
+#!/usr/bin/env bats
+# tests/docs_contract.bats — documentation and interface drift checks
+
+setup() {
+  load "setup.bash"
+  setup_environment
+  BIN="$REPO_ROOT/bin"
+}
+
+_known_gap() {
+  local name="$1"
+  grep -q "^${name}:" "$REPO_ROOT/docs/generated/docs-contract-known-gaps.txt"
+}
+
+@test "docs: generated inventory exists" {
+  [ -s "$REPO_ROOT/docs/generated/interface-inventory.json" ]
+  [ -s "$REPO_ROOT/docs/generated/interface-inventory.md" ]
+  jq -e '.schema == "zdots.interface-inventory.v1"' "$REPO_ROOT/docs/generated/interface-inventory.json" >/dev/null
+}
+
+@test "docs: wiki source exists" {
+  [ -s "$REPO_ROOT/docs/wiki/Home.md" ]
+  [ -s "$REPO_ROOT/docs/wiki/Command-Reference.md" ]
+  [ -s "$REPO_ROOT/docs/wiki/System-Map.md" ]
+}
+
+@test "docs: documented commands have working --help or known gap" {
+  commands="capabilities zdots-ctx zmorning agent-guide zdots-ctl zdots-status llama-ctl otel-collector ai-query zdots-ask ztask zdots-log-analyze local-ci whisper-ctl zdash"
+  for command in $commands; do
+    if _known_gap "$command"; then
+      continue
+    fi
+    run "$BIN/$command" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Usage:"* || "$output" == *"Commands:"* || "$output" == *"Options:"* ]]
+  done
+}
+
+@test "docs: known gaps reference backlog issue ids" {
+  while IFS= read -r line; do
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    [[ "$line" =~ z-[0-9]+ ]]
+  done < "$REPO_ROOT/docs/generated/docs-contract-known-gaps.txt"
+}
+
+@test "docs: manpages exist for core commands and concepts" {
+  pages="
+    man/man1/capabilities.1
+    man/man1/zdots-ctx.1
+    man/man1/zmorning.1
+    man/man1/agent-guide.1
+    man/man1/ai-query.1
+    man/man1/zdots-ask.1
+    man/man1/ztask.1
+    man/man1/zdash.1
+    man/man1/zdots-log-analyze.1
+    man/man8/zdots-ctl.8
+    man/man8/llama-ctl.8
+    man/man8/otel-collector.8
+    man/man8/local-ci.8
+    man/man8/whisper-ctl.8
+    man/man5/zdots-env.5
+    man/man5/ai-models.yaml.5
+    man/man5/phi-patterns.yaml.5
+    man/man7/zdots.7
+    man/man7/zdots-observability.7
+    man/man7/zdots-phi-safety.7
+    man/man7/zdots-ai-stack.7
+  "
+  for page in $pages; do
+    [ -s "$REPO_ROOT/$page" ]
+  done
+}
+
+@test "docs: manpages render with mandoc" {
+  command -v mandoc >/dev/null 2>&1 || skip "mandoc not installed"
+  while IFS= read -r page; do
+    run mandoc -Tutf8 "$page"
+    [ "$status" -eq 0 ]
+  done < <(find "$REPO_ROOT/man" -type f | sort)
+}
+
+@test "docs: live JSON surfaces are parseable when available" {
+  run "$BIN/capabilities" --json
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e '.session_id and .ai' >/dev/null
+
+  run "$BIN/agent-guide" --json
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e '.services and .ai' >/dev/null
+
+  run "$BIN/zdots-ctl" status --json
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e 'has("ai_server") and has("intelligence_suite")' >/dev/null
+}
+
+@test "docs: capabilities disk_available reports df Avail column, not inode ifree" {
+  expected=$(df -h / | awk 'NR==2 {print $4}')
+
+  run "$BIN/capabilities" --json
+  [ "$status" -eq 0 ]
+
+  actual=$(printf '%s\n' "$output" | jq -r '.disk_available')
+  [ "$actual" = "$expected" ]
+}

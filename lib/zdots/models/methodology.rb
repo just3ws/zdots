@@ -6,6 +6,7 @@ module Zdots
       plugin :timestamps, update_on_create: true
       include EncryptedContent
       include Searchable
+
       encrypted_attribute :content
 
       def self.text_match?(record, term)

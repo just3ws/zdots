@@ -24,6 +24,52 @@ This file defines which implementation (provider) is used for each system servic
 | `ZDOTS_SERVICE_NODE` | `mise`, `system` |
 | `ZDOTS_SERVICE_PKG` | `homebrew`, `none` |
 
+### Runtime, AI, and Safety Variables
+
+These variables are used by the documented command surface. See
+`docs/generated/interface-inventory.json` for the command-by-command map.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ZDOTS_CONTEXT` | `home` | Machine posture; `work` enables stricter PHI/security checks. |
+| `ZDOTS_ENV_PROFILE` | detected | Capability/profile label used in reports. |
+| `ZDOTS_SESSION_ID` | generated | Observable shell session id. |
+| `ZDOTS_TRACE_ID` | generated | W3C trace id for the shell session. |
+| `ZDOTS_AI_MODE` | `local` | AI mode: `local`, `cloud`, or `none`. |
+| `ZDOTS_AI_ENDPOINT` | `http://127.0.0.1:11500` | llama.cpp chat endpoint. |
+| `ZDOTS_AI_EMBED_ENDPOINT` | `http://127.0.0.1:11501` | embedding endpoint. |
+| `ZDOTS_AI_MODEL` | profile-derived | Model alias passed to AI clients. |
+| `ZDOTS_AI_PROFILE` | `default_profile` in YAML | Active model profile. |
+| `ZDOTS_AI_MODELS_DIR` | `$XDG_DATA_HOME/llama-cpp/models` | GGUF model storage. |
+| `ZDOTS_AI_MODEL_FILE` | profile-derived | Direct model file override. |
+| `ZDOTS_DOMAINS_FILE` | `etc/prompts/domains.yaml` | Domain routing registry for `zdots-ask`. |
+| `ZDOTS_CAPTURE_ENABLED` | `0` | Session capture gate. |
+| `ZDOTS_HISTORY_REDACT` | `1` | zsh history redaction gate. |
+| `ZDOTS_CMD_ANALYTICS` | `0` | Command analytics capture gate. |
+| `ZDOTS_DB_ENCRYPTION_KEY` | unset | pgcrypto key for sensitive columns. |
+| `ZDOTS_DATABASE_URL` | `postgresql://zdots_rw@/my` | App DB connection. |
+| `ZDOTS_MIGRATION_URL` | `postgresql:///my` | Migration DB connection. |
+| `ZDOTS_DATABASE_URL_OVERRIDE` | unset | Force app DB connection regardless of env sourcing. |
+| `ZDOTS_MY_ROOT` | `~/my` | Identity/knowledge monorepo root. |
+| `ZDOTS_REDIS_HOST` | `127.0.0.1` | Analytics Redis host. |
+| `ZDOTS_REDIS_PORT` | `6379` | Analytics Redis port. |
+| `ZDOTS_LOG_DIR` | `$XDG_STATE_HOME/zsh` | Deploy/update log directory. |
+| `ZDOTS_LOG_ANALYZE_AI_TIMEOUT` | `90` | Default AI timeout for log analysis. |
+| `ZDOTS_BOOT_TIMEOUT` | `90` | Service wait timeout for `zdots-ctl up`. |
+| `ZDOTS_SKIP_FIREWALL_CHECK` | unset | Suppress Application Firewall warning in work checks. |
+| `ZDOTS_CI_CPU` | `2` | Colima vCPU count for local CI. |
+| `ZDOTS_CI_MEMORY` | `4` | Colima memory in GB. |
+| `ZDOTS_CI_DISK` | `60` | Colima disk in GB. |
+| `ZDOTS_WHISPER_PROFILE` | `standard` | Whisper profile. |
+| `ZDOTS_WHISPER_MODELS_DIR` | `$XDG_DATA_HOME/whisper-cpp/models` | Whisper model storage. |
+| `ZDOTS_WHISPER_MODEL_FILE` | profile-derived | Whisper model file. |
+| `ZDOTS_WHISPER_HF_REPO` | unset | Whisper HuggingFace repository. |
+| `ZDOTS_WHISPER_URL_PREFIX` | unset | Whisper model download prefix. |
+| `AIQ_DEFAULT_MODE` | `safe-extract` | Default `ai-query` mode. |
+| `AIQ_MAX_BYTES` | `32768` | Hard `ai-query` input ceiling. |
+| `AIQ_WARN_BYTES` | tool default | Soft `ai-query` warning threshold. |
+| `AIQ_AUDIT_LOG` | `0` | Metadata-only audit logging for `ai-query`. |
+
 ## 2. Structured Configuration (YAML)
 
 ### AI Models (`etc/ai-models.yaml`)

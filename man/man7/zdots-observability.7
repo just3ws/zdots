@@ -1,0 +1,24 @@
+.Dd May 29, 2026
+.Dt ZDOTS-OBSERVABILITY 7
+.Os zdots
+.Sh NAME
+.Nm zdots-observability
+.Nd tracing and diagnostics model for zdots
+.Sh DESCRIPTION
+Zdots uses local JSONL traces, optional OpenTelemetry export, deploy log packs,
+and service status probes. Non-OTel diagnostics are intentionally available
+when the collector or LGTM stack is down.
+.Sh SURFACES
+.Bl -tag -width "zdots-log-analyze"
+.It Xr zdots-ctl 8
+Service and health checks.
+.It Xr capabilities 1
+Environment contract.
+.It Xr zdots-log-analyze 1
+Deploy/update diagnostics independent of OTel.
+.It Pa ~/.local/state/zsh/traces.jsonl
+Local trace stream.
+.El
+.Sh SEE ALSO
+.Xr otel-collector 8 ,
+.Xr local-ci 8

@@ -1,0 +1,52 @@
+.Dd May 29, 2026
+.Dt ZDASH 1
+.Os zdots
+.Sh NAME
+.Nm zdash
+.Nd interactive task picker for zdots workflows
+.Sh SYNOPSIS
+.Nm
+.Op Fl -list | Fl -preview Ar id
+.Sh DESCRIPTION
+.Nm
+opens an fzf-powered task picker wired to
+.Xr ztask 1 ,
+Pi exploration, Aider implementation, and platform status views.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -list
+Print task list for fzf input.
+.It Fl -preview Ar id
+Print a formatted task preview.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh KEYBINDINGS
+.Bl -tag -width "ctrl-s"
+.It Enter
+Start selected task with
+.Xr ztask 1 .
+.It Ctrl-p
+Open Pi exploration for the selected task.
+.It Ctrl-a
+Open Aider implementation.
+.It Ctrl-s
+Open
+.Xr zdots-status 1 .
+.It Ctrl-d
+Mark active task done.
+.It Ctrl-r
+Refresh task list.
+.It ?
+Toggle preview pane.
+.El
+.Sh FILES
+.Bl -tag -width ~/.local/state/zsh/active_task
+.It Pa backlog/tasks/
+Task files.
+.It Pa ~/.local/state/zsh/active_task
+Active task marker.
+.El
+.Sh SEE ALSO
+.Xr zmorning 1 ,
+.Xr ztask 1

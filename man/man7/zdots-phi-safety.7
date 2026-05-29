@@ -1,0 +1,25 @@
+.Dd May 29, 2026
+.Dt ZDOTS-PHI-SAFETY 7
+.Os zdots
+.Sh NAME
+.Nm zdots-phi-safety
+.Nd PHI safety boundaries for zdots
+.Sh DESCRIPTION
+Zdots defaults to local AI and opt-in capture. PHI-related controls are enforced
+through environment gates, prompt scrubbing, history redaction, database
+encryption checks, and macOS unified logging.
+.Sh HARD DEFAULTS
+.Bl -tag -width ZDOTS_CAPTURE_ENABLED
+.It Ev ZDOTS_AI_MODE=local
+Inference stays local unless explicitly reviewed.
+.It Ev ZDOTS_CAPTURE_ENABLED=0
+Session capture disabled by default.
+.It Ev ZDOTS_HISTORY_REDACT=1
+History redaction enabled by default.
+.It Ev ZDOTS_CMD_ANALYTICS=0
+Analytics disabled on work machines.
+.El
+.Sh SEE ALSO
+.Xr phi-patterns.yaml 5 ,
+.Xr zdots-ctx 1 ,
+.Xr ai-query 1

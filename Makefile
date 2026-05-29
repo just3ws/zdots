@@ -2,7 +2,7 @@
 SHELL := /bin/sh
 ZDOTDIR ?= $(HOME)/.config/zsh
 
-.PHONY: bootstrap update-local check check-fast test health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
+.PHONY: bootstrap update-local check check-fast test docs-contract health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
 
 # ------------------------------------------------------------------------------
 # CORE & VALIDATION
@@ -23,6 +23,9 @@ check-fast:
 # Bats test suite only — fast, no service checks, no startup timing
 test:
 	bats $(ZDOTDIR)/tests/
+
+docs-contract:
+	bats $(ZDOTDIR)/tests/docs_contract.bats
 
 # Unified coverage report (Ruby via SimpleCov, Shell via kcov)
 coverage:

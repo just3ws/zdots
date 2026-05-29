@@ -1,0 +1,24 @@
+.Dd May 29, 2026
+.Dt AI-MODELS.YAML 5
+.Os zdots
+.Sh NAME
+.Nm ai-models.yaml
+.Nd zdots llama.cpp model and server profile registry
+.Sh DESCRIPTION
+.Pa etc/ai-models.yaml
+defines chat and embedding model profiles, active defaults, ports, and
+llama.cpp server flags.
+.Sh FIELDS
+.Bl -tag -width default_profile
+.It Va default_profile
+Default chat profile.
+.It Va profiles
+Named model profiles with files and runtime flags.
+.It Va server
+Chat server configuration.
+.It Va embed_server
+Embedding server configuration.
+.El
+.Sh SEE ALSO
+.Xr llama-ctl 8 ,
+.Xr zdots-ai-stack 7

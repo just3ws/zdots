@@ -16,7 +16,7 @@ module Zdots
         raise "Missing URL in payload" if url.nil? || url.empty?
 
         vid = extract_video_id(url)
-        transcript_path = File.join(ENV["HOME"], "Downloads", "transcripts", vid, "#{vid}.txt")
+        transcript_path = File.join(Dir.home, "Downloads", "transcripts", vid, "#{vid}.txt")
         raise "Transcript file not found: #{transcript_path}" unless File.exist?(transcript_path)
 
         prompt = load_prompt("distill", url: url, content: File.read(transcript_path))

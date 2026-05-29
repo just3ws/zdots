@@ -54,7 +54,8 @@ _fix()  { printf '         fix: %s\n' "$*"; }
 # ---------------------------------------------------------------------------
 
 _ai_http_up()    { curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; }
-_ai_up()         { _ai_http_up || zdots_svc_loopback_listening "$AI_ENDPOINT"; }
+_ai_socket_up()  { zdots_svc_loopback_listening "$AI_ENDPOINT"; }
+_ai_up()         { _ai_http_up; }
 _embed_up()      { curl -sf -m 2 "${EMBED_ENDPOINT}/health" >/dev/null 2>&1; }
 _otel_up()       { "$BIN/otel-collector" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$OTLP_ENDPOINT"; }
 _grafana_up()    { "$BIN/local-ci" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$GRAFANA_URL"; }
@@ -172,9 +173,10 @@ cmd_status() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local lgtm_up ai_up embed_up otel_up colima_up ctx_up redis_up
+  local lgtm_up ai_up ai_socket_up embed_up otel_up colima_up ctx_up redis_up
   _grafana_up && lgtm_up=true   || lgtm_up=false
   _ai_up      && ai_up=true     || ai_up=false
+  _ai_socket_up && ai_socket_up=true || ai_socket_up=false
   _embed_up   && embed_up=true  || embed_up=false
   _otel_up    && otel_up=true   || otel_up=false
   _colima_up  && colima_up=true || colima_up=false
@@ -188,8 +190,8 @@ cmd_status() {
   fi
 
   if $json; then
-    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"embed_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"grafana_url":"%s","ai_endpoint":"%s","embed_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
-      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" "$embed_up" "$ai_model" "$ctx_up" "$redis_up" \
+    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"ai_http_healthy":%s,"ai_socket_listening":%s,"embed_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"grafana_url":"%s","ai_endpoint":"%s","embed_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
+      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" "$ai_up" "$ai_socket_up" "$embed_up" "$ai_model" "$ctx_up" "$redis_up" \
       "$GRAFANA_URL" "$AI_ENDPOINT" "$EMBED_ENDPOINT" "$OTLP_ENDPOINT" "$REDIS_HOST" "$REDIS_PORT"
     return
   fi
@@ -202,7 +204,7 @@ cmd_status() {
   printf '  %-20s %s  %s\n' "colima"         "$(_sym "$colima_up")" "$([ "$colima_up" = true ] && echo up || echo down)"
   printf '  %-20s %s  %s\n' "LGTM stack"     "$(_sym "$lgtm_up")"  "$GRAFANA_URL"
   printf '  %-20s %s  %s\n' "otel-collector" "$(_sym "$otel_up")"  "$OTLP_ENDPOINT"
-  printf '  %-20s %s  %s\n' "AI server"      "$(_sym "$ai_up")"    "$AI_ENDPOINT"
+  printf '  %-20s %s  %s (socket: %s)\n' "AI server" "$(_sym "$ai_up")" "$AI_ENDPOINT" "$ai_socket_up"
   printf '  %-20s %s  %s\n' "embed server"   "$(_sym "$embed_up")" "$EMBED_ENDPOINT"
   printf '  %-20s %s  %s\n' "intelligence"   "$(_sym "$ctx_up")"   "postgres"
   printf '  %-20s %s  %s\n' "cache"          "$(_sym "$redis_up")" "${REDIS_HOST}:${REDIS_PORT}"
@@ -383,7 +385,7 @@ cmd_check() {
     fi
 
     # Runtime socket check — only if server is up
-    if _ai_up; then
+    if _ai_socket_up; then
       local _ai_port; _ai_port=$(printf '%s' "${AI_ENDPOINT:-http://127.0.0.1:11500}" | grep -oE '[0-9]+$')
       local _non_lo
       _non_lo=$(lsof -nP -i "TCP:${_ai_port}" -sTCP:LISTEN 2>/dev/null \

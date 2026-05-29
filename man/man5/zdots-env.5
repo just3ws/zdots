@@ -1,0 +1,49 @@
+.Dd May 29, 2026
+.Dt ZDOTS-ENV 5
+.Os zdots
+.Sh NAME
+.Nm zdots-env
+.Nd zdots environment variable contract
+.Sh DESCRIPTION
+Zdots behavior is controlled by `.zdots.env`, `.zdots.local`, shell state, and
+service-specific environment variables. `.zdots.local` is for machine-local
+overrides and is not tracked.
+.Sh CORE VARIABLES
+.Bl -tag -width ZDOTS_DATABASE_URL_OVERRIDE
+.It Ev ZDOTDIR
+Repository root.
+.It Ev ZDOTS_CONTEXT
+Machine context, commonly `home` or `work`.
+.It Ev ZDOTS_AI_MODE
+AI mode: `local`, `cloud`, or `none`.
+.It Ev ZDOTS_AI_ENDPOINT
+Chat endpoint. Default `http://127.0.0.1:11500`.
+.It Ev ZDOTS_AI_EMBED_ENDPOINT
+Embedding endpoint. Default `http://127.0.0.1:11501`.
+.It Ev ZDOTS_DATABASE_URL
+Application DB URL.
+.It Ev ZDOTS_MIGRATION_URL
+Migration DB URL.
+.It Ev ZDOTS_CAPTURE_ENABLED
+Session capture gate.
+.It Ev ZDOTS_HISTORY_REDACT
+History redaction gate.
+.It Ev ZDOTS_CMD_ANALYTICS
+Command analytics gate.
+.It Ev ZDOTS_DB_ENCRYPTION_KEY
+PHI column encryption key.
+.El
+.Sh FILES
+.Bl -tag -width .zdots.secrets.example
+.It Pa .zdots.env
+Tracked defaults.
+.It Pa .zdots.local
+Machine-local overrides.
+.It Pa .zdots.work
+Work-machine safety overrides.
+.It Pa .zdots.secrets.example
+Keychain-backed secret loader example.
+.El
+.Sh SEE ALSO
+.Xr zdots-phi-safety 7 ,
+.Xr zdots-ai-stack 7

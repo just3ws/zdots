@@ -1,0 +1,48 @@
+.Dd May 29, 2026
+.Dt ZDOTS-ASK 1
+.Os zdots
+.Sh NAME
+.Nm zdots-ask
+.Nd domain-aware prompt router for zdots local AI
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Ar prompt
+.Sh DESCRIPTION
+.Nm
+selects a zdots domain prompt, optionally hydrates context from the knowledge
+layer, and routes the request to local AI.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -domain Ar domain
+Force a domain.
+.It Fl -pattern Ar pattern
+Use a Fabric pattern.
+.It Fl -context Op Ar tag
+Prepend
+.Xr zdots-ctx 1
+hydrate output.
+.It Fl -think
+Enable thinking mode.
+.It Fl -dry-run
+Print detected domain and prompt without inference.
+.It Fl -list-domains
+List domains.
+.It Fl -list-patterns
+List patterns.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_DOMAINS_FILE
+.It Ev ZDOTDIR
+Repository root.
+.It Ev ZDOTS_AI_MODE
+AI operating mode.
+.It Ev ZDOTS_DOMAINS_FILE
+Domain registry path.
+.El
+.Sh SEE ALSO
+.Xr ai-query 1 ,
+.Xr zdots-ctx 1 ,
+.Xr zdots-ai-stack 7

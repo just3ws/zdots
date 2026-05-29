@@ -13,6 +13,8 @@ All tools listed are installed via `Brewfile.home` or `Brewfile.work` unless not
 | Diagnose bootstrap/update/upgrade logs | `zdots-log-analyze update|bootstrap|upgrade [--ai]` |
 
 Organized by workflow, not alphabetically. For service lifecycle, see [architecture.md](architecture.md).
+For canonical CLI contracts, see [documentation-system.md](documentation-system.md),
+`docs/generated/interface-inventory.json`, and the `man/` tree.
 
 ---
 

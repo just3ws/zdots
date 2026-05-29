@@ -1,0 +1,35 @@
+.Dd May 29, 2026
+.Dt ZDOTS 7
+.Os zdots
+.Sh NAME
+.Nm zdots
+.Nd observable zsh control plane
+.Sh DESCRIPTION
+Zdots is a modular zsh environment that combines shell startup, local AI,
+OpenTelemetry, command analytics, and a PostgreSQL knowledge layer.
+.Sh PRIMARY LOOPS
+.Bl -enum
+.It
+Shell emits traces and state.
+.It
+Services expose live status.
+.It
+Knowledge tools capture and hydrate context.
+.It
+Documentation contracts compare written interfaces with live behavior.
+.El
+.Sh TRUTH SURFACES
+.Bl -tag -width "agent-guide --json"
+.It Li zdots-ctl status --json
+Live service uptime.
+.It Li capabilities --json
+Environment capability contract.
+.It Li agent-guide --json
+Agent usage map.
+.It Li docs/generated/interface-inventory.json
+Documented command inventory.
+.El
+.Sh SEE ALSO
+.Xr capabilities 1 ,
+.Xr zdots-ctl 8 ,
+.Xr zdots-env 5
