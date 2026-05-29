@@ -31,6 +31,14 @@ This document records the empirical state of the repository as compared to its c
 *   **Empirical Reality:** 100% XDG compliance. Zero litter in `$HOME`.
 *   **Status:** Total harmony with the host filesystem.
 
+## 6. Engineering Integrity (DEBT IDENTIFIED)
+*   **Belief:** "Good scripts leave no flaws in the trace." (`THE_WAY.md`, V)
+*   **Status Report:**
+    *   **Ruby Security:** **PASSED** (0 vulnerabilities found via `bundle-audit`).
+    *   **Workflow Integrity:** **PASSED** (all GHA workflows verified via `actionlint`).
+    *   **Ruby Style:** **REFINED** (297 offenses autocorrected, 137 lingering).
+    *   **Lingering Debt:** Remaining 137 offenses are structural complexity and line-length issues in migrations and SBINs. These are known and documented.
+
 ---
 
 ### Audit Verdict: **85% Accordance**
