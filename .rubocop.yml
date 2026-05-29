@@ -1,0 +1,18 @@
+AllCops:
+  TargetRubyVersion: 4.0
+  Exclude:
+    - 'tests/helpers/**/*'
+    - 'vendor/**/*'
+    - 'bin/**/*'
+  SuggestExtensions: false
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/FrozenStringLiteralComment:
+  Enabled: true
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - 'tests/**/*'
