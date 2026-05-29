@@ -545,8 +545,27 @@ cmd_check() {
     _chk_warn "AI integration test skipped (server not running)"
     _fix "zdots-ctl up"
   else
+    # Wait for inference readiness before running the test — /health returning
+    # OK does not mean the model has finished loading or that GPU memory is stable.
+    local _infer_ready=false _infer_elapsed=0
+    while (( _infer_elapsed < 30 )); do
+      local _probe
+      _probe=$(curl -s -m 10 "${AI_ENDPOINT}/v1/chat/completions" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"local","messages":[{"role":"user","content":"hi"}],"max_tokens":1}' \
+        2>/dev/null || true)
+      if printf '%s' "$_probe" | grep -q '"content"'; then
+        _infer_ready=true; break
+      fi
+      sleep 5; _infer_elapsed=$(( _infer_elapsed + 5 ))
+    done
+    unset _probe _infer_elapsed
+
     local _ai_out
-    if _ai_out=$(timeout 60 zdots-ruby "$_llama_test" --quick 2>/dev/null); then
+    if ! $_infer_ready; then
+      _chk_fail "AI integration  server up but inference not responding after 30s readiness wait"
+      _fix "zsvc logs llama  (check for GPU OOM or startup errors)"
+    elif _ai_out=$(timeout 90 zdots-ruby "$_llama_test" --quick 2>/dev/null); then
       _chk_pass "AI integration  chat (RubyLLM) + embeddings (embed server) verified"
     else
       _chk_fail "AI integration  RubyLLM × llama.cpp test failed"
