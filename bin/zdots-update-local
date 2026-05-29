@@ -24,6 +24,8 @@ SKIP_GEMINI=0
 SKIP_CHECK=0
 PHASE_TOTAL=10
 PHASE_INDEX=0
+PHASE_DONE=0
+PHASE_NAMES=()
 CURRENT_PHASE="preflight"
 STEP_INDEX=0
 CURRENT_STEP="preflight"
@@ -125,11 +127,19 @@ summary() {
 }
 
 phase() {
+  # If a previous phase ran, we got here — it succeeded.
+  if (( PHASE_INDEX > 0 )); then
+    PHASE_DONE=$PHASE_INDEX
+    printf '  [ok] phase %02d/%02d: %s\n' "$PHASE_INDEX" "$PHASE_TOTAL" "$CURRENT_PHASE" >&2
+    summary "  - result: ok"
+  fi
   PHASE_INDEX=$((PHASE_INDEX + 1))
   STEP_INDEX=0
   CURRENT_PHASE="$1"
   CURRENT_STEP="phase-start"
+  PHASE_NAMES+=("$1")
   printf '\n==> zdots-update-local phase %02d/%02d: %s\n' "$PHASE_INDEX" "$PHASE_TOTAL" "$CURRENT_PHASE" >&2
+  summary ""
   summary "- phase ${PHASE_INDEX}/${PHASE_TOTAL}: ${CURRENT_PHASE}"
 }
 
@@ -141,15 +151,58 @@ step() {
 }
 
 finish() {
-  status=$?
-  if [[ "$status" -eq 0 ]]; then
-    log "complete status=0 log=$LOG_FILE summary=$SUMMARY_FILE"
-    summary "- result: complete"
-  else
-    log "failed status=$status phase=$CURRENT_PHASE step=$CURRENT_STEP log=$LOG_FILE summary=$SUMMARY_FILE"
-    summary "- result: failed status=${status} phase=${CURRENT_PHASE} step=${CURRENT_STEP}"
+  local exit_status=$?
+
+  # Emit result for the final phase.
+  if [[ "$exit_status" -eq 0 ]]; then
+    PHASE_DONE=$PHASE_INDEX
+    printf '  [ok] phase %02d/%02d: %s\n' "$PHASE_INDEX" "$PHASE_TOTAL" "$CURRENT_PHASE" >&2
+    summary "  - result: ok"
+  elif (( PHASE_INDEX > 0 )); then
+    printf '  [FAIL] phase %02d/%02d: %s — step: %s\n' \
+      "$PHASE_INDEX" "$PHASE_TOTAL" "$CURRENT_PHASE" "$CURRENT_STEP" >&2
+    summary "  - result: FAILED (step: ${CURRENT_STEP})"
   fi
-  exit "$status"
+
+  # Phase summary table.
+  printf '\n==> Run summary: %d/%d phases completed\n' "$PHASE_DONE" "$PHASE_TOTAL" >&2
+  summary ""
+  summary "## Run summary: ${PHASE_DONE}/${PHASE_TOTAL} phases completed"
+  summary ""
+  local i
+  for (( i=0; i<${#PHASE_NAMES[@]}; i++ )); do
+    local num=$(( i + 1 )) name="${PHASE_NAMES[$i]}" marker
+    if (( num <= PHASE_DONE )); then
+      marker="[ok]  "; else marker="[FAIL]"; fi
+    printf '  %s %02d/%02d: %s\n' "$marker" "$num" "$PHASE_TOTAL" "$name" >&2
+    summary "- ${marker} ${num}/${PHASE_TOTAL}: ${name}"
+  done
+  local reached=${#PHASE_NAMES[@]}
+  if (( reached < PHASE_TOTAL && exit_status != 0 )); then
+    local not_reached=$(( PHASE_TOTAL - reached ))
+    printf '  [----] %d phase(s) not reached\n' "$not_reached" >&2
+    summary "- [----] ${not_reached} phase(s) not reached"
+  fi
+
+  # On failure, append a log excerpt to the summary for Pi/HI analysis.
+  if [[ "$exit_status" -ne 0 ]]; then
+    summary ""
+    summary "## Failure context (last 40 log lines)"
+    summary '```'
+    tail -40 "$LOG_FILE" 2>/dev/null >> "$SUMMARY_FILE" || true
+    summary '```'
+    printf '\nFull log: %s\n' "$LOG_FILE" >&2
+  fi
+
+  summary ""
+  if [[ "$exit_status" -eq 0 ]]; then
+    log "complete status=0 log=$LOG_FILE summary=$SUMMARY_FILE"
+    summary "**result: complete**"
+  else
+    log "failed status=$exit_status phase=$CURRENT_PHASE step=$CURRENT_STEP log=$LOG_FILE summary=$SUMMARY_FILE"
+    summary "**result: FAILED** status=${exit_status} phase=${CURRENT_PHASE} step=${CURRENT_STEP}"
+  fi
+  exit "$exit_status"
 }
 trap finish EXIT
 
