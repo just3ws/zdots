@@ -475,9 +475,16 @@ if ! zsh -i -c 'command -v mise >/dev/null 2>&1 && mise --version >/dev/null 2>&
 fi
 
 compaudit_out="$(zsh -i -c 'autoload -Uz compaudit; compaudit 2>/dev/null' | _strip_escapes || true)"
-if [[ -n "$compaudit_out" ]]; then
+# Strip system-managed paths that are not under user control (Homebrew on Apple Silicon/Intel, macOS system).
+# ZDOTS_COMPAUDIT_SYSTEM_RE can override the filter regex.
+_zdots_sys_re="${ZDOTS_COMPAUDIT_SYSTEM_RE:-^(/opt/homebrew|/usr/local|/usr/share)}"
+compaudit_user="$(print -r -- "$compaudit_out" | grep -Ev "$_zdots_sys_re" || true)"
+unset _zdots_sys_re
+if [[ -n "$compaudit_out" && -z "$compaudit_user" ]]; then
+  echo "check: compaudit flagged system-managed paths (ignored): $(print -r -- "$compaudit_out" | tr '\n' ' ')" >&2
+elif [[ -n "$compaudit_user" ]]; then
   echo "check: insecure completion paths detected by compaudit:" >&2
-  print -r -- "$compaudit_out" >&2
+  print -r -- "$compaudit_user" >&2
   # In CI environments, compaudit often fails due to system-level directory permissions (e.g. /usr/local/share).
   # We make it non-blocking in CI by default unless overridden.
   _zdots_strict_comp="${ZDOTS_CHECK_STRICT_COMPAUDIT:-}"
@@ -489,6 +496,7 @@ if [[ -n "$compaudit_out" ]]; then
   fi
   unset _zdots_strict_comp
 fi
+unset compaudit_user
 
 if [[ "$SKIP_EXTERNAL" != "1" ]]; then
   if ! zsh -i -c 'candidates=("$HOMEBREW_PREFIX/opt/powerlevel10k/powerlevel10k.zsh-theme" "$HOMEBREW_PREFIX/share/powerlevel10k/powerlevel10k.zsh-theme" "$HOME/.local/share/powerlevel10k/powerlevel10k.zsh-theme"); for c in $candidates; do [[ -r "$c" ]] && exit 0; done; exit 1'; then
