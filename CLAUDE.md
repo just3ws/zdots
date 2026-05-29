@@ -6,7 +6,22 @@ Claude-specific instructions for Zdots.
 
 ## Platform Control
 
-`zdots-ctl` is the single command to manage the entire local platform. Use it exclusively for service orchestration — do not call `local-ci`, `otel-collector`, or `llama-ctl` start/stop directly unless operating on a specific service in isolation.
+Two commands cover all service lifecycle needs:
+
+**`zsvc`** — per-service control (start/stop/restart/logs/status/diag). Reach for this first.
+
+```bash
+zsvc list              # table of all services: state, pid, endpoint
+zsvc start  <svc>      # start a service
+zsvc stop   <svc>      # stop a service
+zsvc restart <svc>     # restart a service
+zsvc status <svc>      # full status from the service's ctl script
+zsvc logs   <svc>      # tail the service log (Ctrl+C to stop)
+zsvc diag   <svc>      # status + health + launchd state + last 50 log lines
+# services: llama  embed  otel  colima  (aliases: ai, telemetry, vm, ...)
+```
+
+**`zdots-ctl`** — full-platform orchestration. Use for bring-up, teardown, and diagnostics.
 
 ```bash
 zdots-ctl check        # deep health diagnostic (run first when something is wrong)
@@ -16,6 +31,8 @@ zdots-ctl down         # stop everything cleanly
 zdots-ctl reset        # full restart
 zdots-ctl install      # first-time setup on a new workstation
 ```
+
+Do not call `llama-ctl`, `otel-collector`, or `local-ci` start/stop directly — use `zsvc` instead.
 
 ## Database Architecture
 
