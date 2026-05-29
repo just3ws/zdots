@@ -3,9 +3,10 @@ id: Z-112
 title: >-
   [agent-issue] zdots-ctl status fails with syntax error near fi in
   bin/zdots-ctl line 451
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-28 01:49'
+updated_date: '2026-05-29 16:35'
 labels:
   - agent-reported
   - bug
