@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# bin/gemini-mcp-register — Register zdots MCP servers with Gemini CLI
+#
+# Registers ctx-mcp (knowledge base) and llama-mcp (llama.cpp management)
+# with the Gemini CLI at user scope (~/.gemini/settings.json).
+#
+# Safe to run multiple times — skips servers already registered.
+#
+# Usage:
+#   gemini-mcp-register [--force]
+#
+# Options:
+#   --force   Re-register even if already present (updates command path / env)
+#
+# After registration, restart your Gemini CLI session for servers to appear.
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+GEMINI_SETTINGS="${HOME}/.gemini/settings.json"
+FORCE=0
+
+case "${1:-}" in
+  -h|--help)
+    cat <<'EOF'
+Usage: gemini-mcp-register [--force]
+
+Register zdots MCP servers with Gemini CLI at user scope.
+
+Servers registered:
+  ctx    ctx-mcp — knowledge base (lessons, methodologies, session residue)
+  llama  llama-mcp — llama.cpp inference stack management
+
+Safe to run multiple times — exits 0 without changes if already registered.
+Use --force to overwrite existing registrations (updates command path / env).
+
+Options:
+  --force   Re-register even if already present
+
+After registration, restart your Gemini CLI session.
+EOF
+    exit 0
+    ;;
+  --force) FORCE=1 ;;
+  "")      ;;
+  *)
+    printf 'gemini-mcp-register: unknown option: %s\n' "$1" >&2
+    printf 'Run: gemini-mcp-register --help\n' >&2
+    exit 2
+    ;;
+esac
+
+# ── Guards ────────────────────────────────────────────────────────────────────
+
+if ! command -v gemini >/dev/null 2>&1; then
+  printf 'error: gemini CLI not found\n' >&2
+  printf '       Install: npm install -g @google/gemini-cli\n' >&2
+  exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  printf 'error: jq is required (brew install jq)\n' >&2
+  exit 1
+fi
+
+for _srv_cmd in "${ZDOTDIR}/bin/ctx-mcp" "${ZDOTDIR}/bin/llama-mcp"; do
+  if [[ ! -x "$_srv_cmd" ]]; then
+    printf 'error: %s not found or not executable\n' "$_srv_cmd" >&2
+    exit 1
+  fi
+done
+
+# ── Registration helper ───────────────────────────────────────────────────────
+
+_register() {
+  local name="$1"; shift
+  local cmd="$1";  shift
+  # remaining args are env flags (-e KEY=value) passed through to gemini mcp add
+
+  if [[ "$FORCE" -eq 0 ]] && [[ -f "$GEMINI_SETTINGS" ]]; then
+    existing=$(jq -r --arg n "$name" '.mcpServers[$n] // empty' "$GEMINI_SETTINGS" 2>/dev/null)
+    if [[ -n "$existing" ]]; then
+      printf '%s: already registered (use --force to overwrite)\n' "$name"
+      return 0
+    fi
+  fi
+
+  if [[ "$FORCE" -eq 1 ]]; then
+    gemini mcp remove "$name" --scope user 2>/dev/null || true
+  fi
+
+  gemini mcp add "$name" "$cmd" --scope user "$@"
+  printf '%s registered → %s\n' "$name" "$GEMINI_SETTINGS"
+}
+
+# ── Server definitions ────────────────────────────────────────────────────────
+
+_mise_shims="${HOME}/.local/share/mise/shims"
+_brew_bin="${HOMEBREW_PREFIX:-/opt/homebrew}/bin"
+_zdots_path="${_mise_shims}:${_brew_bin}:/usr/local/bin:/usr/bin:/bin"
+_ai_endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+
+# ctx-mcp: knowledge base — lessons, methodologies, session residue
+_register ctx \
+  "${ZDOTDIR}/bin/ctx-mcp" \
+  -e "ZDOTDIR=${ZDOTDIR}"
+
+# llama-mcp: llama.cpp inference stack management
+# PATH must include mise shims so zdots-ruby resolves the pinned Ruby.
+_register llama \
+  "${ZDOTDIR}/bin/llama-mcp" \
+  -e "ZDOTDIR=${ZDOTDIR}" \
+  -e "ZDOTS_AI_ENDPOINT=${_ai_endpoint}" \
+  -e "PATH=${_zdots_path}"
+
+printf '\nRestart your Gemini CLI session to connect.\n'
