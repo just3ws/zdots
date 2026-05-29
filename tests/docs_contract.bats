@@ -25,14 +25,42 @@ _known_gap() {
 }
 
 @test "docs: documented commands have working --help or known gap" {
-  commands="capabilities zdots-ctx zmorning agent-guide zdots-ctl zdots-status llama-ctl otel-collector ai-query zdots-ask ztask zdots-log-analyze local-ci whisper-ctl zdash"
+  commands="
+    agent-guide
+    ai-query
+    alias-suggest
+    bootstrap
+    capabilities
+    commit-msg
+    diff-review
+    docker-reclaim
+    history-analyze
+    history-import
+    llama-caps
+    llama-ctl
+    local-ci
+    otel-collector
+    whisper-ctl
+    zdash
+    zdots-ask
+    zdots-ctx
+    zdots-keychain
+    zdots-log-analyze
+    zdots-quiz
+    zdots-status
+    zdots-ctl
+    zdots-update-local
+    zmorning
+    ztask
+  "
   for command in $commands; do
+    [[ -z "$command" ]] && continue
     if _known_gap "$command"; then
       continue
     fi
     run "$BIN/$command" --help
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Usage:"* || "$output" == *"Commands:"* || "$output" == *"Options:"* ]]
+    [[ "$output" == *"Usage:"* || "$output" == *"Commands:"* || "$output" == *"Options:"* || "$output" == *"usage:"* ]]
   done
 }
 
@@ -102,4 +130,53 @@ _known_gap() {
 
   actual=$(printf '%s\n' "$output" | jq -r '.disk_available')
   [ "$actual" = "$expected" ]
+}
+
+@test "docs: llama-caps --json emits parseable JSON with expected top-level keys" {
+  run "$BIN/llama-caps" --json
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e '.server and .capabilities and .config' >/dev/null
+}
+
+@test "docs: llama-caps --md emits markdown content" {
+  run "$BIN/llama-caps" --md
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#"* ]]
+}
+
+@test "docs: secret-scan exits 0 on the clean repository" {
+  run "$BIN/secret-scan"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"OK"* ]]
+}
+
+@test "docs: every bin executable is --help-tested or in the known-gaps file" {
+  # Canonical set of explicitly tested commands (mirrors the --help test above).
+  local -a tested=(
+    agent-guide ai-query alias-suggest bootstrap capabilities commit-msg
+    diff-review docker-reclaim history-analyze history-import llama-caps
+    llama-ctl local-ci otel-collector whisper-ctl zdash zdots-ask zdots-ctx
+    zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl
+    zdots-update-local zmorning ztask
+  )
+
+  local missing=()
+  for script in "$BIN"/*; do
+    name="$(basename "$script")"
+    [[ -x "$script" ]] || continue
+    # Must be in the tested list OR explicitly gaped.
+    if _known_gap "$name"; then
+      continue
+    fi
+    local found=0
+    for t in "${tested[@]}"; do
+      [[ "$t" == "$name" ]] && found=1 && break
+    done
+    [[ "$found" -eq 1 ]] || missing+=("$name")
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    printf 'Unaccounted scripts (add to --help test or known-gaps): %s\n' "${missing[*]}" >&2
+    return 1
+  fi
 }

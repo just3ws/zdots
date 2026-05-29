@@ -1,7 +1,21 @@
 # Known documentation contract gaps.
 #
 # Format:
-#   command: reason
+#   command: reason  z-NNN
 #
 # A gap here must correspond to a backlog issue. This file prevents silent drift
 # while allowing the docs contract to pass during staged rollout.
+
+bench: --help exits 1 instead of 0; usage is printed but return code is wrong z-119
+zdots-pattern: --help exits 2 instead of 0 z-119
+zdots-issue: --help exits 2 instead of 0 z-119
+check: shell integrity runner invoked by make/CI; not --help-aware z-119
+colima-autostart: launchd daemon; no interactive --help contract z-119
+ctx-mcp: MCP stdio server; no --help contract by design z-119
+ctx-mcp-register: registration tool; --help not implemented z-119
+diarize: uv Python script; --help triggers dependency download z-119
+gemini-invoke: starts observable agent session on invocation; no --help contract z-119
+llama-mcp: MCP stdio server; no --help contract by design z-119
+secret-scan: runs scan on invocation; no --help contract z-119
+trace-verify: first positional arg is session_id; treats --help as a session ID z-119
+zdots-ruby: Ruby launcher shim; passes all args to mise-managed Ruby z-119
