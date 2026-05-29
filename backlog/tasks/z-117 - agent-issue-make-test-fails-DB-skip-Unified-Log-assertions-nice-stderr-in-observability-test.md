@@ -3,9 +3,10 @@ id: Z-117
 title: >-
   [agent-issue] make test fails: DB skip, Unified Log assertions, nice stderr in
   observability test
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-29 14:20'
+updated_date: '2026-05-29 16:36'
 labels:
   - agent-reported
   - bug
