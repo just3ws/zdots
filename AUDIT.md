@@ -18,7 +18,8 @@ This document records the empirical state of the repository as compared to its c
 ## 3. Earned Rigor (PASSED)
 *   **Belief:** "No task is Done without evidence. No milestone closes without verification." (`SAGA.md`)
 *   **Empirical Reality:** **962 Test Cases** across **14 BATS suites**.
-*   **Status:** Exceptional discipline. Every core contract—from PHI scrubbing to OTel propagation—is guarded by automated verification.
+*   **New Capability:** Unified coverage reporting via `make coverage` (**SimpleCov** for Ruby, **kcov** for Shell).
+*   **Status:** Exceptional discipline. We now observe not just the existence of tests, but the depth of their reach into the core logic.
 
 ## 4. The Value of the Hollows (PASSED)
 *   **Belief:** "The scrubber does not hide the truth; it removes the noise." (`KOANS.md`)

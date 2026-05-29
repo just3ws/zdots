@@ -81,6 +81,7 @@ brew "jless"
 brew "jq"
 brew "julia"
 brew "k6"
+brew "kcov"
 brew "kimi-cli"
 brew "lazygit"
 brew "litecli"      # SQLite REPL with autocomplete — explore command_runs analytics DB
