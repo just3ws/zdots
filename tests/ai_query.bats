@@ -63,6 +63,9 @@ MOCK
 exit 1
 FAIL
   chmod +x "$BATS_TEST_TMPDIR/fail-bin/curl"
+
+  # Redirect stdin to /dev/null by default to prevent dd/stdin reading from blocking on open bats pipes
+  exec < /dev/null
 }
 
 _ai_up() {
