@@ -16,9 +16,9 @@ profiles:
   qwen3-8b:
     model_file: "Qwen_Qwen3-8B-Q4_K_M.gguf"
     hf_repo: "bartowski/Qwen_Qwen3-8B-GGUF"
-    # draft_model_file disabled — speculative decoding + parallel=2 caused 278 GPU OOM crashes.
-    # Re-enable once confirmed stable: draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
-    size_gb: 5.0
+    draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
+    draft_hf_repo: "bartowski/Qwen_Qwen3-0.6B-GGUF"
+    size_gb: 5.4
     ctx_size: 32768
     n_gpu_layers: 99
     description: "Qwen3-8B. Thinking off by default (--reasoning off); use /think in prompt to enable. n_embd=4096."
