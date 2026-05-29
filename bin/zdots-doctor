@@ -131,15 +131,16 @@ else
   _warn "repo  ${ZDOTDIR} is not a git repository"
 fi
 
-# Last update-local result
+# Last update-local result — handle both old (- result:) and new (**result:**) formats
 _latest_summary=$(ls -t "$STATE"/zdots-update-local-*.summary.md 2>/dev/null | head -1 || true)
 if [[ -n "$_latest_summary" ]]; then
-  _ul_result=$(grep -E '^\*\*result:' "$_latest_summary" | head -1 | sed 's/\*\*//g; s/result: //' || echo "unknown")
+  _ul_result=$(grep -E '^\*\*result:|^- result:' "$_latest_summary" \
+    | head -1 | sed 's/^\*\*//; s/\*\*$//; s/^- //; s/result: //' || echo "unknown")
   _ul_ts=$(basename "$_latest_summary" | grep -oE '[0-9]{8}T[0-9]{6}' || echo "unknown")
   if [[ "$_ul_result" == *"complete"* ]]; then
     _pass "last update-local  complete  (${_ul_ts})"
   else
-    _warn "last update-local  ${_ul_result}  (${_ul_ts})"
+    _warn "last update-local  ${_ul_result:-unknown}  (${_ul_ts})"
     _fix  "zdots-update-local"
   fi
 else
@@ -245,6 +246,39 @@ if command -v gemini >/dev/null 2>&1; then
   _pass "gemini CLI  $(command -v gemini)"
 else
   _skip "gemini CLI  not installed (optional)"
+fi
+
+# ---------------------------------------------------------------------------
+# Work-machine requirements (ZDOTS_CONTEXT=work only)
+# ---------------------------------------------------------------------------
+if [[ "${ZDOTS_CONTEXT:-home}" == "work" ]]; then
+  _section "Work machine"
+
+  if [[ -n "${ZDOTS_DB_ENCRYPTION_KEY:-}" ]]; then
+    _pass "ZDOTS_DB_ENCRYPTION_KEY  set (${#ZDOTS_DB_ENCRYPTION_KEY} chars)"
+  else
+    _fail "ZDOTS_DB_ENCRYPTION_KEY  not set — required for PHI work"
+    _fix  "zdots-keychain add ZDOTS_DB_ENCRYPTION_KEY <value>"
+  fi
+
+  if [[ "${ZDOTS_HISTORY_REDACT:-1}" == "1" ]]; then
+    _pass "history redaction  enabled"
+  else
+    _fail "history redaction  DISABLED on work machine (ZDOTS_HISTORY_REDACT=0)"
+  fi
+
+  if [[ "${ZDOTS_AI_MODE:-local}" == "local" || "${ZDOTS_AI_MODE:-local}" == "none" ]]; then
+    _pass "AI mode  ${ZDOTS_AI_MODE:-local} (no cloud endpoints)"
+  else
+    _warn "AI mode  ${ZDOTS_AI_MODE} — cloud endpoints active on work machine"
+  fi
+
+  if fdesetup status 2>/dev/null | grep -q "FileVault is On"; then
+    _pass "FileVault  enabled"
+  else
+    _fail "FileVault  NOT enabled — required for PHI work"
+    _fix  "sudo fdesetup enable"
+  fi
 fi
 
 # ---------------------------------------------------------------------------
