@@ -58,7 +58,7 @@ module Zdots
         mcp: true
       }
     ].freeze
-    
+
     class << self
       def services
         SERVICES
@@ -67,7 +67,7 @@ module Zdots
       def tools
         TOOLS
       end
-      
+
       def mcp_tools
         TOOLS.select { |t| t[:mcp] }
       end

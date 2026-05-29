@@ -37,7 +37,7 @@ Sequel.migration do
       RETURNS void AS $$
       BEGIN
         UPDATE jobs
-        SET status = CASE 
+        SET status = CASE#{' '}
                         WHEN attempts >= 5 THEN 'dead'::job_status
                         ELSE 'pending'::job_status
                       END,
