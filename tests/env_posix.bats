@@ -30,7 +30,14 @@ setup() {
   echo "Output: $output"
   [ "$status" -eq 0 ]
   local val=$(echo "$output" | tail -n 1)
-  [ "$val" == "" ]
+  
+  if [ "$(uname -s)" = "Darwin" ]; then
+    # On Darwin, ci-act now allows homebrew to satisfy yq/bats dependencies
+    [ -n "$val" ]
+    [[ "$val" == "/opt/homebrew" || "$val" == "/usr/local" ]]
+  else
+    [ "$val" == "" ]
+  fi
 }
 
 @test "env.sh: Sources under nounset when CI variables are absent" {
