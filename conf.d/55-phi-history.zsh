@@ -38,7 +38,7 @@ _phi_history_maybe_record_overhead() {
 zshaddhistory() {
   local line="${1%%$'\n'}"
   local t0=$EPOCHREALTIME
-  local threshold_ms=1 elapsed ts_ms
+  local threshold_ms=1 print_threshold_ms=20 elapsed ts_ms
 
   # Suppress-flagged patterns (connection strings): drop entry entirely.
   if phi_should_suppress "$line"; then
@@ -73,7 +73,7 @@ zshaddhistory() {
 
   # Performance guard — warn if hook exceeded 1ms on a clean command
   _phi_history_maybe_record_overhead "clean" "$elapsed" "$threshold_ms" "$ts_ms"
-  (( elapsed > threshold_ms )) && print -u2 "zdots: phi-history: ${elapsed}ms overhead (threshold ${threshold_ms}ms)" || true
+  (( elapsed > print_threshold_ms )) && print -u2 "zdots: phi-history: ${elapsed}ms overhead (threshold ${print_threshold_ms}ms)" || true
 
   return 0
 }
