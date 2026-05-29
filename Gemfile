@@ -14,4 +14,6 @@ gem "opentelemetry-instrumentation-all"
 group :test do
   gem "rspec"
   gem "simplecov", require: false
+  gem "rubocop", require: false
+  gem "bundler-audit", require: false
 end

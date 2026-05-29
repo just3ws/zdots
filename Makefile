@@ -22,7 +22,7 @@ check-fast:
 
 # Bats test suite only — fast, no service checks, no startup timing
 test:
-        bats $(ZDOTDIR)/tests/
+	bats $(ZDOTDIR)/tests/
 
 # Unified coverage report (Ruby via SimpleCov, Shell via kcov)
 coverage:
@@ -37,6 +37,18 @@ coverage:
 		echo "Warning: kcov not found, skipping shell coverage."; \
 	fi
 	@echo "Ruby coverage: coverage/index.html"
+
+# Quality Control: Linting & Security
+lint:
+	@echo "==> Auditing Ruby dependencies..."
+	@BUNDLE_GEMFILE=$(ZDOTDIR)/Gemfile bundle exec bundle-audit check --update
+	@echo "==> Linting Ruby (RuboCop)..."
+	@BUNDLE_GEMFILE=$(ZDOTDIR)/Gemfile bundle exec rubocop
+	@echo "==> Linting GHA Workflows (actionlint)..."
+	@actionlint
+	@echo "==> Linting Shell (shellcheck)..."
+	@$(ZDOTDIR)/bin/check
+	@echo "==> Quality Check: OK"
 
 # Platform health: services, AI integration, disk (zdots-ctl check)
 health:	$(ZDOTDIR)/bin/zdots-ctl check

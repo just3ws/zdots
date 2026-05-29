@@ -24,6 +24,19 @@ repos:
 
   - repo: local
     hooks:
+      - id: actionlint
+        name: Actionlint
+        entry: actionlint
+        language: system
+        files: ^\.github/workflows/
+
+      - id: rubocop
+        name: RuboCop
+        entry: bundle exec rubocop
+        language: system
+        types: [ruby]
+        pass_filenames: false
+
       - id: shellcheck
         name: ShellCheck
         entry: shellcheck
