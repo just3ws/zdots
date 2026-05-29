@@ -169,6 +169,19 @@ else
   _pass "$HOME/.colima  absent"
 fi
 
+# Colima stale VZ pid — symptom: "vz driver is running but host agent is not"
+_colima_lima="${XDG_CONFIG_HOME:-$HOME/.config}/colima/_lima/colima"
+_vz_pid_file="$_colima_lima/vz.pid"
+if [[ -f "$_vz_pid_file" ]]; then
+  _vz_pid=$(cat "$_vz_pid_file" 2>/dev/null || true)
+  if [[ -n "$_vz_pid" ]] && ! ps -p "$_vz_pid" -o comm= 2>/dev/null | grep -qiE "vz|lima|colima"; then
+    _fail "colima stale vz.pid  PID ${_vz_pid} is not a VZ process ($(ps -p "$_vz_pid" -o comm= 2>/dev/null || echo 'gone'))"
+    _fix  "rm $HOME/.config/colima/_lima/colima/vz.pid $HOME/.config/colima/default/daemon/daemon.pid"
+    _fix  "colima start"
+  fi
+fi
+unset _colima_lima _vz_pid_file _vz_pid
+
 # Aider XDG drift (~/.aider/ should live in ~/.config/aider or not at all)
 if [[ -d "$HOME/.aider" ]]; then
   _warn "$HOME/.aider  present — aider config should live in \$XDG_CONFIG_HOME/aider"
