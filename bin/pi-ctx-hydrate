@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# bin/pi-ctx-hydrate — PHI-safe context hydration for Pi sessions.
+#
+# Fetches methodology context from the knowledge base and caps output
+# to fit Pi's context budget. Use this to prime Pi with relevant zdots
+# patterns before asking it to plan or explain.
+#
+# Usage:
+#   pi-ctx-hydrate [TAG]
+#
+# Options:
+#   --help, -h   Show this help
+#
+# Examples:
+#   pi-ctx-hydrate           # all available context
+#   pi-ctx-hydrate phi       # phi-safety methodologies only
+#   pi-ctx-hydrate testing   # TDD / testing patterns
+
+set -euo pipefail
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+TAG=""
+
+case "${1:-}" in
+  -h|--help)
+    cat <<'EOF'
+Usage: pi-ctx-hydrate [TAG]
+
+Fetch methodology context from the knowledge base for Pi sessions.
+Output is capped at 150 lines to fit Pi's context budget.
+
+Examples:
+  pi-ctx-hydrate              # all available context
+  pi-ctx-hydrate phi          # phi-safety methodologies only
+  pi-ctx-hydrate testing      # TDD / testing patterns
+EOF
+    exit 0
+    ;;
+  -*) printf 'pi-ctx-hydrate: unknown option: %s\n' "$1" >&2; exit 2 ;;
+  *)  TAG="${1:-}" ;;
+esac
+
+# PHI scrub the tag if one was supplied
+if [[ -n "$TAG" ]]; then
+  source "${ZDOTDIR}/lib/phi_scrubber.bash"
+  if phi_should_suppress "$TAG"; then
+    printf 'pi-ctx-hydrate: tag matches a suppress pattern — refusing\n' >&2
+    exit 1
+  fi
+  TAG=$(printf '%s' "$TAG" | phi_scrub) || {
+    printf 'pi-ctx-hydrate: PHI scrubber unavailable — aborting\n' >&2
+    exit 1
+  }
+fi
+
+# Run hydrate and cap output to protect Pi's context budget
+"${ZDOTDIR}/bin/zdots-ctx" hydrate ${TAG:+"$TAG"} 2>&1 | head -150
