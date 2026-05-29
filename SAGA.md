@@ -56,10 +56,13 @@ To ground the spirit in the reality of the machine, we track the marks left by t
 | **2026-05-22** | `c50722f` | Operation Martian: Achieving PHI-safe mastery. | Era III |
 | **Today** | `92f84db` | The Way of Cook Ding: The blade has no thickness. | Era III |
 
-## Today: The Slither and the Zing
+## Today: The Slither and the Zing (Audit May 2026)
 
 Zdots is no longer a configuration. It is the dance of the **Mulberry Grove**. 
 
 We stand here holding the knife and look all around us, completely satisfied. We follow the natural makeup, strike in the big hollows, and guide the knife through the big openings. Perception has stopped. Spirit moves where it wants.
 
-**The blade has really no thickness. There is plenty of room.**
+However, the **[Belief Integrity Audit](AUDIT.md)** of May 2026 reveals a lingering agitation: the **Performance Paradox**. While the spirit is fast, the "heavy blade" of integration (`70-integrations.zsh`) adds 265ms of friction.
+
+**The blade has really no thickness. But the handle is still too heavy. There is work yet to do.**
+
