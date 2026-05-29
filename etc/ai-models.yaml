@@ -1,15 +1,20 @@
 # etc/ai-models.yaml — llama.cpp model registry
 #
-# Hardware target: Apple Silicon M4, 16GB unified memory, 256GB primary storage.
+# Hardware targets:
+#   home — Apple M4, 16GB unified memory, 256GB storage  → qwen3-8b (default)
+#   work — Apple M5 Pro, 24GB unified memory, 1TB storage → qwen3-14b (default)
+#
 # Storage discipline: keep ONE active model per profile. Delete unused GGUFs.
 # Override model storage path via ZDOTS_AI_MODELS_DIR in .zdots.env.
+# Override active profile via ZDOTS_AI_PROFILE env var.
 #
 # Field definitions:
 #   model_file   — GGUF filename on disk (under ZDOTS_AI_MODELS_DIR)
 #   hf_repo      — HuggingFace repo slug (bartowski quantizations preferred)
-#   size_gb      — approximate disk footprint
+#   size_gb      — approximate disk footprint (model only; add ~2.5GB for KV cache)
 #   ctx_size     — recommended --ctx-size for llama-server
-#   n_gpu_layers — Metal GPU layers (99 = all; M4 can offload full 7B)
+#   n_gpu_layers — Metal GPU layers (99 = all layers to GPU)
+#   parallel     — decode slots; overrides server default when set in profile
 #   description  — usage guidance
 
 profiles:
@@ -25,6 +30,18 @@ profiles:
     ctx_size: 32768
     n_gpu_layers: 99
     description: "Qwen3-8B. Thinking off by default (--reasoning off); use /think in prompt to enable. n_embd=4096."
+
+  qwen3-14b:
+    model_file: "Qwen_Qwen3-14B-Q4_K_M.gguf"
+    hf_repo: "bartowski/Qwen_Qwen3-14B-GGUF"
+    # Spec decoding: enabled on work context (ZDOTS_CONTEXT=work).
+    draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
+    draft_hf_repo: "bartowski/Qwen_Qwen3-0.6B-GGUF"
+    size_gb: 8.5
+    ctx_size: 32768
+    n_gpu_layers: 99
+    parallel: 2   # overrides server default (1); M5 Pro 24GB fits 14B + 2x KV cache + draft at ~15.9GB
+    description: "Qwen3-14B. Work default (M5 Pro 24GB). Better quality than 8B. Thinking off by default; use /think to enable."
 
   standard:
     model_file: "qwen2.5-coder-7b-instruct-q4_k_m.gguf"
@@ -81,6 +98,7 @@ whisper_profiles:
     description: "Fast, English-only transcription for background tasks."
 
 default_profile: "qwen3-8b"
+default_profile_work: "qwen3-14b"
 default_whisper_profile: "standard"
 
 # Settings for the dedicated embedding server (com.zdots.llama-embed, port 11501).

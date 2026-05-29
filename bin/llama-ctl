@@ -50,6 +50,17 @@ source "${ZDOTDIR}/lib/svc-launchd.bash"
 # shellcheck source=lib/model-store.bash
 source "${ZDOTDIR}/lib/model-store.bash"
 
+# Resolve context-specific profile default before the metadata fetch so
+# the correct profile is baked into _META_JSON from the start.
+# ZDOTS_AI_PROFILE (explicit) always wins; this only fills the gap when unset.
+if [[ -z "${ZDOTS_AI_PROFILE:-}" && "${ZDOTS_CONTEXT:-home}" != "home" ]]; then
+  _ctx_default=$(yq ".default_profile_${ZDOTS_CONTEXT}" "$CONFIG_FILE" 2>/dev/null || true)
+  if [[ -n "$_ctx_default" && "$_ctx_default" != "null" ]]; then
+    export ZDOTS_AI_PROFILE="$_ctx_default"
+  fi
+  unset _ctx_default
+fi
+
 # Resolve all AI configuration via the unified metadata service.
 # Single JSON fetch — no eval, no code injection risk.
 _META_JSON=""

@@ -282,8 +282,10 @@ if [[ "$SKIP_LLAMA" -eq 0 ]]; then
   if [[ -x "$ZDOTDIR/bin/llama-ctl" ]]; then
     step "ensure draft model present"
     _models_dir="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
-    _draft_file="Qwen_Qwen3-0.6B-Q4_K_M.gguf"
-    if [[ -f "$_models_dir/$_draft_file" ]]; then
+    _draft_file=$(yq ".profiles.$(yq '.default_profile_'"${ZDOTS_CONTEXT:-home}"' // .default_profile' "$ZDOTDIR/etc/ai-models.yaml" 2>/dev/null).draft_model_file" "$ZDOTDIR/etc/ai-models.yaml" 2>/dev/null || true)
+    if [[ -z "$_draft_file" || "$_draft_file" == "null" ]]; then
+      log "no draft model configured for active profile — skipping"
+    elif [[ -f "$_models_dir/$_draft_file" ]]; then
       log "draft model already present: $_draft_file"
     else
       log "draft model missing — downloading: $_draft_file"
