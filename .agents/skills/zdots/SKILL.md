@@ -45,10 +45,15 @@ Pi's output → Aider's input. Context budget (Pi, 7B): ~32k tokens per session.
 The local DB (`my` PostgreSQL) holds methodologies and lessons.
 Access is via `zdots-brain` (Ruby Sequel) — never raw psql for writes.
 
+**From Pi's bash tool, always use the `pi-ctx-*` wrappers** — they PHI-scrub inputs
+and cap output to fit Pi's context budget. Never call `zdots-ctx` raw from Pi.
+
 ```bash
-zdots-ctx hydrate              # all methodologies, no tag filter
-zdots-ctx hydrate shell        # filter by tag "shell"
-zdots-ctx query "Kevin's Law"  # full-text search
+pi-ctx-status                          # KB counts + AI stack health
+pi-ctx-hydrate                         # all methodologies, no tag filter
+pi-ctx-hydrate shell                   # filter by tag "shell"
+pi-ctx-query "Kevin's Law"             # full-text search
+pi-ctx-query "database migration" --semantic   # vector search
 ```
 
 Content is PGP-encrypted at rest. `zdots-brain` handles decrypt transparently.
