@@ -1,0 +1,107 @@
+{
+  "schema": "zdots.interface-inventory.v1",
+  "generated_by": "manual audit, 2026-05-29",
+  "commands": [
+    {
+      "name": "capabilities",
+      "path": "bin/capabilities",
+      "section": 1,
+      "purpose": "Environment health and service contract validator.",
+      "commands": [],
+      "flags": ["--json", "--help", "-h"],
+      "env": ["ZDOTDIR", "ZDOTS_AI_ENDPOINT", "ZDOTS_AI_MODEL", "ZDOTS_ENV_PROFILE", "ZDOTS_OTEL_RESOURCE_JSON", "ZDOTS_SERVICE_AI", "ZDOTS_SESSION_ID", "ZDOTS_TRACE_ID", "XDG_CONFIG_HOME", "XDG_STATE_HOME"],
+      "live_probes": ["provider files", "trace file", "AI /health", "zdots-ctx status --json"],
+      "mutates": false
+    },
+    {
+      "name": "zdots-ctx",
+      "path": "bin/zdots-ctx",
+      "section": 1,
+      "purpose": "PostgreSQL-backed knowledge layer interface.",
+      "commands": ["status", "init-db", "migrate", "query", "capture", "hydrate", "diagnose-log", "seed", "add-methodology", "add-lesson", "ingest", "sync-history", "enqueue", "requeue", "jobs", "worker", "triage", "clear-stale-jobs", "metrics-loop", "backup", "restore"],
+      "flags": ["--json", "--semantic", "--dry-run", "--all", "--force", "--type", "--help", "-h"],
+      "env": ["ZDOTDIR", "ZDOTS_AI_ENDPOINT", "ZDOTS_AI_MODE", "ZDOTS_CAPTURE_ENABLED", "ZDOTS_CMD_ANALYTICS", "ZDOTS_DATABASE_URL", "ZDOTS_DATABASE_URL_OVERRIDE", "ZDOTS_MIGRATION_URL", "ZDOTS_MY_ROOT", "ZDOTS_REDIS_HOST", "ZDOTS_REDIS_PORT", "ZDOTS_SESSION_ID", "XDG_STATE_HOME"],
+      "live_probes": ["PostgreSQL", "Redis", "AI endpoint for semantic retrieval"],
+      "mutates": true,
+      "destructive": ["restore may overwrite the current database", "triage can delete dead jobs"]
+    },
+    {
+      "name": "zmorning",
+      "path": "bin/zmorning",
+      "section": 1,
+      "purpose": "Session-open orientation brief and launcher.",
+      "commands": [],
+      "flags": ["--brief", "--pi", "--help", "-h"],
+      "env": ["ZDOTDIR", "ZDOTS_AI_ENDPOINT", "ZDOTS_AI_MODE", "ZDOTS_CONTEXT"],
+      "live_probes": ["AI /health", "zdots-ctx status", "git status", "backlog task list"],
+      "mutates": false
+    },
+    {
+      "name": "agent-guide",
+      "path": "bin/agent-guide",
+      "section": 1,
+      "purpose": "Live service status and usage guidance for AI agents.",
+      "commands": [],
+      "flags": ["--json", "--help", "-h"],
+      "env": ["ZDOTDIR", "ZDOTS_AI_ENDPOINT", "ZDOTS_AI_MODE", "ZDOTS_LOG_DIR", "XDG_STATE_HOME"],
+      "live_probes": ["AI /health", "OTel launchd", "Grafana /api/health", "Colima status", "tool availability"],
+      "mutates": false
+    },
+    {
+      "name": "zdots-ctl",
+      "path": "bin/zdots-ctl",
+      "section": 8,
+      "purpose": "Platform orchestrator and health checker.",
+      "commands": ["up", "down", "reset", "install", "check", "status"],
+      "flags": ["--json", "--help", "-h"],
+      "env": ["ZDOTDIR", "ZDOTS_AI_EMBED_ENDPOINT", "ZDOTS_AI_ENDPOINT", "ZDOTS_AI_MODE", "ZDOTS_AI_MODELS_DIR", "ZDOTS_AI_PROFILE", "ZDOTS_BOOT_TIMEOUT", "ZDOTS_CAPTURE_ENABLED", "ZDOTS_CONTEXT", "ZDOTS_DB_ENCRYPTION_KEY", "ZDOTS_HISTORY_REDACT", "ZDOTS_REDIS_HOST", "ZDOTS_REDIS_PORT", "ZDOTS_SKIP_FIREWALL_CHECK"],
+      "live_probes": ["Colima", "Grafana", "OTel", "AI", "embed server", "PostgreSQL", "Redis", "nginx", "mkcert", "FileVault", "SIP"],
+      "mutates": true,
+      "destructive": ["down stops services", "reset restarts services", "install writes launchd plists"]
+    },
+    {
+      "name": "ai-query",
+      "path": "bin/ai-query",
+      "section": 1,
+      "purpose": "Guarded one-shot local inference.",
+      "commands": [],
+      "flags": ["--mode", "--model", "--endpoint", "--max-bytes", "--timeout", "--think", "--show-risk", "--block-high", "--no-wrap", "--system", "--json", "--audit", "--debug", "--help", "-h"],
+      "env": ["ZDOTS_AI_ENDPOINT", "ZDOTS_AI_MODEL", "AIQ_DEFAULT_MODE", "AIQ_MAX_BYTES", "AIQ_WARN_BYTES", "AIQ_AUDIT_LOG"],
+      "live_probes": ["AI endpoint"],
+      "mutates": false
+    },
+    {
+      "name": "zdots-ask",
+      "path": "bin/zdots-ask",
+      "section": 1,
+      "purpose": "Domain-aware local AI prompt router.",
+      "commands": [],
+      "flags": ["--domain", "--pattern", "--context", "--think", "--dry-run", "--list-domains", "--list-patterns", "--help", "-h"],
+      "env": ["ZDOTDIR", "ZDOTS_AI_MODE", "ZDOTS_DOMAINS_FILE"],
+      "live_probes": ["prompt files", "optional zdots-ctx hydrate", "AI endpoint"],
+      "mutates": false
+    },
+    {
+      "name": "ztask",
+      "path": "bin/ztask",
+      "section": 1,
+      "purpose": "Task-driven environment bridge.",
+      "commands": ["start", "done", "status", "stop"],
+      "flags": ["--help", "-h"],
+      "env": ["ZDOTDIR"],
+      "live_probes": ["backlog"],
+      "mutates": true
+    },
+    {
+      "name": "zdots-log-analyze",
+      "path": "bin/zdots-log-analyze",
+      "section": 1,
+      "purpose": "Package bootstrap/update/upgrade logs for AI or human diagnostics.",
+      "commands": ["bootstrap", "update", "upgrade"],
+      "flags": ["--summary", "--log", "--tail", "--ai-timeout", "--full", "--ai", "--no-snapshot", "--prompt-only", "--list", "--help", "-h"],
+      "env": ["ZDOTDIR", "ZDOTS_AI_ENDPOINT", "ZDOTS_AI_EMBED_ENDPOINT", "ZDOTS_AI_MODE", "ZDOTS_CONTEXT", "ZDOTS_ENV_PROFILE", "ZDOTS_LOG_ANALYZE_AI_TIMEOUT", "ZDOTS_LOG_DIR"],
+      "live_probes": ["log files", "optional AI endpoint"],
+      "mutates": false
+    }
+  ]
+}

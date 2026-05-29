@@ -43,6 +43,7 @@ _pg_up() {
 @test "database: 'zdots' database does not exist" {
   # The old zdots database was dropped; it must stay gone.
   run psql -q -U zdots_ro -l
+  if [ "$status" -ne 0 ]; then skip "PostgreSQL not available"; fi
   [ "$status" -eq 0 ]
   [[ "$output" != *" zdots "* ]]
 }

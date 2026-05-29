@@ -10,8 +10,8 @@ RSpec.describe Zdots::AI::Pipeline do
 
   around do |example|
     saved = {
-      "ZDOTS_AI_MODE" => ENV["ZDOTS_AI_MODE"],
-      "ZDOTS_AI_ENDPOINT" => ENV["ZDOTS_AI_ENDPOINT"]
+      "ZDOTS_AI_MODE" => ENV.fetch("ZDOTS_AI_MODE", nil),
+      "ZDOTS_AI_ENDPOINT" => ENV.fetch("ZDOTS_AI_ENDPOINT", nil)
     }
     Zdots::AI.reset!
     example.run

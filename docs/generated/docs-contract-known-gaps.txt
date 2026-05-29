@@ -1,0 +1,7 @@
+# Known documentation contract gaps.
+#
+# Format:
+#   command: reason
+#
+# A gap here must correspond to a backlog issue. This file prevents silent drift
+# while allowing the docs contract to pass during staged rollout.

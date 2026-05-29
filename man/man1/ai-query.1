@@ -1,0 +1,85 @@
+.Dd May 29, 2026
+.Dt AI-QUERY 1
+.Os zdots
+.Sh NAME
+.Nm ai-query
+.Nd guarded one-shot local inference
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Ar prompt
+.Nm
+.Op Ar options
+.Ar task
+.Aq Pa input
+.Sh DESCRIPTION
+.Nm
+sends prompts or piped data to the configured local AI endpoint. Safe modes
+wrap stdin as untrusted data and apply prompt-injection risk checks.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -mode Ar mode
+Select safe-extract, raw, summarize-untrusted, classify-risk, or inspect-prompt-injection.
+.It Fl -model Ar name
+Model alias.
+.It Fl -endpoint Ar url
+Server base URL.
+.It Fl -max-bytes Ar n
+Hard input ceiling.
+.It Fl -timeout Ar n
+Transport timeout.
+.It Fl -think
+Enable Qwen3 thinking mode.
+.It Fl -show-risk
+Print scan findings.
+.It Fl -block-high
+Exit 4 on high-risk input.
+.It Fl -no-wrap
+Alias for raw mode.
+.It Fl -system Ar text
+Override system prompt in raw mode.
+.It Fl -json
+Emit response metadata as JSON.
+.It Fl -audit
+Enable metadata-only audit log.
+.It Fl -debug
+Verbose diagnostics.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width AIQ_DEFAULT_MODE
+.It Ev ZDOTS_AI_ENDPOINT
+Server base URL.
+.It Ev ZDOTS_AI_MODEL
+Model alias.
+.It Ev AIQ_DEFAULT_MODE
+Default mode.
+.It Ev AIQ_MAX_BYTES , Ev AIQ_WARN_BYTES
+Input size limits.
+.It Ev AIQ_AUDIT_LOG
+Enable metadata-only audit logging.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width 7
+.It 0
+Success.
+.It 1
+General failure.
+.It 2
+Usage error.
+.It 3
+Input too large.
+.It 4
+Blocked high-risk input.
+.It 5
+Transport failure.
+.It 6
+Malformed server response.
+.It 7
+Missing dependency.
+.El
+.Sh SEE ALSO
+.Xr zdots-ask 1 ,
+.Xr zdots-ai-stack 7 ,
+.Xr zdots-phi-safety 7

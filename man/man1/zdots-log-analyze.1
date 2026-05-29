@@ -1,0 +1,54 @@
+.Dd May 29, 2026
+.Dt ZDOTS-LOG-ANALYZE 1
+.Os zdots
+.Sh NAME
+.Nm zdots-log-analyze
+.Nd package zdots deploy logs for diagnostics
+.Sh SYNOPSIS
+.Nm
+.Ar bootstrap|update|upgrade
+.Op Ar options
+.Sh DESCRIPTION
+.Nm
+builds diagnostic packs from bootstrap, update, or upgrade logs. It includes
+transcript excerpts and optional non-OTel system snapshots, so it works when
+the observability stack is down.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -summary Ar file
+Use a specific summary.
+.It Fl -log Ar file
+Use a specific transcript.
+.It Fl -tail Ar n
+Include last N lines.
+.It Fl -ai-timeout Ar n
+AI timeout.
+.It Fl -full
+Include full transcript.
+.It Fl -ai
+Send pack to local AI.
+.It Fl -no-snapshot
+Skip local snapshot.
+.It Fl -prompt-only
+Print analysis prompt only.
+.It Fl -list
+List recent logs.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_LOG_ANALYZE_AI_TIMEOUT
+.It Ev ZDOTDIR
+Repository root.
+.It Ev ZDOTS_LOG_DIR
+Log directory.
+.It Ev ZDOTS_LOG_ANALYZE_AI_TIMEOUT
+Default AI timeout.
+.It Ev ZDOTS_AI_MODE , Ev ZDOTS_AI_ENDPOINT , Ev ZDOTS_AI_EMBED_ENDPOINT
+AI mode and endpoints.
+.It Ev ZDOTS_CONTEXT , Ev ZDOTS_ENV_PROFILE
+Context labels included in snapshots.
+.El
+.Sh SEE ALSO
+.Xr zdots-ctx 1 ,
+.Xr zdots-ctl 8

@@ -1,0 +1,41 @@
+.Dd May 29, 2026
+.Dt ZMORNING 1
+.Os zdots
+.Sh NAME
+.Nm zmorning
+.Nd print a daily zdots context brief and launch the task picker
+.Sh SYNOPSIS
+.Nm
+.Op Fl -brief | Fl -pi
+.Sh DESCRIPTION
+.Nm
+prints date, machine context, AI status, database status, git state, and
+in-flight backlog count. By default it then launches
+.Xr zdash 1
+when available.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -brief
+Print the brief only.
+.It Fl -pi
+Skip the brief and open Pi for conversational orientation.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_AI_ENDPOINT
+.It Ev ZDOTDIR
+Repository root.
+.It Ev ZDOTS_CONTEXT
+Machine context label.
+.It Ev ZDOTS_AI_MODE
+AI operating mode.
+.It Ev ZDOTS_AI_ENDPOINT
+AI server base URL.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr agent-guide 1 ,
+.Xr zdots-status 1 ,
+.Xr ztask 1

@@ -1,0 +1,23 @@
+.Dd May 29, 2026
+.Dt PHI-PATTERNS.YAML 5
+.Os zdots
+.Sh NAME
+.Nm phi-patterns.yaml
+.Nd PHI and credential pattern registry for zdots scrubbing
+.Sh DESCRIPTION
+.Pa etc/phi-patterns.yaml
+is the only supported place to define PHI or credential redaction patterns.
+The registry is compiled at shell startup and used across AI, history, and
+analytics boundaries.
+.Sh RULES
+.Bl -bullet
+.It
+Do not define PHI patterns in scripts.
+.It
+Keep false-positive risk explicit.
+.It
+Run YAML validation after edits.
+.El
+.Sh SEE ALSO
+.Xr zdots-phi-safety 7 ,
+.Xr ai-query 1

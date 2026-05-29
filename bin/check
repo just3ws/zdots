@@ -116,7 +116,7 @@ assert_history_mode() {
   flags="$(ZDOTS_CHECK_ZLE=1 ZDOTS_SHARE_HISTORY="$share_flag" zsh -i -c '
     [[ -o share_history ]] && echo "share:on" || echo "share:off"
     [[ -o inc_append_history_time ]] && echo "inc_append_history_time:on" || echo "inc_append_history_time:off"
-  ' | _strip_escapes)"
+  ' 2>/dev/null | _strip_escapes)"
 
   if [[ "$share_flag" == "1" ]]; then
     if ! grep -qx 'share:on' <<<"$flags"; then
@@ -153,7 +153,7 @@ assert_ctrl_r_policy() {
     bindkey "^R"
     bindkey -M emacs "^R"
     bindkey -M viins "^R"
-  ' | _strip_escapes)"
+  ' 2>/dev/null | _strip_escapes)"
   if [[ "$(grep -c 'history-incremental-search-backward' <<<"$fallback_bindings")" -ne 3 ]]; then
     echo "check: expected ^R fallback bindings in ${mode} mode" >&2
     echo "$fallback_bindings" >&2
@@ -167,7 +167,7 @@ assert_ctrl_r_policy() {
     echo "R-emacs: $(bindkey -M emacs "^R")"
     echo "R-viins: $(bindkey -M viins "^R")"
     echo "XR: $(bindkey "^X^R")"
-  ' | _strip_escapes)"
+  ' 2>/dev/null | _strip_escapes)"
   if [[ "$(grep -c 'fzf-history-widget' <<<"$fzf_bindings")" -lt 3 ]]; then
     echo "check: expected ^R fzf bindings in ${mode} mode" >&2
     echo "$fzf_bindings" >&2
@@ -200,7 +200,7 @@ assert_fzf_tab_policy() {
 
   widgets_out="$(ZDOTS_CHECK_ZLE=1 zsh "${shell_args[@]}" -c '
     zle -l
-  ' | _strip_escapes)"
+  ' 2>/dev/null | _strip_escapes)"
 
   if ! grep -q 'fzf-tab-complete' <<<"$widgets_out"; then
     echo "check: expected fzf-tab-complete widget in ${mode} mode" >&2
@@ -213,7 +213,7 @@ assert_fzf_tab_policy() {
 
   tab_binding="$(zsh "${shell_args[@]}" -c '
     bindkey "^I"
-  ' | _strip_escapes)"
+  ' 2>/dev/null | _strip_escapes)"
   if ! grep -q 'expand-or-complete' <<<"$tab_binding"; then
     echo "check: expected ^I to be bound to expand-or-complete in ${mode} mode" >&2
     echo "$tab_binding" >&2
@@ -465,7 +465,7 @@ report_startup_timing() {
   fi
 }
 
-if ! zsh -i -c 'command -v mise >/dev/null 2>&1 && mise --version >/dev/null 2>&1'; then
+if ! zsh -i -c 'command -v mise >/dev/null 2>&1 && mise --version >/dev/null 2>&1' >/dev/null 2>&1; then
   if [[ "$SKIP_EXTERNAL" == "1" ]]; then
     echo "check: skipping mise dependency check (ZDOTS_CHECK_SKIP_EXTERNAL=1)"
   else

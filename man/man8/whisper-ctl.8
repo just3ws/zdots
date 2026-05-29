@@ -1,0 +1,37 @@
+.Dd May 29, 2026
+.Dt WHISPER-CTL 8
+.Os zdots
+.Sh NAME
+.Nm whisper-ctl
+.Nd manage local whisper.cpp transcription support
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Sh COMMANDS
+.Bl -tag -width model-download
+.It Cm install
+Install whisper.cpp.
+.It Cm model-download
+Download active model.
+.It Cm model-list
+List models.
+.It Cm transcribe Ar audio_file
+Transcribe audio.
+.It Cm config
+Print resolved configuration.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_WHISPER_URL_PREFIX
+.It Ev ZDOTS_WHISPER_PROFILE
+Active profile.
+.It Ev ZDOTS_WHISPER_MODELS_DIR
+Model storage directory.
+.It Ev ZDOTS_WHISPER_MODEL_FILE
+Model filename.
+.It Ev ZDOTS_WHISPER_HF_REPO
+HuggingFace repository.
+.It Ev ZDOTS_WHISPER_URL_PREFIX
+Download URL prefix.
+.El
+.Sh SEE ALSO
+.Xr zdots-ai-stack 7

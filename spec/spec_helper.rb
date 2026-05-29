@@ -6,7 +6,6 @@ SimpleCov.start do
   enable_coverage :branch
 end
 
-...
 ZDOTS_ROOT = Pathname.new(__dir__).parent.freeze
 
 # Load the zdots lib without requiring a running database or AI endpoint.

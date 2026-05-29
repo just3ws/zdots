@@ -38,8 +38,8 @@ source "${_ZDOTDIR}/lib/ai-invoke.bash"
 # Helpers
 # ---------------------------------------------------------------------------
 
-_usage() {
-  cat >&2 <<'EOF'
+_usage_text() {
+  cat <<'EOF'
 Usage: zdots-ask [OPTIONS] PROMPT
        echo data | zdots-ask [OPTIONS] TASK
 
@@ -60,7 +60,16 @@ Deploy/update logs:
   Use zdots-log-analyze update|bootstrap|upgrade [--ai]. It packages phase
   summaries, transcript tails, and non-OTel system context for local models.
 EOF
-  exit 2
+}
+
+_usage() {
+  local exit_code="${1:-2}"
+  if [[ "$exit_code" -eq 0 ]]; then
+    _usage_text
+  else
+    _usage_text >&2
+  fi
+  exit "$exit_code"
 }
 
 _list_domains() {
@@ -131,7 +140,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run)      DRY_RUN=1;   shift   ;;
     --list-domains) _list_domains; exit 0 ;;
     --list-patterns) _list_patterns; exit 0 ;;
-    --help|-h)      _usage ;;
+    --help|-h)      _usage 0 ;;
     --)             shift; PROMPT_ARGS+=("$@"); break ;;
     -*)             printf 'zdots-ask: unknown flag: %s\n' "$1" >&2; _usage ;;
     *)              PROMPT_ARGS+=("$1"); shift ;;

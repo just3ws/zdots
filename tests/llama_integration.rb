@@ -317,7 +317,7 @@ test "embed — returns a 768-dim float vector (Nomic embed-v2)" do
   data = http_post_embed("hello world")
   vec  = data.dig("data", 0, "embedding")
   assert vec.is_a?(Array) && !vec.empty?, "bad vectors"
-  assert vec.all? { |v| v.is_a?(Float) }, "non-float in vector"
+  assert vec.all?(Float), "non-float in vector"
   assert vec.length == 768, "expected 768 dims, got #{vec.length}"
 end
 

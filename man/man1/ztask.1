@@ -1,0 +1,39 @@
+.Dd May 29, 2026
+.Dt ZTASK 1
+.Os zdots
+.Sh NAME
+.Nm ztask
+.Nd activate and complete task-scoped zdots environments
+.Sh SYNOPSIS
+.Nm
+.Ar start
+.Ar id
+.Nm
+.Ar done
+.Nm
+.Ar status
+.Nm
+.Ar stop
+.Sh DESCRIPTION
+.Nm
+bridges backlog tasks to the live shell environment. Starting a task records
+active work and hydrates context; completing a task can trigger capture.
+.Sh COMMANDS
+.Bl -tag -width status
+.It Cm start Ar id
+Activate a task.
+.It Cm done
+Complete the active task.
+.It Cm status
+Show active task.
+.It Cm stop
+Deactivate task context.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTDIR
+.It Ev ZDOTDIR
+Repository root.
+.El
+.Sh SEE ALSO
+.Xr zmorning 1 ,
+.Xr zdots-ctx 1

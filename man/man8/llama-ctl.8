@@ -1,0 +1,49 @@
+.Dd May 29, 2026
+.Dt LLAMA-CTL 8
+.Os zdots
+.Sh NAME
+.Nm llama-ctl
+.Nd manage local llama.cpp chat and embedding servers
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Fl -json
+.Sh COMMANDS
+.Bl -tag -width model-download
+.It Cm install , Cm start , Cm stop , Cm restart , Cm status , Cm health , Cm logs
+Manage the chat server.
+.Pp
+.Cm status Fl -json
+reports launchd state, HTTP health, and loopback socket presence separately.
+.Cm healthy
+means the
+.Pa /health
+endpoint answered, not merely that the port is listening.
+.It Cm validate , Cm config
+Validate or print resolved configuration.
+.It Cm model-list , Cm model-download , Cm model-switch , Cm model-prune , Cm model-df , Cm model-verify
+Manage model files.
+.It Cm install-embed , Cm start-embed , Cm stop-embed , Cm status-embed
+Manage the embedding server.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_AI_MODELS_DIR
+.It Ev ZDOTS_AI_PROFILE
+Active model profile.
+.It Ev ZDOTS_AI_MODELS_DIR
+Model storage root.
+.It Ev ZDOTS_AI_MODEL_FILE
+Override active model file.
+.El
+.Sh FILES
+.Bl -tag -width etc/ai-models.yaml
+.It Pa etc/ai-models.yaml
+Model and server configuration.
+.It Pa ~/Library/LaunchAgents/com.zdots.llama-server.plist
+Chat server launchd agent.
+.It Pa ~/Library/LaunchAgents/com.zdots.llama-embed.plist
+Embedding server launchd agent.
+.El
+.Sh SEE ALSO
+.Xr zdots-ai-stack 7 ,
+.Xr zdots-ctl 8

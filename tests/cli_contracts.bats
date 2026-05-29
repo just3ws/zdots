@@ -329,6 +329,15 @@ _grafana_up() {
   echo "$output" | jq . >/dev/null
 }
 
+@test "llama-ctl: status separates HTTP health from socket presence" {
+  run "$BIN/llama-ctl" status --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e 'has("healthy")' >/dev/null
+  echo "$output" | jq -e 'has("http_healthy")' >/dev/null
+  echo "$output" | jq -e 'has("socket_listening")' >/dev/null
+  [ "$(echo "$output" | jq -r '.healthy == .http_healthy')" = "true" ]
+}
+
 @test "llama-ctl: health exits 0 when server is up" {
   if ! _ai_up; then skip "llama.cpp not running"; fi
   run "$BIN/llama-ctl" health
@@ -442,6 +451,9 @@ _grafana_up() {
   echo "$output" | jq -e 'has("lgtm")'           >/dev/null
   echo "$output" | jq -e 'has("otel_collector")' >/dev/null
   echo "$output" | jq -e 'has("ai_server")'      >/dev/null
+  echo "$output" | jq -e 'has("ai_http_healthy")' >/dev/null
+  echo "$output" | jq -e 'has("ai_socket_listening")' >/dev/null
+  [ "$(echo "$output" | jq -r '.ai_server == .ai_http_healthy')" = "true" ]
 }
 
 @test "zdots-ctl: check exits 0 when platform healthy" {
