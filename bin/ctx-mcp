@@ -60,8 +60,9 @@ end
 
 def tool_ctx_query(args)
   term = args["term"]
-  res = run_ctx("query", term)
-  res[:stdout] + res[:stderr]
+  cmd_args = args["semantic"] ? ["query", "--semantic", term] : ["query", term]
+  res = run_ctx(*cmd_args)
+  res[:exit_code] == 0 ? res[:stdout] : "Error querying '#{term}': #{res[:stderr]}"
 end
 
 def tool_ctx_hydrate(args)
@@ -97,22 +98,30 @@ end
 def tool_ctx_semantic_search(args)
   term = args["term"]
   res = run_ctx("query", "--semantic", term)
-  res[:stdout] + res[:stderr]
+  res[:exit_code] == 0 ? res[:stdout] : "Error in semantic search for '#{term}': #{res[:stderr]}"
 end
 
 def tool_ctx_enqueue(args)
   type = args["type"]
-  payload_json = args["payload_json"]
+  payload_json = args["payload"]
   priority = args.fetch("priority", 10)
-  force_flag = args["force"] ? "--force" : ""
-  
-  res = run_ctx("enqueue", force_flag, type, payload_json, priority.to_s)
+
+  run_args = ["enqueue"]
+  run_args << "--force" if args["force"]
+  run_args += [type, payload_json, priority.to_s]
+
+  res = run_ctx(*run_args)
   res[:exit_code] == 0 ? "✅ #{res[:stdout]}" : "❌ Error: #{res[:stderr]}"
 end
 
 def tool_ctx_jobs(_args)
   res = run_ctx("jobs", "--json")
   res[:exit_code] == 0 ? res[:stdout] : "Error fetching jobs: #{res[:stderr]}"
+end
+
+def tool_ctx_living_docs(_args)
+  res = run_ctx("living-docs")
+  res[:exit_code] == 0 ? "✅ Living Docs sync triggered." : "❌ Error: #{res[:stderr]}"
 end
 
 # ---------------------------------------------------------------------------
@@ -140,6 +149,7 @@ def call_tool(name, args)
   when "ctx_semantic_search" then tool_ctx_semantic_search(args)
   when "ctx_enqueue"         then tool_ctx_enqueue(args)
   when "ctx_jobs"            then tool_ctx_jobs(args)
+  when "living_docs"         then tool_ctx_living_docs(args)
   else raise "Unknown tool: #{name}"
   end
 end
