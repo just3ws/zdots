@@ -1,0 +1,296 @@
+#!/usr/bin/env bash
+# bin/zdots-doctor — System health check ("brew doctor" for zdots)
+#
+# Runs environment, repo, XDG compliance, AI tool, and runtime checks,
+# then delegates the deep runtime probe to `zdots-ctl check`. Exits 0
+# when no failures are found; exits 1 on any [FAIL].
+#
+# Usage: zdots-doctor [--no-runtime] [-q|--quiet]
+#   --no-runtime   Skip the zdots-ctl check section (fast mode)
+#   -q, --quiet    Only print warnings and failures
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+BIN="$ZDOTDIR/bin"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+
+# ---------------------------------------------------------------------------
+# Flags
+# ---------------------------------------------------------------------------
+SKIP_RUNTIME=0
+QUIET=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-runtime) SKIP_RUNTIME=1 ;;
+    -q|--quiet)   QUIET=1 ;;
+    -h|--help)
+      sed -n '2,7p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    *) printf 'zdots-doctor: unknown option: %s\n' "$1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+# ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
+_PASS=0; _WARN=0; _FAIL=0
+
+_pass() { _PASS=$((_PASS+1)); [[ "$QUIET" -eq 0 ]] && printf '  [ok]   %s\n' "$*"; }
+_warn() { _WARN=$((_WARN+1)); printf '  [warn] %s\n' "$*"; }
+_fail() { _FAIL=$((_FAIL+1)); printf '  [FAIL] %s\n' "$*"; }
+_fix()  { printf '         fix: %s\n' "$*"; }
+_skip() { [[ "$QUIET" -eq 0 ]] && printf '  [----] %s\n' "$*"; }
+
+_section() {
+  printf '\n'
+  printf '━━━ %s ' "$1"
+  local pad=$(( 55 - ${#1} ))
+  (( pad > 0 )) && printf '%.0s━' $(seq 1 $pad)
+  printf '\n'
+}
+
+# ---------------------------------------------------------------------------
+# Environment
+# ---------------------------------------------------------------------------
+_section "Environment"
+
+if [[ -d "${ZDOTDIR:-}" ]]; then
+  _pass "ZDOTDIR  ${ZDOTDIR}"
+else
+  _fail "ZDOTDIR  not set or missing: ${ZDOTDIR:-<unset>}"
+  _fix  "export ZDOTDIR=\$HOME/.config/zsh"
+fi
+
+_zdots_ctx="${ZDOTS_CONTEXT:-}"
+if [[ -n "$_zdots_ctx" ]]; then
+  _pass "ZDOTS_CONTEXT  ${_zdots_ctx}"
+else
+  _warn "ZDOTS_CONTEXT  not set (defaulting to 'home')"
+  _fix  "Add: export ZDOTS_CONTEXT=home  (or work) to env.sh"
+fi
+
+_ai_mode="${ZDOTS_AI_MODE:-local}"
+case "$_ai_mode" in
+  local|none) _pass "ZDOTS_AI_MODE  ${_ai_mode}" ;;
+  cloud)      _warn "ZDOTS_AI_MODE  cloud — data leaves the machine" ;;
+  *)          _warn "ZDOTS_AI_MODE  ${_ai_mode} (unrecognised)" ;;
+esac
+
+for _xdg_var in XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME; do
+  _xdg_val="${!_xdg_var:-}"
+  if [[ -n "$_xdg_val" ]]; then
+    _pass "${_xdg_var}  ${_xdg_val}"
+  else
+    _warn "${_xdg_var}  not set (tools may use non-XDG defaults)"
+  fi
+done
+
+if [[ -n "${HOMEBREW_PREFIX:-}" ]]; then
+  _pass "HOMEBREW_PREFIX  ${HOMEBREW_PREFIX}"
+else
+  _fail "HOMEBREW_PREFIX  not set"
+  _fix  "eval \"\$(brew shellenv)\""
+fi
+
+# ---------------------------------------------------------------------------
+# Repo currency
+# ---------------------------------------------------------------------------
+_section "Repo"
+
+cd "$ZDOTDIR"
+
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  _commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  _pass "commit  ${_commit}  (${ZDOTDIR})"
+
+  if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
+    _pass "working tree  clean"
+  else
+    _warn "working tree  has uncommitted changes"
+    _fix  "git diff  (review changes)"
+  fi
+
+  _upstream=$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null || true)
+  if [[ -n "$_upstream" ]]; then
+    _ahead=$(git rev-list --count "@{upstream}..HEAD" 2>/dev/null || echo "?")
+    _behind=$(git rev-list --count "HEAD..@{upstream}" 2>/dev/null || echo "?")
+    if [[ "$_ahead" == "0" && "$_behind" == "0" ]]; then
+      _pass "origin  up to date"
+    elif [[ "$_behind" != "0" ]]; then
+      _warn "origin  ${_behind} commit(s) behind — run: git pull"
+      _fix  "git pull"
+    else
+      _pass "origin  ${_ahead} commit(s) ahead (unpushed)"
+    fi
+  else
+    _skip "origin  no upstream configured"
+  fi
+else
+  _warn "repo  ${ZDOTDIR} is not a git repository"
+fi
+
+# Last update-local result
+_latest_summary=$(ls -t "$STATE"/zdots-update-local-*.summary.md 2>/dev/null | head -1 || true)
+if [[ -n "$_latest_summary" ]]; then
+  _ul_result=$(grep -E '^\*\*result:' "$_latest_summary" | head -1 | sed 's/\*\*//g; s/result: //' || echo "unknown")
+  _ul_ts=$(basename "$_latest_summary" | grep -oE '[0-9]{8}T[0-9]{6}' || echo "unknown")
+  if [[ "$_ul_result" == *"complete"* ]]; then
+    _pass "last update-local  complete  (${_ul_ts})"
+  else
+    _warn "last update-local  ${_ul_result}  (${_ul_ts})"
+    _fix  "zdots-update-local"
+  fi
+else
+  _warn "last update-local  no run found"
+  _fix  "zdots-update-local"
+fi
+
+# ---------------------------------------------------------------------------
+# XDG compliance
+# ---------------------------------------------------------------------------
+_section "XDG compliance"
+
+# Homedir zsh shadows (covered by zdots-ctl check too — shown here for visibility)
+for _f in .zshrc .zprofile .zlogin .zlogout; do
+  if [[ -f "$HOME/$_f" ]]; then
+    _warn "~/${_f}  present — loaded before ZDOTDIR, may shadow zdots config"
+    _fix  "mv $HOME/${_f} $ZDOTDIR/conf.d/  (or delete if empty)"
+  fi
+done
+
+# Colima XDG drift
+if [[ -d "$HOME/.colima" ]]; then
+  _fail "~/.colima  present — colima ignores XDG_CONFIG_HOME"
+  _fix  "mv ~/.colima \"\${XDG_CONFIG_HOME:-\$HOME/.config}/colima\""
+else
+  _pass "~/.colima  absent"
+fi
+
+# Aider XDG drift (~/.aider/ should live in ~/.config/aider or not at all)
+if [[ -d "$HOME/.aider" ]]; then
+  _warn "~/.aider  present — aider config should live in \$XDG_CONFIG_HOME/aider"
+  _fix  "mv ~/.aider ~/.config/aider"
+else
+  _pass "~/.aider  absent"
+fi
+
+# Pi config dir — Pi uses ~/.pi; flag if both ~/.pi and XDG-style path exist
+if [[ -d "$HOME/.pi" && -d "${XDG_CONFIG_HOME:-$HOME/.config}/pi" ]]; then
+  _warn "~/.pi  and XDG pi config both present — potential conflict"
+else
+  _pass "~/.pi  no XDG conflict"
+fi
+
+# ---------------------------------------------------------------------------
+# AI tools
+# ---------------------------------------------------------------------------
+_section "AI tools"
+
+# Pi
+_pi_agent="$HOME/.pi/agent"
+if [[ -f "$_pi_agent/settings.json" ]]; then
+  _thinking=$(jq -r '.defaultThinkingLevel // "unset"' "$_pi_agent/settings.json" 2>/dev/null || echo "unset")
+  if [[ "$_thinking" == "off" ]]; then
+    _pass "Pi settings  defaultThinkingLevel=off"
+  else
+    _warn "Pi settings  defaultThinkingLevel=${_thinking} (should be off — burns 32k context on 7B)"
+    _fix  "zdots-update-local  (reconciles Pi settings)"
+  fi
+else
+  _warn "Pi settings  ~/.pi/agent/settings.json missing"
+  _fix  "zdots-update-local"
+fi
+
+if [[ -f "$_pi_agent/models.json" ]]; then
+  _pi_url=$(jq -r '.providers.llamacpp.baseUrl // empty' "$_pi_agent/models.json" 2>/dev/null || true)
+  if [[ -n "$_pi_url" ]]; then
+    _pass "Pi models  endpoint ${_pi_url}"
+  else
+    _warn "Pi models  models.json present but no llamacpp baseUrl"
+    _fix  "zdots-update-local"
+  fi
+else
+  _warn "Pi models  ~/.pi/agent/models.json missing"
+  _fix  "zdots-update-local"
+fi
+
+# Aider
+_aider_meta="$HOME/.aider.model.metadata.json"
+if [[ -f "$_aider_meta" ]]; then
+  _aider_ctx=$(jq -r '."openai/local".max_input_tokens // empty' "$_aider_meta" 2>/dev/null || true)
+  if [[ -n "$_aider_ctx" ]]; then
+    _pass "Aider metadata  context_window=${_aider_ctx}"
+  else
+    _warn "Aider metadata  present but missing openai/local entry"
+    _fix  "zdots-update-local"
+  fi
+else
+  _warn "Aider metadata  ~/.aider.model.metadata.json missing"
+  _fix  "zdots-update-local"
+fi
+
+_aider_bin=$(command -v aider 2>/dev/null \
+  || find "${HOME}/.local/share/uv/tools/aider-chat/bin" -name 'aider' -type f 2>/dev/null | head -1 \
+  || true)
+if [[ -n "$_aider_bin" ]]; then
+  _pass "aider  ${_aider_bin}"
+else
+  _skip "aider  not installed (optional)"
+fi
+
+# Gemini
+if command -v gemini >/dev/null 2>&1; then
+  _pass "gemini CLI  $(command -v gemini)"
+else
+  _skip "gemini CLI  not installed (optional)"
+fi
+
+# ---------------------------------------------------------------------------
+# Services snapshot
+# ---------------------------------------------------------------------------
+_section "Services"
+
+if command -v zsvc >/dev/null 2>&1; then
+  zsvc list 2>/dev/null || true
+else
+  _warn "zsvc  not in PATH"
+fi
+
+# ---------------------------------------------------------------------------
+# Runtime health (zdots-ctl check)
+# ---------------------------------------------------------------------------
+_section "Runtime health  (zdots-ctl check)"
+
+if [[ "$SKIP_RUNTIME" -eq 1 ]]; then
+  _skip "skipped  (--no-runtime)"
+  _RUNTIME_OK=0
+else
+  _runtime_rc=0
+  "$BIN/zdots-ctl" check 2>&1 || _runtime_rc=$?
+  _RUNTIME_OK=$_runtime_rc
+fi
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+printf '\n'
+printf '%.0s━' $(seq 1 59); printf '\n'
+
+_total=$((_PASS + _WARN + _FAIL))
+if [[ $_FAIL -eq 0 && $_WARN -eq 0 && $_RUNTIME_OK -eq 0 ]]; then
+  printf 'zdots doctor: all %d checks passed\n' "$_total"
+elif [[ $_FAIL -eq 0 && $_RUNTIME_OK -eq 0 ]]; then
+  printf 'zdots doctor: %d passed · %d warning(s) · 0 failures\n' "$_PASS" "$_WARN"
+else
+  printf 'zdots doctor: %d passed · %d warning(s) · %d failure(s)' \
+    "$_PASS" "$_WARN" "$_FAIL"
+  if [[ "$_RUNTIME_OK" -ne 0 ]]; then
+    printf '  +  runtime check failed (see above)\n'
+  else
+    printf '\n'
+  fi
+fi
+
+[[ $_FAIL -eq 0 && $_RUNTIME_OK -eq 0 ]]
