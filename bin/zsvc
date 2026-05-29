@@ -31,6 +31,7 @@ _svc_meta() {
       SVC_CTL="$BIN/llama-ctl"
       SVC_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
       SVC_TYPE="launchd"
+      SVC_INSTALL="install"
       SVC_START="start"     SVC_STOP="stop"       SVC_RESTART="restart"
       SVC_STATUS="status"   SVC_HEALTH="health"   SVC_LOGS="logs"
       SVC_VALIDATE="validate"
@@ -43,6 +44,7 @@ _svc_meta() {
       SVC_CTL="$BIN/llama-ctl"
       SVC_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
       SVC_TYPE="launchd"
+      SVC_INSTALL="install-embed"
       SVC_START="start-embed"  SVC_STOP="stop-embed"  SVC_RESTART=""
       SVC_STATUS="status-embed" SVC_HEALTH=""          SVC_LOGS=""
       SVC_VALIDATE=""
@@ -55,6 +57,7 @@ _svc_meta() {
       SVC_CTL="$BIN/otel-collector"
       SVC_ENDPOINT="http://127.0.0.1:4318"
       SVC_TYPE="launchd"
+      SVC_INSTALL="install"
       SVC_START="start"     SVC_STOP="stop"       SVC_RESTART="restart"
       SVC_STATUS="status"   SVC_HEALTH="health"   SVC_LOGS="logs"
       SVC_VALIDATE="validate"
@@ -67,6 +70,7 @@ _svc_meta() {
       SVC_CTL="colima"
       SVC_ENDPOINT=""
       SVC_TYPE="colima"
+      SVC_INSTALL=""
       SVC_START="start"   SVC_STOP="stop"   SVC_RESTART=""
       SVC_STATUS="status" SVC_HEALTH=""     SVC_LOGS="logs"
       SVC_VALIDATE=""
@@ -133,6 +137,17 @@ cmd_list() {
 
 cmd_start() {
   _svc_meta "$1"
+  # If the launchd plist is missing, run install first so the service is
+  # registered before we try to start it. Handles the case where update-local
+  # failed mid-phase and left a service un-installed.
+  if [[ "$SVC_TYPE" == "launchd" && -n "$SVC_INSTALL" ]]; then
+    local plist="$HOME/Library/LaunchAgents/${SVC_LABEL}.plist"
+    if [[ ! -f "$plist" ]]; then
+      _warn "${SVC_DISPLAY} plist missing — running install first"
+      "$SVC_CTL" "$SVC_INSTALL"
+      return
+    fi
+  fi
   _info "starting ${SVC_DISPLAY}..."
   "$SVC_CTL" "$SVC_START"
 }
