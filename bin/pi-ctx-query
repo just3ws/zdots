@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# bin/pi-ctx-query — PHI-safe knowledge-base query for Pi sessions.
+#
+# Scrubs the query term through phi_scrubber before it reaches zdots-ctx,
+# then returns results truncated to stay within Pi's context budget (~100 lines).
+# Use this instead of calling 'zdots-ctx query' directly from Pi's bash tool.
+#
+# Usage:
+#   pi-ctx-query <term> [--semantic]
+#
+# Options:
+#   --semantic   Semantic (vector) search instead of text search
+#   --help, -h   Show this help
+
+set -euo pipefail
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+SEMANTIC=""
+TERM=""
+
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      cat <<'EOF'
+Usage: pi-ctx-query <term> [--semantic]
+
+PHI-safe knowledge-base search for Pi sessions. Scrubs the query term
+before sending it to zdots-ctx and caps output at 100 lines.
+
+Options:
+  --semantic   Vector search (finds related concepts, not just keyword matches)
+  --help, -h   Show this help
+
+Examples:
+  pi-ctx-query "phi scrubber"
+  pi-ctx-query "database migration" --semantic
+EOF
+      exit 0
+      ;;
+    --semantic) SEMANTIC="--semantic" ;;
+    -*) printf 'pi-ctx-query: unknown option: %s\n' "$arg" >&2; exit 2 ;;
+    *)  TERM="$arg" ;;
+  esac
+done
+
+if [[ -z "$TERM" ]]; then
+  printf 'pi-ctx-query: search term required\n' >&2
+  printf 'Usage: pi-ctx-query <term> [--semantic]\n' >&2
+  exit 2
+fi
+
+# PHI scrub the query term — fail hard if scrubber is unavailable or input is suppress-flagged
+source "${ZDOTDIR}/lib/phi_scrubber.bash"
+if phi_should_suppress "$TERM"; then
+  printf 'pi-ctx-query: query term matches a suppress pattern — refusing\n' >&2
+  exit 1
+fi
+clean_term=$(printf '%s' "$TERM" | phi_scrub) || {
+  printf 'pi-ctx-query: PHI scrubber unavailable — aborting query\n' >&2
+  exit 1
+}
+
+# Run query and cap output to protect Pi's context budget
+# shellcheck disable=SC2086
+"${ZDOTDIR}/bin/zdots-ctx" query "$clean_term" $SEMANTIC 2>&1 | head -100

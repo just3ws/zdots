@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# bin/pi-ctx-status — Knowledge-base and AI stack summary for Pi sessions.
+#
+# Emits a compact status block (KB record counts, llama.cpp health, AI mode)
+# sized for Pi's context budget. Safe to paste into a Pi session as orientation.
+#
+# Usage:
+#   pi-ctx-status [--help]
+
+set -euo pipefail
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+case "${1:-}" in
+  -h|--help)
+    cat <<'EOF'
+Usage: pi-ctx-status
+
+Compact knowledge-base and AI stack summary for Pi sessions.
+Shows KB record counts, llama.cpp health, and current AI mode.
+EOF
+    exit 0
+    ;;
+  "") ;;
+  *) printf 'pi-ctx-status: unknown option: %s\n' "$1" >&2; exit 2 ;;
+esac
+
+printf '## zdots context status\n\n'
+
+printf '### Knowledge Base\n'
+"${ZDOTDIR}/bin/zdots-ctx" status 2>&1 | grep -v '^$' | head -20
+printf '\n'
+
+printf '### AI Stack\n'
+printf 'mode:     %s\n' "${ZDOTS_AI_MODE:-local}"
+printf 'endpoint: %s\n' "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+if command -v llama-ctl >/dev/null 2>&1; then
+  llama-ctl status 2>/dev/null | grep -E 'running|healthy|model|status' | head -5 || true
+fi
