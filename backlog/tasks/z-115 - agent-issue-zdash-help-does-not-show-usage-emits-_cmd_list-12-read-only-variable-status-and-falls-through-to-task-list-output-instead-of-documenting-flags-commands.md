@@ -4,9 +4,10 @@ title: >-
   [agent-issue] zdash --help does not show usage; emits '_cmd_list:12: read-only
   variable: status' and falls through to task-list output instead of documenting
   flags/commands
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-29 14:03'
+updated_date: '2026-05-29 16:28'
 labels:
   - agent-reported
   - bug
