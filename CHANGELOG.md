@@ -121,12 +121,32 @@
 - *(ai)* Speculative decoding, --think flag, distillation schema
 - *(ai)* Eval suite, RAG activation guide, and learning map
 - *(ai)* Embed server + nginx proxy layer — RAG pipeline unblocked
-- *(env)* Wire ZDOTS_AI_EMBED_ENDPOINT default (port 11501)
+- *(env)* Wire ZDOTS_AI_EMBED_ENDPOINT default (port 8090)
 - *(infra)* Nginx TLS proxy, embed server, speculative decoding — battlestation operational
 - *(ai)* Thread enable_thinking via chat_template_kwargs instead of /think token
 - *(ai)* AIQ_TEMPERATURE + AIQ_JSON_SCHEMA plumbing in aiq_submit; distillation uses 0.1
 - *(safety)* Rm guard blocking home dir and critical system paths
 - *(bootstrap)* Clone gdots from just3ws/gdots instead of writing inline fallback
+- *(launch)* Work launch day polish
+- *(knowledge-layer)* Add ingest command + establish domain glossary
+- *(zpi)* Auto-append AGENT.md from \$PWD as project-local Pi system prompt
+- *(analytics)* Add command_runs capture layer + PostgreSQL sync
+- *(phi)* Registry-backed scrubber, analytics capture, test coverage, doc audit
+- *(brewfile)* Add data exploration + dev-feedback tooling
+- *(ctx-mcp)* Add ctx-mcp-register script; fix zsh int() in cmd-analytics
+- *(ai-query)* Add metadata-only audit log (Z-037)
+- *(infra)* Embed server plist + zdots-ctl integration (Z-105)
+- *(ai-query)* Expose scanner findings in --json output (Z-039)
+- Add local state updater
+- Add shell hook metrics
+- *(iterm2)* Enhance utilities, add tips, and improve tmux support
+- *(ai)* Integrate fabric-ai expert patterns into zdots
+- Split Brewfiles and log deploy phases
+- Add zdots-log-analyze and reconcile Pi model config
+- Add granular logging steps to update-local and verify via BATS contract
+- *(test)* Add unified coverage reporting (SimpleCov & kcov)
+- *(qc)* Add rubocop, bundle-audit, and unified make lint
+- *(dev)* Build docs contract, harden test suite, and standardize CLI/Ruby internals
 
 ### 🐛 Bug Fixes
 
@@ -214,6 +234,36 @@
 - *(bootstrap)* Self-bootstrap from truly empty Mac
 - *(ctl)* Replace symlink gate with HTTP probe for nginx detection
 - *(bootstrap)* Close recovery gaps exposed by accidental home dir deletion
+- *(brewfile)* Replace invalid gh-dash tap with install comment
+- *(bootstrap)* Three cold-restore gaps
+- *(models)* Update sha256 manifest to Qwen3 models
+- *(ai)* Disable Qwen3 thinking mode; update model manifest
+- *(models)* Add nomic embed model to sha256 manifest
+- *(quiz)* Align TC-03/TC-08 patterns with current AI call API
+- *(quiz)* Inter-case pause + ZDOTS_TRACE_ID prompt fix
+- *(ai)* Disable spec-decoding + reduce to 1 slot to stop GPU OOM
+- *(prompts)* Anchor ai-invoke.bash filename to stop hallucination
+- *(prompts)* Anchor guard names in shell + phi prompts for 14/14 quiz
+- *(phi_scrubber)* Honour "always returns 0" contract on pattern load failure
+- *(ai-boundary)* Close locality gap in primary inference path
+- *(morning)* Filter history noise + anchor AI to real data; update --help across tools
+- *(clone-readiness)* Resolve 6 issues blocking clean clone + 303 tests green
+- *(cmd-analytics)* Silence PRAGMA journal_mode=WAL stdout leak
+- *(prompt)* Guard p10k load on stdout being a TTY
+- *(bootstrap)* Remove --draft from model-download
+- *(observability)* Remove dead cognitive-load hook; file Z-111 ctx-mcp
+- *(config)* Set AIQ_DEFAULT_MODE=safe-extract in .zdots.env; fix mermaid labels
+- *(readme)* Use noto:llama icon for llama-cpp services in architecture diagram
+- *(readme)* Use logos:meta icon for llama-cpp services
+- *(readme)* Remove hyphens from architecture-beta service labels
+- *(colima)* Correct socket paths from ~/.colima to ~/.config/colima
+- *(colima)* Honour XDG_CONFIG_HOME for socket path resolution
+- *(ports)* Move llama inference to 11500, embed to 11501
+- Update llama server ports
+- Expose deploy diagnostics and repair ctl check
+- Harden llama launchd install
+- *(ci)* Ignore phi_scrubber warnings in fast sanity checks
+- *(qc)* Achieve green build gate via explicit debt exclusions and workflow lint fixes
 
 ### 💼 Other
 
@@ -278,6 +328,16 @@
 - Complete task Z-087
 - Archive task Z-094
 - Complete task Z-092
+- Complete task Z-107
+- Complete task Z-108
+- Complete task Z-109
+- Complete task Z-110
+- Complete task Z-106
+- Complete task Z-111
+- Complete task Z-036
+- Complete task Z-037
+- Complete task Z-105
+- Complete task Z-039
 
 ### 🚜 Refactor
 
@@ -305,6 +365,14 @@
 - *(zle)* Route widgets through AI Invocation Interface
 - *(phi)* Single pattern registry for bash and Ruby scrubbers
 - *(bootstrap)* Remove gdots clone — git config now in adots
+- *(metadata)* Extract profile resolver + fix shell injection in env output
+- *(ai-query-lib)* Delegate strip logic to _mh_normalize
+- *(zdots-ask)* Data-driven domain routing + ZLE shell context
+- *(brain)* Stored proc gap + PHI capture + docs_sync scope
+- *(llama-ctl,zdash)* Deep config module + stable task parser
+- *(lifecycle)* Split into focused modules + leave k8s seam slot
+- *(providers)* Move tool wrappers from providers/ai/ to providers/tools/
+- *(status)* Zdots-status delegates service probes to zdots-ctl
 
 ### 📚 Documentation
 
@@ -358,6 +426,26 @@
 - *(phi)* Document PHI-safe transition process in SETUP.md
 - *(rag)* Update activation guide — embed server blocker resolved
 - *(ai-invoke)* Correct trust contract — module owns hygiene, not callers
+- *(env)* Document all PHI/capture env vars; fix sequence grant; pass-6 C1+C2
+- *(tooling)* Add key tools reference; update agent tool selection
+- *(diagrams)* Fix accuracy across all Mermaid diagrams
+- *(tools)* Fill documentation gaps for 14 undocumented bin/ tools
+- *(setup)* Document nginx + /etc/hosts manual steps; file blockers
+- Username agnosticism note, test pitfalls, scratch file cleanup
+- *(setup)* Work-machine pre-bootstrap sequence + risks
+- *(readme)* Audit pass — fix 5 stale facts + typo
+- *(readme)* Distinguish inference vs embedding in architecture diagram
+- Expand troubleshooting runbook
+- Include update_local_logging test in testing strategy
+- Codify the chronological Zdots Saga
+- Merge thematic lore with chronological history in SAGA.md
+- Align SAGA.md with the Way of Cook Ding
+- Integrate technical chronology into SAGA.md
+- Codify the Koans of Zdots
+- Codify THE_WAY.md as the Zdots User Manual
+- Expand THE_WAY.md to reflect the 81 chapters of the Tao Te Ching
+- Codify Belief Integrity Audit findings
+- Align functional tests and audit with ci-act environment changes
 
 ### ⚡ Performance
 
@@ -367,10 +455,13 @@
 - Unify Homebrew and Mise caching across login and interactive shells
 - *(otel)* Eliminate fork overhead and fix span quality (Z-031)
 - Eliminate redundant forks in observability hot paths (Z-031)
+- *(phi-scrubber)* Replace N+1 yq loop with single yq call
+- *(metadata)* Add process-level cache to deliver on documented contract
 
 ### 🎨 Styling
 
 - Fix trailing whitespace and end-of-file issues
+- Apply RuboCop autocorrect to Ruby infrastructure
 
 ### 🧪 Testing
 
@@ -415,6 +506,13 @@
 - Allow log emit in Claude Code tool permissions
 - Update Claude Code tool permissions
 - Add Ruby/RSpec job, fix vivid guard, document test tiers
+- Add Brewfile.work for work machine configuration
+- *(brewfile)* Restore local inference tools to Brewfile.work
+- *(brewfile)* Reclassify local-capable LLM tools into Brewfile.work
+- Track zdots-ctl status issue
+- Remove generated iTerm aliases
+- Install yq in sanity job for PHI history protection
+- Allow homebrew provider in ci-act on Darwin
 
 ### 🛡️ Security
 
