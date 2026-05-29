@@ -23,7 +23,11 @@ RSpec.describe Zdots::Models::EncryptedContent, :integration do
 
   # Build a minimal in-test table that exercises EncryptedContent
   before(:all) do
-    @db.run("CREATE EXTENSION IF NOT EXISTS pgcrypto") rescue nil
+    begin
+      @db.run("CREATE EXTENSION IF NOT EXISTS pgcrypto")
+    rescue StandardError
+      nil
+    end
     @db.create_table!(:_enc_test) do
       primary_key :id
       column :data_enc, :bytea

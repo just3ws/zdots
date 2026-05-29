@@ -74,17 +74,17 @@ module Zdots
       end.parse!
     end
 
-    def cmd_worker(args)
+    def cmd_worker(_args)
       # Zdots.init_otel("zdots-worker")
-      
+
       puts "zdots-brain: starting worker..."
       puts "  filter by type: #{@options[:type]}" if @options[:type]
-      
+
       idle_notified = false
-      
+
       loop do
         job = Zdots::Models::Job.claim(@options[:type], ENV["ZDOTS_TRACE_ID"])
-        
+
         if job.nil?
           unless idle_notified
             puts "zdots-brain: queue empty, waiting for jobs..."
@@ -96,15 +96,15 @@ module Zdots
 
         idle_notified = false
         pending_count = Zdots::Models::Job.pending_count(@options[:type])
-        
+
         puts ""
         puts "\e[1;34m==> [JOB #{job.id.to_s[0..7]}] Starting #{job.type} (#{pending_count} remaining in queue)\e[0m"
-        
+
         begin
           job_class = Zdots::Jobs.for(job.type)
           job_class.perform(job)
           puts "\e[1;32m==> [JOB #{job.id.to_s[0..7]}] SUCCESS\e[0m"
-        rescue => e
+        rescue StandardError => e
           puts "\e[1;31m==> [JOB #{job.id.to_s[0..7]}] FAILED: #{e.message}\e[0m"
           # Error handling is also inside JobBase#perform_with_otel
         end
@@ -127,9 +127,9 @@ module Zdots
       m.content = content
       m.tags = Sequel.pg_array(tags)
       m.save
-      
+
       puts "zdots-brain: methodology '#{slug}' saved."
-      
+
       # Enqueue embedding
       Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
         type: "embed",
@@ -189,16 +189,16 @@ module Zdots
         residue.save
 
         lesson = Zdots::Models::Lesson.create(
-          content:         lesson_text,
-          context:         intent_text,
-          tags:            Sequel.pg_array(tags),
+          content: lesson_text,
+          context: intent_text,
+          tags: Sequel.pg_array(tags),
           source_trace_id: trace_id
         )
 
         Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
-          type:        "embed",
-          payload:     Sequel.pg_jsonb({ table: "lessons", id: lesson.id, text: lesson_text }),
-          priority:    10,
+          type: "embed",
+          payload: Sequel.pg_jsonb({ table: "lessons", id: lesson.id, text: lesson_text }),
+          priority: 10,
           fingerprint: Digest::MD5.hexdigest("embed-lessons-#{lesson.id}")
         )
 
@@ -232,13 +232,17 @@ module Zdots
       if @options[:semantic]
         puts "zdots-brain: generating embedding for query: '#{term}'..."
         embedding = Zdots::AI.embed_client.embed(model: "embed", input: term).vectors
-        
+
         puts "\n### SEMANTIC MATCHES: METHODOLOGIES"
-        matches = Zdots::Models::Methodology.where(Sequel.is_not(:embedding, nil)).order(Sequel.lit("embedding <=> ?", Sequel.pg_array(embedding))).limit(5).all
+        matches = Zdots::Models::Methodology.where(Sequel.is_not(:embedding,
+                                                                 nil)).order(Sequel.lit("embedding <=> ?",
+                                                                                        Sequel.pg_array(embedding))).limit(5).all
         matches.each { |m| puts "#{m.slug.ljust(30)} | #{m.title.ljust(50)}" }
 
         puts "\n### SEMANTIC MATCHES: LESSONS"
-        matches = Zdots::Models::Lesson.where(Sequel.is_not(:embedding, nil)).order(Sequel.lit("embedding <=> ?", Sequel.pg_array(embedding))).limit(5).all
+        matches = Zdots::Models::Lesson.where(Sequel.is_not(:embedding,
+                                                            nil)).order(Sequel.lit("embedding <=> ?",
+                                                                                   Sequel.pg_array(embedding))).limit(5).all
         matches.each { |l| puts "#{l.created_at.to_date} | #{l.content[0..100]}..." }
       else
         puts "zdots-brain: searching methodologies (text)..."
@@ -256,18 +260,24 @@ module Zdots
       limit = 5
 
       methodologies = if tag
-        Zdots::Models::Methodology.all.select { |m| (m.tags || []).include?(tag) || m.slug.include?(tag) }.first(limit)
-      else
-        Zdots::Models::Methodology.order(Sequel.desc(:updated_at)).limit(limit).all
-      end
+                        Zdots::Models::Methodology.all.select do |m|
+                          (m.tags || []).include?(tag) || m.slug.include?(tag)
+                        end.first(limit)
+                      else
+                        Zdots::Models::Methodology.order(Sequel.desc(:updated_at)).limit(limit).all
+                      end
 
       lessons = Zdots::Models::Lesson.order(Sequel.desc(:created_at)).limit(limit).all
 
       if @options[:format] == "json"
         puts JSON.pretty_generate({
-          methodologies: methodologies.map { |m| { slug: m.slug, title: m.title, content: m.content, tags: m.tags } },
-          lessons: lessons.map { |l| { context: l.context, content: l.content, created_at: l.created_at&.iso8601 } }
-        })
+                                    methodologies: methodologies.map do |m|
+                                      { slug: m.slug, title: m.title, content: m.content, tags: m.tags }
+                                    end,
+                                    lessons: lessons.map do |l|
+                                      { context: l.context, content: l.content, created_at: l.created_at&.iso8601 }
+                                    end
+                                  })
         return
       end
 
@@ -276,7 +286,7 @@ module Zdots
       if methodologies.any?
         methodologies.each do |m|
           puts "#### #{m.title}"
-          puts m.content.to_s
+          puts m.content
           puts
         end
       else
@@ -316,7 +326,8 @@ module Zdots
       if force
         Zdots::Models::Job.dataset.insert_conflict(
           target: :fingerprint,
-          update: { status: "pending", attempts: 0, error_message: nil, priority: priority, updated_at: Sequel::CURRENT_TIMESTAMP, next_run_at: Sequel::CURRENT_TIMESTAMP }
+          update: { status: "pending", attempts: 0, error_message: nil, priority: priority,
+                    updated_at: Sequel::CURRENT_TIMESTAMP, next_run_at: Sequel::CURRENT_TIMESTAMP }
         ).insert(type: type, payload: Sequel.pg_jsonb(payload), priority: priority, fingerprint: fingerprint)
         puts "zdots-brain: job reset to pending."
       else
@@ -335,13 +346,16 @@ module Zdots
     end
 
     def cmd_jobs
-      jobs = Zdots::Models::Job.order(Sequel.desc(Sequel.case({ {status: 'running'} => 2, {status: 'pending'} => 1 }, 0)), Sequel.desc(:priority), :created_at).limit(20).all
-      
+      jobs = Zdots::Models::Job.order(
+        Sequel.desc(Sequel.case({ { status: "running" } => 2, { status: "pending" } => 1 },
+                                0)), Sequel.desc(:priority), :created_at
+      ).limit(20).all
+
       if @options[:format] == "json"
         puts JSON.pretty_generate(jobs.map(&:values))
       else
         printf "%-38s | %-13s | %-9s | %-8s | %-8s\n", "ID", "Type", "Status", "Priority", "Attempts"
-        printf "%-38s-+-%-13s-+-%-9s-+-%-8s-+-%-8s\n", "-"*38, "-"*13, "-"*9, "-"*8, "-"*8
+        printf "%-38s-+-%-13s-+-%-9s-+-%-8s-+-%-8s\n", "-" * 38, "-" * 13, "-" * 9, "-" * 8, "-" * 8
         jobs.each do |j|
           printf "%-38s | %-13s | %-9s | %-8d | %-8d\n", j.id, j.type, j.status, j.priority, j.attempts
         end
@@ -363,18 +377,18 @@ module Zdots
       vault_root = File.join(ENV.fetch("ZDOTS_MY_ROOT", File.expand_path("~/my")), "knowledge")
 
       targets = if @options[:all]
-        Dir.glob(File.join(vault_root, "{lessons,methodologies,references}", "*.md"))
-      elsif args.empty?
-        puts "usage: zdots-brain ingest [--dry-run] <file.md | dir/> | --all"
-        exit 1
-      else
-        path = args.first
-        if File.directory?(path)
-          Dir.glob(File.join(path, "*.md"))
-        else
-          [path]
-        end
-      end
+                  Dir.glob(File.join(vault_root, "{lessons,methodologies,references}", "*.md"))
+                elsif args.empty?
+                  puts "usage: zdots-brain ingest [--dry-run] <file.md | dir/> | --all"
+                  exit 1
+                else
+                  path = args.first
+                  if File.directory?(path)
+                    Dir.glob(File.join(path, "*.md"))
+                  else
+                    [path]
+                  end
+                end
 
       ingested = 0
       skipped  = 0
@@ -429,14 +443,14 @@ module Zdots
             m.tags    = Sequel.pg_array(tags)
             m.save
             Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
-              type:        "embed",
-              payload:     Sequel.pg_jsonb({ table: "methodologies", id: m.id, text: body.strip }),
-              priority:    10,
+              type: "embed",
+              payload: Sequel.pg_jsonb({ table: "methodologies", id: m.id, text: body.strip }),
+              priority: 10,
               fingerprint: Digest::MD5.hexdigest("embed-methodologies-#{m.id}")
             )
             puts "  [ok] #{type} '#{slug}'"
           when "lesson"
-            fingerprint = Digest::MD5.hexdigest("ingest-lesson-#{slug}")
+            Digest::MD5.hexdigest("ingest-lesson-#{slug}")
             existing = Zdots::Models::Lesson.where(source_trace_id: "ingest:#{slug}").first
             if existing
               existing.content = body.strip
@@ -447,29 +461,29 @@ module Zdots
               puts "  [updated] lesson '#{slug}'"
             else
               l = Zdots::Models::Lesson.create(
-                content:         body.strip,
-                context:         title,
-                tags:            Sequel.pg_array(tags),
+                content: body.strip,
+                context: title,
+                tags: Sequel.pg_array(tags),
                 source_trace_id: "ingest:#{slug}"
               )
               puts "  [ok] lesson '#{slug}'"
             end
             Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
-              type:        "embed",
-              payload:     Sequel.pg_jsonb({ table: "lessons", id: l.id, text: body.strip }),
-              priority:    10,
+              type: "embed",
+              payload: Sequel.pg_jsonb({ table: "lessons", id: l.id, text: body.strip }),
+              priority: 10,
               fingerprint: Digest::MD5.hexdigest("embed-lessons-#{l.id}")
             )
           end
           ingested += 1
-        rescue => e
+        rescue StandardError => e
           puts "  [error] #{File.basename(file)}: #{e.message}"
           errors += 1
         end
       end
 
-      puts "\nzdots-brain ingest#{dry_run ? " (dry run)" : ""}: #{ingested} ingested, #{skipped} skipped, #{errors} errors"
-      exit(errors > 0 ? 1 : 0)
+      puts "\nzdots-brain ingest#{dry_run ? ' (dry run)' : ''}: #{ingested} ingested, #{skipped} skipped, #{errors} errors"
+      exit(errors.positive? ? 1 : 0)
     end
 
     def sync_incremental_table(sqlite, select_sql, cursor_key, conflict_target, target_table, dry_run)
@@ -479,7 +493,11 @@ module Zdots
       rows = sqlite.execute(select_sql, last_id)
       return [0, last_id, last_id] if rows.empty?
 
-      host = ENV.fetch("HOST", (Socket.gethostname rescue "unknown"))
+      host = ENV.fetch("HOST", begin
+        Socket.gethostname
+      rescue StandardError
+        "unknown"
+      end)
       synced = 0
       new_cursor = last_id
 
@@ -509,13 +527,15 @@ module Zdots
 
     def parse_frontmatter(raw)
       return [nil, raw] unless raw.start_with?("---\n")
+
       close = raw.index("\n---\n", 4)
       return [nil, raw] if close.nil?
+
       fm_text = raw[4...close]
       body    = raw[(close + 5)..]
       fm = YAML.safe_load(fm_text, permitted_classes: [Symbol])
       [fm, body]
-    rescue
+    rescue StandardError
       [nil, raw]
     end
 
@@ -534,7 +554,7 @@ module Zdots
         exit 1
       end
 
-      sqlite  = SQLite3::Database.new(db_path, readonly: true)
+      sqlite = SQLite3::Database.new(db_path, readonly: true)
       sqlite.results_as_hash = true
       shell_hook_metrics_exists = sqlite.get_first_value(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'shell_hook_metrics' LIMIT 1"
@@ -553,15 +573,15 @@ module Zdots
         dry_run
       ) do |row, host|
         {
-          session_id:  row["session_id"],
-          ts:          row["ts"],
-          cwd:         row["cwd"],
-          cmd:         row["cmd"],
-          args:        row["args"],
-          exit_code:   row["exit_code"],
+          session_id: row["session_id"],
+          ts: row["ts"],
+          cwd: row["cwd"],
+          cmd: row["cmd"],
+          args: row["args"],
+          exit_code: row["exit_code"],
           duration_ms: row["duration_ms"],
-          profile:     row["profile"],
-          host:        host
+          profile: row["profile"],
+          host: host
         }
       end
 
@@ -574,18 +594,18 @@ module Zdots
             ORDER BY id ASC
             LIMIT 5000",
           "shell_hook_metrics_last_id",
-          [:session_id, :ts_ms, :hook, :status, :elapsed_ms, :threshold_ms],
+          %i[session_id ts_ms hook status elapsed_ms threshold_ms],
           :shell_hook_metrics,
           dry_run
         ) do |row, host|
           {
-            session_id:   row["session_id"],
-            ts_ms:        row["ts_ms"],
-            hook:         row["hook"],
-            status:       row["status"],
-            elapsed_ms:   row["elapsed_ms"],
+            session_id: row["session_id"],
+            ts_ms: row["ts_ms"],
+            hook: row["hook"],
+            status: row["status"],
+            elapsed_ms: row["elapsed_ms"],
             threshold_ms: row["threshold_ms"],
-            host:         row["host"] || host
+            host: row["host"] || host
           }
         end
       else
@@ -620,7 +640,7 @@ module Zdots
         exit e.message.include?("identical") ? 0 : 1
       end
 
-      puts "zdots-brain: re-keying #{table}#{dry_run ? " (dry run)" : ""}..."
+      puts "zdots-brain: re-keying #{table}#{dry_run ? ' (dry run)' : ''}..."
 
       rows = Zdots.db[table.to_sym].select(:id, :content_enc).all
       rekeyed = 0
@@ -663,20 +683,24 @@ module Zdots
         end
       end
 
-      puts "zdots-brain: #{table} rekey #{dry_run ? "scan" : "complete"}:"
+      puts "zdots-brain: #{table} rekey #{dry_run ? 'scan' : 'complete'}:"
       puts "  rekeyed     : #{rekeyed}"
       puts "  already new : #{already_new}"
       puts "  null        : #{null_rows}"
       puts "  unreadable  : #{errors}"
 
-      exit(errors > 0 ? 1 : 0)
+      exit(errors.positive? ? 1 : 0)
     end
 
     def cmd_status
       # Zdots.init_otel("zdots-brain")
       db = Zdots.db
-      connected = true rescue false
-      
+      connected = begin
+        true
+      rescue StandardError
+        false
+      end
+
       data = {
         connected: connected,
         database: db.opts[:database] || "unknown",
@@ -699,7 +723,7 @@ module Zdots
         puts "  dead jobs     : #{data[:counts][:dead_jobs]}"
         puts "  my_root       : #{data[:my_root]}"
       end
-    rescue => e
+    rescue StandardError => e
       if @options[:format] == "json"
         puts JSON.generate({ connected: false, error: e.message })
       else

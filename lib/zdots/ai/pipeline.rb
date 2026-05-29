@@ -47,7 +47,7 @@ module Zdots
           msgs << { role: "user", content: prompt }
           response = Zdots::AI.client.chat(model: model, messages: msgs, temperature: temperature)
           Success(response.content)
-        rescue => e
+        rescue StandardError => e
           Failure[:inference_error, e.message]
         end
 
@@ -55,8 +55,9 @@ module Zdots
           result = Zdots::AI.embed_client.embed(model: "embed", input: text)
           vector = result.vectors
           return Failure[:embed_error, "empty embedding returned"] if vector.nil? || vector.empty?
+
           Success(vector)
-        rescue => e
+        rescue StandardError => e
           Failure[:embed_error, e.message]
         end
       end

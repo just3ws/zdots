@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-
 module Zdots
   module Models
     class Job < Sequel::Model(Zdots.db[:jobs])
@@ -12,7 +10,7 @@ module Zdots
         # claim_next_job(p_worker_type, p_trace_id) returns TABLE(id, type, payload)
         row = Zdots.db.fetch("SELECT * FROM claim_next_job(?, ?);", type, trace_id).first
         return nil unless row
-        
+
         call(row)
       end
 
@@ -31,7 +29,7 @@ module Zdots
         ds = ds.filter(type: type) if type
         ds.count
       end
-      
+
       def self.dead_count
         filter(status: "dead").count
       end
