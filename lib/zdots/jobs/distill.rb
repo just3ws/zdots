@@ -46,9 +46,9 @@ module Zdots
 
       def extract_video_id(url)
         if url =~ /v=([^&]*)/
-          $1
-        elsif url =~ /\/([^\?\/]*)$/
-          $1
+          ::Regexp.last_match(1)
+        elsif url =~ %r{/([^?/]*)$}
+          ::Regexp.last_match(1)
         else
           "unknown_#{Time.now.to_i}"
         end

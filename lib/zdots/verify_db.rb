@@ -6,7 +6,7 @@ begin
   Zdots.init_otel("zdots-verify")
   db = Zdots.db
   puts "Connected to database: #{db.opts[:database] || db.uri}"
-  
+
   # Check if jobs table exists
   if db.table_exists?(:jobs)
     count = db[:jobs].count
@@ -17,7 +17,7 @@ begin
   end
 
   puts "Sequel integration verified successfully."
-rescue => e
+rescue StandardError => e
   puts "Verification failed: #{e.message}"
   puts e.backtrace.first(5)
   exit 1

@@ -6,7 +6,6 @@ SimpleCov.start do
   enable_coverage :branch
 end
 
-require "pathname"
 ...
 ZDOTS_ROOT = Pathname.new(__dir__).parent.freeze
 

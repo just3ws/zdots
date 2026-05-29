@@ -11,15 +11,15 @@ module Zdots
       # Zdots.init_otel("zdots-migrator")
       migration_url = ENV.fetch("ZDOTS_MIGRATION_URL", "postgresql:///my")
       db = Sequel.connect(migration_url)
-      
+
       migrations_path = File.expand_path("../../db/migrations", __dir__)
-      
+
       puts "zdots-migrator: applying migrations from #{migrations_path}..."
-      
+
       Sequel::Migrator.run(db, migrations_path, table: :zdots_schema_migrations, use_transactions: true)
-      
+
       puts "zdots-migrator: [ok] all migrations up to date."
-    rescue => e
+    rescue StandardError => e
       puts "zdots-migrator: [!!] migration failed: #{e.message}"
       puts e.backtrace.first(10)
       exit 1
@@ -27,6 +27,4 @@ module Zdots
   end
 end
 
-if __FILE__ == $0
-  Zdots::Migrator.run
-end
+Zdots::Migrator.run if __FILE__ == $PROGRAM_NAME

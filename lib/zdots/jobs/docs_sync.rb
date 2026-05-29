@@ -33,11 +33,10 @@ module Zdots
           current_content = File.read(full_path)
 
           prompt = load_prompt("docs_sync",
-            doc_path: doc_rel_path,
-            summary: residue[:summary].to_s,
-            result: residue[:result].to_s,
-            current_content: current_content
-          )
+                               doc_path: doc_rel_path,
+                               summary: residue[:summary].to_s,
+                               result: residue[:result].to_s,
+                               current_content: current_content)
 
           response = llm.chat(
             model: "local",
@@ -46,7 +45,7 @@ module Zdots
           )
 
           new_content = response.content.strip
-          
+
           if new_content == "NO_CHANGES_REQUIRED"
             puts "        (no changes needed)"
           else
@@ -58,7 +57,7 @@ module Zdots
 
         # 3. Mark as processed
         Zdots.db[:session_residue].where(trace_id: trace_id).update(processed_into_docs_at: Sequel::CURRENT_TIMESTAMP)
-        
+
         true
       end
     end

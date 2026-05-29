@@ -6,7 +6,7 @@ require "zdots/ai/client"
 RSpec.describe Zdots::AI do
   around do |example|
     saved = {
-      "ZDOTS_AI_MODE"     => ENV["ZDOTS_AI_MODE"],
+      "ZDOTS_AI_MODE" => ENV["ZDOTS_AI_MODE"],
       "ZDOTS_AI_ENDPOINT" => ENV["ZDOTS_AI_ENDPOINT"]
     }
     described_class.reset!
