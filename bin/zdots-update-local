@@ -23,6 +23,8 @@ SKIP_CHECK=0
 PHASE_TOTAL=8
 PHASE_INDEX=0
 CURRENT_PHASE="preflight"
+STEP_INDEX=0
+CURRENT_STEP="preflight"
 RUN_ID="$(date '+%Y%m%dT%H%M%S')-$$"
 
 usage() {
@@ -116,9 +118,18 @@ summary() {
 
 phase() {
   PHASE_INDEX=$((PHASE_INDEX + 1))
+  STEP_INDEX=0
   CURRENT_PHASE="$1"
+  CURRENT_STEP="phase-start"
   printf '\n==> zdots-update-local phase %02d/%02d: %s\n' "$PHASE_INDEX" "$PHASE_TOTAL" "$CURRENT_PHASE" >&2
   summary "- phase ${PHASE_INDEX}/${PHASE_TOTAL}: ${CURRENT_PHASE}"
+}
+
+step() {
+  STEP_INDEX=$((STEP_INDEX + 1))
+  CURRENT_STEP="$1"
+  printf '  --> zdots-update-local step %02d.%02d: %s\n' "$PHASE_INDEX" "$STEP_INDEX" "$CURRENT_STEP" >&2
+  summary "  - step ${PHASE_INDEX}.${STEP_INDEX}: ${CURRENT_STEP}"
 }
 
 finish() {
@@ -127,8 +138,8 @@ finish() {
     log "complete status=0 log=$LOG_FILE summary=$SUMMARY_FILE"
     summary "- result: complete"
   else
-    log "failed status=$status phase=$CURRENT_PHASE log=$LOG_FILE summary=$SUMMARY_FILE"
-    summary "- result: failed status=${status} phase=${CURRENT_PHASE}"
+    log "failed status=$status phase=$CURRENT_PHASE step=$CURRENT_STEP log=$LOG_FILE summary=$SUMMARY_FILE"
+    summary "- result: failed status=${status} phase=${CURRENT_PHASE} step=${CURRENT_STEP}"
   fi
   exit "$status"
 }
@@ -145,17 +156,17 @@ trap finish EXIT
 } > "$SUMMARY_FILE"
 
 run() {
-  log "run: $*"
+  log "run phase=$CURRENT_PHASE step=$CURRENT_STEP command=$*"
   if [[ "$DRY_RUN" -eq 0 ]]; then
     if "$@"; then
-      log "ok: $*"
+      log "ok phase=$CURRENT_PHASE step=$CURRENT_STEP command=$*"
     else
       status=$?
-      log "failed status=$status command=$*"
+      log "failed status=$status phase=$CURRENT_PHASE step=$CURRENT_STEP command=$*"
       return "$status"
     fi
   else
-    log "dry-run: skipped execution"
+    log "dry-run phase=$CURRENT_PHASE step=$CURRENT_STEP skipped command=$*"
   fi
 }
 
@@ -170,7 +181,9 @@ fi
 
 phase "brew: reconcile selected Brewfile"
 if [[ "$SKIP_BREW" -eq 0 ]]; then
+  step "detect Homebrew"
   if command -v brew >/dev/null 2>&1; then
+    step "select context Brewfile"
     case "${ZDOTS_CONTEXT:-home}" in
       work) brewfile="$ZDOTDIR/Brewfile.work" ;;
       *)    brewfile="$ZDOTDIR/Brewfile.home" ;;
@@ -179,6 +192,8 @@ if [[ "$SKIP_BREW" -eq 0 ]]; then
       ""|"$ZDOTDIR/Brewfile"|"$ZDOTDIR/Brewfile.home"|"$ZDOTDIR/Brewfile.work") ;;
       *) brewfile="$HOMEBREW_BUNDLE_FILE" ;;
     esac
+    log "selected Brewfile=$brewfile context=${ZDOTS_CONTEXT:-home}"
+    step "run brew bundle"
     run brew bundle --file "$brewfile"
   else
     warn "brew not found; skipping brew bundle"
@@ -189,7 +204,9 @@ fi
 
 phase "mise: install pinned runtimes"
 if [[ "$SKIP_MISE" -eq 0 ]]; then
+  step "detect mise"
   if command -v mise >/dev/null 2>&1; then
+    step "install pinned runtimes"
     run mise install --cd "$ZDOTDIR"
   else
     warn "mise not found; skipping mise install"
@@ -200,8 +217,11 @@ fi
 
 phase "llama: regenerate launchd plists"
 if [[ "$SKIP_LLAMA" -eq 0 ]]; then
+  step "detect llama-ctl"
   if [[ -x "$ZDOTDIR/bin/llama-ctl" ]]; then
+    step "install chat launchd service"
     run "$ZDOTDIR/bin/llama-ctl" install
+    step "install embedding launchd service"
     run "$ZDOTDIR/bin/llama-ctl" install-embed
   else
     warn "bin/llama-ctl not executable; skipping llama plist regeneration"
@@ -212,15 +232,19 @@ fi
 
 phase "fabric: refresh local pattern library"
 if [[ "$SKIP_FABRIC" -eq 0 ]]; then
+  step "detect fabric-ai"
   if command -v fabric-ai >/dev/null 2>&1; then
     # Ensure config exists for local LLM
     FABRIC_CONF="$HOME/.config/fabric"
+    step "ensure local Fabric config"
     if [[ ! -f "$FABRIC_CONF/.env" ]]; then
       run mkdir -p "$FABRIC_CONF"
       if [[ "$DRY_RUN" -eq 0 ]]; then
         printf "OPENAI_API_KEY=local\nOPENAI_BASE_URL=http://127.0.0.1:11500/v1\nDEFAULT_MODEL=qwen3-8b\n" > "$FABRIC_CONF/.env"
+        log "wrote Fabric config $FABRIC_CONF/.env"
       fi
     fi
+    step "update Fabric patterns"
     run fabric-ai --updatepatterns
   else
     warn "fabric-ai not found; skipping pattern update"
@@ -230,6 +254,7 @@ else
 fi
 
 phase "pi: reconcile local llama.cpp model config"
+step "locate pi CLI"
 PI_AGENT_DIR="$HOME/.pi/agent"
 pi_bin="$(command -v pi 2>/dev/null || true)"
 if [[ -z "$pi_bin" ]]; then
@@ -237,7 +262,10 @@ if [[ -z "$pi_bin" ]]; then
 fi
 if [[ -n "$pi_bin" ]]; then
   AI_BASE="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/v1"
+  log "pi binary=$pi_bin"
+  step "ensure Pi agent directory"
   run mkdir -p "$PI_AGENT_DIR"
+  step "reconcile Pi settings"
   if [[ ! -f "$PI_AGENT_DIR/settings.json" && "$DRY_RUN" -eq 0 ]]; then
     cat > "$PI_AGENT_DIR/settings.json" <<'PISETTINGS'
 {
@@ -250,6 +278,7 @@ PISETTINGS
   elif [[ ! -f "$PI_AGENT_DIR/settings.json" ]]; then
     log "dry-run: would create ~/.pi/agent/settings.json"
   fi
+  step "reconcile Pi model endpoint"
   if [[ ! -f "$PI_AGENT_DIR/models.json" ]] || ! grep -Fq "\"baseUrl\": \"${AI_BASE}\"" "$PI_AGENT_DIR/models.json"; then
     if [[ "$DRY_RUN" -eq 0 ]]; then
       [[ -f "$PI_AGENT_DIR/models.json" ]] && cp "$PI_AGENT_DIR/models.json" "$PI_AGENT_DIR/models.json.bak"
@@ -294,7 +323,9 @@ unset PI_AGENT_DIR pi_bin AI_BASE
 
 phase "otel: validate collector config"
 if [[ "$SKIP_OTEL" -eq 0 ]]; then
+  step "detect otel-collector"
   if [[ -x "$ZDOTDIR/bin/otel-collector" ]]; then
+    step "validate otel collector config"
     run "$ZDOTDIR/bin/otel-collector" validate
   else
     warn "bin/otel-collector not executable; skipping otel validation"
@@ -305,7 +336,9 @@ fi
 
 phase "checks: make check-fast"
 if [[ "$SKIP_CHECK" -eq 0 ]]; then
+  step "detect make"
   if command -v make >/dev/null 2>&1; then
+    step "run fast check suite"
     run make check-fast
   else
     warn "make not found; skipping check-fast"
@@ -315,4 +348,5 @@ else
 fi
 
 phase "handoff: log location for Pi/HI analysis"
+step "emit log handoff"
 log "handoff: feed this to Pi or HI: $SUMMARY_FILE then $LOG_FILE"
