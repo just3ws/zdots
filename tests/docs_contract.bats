@@ -155,8 +155,8 @@ _known_gap() {
   local -a tested=(
     agent-guide ai-query alias-suggest bootstrap capabilities commit-msg
     diff-review docker-reclaim gemini-mcp-register history-analyze history-import
-    llama-caps llama-ctl local-ci otel-collector pi-ctx-hydrate pi-ctx-query
-    pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-keychain
+    llama-caps llama-ctl local-ci otel-collector pi-ctx-brief pi-ctx-hydrate
+    pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-keychain
     zdots-log-analyze zdots-quiz zdots-status zdots-ctl zdots-update-local
     zmorning ztask
   )
