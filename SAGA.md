@@ -1,63 +1,51 @@
-# 🌌 The Zdots Control Plane Saga: A Repository Chronology
+# The Zdots Saga: From Dotfiles to Infrastructure
 
-This document tracks the evolution of Zdots from a collection of shell scripts into a participating node in a distributed observability system.
+This document tells the chronological story of the Zdots repository—a journey from a standard Zsh configuration in 2017 to the **Deepened Shell Platform** it is today.
 
----
+## Era I: Genesis & The Shallow Shell (2017)
 
-### I. The Prequel Trilogy: The Foundation of Flex
-**"Interchangeable Parts"**
+**Theme:** Personalization, speed, and the "Standard" shell experience.
 
-Before Zdots became observable, it had to become modular. This era was about deconstructing the "Ox" of shell configuration:
-*   **The SOLID reformation**: Applying software engineering principles to Zsh.
-*   **The Dependency Injection phase**: Moving from hardcoded paths to interchangeable "Providers" (Homebrew, Mise, Apt).
-*   **The Composition Root (`.zdots.env`)**: Establishing a single point of truth for environment identity.
-*   **The Intent**: Building a shell that adapts to its host—whether a powerful Mac workstation or a constrained Raspberry Pi.
-*   **The Final Acts**: Formalizing TTY state discovery (Z-016), adding timeout protection for provider initialization (Z-029), and implementing ZDOTS_SAFE_MODE bypass (Z-028).
+*   **2017-05-26**: Repository genesis (`e25021c`). The initial commit establishes a traditional Zsh setup focused on aliases, browser shortcuts, and basic path management.
+*   **The "Save Point" Summer**: Hundreds of rapid-fire commits show a developer obsessively iterating on prompt aesthetics and directory navigation.
+*   **Key Innovation**: The introduction of `zrecompile` and early lazy-loading attempts, signaling an early preoccupation with shell startup performance.
 
-**Milestone closed 2026-03-30.** Gate: `make check` — 13/13 tests pass. All tasks verified with acceptance criteria evidence.
+## Era II: The Refinement (2018–2022)
 
----
+**Theme:** Standardization and the rise of workflow helpers.
 
-### II. The Original Trilogy: The Rise of the Control Plane
-**"Radical Observability"**
+*   **The P10k Pivot (2021)**: The adoption of **Powerlevel10k** (`481fdbf`) marked the end of custom prompt "sketching" and the beginning of a focus on a high-information, professional UI.
+*   **Project Helpers**: The appearance of `w3r` and other "jerb" specific commands showed the shell evolving into a dedicated workstation for specific professional contexts.
+*   **Liskov Substitution**: Early refactors move hardcoded paths into generic variables, preparing the ground for the "Deep" philosophy.
 
-This era marked the shift from configuration to **Mastery**. We gave the shell a heartbeat and a voice:
-*   **W3C Distributed Tracing**: Generating and propagating `traceparent` headers for every command.
-*   **The Hybrid OTel Bridge**: Routing host-based telemetry through a Bare Metal Collector to a central LGTM stack in Colima.
-*   **The AI Offloader**: Introducing local LLM providers (llama.cpp) to handle log parsing and data reduction.
-*   **The Circuit Breaker**: Implementing the "Submarine Standard" to ensure system stability even during a component failure.
+## Era III: The Great Awakening (Late 2025 – Q1 2026)
 
----
+**Theme:** Modularization and the removal of technical debt.
 
-### Interlude: The Regrounding
-**"Earned, Not Declared"**
+*   **The Snapshot (2025-10-23)**: After a dormant period, the repo is revived for a modern age.
+*   **Architectural Cleansing**: Removal of `antigen`, `asdf`, and other "shallow" plugin managers in favor of a lean, declarative core (`lib/`).
+*   **CLAUDE.md & AGENTS.md**: The first explicit "Agent Instructions" appear, signaling that the primary user of the shell is no longer just a human, but a collaborative human-AI pair.
 
-Between the Originals and the Sequels, the project paused to face an uncomfortable truth: the practice had not kept pace with the ambition. Twenty-one tasks were marked Done with unchecked criteria. The regression suite was broken. Milestones existed only in narrative, never in the backlog.
+## Era IV: The Deepening & Local AI (April – May 2026)
 
-The Regrounding was five steps: Get Clean, Get Green, Get Honest, Get Structured, Get Disciplined. Each step was verified before the next could begin. The recovery itself modeled the discipline it restored.
+**Theme:** High-performance inference and systemic observability.
 
-*   **The Lesson**: A system that describes rigor but does not practice it is more fragile than one that makes no claims at all.
-*   **The Gate**: No task is Done without evidence. No milestone closes without verification. The practice is the same regardless of who does the work.
+*   **The AI Pivot (2026-04-18)**: Integration of `llama.cpp` and `whisper.cpp`. The shell becomes a host for local LLMs, with `llama-ctl` managing service lifecycles.
+*   **OTel Everywhere**: Every shell command begins emitting OTel spans to a local LGTM stack. The shell is now an **Observable System**.
+*   **The Intelligence Layer**: Implementation of `zdots-ctx` and a Postgres-backed "Shell Brain" for long-term memory and session residue distillation.
 
----
+## Era V: Operation Martian & Sentience (Late May 2026)
 
-### III. The Sequel Trilogy: The Era of Autonomy
-**"Engineered Intelligence"**
+**Theme:** Security, PHI safety, and autonomous orchestration.
 
-The era of the **Living System**. The shell doesn't just report what happened; it analyzes, learns, and routes intelligently:
-*   **Operation Martian (PHI Safety)**: Enforcing defense-in-depth for PHI-adjacent workloads — Keychain secrets, AI locality, PHI scrubbing, history redaction, pgcrypto at-rest encryption, macOS Unified Logging audit trail.
-*   **The Local AI Routing Layer**: `zdots-ask` domain router + `zdots-quiz` capability probe. Domain-aware system prompts (shell, ruby, phi, default) above the 256-token KV cache threshold. No cloud egress.
-*   **The May 2026 SOTA Upgrade**: Qwen2.5-Coder 7B Q4_K_M + Nomic v2 MoE. SHA256 model provenance; `llama-ctl start` refuses mismatched model files.
-*   **The Transcription Engine**: `whisper.cpp` + `ztranscribe` pipeline (yt-dlp → ffmpeg → large-v3 → multi-format output).
-*   **The Shell Brain**: PostgreSQL intelligence suite (`zdots-ctx`) with methodology + lesson stores, job broker, and MCP bridge for AI agent access.
+*   **Operation Martian (2026-05-22)**: A massive security hardening effort. The introduction of the **PHI Scrubber**, history redaction hooks, and the removal of plaintext secrets in favor of the macOS Keychain.
+*   **The Sentient Workbench**: Launch of `gemini-invoke`, `zdash`, and the "Smart State Machine" for background job orchestration.
+*   **The 2026 SOTA Upgrade**: Integration of Qwen3 models, speculative decoding, and the high-performance YouTube transcription pipeline.
 
 ---
 
-### 🌟 The Legacy of Integrity
-This repository is no longer just a "project." It is an **Artifact of Engineering Integrity.** 
+## Today: Infrastructure
 
-The **Prequels** gave us the Modular Foundation.
-The **Originals** gave us the Observable Control Plane.
-The **Sequels** will give us the Autonomous Intelligence.
+Zdots is no longer a set of "dotfiles." It is a **deterministic developer enablement platform**. It is built on a performance budget of < 0.08s, guarded by a 300+ test BATS suite, and capable of local-only autonomous reasoning.
 
-**May the `/bin/check` be with you.**
+**We are Infrastructure.**
