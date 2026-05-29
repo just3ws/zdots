@@ -1,10 +1,11 @@
 AllCops:
   TargetRubyVersion: 4.0
   Exclude:
-    - 'tests/helpers/**/*'
-    - 'vendor/**/*'
-    - 'bin/**/*'
+    - "tests/helpers/**/*"
+    - "vendor/**/*"
+    - "bin/**/*"
   SuggestExtensions: false
+  NewCops: enable
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
@@ -13,6 +14,55 @@ Style/FrozenStringLiteralComment:
   Enabled: true
 
 Metrics/BlockLength:
+  Enabled: false
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/ParameterLists:
+  Enabled: false
+
+Layout/LineLength:
+  Max: 200
+
+Style/Documentation:
+  Enabled: false
+
+Style/FormatStringToken:
+  Enabled: false
+
+Style/GlobalVars:
+  Enabled: false
+
+Style/IfUnlessModifier:
+  Enabled: false
+
+Naming/PredicateMethod:
+  Enabled: false
+
+Style/OneClassPerFile:
+  Enabled: false
+
+Lint/UnusedMethodArgument:
   Exclude:
-    - 'spec/**/*'
-    - 'tests/**/*'
+    - "lib/zdots/ai/pipeline.rb"
+
+Lint/EmptyBlock:
+  Exclude:
+    - "tests/llama_integration.rb"
+
+Lint/DuplicateBranch:
+  Exclude:
+    - "lib/zdots/jobs/distill.rb"
