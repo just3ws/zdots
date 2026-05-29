@@ -22,11 +22,24 @@ check-fast:
 
 # Bats test suite only — fast, no service checks, no startup timing
 test:
-	bats $(ZDOTDIR)/tests/
+        bats $(ZDOTDIR)/tests/
+
+# Unified coverage report (Ruby via SimpleCov, Shell via kcov)
+coverage:
+	@echo "==> Running Ruby coverage (SimpleCov)..."
+	@BUNDLE_GEMFILE=$(ZDOTDIR)/Gemfile bundle exec rspec
+	@if command -v kcov >/dev/null 2>&1; then \
+		echo "==> Running Shell coverage (kcov)..."; \
+		mkdir -p coverage/bats; \
+		kcov --include-path=$(ZDOTDIR)/bin,$(ZDOTDIR)/conf.d,$(ZDOTDIR)/functions,$(ZDOTDIR)/lib coverage/bats bats $(ZDOTDIR)/tests/*.bats; \
+		echo "Shell coverage: coverage/bats/index.html"; \
+	else \
+		echo "Warning: kcov not found, skipping shell coverage."; \
+	fi
+	@echo "Ruby coverage: coverage/index.html"
 
 # Platform health: services, AI integration, disk (zdots-ctl check)
-health:
-	$(ZDOTDIR)/bin/zdots-ctl check
+health:	$(ZDOTDIR)/bin/zdots-ctl check
 
 ctx-status:
 	$(ZDOTDIR)/bin/zdots-ctx status

@@ -1,7 +1,13 @@
 # frozen_string_literal: true
 
-require "pathname"
+require "simplecov"
+SimpleCov.start do
+  add_filter "/spec/"
+  enable_coverage :branch
+end
 
+require "pathname"
+...
 ZDOTS_ROOT = Pathname.new(__dir__).parent.freeze
 
 # Load the zdots lib without requiring a running database or AI endpoint.
