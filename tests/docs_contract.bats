@@ -154,9 +154,9 @@ _known_gap() {
   # Canonical set of explicitly tested commands (mirrors the --help test above).
   local -a tested=(
     agent-guide ai-query alias-suggest bootstrap capabilities commit-msg
-    diff-review docker-reclaim history-analyze history-import llama-caps
-    llama-ctl local-ci otel-collector whisper-ctl zdash zdots-ask zdots-ctx
-    zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl
+    diff-review docker-reclaim gemini-mcp-register history-analyze history-import
+    llama-caps llama-ctl local-ci otel-collector whisper-ctl zdash zdots-ask
+    zdots-ctx zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl
     zdots-update-local zmorning ztask
   )
 
