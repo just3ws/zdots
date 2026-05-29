@@ -38,7 +38,8 @@ Sequel.migration do
       alter_table(:lessons) { add_column :content_enc, :bytea }
       self[:lessons].where(content_enc: nil).each do |row|
         next if row[:content].nil?
-        enc = self.get(Sequel.function(:pgp_sym_encrypt, row[:content], key))
+
+        enc = get(Sequel.function(:pgp_sym_encrypt, row[:content], key))
         self[:lessons].where(id: row[:id]).update(content_enc: enc)
       end
       run "DROP INDEX IF EXISTS lessons_search_idx"
@@ -50,7 +51,8 @@ Sequel.migration do
       alter_table(:methodologies) { add_column :content_enc, :bytea }
       self[:methodologies].where(content_enc: nil).each do |row|
         next if row[:content].nil?
-        enc = self.get(Sequel.function(:pgp_sym_encrypt, row[:content], key))
+
+        enc = get(Sequel.function(:pgp_sym_encrypt, row[:content], key))
         self[:methodologies].where(id: row[:id]).update(content_enc: enc)
       end
       run "DROP INDEX IF EXISTS methodologies_search_idx"
@@ -60,10 +62,12 @@ Sequel.migration do
     # ── session_residue: summary, intent, result ──────────────────────────────
     { summary: :summary_enc, intent: :intent_enc, result: :result_enc }.each do |plain, enc_col|
       next if self[:session_residue].columns.include?(enc_col)
+
       alter_table(:session_residue) { add_column enc_col, :bytea }
       self[:session_residue].where(enc_col => nil).each do |row|
         next if row[plain].nil?
-        enc = self.get(Sequel.function(:pgp_sym_encrypt, row[plain], key))
+
+        enc = get(Sequel.function(:pgp_sym_encrypt, row[plain], key))
         self[:session_residue].where(id: row[:id]).update(enc_col => enc)
       end
       alter_table(:session_residue) { drop_column plain }
@@ -78,7 +82,7 @@ Sequel.migration do
     if self[:lessons].columns.include?(:content_enc)
       alter_table(:lessons) { add_column :content, :text }
       self[:lessons].where.not(content_enc: nil).each do |row|
-        plain = self.get(Sequel.function(:pgp_sym_decrypt, row[:content_enc], key))
+        plain = get(Sequel.function(:pgp_sym_decrypt, row[:content_enc], key))
         self[:lessons].where(id: row[:id]).update(content: plain)
       end
       alter_table(:lessons) { drop_column :content_enc }
@@ -89,7 +93,7 @@ Sequel.migration do
     if self[:methodologies].columns.include?(:content_enc)
       alter_table(:methodologies) { add_column :content, :text }
       self[:methodologies].where.not(content_enc: nil).each do |row|
-        plain = self.get(Sequel.function(:pgp_sym_decrypt, row[:content_enc], key))
+        plain = get(Sequel.function(:pgp_sym_decrypt, row[:content_enc], key))
         self[:methodologies].where(id: row[:id]).update(content: plain)
       end
       alter_table(:methodologies) { drop_column :content_enc }
@@ -99,9 +103,10 @@ Sequel.migration do
     # Restore session_residue
     { summary_enc: :summary, intent_enc: :intent, result_enc: :result }.each do |enc_col, plain|
       next unless self[:session_residue].columns.include?(enc_col)
+
       alter_table(:session_residue) { add_column plain, :text }
       self[:session_residue].where.not(enc_col => nil).each do |row|
-        val = self.get(Sequel.function(:pgp_sym_decrypt, row[enc_col], key))
+        val = get(Sequel.function(:pgp_sym_decrypt, row[enc_col], key))
         self[:session_residue].where(id: row[:id]).update(plain => val)
       end
       alter_table(:session_residue) { drop_column enc_col }

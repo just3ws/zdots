@@ -33,6 +33,7 @@ module Zdots
         raise LocalityError, "AI unavailable (ZDOTS_AI_MODE=none)"
       end
       return if mode == "cloud"
+
       unless local_endpoint?(endpoint)
         audit_log("endpoint_assertion_fail", "endpoint=#{endpoint} mode=#{mode}")
         raise LocalityError, "SECURITY: AI endpoint is not local: #{endpoint}"
@@ -76,6 +77,7 @@ module Zdots
 
       def audit_log(event, detail = "")
         return unless RbConfig::CONFIG["host_os"].include?("darwin")
+
         type = case event
                when /_fail|_triggered|_violation/ then "fault"
                when /_pass|_redacted/             then "info"

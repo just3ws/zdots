@@ -1,4 +1,6 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 # tests/llama_integration.rb — RubyLLM × llama.cpp integration test and demo
 #
 # Exercises every capability that llama.cpp exposes through the OpenAI-compatible
@@ -82,12 +84,12 @@ require "json"
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────────────────────────────────────
-ENDPOINT       = ENV.fetch("ZDOTS_AI_ENDPOINT",       "http://127.0.0.1:11500")
+ENDPOINT       = ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")
 EMBED_ENDPOINT = ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT",  "http://127.0.0.1:11501")
 MODEL          = ENV.fetch("ZDOTS_AI_MODEL_ALIAS",     "local")   # alias, never GGUF filename
 EMBED_MODEL    = ENV.fetch("ZDOTS_AI_EMBED_MODEL",     "embed")   # Nomic embed-v2 alias
-PROVIDER       = "openai"                                          # llama.cpp speaks OpenAI API
-QUICK          = ARGV.include?("--quick")                         # fast subset for health checks
+PROVIDER       = "openai" # llama.cpp speaks OpenAI API
+QUICK          = ARGV.include?("--quick") # fast subset for health checks
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Minimal test runner
@@ -113,7 +115,7 @@ def test(name, slow: false)
   rescue SkipTest => e
     puts "#{SKIP}  #{e.message}"
     $results[:skip] += 1
-  rescue => e
+  rescue StandardError => e
     puts "#{FAIL}  #{e.message}"
     $results[:fail] += 1
   end
@@ -121,6 +123,7 @@ end
 
 class SkipTest < StandardError; end
 def skip!(msg) = raise SkipTest, msg
+
 def assert(cond, msg = "assertion failed")
   raise msg unless cond
 end
@@ -154,6 +157,7 @@ def http_post_embed(input)
     h.post(uri.path, body, "Content-Type" => "application/json")
   end
   raise "embed HTTP #{res.code}: #{res.body[0, 200]}" unless res.code.to_i == 200
+
   JSON.parse(res.body)
 end
 
@@ -204,7 +208,7 @@ test "GET /health → {status: ok}" do
   r = http_get("/health")
   assert r.code == "200", "HTTP #{r.code}"
   body = JSON.parse(r.body)
-  assert body["status"] == "ok", "status=#{body["status"].inspect}"
+  assert body["status"] == "ok", "status=#{body['status'].inspect}"
   server_up = true
 end
 
@@ -293,13 +297,18 @@ puts "── 5. Embeddings (embed server: #{EMBED_ENDPOINT}) ──────�
 embed_up = false
 
 test "GET #{EMBED_ENDPOINT}/health → {status: ok}" do
-  r = http_get("/health").tap {} rescue (skip! "embed server unreachable"; nil)
+  begin
+    http_get("/health").tap {}
+  rescue StandardError
+    (skip! "embed server unreachable"
+     nil)
+  end
   # embed server has its own endpoint
   uri = URI("#{EMBED_ENDPOINT}/health")
   res = Net::HTTP.start(uri.host, uri.port, open_timeout: 3, read_timeout: 5) { |h| h.get(uri.path) }
   assert res.code == "200", "HTTP #{res.code}"
   body = JSON.parse(res.body)
-  assert body["status"] == "ok", "status=#{body["status"].inspect}"
+  assert body["status"] == "ok", "status=#{body['status'].inspect}"
   embed_up = true
 end
 
@@ -322,7 +331,7 @@ end
 test "embed — similar texts closer than dissimilar (cosine)", slow: true do
   skip! "embed server not reachable" unless embed_up
 
-  cosine = ->(a, b) do
+  cosine = lambda do |a, b|
     dot  = a.zip(b).sum { |x, y| x * y }
     norm = ->(v) { Math.sqrt(v.sum { |x| x**2 }) }
     dot / (norm[a] * norm[b])
@@ -359,11 +368,11 @@ total  = $results.values.sum
 passed = $results[:pass]
 failed = $results[:fail]
 skip_n = $results[:skip]
-label  = failed > 0 ? "\e[31mFAILED\e[0m" : "\e[32mPASSED\e[0m"
-suffix = skip_n > 0 ? ", #{skip_n} skipped" : ""
+label  = failed.positive? ? "\e[31mFAILED\e[0m" : "\e[32mPASSED\e[0m"
+suffix = skip_n.positive? ? ", #{skip_n} skipped" : ""
 puts "── #{label}  #{passed}/#{total - skip_n} passed#{suffix} ─────────────────────────────────────"
 
-if failed > 0 && !QUICK
+if failed.positive? && !QUICK
   puts
   puts "Troubleshooting:"
   puts "  llama-ctl status        — is the server running?"
@@ -373,4 +382,4 @@ if failed > 0 && !QUICK
 end
 puts
 
-exit(failed > 0 ? 1 : 0)
+exit(failed.positive? ? 1 : 0)

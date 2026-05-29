@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-
-
-
-
 require "logger"
 
 require_relative "zdots/db"
@@ -18,9 +14,7 @@ module Zdots
   class << self
     def init_otel(service_name = "zdots-brain")
       # Silence OTel diagnostic logging unless debug mode is active
-      unless ENV["ZDOTS_DEBUG"] == "1"
-        OpenTelemetry.logger = Logger.new(nil)
-      end
+      OpenTelemetry.logger = Logger.new(nil) unless ENV["ZDOTS_DEBUG"] == "1"
 
       OpenTelemetry::SDK.configure do |c|
         c.service_name = service_name

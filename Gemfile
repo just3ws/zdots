@@ -2,18 +2,18 @@
 
 source "https://rubygems.org"
 
-gem "pg"
-gem "sequel"
-gem "ruby_llm"
-gem "dry-monads"
 gem "dotenv"
-gem "opentelemetry-sdk"
+gem "dry-monads"
 gem "opentelemetry-exporter-otlp"
 gem "opentelemetry-instrumentation-all"
+gem "opentelemetry-sdk"
+gem "pg"
+gem "ruby_llm"
+gem "sequel"
 
 group :test do
-  gem "rspec"
-  gem "simplecov", require: false
-  gem "rubocop", require: false
   gem "bundler-audit", require: false
+  gem "rspec"
+  gem "rubocop", require: false
+  gem "simplecov", require: false
 end

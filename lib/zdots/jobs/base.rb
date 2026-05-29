@@ -14,7 +14,7 @@ module Zdots
     # Raises ArgumentError if the type is unknown — fail loudly, never silently drop a job.
     def self.for(type)
       @registry.fetch(type.to_s) do
-        raise ArgumentError, "unknown job type: #{type.inspect} (registered: #{@registry.keys.sort.join(", ")})"
+        raise ArgumentError, "unknown job type: #{type.inspect} (registered: #{@registry.keys.sort.join(', ')})"
       end
     end
 
@@ -31,24 +31,22 @@ module Zdots
 
       def perform_with_otel
         tracer = OpenTelemetry.tracer_provider.tracer("zdots-jobs")
-        
+
         # Link to the trace_id stored in the job if available
         # (Though claim_next_job updates it to the worker's current trace)
-        
+
         tracer.in_span("job.perform", attributes: {
-          "job.id" => job.id.to_s,
-          "job.type" => job.type
-        }) do |span|
-          begin
-            result = run
-            job.complete!
-            result
-          rescue => e
-            span.record_exception(e)
-            span.status = OpenTelemetry::Trace::Status.error(e.message)
-            job.fail!(e.message)
-            raise e
-          end
+                         "job.id" => job.id.to_s,
+                         "job.type" => job.type
+                       }) do |span|
+          result = run
+          job.complete!
+          result
+        rescue StandardError => e
+          span.record_exception(e)
+          span.status = OpenTelemetry::Trace::Status.error(e.message)
+          job.fail!(e.message)
+          raise e
         end
       end
 
@@ -67,6 +65,7 @@ module Zdots
       def load_prompt(name, **vars)
         path = File.join(Zdots::ZDOTDIR, "etc", "prompts", "jobs", "#{name}.txt")
         raise "prompt not found: #{path}" unless File.exist?(path)
+
         vars.reduce(File.read(path)) { |t, (k, v)| t.gsub("{{#{k}}}", v.to_s) }
       end
     end
