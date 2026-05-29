@@ -83,7 +83,7 @@ module Zdots
       idle_notified = false
 
       loop do
-        job = Zdots::Models::Job.claim(@options[:type], ENV["ZDOTS_TRACE_ID"])
+        job = Zdots::Models::Job.claim(@options[:type], ENV.fetch("ZDOTS_TRACE_ID", nil))
 
         if job.nil?
           unless idle_notified
@@ -482,7 +482,7 @@ module Zdots
         end
       end
 
-      puts "\nzdots-brain ingest#{dry_run ? ' (dry run)' : ''}: #{ingested} ingested, #{skipped} skipped, #{errors} errors"
+      puts "\nzdots-brain ingest#{' (dry run)' if dry_run}: #{ingested} ingested, #{skipped} skipped, #{errors} errors"
       exit(errors.positive? ? 1 : 0)
     end
 
@@ -640,7 +640,7 @@ module Zdots
         exit e.message.include?("identical") ? 0 : 1
       end
 
-      puts "zdots-brain: re-keying #{table}#{dry_run ? ' (dry run)' : ''}..."
+      puts "zdots-brain: re-keying #{table}#{' (dry run)' if dry_run}..."
 
       rows = Zdots.db[table.to_sym].select(:id, :content_enc).all
       rekeyed = 0
@@ -710,7 +710,7 @@ module Zdots
           pending_jobs: Zdots::Models::Job.pending_count,
           dead_jobs: Zdots::Models::Job.dead_count
         },
-        my_root: ENV["ZDOTS_MY_ROOT"]
+        my_root: ENV.fetch("ZDOTS_MY_ROOT", nil)
       }
 
       if @options[:format] == "json"

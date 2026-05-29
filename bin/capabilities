@@ -133,7 +133,9 @@ for p in $_paths; do
 done
 
 # Disk Space Check
-_avail=$(df -h / | tail -n 1 | awk '{print $(NF-2)}' || echo "unknown")
+# Use the Avail column explicitly. On macOS df output includes inode columns
+# after Capacity; using fields relative to NF reads ifree, not free blocks.
+_avail=$(df -h / | awk 'NR==2 {print $4}' || echo "unknown")
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo "  ${CYAN}Disk Available:${RESET}  $_avail"
 fi
@@ -199,13 +201,21 @@ fi
 _z_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
 _z_trace_file="${_z_state_dir}/traces.jsonl"
 _ts="unknown"
+_trace_age_seconds="unknown"
 if [ -f "$_z_trace_file" ]; then
   _z_last_trace="$(tail -n 1 "$_z_trace_file")"
   # Extract timestamp via sed
   _ts=$(echo "$_z_last_trace" | sed 's/.*"ts":"\([^"]*\)".*/\1/')
+  if [ "$_ts" != "unknown" ]; then
+    _trace_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S%z" "$_ts" "+%s" 2>/dev/null || true)
+    if [ -n "$_trace_epoch" ]; then
+      _trace_age_seconds=$(( $(date +%s) - _trace_epoch ))
+    fi
+  fi
   if [ "$OUTPUT_FORMAT" = "text" ]; then
     echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${GREEN}exists${RESET}]"
     echo "  ${CYAN}Last Trace:${RESET}   $_ts"
+    echo "  ${CYAN}Trace Age:${RESET}    $_trace_age_seconds seconds"
   fi
 else
   if [ "$OUTPUT_FORMAT" = "text" ]; then
@@ -324,10 +334,12 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg os "$(uname -s)" \
       --arg arch "$(uname -m)" \
       --arg disk "$_avail" \
+      --arg disk_source "df -h / Avail" \
       --arg ai_status "${_ai_live:-0}" \
       --arg ai_model "${ZDOTS_AI_MODEL:-unknown}" \
       --arg trace_file "$_z_trace_file" \
       --arg last_trace "$_ts" \
+      --arg trace_age "$_trace_age_seconds" \
       --arg ctx_live "$_ctx_live" \
       --arg ctx_db "$_ctx_db" \
       --arg ctx_pending "$_ctx_pending" \
@@ -351,6 +363,7 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
         os: $os,
         arch: $arch,
         disk_available: $disk,
+        disk_available_source: $disk_source,
         terminal: {
           stdin_tty: ($stdin_tty == "true"),
           stdout_tty: ($stdout_tty == "true"),
@@ -366,7 +379,8 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
         },
         observability: {
           trace_file: $trace_file,
-          last_trace: $last_trace
+          last_trace: $last_trace,
+          last_trace_age_seconds: $trace_age
         },
         diagnostics: {
           log_analyzer: ($diag_available | tonumber),
@@ -403,7 +417,7 @@ if command -v otel-cli >/dev/null 2>&1; then
   (
     otel-cli span \
       --name "platform.health" \
-      --attrs "profile=${ZDOTS_ENV_PROFILE:-unknown},os=$(uname -s),disk.avail=$_avail,ai.status=${_ZDOTS_AI_SERVER_UP:-0}" \
+      --attrs "profile=${ZDOTS_ENV_PROFILE:-unknown},os=$(uname -s),disk.avail=$_avail,ai.status=${_ai_live:-0}" \
       --force-trace-id "${ZDOTS_TRACE_ID:-00000000000000000000000000000000}" \
       --status "$_status" \
       >/dev/null 2>&1
@@ -411,7 +425,7 @@ if command -v otel-cli >/dev/null 2>&1; then
 fi
 
 # Cleanup
-unset _avail _p_status _z_services _z_state_dir _z_trace_file _z_last_trace _ts _m_status _tools _path _status _tty_stdin _tty_stdout _tty_stderr _mux _json_stdin_tty _json_stdout_tty _json_stderr_tty _json_mux _diag_cmd _diag_available _diag_dir _latest_update_log
+unset _avail _p_status _z_services _z_state_dir _z_trace_file _z_last_trace _ts _trace_age_seconds _trace_epoch _m_status _tools _path _status _tty_stdin _tty_stdout _tty_stderr _mux _json_stdin_tty _json_stdout_tty _json_stderr_tty _json_mux _diag_cmd _diag_available _diag_dir _latest_update_log
 
 if [ "$errors" -gt 0 ]; then
   if [ "$OUTPUT_FORMAT" = "text" ]; then

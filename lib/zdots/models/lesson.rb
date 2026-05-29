@@ -6,6 +6,7 @@ module Zdots
       plugin :timestamps, update_on_create: true
       include EncryptedContent
       include Searchable
+
       encrypted_attribute :content
 
       # FTS index removed after encryption — filter in app after decrypting.

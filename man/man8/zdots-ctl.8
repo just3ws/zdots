@@ -1,0 +1,62 @@
+.Dd May 29, 2026
+.Dt ZDOTS-CTL 8
+.Os zdots
+.Sh NAME
+.Nm zdots-ctl
+.Nd orchestrate and health-check the zdots platform
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar options
+.Sh DESCRIPTION
+.Nm
+starts, stops, resets, installs, and checks the local zdots service stack.
+.Sh COMMANDS
+.Bl -tag -width install
+.It Cm up
+Start Colima/LGTM, OTel, AI, and embedding services.
+.It Cm down
+Stop services in reverse order.
+.It Cm reset
+Run down then up.
+.It Cm install
+Register service dependencies and start the platform.
+.It Cm check
+Run deep diagnostics.
+.It Cm status Op Fl -json
+Show aggregate service status.
+.Pp
+In JSON output,
+.Cm ai_server
+and
+.Cm ai_http_healthy
+mean the configured
+.Pa /health
+endpoint answered.
+.Cm ai_socket_listening
+is reported separately because a bound port can still be an unhealthy server.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_SKIP_FIREWALL_CHECK
+.It Ev ZDOTS_BOOT_TIMEOUT
+Health wait timeout.
+.It Ev ZDOTS_AI_ENDPOINT , Ev ZDOTS_AI_EMBED_ENDPOINT
+Service endpoints.
+.It Ev ZDOTS_REDIS_HOST , Ev ZDOTS_REDIS_PORT
+Cache endpoint.
+.It Ev ZDOTS_CONTEXT
+Enables work-machine security posture checks when set to
+.Li work .
+.It Ev ZDOTS_CAPTURE_ENABLED , Ev ZDOTS_HISTORY_REDACT , Ev ZDOTS_AI_MODE
+PHI safety posture inputs.
+.It Ev ZDOTS_DB_ENCRYPTION_KEY
+Required for PHI database encryption checks on work machines.
+.It Ev ZDOTS_SKIP_FIREWALL_CHECK
+Suppress Application Firewall warning.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr capabilities 1 ,
+.Xr agent-guide 1 ,
+.Xr zdots 7
