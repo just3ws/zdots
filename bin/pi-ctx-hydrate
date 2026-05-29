@@ -1,20 +1,15 @@
 #!/usr/bin/env bash
 # bin/pi-ctx-hydrate — PHI-safe context hydration for Pi sessions.
 #
-# Fetches methodology context from the knowledge base and caps output
-# to fit Pi's context budget. Use this to prime Pi with relevant zdots
-# patterns before asking it to plan or explain.
+# Fetches methodology context and caps output at 60 lines (~900 tokens) so
+# there is still room for Pi's reasoning and file reads within the 32k window.
+# Use before a focused zpi session to prime the model with relevant patterns.
 #
 # Usage:
 #   pi-ctx-hydrate [TAG]
 #
 # Options:
 #   --help, -h   Show this help
-#
-# Examples:
-#   pi-ctx-hydrate           # all available context
-#   pi-ctx-hydrate phi       # phi-safety methodologies only
-#   pi-ctx-hydrate testing   # TDD / testing patterns
 
 set -euo pipefail
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
@@ -26,13 +21,14 @@ case "${1:-}" in
     cat <<'EOF'
 Usage: pi-ctx-hydrate [TAG]
 
-Fetch methodology context from the knowledge base for Pi sessions.
-Output is capped at 150 lines to fit Pi's context budget.
+Fetch methodology context for Pi sessions. Strips diagnostic noise and
+caps output at 60 lines (~900 tokens).
 
 Examples:
   pi-ctx-hydrate              # all available context
-  pi-ctx-hydrate phi          # phi-safety methodologies only
+  pi-ctx-hydrate phi          # phi-safety methodologies
   pi-ctx-hydrate testing      # TDD / testing patterns
+  pi-ctx-hydrate shell        # zsh / shell patterns
 EOF
     exit 0
     ;;
@@ -53,5 +49,8 @@ if [[ -n "$TAG" ]]; then
   }
 fi
 
-# Run hydrate and cap output to protect Pi's context budget
-"${ZDOTDIR}/bin/zdots-ctx" hydrate ${TAG:+"$TAG"} 2>&1 | head -150
+# Strip zdots-brain diagnostics, drop blank lines at top, cap at ~900 tokens.
+"${ZDOTDIR}/bin/zdots-ctx" hydrate ${TAG:+"$TAG"} 2>/dev/null \
+  | grep -v '^zdots-brain:' \
+  | sed '/./,$!d' \
+  | head -60

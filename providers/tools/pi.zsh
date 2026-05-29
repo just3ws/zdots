@@ -8,6 +8,10 @@
 #   zpi  "how should we fix X?"     → Pi plans; copy output to zaider
 #   zaider --message "implement X"  → Aider executes, commits
 #
+# Context window (32k total): system ~1k, history ~2k, read files ~2k,
+# repo map ~2k, reasoning + files ~22k, output ceiling ~2k.
+# Every token in the system prompt costs reasoning headroom — keep appends lean.
+#
 # Config lives in ~/.pi/agent/; the custom llamacpp provider is defined in
 # ~/.pi/agent/models.json. Session history goes to XDG state dir.
 # Telemetry is disabled unconditionally — PHI-adjacent machine.
@@ -33,17 +37,39 @@ zdots_pi_init() {
 }
 
 # zpi — launch Pi wired to local llama.cpp, boundary-enforced.
+#
 # Usage:
 #   zpi                        # interactive session
-#   zpi "explain this module"  # one-shot prompt
-#   zpi --print -p "explain"   # non-interactive, print output only
+#   zpi "explain this module"  # interactive with opening prompt
+#   zpi -p "explain"           # non-interactive, print and exit
 #
-# Auto-appends AGENT.md from $PWD if present, after the zdots PI.md.
-# Any project can define a token-efficient local guide this way.
+# Auto-appends:
+#   PI.md        — zdots Pi guidance (always)
+#   AGENT.md     — project-local guide if present in $PWD
+#   pi-ctx-brief — compact KB/AI status (~120 tokens) injected via temp file
+#
+# Skips pi-ctx-brief if it fails or produces no output (offline, DB down).
 zpi() {
   zdots_pi_init
   local _pi_system_append=()
-  [[ -r "${ZDOTDIR}/PI.md" ]] && _pi_system_append+=(--append-system-prompt "${ZDOTDIR}/PI.md")
-  [[ -r "${PWD}/AGENT.md" ]] && _pi_system_append+=(--append-system-prompt "${PWD}/AGENT.md")
+
+  [[ -r "${ZDOTDIR}/PI.md" ]] \
+    && _pi_system_append+=(--append-system-prompt "${ZDOTDIR}/PI.md")
+
+  [[ -r "${PWD}/AGENT.md" ]] \
+    && _pi_system_append+=(--append-system-prompt "${PWD}/AGENT.md")
+
+  # Inject compact KB+AI status without burning context on a full hydration.
+  # Write to a temp file — Pi's --append-system-prompt accepts a file path.
+  local _brief_file
+  _brief_file=$(mktemp 2>/dev/null) || true
+  if [[ -n "$_brief_file" ]]; then
+    "${ZDOTDIR}/bin/pi-ctx-brief" > "$_brief_file" 2>/dev/null || true
+    [[ -s "$_brief_file" ]] \
+      && _pi_system_append+=(--append-system-prompt "$_brief_file")
+  fi
+
   pi "${_pi_system_append[@]}" "$@"
+
+  [[ -n "$_brief_file" ]] && rm -f "$_brief_file"
 }
