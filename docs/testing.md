@@ -18,6 +18,7 @@ We use `bats-core` for shell unit testing. Tests are located in `tests/`.
 | `tests/env_posix.bats` | Ensures POSIX compliance of bootstrap scripts. |
 | `tests/observability.bats` | Validates OTel span rotation and trace headers. |
 | `tests/metadata.bats` | Tests the unified metadata service. |
+| `tests/update_local_logging.bats` | Verifies the deployment log partitioning contract. |
 | `tests/lifecycle.bats` | Tests service lifecycle primitives. |
 
 Run specific tests:
