@@ -61,7 +61,7 @@ jobs:
         run: |
           VER=$(cat etc/ruby-version)
           BUNDLE_BUILD__PG="--with-pg-config=/opt/homebrew/opt/libpq/bin/pg_config" \
-            ~/.local/share/mise/installs/ruby/${VER}/bin/bundle install
+            ~/.local/share/mise/installs/ruby/"${VER}"/bin/bundle install
 
       - name: Run RSpec
         run: bin/zdots-ruby -S rspec
