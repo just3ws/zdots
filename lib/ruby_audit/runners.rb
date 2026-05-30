@@ -9,19 +9,13 @@ module RubyAudit
   # Runs each static analysis tool against a target directory.
   # All runners return a Hash: { ok:, output:, raw: }
   module Runners
-    BUNDLE = "bundle"
-    ZDOTS  = Pathname.new(__dir__).parent.parent.freeze
-
-    def self.gem_bin(name)
-      ZDOTS.join("bin", name).to_s.tap do |p|
-        return p if File.executable?(p)
-      end
-      # Fall back to bundle exec from zdots Gemfile
-      nil
-    end
+    ZDOTS         = Pathname.new(__dir__).parent.parent.freeze
+    AUDIT_GEMFILE = ZDOTS.join("etc", "ruby-audit", "Gemfile").freeze
 
     def self.run_cmd(*cmd, cwd: nil)
-      env = { "BUNDLE_GEMFILE" => ZDOTS.join("Gemfile").to_s }
+      # Always run analyzers through the isolated audit Gemfile, not the target
+      # project's bundle and not zdots' main bundle.
+      env  = { "BUNDLE_GEMFILE" => AUDIT_GEMFILE.to_s }
       opts = cwd ? { chdir: cwd } : {}
       stdout, stderr, status = Open3.capture3(env, *cmd, opts)
       { ok: status.success?, stdout: stdout, stderr: stderr, exit: status.exitstatus }
