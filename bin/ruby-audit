@@ -21,6 +21,8 @@
 #   --only TOOL         Run only this tool (repeatable)
 #   --interrogate       After report, launch an AI session with codebase + audit context
 #   --no-repomix        Skip repomix context build (faster)
+#   --no-slices         Skip context slice generation
+#   --budget TOKENS     Token budget per slice (default: 32000)
 #   --setup             Install the audit gem bundle and exit
 #   --help              Show this help
 
@@ -51,6 +53,7 @@ $LOAD_PATH.unshift(ZDOTDIR.join("lib").to_s)
 require "ruby_audit/detector"
 require "ruby_audit/runners"
 require "ruby_audit/report_builder"
+require "ruby_audit/slice_builder"
 
 # ── CLI parsing ───────────────────────────────────────────────────────────────
 
@@ -69,6 +72,8 @@ skip_tools   = []
 only_tools   = []
 interrogate  = false
 no_repomix   = false
+no_slices    = false
+token_budget = 32_000
 
 argv = ARGV.dup
 until argv.empty?
@@ -85,8 +90,10 @@ until argv.empty?
   when "--out"          then out_dir    = argv.shift
   when "--skip"         then skip_tools << argv.shift
   when "--only"         then only_tools << argv.shift
-  when "--interrogate"  then interrogate = true
-  when "--no-repomix"   then no_repomix  = true
+  when "--interrogate"  then interrogate   = true
+  when "--no-repomix"   then no_repomix   = true
+  when "--no-slices"    then no_slices    = true
+  when "--budget"       then token_budget = argv.shift.to_i
   when /\A--/           then warn "ruby-audit: unknown option: #{arg}"; exit 1
   else                       target = arg
   end
@@ -255,6 +262,36 @@ RubyAudit::ReportBuilder.new(
 info "report.md      → #{out_dir}/report.md"
 info "summary.json   → #{out_dir}/summary.json"
 info "context.md     → #{out_dir}/context.md"
+
+# ── Context slices ────────────────────────────────────────────────────────────
+
+hdr "Building context slices"
+
+if no_slices
+  skip "slices (--no-slices)"
+else
+  brief = out_dir.join("context.md")
+  slice_builder = RubyAudit::SliceBuilder.new(
+    root:        root.to_s,
+    audit_brief: brief.to_s,
+    results:     results,
+    out_dir:     out_dir.to_s,
+    budget:      token_budget
+  )
+  sessions = slice_builder.build
+
+  if sessions.empty?
+    info "No source files found to slice"
+  else
+    sessions.each do |s|
+      fits = s[:tokens] <= token_budget ? "✅" : "⚠️ "
+      info format("%-42s ~%5d tokens  %s", s[:name], s[:tokens], fits)
+    end
+    info ""
+    info "Load a slice into Pi:"
+    info "  zpi --context #{out_dir}/slices/<session>.md"
+  end
+end
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 
