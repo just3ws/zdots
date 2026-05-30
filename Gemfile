@@ -20,10 +20,4 @@ group :test do
   gem "simplecov", require: false
 end
 
-group :audit do
-  gem "brakeman",    require: false
-  gem "flay",        require: false
-  gem "flog",        require: false
-  gem "reek",        require: false
-  gem "rubycritic",  require: false
-end
+# Audit gems are in etc/ruby-audit/Gemfile — run: ruby-audit --setup
