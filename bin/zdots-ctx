@@ -9,6 +9,7 @@
 #   status    Check connection and report database metadata
 #   init-db   Create the database and apply initial schema
 #   migrate   Apply pending SQL migrations from etc/db/migrations
+#   rotate-creds [role]  Rotate zdots_rw/zdots_ro password into Keychain (default: --all)
 #   query [--semantic] <t>  Search methodologies or lessons for <t>
 #   capture   Distill current session (traces/history) into a lesson
 #   hydrate [tag] Get semantically relevant context for AI tasks
@@ -44,6 +45,26 @@ SVC_NAME="zdots-ctx"
 MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
 _AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 
+# Credential injection at the auth boundary. The zdots_rw/zdots_ro passwords are
+# ephemeral keys stored in macOS Keychain and rotated via `zdots-ctx rotate-creds`.
+# We splice the Keychain password into ZDOTS_DATABASE_URL here so every downstream
+# psql/brain call inherits it from one place. pg_hba enforces scram-sha-256 for
+# these users, so the password is required, not optional. A URL that already
+# carries an explicit password is left untouched.
+if [[ -r "${ZDOTDIR}/lib/keychain.bash" ]]; then
+  # shellcheck source=lib/keychain.bash
+  source "${ZDOTDIR}/lib/keychain.bash"
+  _inject_db_password() {
+    local url="$1" acct="$2" pw
+    case "$url" in *://*:*@*) printf '%s' "$url"; return 0 ;; esac  # already has pw
+    pw="$(zdots_keychain_get "$acct" 2>/dev/null)" || { printf '%s' "$url"; return 0; }
+    [[ -z "$pw" ]] && { printf '%s' "$url"; return 0; }
+    printf '%s' "${url/@/:$pw@}"   # splice ":pw" before the first '@' (userinfo@host)
+  }
+  ZDOTS_DATABASE_URL="$(_inject_db_password "${ZDOTS_DATABASE_URL:-postgresql://zdots_rw@/my}" ZDOTS_RW_PASSWORD)"
+  export ZDOTS_DATABASE_URL
+fi
+
 usage() {
   cat <<EOF
 Usage: zdots-ctx <command> [--json]
@@ -52,6 +73,7 @@ Knowledge Layer Interface:
   status    Check connection and report database metadata
   init-db   Create the database and apply initial schema
   migrate   Apply pending SQL migrations from etc/db/migrations
+  rotate-creds [zdots_rw|zdots_ro|--all]  Rotate DB role password into Keychain
   query [--semantic] <t>  Search methodologies or lessons for <t>
   capture   Distill current session (traces/history) into a lesson
   hydrate [tag] Get semantically relevant context for AI tasks
@@ -149,6 +171,61 @@ cmd_init_db() {
 
 cmd_migrate() {
   zdots-ruby "${ZDOTDIR}/lib/zdots/migrator.rb"
+}
+
+# cmd_rotate_creds — Rotate the ephemeral password at a DB authorization boundary.
+#
+# The zdots_ro / zdots_rw users are fences against accidental writes/deletes, not
+# a security perimeter. This rotates their passwords with a fresh URL-safe key,
+# applies it via the superuser (migration) URL, and stores it in macOS Keychain.
+# The password travels over stdin (never argv), so it does not appear in `ps`.
+#
+# Usage: zdots-ctx rotate-creds [zdots_rw | zdots_ro | --all]   (default: --all)
+#
+# pg_hba.conf enforces scram-sha-256 for these users, so a rotation immediately
+# invalidates the old key. The OS superuser keeps `trust`, so this ALTER ROLE and
+# migrations are unaffected. See docs/architecture.md → "Credential rotation".
+cmd_rotate_creds() {
+  _require_psql
+  command -v openssl >/dev/null 2>&1 || _svc_die "openssl required for password generation"
+  [[ -r "${ZDOTDIR}/lib/keychain.bash" ]] || _svc_die "lib/keychain.bash not found"
+  # shellcheck source=lib/keychain.bash
+  source "${ZDOTDIR}/lib/keychain.bash"
+
+  local target="${1:---all}"
+  local roles=()
+  case "$target" in
+    zdots_rw|rw)   roles=(zdots_rw) ;;
+    zdots_ro|ro)   roles=(zdots_ro) ;;
+    --all|all|"")  roles=(zdots_ro zdots_rw) ;;
+    *) _svc_die "rotate-creds: unknown role '$target' (use zdots_rw | zdots_ro | --all)" ;;
+  esac
+
+  local migration_url="${ZDOTS_MIGRATION_URL:-postgresql:///my}"
+  if ! psql "${migration_url}" -X -t -A -q -c "SELECT 1" >/dev/null 2>&1; then
+    _svc_die "cannot reach DB via superuser URL (ZDOTS_MIGRATION_URL) — rotation needs DDL rights"
+  fi
+
+  local r acct pw
+  for r in "${roles[@]}"; do
+    case "$r" in
+      zdots_rw) acct=ZDOTS_RW_PASSWORD ;;
+      zdots_ro) acct=ZDOTS_RO_PASSWORD ;;
+    esac
+    pw="$(openssl rand -hex 24)" || _svc_die "openssl rand failed"
+
+    # Password via stdin here-doc — kept out of argv and shell history.
+    if ! printf "ALTER ROLE %s WITH LOGIN PASSWORD '%s';\n" "$r" "$pw" \
+         | psql "${migration_url}" -X -q -v ON_ERROR_STOP=1 >/dev/null 2>&1; then
+      _svc_die "ALTER ROLE ${r} failed"
+    fi
+    if ! zdots_keychain_set "$acct" "$pw"; then
+      _svc_die "stored password in Postgres but Keychain write failed for ${acct} — DB and Keychain now out of sync; re-run rotate-creds"
+    fi
+    _svc_ok "rotated ${r} → Keychain (${acct})"
+  done
+  unset pw
+  _svc_log "New key takes effect on next zdots-ctx invocation (URL is rebuilt from Keychain)."
 }
 
 cmd_diagnose_log() {
@@ -648,6 +725,7 @@ case "${1:-}" in
   status)   shift; cmd_status "${@}" ;;
   init-db)  shift; cmd_init_db "${@}" ;;
   migrate)  shift; cmd_migrate "${@}" ;;
+  rotate-creds) shift; cmd_rotate_creds "${@}" ;;
   query)    shift; cmd_query "${@}" ;;
   capture)  shift; cmd_capture "${@}" ;;
   hydrate)  shift; cmd_hydrate "${@}" ;;

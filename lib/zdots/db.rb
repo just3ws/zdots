@@ -2,6 +2,7 @@
 
 require "sequel"
 require "dotenv"
+require_relative "db_url"
 
 # Load environment variables if not already loaded
 Dotenv.load(File.expand_path("../../.env.shared", __dir__))
@@ -11,7 +12,7 @@ module Zdots
     class << self
       def connect
         @connect ||= begin
-          db = Sequel.connect(ENV.fetch("ZDOTS_DATABASE_URL", "postgresql://zdots_rw@/my"))
+          db = Sequel.connect(Zdots.database_url)
           db.extension :pg_array, :pg_json
           db
         end

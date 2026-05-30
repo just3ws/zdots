@@ -55,7 +55,15 @@ Do not call `llama-ctl`, `otel-collector`, or `local-ci` start/stop directly —
 | Migration command | `zdots-ctx migrate` |
 | Migration table | `zdots_schema_migrations` |
 
-For safe psql exploration use: `psql -U zdots_ro my`
+For safe psql exploration use the read-only role. `pg_hba` now enforces
+`scram-sha-256` for `zdots_ro`/`zdots_rw`, so supply the password from Keychain:
+
+```bash
+PGPASSWORD="$(security find-generic-password -s zdots -a ZDOTS_RO_PASSWORD -w)" psql -U zdots_ro my
+```
+
+Passwords are ephemeral keys rotated via `zdots-ctx rotate-creds`. The OS user is
+still superuser via `trust` for migrations.
 
 The authoritative migrations are:
 - `db/migrations/20260514000000_baseline.rb` — tables, indexes, extensions
