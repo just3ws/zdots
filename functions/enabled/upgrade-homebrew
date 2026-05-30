@@ -89,13 +89,13 @@ run_cmd() {
     return 0
   fi
   "$@" 2>&1 | tee -a "$log_file"
-  local status=$pipestatus[1]
-  if [[ "$status" == "0" ]]; then
+  local cmd_status=$pipestatus[1]
+  if [[ "$cmd_status" == "0" ]]; then
     log_msg "ok: $*"
   else
-    log_msg "failed status=$status command=$*"
+    log_msg "failed status=$cmd_status command=$*"
   fi
-  return "$status"
+  return "$cmd_status"
 }
 
 phase "brew metadata: update formula and cask indices"
