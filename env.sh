@@ -190,12 +190,14 @@ zdots_safe_source() {
   if . "$file"; then
     return 0
   else
-    local status=$?
-    echo "zdots: warning: failed to source $file (exit $status)" >&2
+    # 'status' is read-only in zsh (alias for $?); use a private name so this
+    # error path doesn't itself crash when env.sh is sourced under zsh.
+    _src_status=$?
+    echo "zdots: warning: failed to source $file (exit $_src_status)" >&2
     if [ -n "$(command -v zdots_trace_log)" ]; then
-      zdots_trace_log "error" "source_failure=$file, status=$status"
+      zdots_trace_log "error" "source_failure=$file, status=$_src_status"
     fi
-    return $status
+    return $_src_status
   fi
 }
 
