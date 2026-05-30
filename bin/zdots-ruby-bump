@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# ---
+# id: zdots-ruby-bump
+# title: "Zdots Ruby Latest-Stable Bumper"
+# purpose: Keep the pinned Ruby at the latest STABLE release and rebuild its gem world.
+# rationale: The repo deliberately pins Ruby (mise.toml + etc/ruby-version + global
+#            mise config) for CI/bootstrap reproducibility. "Always run latest Ruby"
+#            is therefore implemented as an automated bump of those pins — not a
+#            floating spec — so CI still sees a concrete version.
+# ---
+# bin/zdots-ruby-bump — Resolve latest stable Ruby, rewrite the three pin sites in
+# lockstep, then reconcile that Ruby's gem world: default-gems + the project bundle.
+#
+# Why the bundle step matters: a Ruby version bump gives the new version an empty
+# bundle. Without `bundle install`, every Bundler-backed command (zdots-ctx migrate,
+# sync-history) dies with Bundler::GemNotFound. This script closes that gap so a bump
+# is never left half-done.
+#
+# Usage:
+#   zdots-ruby-bump            # bump to latest stable if newer, then reconcile gems
+#   zdots-ruby-bump --check    # report current vs latest, exit 0 if current, 10 if behind
+#   zdots-ruby-bump --dry-run  # show what would change, make no changes
+#
+# Exit codes: 0 = up to date / bumped OK · 10 = (--check only) a newer stable exists
+#             1 = error
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+GLOBAL_MISE="${MISE_CONFIG_DIR:-$HOME/.config/mise}/config.toml"
+MISE_TOML="$ZDOTDIR/mise.toml"
+RUBY_VERSION_FILE="$ZDOTDIR/etc/ruby-version"
+
+DRY_RUN=0
+CHECK_ONLY=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    --check)   CHECK_ONLY=1 ;;
+    -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) printf 'zdots-ruby-bump: unknown argument: %s\n' "$arg" >&2; exit 1 ;;
+  esac
+done
+
+log()  { printf 'zdots-ruby-bump: %s\n' "$*"; }
+warn() { printf 'zdots-ruby-bump: WARN %s\n' "$*" >&2; }
+die()  { printf 'zdots-ruby-bump: ERROR %s\n' "$*" >&2; exit 1; }
+
+command -v mise >/dev/null 2>&1 || die "mise not found in PATH"
+
+# Latest STABLE = highest X.Y.Z with no pre-release suffix. sort -V for correct
+# semantic ordering (4.0.10 > 4.0.5); never trust lexical sort here.
+latest_stable() {
+  mise ls-remote ruby 2>/dev/null \
+    | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+    | sort -V \
+    | tail -1
+}
+
+# Current pin as recorded in the repo mise.toml (the source of truth for CI).
+current_pin() {
+  grep -E '^\s*ruby\s*=' "$MISE_TOML" 2>/dev/null \
+    | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' \
+    | head -1
+}
+
+LATEST="$(latest_stable)" || true
+[[ -n "$LATEST" ]] || die "could not resolve latest stable Ruby from mise ls-remote"
+CURRENT="$(current_pin)" || true
+[[ -n "$CURRENT" ]] || warn "no ruby pin found in $MISE_TOML"
+
+log "current pin: ${CURRENT:-none} · latest stable: $LATEST"
+
+if [[ "$CURRENT" == "$LATEST" ]]; then
+  log "Ruby pin already at latest stable ($LATEST); nothing to bump."
+  # Even when the pin is current, fall through to gem reconciliation below unless
+  # this is a --check, so a previously half-finished bump still gets healed.
+  if [[ "$CHECK_ONLY" -eq 1 ]]; then exit 0; fi
+else
+  if [[ "$CHECK_ONLY" -eq 1 ]]; then
+    log "a newer stable Ruby is available: $CURRENT -> $LATEST"
+    exit 10
+  fi
+  log "bumping Ruby pin: $CURRENT -> $LATEST"
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    log "dry-run: would rewrite $MISE_TOML, $RUBY_VERSION_FILE, $GLOBAL_MISE"
+  else
+    # Rewrite all three pin sites in lockstep. The "update both together"
+    # invariant in mise.toml's header is enforced here mechanically.
+    [[ -f "$MISE_TOML" ]] && sed -i '' -E \
+      "s/^(\s*ruby\s*=\s*)\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$LATEST\"/" "$MISE_TOML"
+    printf '%s\n' "$LATEST" > "$RUBY_VERSION_FILE"
+    if [[ -f "$GLOBAL_MISE" ]]; then
+      sed -i '' -E \
+        "s/^(\s*ruby\s*=\s*)\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$LATEST\"/" "$GLOBAL_MISE"
+    fi
+    log "pins updated to $LATEST"
+  fi
+fi
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  log "dry-run: would run mise install + default-gems + bundle install for $LATEST"
+  exit 0
+fi
+
+# --- Reconcile the gem world for the (now-pinned) Ruby --------------------------
+TARGET="$LATEST"
+
+log "installing Ruby $TARGET via mise"
+RUBY_CONFIGURE_OPTS="${RUBY_CONFIGURE_OPTS:-}" mise install "ruby@$TARGET" 2>&1 | tail -3 || \
+  die "mise install ruby@$TARGET failed"
+
+# Default (global) gems — the list that sbin/zdots-brain requires at runtime.
+GEMS_FILE="$ZDOTDIR/etc/mise/default-gems"
+if [[ -f "$GEMS_FILE" ]]; then
+  log "installing default gems into Ruby $TARGET"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"; line="${line## }"; line="${line%% }"
+    [[ -z "$line" ]] && continue
+    gem_name="${line%% *}"
+    if mise exec "ruby@$TARGET" -- gem list --exact --installed "$gem_name" >/dev/null 2>&1; then
+      continue
+    fi
+    log "  gem install $gem_name"
+    mise exec "ruby@$TARGET" -- gem install "$gem_name" --no-document 2>&1 | tail -1 \
+      || warn "gem install failed: $gem_name"
+  done < "$GEMS_FILE"
+else
+  warn "default-gems list not found: $GEMS_FILE"
+fi
+
+# Project bundle — required by every Bundler-backed brain command. This is the
+# step whose absence leaves `zdots-ctx migrate` dead after a Ruby bump.
+if [[ -f "$ZDOTDIR/Gemfile" ]]; then
+  log "installing project bundle into Ruby $TARGET"
+  ( cd "$ZDOTDIR" && mise exec "ruby@$TARGET" -- bundle install 2>&1 | tail -3 ) \
+    || warn "bundle install failed under Ruby $TARGET — Bundler-backed commands may break"
+fi
+
+log "Ruby $TARGET ready (pins + default gems + project bundle reconciled)."

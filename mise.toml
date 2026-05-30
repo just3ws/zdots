@@ -17,7 +17,7 @@
 # The pinned version must match etc/ruby-version — update both together.
 
 [tools]
-ruby   = "4.0.2"   # pinned; matches etc/ruby-version — update both together
+ruby   = "4.0.5"   # latest stable; auto-bumped by upgrade-mise, matches etc/ruby-version
 node   = "26.0.0"  # mise upgrade --bump node to move forward deliberately
 go     = "1.26.3"
 python = "3.14.5"  # shell default; project-level python managed by uv
