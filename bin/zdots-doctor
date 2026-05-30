@@ -26,7 +26,7 @@ while [[ $# -gt 0 ]]; do
     --no-runtime) SKIP_RUNTIME=1 ;;
     -q|--quiet)   QUIET=1 ;;
     -h|--help)
-      sed -n '2,7p' "$0" | sed 's/^# \?//'; exit 0 ;;
+      sed -n '2,10p' "$0" | sed 's/^# \?//'; exit 0 ;;
     *) printf 'zdots-doctor: unknown option: %s\n' "$1" >&2; exit 1 ;;
   esac
   shift

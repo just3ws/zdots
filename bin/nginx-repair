@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+# ---
+# id: nginx-repair
+# title: "nginx Permission Repair"
+# purpose: Repair file ownership broken by sudo brew services start nginx
+# rationale: sudo brew services creates root-owned LaunchDaemon/plist and log
+#            files, breaking log access and user-level launchctl management.
+# ---
+# bin/nginx-repair — Correct nginx ownership after sudo brew services start nginx
+
+set -euo pipefail
+trap '' PIPE
+
+BREW_PREFIX="$(brew --prefix 2>/dev/null || printf /opt/homebrew)"
+BREW_USER="${USER}"
+NGINX_SVC="homebrew.mxcl.nginx"
+NGINX_LOG_DIR="${BREW_PREFIX}/var/log/nginx"
+NGINX_LAUNCHAGENT="${HOME}/Library/LaunchAgents/${NGINX_SVC}.plist"
+SYSTEM_LAUNCHDAEMON="/Library/LaunchDaemons/${NGINX_SVC}.plist"
+DRY_RUN=0
+
+_ok()   { printf '  [ok]  %s\n' "$*"; }
+_warn() { printf '  [--]  %s\n' "$*"; }
+_fix()  { printf '  [fix] %s\n' "$*"; }
+_fail() { printf '  [!!]  %s\n' "$*" >&2; }
+
+usage() {
+  cat <<EOF
+Usage: nginx-repair [--dry-run] [--help]
+
+Repair file ownership damaged by: sudo brew services start nginx
+
+'sudo brew services start nginx' installs nginx as a root-owned system
+service. This leaves two classes of damage:
+
+  1. Log files owned by root — you cannot tail, rotate, or read them
+     without sudo.
+  2. LaunchAgent plist owned by root — launchctl start/stop requires sudo.
+     Worse, brew may promote the service to /Library/LaunchDaemons/ (a
+     system daemon), removing it from your user session entirely.
+
+nginx's master process runs as root to bind privileged ports — that is
+correct and is not changed by this script. Only log files and the plist
+are repaired.
+
+Options:
+  --dry-run   Show what would change without making any changes
+  --help      Show this help
+
+EOF
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    --help)    usage; exit 0 ;;
+    *) printf 'nginx-repair: unknown option: %s\n' "$arg" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  printf 'DRY RUN — no changes will be made\n\n'
+fi
+
+# ── 1. Scan ──────────────────────────────────────────────────────────────────
+
+printf 'Scanning nginx file ownership...\n'
+
+root_logs=()
+if [[ -d "$NGINX_LOG_DIR" ]]; then
+  while IFS= read -r -d '' f; do
+    root_logs+=("$f")
+  done < <(find "$NGINX_LOG_DIR" -user root -print0 2>/dev/null)
+fi
+
+plist_root=0
+if [[ -f "$NGINX_LAUNCHAGENT" ]]; then
+  plist_owner="$(stat -f '%Su' "$NGINX_LAUNCHAGENT" 2>/dev/null || echo unknown)"
+  [[ "$plist_owner" == "root" ]] && plist_root=1
+fi
+
+system_daemon=0
+[[ -f "$SYSTEM_LAUNCHDAEMON" ]] && system_daemon=1
+
+# ── 2. Report ─────────────────────────────────────────────────────────────────
+
+any_damage=0
+[[ ${#root_logs[@]} -gt 0 ]] && any_damage=1
+[[ "$plist_root"    -eq 1  ]] && any_damage=1
+[[ "$system_daemon" -eq 1  ]] && any_damage=1
+
+if [[ "$any_damage" -eq 0 ]]; then
+  _ok "No ownership problems found"
+  printf '\nNothing to repair.\n'
+  exit 0
+fi
+
+printf '\nProblems found:\n'
+for f in "${root_logs[@]}"; do
+  _warn "root-owned log: $f"
+done
+[[ "$plist_root"    -eq 1 ]] && _warn "root-owned LaunchAgent plist: $NGINX_LAUNCHAGENT"
+[[ "$system_daemon" -eq 1 ]] && _warn "system LaunchDaemon (must move to user LaunchAgent): $SYSTEM_LAUNCHDAEMON"
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  printf '\nDry run complete — re-run without --dry-run to apply fixes.\n'
+  exit 0
+fi
+
+# ── 3. Stop nginx ─────────────────────────────────────────────────────────────
+
+printf '\nStopping nginx...\n'
+
+# Unload user LaunchAgent if present
+if [[ -f "$NGINX_LAUNCHAGENT" ]]; then
+  sudo launchctl bootout "gui/$(id -u)/${NGINX_SVC}" 2>/dev/null || true
+fi
+
+# Remove system LaunchDaemon from the system domain
+if [[ "$system_daemon" -eq 1 ]]; then
+  sudo launchctl bootout "system/${NGINX_SVC}" 2>/dev/null || true
+fi
+
+# Graceful shutdown via nginx master (handles the case where nginx was
+# started with sudo nginx directly, outside of launchd)
+if pgrep -x nginx >/dev/null 2>&1; then
+  sudo nginx -s quit
+  poll=0
+  while pgrep -x nginx >/dev/null 2>&1 && [[ "$poll" -lt 10 ]]; do
+    sleep 0.5
+    poll=$(( poll + 1 ))
+  done
+  if pgrep -x nginx >/dev/null 2>&1; then
+    _warn "nginx still running after graceful quit — sending SIGKILL"
+    sudo pkill -KILL -x nginx 2>/dev/null || true
+    sleep 0.5
+  fi
+fi
+
+_ok "nginx stopped"
+
+# ── 4. Fix ownership ──────────────────────────────────────────────────────────
+
+printf '\nFixing ownership...\n'
+
+for f in "${root_logs[@]}"; do
+  sudo chown "${BREW_USER}" "$f"
+  _fix "chown ${BREW_USER} ${f}"
+done
+
+if [[ "$plist_root" -eq 1 ]]; then
+  sudo chown "${BREW_USER}" "$NGINX_LAUNCHAGENT"
+  _fix "chown ${BREW_USER} ${NGINX_LAUNCHAGENT}"
+fi
+
+if [[ "$system_daemon" -eq 1 ]]; then
+  if [[ ! -f "$NGINX_LAUNCHAGENT" ]]; then
+    # Promote the system plist to a user LaunchAgent
+    mkdir -p "${HOME}/Library/LaunchAgents"
+    sudo cp "$SYSTEM_LAUNCHDAEMON" "$NGINX_LAUNCHAGENT"
+    sudo chown "${BREW_USER}" "$NGINX_LAUNCHAGENT"
+    _fix "promoted system LaunchDaemon → user LaunchAgent: ${NGINX_LAUNCHAGENT}"
+  fi
+  sudo rm -f "$SYSTEM_LAUNCHDAEMON"
+  _fix "removed system LaunchDaemon: ${SYSTEM_LAUNCHDAEMON}"
+fi
+
+# ── 5. Reload ─────────────────────────────────────────────────────────────────
+
+printf '\nReloading nginx...\n'
+
+if [[ -f "$NGINX_LAUNCHAGENT" ]]; then
+  launchctl bootstrap "gui/$(id -u)" "$NGINX_LAUNCHAGENT"
+  _ok "reloaded via: launchctl bootstrap gui/$(id -u)"
+else
+  _warn "No LaunchAgent found — start nginx without sudo:"
+  _warn "  brew services start nginx"
+fi
+
+# ── 6. Verify ─────────────────────────────────────────────────────────────────
+
+printf '\nVerifying...\n'
+sleep 1
+
+if pgrep -x nginx >/dev/null 2>&1; then
+  _ok "nginx master process is running"
+else
+  _fail "nginx is not running — check: sudo nginx -t && brew services info nginx"
+  exit 1
+fi
+
+# Confirm log files are no longer root-owned
+lingering_root=()
+if [[ -d "$NGINX_LOG_DIR" ]]; then
+  while IFS= read -r -d '' f; do
+    lingering_root+=("$f")
+  done < <(find "$NGINX_LOG_DIR" -user root -print0 2>/dev/null)
+fi
+
+if [[ ${#lingering_root[@]} -gt 0 ]]; then
+  for f in "${lingering_root[@]}"; do
+    _fail "still root-owned: $f"
+  done
+  exit 1
+fi
+
+printf '\nRepair complete.\n'
