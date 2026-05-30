@@ -30,3 +30,12 @@ rails                  # `rails new`, `rails console` without a project Gemfile
 # Bundler ships with Ruby 2.6+ but pinning ensures a known version.
 
 bundler
+
+# ── Platform runtime (required by sbin/zdots-brain) ───────────────────────────
+# zdots-brain runs under the active mise Ruby and requires these at runtime.
+# Without them a Ruby version bump silently breaks the analytics/lessons sync
+# (sync-history dies with `cannot load such file -- sqlite3`).
+
+sqlite3                # zdots-brain sync-history: SQLite command_runs → PostgreSQL
+pg                     # zdots-brain: PostgreSQL writer (my database)
+sequel                 # zdots-brain: query/migration layer
