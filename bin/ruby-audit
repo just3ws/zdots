@@ -1,0 +1,268 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# ---
+# id: ruby-audit
+# title: "Ruby / Rails Static Analysis Suite"
+# purpose: Point at any Ruby or Rails repo directory and generate an insight report.
+# ---
+# bin/ruby-audit — Static analysis + AI context builder for Ruby/Rails codebases.
+#
+# Usage: ruby-audit <directory> [options]
+#
+# Options:
+#   --ruby VERSION      Override detected Ruby version (e.g. 2.6, 3.2)
+#   --rails VERSION     Override detected Rails version (e.g. 5.2, 7.1)
+#   --out DIR           Output directory (default: ~/.local/state/zsh/ruby-audits/<slug>)
+#   --skip TOOL         Skip a tool: bundler-audit, brakeman, rubocop, reek, flog, flay
+#   --only TOOL         Run only this tool (repeatable)
+#   --interrogate       After report, launch an AI session with codebase + audit context
+#   --no-repomix        Skip repomix context build (faster)
+#   --help              Show this help
+
+require "pathname"
+require "fileutils"
+require "time"
+require "json"
+
+ZDOTDIR = Pathname.new(__dir__).parent.freeze
+$LOAD_PATH.unshift(ZDOTDIR.join("lib").to_s)
+
+require "ruby_audit/detector"
+require "ruby_audit/runners"
+require "ruby_audit/report_builder"
+
+# ── CLI parsing ───────────────────────────────────────────────────────────────
+
+def usage
+  lines = File.readlines(__FILE__)
+  # Skip shebang, frozen comment, and YAML frontmatter (# --- ... # ---)
+  past_front = lines.drop_while { |l| !l.start_with?("# bin/") }
+  past_front.take_while { |l| l.start_with?("#") }.map { |l| l.sub(/^# ?/, "") }.join
+end
+
+target       = nil
+ruby_ver     = nil
+rails_ver    = nil
+out_dir      = nil
+skip_tools   = []
+only_tools   = []
+interrogate  = false
+no_repomix   = false
+
+argv = ARGV.dup
+until argv.empty?
+  arg = argv.shift
+  case arg
+  when "--help"         then puts usage; exit 0
+  when "--ruby"         then ruby_ver   = argv.shift
+  when "--rails"        then rails_ver  = argv.shift
+  when "--out"          then out_dir    = argv.shift
+  when "--skip"         then skip_tools << argv.shift
+  when "--only"         then only_tools << argv.shift
+  when "--interrogate"  then interrogate = true
+  when "--no-repomix"   then no_repomix  = true
+  when /\A--/           then warn "ruby-audit: unknown option: #{arg}"; exit 1
+  else                       target = arg
+  end
+end
+
+unless target
+  warn "ruby-audit: directory required"
+  warn usage
+  exit 1
+end
+
+root = Pathname.new(target).expand_path
+unless root.directory?
+  warn "ruby-audit: not a directory: #{root}"
+  exit 1
+end
+
+# ── Version detection ─────────────────────────────────────────────────────────
+
+detector = RubyAudit::Detector.new(root)
+ruby_ver  ||= detector.ruby_version
+rails_ver ||= detector.rails_version
+
+slug      = root.basename.to_s.gsub(/[^a-z0-9_-]/i, "-")
+stamp     = Time.now.strftime("%Y%m%dT%H%M%S")
+state_dir = Pathname.new(ENV.fetch("XDG_STATE_HOME", File.join(Dir.home, ".local", "state")))
+out_dir   = Pathname.new(out_dir || state_dir.join("zsh", "ruby-audits", "#{slug}-#{stamp}"))
+FileUtils.mkdir_p(out_dir)
+
+# ── Pretty output ─────────────────────────────────────────────────────────────
+
+def info(msg)  = $stdout.puts("  #{msg}")
+def step(msg)  = $stdout.print("  ◆ #{msg}...")
+def ok         = $stdout.puts(" ok")
+def skip(msg)  = $stdout.puts("  ○ skipped — #{msg}")
+def hdr(title)
+  $stdout.puts ""
+  $stdout.puts "━━━ #{title} #{"━" * [0, 55 - title.length].max}"
+end
+
+hdr "ruby-audit: #{root.basename}"
+info "Target:  #{root}"
+info "Ruby:    #{ruby_ver}"
+info "Rails:   #{rails_ver || "not detected"}"
+info "Output:  #{out_dir}"
+
+all_tools = %w[bundler-audit brakeman rubocop reek flog flay]
+tools = only_tools.empty? ? all_tools : only_tools
+tools -= skip_tools
+
+# ── Run analyzers ─────────────────────────────────────────────────────────────
+
+hdr "Running analyzers"
+
+results = {}
+
+def should_run?(name, tools) = tools.include?(name)
+
+if should_run?("bundler-audit", tools)
+  step "bundler-audit"
+  results[:bundler_audit] = RubyAudit::Runners.bundler_audit(root.to_s)
+  r = results[:bundler_audit]
+  r[:skipped] ? skip(r[:skipped]) : ok
+else
+  skip "bundler-audit (skipped by user)"
+end
+
+if should_run?("brakeman", tools)
+  step "brakeman"
+  results[:brakeman] = RubyAudit::Runners.brakeman(root.to_s, rails_version: rails_ver)
+  r = results[:brakeman]
+  r[:skipped] ? skip(r[:skipped]) : ok
+else
+  skip "brakeman (skipped by user)"
+end
+
+if should_run?("rubocop", tools)
+  step "rubocop"
+  results[:rubocop] = RubyAudit::Runners.rubocop(root.to_s, ruby_version: ruby_ver)
+  ok
+else
+  skip "rubocop (skipped by user)"
+end
+
+if should_run?("reek", tools)
+  step "reek"
+  results[:reek] = RubyAudit::Runners.reek(root.to_s)
+  ok
+else
+  skip "reek (skipped by user)"
+end
+
+if should_run?("flog", tools)
+  step "flog"
+  results[:flog] = RubyAudit::Runners.flog(root.to_s)
+  ok
+else
+  skip "flog (skipped by user)"
+end
+
+if should_run?("flay", tools)
+  step "flay"
+  results[:flay] = RubyAudit::Runners.flay(root.to_s)
+  ok
+else
+  skip "flay (skipped by user)"
+end
+
+# ── repomix context ───────────────────────────────────────────────────────────
+
+hdr "Building AI context"
+
+repomix_context = out_dir.join("repomix-context.md")
+
+if no_repomix
+  skip "repomix (--no-repomix)"
+elsif system("command -v repomix >/dev/null 2>&1")
+  step "repomix pack"
+  include_pat = "app/**,lib/**,config/**,db/schema.rb,db/structure.sql,Gemfile,Gemfile.lock"
+  system(
+    "repomix",
+    "--include", include_pat,
+    "--output", repomix_context.to_s,
+    "--style", "markdown",
+    "--no-file-summary",
+    root.to_s,
+    out: File::NULL, err: File::NULL
+  )
+  ok
+else
+  skip "repomix not installed (brew install repomix)"
+end
+
+# ── Version-specific prompt ────────────────────────────────────────────────────
+
+prompt_parts = []
+
+ruby_minor  = ruby_ver&.match(/\A(\d+\.\d+)/)&.[](1)
+rails_minor = rails_ver&.match(/\A(\d+\.\d+)/)&.[](1)
+
+[
+  ZDOTDIR.join("etc", "ruby-audit", "prompts", "ruby-#{ruby_minor}.md"),
+  ZDOTDIR.join("etc", "ruby-audit", "prompts", "rails-#{rails_minor}.md")
+].each do |f|
+  prompt_parts << f.read if f.exist?
+end
+
+system_prompt_file = out_dir.join("system-prompt.md")
+if prompt_parts.any?
+  system_prompt_file.write(prompt_parts.join("\n\n---\n\n"))
+  info "Version prompts: ruby-#{ruby_minor}.md#{rails_minor ? ", rails-#{rails_minor}.md" : ""}"
+else
+  info "No version-specific prompts found for ruby-#{ruby_minor} / rails-#{rails_minor}"
+end
+
+# ── Generate report ────────────────────────────────────────────────────────────
+
+hdr "Generating report"
+
+RubyAudit::ReportBuilder.new(
+  detector: detector,
+  results:  results,
+  out_dir:  out_dir.to_s
+).write_all
+
+info "report.md      → #{out_dir}/report.md"
+info "summary.json   → #{out_dir}/summary.json"
+info "context.md     → #{out_dir}/context.md"
+
+# ── Summary ───────────────────────────────────────────────────────────────────
+
+hdr "Summary"
+
+summary = JSON.parse(File.read(out_dir.join("summary.json")))
+scores  = summary["scores"]
+
+fmt = "  %-28s %s"
+puts format(fmt, "Dependency CVEs:",        scores["security_vulns"].zero?    ? "✅  0" : "🔴  #{scores["security_vulns"]}")
+puts format(fmt, "Brakeman High:",          scores["brakeman_high"].zero?     ? "✅  0" : "🔴  #{scores["brakeman_high"]}")
+puts format(fmt, "Brakeman Medium:",        scores["brakeman_medium"].zero?   ? "✅  0" : "🟡  #{scores["brakeman_medium"]}")
+puts format(fmt, "RuboCop offenses:",       "ℹ️   #{scores["rubocop_offenses"]}")
+puts format(fmt, "Reek smells:",            "ℹ️   #{scores["reek_smells"]}")
+puts format(fmt, "Flog hotspots (≥30):",    "ℹ️   #{scores["flog_hotspots"]}")
+puts format(fmt, "Flay duplicates:",        "ℹ️   #{scores["flay_duplicates"]}")
+puts ""
+
+# ── Interrogate ────────────────────────────────────────────────────────────────
+
+if interrogate
+  hdr "Interactive interrogation"
+  context_files = [out_dir.join("context.md")]
+  context_files << repomix_context if repomix_context.exist?
+  context_files << system_prompt_file if system_prompt_file.exist?
+
+  # Write a combined context brief for Pi
+  brief = out_dir.join("brief.md")
+  brief.write(context_files.select(&:exist?).map(&:read).join("\n\n---\n\n"))
+
+  info "Launching Pi with audit context..."
+  info "Ask: 'Where are the N+1 queries?', 'What does the auth model look like?', etc."
+  puts ""
+  exec "zpi", "--context", brief.to_s
+end
+
+puts "  Done. Open report: open #{out_dir}/report.md"
