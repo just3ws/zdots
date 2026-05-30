@@ -10,16 +10,16 @@
           1,
           null,
           1,
-          7,
-          6,
+          12,
+          11,
           null,
           null,
           1,
-          49,
+          73,
           null,
           null,
           1,
-          35,
+          66,
           null,
           null,
           1,
@@ -32,18 +32,18 @@
           null,
           null,
           1,
-          20,
-          20,
+          37,
+          37,
+          5,
+          5,
+          null,
+          32,
+          null,
+          31,
           3,
           3,
           null,
-          17,
-          null,
-          16,
-          2,
-          2,
-          null,
-          14,
+          28,
           null,
           null,
           1,
@@ -68,9 +68,9 @@
           null,
           null,
           1,
-          16,
-          16,
-          15,
+          31,
+          31,
+          30,
           null,
           null,
           null,
@@ -81,14 +81,14 @@
           null,
           null,
           1,
-          22,
+          39,
           null,
-          22,
-          6,
-          15,
+          39,
+          9,
+          29,
           1,
           null,
-          22,
+          39,
           null,
           null,
           null,
@@ -149,24 +149,24 @@
         ],
         "branches": {
           "[:if, 0, 31, 6, 34, 9]": {
-            "[:then, 1, 32, 8, 33, 66]": 3,
-            "[:else, 2, 31, 6, 34, 9]": 17
+            "[:then, 1, 32, 8, 33, 66]": 5,
+            "[:else, 2, 31, 6, 34, 9]": 32
           },
           "[:if, 3, 35, 6, 35, 31]": {
             "[:then, 4, 35, 6, 35, 12]": 1,
-            "[:else, 5, 35, 6, 35, 31]": 16
+            "[:else, 5, 35, 6, 35, 31]": 31
           },
           "[:unless, 6, 37, 6, 40, 9]": {
-            "[:else, 7, 37, 6, 40, 9]": 14,
-            "[:then, 8, 38, 8, 39, 78]": 2
+            "[:else, 7, 37, 6, 40, 9]": 28,
+            "[:then, 8, 38, 8, 39, 78]": 3
           },
           "[:unless, 9, 79, 8, 79, 68]": {
-            "[:else, 10, 79, 8, 79, 68]": 22,
+            "[:else, 10, 79, 8, 79, 68]": 39,
             "[:then, 11, 79, 8, 79, 14]": 0
           },
           "[:case, 12, 81, 15, 85, 18]": {
-            "[:when, 13, 82, 55, 82, 62]": 6,
-            "[:when, 14, 83, 55, 83, 61]": 15,
+            "[:when, 13, 82, 55, 82, 62]": 9,
+            "[:when, 14, 83, 55, 83, 61]": 29,
             "[:else, 15, 84, 20, 84, 29]": 1
           },
           "[:unless, 16, 116, 8, 116, 98]": {
@@ -186,8 +186,206 @@
             "[:else, 27, 134, 8, 134, 49]": 1
           }
         }
+      },
+      "/Users/mike/.config/zsh/lib/zdots/ai/phi_scrubber.rb": {
+        "lines": [
+          null,
+          null,
+          1,
+          null,
+          1,
+          1,
+          null,
+          null,
+          null,
+          1,
+          1,
+          null,
+          null,
+          6,
+          null,
+          null,
+          1,
+          511,
+          null,
+          null,
+          null,
+          null
+        ],
+        "branches": {}
+      },
+      "/Users/mike/.config/zsh/lib/zdots/ai/pipeline.rb": {
+        "lines": [
+          null,
+          null,
+          1,
+          1,
+          null,
+          1,
+          1,
+          null,
+          null,
+          null,
+          1,
+          1,
+          1,
+          null,
+          null,
+          null,
+          1,
+          7,
+          5,
+          5,
+          null,
+          null,
+          null,
+          null,
+          1,
+          5,
+          4,
+          4,
+          null,
+          null,
+          1,
+          null,
+          1,
+          12,
+          9,
+          null,
+          3,
+          null,
+          null,
+          1,
+          9,
+          null,
+          null,
+          1,
+          5,
+          5,
+          5,
+          5,
+          4,
+          null,
+          1,
+          null,
+          null,
+          1,
+          4,
+          3,
+          3,
+          null,
+          1,
+          null,
+          1,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "branches": {
+          "[:if, 0, 46, 10, 46, 63]": {
+            "[:then, 1, 46, 10, 46, 53]": 1,
+            "[:else, 2, 46, 10, 46, 63]": 4
+          },
+          "[:if, 3, 57, 10, 57, 98]": {
+            "[:then, 4, 57, 10, 57, 66]": 2,
+            "[:else, 5, 57, 10, 57, 98]": 1
+          }
+        }
+      },
+      "/Users/mike/.config/zsh/lib/zdots/crypto/key_store.rb": {
+        "lines": [
+          null,
+          null,
+          1,
+          1,
+          1,
+          1,
+          6,
+          6,
+          null,
+          3,
+          null,
+          null,
+          1,
+          4,
+          4,
+          2,
+          null,
+          null,
+          null,
+          2,
+          2,
+          1,
+          null,
+          null,
+          1,
+          null,
+          null,
+          null,
+          null
+        ],
+        "branches": {
+          "[:if, 0, 8, 8, 8, 92]": {
+            "[:then, 1, 8, 8, 8, 60]": 3,
+            "[:else, 2, 8, 8, 8, 92]": 3
+          },
+          "[:if, 3, 15, 8, 18, 11]": {
+            "[:then, 4, 16, 10, 17, 141]": 2,
+            "[:else, 5, 15, 8, 18, 11]": 2
+          },
+          "[:if, 6, 21, 8, 23, 11]": {
+            "[:then, 7, 22, 10, 22, 104]": 1,
+            "[:else, 8, 21, 8, 23, 11]": 1
+          }
+        }
+      },
+      "/Users/mike/.config/zsh/lib/zdots/models/encrypted_content.rb": {
+        "lines": [
+          null,
+          null,
+          1,
+          1,
+          1,
+          1,
+          4,
+          null,
+          null,
+          1,
+          1,
+          4,
+          2,
+          2,
+          null,
+          1,
+          null,
+          null,
+          4,
+          2,
+          1,
+          null,
+          1,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "branches": {
+          "[:if, 0, 14, 12, 14, 34]": {
+            "[:then, 1, 14, 12, 14, 22]": 1,
+            "[:else, 2, 14, 12, 14, 34]": 1
+          },
+          "[:if, 3, 20, 27, 24, 30]": {
+            "[:then, 4, 21, 29, 21, 32]": 1,
+            "[:else, 5, 23, 29, 23, 119]": 1
+          }
+        }
       }
     },
-    "timestamp": 1780095461
+    "timestamp": 1780112104
   }
 }

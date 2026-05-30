@@ -7,6 +7,10 @@
 # ---
 # bin/ruby-audit — Static analysis + AI context builder for Ruby/Rails codebases.
 #
+# Runs from its own isolated Gemfile (etc/ruby-audit/Gemfile). Works with any
+# Ruby: brew install ruby, mise, rbenv, or system. Run `ruby-audit --setup` once
+# to install the audit gems before first use.
+#
 # Usage: ruby-audit <directory> [options]
 #
 # Options:
@@ -17,6 +21,7 @@
 #   --only TOOL         Run only this tool (repeatable)
 #   --interrogate       After report, launch an AI session with codebase + audit context
 #   --no-repomix        Skip repomix context build (faster)
+#   --setup             Install the audit gem bundle and exit
 #   --help              Show this help
 
 require "pathname"
@@ -24,7 +29,23 @@ require "fileutils"
 require "time"
 require "json"
 
-ZDOTDIR = Pathname.new(__dir__).parent.freeze
+ZDOTDIR      = Pathname.new(__dir__).parent.freeze
+AUDIT_GEMFILE = ZDOTDIR.join("etc", "ruby-audit", "Gemfile").freeze
+
+# ── Gemfile bootstrap ─────────────────────────────────────────────────────────
+# Point Bundler at the isolated audit Gemfile before any gem requires.
+# This works regardless of whether the caller has a BUNDLE_GEMFILE set.
+
+ENV["BUNDLE_GEMFILE"] = AUDIT_GEMFILE.to_s
+
+begin
+  require "bundler/setup"
+rescue LoadError, Bundler::GemfileNotFound, Bundler::GemNotFound => e
+  warn "ruby-audit: gem bundle not installed — run: ruby-audit --setup"
+  warn "  (#{e.message})"
+  exit 1
+end
+
 $LOAD_PATH.unshift(ZDOTDIR.join("lib").to_s)
 
 require "ruby_audit/detector"
@@ -54,6 +75,11 @@ until argv.empty?
   arg = argv.shift
   case arg
   when "--help"         then puts usage; exit 0
+  when "--setup"
+    puts "Installing ruby-audit gem bundle..."
+    puts "  Gemfile: #{AUDIT_GEMFILE}"
+    puts "  Ruby:    #{RUBY_VERSION} (#{RbConfig::CONFIG["ruby_install_name"]})"
+    exec "bundle", "install", "--gemfile", AUDIT_GEMFILE.to_s
   when "--ruby"         then ruby_ver   = argv.shift
   when "--rails"        then rails_ver  = argv.shift
   when "--out"          then out_dir    = argv.shift

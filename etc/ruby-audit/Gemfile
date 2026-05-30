@@ -1,0 +1,20 @@
+# frozen_string_literal: true
+# etc/ruby-audit/Gemfile — self-contained gem bundle for the ruby-audit suite.
+#
+# This Gemfile is intentionally isolated from the main zdots Gemfile.
+# ruby-audit installs and runs from this bundle regardless of what Ruby
+# version manager (mise, rbenv, brew, system) is in use on the host.
+#
+# First-time setup: ruby-audit --setup
+# Or manually:      BUNDLE_GEMFILE=etc/ruby-audit/Gemfile bundle install
+
+source "https://rubygems.org"
+
+gem "brakeman",   "~> 8.0", require: false
+gem "bundler-audit",        require: false
+gem "flay",                 require: false
+gem "flog",                 require: false
+gem "reek",       "~> 6.5", require: false
+gem "rubocop",              require: false
+gem "rubocop-rails",        require: false
+gem "rubocop-performance",  require: false
