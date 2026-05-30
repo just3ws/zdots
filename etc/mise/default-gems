@@ -1,0 +1,32 @@
+# etc/mise/default-gems — gems installed automatically into every new Ruby version
+#
+# Managed by zdots. Pointed at by ~/.config/mise/config.toml:
+#   [settings]
+#   ruby.default_packages_file = "~/.config/zsh/etc/mise/default-gems"
+#
+# Format: one gem per line — gem_name or gem_name version
+# These are GLOBAL tools. Project gems belong in Gemfile.
+# Tool-specific gems belong in their own Gemfile (e.g. etc/ruby-audit/Gemfile).
+#
+# ── REPL & exploration ────────────────────────────────────────────────────────
+
+pry                    # better REPL; `pry -r ./lib/foo` to explore a lib
+amazing_print          # ap object — colored, structured output in irb/pry
+
+# ── IDE / language server ─────────────────────────────────────────────────────
+
+ruby-lsp               # VS Code + modern LSP clients (lightweight, official)
+solargraph             # documentation + type inference; heavier but richer hover
+
+# ── Code quality (global, not project-specific) ───────────────────────────────
+
+rubocop                # needed globally for editor integration (Rubocop LSP)
+
+# ── Rails convenience ─────────────────────────────────────────────────────────
+
+rails                  # `rails new`, `rails console` without a project Gemfile
+
+# ── Bundler ───────────────────────────────────────────────────────────────────
+# Bundler ships with Ruby 2.6+ but pinning ensures a known version.
+
+bundler
