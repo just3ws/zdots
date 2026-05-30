@@ -64,6 +64,25 @@ The authoritative migrations are:
 
 The old SQL files in `etc/db/migrations/` (001–009) are archived and must not be applied. Do **not** reference the `zdots` database — that is an unrelated legacy app schema.
 
+## Code Analysis
+
+**`ruby-audit`** — static analysis suite for any Ruby or Rails codebase, run by directory.
+
+```bash
+ruby-audit /path/to/app                          # auto-detect versions, full suite
+ruby-audit /path/to/app --ruby 2.6 --rails 5.2  # override detected versions
+ruby-audit /path/to/app --interrogate            # report + Pi session with context loaded
+ruby-audit /path/to/app --skip flog --no-repomix # fast mode
+
+# containerized app (no local install needed)
+docker cp myapp:/app ./extracted && ruby-audit ./extracted --ruby 2.6 --rails 5.2
+```
+
+Runs: bundler-audit (CVEs), brakeman (security), rubocop (style/complexity),
+reek (smells), flog (hotspots), flay (duplication). Reports land in
+`~/.local/state/zsh/ruby-audits/`. See [docs/ruby-audit.md](docs/ruby-audit.md) for
+architecture, the planned profile/rule-pack/backend system, and adding new version prompts.
+
 ## AI Tool Ecosystem
 
 | Tool | Command | Role |
