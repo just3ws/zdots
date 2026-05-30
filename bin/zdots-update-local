@@ -20,9 +20,10 @@ SKIP_LLAMA=0
 SKIP_OTEL=0
 SKIP_FABRIC=0
 SKIP_AIDER=0
+SKIP_GEMS=0
 SKIP_GEMINI=0
 SKIP_CHECK=0
-PHASE_TOTAL=10
+PHASE_TOTAL=11
 PHASE_INDEX=0
 PHASE_DONE=0
 PHASE_NAMES=()
@@ -42,7 +43,8 @@ rewrite home dotfiles, install certs, edit nginx, or initialize databases.
 Steps:
   1. brew bundle --file Brewfile.home|Brewfile.work
   2. mise install --cd ZDOTDIR
-  3. llama-ctl install + install-embed (launchd plists)
+  3. gem install default gems from etc/mise/default-gems (idempotent)
+  4. llama-ctl install + install-embed (launchd plists)
   4. fabric-ai --updatepatterns
   5. pi: reconcile ~/.pi/agent/settings.json + models.json
   6. aider: write ~/.aider.model.metadata.json (context window for openai/local)
@@ -54,6 +56,7 @@ Options:
   -n, --dry-run     Print commands without running them
   --skip-brew       Skip brew bundle
   --skip-mise       Skip mise install
+  --skip-gems       Skip default gem installation
   --skip-llama      Skip llama plist regeneration
   --skip-fabric     Skip fabric-ai pattern update
   --skip-aider      Skip Aider model metadata reconciliation
@@ -78,6 +81,7 @@ while [[ $# -gt 0 ]]; do
     -n|--dry-run) DRY_RUN=1 ;;
     --skip-brew)  SKIP_BREW=1 ;;
     --skip-mise)  SKIP_MISE=1 ;;
+    --skip-gems)  SKIP_GEMS=1 ;;
     --skip-llama) SKIP_LLAMA=1 ;;
     --skip-fabric) SKIP_FABRIC=1 ;;
     --skip-aider) SKIP_AIDER=1 ;;
@@ -274,6 +278,68 @@ if [[ "$SKIP_MISE" -eq 0 ]]; then
   fi
 else
   warn "skipping mise phase (--skip-mise)"
+fi
+
+phase "ruby-gems: install default gems into current Ruby"
+if [[ "$SKIP_GEMS" -eq 0 ]]; then
+  _gems_file="$ZDOTDIR/etc/mise/default-gems"
+  if [[ ! -f "$_gems_file" ]]; then
+    warn "etc/mise/default-gems not found; skipping default gem installation"
+  elif ! command -v gem >/dev/null 2>&1; then
+    warn "gem not found in PATH; skipping default gem installation"
+  else
+    step "read default gems list"
+    _gem_bin="$(command -v gem)"
+    log "gem binary=$_gem_bin ruby=$(ruby --version 2>/dev/null | head -1)"
+    _installed=0
+    _skipped=0
+    _failed=0
+    while IFS= read -r _line || [[ -n "$_line" ]]; do
+      # Strip comments and blank lines
+      _line="${_line%%#*}"
+      _line="${_line//  / }"
+      _line="${_line# }"
+      _line="${_line% }"
+      [[ -z "$_line" ]] && continue
+
+      _gem_name="${_line%% *}"
+      _gem_ver="${_line#"$_gem_name"}"
+      _gem_ver="${_gem_ver# }"
+
+      step "ensure gem: $_gem_name${_gem_ver:+ $_gem_ver}"
+
+      # Check if already installed at any version (fast path to idempotency).
+      if gem list --exact --no-verbose "$_gem_name" 2>/dev/null | grep -q "^${_gem_name} "; then
+        log "gem already installed: $_gem_name"
+        _skipped=$(( _skipped + 1 ))
+        continue
+      fi
+
+      log "installing gem: $_gem_name${_gem_ver:+ version=$_gem_ver}"
+      if [[ "$DRY_RUN" -eq 0 ]]; then
+        if [[ -n "$_gem_ver" ]]; then
+          gem install "$_gem_name" --version "$_gem_ver" --no-document 2>&1 \
+            && _installed=$(( _installed + 1 )) \
+            || { warn "gem install failed: $_gem_name $_gem_ver"; _failed=$(( _failed + 1 )); }
+        else
+          gem install "$_gem_name" --no-document 2>&1 \
+            && _installed=$(( _installed + 1 )) \
+            || { warn "gem install failed: $_gem_name"; _failed=$(( _failed + 1 )); }
+        fi
+      else
+        log "dry-run: would install gem: $_gem_name${_gem_ver:+ $_gem_ver}"
+        _skipped=$(( _skipped + 1 ))
+      fi
+    done < "$_gems_file"
+    log "default gems complete: installed=$_installed already-present=$_skipped failed=$_failed"
+    if [[ "$_failed" -gt 0 ]]; then
+      warn "$_failed gem(s) failed to install — check log for details"
+    fi
+    unset _gem_bin _gem_name _gem_ver _installed _skipped _failed
+  fi
+  unset _gems_file
+else
+  warn "skipping ruby-gems phase (--skip-gems)"
 fi
 
 phase "llama: regenerate launchd plists"
