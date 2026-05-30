@@ -41,6 +41,7 @@ _known_gap() {
     local-ci
     nginx-repair
     otel-collector
+    ruby-audit
     whisper-ctl
     zdash
     zdots-ask
@@ -158,7 +159,7 @@ _known_gap() {
   local -a tested=(
     agent-guide ai-query alias-suggest bootstrap capabilities commit-msg
     diff-review docker-reclaim gemini-mcp-register history-analyze history-import
-    llama-caps llama-ctl local-ci nginx-repair otel-collector pi-ctx-brief pi-ctx-hydrate
+    llama-caps llama-ctl local-ci nginx-repair otel-collector ruby-audit pi-ctx-brief pi-ctx-hydrate
     pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-doctor
     zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl zdots-update-local
     zmorning zsvc ztask
