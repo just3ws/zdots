@@ -4,10 +4,10 @@ title: >-
   [agent-issue] zdots-ctl up times out waiting for AI server health at
   http://127.0.0.1:11500/health after model checksum verifies and launchd
   reports com.zdots.llama-server already running
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-05-31 01:38'
-updated_date: '2026-05-31 15:34'
+updated_date: '2026-05-31 19:03'
 labels:
   - agent-reported
   - bug
