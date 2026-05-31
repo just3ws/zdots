@@ -26,6 +26,8 @@ Task-Driven Environment:
   start <id>  Activate task: update status, start services, hydrate context
   done        Complete current task: mark done and run capture
   status      Show current active task
+  health      Verify task orchestration dependencies and active-task state
+  health --json  Same as JSON
   stop        Deactivate environment (clear active task)
 
 EOF
@@ -81,6 +83,80 @@ cmd_status() {
   fi
 }
 
+cmd_health() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local active_task="" active_file="" active_valid=true
+  local tasks_dir_ok=false backlog_ok=false platform_ready=false brain_ready=false
+  local platform_json=""
+
+  [[ -d "$TASKS_DIR" ]] && tasks_dir_ok=true
+  command -v backlog >/dev/null 2>&1 && backlog_ok=true
+
+  if [[ -f "$ACTIVE_TASK_FILE" ]]; then
+    active_task="$(cat "$ACTIVE_TASK_FILE")"
+    active_file="$(_find_task_file "$active_task")"
+    [[ -n "$active_file" && -f "$active_file" ]] || active_valid=false
+  fi
+
+  if [[ -x "${ZDOTDIR}/bin/zdots-ctl" ]]; then
+    platform_json="$("${ZDOTDIR}/bin/zdots-ctl" status --json 2>/dev/null || true)"
+    if printf '%s\n' "$platform_json" | jq -e \
+      '.colima and .lgtm and .otel_collector and .ai_server and .embed_server and .intelligence_suite and .cache' \
+      >/dev/null 2>&1; then
+      platform_ready=true
+    fi
+  fi
+
+  if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]] && "${ZDOTDIR}/bin/zdots-ctx" status >/dev/null 2>&1; then
+    brain_ready=true
+  fi
+
+  local healthy=false
+  if [[ "$tasks_dir_ok" == true && "$backlog_ok" == true && "$active_valid" == true && "$platform_ready" == true && "$brain_ready" == true ]]; then
+    healthy=true
+  fi
+
+  if $json; then
+    jq -n \
+      --arg active_task "$active_task" \
+      --arg active_task_file "$active_file" \
+      --argjson healthy "$healthy" \
+      --argjson tasks_dir "$tasks_dir_ok" \
+      --argjson backlog_cli "$backlog_ok" \
+      --argjson active_task_valid "$active_valid" \
+      --argjson platform_ready "$platform_ready" \
+      --argjson brain_ready "$brain_ready" \
+      '{
+        healthy: $healthy,
+        tasks_dir: $tasks_dir,
+        backlog_cli: $backlog_cli,
+        active_task: (if $active_task == "" then null else $active_task end),
+        active_task_file: (if $active_task_file == "" then null else $active_task_file end),
+        active_task_valid: $active_task_valid,
+        platform_ready: $platform_ready,
+        brain_ready: $brain_ready,
+        hydration_ready: $brain_ready
+      }'
+  else
+    if [[ "$healthy" == true ]]; then
+      _svc_ok "task orchestrator healthy"
+    else
+      _svc_die "task orchestrator unhealthy"
+    fi
+    printf 'tasks_dir       %s\n' "$tasks_dir_ok"
+    printf 'backlog_cli     %s\n' "$backlog_ok"
+    printf 'active_task     %s\n' "${active_task:-none}"
+    printf 'active_valid    %s\n' "$active_valid"
+    printf 'platform_ready  %s\n' "$platform_ready"
+    printf 'brain_ready     %s\n' "$brain_ready"
+    printf 'hydration_ready %s\n' "$brain_ready"
+  fi
+
+  [[ "$healthy" == true ]]
+}
+
 cmd_stop() {
   if [[ -f "$ACTIVE_TASK_FILE" ]]; then
     local id; id=$(cat "$ACTIVE_TASK_FILE")
@@ -124,6 +200,7 @@ case "${1:-}" in
   start)    shift; cmd_start "${@}" ;;
   done)     shift; cmd_done "${@}" ;;
   status)   shift; cmd_status "${@}" ;;
+  health)   shift; cmd_health "${@}" ;;
   stop)     shift; cmd_stop "${@}" ;;
   -h|--help) usage; exit 0 ;;
   *)        usage >&2; exit 1 ;;
