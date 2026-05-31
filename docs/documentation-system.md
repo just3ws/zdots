@@ -24,6 +24,11 @@ Policy lives in `AGENTS.md`. Facts that can drift belong in generated or contrac
 
 Live-state fields must expose provenance when they summarize another command. Disk space reports the `df -h /` `Avail` column, service health distinguishes HTTP readiness from socket presence, and trace-derived fields include age so stale context is visible.
 
+Architecture diagrams are documentation contracts, not decoration. Use
+[architecture-diagram-audit-plan.md](architecture-diagram-audit-plan.md) when
+adding or reviewing Mermaid diagrams, and include source-file and validation
+provenance near diagrams whose behavior can drift.
+
 ## Manpage Rules
 
 Command pages go in section 1 unless they primarily administer services. Service/admin tools go in section 8. File formats and configuration live in section 5. Cross-command concepts live in section 7.

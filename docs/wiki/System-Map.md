@@ -50,3 +50,6 @@ flowchart LR
 ```
 
 Full lifecycle and E2E map: [../platform-service-plane.md](../platform-service-plane.md).
+
+Architecture diagram audit plan:
+[../architecture-diagram-audit-plan.md](../architecture-diagram-audit-plan.md).

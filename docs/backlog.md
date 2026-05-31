@@ -51,3 +51,7 @@ Use `backlog task edit <id> --check-ac <index>` instead of manually changing che
 `ztask` follows the same rule: status changes go through
 `backlog task edit <id> --status ...`, while the active-task marker remains local
 state under `~/.local/state/zsh/active_task`.
+
+Architecture and documentation audit work should reference
+`docs/architecture-diagram-audit-plan.md` so the plan remains visible to future
+agents and does not live only in conversation history.
