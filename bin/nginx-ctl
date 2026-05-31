@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# ---
+# id: nginx-ctl
+# title: "nginx Service Control (system-domain)"
+# purpose: Manage the Homebrew nginx LaunchDaemon with the same verb grammar as the
+#          other zdots ctl scripts, so `zsvc` can drive it like any other service.
+# rationale: nginx must bind privileged ports 80/443, so it runs as a root
+#            LaunchDaemon in launchd's SYSTEM domain — not a user LaunchAgent. We
+#            drive it with `sudo launchctl` directly (NEVER `sudo brew services`,
+#            which root-owns Homebrew files; see bin/nginx-repair). Graceful config
+#            changes use `nginx -s reload` (zero downtime).
+# ---
+# bin/nginx-ctl — install/start/stop/restart/reload/status/health/logs/validate
+#
+# Privileged verbs (start/stop/restart/reload) call sudo and will prompt. Read-only
+# verbs (status/health/logs/validate) do not require sudo.
+
+set -euo pipefail
+trap '' PIPE
+
+BREW_PREFIX="$(brew --prefix 2>/dev/null || printf /opt/homebrew)"
+NGINX_BIN="${BREW_PREFIX}/opt/nginx/bin/nginx"
+LABEL="homebrew.mxcl.nginx"
+PLIST="/Library/LaunchDaemons/${LABEL}.plist"
+ERR_LOG="${BREW_PREFIX}/var/log/nginx/error.log"
+ACC_LOG="${BREW_PREFIX}/var/log/nginx/access.log"
+# Hostnames fronted by nginx (servers/*.conf). Used by `health`.
+HOSTS=(llama.local embed.local grafana.local my.local dev.my.local)
+
+_ok()   { printf 'nginx-ctl: [ok]  %s\n' "$*" >&2; }
+_warn() { printf 'nginx-ctl: [!!]  %s\n' "$*" >&2; }
+_info() { printf 'nginx-ctl: %s\n'       "$*" >&2; }
+_die()  { printf 'nginx-ctl: [err] %s\n' "$*" >&2; exit 1; }
+
+[ -x "$NGINX_BIN" ] || _die "nginx binary not found at $NGINX_BIN (brew install nginx)"
+
+_is_loaded() { launchctl print "system/${LABEL}" >/dev/null 2>&1; }
+
+cmd_validate() { sudo "$NGINX_BIN" -t; }
+
+cmd_start() {
+  [ -f "$PLIST" ] || _die "LaunchDaemon plist missing: $PLIST"
+  if _is_loaded; then _ok "already loaded (system/${LABEL})"; return 0; fi
+  _info "bootstrapping system/${LABEL} (sudo)…"
+  sudo launchctl bootstrap system "$PLIST" && _ok "started"
+}
+
+cmd_stop() {
+  if ! _is_loaded; then _ok "already stopped"; return 0; fi
+  _info "booting out system/${LABEL} (sudo)…"
+  sudo launchctl bootout "system/${LABEL}" && _ok "stopped"
+}
+
+cmd_restart() {
+  if _is_loaded; then
+    _info "kickstart -k system/${LABEL} (sudo)…"
+    sudo launchctl kickstart -k "system/${LABEL}" && _ok "restarted"
+  else
+    cmd_start
+  fi
+}
+
+# Graceful: re-read config with no dropped connections. Preferred after editing
+# servers/*.conf. Validates first so a bad config never takes nginx down.
+cmd_reload() {
+  sudo "$NGINX_BIN" -t || _die "config invalid — not reloading"
+  sudo "$NGINX_BIN" -s reload && _ok "reloaded (graceful)"
+}
+
+cmd_status() {
+  if _is_loaded; then
+    local pid
+    pid=$(launchctl print "system/${LABEL}" 2>/dev/null | awk '/[[:space:]]pid = /{print $NF; exit}')
+    _ok "loaded (system/${LABEL}, pid=${pid:-?})"
+  else
+    _warn "not loaded"
+  fi
+  # Listen check does not need sudo.
+  if curl -s --max-time 3 -o /dev/null http://localhost/ 2>/dev/null; then
+    _ok "listening on :80"
+  else
+    _warn ":80 not answering"
+  fi
+}
+
+cmd_health() {
+  local h code
+  for h in "${HOSTS[@]}"; do
+    # -w already yields "000" on failure; do not append another via ||.
+    code=$(curl -sk --max-time 3 -o /dev/null -w '%{http_code}' "https://${h}/" 2>/dev/null) || true
+    code="${code:-000}"
+    case "$code" in
+      000) printf '  %-14s  unreachable (DNS/listen/backend down)\n' "$h" ;;
+      502|503|504) printf '  %-14s  %s (nginx up, backend down)\n' "$h" "$code" ;;
+      *)   printf '  %-14s  %s\n' "$h" "$code" ;;
+    esac
+  done
+}
+
+cmd_logs() { tail -n 50 -F "$ERR_LOG" "$ACC_LOG" 2>/dev/null || _die "no logs at ${ERR_LOG}"; }
+
+case "${1:-}" in
+  install|start) cmd_start ;;
+  stop)          cmd_stop ;;
+  restart)       cmd_restart ;;
+  reload)        cmd_reload ;;
+  status)        cmd_status ;;
+  health)        cmd_health ;;
+  logs)          cmd_logs ;;
+  validate|test) cmd_validate ;;
+  *) printf 'Usage: nginx-ctl {start|stop|restart|reload|status|health|logs|validate}\n' >&2; exit 1 ;;
+esac
