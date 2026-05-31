@@ -13,6 +13,7 @@ setup() {
   load "setup"
   setup_environment
   ZSVC="$REPO_ROOT/bin/zsvc"
+  ZTASK="$REPO_ROOT/bin/ztask"
   CTX="$REPO_ROOT/bin/zdots-ctx"
   PSQL_OSUSER=( psql -X -q -A -t my )   # OS user over socket (trust, superuser)
   RW_PW="$(security find-generic-password -s zdots -a ZDOTS_RW_PASSWORD -w 2>/dev/null || true)"
@@ -61,6 +62,17 @@ _have() { command -v "$1" >/dev/null 2>&1; }
   [[ "$output" == *postgresql@18* ]]
   run "$ZSVC" status cache
   [[ "$output" == *redis* ]]
+}
+
+@test "ztask health proves task orchestration dependencies" {
+  run "$ZTASK" health --json
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e '
+    .healthy == true and
+    .platform_ready == true and
+    .brain_ready == true and
+    .hydration_ready == true
+  ' >/dev/null
 }
 
 # ── AI inference + embeddings + telemetry ───────────────────────────────────

@@ -62,6 +62,7 @@ It proves:
 | Subsystem | Coverage |
 |---|---|
 | `zsvc` | seven services discoverable, registered, running, and aliasable |
+| `ztask` | task orchestrator health, platform readiness, Brain hydration readiness |
 | AI | llama `:11500/health`, embed `:11501/health` |
 | OTel | collector listening on `:4318` |
 | Brain | Postgres credentials, migrations, methods, lessons |
@@ -71,6 +72,12 @@ It proves:
 
 See [platform-service-plane.md](platform-service-plane.md) for lifecycle diagrams
 and the instability isolation playbook.
+
+For a focused task-orchestrator proof:
+
+```sh
+bats tests/ztask_e2e.bats
+```
 
 ## 6. Contract Testing
 
