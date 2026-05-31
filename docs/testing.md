@@ -47,7 +47,32 @@ zdots-ruby tests/llama_integration.rb --quick  # fast: health + chat
 zdots-ruby tests/llama_integration.rb          # full suite (streaming, tools)
 ```
 
-## 5. Contract Testing
+## 5. Live Platform E2E
+
+`tests/platform_e2e.bats` is the "ready to run" suite for the remote branch. It
+requires the live service plane and should be run outside restricted sandboxes.
+
+```sh
+zdots-ctl status
+bats tests/platform_e2e.bats
+```
+
+It proves:
+
+| Subsystem | Coverage |
+|---|---|
+| `zsvc` | seven services discoverable, registered, running, and aliasable |
+| AI | llama `:11500/health`, embed `:11501/health` |
+| OTel | collector listening on `:4318` |
+| Brain | Postgres credentials, migrations, methods, lessons |
+| Credential fence | passwordless `zdots_rw` rejected, Keychain auth accepted |
+| nginx | `:80` listener and upstreams to `11500` / `11501` |
+| Ruby | active Ruby and runtime gems match the branch contract |
+
+See [platform-service-plane.md](platform-service-plane.md) for lifecycle diagrams
+and the instability isolation playbook.
+
+## 6. Contract Testing
 
 The `bin/capabilities` script performs live contract testing on the current environment. It verifies that all active providers fulfill their defined interface requirements.
 
@@ -55,7 +80,7 @@ The `bin/capabilities` script performs live contract testing on the current envi
 capabilities --json
 ```
 
-## 6. Performance Benchmarking
+## 7. Performance Benchmarking
 
 Shell startup time is a critical metric.
 ```sh
@@ -63,7 +88,7 @@ make bench
 ```
 Target interactive startup: **< 80ms**.
 
-## 7. Manual Verification
+## 8. Manual Verification
 
 Use `zdots-ctl check` for a comprehensive environment audit that includes tool presence, configuration validity, and service health.
 
