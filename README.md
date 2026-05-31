@@ -303,6 +303,7 @@ zdots-ctl status        # Confirm entire stack is green
 *   [docs/architecture.md](docs/architecture.md) — The DI pattern and loading sequence.
 *   [docs/platform-service-plane.md](docs/platform-service-plane.md) — Service lifecycles, E2E coverage, and stability isolation.
 *   [docs/architecture-diagram-audit-plan.md](docs/architecture-diagram-audit-plan.md) — Mermaid diagram audit plan for reasoning about the repo from many perspectives.
+*   [docs/repository-evolution.md](docs/repository-evolution.md) — Git-derived timelines, histograms, velocity charts, and branch-flow diagrams.
 *   [docs/local-ai.md](docs/local-ai.md) — Local AI routing layer: architecture, prompts, capability map, quiz.
 *   [docs/tooling.md](docs/tooling.md) — Key tools reference: what to reach for and why (organized by workflow).
 *   [SETUP.md](SETUP.md) — Clone-to-running on a fresh machine, PHI checklist, work machine setup.
