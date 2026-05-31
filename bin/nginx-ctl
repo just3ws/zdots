@@ -32,6 +32,28 @@ _warn() { printf 'nginx-ctl: [!!]  %s\n' "$*" >&2; }
 _info() { printf 'nginx-ctl: %s\n'       "$*" >&2; }
 _die()  { printf 'nginx-ctl: [err] %s\n' "$*" >&2; exit 1; }
 
+usage() {
+  cat <<'EOF'
+Usage: nginx-ctl {start|stop|restart|reload|status|health|logs|validate}
+
+Manage the system-domain nginx LaunchDaemon for zdots local URLs.
+
+Commands:
+  start      Bootstrap the root LaunchDaemon
+  stop       Boot out the root LaunchDaemon
+  restart    Kickstart the LaunchDaemon, or start it if unloaded
+  reload     Validate config, then graceful reload
+  status     Show launchd and :80 listener state
+  health     Probe configured local hostnames
+  logs       Tail nginx access and error logs
+  validate   Run nginx -t
+
+Notes:
+  start/stop/restart/reload/validate may prompt for sudo.
+  zsvc nginx delegates here. Full lifecycle: docs/platform-service-plane.md
+EOF
+}
+
 [ -x "$NGINX_BIN" ] || _die "nginx binary not found at $NGINX_BIN (brew install nginx)"
 
 _is_loaded() { launchctl print "system/${LABEL}" >/dev/null 2>&1; }
@@ -108,5 +130,6 @@ case "${1:-}" in
   health)        cmd_health ;;
   logs)          cmd_logs ;;
   validate|test) cmd_validate ;;
-  *) printf 'Usage: nginx-ctl {start|stop|restart|reload|status|health|logs|validate}\n' >&2; exit 1 ;;
+  -h|--help)     usage ;;
+  *) usage >&2; exit 1 ;;
 esac
