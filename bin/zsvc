@@ -395,6 +395,8 @@ SERVICES
 NOTE
   nginx is a root (system-domain) LaunchDaemon and uses sudo via nginx-ctl.
   postgres/redis are user LaunchAgents managed directly via launchctl.
+  zsvc verifies registration and component health. For branch readiness, run:
+    zdots-ctl status && bats tests/platform_e2e.bats
 
 EXAMPLES
   zsvc list
@@ -411,6 +413,7 @@ NOTES
     zdots-ctl up      start everything in dependency order
     zdots-ctl down    stop everything
     zdots-ctl check   deep health diagnostic
+  Lifecycle diagrams: docs/platform-service-plane.md
 EOF
 }
 
