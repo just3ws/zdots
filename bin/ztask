@@ -15,8 +15,11 @@ source "${ZDOTDIR}/lib/svc-health.bash"
 # 1. Ensure environment is loaded (no set -u to avoid .zdots.env errors)
 [[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
 
-TASKS_DIR="${ZDOTDIR}/backlog/tasks"
-ACTIVE_TASK_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task"
+TASKS_DIR="${ZTASK_TASKS_DIR:-${ZDOTDIR}/backlog/tasks}"
+ACTIVE_TASK_FILE="${ZTASK_ACTIVE_TASK_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task}"
+BACKLOG_BIN="${ZTASK_BACKLOG_BIN:-backlog}"
+ZDOTS_CTL="${ZTASK_ZDOTS_CTL:-${ZDOTDIR}/bin/zdots-ctl}"
+ZDOTS_CTX="${ZTASK_ZDOTS_CTX:-${ZDOTDIR}/bin/zdots-ctx}"
 
 usage() {
   cat <<EOF
@@ -40,6 +43,13 @@ _find_task_file() {
   ls "$TASKS_DIR"/${slug}* 2>/dev/null | head -n 1
 }
 
+_set_task_status() {
+  local id="$1" status="$2"
+  command -v "$BACKLOG_BIN" >/dev/null 2>&1 \
+    || _svc_die "backlog CLI not found: $BACKLOG_BIN"
+  "$BACKLOG_BIN" task edit "$id" --status "$status" --plain >/dev/null
+}
+
 cmd_start() {
   local id="${1:-}"
   if [[ -z "$id" ]]; then
@@ -53,18 +63,18 @@ cmd_start() {
 
   _svc_log "activating task: $id..."
 
-  # 1. Update task status in markdown
-  sed -i '' 's/Status: .*/Status: ◒ In Progress/' "$task_file"
+  # 1. Update task status through Backlog.md CLI. Do not edit task files directly.
+  _set_task_status "$id" "In Progress"
 
   # 2. Ensure services are up
-  if [[ -x "${ZDOTDIR}/bin/zdots-ctl" ]]; then
-    "${ZDOTDIR}/bin/zdots-ctl" up >/dev/null
+  if [[ -x "$ZDOTS_CTL" ]]; then
+    "$ZDOTS_CTL" up >/dev/null
   fi
 
   # 3. Hydrate context
-  if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]]; then
+  if [[ -x "$ZDOTS_CTX" ]]; then
     _svc_log "hydrating task context..."
-    "${ZDOTDIR}/bin/zdots-ctx" hydrate "$id"
+    "$ZDOTS_CTX" hydrate "$id"
   fi
 
   # 4. Save active task state
@@ -92,7 +102,7 @@ cmd_health() {
   local platform_json=""
 
   [[ -d "$TASKS_DIR" ]] && tasks_dir_ok=true
-  command -v backlog >/dev/null 2>&1 && backlog_ok=true
+  command -v "$BACKLOG_BIN" >/dev/null 2>&1 && backlog_ok=true
 
   if [[ -f "$ACTIVE_TASK_FILE" ]]; then
     active_task="$(cat "$ACTIVE_TASK_FILE")"
@@ -100,8 +110,8 @@ cmd_health() {
     [[ -n "$active_file" && -f "$active_file" ]] || active_valid=false
   fi
 
-  if [[ -x "${ZDOTDIR}/bin/zdots-ctl" ]]; then
-    platform_json="$("${ZDOTDIR}/bin/zdots-ctl" status --json 2>/dev/null || true)"
+  if [[ -x "$ZDOTS_CTL" ]]; then
+    platform_json="$("$ZDOTS_CTL" status --json 2>/dev/null || true)"
     if printf '%s\n' "$platform_json" | jq -e \
       '.colima and .lgtm and .otel_collector and .ai_server and .embed_server and .intelligence_suite and .cache' \
       >/dev/null 2>&1; then
@@ -109,7 +119,7 @@ cmd_health() {
     fi
   fi
 
-  if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]] && "${ZDOTDIR}/bin/zdots-ctx" status >/dev/null 2>&1; then
+  if [[ -x "$ZDOTS_CTX" ]] && "$ZDOTS_CTX" status >/dev/null 2>&1; then
     brain_ready=true
   fi
 
@@ -177,15 +187,15 @@ cmd_done() {
   
   _svc_log "completing task $id..."
 
-  # 1. Update status to Done
+  # 1. Update status to Done through Backlog.md CLI.
   if [[ -n "$task_file" ]]; then
-    sed -i '' 's/Status: .*/Status: ✔ Done/' "$task_file"
+    _set_task_status "$id" "Done"
   fi
 
   # 2. Capture residue
-  if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]]; then
+  if [[ -x "$ZDOTS_CTX" ]]; then
     _svc_log "triggering session residue capture..."
-    "${ZDOTDIR}/bin/zdots-ctx" capture
+    "$ZDOTS_CTX" capture
   fi
 
   rm -f "$ACTIVE_TASK_FILE"
