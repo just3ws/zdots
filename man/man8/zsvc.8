@@ -1,0 +1,130 @@
+.Dd May 30, 2026
+.Dt ZSVC 8
+.Os
+.Sh NAME
+.Nm zsvc
+.Nd unified service control for zdots-managed services
+.Sh SYNOPSIS
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Ar service
+.Nm
+.Cm diag
+.Ar service
+.Nm
+.Cm start | stop | restart | reload | logs | validate
+.Ar service
+.Sh DESCRIPTION
+.Nm
+is the per-service control surface for the zdots platform. It exposes one
+registry for the services that make up the local control plane and delegates
+actions to each service's authoritative manager.
+.Pp
+Use
+.Xr zdots-ctl 8
+for whole-platform lifecycle. Use
+.Nm
+when one component needs inspection, restart, logs, or validation.
+.Sh COMMANDS
+.Bl -tag -width "validate service"
+.It Cm list
+Print every registered service with state, pid, and endpoint.
+.It Cm start Ar service
+Start one service.
+.It Cm stop Ar service
+Stop one service.
+.It Cm restart Ar service
+Restart one service.
+.It Cm reload Ar service
+Gracefully reload one service when supported. Currently used for nginx.
+.It Cm status Ar service
+Print service-specific status and liveness.
+.It Cm logs Ar service
+Tail the service log.
+.It Cm diag Ar service
+Print status, health, launchd state, recent logs, and suggested next commands.
+.It Cm validate Ar service
+Validate service config when the underlying manager supports it.
+.El
+.Sh SERVICES
+.Bl -tag -width "postgres"
+.It Cm llama
+AI inference server, port 11500. Aliases:
+.Cm ai ,
+.Cm server .
+.It Cm embed
+Embedding server, port 11501. Alias:
+.Cm llama-embed .
+.It Cm otel
+OpenTelemetry collector, port 4318. Aliases:
+.Cm telemetry ,
+.Cm collector .
+.It Cm colima
+Docker runtime VM. Aliases:
+.Cm vm ,
+.Cm docker .
+.It Cm nginx
+TLS reverse proxy on ports 80 and 443. Aliases:
+.Cm web ,
+.Cm proxy .
+.It Cm postgres
+PostgreSQL 18 backing the
+.Cm my
+database. Aliases:
+.Cm pg ,
+.Cm db ,
+.Cm database .
+.It Cm redis
+Analytics cache on port 6379. Aliases:
+.Cm cache ,
+.Cm kv .
+.El
+.Sh LIFECYCLE MODEL
+.Nm
+separates registration from health. A LaunchAgent can be registered and running
+while its HTTP, database, or cache health probe fails. Use
+.Cm diag
+to isolate that state before restarting.
+.Pp
+The live branch-readiness check is:
+.Bd -literal -offset indent
+zdots-ctl status
+zsvc list
+bats tests/platform_e2e.bats
+.Ed
+.Sh FILES
+.Bl -tag -width "~/.local/state/zsh/otel-collector.log"
+.It Pa ~/.local/state/zsh/llama-server.log
+llama-server log.
+.It Pa ~/.local/state/zsh/llama-embed.log
+embedding server log.
+.It Pa ~/.local/state/zsh/otel-collector.log
+OTel collector log.
+.It Pa ~/Library/LaunchAgents/com.zdots.llama-server.plist
+llama-server LaunchAgent.
+.It Pa ~/Library/LaunchAgents/com.zdots.llama-embed.plist
+embedding server LaunchAgent.
+.It Pa ~/Library/LaunchAgents/homebrew.mxcl.postgresql@18.plist
+Postgres LaunchAgent.
+.It Pa ~/Library/LaunchAgents/homebrew.mxcl.redis.plist
+Redis LaunchAgent.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+zsvc list
+zsvc status postgres
+zsvc diag llama
+zsvc restart redis
+zsvc reload nginx
+.Ed
+.Sh SEE ALSO
+.Xr zdots-ctl 8 ,
+.Xr llama-ctl 8 ,
+.Xr otel-collector 8 ,
+.Xr local-ci 8 ,
+.Xr zdots 7
+.Pp
+Detailed diagrams and E2E coverage live in
+.Pa docs/platform-service-plane.md .

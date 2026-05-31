@@ -750,6 +750,12 @@ Dependency order (up):
   1. Colima + LGTM stack  (local-ci start)
   2. otel-collector       (otel-collector start)
   3. AI server            (llama-ctl start)
+  4. Embed server         (llama-ctl start-embed)
+
+Readiness:
+  zsvc list                       Verify service registration
+  bats tests/platform_e2e.bats    Live branch-readiness suite
+  docs/platform-service-plane.md  Lifecycle diagrams and isolation playbook
 
 Environment:
   ZDOTS_BOOT_TIMEOUT   Seconds to wait per service health check (default: 90)
