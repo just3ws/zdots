@@ -4,13 +4,14 @@ title: Audit architecture diagrams across Mermaid types
 status: To Do
 assignee: []
 created_date: '2026-05-31 15:50'
+updated_date: '2026-05-31 15:54'
 labels:
   - agent-ready
 dependencies: []
 documentation:
-  - docs/architecture-diagram-audit-plan.md
+  - docs/repository-evolution.md
 modified_files:
-  - docs/architecture-diagram-audit-plan.md
+  - docs/repository-evolution.md
 priority: medium
 ordinal: 12890
 ---
@@ -27,6 +28,12 @@ ordinal: 12890
 <!-- SECTION:PLAN:BEGIN -->
 Use docs/architecture-diagram-audit-plan.md as the implementation plan. Inventory current Mermaid blocks, map source files to useful diagram types, add diagrams in docs/platform-service-plane.md, docs/architecture.md, docs/local-ai.md, docs/backlog.md, docs/testing.md, and docs/wiki/System-Map.md, then verify docs-contract and GitHub rendering.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added docs/repository-evolution.md with Git-derived timeline, monthly commit velocity histogram/table, annual histogram, subject-mix pie chart, current PR gitGraph, diagram priority quadrant, and rollout gantt.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
