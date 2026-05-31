@@ -66,7 +66,7 @@ record why it is not useful for this repo.
 | `requirementDiagram` | Yes | PHI safety requirements and service-readiness contracts |
 | `gitGraph` | Yes | branch/PR lifecycle and task auto-commit behavior |
 | `mindmap` | Yes | repo conceptual map and agent orientation tree |
-| `timeline` | Yes | bootstrap/update/local platform lifecycle milestones |
+| `timeline` | Yes | bootstrap/update/local platform lifecycle milestones; repository evolution |
 | `C4Context` / C4 variants | Maybe | context/container/component views if GitHub supports current syntax |
 | `sankey-beta` | Maybe | telemetry, command analytics, and context-flow volumes if data is available |
 | `xyChart-beta` | Maybe | startup latency, token budget, queue depth over time |
@@ -129,6 +129,17 @@ it to `flowchart`, `stateDiagram-v2`, or `sequenceDiagram`.
 | Incident isolation | `flowchart` | `docs/troubleshooting.md`, `docs/platform-service-plane.md` | What should an operator check first? |
 | Remaining gap map | `quadrantChart` | backlog tasks, local-url-routing gaps | What is high-risk and cheap to fix? |
 
+### Repository Evolution
+
+| Diagram | Type | Primary Files | Reasoning Question |
+|---|---|---|---|
+| Repository evolution timeline | `timeline` | Git history, `docs/repository-evolution.md` | When did zdots become a platform? |
+| Commit velocity histogram | `xyChart-beta` plus table fallback | Git history | Where are the modernization bursts? |
+| Annual velocity table | Markdown table | Git history | How concentrated is current development? |
+| Commit subject mix | `pie` | Git subject prefixes | What kind of work dominates history? |
+| PR branch flow | `gitGraph` | Git branch history | How does this stability branch relate to main? |
+| Diagram rollout plan | `gantt` | Backlog task Z-121, docs plan | What should be diagrammed next? |
+
 ## Execution Plan
 
 1. Inventory current diagrams:
@@ -144,6 +155,7 @@ it to `flowchart`, `stateDiagram-v2`, or `sequenceDiagram`.
 
 3. Add or update diagrams in this order:
    - `docs/platform-service-plane.md`
+   - `docs/repository-evolution.md`
    - `docs/architecture.md`
    - `docs/local-ai.md`
    - `docs/backlog.md`

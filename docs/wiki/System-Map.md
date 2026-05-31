@@ -53,3 +53,6 @@ Full lifecycle and E2E map: [../platform-service-plane.md](../platform-service-p
 
 Architecture diagram audit plan:
 [../architecture-diagram-audit-plan.md](../architecture-diagram-audit-plan.md).
+
+Repository evolution and velocity views:
+[../repository-evolution.md](../repository-evolution.md).
