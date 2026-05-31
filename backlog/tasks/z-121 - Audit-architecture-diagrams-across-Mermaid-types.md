@@ -9,8 +9,10 @@ labels:
   - agent-ready
 dependencies: []
 documentation:
+  - docs/architecture-diagram-audit-plan.md
   - docs/repository-evolution.md
 modified_files:
+  - docs/architecture-diagram-audit-plan.md
   - docs/repository-evolution.md
 priority: medium
 ordinal: 12890
@@ -33,6 +35,8 @@ Use docs/architecture-diagram-audit-plan.md as the implementation plan. Inventor
 
 <!-- SECTION:NOTES:BEGIN -->
 Added docs/repository-evolution.md with Git-derived timeline, monthly commit velocity histogram/table, annual histogram, subject-mix pie chart, current PR gitGraph, diagram priority quadrant, and rollout gantt.
+
+Preserved both the original architecture audit plan and the new repository evolution page as tracked docs for Z-121.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
