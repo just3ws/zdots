@@ -53,3 +53,28 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"NOT_EXPORTED"* ]]
 }
+
+@test "Zsh: AI startup health sentinel overwrites under noclobber" {
+  local mock_bin="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$mock_bin"
+  cat > "$mock_bin/curl" <<'MOCK'
+#!/bin/sh
+exit 0
+MOCK
+  chmod +x "$mock_bin/curl"
+
+  run env -i HOME="$HOME" ZDOTDIR="$ZDOTDIR" TERM=xterm-256color \
+    TMPDIR="$BATS_TEST_TMPDIR/" PATH="$mock_bin:$PATH" \
+    zsh -fc '
+      unsetopt clobber
+      source "$ZDOTDIR/providers/ai/llama-cpp.zsh"
+      f="${TMPDIR:-/tmp}/zdots_ai_up.$$"
+      print stale >| "$f"
+      zdots_ai_init
+      sleep 0.2
+    '
+
+  echo "Output: $output"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"file exists"* ]]
+}
