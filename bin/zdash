@@ -24,6 +24,13 @@ export ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 export TASKS_DIR="${ZDOTDIR}/backlog/tasks"
 ACTIVE_TASK_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task"
 
+# shellcheck source=lib/trace_log.bash
+[[ -r "${ZDOTDIR}/lib/trace_log.bash" ]] && source "${ZDOTDIR}/lib/trace_log.bash"
+
+if command -v zdots_trace_log >/dev/null 2>&1; then
+  zdots_trace_log "launcher_start" "tool=zdash"
+fi
+
 # ── Color helpers ─────────────────────────────────────────────────────────────
 _c()  { printf '\033[%sm' "$1"; }
 RST=$(_c 0); BOLD=$(_c 1); DIM=$(_c 2)
@@ -201,11 +208,13 @@ while true; do
   case "$key" in
     ""|enter)
       printf '%s[zdash]%s starting %s%s%s: %s\n' "$CYN" "$RST" "$BOLD" "$id" "$RST" "$title"
+      [[ -n "$id" ]] && zdots_trace_log "launcher_exec" "tool=zdash,action=ztask_start,id=$id"
       "${ZDOTDIR}/bin/ztask" start "$id"
       break
       ;;
     ctrl-p)
       printf '%s[zdash]%s zpi — exploring %s\n' "$CYN" "$RST" "$id"
+      [[ -n "$id" ]] && zdots_trace_log "launcher_exec" "tool=zdash,action=zpi,id=$id"
       local task_file
       task_file=$(ls "${TASKS_DIR}/${id:l}"*.md 2>/dev/null | head -1)
       if [[ -n "$task_file" ]]; then
@@ -221,15 +230,18 @@ Surface the key decision points and any gaps in the spec."
       ;;
     ctrl-a)
       printf '%s[zdash]%s zaider — implementing %s\n' "$CYN" "$RST" "$id"
+      [[ -n "$id" ]] && zdots_trace_log "launcher_exec" "tool=zdash,action=zaider,id=$id"
       zaider
       break
       ;;
     ctrl-s)
+      zdots_trace_log "launcher_exec" "tool=zdash,action=zdots-status"
       "${ZDOTDIR}/bin/zdots-status"
       continue   # loop back to picker after status exits
       ;;
     ctrl-d)
       printf '%s[zdash]%s ztask done\n' "$CYN" "$RST"
+      zdots_trace_log "launcher_exec" "tool=zdash,action=ztask_done"
       "${ZDOTDIR}/bin/ztask" done
       break
       ;;

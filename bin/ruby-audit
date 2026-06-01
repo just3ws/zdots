@@ -34,6 +34,18 @@ require "json"
 ZDOTDIR      = Pathname.new(__dir__).parent.freeze
 AUDIT_GEMFILE = ZDOTDIR.join("etc", "ruby-audit", "Gemfile").freeze
 
+def usage
+  lines = File.readlines(__FILE__)
+  # Skip shebang, frozen comment, and YAML frontmatter (# --- ... # ---)
+  past_front = lines.drop_while { |l| !l.start_with?("# bin/") }
+  past_front.take_while { |l| l.start_with?("#") }.map { |l| l.sub(/^# ?/, "") }.join
+end
+
+if ARGV.include?("--help")
+  puts usage
+  exit 0
+end
+
 # ── Gemfile bootstrap ─────────────────────────────────────────────────────────
 # Point Bundler at the isolated audit Gemfile before any gem requires.
 # This works regardless of whether the caller has a BUNDLE_GEMFILE set.
@@ -56,13 +68,6 @@ require "ruby_audit/report_builder"
 require "ruby_audit/slice_builder"
 
 # ── CLI parsing ───────────────────────────────────────────────────────────────
-
-def usage
-  lines = File.readlines(__FILE__)
-  # Skip shebang, frozen comment, and YAML frontmatter (# --- ... # ---)
-  past_front = lines.drop_while { |l| !l.start_with?("# bin/") }
-  past_front.take_while { |l| l.start_with?("#") }.map { |l| l.sub(/^# ?/, "") }.join
-end
 
 target       = nil
 ruby_ver     = nil
@@ -125,10 +130,21 @@ FileUtils.mkdir_p(out_dir)
 
 # ── Pretty output ─────────────────────────────────────────────────────────────
 
-def info(msg)  = $stdout.puts("  #{msg}")
-def step(msg)  = $stdout.print("  ◆ #{msg}...")
-def ok         = $stdout.puts(" ok")
-def skip(msg)  = $stdout.puts("  ○ skipped — #{msg}")
+def info(msg)
+  $stdout.puts("  #{msg}")
+end
+
+def step(msg)
+  $stdout.print("  ◆ #{msg}...")
+end
+
+def ok
+  $stdout.puts(" ok")
+end
+
+def skip(msg)
+  $stdout.puts("  ○ skipped — #{msg}")
+end
 def hdr(title)
   $stdout.puts ""
   $stdout.puts "━━━ #{title} #{"━" * [0, 55 - title.length].max}"
@@ -150,7 +166,9 @@ hdr "Running analyzers"
 
 results = {}
 
-def should_run?(name, tools) = tools.include?(name)
+def should_run?(name, tools)
+  tools.include?(name)
+end
 
 if should_run?("bundler-audit", tools)
   step "bundler-audit"

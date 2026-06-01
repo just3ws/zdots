@@ -9,6 +9,7 @@
 #   status    Check connection and report database metadata
 #   init-db   Create the database and apply initial schema
 #   migrate   Apply pending SQL migrations from etc/db/migrations
+#   rotate-creds [role]  Rotate zdots_rw/zdots_ro password into Keychain (default: --all)
 #   query [--semantic] <t>  Search methodologies or lessons for <t>
 #   capture   Distill current session (traces/history) into a lesson
 #   hydrate [tag] Get semantically relevant context for AI tasks
@@ -36,13 +37,34 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 source "${ZDOTDIR}/lib/svc-health.bash"
 # shellcheck source=lib/ai-invoke.bash
 source "${ZDOTDIR}/lib/ai-invoke.bash"
-
 # 1. Ensure basics (handle unbound variables for complex environment files)
 [[ -z "${ZDOTS_DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
+# shellcheck source=lib/trace_log.bash
+source "${ZDOTDIR}/lib/trace_log.bash"
 
 SVC_NAME="zdots-ctx"
 MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
 _AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+
+# Credential injection at the auth boundary. The zdots_rw/zdots_ro passwords are
+# ephemeral keys stored in macOS Keychain and rotated via `zdots-ctx rotate-creds`.
+# We splice the Keychain password into ZDOTS_DATABASE_URL here so every downstream
+# psql/brain call inherits it from one place. pg_hba enforces scram-sha-256 for
+# these users, so the password is required, not optional. A URL that already
+# carries an explicit password is left untouched.
+if [[ -r "${ZDOTDIR}/lib/keychain.bash" ]]; then
+  # shellcheck source=lib/keychain.bash
+  source "${ZDOTDIR}/lib/keychain.bash"
+  _inject_db_password() {
+    local url="$1" acct="$2" pw
+    case "$url" in *://*:*@*) printf '%s' "$url"; return 0 ;; esac  # already has pw
+    pw="$(zdots_keychain_get "$acct" 2>/dev/null)" || { printf '%s' "$url"; return 0; }
+    [[ -z "$pw" ]] && { printf '%s' "$url"; return 0; }
+    printf '%s' "${url/@/:$pw@}"   # splice ":pw" before the first '@' (userinfo@host)
+  }
+  ZDOTS_DATABASE_URL="$(_inject_db_password "${ZDOTS_DATABASE_URL:-postgresql://zdots_rw@/my}" ZDOTS_RW_PASSWORD)"
+  export ZDOTS_DATABASE_URL
+fi
 
 usage() {
   cat <<EOF
@@ -52,6 +74,7 @@ Knowledge Layer Interface:
   status    Check connection and report database metadata
   init-db   Create the database and apply initial schema
   migrate   Apply pending SQL migrations from etc/db/migrations
+  rotate-creds [zdots_rw|zdots_ro|--all]  Rotate DB role password into Keychain
   query [--semantic] <t>  Search methodologies or lessons for <t>
   capture   Distill current session (traces/history) into a lesson
   hydrate [tag] Get semantically relevant context for AI tasks
@@ -70,6 +93,7 @@ Knowledge Layer Interface:
   metrics-loop Export queue depth metrics to OTel continuously
   backup    Create a timestamped SQL dump in ~/my/backups
   restore [f] Restore the database from dump file [f]
+  stats     Show system utilization statistics from traces
 
 Options:
   --json      Output as JSON (valid for status, query, hydrate)
@@ -151,6 +175,61 @@ cmd_migrate() {
   zdots-ruby "${ZDOTDIR}/lib/zdots/migrator.rb"
 }
 
+# cmd_rotate_creds — Rotate the ephemeral password at a DB authorization boundary.
+#
+# The zdots_ro / zdots_rw users are fences against accidental writes/deletes, not
+# a security perimeter. This rotates their passwords with a fresh URL-safe key,
+# applies it via the superuser (migration) URL, and stores it in macOS Keychain.
+# The password travels over stdin (never argv), so it does not appear in `ps`.
+#
+# Usage: zdots-ctx rotate-creds [zdots_rw | zdots_ro | --all]   (default: --all)
+#
+# pg_hba.conf enforces scram-sha-256 for these users, so a rotation immediately
+# invalidates the old key. The OS superuser keeps `trust`, so this ALTER ROLE and
+# migrations are unaffected. See docs/architecture.md → "Credential rotation".
+cmd_rotate_creds() {
+  _require_psql
+  command -v openssl >/dev/null 2>&1 || _svc_die "openssl required for password generation"
+  [[ -r "${ZDOTDIR}/lib/keychain.bash" ]] || _svc_die "lib/keychain.bash not found"
+  # shellcheck source=lib/keychain.bash
+  source "${ZDOTDIR}/lib/keychain.bash"
+
+  local target="${1:---all}"
+  local roles=()
+  case "$target" in
+    zdots_rw|rw)   roles=(zdots_rw) ;;
+    zdots_ro|ro)   roles=(zdots_ro) ;;
+    --all|all|"")  roles=(zdots_ro zdots_rw) ;;
+    *) _svc_die "rotate-creds: unknown role '$target' (use zdots_rw | zdots_ro | --all)" ;;
+  esac
+
+  local migration_url="${ZDOTS_MIGRATION_URL:-postgresql:///my}"
+  if ! psql "${migration_url}" -X -t -A -q -c "SELECT 1" >/dev/null 2>&1; then
+    _svc_die "cannot reach DB via superuser URL (ZDOTS_MIGRATION_URL) — rotation needs DDL rights"
+  fi
+
+  local r acct pw
+  for r in "${roles[@]}"; do
+    case "$r" in
+      zdots_rw) acct=ZDOTS_RW_PASSWORD ;;
+      zdots_ro) acct=ZDOTS_RO_PASSWORD ;;
+    esac
+    pw="$(openssl rand -hex 24)" || _svc_die "openssl rand failed"
+
+    # Password via stdin here-doc — kept out of argv and shell history.
+    if ! printf "ALTER ROLE %s WITH LOGIN PASSWORD '%s';\n" "$r" "$pw" \
+         | psql "${migration_url}" -X -q -v ON_ERROR_STOP=1 >/dev/null 2>&1; then
+      _svc_die "ALTER ROLE ${r} failed"
+    fi
+    if ! zdots_keychain_set "$acct" "$pw"; then
+      _svc_die "stored password in Postgres but Keychain write failed for ${acct} — DB and Keychain now out of sync; re-run rotate-creds"
+    fi
+    _svc_ok "rotated ${r} → Keychain (${acct})"
+  done
+  unset pw
+  _svc_log "New key takes effect on next zdots-ctx invocation (URL is rebuilt from Keychain)."
+}
+
 cmd_diagnose_log() {
   "${ZDOTDIR}/bin/zdots-log-analyze" "$@"
 }
@@ -180,6 +259,7 @@ cmd_capture() {
   # PHI safety gate — capture is opt-in
   if [[ "${ZDOTS_CAPTURE_ENABLED:-0}" != "1" ]]; then
     zdots_audit_log "capture_blocked" "sid=${ZDOTS_SESSION_ID:-unknown}"
+    zdots_trace_log "session_capture" "blocked"
     printf 'zdots-ctx: capture disabled (ZDOTS_CAPTURE_ENABLED=0) — set to 1 in .zdots.local to enable\n' >&2
     exit 2
   fi
@@ -190,6 +270,7 @@ cmd_capture() {
   fi
 
   _svc_log "capturing residue for session: ${sid}..."
+  zdots_trace_log "session_capture" "start sid=$sid"
 
   # 1. Extract and scrub recent history (last 50 commands)
   local history_snippet
@@ -297,8 +378,10 @@ EOF
         && _svc_log "command analytics synced." \
         || _svc_log "command analytics sync failed (non-fatal; SQLite buffer intact)."
     fi
+    zdots_trace_log "session_capture" "complete lesson_id=${lesson_id:-none}"
   else
     _svc_log "capture aborted."
+    zdots_trace_log "session_capture" "aborted"
   fi
 }
 
@@ -394,8 +477,10 @@ JQEOF
 }
 
 cmd_sync_history() {
+  zdots_trace_log "sync_history" "start"
   _drain_redis_to_sqlite
   "${ZDOTDIR}/sbin/zdots-brain" sync-history "$@"
+  zdots_trace_log "sync_history" "complete"
 }
 
 cmd_enqueue() {
@@ -640,6 +725,63 @@ cmd_seed() {
   _svc_ok "seeding complete."
 }
 
+cmd_stats() {
+  local trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
+  if [[ ! -f "$trace_file" ]]; then
+    _svc_die "trace file not found: $trace_file"
+  fi
+
+  printf "Zdots System Utilization Statistics\n"
+  printf "========================================\n\n"
+
+  # 1. Total counts by event type (robust extraction)
+  printf "Event Activity:\n"
+  grep -o '"event":"[^"]*"' "$trace_file" | cut -d'"' -f4 | sort | uniq -c | sort -nr | sed 's/^/  /'
+  printf "\n"
+
+  # 2. AI Utilization Breakdown
+  if grep -q "ai_query" "$trace_file"; then
+    printf "AI Tool Usage:\n"
+    grep "ai_query" "$trace_file" | grep -o '"data":"[^"]*"' | cut -d'"' -f4 | awk -F'[,=]' '{for(i=1;i<=NF;i++) if($i=="tool") print $(i+1)}' | sort | uniq -c | sort -nr | sed 's/^/  /'
+    printf "\n"
+    
+    printf "AI Domains (zdots-ask):\n"
+    grep "tool=zdots-ask" "$trace_file" | grep -o '"data":"[^"]*"' | cut -d'"' -f4 | awk -F'[,=]' '{for(i=1;i<=NF;i++) if($i=="domain") print $(i+1)}' | sort | uniq -c | sort -nr | sed 's/^/  /'
+    printf "\n"
+  fi
+
+  # 3. Rituals & Launches
+  printf "Workflows & Rituals:\n"
+  local ritual_count; ritual_count=$(grep -c "ritual_start" "$trace_file" || true)
+  local launcher_count; launcher_count=$(grep -c "launcher_start" "$trace_file" || true)
+  local doctor_count; doctor_count=$(grep -c "doctor_check" "$trace_file" || true)
+  [[ $ritual_count -gt 0 ]] && printf "  - Morning Rituals: %s\n" "$ritual_count"
+  [[ $launcher_count -gt 0 ]] && printf "  - Dashboard Opens: %s\n" "$launcher_count"
+  [[ $doctor_count -gt 0 ]] && printf "  - Doctor Checks  : %s\n" "$doctor_count"
+  printf "\n"
+
+  # 4. Recent Tasks
+  if grep -q "task_start" "$trace_file"; then
+    printf "Recent Task Activity (Last 5):\n"
+    grep "task_start" "$trace_file" | tail -n 5 | while read -r line; do
+      local ts; ts=$(echo "$line" | grep -o '"ts":"[^"]*"' | cut -d'"' -f4)
+      local id; id=$(echo "$line" | grep -o '"data":"[^"]*"' | cut -d'"' -f4 | awk -F'=' '{print $2}')
+      printf "  - %s: %s\n" "$ts" "$id"
+    done
+    printf "\n"
+  fi
+
+  # 5. Reliability (Errors vs Runs)
+  local total_exec; total_exec=$(grep -c '"event":"exec"' "$trace_file" || true)
+  local total_error; total_error=$(grep -c '"event":"error"' "$trace_file" || true)
+  if [[ $total_exec -gt 0 ]]; then
+    printf "System Reliability:\n"
+    printf "  - Total Executions: %s\n" "$total_exec"
+    printf "  - Errors Captured : %s\n" "$total_error"
+    awk -v e="$total_error" -v t="$total_exec" 'BEGIN { printf "  - Error Rate      : %.2f%%\n", (e/t)*100 }'
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
@@ -648,6 +790,7 @@ case "${1:-}" in
   status)   shift; cmd_status "${@}" ;;
   init-db)  shift; cmd_init_db "${@}" ;;
   migrate)  shift; cmd_migrate "${@}" ;;
+  rotate-creds) shift; cmd_rotate_creds "${@}" ;;
   query)    shift; cmd_query "${@}" ;;
   capture)  shift; cmd_capture "${@}" ;;
   hydrate)  shift; cmd_hydrate "${@}" ;;
@@ -666,6 +809,7 @@ case "${1:-}" in
   metrics-loop)    shift; cmd_metrics_loop "${@}" ;;
   backup)   shift; cmd_backup "${@}" ;;
   restore)  shift; cmd_restore "${@}" ;;
+  stats)    shift; cmd_stats "${@}" ;;
   -h|--help) usage; exit 0 ;;
   "")       usage >&2; exit 1 ;;
   *)        printf 'zdots-ctx: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;

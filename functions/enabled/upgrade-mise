@@ -23,10 +23,23 @@ if command -v mise >/dev/null 2>&1; then
     run_cmd mise self-update || true
   fi
 
-  # 2. Install all tools defined in global/local configs
-  # This will ensure ruby@3.4.8 and others are present
+  # 2. Bump Ruby to latest stable BEFORE installing, so `mise install` below
+  #    materialises the new pin. zdots-ruby-bump rewrites mise.toml +
+  #    etc/ruby-version + the global mise config in lockstep, then reconciles
+  #    that Ruby's default gems and project bundle. Idempotent: a no-op when the
+  #    pin is already latest. This is what makes "always run latest Ruby" hold.
+  if command -v zdots-ruby-bump >/dev/null 2>&1; then
+    if [[ "$dry_run" == "1" ]]; then
+      run_cmd zdots-ruby-bump --dry-run
+    else
+      run_cmd zdots-ruby-bump || echo "upgrade-mise: ruby bump reported an issue (continuing)"
+    fi
+  fi
+
+  # 3. Install all tools defined in global/local configs
+  # This will ensure ruby and others are present at their pinned versions
   run_cmd mise install
 
-  # 3. Prune old versions
+  # 4. Prune old versions
   run_cmd mise prune --yes
 fi
