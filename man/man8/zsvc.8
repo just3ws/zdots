@@ -14,6 +14,16 @@
 .Cm diag
 .Ar service
 .Nm
+.Cm health
+.Op Fl -json
+.Op Ar service | all
+.Nm
+.Cm logs
+.Cm all
+.Op Fl -json | Fl -paths
+.Op Fl n Ar lines
+.Op Fl -no-follow
+.Nm
 .Cm start | stop | restart | reload | logs | validate
 .Ar service
 .Sh DESCRIPTION
@@ -41,8 +51,21 @@ Restart one service.
 Gracefully reload one service when supported. Currently used for nginx.
 .It Cm status Ar service
 Print service-specific status and liveness.
+.It Cm health Op Fl -json Op Ar service | all
+Probe service liveness. With no service, prints every registered service plus
+the local nginx-fronted URLs. With
+.Fl -json ,
+emits a machine-readable document for AI tools and automation.
 .It Cm logs Ar service
 Tail the service log.
+.It Cm logs Cm all Op Fl -json | Fl -paths Op Fl n Ar lines Op Fl -no-follow
+Tail every registered service log from one terminal. Use
+.Fl -no-follow
+for a one-shot snapshot, or
+.Fl -paths
+to print the log source table without tailing. With
+.Fl -json ,
+emits the log source inventory for AI tools and automation.
 .It Cm diag Ar service
 Print status, health, launchd state, recent logs, and suggested next commands.
 .It Cm validate Ar service
@@ -102,6 +125,12 @@ llama-server log.
 embedding server log.
 .It Pa ~/.local/state/zsh/otel-collector.log
 OTel collector log.
+.It Pa /opt/homebrew/var/log/nginx/error.log
+nginx error log.
+.It Pa /opt/homebrew/var/log/postgresql@18.log
+Postgres log.
+.It Pa /opt/homebrew/var/log/redis.log
+Redis log.
 .It Pa ~/Library/LaunchAgents/com.zdots.llama-server.plist
 llama-server LaunchAgent.
 .It Pa ~/Library/LaunchAgents/com.zdots.llama-embed.plist
@@ -115,6 +144,9 @@ Redis LaunchAgent.
 .Bd -literal -offset indent
 zsvc list
 zsvc status postgres
+zsvc health
+zsvc logs all -n 100
+zsvc logs all --paths
 zsvc diag llama
 zsvc restart redis
 zsvc reload nginx

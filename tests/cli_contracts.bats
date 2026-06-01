@@ -423,6 +423,14 @@ _grafana_up() {
   echo "$output" | jq -e '.env'      >/dev/null
 }
 
+@test "agent-guide: --json exposes zsvc machine-readable diagnostics" {
+  run "$BIN/agent-guide" --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.diagnostics.service_health_json == "zsvc health --json"' >/dev/null
+  echo "$output" | jq -e '.diagnostics.service_logs_json == "zsvc logs all --json"' >/dev/null
+  echo "$output" | jq -e '.docs.service_control | contains("zsvc")' >/dev/null
+}
+
 @test "zdots-ctl: unknown subcommand exits 1" {
   run "$BIN/zdots-ctl" not-a-real-command
   [ "$status" -eq 1 ]
