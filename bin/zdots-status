@@ -170,15 +170,19 @@ probe_utilization() {
 
   local trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
   if [[ -f "$trace_file" ]]; then
-    # Simple count of events in last 24h
-    # Uses 'date' to get timestamp from 24h ago — macOS 'date' syntax
+    # Simple count of events in last 24h.
     local since
     since=$(date -v-24H '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || date --date='24 hours ago' '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null)
     
     # We use a simple grep/awk because traces.jsonl can be large.
     # We only look at the last 5000 lines for performance.
     local recent
-    recent=$(tail -n 5000 "$trace_file")
+    recent=$(tail -n 5000 "$trace_file" | awk -v since="$since" '
+      match($0, /"ts":"[^"]+"/) {
+        ts = substr($0, RSTART + 6, RLENGTH - 7)
+        if (ts >= since) print
+      }
+    ')
     
     UTIL_TASKS_LAST_24H=$(printf '%s' "$recent" | grep -c "task_start" || true)
     UTIL_AI_QUERIES_LAST_24H=$(printf '%s' "$recent" | grep -c "ai_query" || true)

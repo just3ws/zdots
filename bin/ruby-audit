@@ -130,10 +130,21 @@ FileUtils.mkdir_p(out_dir)
 
 # ── Pretty output ─────────────────────────────────────────────────────────────
 
-def info(msg)  = $stdout.puts("  #{msg}")
-def step(msg)  = $stdout.print("  ◆ #{msg}...")
-def ok         = $stdout.puts(" ok")
-def skip(msg)  = $stdout.puts("  ○ skipped — #{msg}")
+def info(msg)
+  $stdout.puts("  #{msg}")
+end
+
+def step(msg)
+  $stdout.print("  ◆ #{msg}...")
+end
+
+def ok
+  $stdout.puts(" ok")
+end
+
+def skip(msg)
+  $stdout.puts("  ○ skipped — #{msg}")
+end
 def hdr(title)
   $stdout.puts ""
   $stdout.puts "━━━ #{title} #{"━" * [0, 55 - title.length].max}"
@@ -155,7 +166,9 @@ hdr "Running analyzers"
 
 results = {}
 
-def should_run?(name, tools) = tools.include?(name)
+def should_run?(name, tools)
+  tools.include?(name)
+end
 
 if should_run?("bundler-audit", tools)
   step "bundler-audit"
