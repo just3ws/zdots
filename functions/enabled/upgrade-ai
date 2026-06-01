@@ -87,7 +87,7 @@ else
 fi
 
 # 4. Fabric (pattern library)
-if command -v fabric >/dev/null 2>&1; then
+if command -v fabric-ai >/dev/null 2>&1; then
   echo "Updating Fabric patterns..."
-  run_cmd fabric --update
+  run_cmd fabric-ai --updatepatterns
 fi

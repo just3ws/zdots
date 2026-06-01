@@ -231,6 +231,7 @@ assert_pnpm_path() {
   shift
   local -a shell_args=("$@")
   local pnpm_count
+  local pnpm_bin_count
 
   pnpm_count="$(zsh "${shell_args[@]}" -c '
     typeset -i count=0
@@ -242,6 +243,19 @@ assert_pnpm_path() {
 
   if [[ "$pnpm_count" -gt 1 ]]; then
     echo "check: expected at most one PNPM_HOME PATH entry in ${mode} mode, got ${pnpm_count}" >&2
+    exit 1
+  fi
+
+  pnpm_bin_count="$(zsh "${shell_args[@]}" -c '
+    typeset -i count=0
+    for entry in ${(s/:/)PATH}; do
+      [[ "$entry" == "$PNPM_HOME/bin" ]] && (( count++ ))
+    done
+    echo "$count"
+  ' | _strip_escapes)"
+
+  if [[ "$pnpm_bin_count" -ne 1 ]]; then
+    echo "check: expected exactly one PNPM_HOME/bin PATH entry in ${mode} mode, got ${pnpm_bin_count}" >&2
     exit 1
   fi
 }
