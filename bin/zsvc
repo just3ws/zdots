@@ -5,8 +5,8 @@
 # diagnose every service managed by zdots. Delegates to the authoritative
 # ctl script for each service; adds no logic of its own.
 #
-# Services:  llama  embed  otel  colima
-# Commands:  list  start  stop  restart  status  logs  diag  validate
+# Services:  llama  embed  otel  colima  nginx  postgres  redis
+# Commands:  list  start  stop  restart  status  health  logs  diag  validate
 
 set -euo pipefail
 trap '' PIPE
@@ -127,6 +127,13 @@ _svc_meta() {
 }
 
 ALL_SVCS=(llama embed otel colima nginx postgres redis)
+LOCAL_URLS=(
+  "llama.local|https://llama.local/health"
+  "embed.local|https://embed.local/health"
+  "grafana.local|https://grafana.local/api/health"
+  "my.local|http://my.local/"
+  "dev.my.local|http://dev.my.local/"
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -137,6 +144,10 @@ _warn() { printf 'zsvc: [!!]  %s\n' "$*" >&2; }
 _info() { printf 'zsvc: %s\n'       "$*" >&2; }
 _die()  { printf 'zsvc: [err] %s\n' "$*" >&2; exit 1; }
 _sep()  { printf '\n--- %s ---\n' "$*"; }
+
+_json_escape() {
+  sed 's/\\/\\\\/g; s/"/\\"/g' <<<"$1"
+}
 
 _launchd_state() {
   local label="$1" out state pid
@@ -188,6 +199,80 @@ _plist_health() {
   esac
 }
 
+_svc_state_pid() {
+  if [[ "$SVC_TYPE" == "colima" ]]; then
+    _colima_state
+  elif [[ "$SVC_TYPE" == "nginx" ]]; then
+    _nginx_state "$SVC_LABEL"
+  else
+    _launchd_state "$SVC_LABEL"
+  fi
+}
+
+_svc_health_text() {
+  case "$SVC_NAME" in
+    llama)
+      if curl -sf --max-time 3 "${SVC_ENDPOINT}/health" >/dev/null 2>&1; then
+        printf 'ok\t/health'
+      else
+        printf 'fail\t/health'
+      fi ;;
+    embed)
+      if curl -sf --max-time 3 "${SVC_ENDPOINT}/health" >/dev/null 2>&1; then
+        printf 'ok\t/health'
+      else
+        printf 'fail\t/health'
+      fi ;;
+    otel)
+      if "$SVC_CTL" health >/dev/null 2>&1; then
+        printf 'ok\tOTLP receiver'
+      else
+        printf 'fail\tOTLP receiver'
+      fi ;;
+    colima)
+      if colima status >/dev/null 2>&1; then
+        printf 'ok\tcolima status'
+      else
+        printf 'fail\tcolima status'
+      fi ;;
+    nginx)
+      if curl -s --max-time 3 -o /dev/null http://localhost/ 2>/dev/null; then
+        printf 'ok\tlocalhost:80'
+      else
+        printf 'fail\tlocalhost:80'
+      fi ;;
+    postgres)
+      if command -v pg_isready >/dev/null 2>&1 && pg_isready -q 2>/dev/null; then
+        printf 'ok\tpg_isready'
+      else
+        printf 'fail\tpg_isready'
+      fi ;;
+    redis)
+      if [[ "$(redis-cli ping 2>/dev/null)" == "PONG" ]]; then
+        printf 'ok\tPONG'
+      else
+        printf 'fail\tPONG'
+      fi ;;
+  esac
+}
+
+_local_url_health() {
+  local item name url code failed=0
+  printf '%-16s  %-6s  %-5s  %s\n' LOCAL_URL STATUS CODE URL
+  printf '%-16s  %-6s  %-5s  %s\n' '---------' '------' '----' '---'
+  for item in "${LOCAL_URLS[@]}"; do
+    name="${item%%|*}"
+    url="${item#*|}"
+    code=$(curl -sk --max-time 2 -o /dev/null -w '%{http_code}' "$url" 2>/dev/null) || true
+    code="${code:-000}"
+    case "$code" in
+      000|5*) failed=1; printf '%-16s  %-6s  %-5s  %s\n' "$name" fail "$code" "$url" ;;
+      *)      printf '%-16s  %-6s  %-5s  %s\n' "$name" ok   "$code" "$url" ;;
+    esac
+  done
+  return "$failed"
+}
+
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
@@ -209,6 +294,68 @@ cmd_list() {
     pid="${state_pid##*$'\t'}"
     printf '%-16s  %-18s  %-8s  %s\n' "$SVC_DISPLAY" "$state" "$pid" "${SVC_ENDPOINT:--}"
   done
+}
+
+cmd_health_all() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local svc state_pid state health detail failed=0
+  local service_json="" url_json="" first=true item name url code status
+
+  if $json; then
+    for svc in "${ALL_SVCS[@]}"; do
+      _svc_meta "$svc"
+      state_pid=$(_svc_state_pid)
+      state="${state_pid%%$'\t'*}"
+      health="$(_svc_health_text)"
+      detail="${health##*$'\t'}"
+      health="${health%%$'\t'*}"
+      [[ "$health" == ok ]] || failed=1
+      $first || service_json+=","
+      first=false
+      service_json+=$(printf '{"name":"%s","display":"%s","state":"%s","health":"%s","detail":"%s","endpoint":"%s","log":"%s"}' \
+        "$(_json_escape "$SVC_NAME")" "$(_json_escape "$SVC_DISPLAY")" "$(_json_escape "$state")" \
+        "$(_json_escape "$health")" "$(_json_escape "$detail")" "$(_json_escape "${SVC_ENDPOINT:-}")" "$(_json_escape "${SVC_LOG:-}")")
+    done
+
+    first=true
+    for item in "${LOCAL_URLS[@]}"; do
+      name="${item%%|*}"
+      url="${item#*|}"
+      code=$(curl -sk --max-time 2 -o /dev/null -w '%{http_code}' "$url" 2>/dev/null) || true
+      code="${code:-000}"
+      case "$code" in
+        000|5*) status=fail; failed=1 ;;
+        *)      status=ok ;;
+      esac
+      $first || url_json+=","
+      first=false
+      url_json+=$(printf '{"name":"%s","url":"%s","status":"%s","code":"%s"}' \
+        "$(_json_escape "$name")" "$(_json_escape "$url")" "$(_json_escape "$status")" "$(_json_escape "$code")")
+    done
+
+    printf '{"healthy":%s,"services":[%s],"local_urls":[%s]}\n' \
+      "$([[ "$failed" == 0 ]] && printf true || printf false)" "$service_json" "$url_json"
+    return "$failed"
+  fi
+
+  printf '%-16s  %-18s  %-6s  %s\n' SERVICE STATE HEALTH DETAIL
+  printf '%-16s  %-18s  %-6s  %s\n' '-------' '-----' '------' '------'
+  for svc in "${ALL_SVCS[@]}"; do
+    _svc_meta "$svc"
+    state_pid=$(_svc_state_pid)
+    state="${state_pid%%$'\t'*}"
+    health="$(_svc_health_text)"
+    detail="${health##*$'\t'}"
+    health="${health%%$'\t'*}"
+    [[ "$health" == ok ]] || failed=1
+    printf '%-16s  %-18s  %-6s  %s\n' "$SVC_DISPLAY" "$state" "$health" "$detail"
+  done
+
+  printf '\n'
+  _local_url_health || failed=1
+  return "$failed"
 }
 
 cmd_start() {
@@ -282,8 +429,65 @@ cmd_status() {
   "$SVC_CTL" "$SVC_STATUS" "$@"
 }
 
+cmd_logs_all() {
+  local lines=50 paths_only=0 follow=1 json=false arg
+  while [[ $# -gt 0 ]]; do
+    arg="$1"; shift
+    case "$arg" in
+      --paths) paths_only=1 ;;
+      --json) json=true; paths_only=1 ;;
+      --no-follow) follow=0 ;;
+      -n|--lines)
+        [[ $# -gt 0 ]] || _die "--lines requires a number"
+        lines="$1"; shift ;;
+      --lines=*) lines="${arg#*=}" ;;
+      *) _die "unknown logs all option: $arg" ;;
+    esac
+  done
+
+  local -a files
+  local svc sources_json="" first=true
+  files=()
+  for svc in "${ALL_SVCS[@]}"; do
+    _svc_meta "$svc"
+    [[ -n "$SVC_LOG" ]] || continue
+    if $json; then
+      $first || sources_json+=","
+      first=false
+      sources_json+=$(printf '{"name":"%s","display":"%s","path":"%s","exists":%s}' \
+        "$(_json_escape "$SVC_NAME")" "$(_json_escape "$SVC_DISPLAY")" "$(_json_escape "$SVC_LOG")" \
+        "$([[ -f "$SVC_LOG" ]] && printf true || printf false)")
+    elif [[ "$paths_only" == "1" ]]; then
+      printf '%-16s %s\n' "$SVC_DISPLAY" "$SVC_LOG"
+    else
+      mkdir -p "$(dirname "$SVC_LOG")" 2>/dev/null || true
+      files+=("$SVC_LOG")
+    fi
+  done
+  if $json; then
+    printf '{"sources":[%s],"tail_command":"zsvc logs all"}\n' "$sources_json"
+    return 0
+  fi
+  [[ "$paths_only" == "1" ]] && return 0
+  (( ${#files[@]} )) || _die "no log sources registered"
+
+  trap 'exit 0' INT TERM
+  if [[ "$follow" == "1" ]]; then
+    _info "tailing all registered logs — Ctrl+C to stop"
+    tail -n "$lines" -F "${files[@]}"
+  else
+    tail -n "$lines" "${files[@]}"
+  fi
+}
+
 cmd_logs() {
-  _svc_meta "$1"
+  local svc="$1"; shift || true
+  if [[ "$svc" == "all" || "$svc" == "--all" ]]; then
+    cmd_logs_all "$@"
+    return
+  fi
+
+  _svc_meta "$svc"
   if [[ -n "$SVC_LOGS" ]]; then
     "$SVC_CTL" "$SVC_LOGS"
   elif [[ -n "$SVC_LOG" ]]; then
@@ -294,6 +498,33 @@ cmd_logs() {
   else
     _die "${SVC_DISPLAY} has no log source"
   fi
+}
+
+cmd_health() {
+  local json=false
+  if [[ "${1:-}" == "--json" ]]; then
+    json=true
+    shift
+  fi
+  if [[ $# -eq 0 || "${1:-}" == "all" || "${1:-}" == "--all" ]]; then
+    if $json; then cmd_health_all --json; else cmd_health_all; fi
+    return
+  fi
+  _svc_meta "$1"
+  local health detail state_pid state
+  health="$(_svc_health_text)"
+  detail="${health##*$'\t'}"
+  health="${health%%$'\t'*}"
+  if $json; then
+    state_pid=$(_svc_state_pid)
+    state="${state_pid%%$'\t'*}"
+    printf '{"name":"%s","display":"%s","state":"%s","health":"%s","detail":"%s","endpoint":"%s","log":"%s"}\n' \
+      "$(_json_escape "$SVC_NAME")" "$(_json_escape "$SVC_DISPLAY")" "$(_json_escape "$state")" \
+      "$(_json_escape "$health")" "$(_json_escape "$detail")" "$(_json_escape "${SVC_ENDPOINT:-}")" "$(_json_escape "${SVC_LOG:-}")"
+  else
+  printf '%-16s  %-6s  %s\n' "$SVC_DISPLAY" "$health" "$detail"
+  fi
+  [[ "$health" == ok ]]
 }
 
 cmd_diag() {
@@ -379,7 +610,9 @@ COMMANDS
   restart <service>     Restart a service (stop + start if no native restart)
   reload  <service>     Graceful zero-downtime reload (nginx)
   status  <service>     Full status from the service's ctl script
+  health  [--json] [service|all] Probe service liveness and local URLs
   logs    <service>     Tail the service log (Ctrl+C to stop)
+  logs    all [--paths|--json] [options] Tail all registered service logs
   diag    <service>     Status + health + launchd state + last 50 log lines
   validate <service>    Validate service config (llama, otel)
 
@@ -403,6 +636,9 @@ EXAMPLES
   zsvc start llama
   zsvc restart otel
   zsvc logs embed
+  zsvc logs all --paths
+  zsvc logs all -n 100
+  zsvc health
   zsvc status postgres
   zsvc reload nginx          # graceful config reload (after editing servers/*.conf)
   zsvc diag llama
@@ -430,7 +666,8 @@ case "$1" in
   restart)  [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_restart "$2" ;;
   reload)   [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_reload "$2" ;;
   status)   [[ $# -ge 2 ]] || { usage >&2; exit 1; }; shift; cmd_status "$@" ;;
-  logs)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_logs "$2" ;;
+  health)   shift; cmd_health "$@" ;;
+  logs)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; shift; cmd_logs "$@" ;;
   diag)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_diag "$2" ;;
   validate) [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_validate "$2" ;;
   -h|--help) usage ;;

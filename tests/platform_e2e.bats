@@ -64,6 +64,45 @@ _have() { command -v "$1" >/dev/null 2>&1; }
   [[ "$output" == *redis* ]]
 }
 
+@test "zsvc logs all reports central log sources" {
+  run "$ZSVC" logs all --paths
+  [ "$status" -eq 0 ]
+  for svc in llama-server llama-embed otel-collector nginx postgresql@18 redis; do
+    [[ "$output" == *"$svc"* ]] || { echo "missing log source: $svc"; false; }
+  done
+}
+
+@test "zsvc logs all --json exposes log sources for agents" {
+  run "$ZSVC" logs all --json
+  [ "$status" -eq 0 ]
+  printf '%s\n' "$output" | jq -e '
+    .sources
+    and ([.sources[].name] | index("llama"))
+    and ([.sources[].name] | index("otel"))
+    and ([.sources[].name] | index("postgres"))
+  ' >/dev/null
+}
+
+@test "zsvc health reports services and local URLs" {
+  run "$ZSVC" health
+  [[ "$output" == *llama-server* ]]
+  [[ "$output" == *postgresql@18* ]]
+  [[ "$output" == *redis* ]]
+  [[ "$output" == *llama.local* ]]
+  [[ "$output" == *my.local* ]]
+}
+
+@test "zsvc health --json exposes service and local URL state for agents" {
+  run "$ZSVC" health --json
+  printf '%s\n' "$output" | jq -e '
+    (.healthy | type == "boolean")
+    and ([.services[].name] | index("nginx"))
+    and ([.services[].name] | index("redis"))
+    and ([.local_urls[].name] | index("llama.local"))
+    and ([.local_urls[].name] | index("my.local"))
+  ' >/dev/null
+}
+
 @test "ztask health proves task orchestration dependencies" {
   run "$ZTASK" health --json
   [ "$status" -eq 0 ]
