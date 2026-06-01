@@ -251,10 +251,12 @@ prompt_parts = []
 
 ruby_minor  = ruby_ver&.match(/\A(\d+\.\d+)/)&.[](1)
 rails_minor = rails_ver&.match(/\A(\d+\.\d+)/)&.[](1)
+database    = detector.database
 
 [
   ZDOTDIR.join("etc", "ruby-audit", "prompts", "ruby-#{ruby_minor}.md"),
-  ZDOTDIR.join("etc", "ruby-audit", "prompts", "rails-#{rails_minor}.md")
+  ZDOTDIR.join("etc", "ruby-audit", "prompts", "rails-#{rails_minor}.md"),
+  ZDOTDIR.join("etc", "ruby-audit", "prompts", "db-#{database}.md")
 ].each do |f|
   prompt_parts << f.read if f.exist?
 end
@@ -262,9 +264,9 @@ end
 system_prompt_file = out_dir.join("system-prompt.md")
 if prompt_parts.any?
   system_prompt_file.write(prompt_parts.join("\n\n---\n\n"))
-  info "Version prompts: ruby-#{ruby_minor}.md#{rails_minor ? ", rails-#{rails_minor}.md" : ""}"
+  info "Version prompts: ruby-#{ruby_minor}.md#{rails_minor ? ", rails-#{rails_minor}.md" : ""}#{database ? ", db-#{database}.md" : ""}"
 else
-  info "No version-specific prompts found for ruby-#{ruby_minor} / rails-#{rails_minor}"
+  info "No version-specific prompts found for ruby-#{ruby_minor} / rails-#{rails_minor} / #{database}"
 end
 
 # ── Generate report ────────────────────────────────────────────────────────────
