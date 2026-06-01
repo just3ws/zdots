@@ -48,7 +48,7 @@ rm() {
 if command -v trash >/dev/null 2>&1; then
   alias del='trash'
 elif [[ "$OSTYPE" == darwin* ]]; then
-  del() {
+  function del {
     local f
     for f in "$@"; do
       osascript -e "tell application \"Finder\" to delete POSIX file \"${f:A}\"" >/dev/null 2>&1 \
