@@ -176,6 +176,7 @@ if $JSON; then
       },
       docs: {
         platform_control: "zdots-ctl check / up / down / reset / status",
+        service_control:  "zsvc list / health --json / logs all --json / diag <service>",
         ai:               "docs/llama-cpp.md",
         deploy_logs:      "docs/deploy-log-analysis.md",
         otel:             "docs/otel-collector-guide.md",
@@ -184,6 +185,10 @@ if $JSON; then
       diagnostics: {
         log_dir:       "'"$LOG_DIR"'",
         log_analyzer:  "'"$LOG_ANALYZER"'",
+        service_health_json: "zsvc health --json",
+        service_logs_json:   "zsvc logs all --json",
+        service_logs_tail:   "zsvc logs all",
+        local_urls_health:   "zsvc health --json | jq .local_urls",
         update:        "zdots-log-analyze update",
         bootstrap:     "zdots-log-analyze bootstrap",
         upgrade:       "zdots-log-analyze upgrade",
@@ -220,6 +225,22 @@ zdots-ctl is the single command to manage the full Zdots platform.
   zdots-ctl reset        full platform restart (down + up)
   zdots-ctl install      first-time setup on a new workstation
   zdots-ctl status --json  machine-readable JSON
+EOF
+
+_head "Service Control — zsvc"
+
+cat <<'EOF'
+Use zsvc for per-service diagnostics and consolidated logs.
+
+  zsvc list                 service registry with state, pid, endpoint
+  zsvc health               service liveness + nginx-fronted .local URLs
+  zsvc health --json        machine-readable health for AI tools
+  zsvc logs all --paths     print every registered log source
+  zsvc logs all --json      machine-readable log source inventory
+  zsvc logs all             tail all registered logs from one terminal
+  zsvc diag <service>       status + health + launchd state + recent logs
+
+Registered services: llama, embed, otel, colima, nginx, postgres, redis.
 EOF
 
 _head "Deploy Logs — Non-OTel Diagnostics"
