@@ -69,6 +69,13 @@ zpi() {
       && _pi_system_append+=(--append-system-prompt "$_brief_file")
   fi
 
+  # Performance Auditing: Log utilization
+  if [[ -n "$1" ]]; then
+    zdots_trace_log "ai_query" "tool=zpi,prompt=${1[1,128]}"
+  else
+    zdots_trace_log "ai_query" "tool=zpi,mode=interactive"
+  fi
+
   pi "${_pi_system_append[@]}" "$@"
 
   [[ -n "$_brief_file" ]] && rm -f "$_brief_file"

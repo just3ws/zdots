@@ -11,12 +11,16 @@ trap '' PIPE
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 # shellcheck source=lib/svc-health.bash
 source "${ZDOTDIR}/lib/svc-health.bash"
-
 # 1. Ensure environment is loaded (no set -u to avoid .zdots.env errors)
 [[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
+# shellcheck source=lib/trace_log.bash
+source "${ZDOTDIR}/lib/trace_log.bash"
 
-TASKS_DIR="${ZDOTDIR}/backlog/tasks"
-ACTIVE_TASK_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task"
+TASKS_DIR="${ZTASK_TASKS_DIR:-${ZDOTDIR}/backlog/tasks}"
+ACTIVE_TASK_FILE="${ZTASK_ACTIVE_TASK_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task}"
+BACKLOG_BIN="${ZTASK_BACKLOG_BIN:-backlog}"
+ZDOTS_CTL="${ZTASK_ZDOTS_CTL:-${ZDOTDIR}/bin/zdots-ctl}"
+ZDOTS_CTX="${ZTASK_ZDOTS_CTX:-${ZDOTDIR}/bin/zdots-ctx}"
 
 usage() {
   cat <<EOF
@@ -26,6 +30,8 @@ Task-Driven Environment:
   start <id>  Activate task: update status, start services, hydrate context
   done        Complete current task: mark done and run capture
   status      Show current active task
+  health      Verify task orchestration dependencies and active-task state
+  health --json  Same as JSON
   stop        Deactivate environment (clear active task)
 
 EOF
@@ -36,6 +42,13 @@ _find_task_file() {
   local slug; slug=$(echo "$id" | tr '[:upper:]' '[:lower:]')
   # Find file matching "ID - *"
   ls "$TASKS_DIR"/${slug}* 2>/dev/null | head -n 1
+}
+
+_set_task_status() {
+  local id="$1" status="$2"
+  command -v "$BACKLOG_BIN" >/dev/null 2>&1 \
+    || _svc_die "backlog CLI not found: $BACKLOG_BIN"
+  "$BACKLOG_BIN" task edit "$id" --status "$status" --plain >/dev/null
 }
 
 cmd_start() {
@@ -50,19 +63,20 @@ cmd_start() {
   fi
 
   _svc_log "activating task: $id..."
+  zdots_trace_log "task_start" "id=$id"
 
-  # 1. Update task status in markdown
-  sed -i '' 's/Status: .*/Status: ◒ In Progress/' "$task_file"
+  # 1. Update task status through Backlog.md CLI. Do not edit task files directly.
+  _set_task_status "$id" "In Progress"
 
   # 2. Ensure services are up
-  if [[ -x "${ZDOTDIR}/bin/zdots-ctl" ]]; then
-    "${ZDOTDIR}/bin/zdots-ctl" up >/dev/null
+  if [[ -x "$ZDOTS_CTL" ]]; then
+    "$ZDOTS_CTL" up >/dev/null
   fi
 
   # 3. Hydrate context
-  if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]]; then
+  if [[ -x "$ZDOTS_CTX" ]]; then
     _svc_log "hydrating task context..."
-    "${ZDOTDIR}/bin/zdots-ctx" hydrate "$id"
+    "$ZDOTS_CTX" hydrate "$id"
   fi
 
   # 4. Save active task state
@@ -79,6 +93,80 @@ cmd_status() {
   else
     _svc_log "no active task."
   fi
+}
+
+cmd_health() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local active_task="" active_file="" active_valid=true
+  local tasks_dir_ok=false backlog_ok=false platform_ready=false brain_ready=false
+  local platform_json=""
+
+  [[ -d "$TASKS_DIR" ]] && tasks_dir_ok=true
+  command -v "$BACKLOG_BIN" >/dev/null 2>&1 && backlog_ok=true
+
+  if [[ -f "$ACTIVE_TASK_FILE" ]]; then
+    active_task="$(cat "$ACTIVE_TASK_FILE")"
+    active_file="$(_find_task_file "$active_task")"
+    [[ -n "$active_file" && -f "$active_file" ]] || active_valid=false
+  fi
+
+  if [[ -x "$ZDOTS_CTL" ]]; then
+    platform_json="$("$ZDOTS_CTL" status --json 2>/dev/null || true)"
+    if printf '%s\n' "$platform_json" | jq -e \
+      '.colima and .lgtm and .otel_collector and .ai_server and .embed_server and .intelligence_suite and .cache' \
+      >/dev/null 2>&1; then
+      platform_ready=true
+    fi
+  fi
+
+  if [[ -x "$ZDOTS_CTX" ]] && "$ZDOTS_CTX" status >/dev/null 2>&1; then
+    brain_ready=true
+  fi
+
+  local healthy=false
+  if [[ "$tasks_dir_ok" == true && "$backlog_ok" == true && "$active_valid" == true && "$platform_ready" == true && "$brain_ready" == true ]]; then
+    healthy=true
+  fi
+
+  if $json; then
+    jq -n \
+      --arg active_task "$active_task" \
+      --arg active_task_file "$active_file" \
+      --argjson healthy "$healthy" \
+      --argjson tasks_dir "$tasks_dir_ok" \
+      --argjson backlog_cli "$backlog_ok" \
+      --argjson active_task_valid "$active_valid" \
+      --argjson platform_ready "$platform_ready" \
+      --argjson brain_ready "$brain_ready" \
+      '{
+        healthy: $healthy,
+        tasks_dir: $tasks_dir,
+        backlog_cli: $backlog_cli,
+        active_task: (if $active_task == "" then null else $active_task end),
+        active_task_file: (if $active_task_file == "" then null else $active_task_file end),
+        active_task_valid: $active_task_valid,
+        platform_ready: $platform_ready,
+        brain_ready: $brain_ready,
+        hydration_ready: $brain_ready
+      }'
+  else
+    if [[ "$healthy" == true ]]; then
+      _svc_ok "task orchestrator healthy"
+    else
+      _svc_die "task orchestrator unhealthy"
+    fi
+    printf 'tasks_dir       %s\n' "$tasks_dir_ok"
+    printf 'backlog_cli     %s\n' "$backlog_ok"
+    printf 'active_task     %s\n' "${active_task:-none}"
+    printf 'active_valid    %s\n' "$active_valid"
+    printf 'platform_ready  %s\n' "$platform_ready"
+    printf 'brain_ready     %s\n' "$brain_ready"
+    printf 'hydration_ready %s\n' "$brain_ready"
+  fi
+
+  [[ "$healthy" == true ]]
 }
 
 cmd_stop() {
@@ -100,16 +188,17 @@ cmd_done() {
   local task_file; task_file=$(_find_task_file "$id")
   
   _svc_log "completing task $id..."
+  zdots_trace_log "task_done" "id=$id"
 
-  # 1. Update status to Done
+  # 1. Update status to Done through Backlog.md CLI.
   if [[ -n "$task_file" ]]; then
-    sed -i '' 's/Status: .*/Status: ✔ Done/' "$task_file"
+    _set_task_status "$id" "Done"
   fi
 
   # 2. Capture residue
-  if [[ -x "${ZDOTDIR}/bin/zdots-ctx" ]]; then
+  if [[ -x "$ZDOTS_CTX" ]]; then
     _svc_log "triggering session residue capture..."
-    "${ZDOTDIR}/bin/zdots-ctx" capture
+    "$ZDOTS_CTX" capture
   fi
 
   rm -f "$ACTIVE_TASK_FILE"
@@ -124,6 +213,7 @@ case "${1:-}" in
   start)    shift; cmd_start "${@}" ;;
   done)     shift; cmd_done "${@}" ;;
   status)   shift; cmd_status "${@}" ;;
+  health)   shift; cmd_health "${@}" ;;
   stop)     shift; cmd_stop "${@}" ;;
   -h|--help) usage; exit 0 ;;
   *)        usage >&2; exit 1 ;;

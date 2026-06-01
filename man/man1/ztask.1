@@ -13,6 +13,9 @@
 .Nm
 .Ar status
 .Nm
+.Ar health
+.Op Fl -json
+.Nm
 .Ar stop
 .Sh DESCRIPTION
 .Nm
@@ -26,6 +29,9 @@ Activate a task.
 Complete the active task.
 .It Cm status
 Show active task.
+.It Cm health Op Fl -json
+Verify task orchestration dependencies: backlog task directory, backlog CLI,
+active-task validity, platform readiness, and Brain hydration readiness.
 .It Cm stop
 Deactivate task context.
 .El
