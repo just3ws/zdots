@@ -25,12 +25,12 @@ make bench
 Use these when services are suspect:
 
 ```sh
-llama-ctl status
-llama-ctl status-embed
-otel-collector status
-local-ci status
-zdots-ctx status
+zsvc health
+zsvc logs all
+zsvc diag <service>
 ```
+
+`zsvc health` probes both core processes and Nginx-fronted `.local` URLs. If a URL is failing but the process is healthy, check the Nginx logs via `zsvc logs all`.
 
 `zdots-ctl check` is the intended deep audit, but if `zdots-ctl` itself errors,
 file an issue with `zdots-issue` and do not fix infrastructure as part of an
