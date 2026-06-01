@@ -36,6 +36,13 @@ module RubyAudit
       nil
     end
 
+    def infrastructure
+      infra = []
+      infra << :docker if (root / "Dockerfile").exist? || (root / "docker-compose.yml").exist? || (root / "docker-compose.yaml").exist?
+      infra << :k8s    if (root / "k8s").exist? || (root / "kubernetes").exist? || Dir.glob((root / "**/*.yaml").to_s).any? { |f| File.read(f).include?("apiVersion: v1") rescue false }
+      infra
+    end
+
     def gem_version(name)
       return nil unless lockfile_gems
 
@@ -56,6 +63,7 @@ module RubyAudit
         rails:      rails_version,
         framework:  framework.to_s,
         database:   database.to_s,
+        infrastructure: infrastructure.join(", "),
         gemfile:    (root / "Gemfile").exist?,
         gemfile_lock: (root / "Gemfile.lock").exist?,
         schema:     (root / "db" / "schema.rb").exist? || (root / "db" / "structure.sql").exist?
