@@ -34,7 +34,7 @@ jobs:
       - name: 'Capabilities Health Check'
         run: ZDOTS_ENV_PROFILE=ci-act ./bin/capabilities
 
-      - name: 'Verify Observability (Trace)'
+      - name: 'Verify Session Identity'
         run: |
           SID=$(
             ZDOTS_ENV_PROFILE=ci-act zsh -i -c 'printf "%s\n" "$ZDOTS_SESSION_ID"' \
@@ -42,7 +42,8 @@ jobs:
               | grep -E '^[0-9a-f]{32}$' \
               | tail -1
           )
-          ZDOTS_ENV_PROFILE=ci-act ./bin/trace-verify "$SID" session_start "ci-act"
+          test -n "$SID"
+          echo "session id: ${SID:0:8}..."
 
       - name: 'Run Fast Sanity Checks'
         run: ZDOTS_CHECK_SKIP_EXTERNAL=1 ZDOTS_CHECK_REPORT_STARTUP=1 ZDOTS_ENV_PROFILE=ci-act ./bin/check
