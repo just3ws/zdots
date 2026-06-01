@@ -41,7 +41,8 @@ receivers:
 
   # Container metrics: per-container CPU, memory, network, block I/O
   docker_stats:
-    endpoint: "unix://${env:HOME}/.config/colima/default/docker.sock"
+    # Colima on this host is using ~/.colima and ignores XDG_CONFIG_HOME.
+    endpoint: "unix://${env:HOME}/.colima/default/docker.sock"
     collection_interval: 15s
     provide_per_core_cpu_metrics: false
 

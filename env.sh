@@ -317,6 +317,7 @@ fi
 _zdots_path_add "$CARGO_HOME/bin"
 _zdots_path_add "$GOPATH/bin"
 _zdots_path_add "$PNPM_HOME"
+_zdots_path_add "$PNPM_HOME/bin"
 _zdots_path_add "$BUN_INSTALL/bin"
 _zdots_path_add "$HOME/.lmstudio/bin"
 
