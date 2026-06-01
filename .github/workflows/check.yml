@@ -36,7 +36,12 @@ jobs:
 
       - name: 'Verify Observability (Trace)'
         run: |
-          SID=$(zsh -i -c 'echo $ZDOTS_SESSION_ID')
+          SID=$(
+            ZDOTS_ENV_PROFILE=ci-act zsh -i -c 'printf "%s\n" "$ZDOTS_SESSION_ID"' \
+              | sed $'s/\x1b\][^\x07]*\x07//g; s/\x1b\\[[0-9;]*[a-zA-Z]//g' \
+              | grep -E '^[0-9a-f]{32}$' \
+              | tail -1
+          )
           ZDOTS_ENV_PROFILE=ci-act ./bin/trace-verify "$SID" session_start "ci-act"
 
       - name: 'Run Fast Sanity Checks'
