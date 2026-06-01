@@ -32,6 +32,8 @@ etc/ruby-audit/
     ruby-2.6.md           Language constraints, EOL callouts, upgrade path
     ruby-4.0.md           Current Ruby features, security patterns
     rails-5.2.md          Framework orientation, security patterns, upgrade notes
+    db-mariadb.md         MariaDB specific rule-pack
+    db-mongodb.md         MongoDB specific rule-pack (Mongoid)
 ```
 
 ### Isolation model
@@ -53,8 +55,6 @@ The current tool works but has hardcoded assumptions:
 
 - Analyzer set is fixed (all six, or CLI `--skip`/`--only`)
 - RuboCop config is a single generated file with hardcoded cop list
-- Version prompts cover only the versions encountered so far
-- No database awareness
 - LLM backend is hardcoded to Pi (`zpi`) via `--interrogate`
 - No profile system — you can't say "Rails 5.2 + MariaDB + Sidekiq" and get
   the right rule set automatically
@@ -192,6 +192,9 @@ etc/ruby-audit/rules/
       charset.md        # utf8 vs utf8mb4 landmines
       json-vs-text.md   # JSON column limitations
       group-by.md       # ONLY_FULL_GROUP_BY gotchas
+    mongodb/
+      pitfalls.md       # Schema-less issues, embeds vs references
+      indexing.md       # background: true, N+1 in Mongoid
     sqlite/
       concurrency.md    # no concurrent writes
   security/

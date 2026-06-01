@@ -27,6 +27,15 @@ module RubyAudit
       :ruby
     end
 
+    def database
+      return :postgresql if gem_version("pg")
+      return :mariadb    if gem_version("mariadb")
+      return :mysql      if gem_version("mysql2") || gem_version("mysql")
+      return :sqlite     if gem_version("sqlite3")
+      return :mongodb    if gem_version("mongoid") || gem_version("mongo")
+      nil
+    end
+
     def gem_version(name)
       return nil unless lockfile_gems
 
@@ -46,6 +55,7 @@ module RubyAudit
         ruby:       ruby_version,
         rails:      rails_version,
         framework:  framework.to_s,
+        database:   database.to_s,
         gemfile:    (root / "Gemfile").exist?,
         gemfile_lock: (root / "Gemfile.lock").exist?,
         schema:     (root / "db" / "schema.rb").exist? || (root / "db" / "structure.sql").exist?
