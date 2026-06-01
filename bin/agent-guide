@@ -177,6 +177,7 @@ if $JSON; then
       docs: {
         platform_control: "zdots-ctl check / up / down / reset / status",
         service_control:  "zsvc list / health --json / logs all --json / diag <service>",
+        lifecycle:        "docs/lifecycle.md",
         ai:               "docs/llama-cpp.md",
         deploy_logs:      "docs/deploy-log-analysis.md",
         otel:             "docs/otel-collector-guide.md",
@@ -225,6 +226,17 @@ zdots-ctl is the single command to manage the full Zdots platform.
   zdots-ctl reset        full platform restart (down + up)
   zdots-ctl install      first-time setup on a new workstation
   zdots-ctl status --json  machine-readable JSON
+EOF
+
+_head "Core Guides"
+
+cat <<'EOF'
+Refer to these for architectural and workflow standards:
+
+  docs/lifecycle.md         Project lifecycle, setup, and tutorial (NEW)
+  AGENTS.md                 Agent mandates, RTK optimization, PHI rules
+  CONTEXT.md                Domain language and active project state
+  docs/tooling.md           Full CLI reference table
 EOF
 
 _head "Service Control — zsvc"
