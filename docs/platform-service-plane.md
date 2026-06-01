@@ -13,7 +13,8 @@ Stable means all three layers agree:
 |---|---|---|
 | Aggregate control | `zdots-ctl status` | all seven service rows are green |
 | Service registry | `zsvc list` | all services are registered and running |
-| Live E2E | `bats tests/platform_e2e.bats` | `22/22` pass |
+| Health probe | `zsvc health` | all services and .local URLs report 'ok' |
+| Live E2E | `bats tests/platform_e2e.bats` | `11/11` pass (filtered for services) |
 
 Run live probes outside restricted sandboxes. Sandboxed agents can see false
 negatives for loopback TCP, launchctl, Docker, Postgres, and Redis even when the
@@ -22,6 +23,7 @@ machine is healthy.
 ```bash
 zdots-ctl status
 zsvc list
+zsvc health
 bats tests/platform_e2e.bats
 ```
 
@@ -152,32 +154,31 @@ flowchart LR
    zdots-ctl status
    ```
 
-2. If one component is red, inspect the service registry:
+2. If one component is red, perform a deep health probe:
+
+   ```bash
+   zsvc health
+   zsvc health --json  # for structured detail
+   ```
+
+3. Inspect the service registry and diagnosis:
 
    ```bash
    zsvc list
    zsvc diag <service>
    ```
 
-3. Probe the dependency directly:
+4. Tail consolidated logs to see failures in real-time:
 
    ```bash
-   curl -sf http://127.0.0.1:11500/health
-   curl -sf http://127.0.0.1:11501/health
-   pg_isready -h 127.0.0.1 -p 5432 -d my
-   redis-cli -h 127.0.0.1 -p 6379 ping
-   colima status
-   local-ci status
+   zsvc logs all --paths  # list all log files
+   zsvc logs all          # tail all logs at once
    ```
 
-4. Restart only the failing component:
+5. Restart only the failing component:
 
    ```bash
    zsvc restart llama
-   zsvc restart embed
-   zsvc restart postgres
-   zsvc restart redis
-   zsvc restart colima
    ```
 
 5. Re-run the live suite:
