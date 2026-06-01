@@ -23,7 +23,7 @@ zdots_ai_init() {
   (
     if curl -sf -m 2 "$ZDOTS_AI_ENDPOINT/health" >/dev/null 2>&1; then
       # Write result to a temp file; parent shell picks it up on next `ai` call.
-      printf '1' > "${TMPDIR:-/tmp}/zdots_ai_up.$$" 2>/dev/null || true
+      printf '1' >| "${TMPDIR:-/tmp}/zdots_ai_up.$$" 2>/dev/null || true
     fi
   ) &!
 
