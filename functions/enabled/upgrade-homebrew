@@ -38,7 +38,7 @@ summary_file="${log_file%.log}.summary.md"
 latest_log="$log_dir/upgrade-homebrew-latest.log"
 ln -sf "$log_file" "$latest_log" 2>/dev/null || true
 phase_index=0
-phase_total=5
+phase_total=6
 current_phase="preflight"
 
 case "${ZDOTS_CONTEXT:-home}" in
@@ -97,6 +97,35 @@ run_cmd() {
   fi
   return "$cmd_status"
 }
+
+brewfile_has() {
+  [[ -f "$brewfile" ]] && grep -Eq "^[[:space:]]*${1}" "$brewfile"
+}
+
+trust_declared_homebrew_targets() {
+  command -v brew >/dev/null 2>&1 || return 0
+  brew trust --help >/dev/null 2>&1 || return 0
+
+  local -a formulae casks
+  formulae=()
+  casks=()
+
+  brewfile_has 'brew "arimxyer/tap/models"' && formulae+=(arimxyer/tap/models)
+  brewfile_has 'brew "gromgit/brewtils/taproom"' && formulae+=(gromgit/brewtils/taproom)
+  brewfile_has 'brew "powerlevel10k"' && formulae+=(romkatv/powerlevel10k/powerlevel10k)
+
+  brewfile_has 'cask "bysiber/cleardisk/cleardisk"' && casks+=(bysiber/cleardisk/cleardisk)
+  brewfile_has 'cask "dracula/install/dracula-terminal"' && casks+=(dracula/install/dracula-terminal)
+  brewfile_has 'cask "dracula/install/dracula-xcode"' && casks+=(dracula/install/dracula-xcode)
+
+  (( $#formulae )) && run_cmd brew trust --formula "${formulae[@]}"
+  (( $#casks )) && run_cmd brew trust --cask "${casks[@]}"
+}
+
+export HOMEBREW_REQUIRE_TAP_TRUST=1
+
+phase "brew trust: allow selected non-core dependencies"
+trust_declared_homebrew_targets
 
 phase "brew metadata: update formula and cask indices"
 run_cmd brew update --verbose

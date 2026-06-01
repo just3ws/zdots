@@ -218,6 +218,8 @@ vscode "github.copilot-chat"
 
 uv "aider-chat"   # LLM coding assistant — configurable to local endpoints
 
+npm "@earendil-works/pi-coding-agent"
+
 # ---------------------------------------------------------------------------
 # Pending work approval — uncomment as cleared
 # ---------------------------------------------------------------------------
