@@ -33,6 +33,8 @@ _PROMPTS_DIR="${_ZDOTDIR}/etc/prompts"
 _DOMAINS_FILE="${ZDOTS_DOMAINS_FILE:-${_PROMPTS_DIR}/domains.yaml}"
 
 source "${_ZDOTDIR}/lib/ai-invoke.bash"
+# shellcheck source=lib/trace_log.bash
+[[ -r "${_ZDOTDIR}/lib/trace_log.bash" ]] && source "${_ZDOTDIR}/lib/trace_log.bash"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -237,6 +239,10 @@ fi
 # Inherited by the ai-query subprocess spawned inside zdots_ai_infer_raw.
 if (( THINK_MODE )); then
   export AIQ_ENABLE_THINKING=1
+fi
+
+if command -v zdots_trace_log >/dev/null 2>&1; then
+  zdots_trace_log "ai_query" "tool=zdots-ask,domain=${DOMAIN},pattern=${PATTERN:-none},context=${CONTEXT_ENABLED}"
 fi
 
 if [[ -n "$PATTERN" ]]; then
