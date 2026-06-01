@@ -11,6 +11,13 @@ set -eu
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Performance Auditing: Track bootstrap utilization and latency
+# shellcheck source=lib/trace_log.bash
+if [ -r "${REPO_ROOT}/lib/trace_log.bash" ]; then
+  . "${REPO_ROOT}/lib/trace_log.bash"
+  zdots_trace_log "bootstrap_start" "repo=${REPO_ROOT}"
+fi
+
 case "${1:-}" in
   -h|--help)
     cat <<EOF
@@ -80,6 +87,10 @@ _bootstrap_phase() {
   _bootstrap_current_phase="$1"
   printf '\n==> bootstrap phase %02d/%02d: %s\n' "$_bootstrap_phase_index" "$_bootstrap_phase_total" "$_bootstrap_current_phase"
   _bootstrap_summary "- phase ${_bootstrap_phase_index}/${_bootstrap_phase_total}: ${_bootstrap_current_phase}"
+  
+  if command -v zdots_trace_log >/dev/null 2>&1; then
+    zdots_trace_log "bootstrap_phase" "index=${_bootstrap_phase_index},name=${_bootstrap_current_phase}"
+  fi
 }
 
 _bootstrap_finish() {
@@ -87,9 +98,15 @@ _bootstrap_finish() {
   if [ "$_status" -eq 0 ]; then
     _bootstrap_log "complete status=0 log=$BOOTSTRAP_LOG summary=$BOOTSTRAP_SUMMARY"
     _bootstrap_summary "- result: complete"
+    if command -v zdots_trace_log >/dev/null 2>&1; then
+      zdots_trace_log "bootstrap_complete" "status=0"
+    fi
   else
     _bootstrap_log "failed status=$_status phase=$_bootstrap_current_phase log=$BOOTSTRAP_LOG summary=$BOOTSTRAP_SUMMARY"
     _bootstrap_summary "- result: failed status=${_status} phase=${_bootstrap_current_phase}"
+    if command -v zdots_trace_log >/dev/null 2>&1; then
+      zdots_trace_log "bootstrap_complete" "status=${_status},phase=${_bootstrap_current_phase}"
+    fi
   fi
   exit "$_status"
 }

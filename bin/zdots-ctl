@@ -20,6 +20,10 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 
 # shellcheck source=lib/svc-health.bash
 source "${ZDOTDIR}/lib/svc-health.bash"
+# 1. Ensure environment is loaded (no set -u to avoid .zdots.env errors)
+[[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
+# shellcheck source=lib/trace_log.bash
+source "${ZDOTDIR}/lib/trace_log.bash"
 
 # ---------------------------------------------------------------------------
 # Config
@@ -85,6 +89,7 @@ _wait_for() {
 
 cmd_up() {
   _section "Bringing platform up"
+  zdots_trace_log "platform_up" "start"
 
   # 1. Colima + LGTM stack
   if _grafana_up; then
@@ -132,10 +137,12 @@ cmd_up() {
 
   _section "Platform status"
   cmd_status
+  zdots_trace_log "platform_up" "complete"
 }
 
 cmd_down() {
   _section "Bringing platform down"
+  zdots_trace_log "platform_down" "start"
   # Reverse dependency order
   _info "stopping otel-collector..."
   "$BIN/otel-collector" stop 2>/dev/null || true
@@ -146,6 +153,7 @@ cmd_down() {
   _info "stopping LGTM stack and Colima..."
   "$BIN/local-ci" stop 2>/dev/null || true
   _ok "platform down"
+  zdots_trace_log "platform_down" "complete"
 }
 
 cmd_reset() {
@@ -223,6 +231,7 @@ cmd_status() {
 
 cmd_check() {
   local errors=0 warnings=0
+  zdots_trace_log "platform_check" "start"
 
   _chk_pass() { _pass "$1"; }
   _chk_warn() { _chkwarn "$1"; warnings=$((warnings + 1)); }
@@ -724,6 +733,7 @@ cmd_check() {
     printf 'zdots-ctl check: %d failure(s), %d warning(s)\n' "$errors" "$warnings"
   fi
 
+  zdots_trace_log "platform_check" "complete errors=$errors warnings=$warnings"
   [[ $errors -eq 0 ]]
 }
 

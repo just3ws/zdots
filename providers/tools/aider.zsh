@@ -63,6 +63,9 @@ zdots_aider_init() {
 zaider() {
   zdots_aider_init
 
+  # Performance Auditing: Log utilization
+  zdots_trace_log "ai_query" "tool=zaider,args=$*"
+
   # Warn when the repo map is stale or unavailable — Aider silently degrades
   # without it, producing edits with no repo awareness.
   if [[ ! -f "${HOME}/.aider.model.metadata.json" ]]; then
