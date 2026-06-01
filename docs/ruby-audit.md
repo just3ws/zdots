@@ -34,6 +34,7 @@ etc/ruby-audit/
     rails-5.2.md          Framework orientation, security patterns, upgrade notes
     db-mariadb.md         MariaDB specific rule-pack
     db-mongodb.md         MongoDB specific rule-pack (Mongoid)
+    infra-k8s.md          Docker, Kubernetes, and k9s rule-pack
 ```
 
 ### Isolation model
@@ -195,6 +196,9 @@ etc/ruby-audit/rules/
     mongodb/
       pitfalls.md       # Schema-less issues, embeds vs references
       indexing.md       # background: true, N+1 in Mongoid
+    infra/
+      docker.md         # Layer optimization, caching, security
+      k8s.md            # Resource limits, probes, k9s operational hygiene
     sqlite/
       concurrency.md    # no concurrent writes
   security/
