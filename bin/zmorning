@@ -13,13 +13,16 @@ set -euo pipefail
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 [[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
+# shellcheck source=lib/trace_log.bash
+[[ -r "${ZDOTDIR}/lib/trace_log.bash" ]] && source "${ZDOTDIR}/lib/trace_log.bash"
 
 _brief_only=0
 _pi_only=0
+_default=1
 for arg in "$@"; do
   case "$arg" in
-    --brief)    _brief_only=1 ;;
-    --pi)       _pi_only=1    ;;
+    --brief)    _brief_only=1; _default=0 ;;
+    --pi)       _pi_only=1;    _default=0 ;;
     -h|--help)
       cat <<'EOF'
 Usage: zmorning [--brief | --pi]
@@ -40,6 +43,10 @@ EOF
       ;;
   esac
 done
+
+if command -v zdots_trace_log >/dev/null 2>&1; then
+  zdots_trace_log "ritual_start" "mode=${_pi_only:+"pi"}${_brief_only:+"brief"}${_default:+"zdash"}"
+fi
 
 # ── Brief ─────────────────────────────────────────────────────────────────────
 

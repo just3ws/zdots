@@ -75,15 +75,58 @@ _svc_meta() {
       SVC_STATUS="status" SVC_HEALTH=""     SVC_LOGS="logs"
       SVC_VALIDATE=""
       ;;
+    nginx|web|proxy)
+      SVC_NAME="nginx"
+      SVC_DISPLAY="nginx"
+      # System-domain root LaunchDaemon (binds 80/443). Managed via nginx-ctl,
+      # which uses `sudo launchctl` — not `brew services`. See bin/nginx-ctl.
+      SVC_LABEL="homebrew.mxcl.nginx"
+      SVC_LOG="$(brew --prefix 2>/dev/null || printf /opt/homebrew)/var/log/nginx/error.log"
+      SVC_CTL="$BIN/nginx-ctl"
+      SVC_ENDPOINT="https://my.local (+ llama/embed/grafana.local)"
+      SVC_TYPE="nginx"
+      SVC_INSTALL=""
+      SVC_START="start"   SVC_STOP="stop"     SVC_RESTART="restart"
+      SVC_STATUS="status" SVC_HEALTH="health" SVC_LOGS="logs"
+      SVC_VALIDATE="validate"
+      ;;
+    postgres|postgresql|pg|db|database)
+      SVC_NAME="postgres"
+      SVC_DISPLAY="postgresql@18"
+      # User-domain Homebrew LaunchAgent — managed directly via launchctl (no
+      # sudo, no `brew services`). Backs the `my` database (the Brain).
+      SVC_LABEL="homebrew.mxcl.postgresql@18"
+      SVC_LOG="$(brew --prefix 2>/dev/null || printf /opt/homebrew)/var/log/postgresql@18.log"
+      SVC_CTL=""
+      SVC_ENDPOINT="postgresql:///my (:5432)"
+      SVC_TYPE="plist"
+      SVC_INSTALL=""
+      SVC_START="start"   SVC_STOP="stop"   SVC_RESTART="restart"
+      SVC_STATUS="status" SVC_HEALTH="health" SVC_LOGS=""
+      SVC_VALIDATE=""
+      ;;
+    redis|cache|kv)
+      SVC_NAME="redis"
+      SVC_DISPLAY="redis"
+      SVC_LABEL="homebrew.mxcl.redis"
+      SVC_LOG="$(brew --prefix 2>/dev/null || printf /opt/homebrew)/var/log/redis.log"
+      SVC_CTL=""
+      SVC_ENDPOINT="127.0.0.1:6379"
+      SVC_TYPE="plist"
+      SVC_INSTALL=""
+      SVC_START="start"   SVC_STOP="stop"   SVC_RESTART="restart"
+      SVC_STATUS="status" SVC_HEALTH="health" SVC_LOGS=""
+      SVC_VALIDATE=""
+      ;;
     *)
       printf 'zsvc: unknown service: %s\n' "$svc" >&2
-      printf 'zsvc: known services: llama, embed, otel, colima\n' >&2
+      printf 'zsvc: known services: llama, embed, otel, colima, nginx, postgres, redis\n' >&2
       exit 1
       ;;
   esac
 }
 
-ALL_SVCS=(llama embed otel colima)
+ALL_SVCS=(llama embed otel colima nginx postgres redis)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -114,6 +157,37 @@ _colima_state() {
   fi
 }
 
+# nginx runs in the launchd SYSTEM domain (root daemon on 80/443), so its state
+# lives under system/<label>, not gui/<uid>/<label>. Readable without sudo.
+_nginx_state() {
+  local label="$1" out pid
+  if out=$(launchctl print "system/${label}" 2>/dev/null); then
+    pid=$(printf '%s\n' "$out" | awk '/[[:space:]]pid = /{print $NF; exit}')
+    printf 'running\t%s' "${pid:--}"
+  else
+    printf 'not-registered\t-'
+  fi
+}
+
+# Plain user-domain Homebrew LaunchAgents (postgres, redis): managed directly via
+# launchctl — never `brew services`. No bespoke ctl script.
+_plist_path()   { printf '%s/Library/LaunchAgents/%s.plist' "$HOME" "$SVC_LABEL"; }
+_plist_target() { printf 'gui/%s/%s' "$_LAUNCHD_UID" "$SVC_LABEL"; }
+
+# Light, dependency-free liveness probe per service. Echoes a one-line verdict.
+_plist_health() {
+  case "$SVC_NAME" in
+    postgres)
+      if command -v pg_isready >/dev/null 2>&1 && pg_isready -q 2>/dev/null; then
+        _ok "accepting connections (pg_isready)"
+      else _warn "not accepting connections"; fi ;;
+    redis)
+      if [[ "$(redis-cli ping 2>/dev/null)" == "PONG" ]]; then
+        _ok "PONG"
+      else _warn "no PONG"; fi ;;
+  esac
+}
+
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
@@ -126,6 +200,8 @@ cmd_list() {
     _svc_meta "$svc"
     if [[ "$SVC_TYPE" == "colima" ]]; then
       state_pid=$(_colima_state)
+    elif [[ "$SVC_TYPE" == "nginx" ]]; then
+      state_pid=$(_nginx_state "$SVC_LABEL")
     else
       state_pid=$(_launchd_state "$SVC_LABEL")
     fi
@@ -137,6 +213,16 @@ cmd_list() {
 
 cmd_start() {
   _svc_meta "$1"
+  if [[ "$SVC_TYPE" == "plist" ]]; then
+    local plist; plist=$(_plist_path)
+    [[ -f "$plist" ]] || _die "${SVC_DISPLAY}: LaunchAgent plist missing: $plist"
+    if launchctl print "$(_plist_target)" >/dev/null 2>&1; then
+      _ok "${SVC_DISPLAY} already running"; return
+    fi
+    _info "starting ${SVC_DISPLAY} (launchctl bootstrap)..."
+    launchctl bootstrap "gui/${_LAUNCHD_UID}" "$plist" && _ok "started"
+    return
+  fi
   # If the launchd plist is missing, run install first so the service is
   # registered before we try to start it. Handles the case where update-local
   # failed mid-phase and left a service un-installed.
@@ -154,12 +240,23 @@ cmd_start() {
 
 cmd_stop() {
   _svc_meta "$1"
+  if [[ "$SVC_TYPE" == "plist" ]]; then
+    _info "stopping ${SVC_DISPLAY} (launchctl bootout)..."
+    launchctl bootout "$(_plist_target)" 2>/dev/null && _ok "stopped" \
+      || _warn "${SVC_DISPLAY} was not running"
+    return
+  fi
   _info "stopping ${SVC_DISPLAY}..."
   "$SVC_CTL" "$SVC_STOP"
 }
 
 cmd_restart() {
   _svc_meta "$1"
+  if [[ "$SVC_TYPE" == "plist" ]]; then
+    _info "restarting ${SVC_DISPLAY} (launchctl kickstart -k)..."
+    launchctl kickstart -k "$(_plist_target)" && _ok "restarted"
+    return
+  fi
   if [[ -n "$SVC_RESTART" ]]; then
     _info "restarting ${SVC_DISPLAY}..."
     "$SVC_CTL" "$SVC_RESTART"
@@ -174,6 +271,14 @@ cmd_restart() {
 cmd_status() {
   local svc="$1"; shift
   _svc_meta "$svc"
+  if [[ "$SVC_TYPE" == "plist" ]]; then
+    local sp; sp=$(_launchd_state "$SVC_LABEL")
+    local st="${sp%%$'\t'*}" pid="${sp##*$'\t'}"
+    if [[ "$st" == "running" ]]; then _ok "${SVC_DISPLAY} ${st} (pid ${pid}, ${SVC_ENDPOINT})"
+    else _warn "${SVC_DISPLAY} ${st}"; fi
+    _plist_health
+    return
+  fi
   "$SVC_CTL" "$SVC_STATUS" "$@"
 }
 
@@ -196,11 +301,14 @@ cmd_diag() {
   printf '\n==> zsvc diag: %s\n' "$SVC_DISPLAY"
 
   _sep "status"
-  "$SVC_CTL" "$SVC_STATUS" 2>&1 || true
-
-  if [[ -n "$SVC_HEALTH" ]]; then
-    _sep "health"
-    "$SVC_CTL" "$SVC_HEALTH" 2>&1 || true
+  if [[ "$SVC_TYPE" == "plist" ]]; then
+    cmd_status "$1" 2>&1 || true
+  else
+    "$SVC_CTL" "$SVC_STATUS" 2>&1 || true
+    if [[ -n "$SVC_HEALTH" ]]; then
+      _sep "health"
+      "$SVC_CTL" "$SVC_HEALTH" 2>&1 || true
+    fi
   fi
 
   if [[ -n "$SVC_VALIDATE" ]]; then
@@ -208,9 +316,12 @@ cmd_diag() {
     "$SVC_CTL" "$SVC_VALIDATE" 2>&1 || true
   fi
 
-  if [[ "$SVC_TYPE" == "launchd" ]]; then
+  if [[ "$SVC_TYPE" == "launchd" || "$SVC_TYPE" == "plist" ]]; then
     _sep "launchd state"
     launchctl print "gui/${_LAUNCHD_UID}/${SVC_LABEL}" 2>/dev/null || printf '(not registered)\n'
+  elif [[ "$SVC_TYPE" == "nginx" ]]; then
+    _sep "launchd state (system domain)"
+    launchctl print "system/${SVC_LABEL}" 2>/dev/null || printf '(not registered)\n'
   fi
 
   if [[ -n "$SVC_LOG" ]]; then
@@ -239,6 +350,18 @@ cmd_validate() {
   fi
 }
 
+cmd_reload() {
+  _svc_meta "$1"
+  # Graceful, zero-downtime reload where the service supports it (nginx).
+  # Everything else has no native reload — point at restart instead.
+  if [[ "$SVC_TYPE" == "nginx" && -n "$SVC_CTL" ]]; then
+    "$SVC_CTL" reload
+  else
+    _warn "${SVC_DISPLAY} has no graceful reload — use: zsvc restart ${SVC_NAME}"
+    exit 1
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------
@@ -254,22 +377,34 @@ COMMANDS
   start   <service>     Start a service
   stop    <service>     Stop a service
   restart <service>     Restart a service (stop + start if no native restart)
+  reload  <service>     Graceful zero-downtime reload (nginx)
   status  <service>     Full status from the service's ctl script
   logs    <service>     Tail the service log (Ctrl+C to stop)
   diag    <service>     Status + health + launchd state + last 50 log lines
   validate <service>    Validate service config (llama, otel)
 
 SERVICES
-  llama     llama-server  — AI inference        port 11500  [aliases: ai, server]
-  embed     llama-embed   — Embedding server    port 11501  [aliases: llama-embed]
-  otel      otel-collector — Telemetry          port 4318   [aliases: telemetry]
-  colima    Colima VM      — Docker runtime               [aliases: vm, docker]
+  llama     llama-server   — AI inference        port 11500  [aliases: ai, server]
+  embed     llama-embed    — Embedding server    port 11501  [aliases: llama-embed]
+  otel      otel-collector — Telemetry           port 4318   [aliases: telemetry]
+  colima    Colima VM      — Docker runtime                  [aliases: vm, docker]
+  nginx     nginx          — TLS reverse proxy   80/443      [aliases: web, proxy]
+  postgres  postgresql@18  — `my` database       port 5432   [aliases: pg, db]
+  redis     redis          — analytics cache     port 6379   [aliases: cache, kv]
+
+NOTE
+  nginx is a root (system-domain) LaunchDaemon and uses sudo via nginx-ctl.
+  postgres/redis are user LaunchAgents managed directly via launchctl.
+  zsvc verifies registration and component health. For branch readiness, run:
+    zdots-ctl status && bats tests/platform_e2e.bats
 
 EXAMPLES
   zsvc list
   zsvc start llama
   zsvc restart otel
   zsvc logs embed
+  zsvc status postgres
+  zsvc reload nginx          # graceful config reload (after editing servers/*.conf)
   zsvc diag llama
   zsvc status llama --json
 
@@ -278,6 +413,7 @@ NOTES
     zdots-ctl up      start everything in dependency order
     zdots-ctl down    stop everything
     zdots-ctl check   deep health diagnostic
+  Lifecycle diagrams: docs/platform-service-plane.md
 EOF
 }
 
@@ -292,6 +428,7 @@ case "$1" in
   start)    [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_start "$2" ;;
   stop)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_stop "$2" ;;
   restart)  [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_restart "$2" ;;
+  reload)   [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_reload "$2" ;;
   status)   [[ $# -ge 2 ]] || { usage >&2; exit 1; }; shift; cmd_status "$@" ;;
   logs)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_logs "$2" ;;
   diag)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_diag "$2" ;;

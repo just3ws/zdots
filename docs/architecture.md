@@ -244,6 +244,53 @@ stateDiagram-v2
     Triage --> [*] : Delete
 ```
 
+### Credential rotation (auth boundary)
+
+The `zdots_ro` (SELECT-only) and `zdots_rw` (DML) users are **fences against
+accidental writes/deletes**, not a security perimeter — but a fence is worth
+having even though it can be hopped. Their passwords are **ephemeral keys** held
+in macOS Keychain (service `zdots`, accounts `ZDOTS_RO_PASSWORD` /
+`ZDOTS_RW_PASSWORD`) and rotated on demand:
+
+```bash
+zdots-ctx rotate-creds            # rotate both (default --all)
+zdots-ctx rotate-creds zdots_rw   # rotate one role
+```
+
+Each rotation generates a fresh URL-safe key (`openssl rand -hex 24`), applies it
+via the superuser migration URL (`ALTER ROLE … PASSWORD`, password passed over
+stdin so it never appears in `ps`), and stores it in Keychain atomically.
+`bin/zdots-ctx` splices the Keychain password into `ZDOTS_DATABASE_URL` at
+startup (`_inject_db_password`), so every downstream `psql`/brain call picks up
+the current key from one place. An URL with an explicit password is left
+untouched.
+
+**Enforcement (active).** `pg_hba.conf` requires `scram-sha-256` for `zdots_ro` /
+`zdots_rw` via user-specific rules placed **above** the catch-all `trust` lines:
+
+```
+local   all   zdots_ro,zdots_rw                  scram-sha-256
+host    all   zdots_ro,zdots_rw   127.0.0.1/32   scram-sha-256
+host    all   zdots_ro,zdots_rw   ::1/128        scram-sha-256
+```
+
+A passwordless connection as these users now fails; the OS superuser keeps `trust`
+via the catch-all, so migrations (`ZDOTS_MIGRATION_URL`) and `rotate-creds`'
+`ALTER ROLE` are unaffected. All app paths inject the Keychain password:
+`bin/zdots-ctx` (`_inject_db_password`), the brain (`lib/zdots/db.rb`), and the
+context-engine Rails bridge (`zdots_bridge.rb`) all resolve the URL through
+`lib/zdots/db_url.rb`. Reload after editing `pg_hba.conf` with
+`psql -c "select pg_reload_conf()"` (no restart). A timestamped `pg_hba.conf.bak.*`
+backup sits next to the live file.
+
+**Interactive psql.** `psql -U zdots_ro my` now prompts for a password. For
+frictionless exploration, supply it from Keychain:
+
+```bash
+PGPASSWORD="$(security find-generic-password -s zdots -a ZDOTS_RO_PASSWORD -w)" \
+  psql -U zdots_ro my
+```
+
 ---
 
 ## 8. Command Analytics Pipeline

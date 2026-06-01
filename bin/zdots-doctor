@@ -16,6 +16,13 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 BIN="$ZDOTDIR/bin"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
 
+# shellcheck source=lib/trace_log.bash
+[[ -r "${ZDOTDIR}/lib/trace_log.bash" ]] && source "${ZDOTDIR}/lib/trace_log.bash"
+
+if command -v zdots_trace_log >/dev/null 2>&1; then
+  zdots_trace_log "doctor_check" "start"
+fi
+
 # ---------------------------------------------------------------------------
 # Flags
 # ---------------------------------------------------------------------------
@@ -364,11 +371,14 @@ printf '%.0s━' $(seq 1 59); printf '\n'
 
 if [[ $_FAIL -eq 0 && $_WARN -eq 0 && $_runtime_rc -eq 0 ]]; then
   printf 'zdots doctor: all %d checks passed\n' "$((_PASS + _WARN + _FAIL))"
+  zdots_trace_log "doctor_check" "complete status=pass checks=$((_PASS + _WARN + _FAIL))"
 elif [[ $_FAIL -eq 0 && $_runtime_rc -eq 0 ]]; then
   printf 'zdots doctor: %d passed · %d warning(s) · 0 failures\n' "$_PASS" "$_WARN"
+  zdots_trace_log "doctor_check" "complete status=warn checks=$((_PASS + _WARN))"
 else
   printf 'zdots doctor: %d passed · %d warning(s) · %d failure(s)\n' \
     "$_PASS" "$_WARN" "$_FAIL"
+  zdots_trace_log "doctor_check" "complete status=fail checks=$((_PASS + _WARN + _FAIL))"
 fi
 
 [[ $_FAIL -eq 0 && $_runtime_rc -eq 0 ]]

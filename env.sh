@@ -47,11 +47,11 @@ if [ "${ZDOTS_CONTEXT:-home}" = "work" ] && [ -f "${ZDOTDIR:-$HOME/.config/zsh}/
 fi
 
 # 2. XDG Base Directory Specification (Harden & Absolute)
-export XDG_ROOT="$HOME"
-export XDG_CONFIG_HOME="$XDG_ROOT/.config"
-export XDG_STATE_HOME="$XDG_ROOT/.local/state"
-export XDG_CACHE_HOME="$XDG_ROOT/.cache"
-export XDG_DATA_HOME="$XDG_ROOT/.local/share"
+export XDG_ROOT="${XDG_ROOT:-$HOME}"
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$XDG_ROOT/.config}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$XDG_ROOT/.local/state}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$XDG_ROOT/.cache}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$XDG_ROOT/.local/share}"
 export ZDOTDIR="${ZDOTDIR:-$XDG_CONFIG_HOME/zsh}"
 
 # 3. Session & Trace Identification (W3C Trace Context)
@@ -190,12 +190,14 @@ zdots_safe_source() {
   if . "$file"; then
     return 0
   else
-    local status=$?
-    echo "zdots: warning: failed to source $file (exit $status)" >&2
+    # 'status' is read-only in zsh (alias for $?); use a private name so this
+    # error path doesn't itself crash when env.sh is sourced under zsh.
+    _src_status=$?
+    echo "zdots: warning: failed to source $file (exit $_src_status)" >&2
     if [ -n "$(command -v zdots_trace_log)" ]; then
-      zdots_trace_log "error" "source_failure=$file, status=$status"
+      zdots_trace_log "error" "source_failure=$file, status=$_src_status"
     fi
-    return $status
+    return $_src_status
   fi
 }
 

@@ -14,9 +14,22 @@
 ZDOTS_META_DIR="${ZDOTS_META_DIR:-${ZDOTDIR:-$HOME/.config/zsh}/etc}"
 
 # Process-level cache: keyed by "service:profile" so that profile env var
-# changes invalidate correctly. Populated on first call per (service, profile)
-# pair; subsequent calls use jq on the cached JSON — no yq re-parse.
-declare -gA _ZDOTS_META_CACHE=()
+# changes invalidate correctly. Use plain variables instead of associative
+# arrays because GitHub macOS still ships Bash 3.2.
+_zdots_meta_cache_var() {
+  local key="${1//[^A-Za-z0-9_]/_}"
+  printf '_ZDOTS_META_CACHE_%s' "$key"
+}
+
+_zdots_meta_cache_get() {
+  local var; var=$(_zdots_meta_cache_var "$1")
+  eval "printf '%s' \"\${${var}:-}\""
+}
+
+_zdots_meta_cache_set() {
+  local var; var=$(_zdots_meta_cache_var "$1")
+  printf -v "$var" '%s' "$2"
+}
 
 _zdots_meta_die() { printf 'metadata: error: %s\n' "$*" >&2; exit 1; }
 
@@ -76,7 +89,10 @@ zdots_meta_resolve_yaml() {
     *)       _ckey="$service" ;;
   esac
 
-  if [[ -z "${_ZDOTS_META_CACHE[$_ckey]:-}" ]]; then
+  local _cached
+  _cached=$(_zdots_meta_cache_get "$_ckey")
+
+  if [[ -z "$_cached" ]]; then
     local file; file=$(_zdots_meta_get_file "$service")
     [[ -f "$file" ]] || return 1
     _has_yq || _zdots_meta_die "yq required"
@@ -94,13 +110,14 @@ zdots_meta_resolve_yaml() {
         ;;
     esac
     [[ -n "$_json" ]] || return 1
-    _ZDOTS_META_CACHE[$_ckey]="$_json"
+    _zdots_meta_cache_set "$_ckey" "$_json"
+    _cached="$_json"
   fi
 
   if [[ -z "$path" ]]; then
-    printf '%s\n' "${_ZDOTS_META_CACHE[$_ckey]}"
+    printf '%s\n' "$_cached"
   else
-    printf '%s\n' "${_ZDOTS_META_CACHE[$_ckey]}" | jq -r ".${path} // empty" 2>/dev/null
+    printf '%s\n' "$_cached" | jq -r ".${path} // empty" 2>/dev/null
   fi
 }
 
