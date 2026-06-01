@@ -39,6 +39,7 @@ _known_gap() {
     llama-caps
     llama-ctl
     local-ci
+    nginx-ctl
     nginx-repair
     otel-collector
     ruby-audit
@@ -52,6 +53,7 @@ _known_gap() {
     zdots-quiz
     zdots-status
     zdots-ctl
+    zdots-ruby-bump
     zdots-update-local
     zmorning
     zsvc
@@ -91,6 +93,7 @@ _known_gap() {
     man/man8/otel-collector.8
     man/man8/local-ci.8
     man/man8/whisper-ctl.8
+    man/man8/zsvc.8
     man/man5/zdots-env.5
     man/man5/ai-models.yaml.5
     man/man5/phi-patterns.yaml.5
@@ -159,9 +162,9 @@ _known_gap() {
   local -a tested=(
     agent-guide ai-query alias-suggest bootstrap capabilities commit-msg
     diff-review docker-reclaim gemini-mcp-register history-analyze history-import
-    llama-caps llama-ctl local-ci nginx-repair otel-collector ruby-audit pi-ctx-brief pi-ctx-hydrate
+    llama-caps llama-ctl local-ci nginx-ctl nginx-repair otel-collector ruby-audit pi-ctx-brief pi-ctx-hydrate
     pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-doctor
-    zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl zdots-update-local
+    zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-update-local
     zmorning zsvc ztask
   )
 

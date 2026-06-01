@@ -16,6 +16,7 @@ Zdots documentation has one job: make the live system legible enough that a huma
 | Interface inventory | `docs/generated/interface-inventory.json` | Command, flag, env var, file, and risk index |
 | Manpages | `man/` | Stable operator reference |
 | Repo docs | `docs/` | Architecture, workflows, policy, troubleshooting |
+| Evolution views | `docs/repository-evolution.md` | Git-derived timelines, histograms, velocity charts, and branch-flow context |
 | AI context | `AGENTS.md`, `CONTEXT.md`, `PI.md`, inventory | Agent operating contract |
 | Wiki source | `docs/wiki/` | Public handbook pages, versioned in this repo |
 | Backlog | `backlog/` | Work state and known gaps |
@@ -23,6 +24,16 @@ Zdots documentation has one job: make the live system legible enough that a huma
 Policy lives in `AGENTS.md`. Facts that can drift belong in generated or contract-checked files.
 
 Live-state fields must expose provenance when they summarize another command. Disk space reports the `df -h /` `Avail` column, service health distinguishes HTTP readiness from socket presence, and trace-derived fields include age so stale context is visible.
+
+Architecture diagrams are documentation contracts, not decoration. Use
+[architecture-diagram-audit-plan.md](architecture-diagram-audit-plan.md) when
+adding or reviewing Mermaid diagrams, and include source-file and validation
+provenance near diagrams whose behavior can drift.
+
+Repository evolution diagrams are architecture context when they explain why
+the system changed shape. Keep [repository-evolution.md](repository-evolution.md)
+aligned with `git log --all` whenever velocity, timeline, or branch-flow claims
+are used to guide planning.
 
 ## Manpage Rules
 

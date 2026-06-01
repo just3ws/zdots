@@ -42,6 +42,12 @@ The diff is compressed with rtk before inference if rtk is available.
 EOF
 }
 
+for arg in "$@"; do
+  case "$arg" in
+    --help) usage; exit 0 ;;
+  esac
+done
+
 # Require ai-query
 if [[ ! -x "$AI_QUERY" ]]; then
   printf 'diff-review: ai-query not found at %s\n' "$AI_QUERY" >&2
@@ -53,12 +59,6 @@ if ! curl -sf -m 2 "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/health" >/dev/n
   printf 'diff-review: llama.cpp is not running. Start with: llama-ctl start\n' >&2
   exit 1
 fi
-
-for arg in "$@"; do
-  case "$arg" in
-    --help) usage; exit 0 ;;
-  esac
-done
 
 # Acquire diff: stdin → rev-range arg → staged
 if [[ ! -t 0 ]]; then

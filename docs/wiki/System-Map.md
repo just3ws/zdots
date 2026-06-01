@@ -19,3 +19,40 @@ Zdots is an observable shell platform with four loops:
 These can disagree for valid reasons. Example: `capabilities` can have `health_errors: 0` while services are down because provider contracts are valid even when optional services are stopped.
 
 Status fields must name their source of truth. `ai_server` and `ai_http_healthy` mean the AI `/health` endpoint answered. `ai_socket_listening` only means a process has the loopback port bound. A trace timestamp from `capabilities` is file-derived and should be interpreted with its `last_trace_age_seconds`.
+
+## Platform Service Plane
+
+The live platform is stable only when aggregate control, the service registry,
+and live E2E agree:
+
+```bash
+zdots-ctl status
+zsvc list
+bats tests/platform_e2e.bats
+```
+
+```mermaid
+flowchart LR
+    ctl["zdots-ctl\naggregate lifecycle"] --> zsvc["zsvc\nservice registry"]
+    zsvc --> ai["llama :11500"]
+    zsvc --> embed["embed :11501"]
+    zsvc --> otel["otel :4318"]
+    zsvc --> colima["Colima + LGTM"]
+    zsvc --> nginx["nginx :80/:443"]
+    zsvc --> pg["Postgres my"]
+    zsvc --> redis["Redis :6379"]
+    e2e["platform_e2e.bats"] --> ai
+    e2e --> embed
+    e2e --> otel
+    e2e --> pg
+    e2e --> redis
+    e2e --> nginx
+```
+
+Full lifecycle and E2E map: [../platform-service-plane.md](../platform-service-plane.md).
+
+Architecture diagram audit plan:
+[../architecture-diagram-audit-plan.md](../architecture-diagram-audit-plan.md).
+
+Repository evolution and velocity views:
+[../repository-evolution.md](../repository-evolution.md).
