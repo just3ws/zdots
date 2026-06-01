@@ -109,17 +109,22 @@ zdots-ask --context doctrine "What is the Schrute Test?"
 
 ---
 
-## 6. Deletion & Refactoring (Dwight's Rule)
+## 6. Deletion & Refactoring (The Dwight Schrute Rule)
 
-When modifying or deleting code, apply the **Schrute Test**:
+When modifying or deleting code, apply **The Dwight Schrute Rule** (also known as the Schrute Test):
 
 > "Whenever I'm about to do something, I think: would an idiot do that? And if they would, I do not do that thing." — Dwight Schrute
 
-### Deletion Rules
+### Application of the Rule
+The rule is simple: **If you are not an idiot, you do not do things an idiot would do.** In the context of Zdots engineering, an "idiot action" is any change that is impulsive, unverified, or lacks coordination.
+
+### Non-Idiotic Deletion Rules
 1. **Never delete infrastructure code** (e.g., `lib/lifecycle.bash`) without tracing every caller in `bin/` and `conf.d/`.
 2. **Assume Downstream Fragility**: A change in `zdots-ctx` might break an agent's ability to remember, or a cron job's ability to backup.
 3. **Verify the "Invisible Callers"**: Many tools are called by background processes (OTel export, history sync). Deleting a seemingly "unused" script can cause silent failures.
 4. **File an Issue First**: If you believe a part of the platform is redundant, use `zdots-issue` to propose its removal. Coordination is safer than "clever" simplification.
+
+By adhering to this rule, you maintain the integrity of the **Sentient Workbench** and ensure the platform remains stable for all users and agents.
 
 ---
 
