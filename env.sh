@@ -47,11 +47,11 @@ if [ "${ZDOTS_CONTEXT:-home}" = "work" ] && [ -f "${ZDOTDIR:-$HOME/.config/zsh}/
 fi
 
 # 2. XDG Base Directory Specification (Harden & Absolute)
-export XDG_ROOT="$HOME"
-export XDG_CONFIG_HOME="$XDG_ROOT/.config"
-export XDG_STATE_HOME="$XDG_ROOT/.local/state"
-export XDG_CACHE_HOME="$XDG_ROOT/.cache"
-export XDG_DATA_HOME="$XDG_ROOT/.local/share"
+export XDG_ROOT="${XDG_ROOT:-$HOME}"
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$XDG_ROOT/.config}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$XDG_ROOT/.local/state}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$XDG_ROOT/.cache}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$XDG_ROOT/.local/share}"
 export ZDOTDIR="${ZDOTDIR:-$XDG_CONFIG_HOME/zsh}"
 
 # 3. Session & Trace Identification (W3C Trace Context)

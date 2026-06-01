@@ -11,9 +11,10 @@ trap '' PIPE
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 # shellcheck source=lib/svc-health.bash
 source "${ZDOTDIR}/lib/svc-health.bash"
-
 # 1. Ensure environment is loaded (no set -u to avoid .zdots.env errors)
 [[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
+# shellcheck source=lib/trace_log.bash
+source "${ZDOTDIR}/lib/trace_log.bash"
 
 TASKS_DIR="${ZTASK_TASKS_DIR:-${ZDOTDIR}/backlog/tasks}"
 ACTIVE_TASK_FILE="${ZTASK_ACTIVE_TASK_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task}"
@@ -62,6 +63,7 @@ cmd_start() {
   fi
 
   _svc_log "activating task: $id..."
+  zdots_trace_log "task_start" "id=$id"
 
   # 1. Update task status through Backlog.md CLI. Do not edit task files directly.
   _set_task_status "$id" "In Progress"
@@ -186,6 +188,7 @@ cmd_done() {
   local task_file; task_file=$(_find_task_file "$id")
   
   _svc_log "completing task $id..."
+  zdots_trace_log "task_done" "id=$id"
 
   # 1. Update status to Done through Backlog.md CLI.
   if [[ -n "$task_file" ]]; then
