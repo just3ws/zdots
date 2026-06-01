@@ -161,6 +161,32 @@ probe_phi() {
 }
 
 # ---------------------------------------------------------------------------
+# Utilization probe
+# ---------------------------------------------------------------------------
+probe_utilization() {
+  UTIL_TASKS_LAST_24H=0
+  UTIL_AI_QUERIES_LAST_24H=0
+  UTIL_PLATFORM_CHECKS_LAST_24H=0
+
+  local trace_file="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl"
+  if [[ -f "$trace_file" ]]; then
+    # Simple count of events in last 24h
+    # Uses 'date' to get timestamp from 24h ago — macOS 'date' syntax
+    local since
+    since=$(date -v-24H '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || date --date='24 hours ago' '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null)
+    
+    # We use a simple grep/awk because traces.jsonl can be large.
+    # We only look at the last 5000 lines for performance.
+    local recent
+    recent=$(tail -n 5000 "$trace_file")
+    
+    UTIL_TASKS_LAST_24H=$(printf '%s' "$recent" | grep -c "task_start" || true)
+    UTIL_AI_QUERIES_LAST_24H=$(printf '%s' "$recent" | grep -c "ai_query" || true)
+    UTIL_PLATFORM_CHECKS_LAST_24H=$(printf '%s' "$recent" | grep -c "platform_check" || true)
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Database probe
 # ---------------------------------------------------------------------------
 probe_db() {
@@ -168,10 +194,18 @@ probe_db() {
   DB_STATUS=""
 
   if command -v psql >/dev/null 2>&1; then
-    if psql -qAt -U zdots_ro -d my -c '\q' >/dev/null 2>&1; then
+    local pass; pass=""
+    if [[ -r "${ZDOTDIR}/lib/keychain.bash" ]]; then
+      source "${ZDOTDIR}/lib/keychain.bash" 2>/dev/null || true
+      if command -v zdots_keychain_get >/dev/null 2>&1; then
+        pass=$(zdots_keychain_get ZDOTS_RO_PASSWORD 2>/dev/null || true)
+      fi
+    fi
+
+    if PGPASSWORD="$pass" psql -qAt -U zdots_ro -d my -c '\q' >/dev/null 2>&1; then
       DB_UP=true
       local tbl_count
-      tbl_count=$(PGAPPNAME=zdots-status psql -qAt --no-psqlrc -U zdots_ro -d my \
+      tbl_count=$(PGPASSWORD="$pass" PGAPPNAME=zdots-status psql -qAt --no-psqlrc -U zdots_ro -d my \
         -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'" \
         2>/dev/null | grep -E '^[0-9]+$' | tail -1 || echo "?")
       DB_STATUS="${tbl_count} public tables"
@@ -317,6 +351,15 @@ draw() {
   printf '  %s  %-20s %s secret(s) in login Keychain\n' \
     "$(_pass)" "Keychain" "$PHI_KEYCHAIN_COUNT"
 
+  # ── Utilization ───────────────────────────────────────────────────────
+  _section "Utilization (Last 24h)"
+  printf '  %s  %-20s %s task(s)\n' \
+    "$(_pass)" "Tasks" "$UTIL_TASKS_LAST_24H"
+  printf '  %s  %-20s %s query(ies)\n' \
+    "$(_pass)" "AI Queries" "$UTIL_AI_QUERIES_LAST_24H"
+  printf '  %s  %-20s %s platform check(s)\n' \
+    "$(_pass)" "Health" "$UTIL_PLATFORM_CHECKS_LAST_24H"
+
   # ── Database ───────────────────────────────────────────────────────────
   _section "Database"
   if $DB_UP; then
@@ -385,6 +428,7 @@ if $ONCE || ! tput smcup >/dev/null 2>&1; then
   probe_home
   probe_shell
   probe_phi
+  probe_utilization
   probe_db
   probe_tasks
   draw
@@ -405,10 +449,12 @@ trap _cleanup EXIT INT TERM
 probe_shell
 probe_home
 probe_phi
+probe_utilization
 
 while true; do
   probe_services
   probe_storage
+  probe_utilization
   probe_db
   probe_tasks
 
