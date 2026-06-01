@@ -1,6 +1,6 @@
 # Project Lifecycle & Learning Guide
 
-This guide covers the full lifecycle of a Zdots contribution, from environment setup to production diagnostics.
+This guide covers the full lifecycle of a Zdots contribution, from environment setup to production diagnostics, mapping the myriad services and their inter-dependencies.
 
 ---
 
@@ -23,7 +23,53 @@ zsvc health
 
 ---
 
-## 2. Task Orchestration (The Middle)
+## 2. The Central Control Plane (zdots-ctl)
+
+`zdots-ctl` is the orchestrator. It manages the **vertical stack** dependencies.
+
+### Vertical Dependency Map
+```mermaid
+graph TD
+    Op[Operator / Agent] --> Ctl[zdots-ctl]
+    
+    subgraph "The Service Registry (zsvc)"
+        Ctl --> Registry[zsvc registry]
+        Registry --> Llama[llama-server]
+        Registry --> Embed[llama-embed]
+        Registry --> OTel[otel-collector]
+        Registry --> Colima[colima]
+        Registry --> Nginx[nginx]
+        Registry --> PG[postgres]
+        Registry --> Redis[redis]
+    end
+
+    subgraph "Infrastructure Layer"
+        Colima --> LGTM[LGTM Stack: Loki/Tempo/Grafana]
+        PG --> DB[(PostgreSQL: my)]
+        Redis --> Cache[(Redis: analytics)]
+        Nginx --> Proxy[Local .local URLs]
+    end
+```
+
+---
+
+## 3. Inter-Service Integrations (The Web)
+
+Services do not live in isolation. They form a web of horizontal dependencies.
+
+| Service | Depends On | Why? |
+|---|---|---|
+| **zdots-ctx** (Brain) | Postgres | Stores knowledge and methodologies. |
+| **zdots-ask** (AI) | llama-server | Performs local inference. |
+| **zdots-ask** (Context) | zdots-ctx | Hydrates prompts with brain context. |
+| **otel-collector** | local-ci (LGTM) | Exports traces to Tempo/Loki. |
+| **zsvc health** | nginx | Probes local routing endpoints. |
+| **ztask** | Postgres | Tracks task state and shell history links. |
+| **agent-guide** | All Services | Advertises endpoints to AI agents. |
+
+---
+
+## 4. Task Orchestration (The Middle)
 
 Every change in Zdots is tracked via an issue and a task.
 
@@ -33,29 +79,51 @@ Use `ztask` to start a new task. This hydrations your environment with the task 
 ztask start Z-123 "Fix llama-server timeout"
 ```
 
-### Recording Progress
-Significant findings should be recorded in the `~/my/context/` directory or filed as follow-up issues using `zdots-issue`.
+### The Sentient Workbench Cycle
+1. **Start Task**: `ztask start`
+2. **Consult Brain**: `zdots-ctx query "similar fixes"`
+3. **Engage Agent**: `gm` (Gemini) or `zaider` (local Aider)
+4. **Commit & Close**: `ztask done`
 
 ---
 
-## 3. Development & Verification (The Workflow)
+## 5. High-Value Integration Pipelines
 
-### Fast Feedback
-Use `make` for quick checks.
-```bash
-make check-fast   # syntax + style
-make test         # run unit tests
-```
+Zdots tools are designed to be piped together, crossing service boundaries.
 
-### Integration Testing
-Use `bats` for full E2E validation of the service plane.
+### The "Transcribe & Summarize" Pipeline
+Uses `yt-dlp` (Downloader) → `ffmpeg` (Processor) → `whisper.cpp` (Inference) → `zdots-ask` (AI).
 ```bash
-bats tests/platform_e2e.bats
+ztranscribe 'https://youtu.be/...' --ai "summarize into 5 bullet points"
 ```
+*   **Vertical**: Depends on `whisper-ctl` for model management.
+*   **Horizontal**: Depends on `llama-server` for the final AI summary.
+
+### The "Context Hydration" Pipeline
+Uses `zdots-ctx` (Brain) → `zdots-ask` (AI Router).
+```bash
+zdots-ask --context doctrine "What is the Schrute Test?"
+```
+*   **Vertical**: Depends on `zdots-ctx` for database retrieval.
+*   **Horizontal**: Depends on `etc/prompts/` for the shell domain prompt.
 
 ---
 
-## 4. Observability & Diagnostics (The "Now")
+## 6. Deletion & Refactoring (Dwight's Rule)
+
+When modifying or deleting code, apply the **Schrute Test**:
+
+> "Whenever I'm about to do something, I think: would an idiot do that? And if they would, I do not do that thing." — Dwight Schrute
+
+### Deletion Rules
+1. **Never delete infrastructure code** (e.g., `lib/lifecycle.bash`) without tracing every caller in `bin/` and `conf.d/`.
+2. **Assume Downstream Fragility**: A change in `zdots-ctx` might break an agent's ability to remember, or a cron job's ability to backup.
+3. **Verify the "Invisible Callers"**: Many tools are called by background processes (OTel export, history sync). Deleting a seemingly "unused" script can cause silent failures.
+4. **File an Issue First**: If you believe a part of the platform is redundant, use `zdots-issue` to propose its removal. Coordination is safer than "clever" simplification.
+
+---
+
+## 7. Observability & Diagnostics (The "Now")
 
 When things go wrong, use the consolidated diagnostic suite.
 
@@ -66,7 +134,7 @@ zsvc health
 ```
 
 ### Consolidated Logs
-Tail all service logs at once to find inter-service communication errors (e.g., Nginx → Llama).
+Tail all service logs at once to find inter-service communication errors.
 ```bash
 zsvc logs all
 ```
@@ -79,7 +147,7 @@ zsvc diag postgres
 
 ---
 
-## 5. Troubleshooting Tutorial: "The Local URL Failure"
+## 8. Troubleshooting Tutorial: "The Local URL Failure"
 
 Scenario: `zsvc health` reports `llama.local` is `fail` with code `000`, but core services are healthy.
 
@@ -101,22 +169,9 @@ zsvc diag nginx
 # Check if nginx is running and if its config is valid.
 ```
 
-**Step 4: Check DNS/Hosts**
-Ensure `llama.local` resolves to `127.0.0.1`.
-```bash
-ping -c 1 llama.local
-```
-
-**Step 5: Verify Upstream**
-Ensure the service is listening on the port Nginx expects (see `zsvc list`).
-```bash
-zsvc list
-curl -I http://127.0.0.1:11500/health
-```
-
 ---
 
-## 6. How-Tos for Common Scenarios
+## 9. How-Tos for Common Scenarios
 
 | How do I... | Command |
 |---|---|
@@ -127,10 +182,15 @@ curl -I http://127.0.0.1:11500/health
 | Query the brain? | `zdots-ctx query "term"` |
 | Update AI patterns? | `fabric-ai --updatepatterns` |
 | Capture a new code snippet? | `zdots-ctx capture path/to/file.zsh` |
+| Diagnose a failed upgrade? | `zdots-log-analyze upgrade --ai` |
+| Run a local LLM capability quiz? | `zdots-quiz --quick` |
+| Transcribe a YouTube video? | `ztranscribe 'https://...'` |
+| Add a secret to Keychain? | `zdots-keychain add MY_API_KEY` |
+| Check for credential leaks? | `bin/secret-scan` |
 
 ---
 
-## 7. Performance Standards
+## 10. Performance Standards
 
 All shell modifications must be benchmarked.
 - **Goal**: `< 0.08s` for interactive shell startup.
