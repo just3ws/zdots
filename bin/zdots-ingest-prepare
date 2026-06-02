@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# ---
+# id: zdots-ingest-prepare
+# title: "Zdots Ingestion Preprocessor"
+# purpose: Prepares documents (PDF, Docx, VTT) for ingestion into the Zdots Brain.
+# rationale: Standardizes heterogeneous sources into Brain-compliant Markdown.
+# ---
+# bin/zdots-ingest-prepare — Preprocesses files for zdots-ctx ingest.
+
+set -eo pipefail
+
+if [[ $# -eq 0 ]]; then
+  echo "Usage: zdots-ingest-prepare <file>"
+  exit 1
+fi
+
+FILE="$1"
+OUT_DIR="./processed"
+mkdir -p "$OUT_DIR"
+
+echo "==> Preprocessing: $FILE"
+
+case "$FILE" in
+  *.pdf)
+    # Use marker to convert PDF to Markdown
+    marker_output="${OUT_DIR}/$(basename "${FILE%.pdf}")"
+    marker "$FILE" "$marker_output" --batch_multiplier 2
+    echo "  [+] PDF processed to $marker_output"
+    ;;
+  *.docx)
+    # Convert Docx to Markdown using pandoc
+    output="${OUT_DIR}/$(basename "${FILE%.docx}.md")"
+    pandoc "$FILE" -o "$output" --wrap=none
+    echo "  [+] Docx processed to $output"
+    ;;
+  *.vtt)
+    # Simple VTT cleanup (remove timestamps, join lines)
+    output="${OUT_DIR}/$(basename "${FILE%.vtt}.md")"
+    sed -E 's/^[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3} --> [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}//g' "$FILE" \
+      | sed -E 's/^[0-9]+//g' \
+      | sed '/^$/d' \
+      | tr '\n' ' ' \
+      | fold -s -w 80 > "$output"
+    echo "  [+] VTT processed to $output"
+    ;;
+  *)
+    echo "  [!] Unsupported file type: $FILE"
+    exit 1
+    ;;
+esac
+
+echo "==> Preprocessing complete. Files are in $OUT_DIR."
+echo "    Next, run: zdots-ctx ingest $OUT_DIR/"
