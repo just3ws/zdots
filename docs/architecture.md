@@ -244,6 +244,61 @@ stateDiagram-v2
     Triage --> [*] : Delete
 ```
 
+### Knowledge Vault Management
+
+The Knowledge Vault (`~/my`) is the local entry point for platform knowledge. It
+must be structured consistently across machines for reliable ingestion into the
+Brain.
+
+#### Vault Structure
+
+Initialize or verify the structure using the provided utility:
+
+```bash
+zdots-my-sync
+```
+
+This creates the following directory hierarchy:
+
+```text
+~/my/
+├── backlog/         # Implementation tickets and tasks
+├── lessons/         # Post-mortem insights, solved bugs
+├── methodologies/   # Engineering standards, patterns
+├── standards/       # Formal platform documentation
+├── transcripts/     # Raw transcriptions for ingestion
+└── adrs/            # Architecture Decision Records
+```
+
+#### Ingestion Workflow
+
+To populate the Brain from the Vault:
+
+1.  **Aggregate**: Place new documents or cleaned transcriptions into the
+    appropriate subdirectory (e.g., `standards/` for platform docs,
+    `transcripts/` for meeting notes).
+2.  **Ingest**: Run the ingestion pipeline to index content for semantic
+    querying:
+
+    ```bash
+    zdots-ctx ingest ~/my/standards/
+    ```
+
+#### Operational Best Practices
+
+*   **Documentation Aggregation**: Treat `standards/` as a living repository.
+    Periodically aggregate scattered notes into cohesive `PLATFORM_OWNERSHIP.md`
+    or ADR files, then run `zdots-ctx ingest` to refresh the local context.
+*   **Transcript Hygiene**: Pi transcripts often contain conversational noise.
+    Scrub them of identifiers and noise *before* moving them into `transcripts/`
+    for ingestion.
+*   **Security Fence**: **Never** ingest files containing API keys, database
+    credentials, or sensitive environment variables into your Vault, even for
+    local-only ingestion.
+*   **The Brain Fence**: Ensure `ZDOTS_DATABASE_URL` is configured for your current
+    environment. If moving to a new machine, initialize the platform services
+    before attempting `zdots-ctx ingest`.
+
 ### Credential rotation (auth boundary)
 
 The `zdots_ro` (SELECT-only) and `zdots_rw` (DML) users are **fences against
