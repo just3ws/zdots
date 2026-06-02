@@ -21,4 +21,7 @@ setup_environment() {
     load "$brew_prefix/lib/bats-assert/load.bash"
     load "$brew_prefix/lib/bats-file/load.bash"
   fi
+
+  # Load keychain helpers
+  source "$REPO_ROOT/lib/keychain.bash"
 }
