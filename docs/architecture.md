@@ -270,19 +270,37 @@ This creates the following directory hierarchy:
 └── adrs/            # Architecture Decision Records
 ```
 
-#### Ingestion Workflow
+#### Document Ingestion Pipeline
 
-To populate the Brain from the Vault:
+To ensure the Brain receives high-quality, normalized data, use the
+`zdots-ingest-prepare` utility before ingestion. This tool standardizes
+heterogeneous file formats into clean Markdown.
 
-1.  **Aggregate**: Place new documents or cleaned transcriptions into the
-    appropriate subdirectory (e.g., `standards/` for platform docs,
-    `transcripts/` for meeting notes).
-2.  **Ingest**: Run the ingestion pipeline to index content for semantic
-    querying:
+| Source Format | Preprocessing Tool | Strategy |
+| :--- | :--- | :--- |
+| **PDF** | `marker` | Extracts tables/headings into Markdown. |
+| **Docx** | `pandoc` | Converts to clean, unwrapped Markdown. |
+| **VTT/Transcript** | `sed` + `pi` | Strips timestamps, cleans run-ons, adds metadata. |
 
+**Workflow:**
+
+1.  **Prepare**: Standardize the document format:
     ```bash
-    zdots-ctx ingest ~/my/standards/
+    zdots-ingest-prepare <file>
     ```
+    This outputs processed files into `./processed/`.
+2.  **Refine (Optional)**: For transcriptions or complex unstructured text, pipe
+    the generated Markdown through the Pi local agent for final noise removal:
+    ```bash
+    cat processed/doc.md | pi --system "Fix grammar, clean noise" > final.md
+    ```
+3.  **Ingest**: Index the finalized files:
+    ```bash
+    zdots-ctx ingest ./final.md
+    ```
+
+**Note**: Ensure `marker` and `pandoc` are installed via `brew bundle` (see
+`Brewfile.home`). Always run `zdots-update-local` after updating dependencies.
 
 #### Operational Best Practices
 
