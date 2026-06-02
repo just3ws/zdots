@@ -1,0 +1,63 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# ---
+# id: zdots-ruby-clone
+# title: "Ruby Repo Cloner & Organizer"
+# purpose: Clone a GitHub/GitLab repo to $HOME/<provider>/<org>/<repo>.
+# ---
+
+require "pathname"
+require "fileutils"
+require "uri"
+
+def usage
+  puts "Usage: zdots-ruby-clone <repo_url>"
+  puts "Example: zdots-ruby-clone https://github.com/rails/rails"
+  exit 1
+end
+
+usage if ARGV.empty? || ARGV.first == "--help"
+
+url_str = ARGV.first
+begin
+  uri = URI.parse(url_str)
+  # Handle git@github.com:org/repo style URLs
+  if url_str.start_with?("git@")
+    host, path = url_str.sub("git@", "").split(":", 2)
+    uri = URI.parse("https://#{host}/#{path}")
+  end
+rescue URI::InvalidURIError
+  puts "Error: Invalid URL format."
+  exit 1
+end
+
+host = uri.host
+path_parts = uri.path.sub(/\.git$/, "").split("/").reject(&:empty?)
+
+if path_parts.length < 2
+  puts "Error: Could not determine org and repo from URL: #{url_str}"
+  exit 1
+end
+
+org = path_parts[0]
+repo = path_parts[1]
+
+target_dir = Pathname.new(Dir.home).join(host, org, repo)
+
+if target_dir.exist?
+  puts "Target directory already exists: #{target_dir}"
+  puts "Updating existing repo..."
+  system("git -C #{target_dir} pull --rebase")
+else
+  puts "Cloning #{url_str} to #{target_dir}..."
+  FileUtils.mkdir_p(target_dir.parent)
+  system("git clone #{url_str} #{target_dir}")
+end
+
+if $?.success?
+  puts "Done! Repo available at: #{target_dir}"
+  puts target_dir # Output path for scripting
+else
+  puts "Error: Clone failed."
+  exit 1
+end
