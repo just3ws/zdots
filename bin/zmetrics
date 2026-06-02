@@ -1,0 +1,64 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# ---
+# id: zmetrics
+# title: "Modern Ruby Metrics History"
+# purpose: Visualize the history of health scores and metrics for a repository.
+# ---
+
+require "json"
+require "pathname"
+require "time"
+
+def usage
+  puts "Usage: zmetrics <repo_slug>"
+  puts "Example: zmetrics chatwoot"
+  exit 1
+end
+
+repo_slug = ARGV[0]
+usage unless repo_slug
+
+AUDIT_BASE = Pathname.new(Dir.home).join(".local/state/zsh/ruby-audits")
+runs = AUDIT_BASE.children.select { |c| c.directory? && c.basename.to_s.start_with?(repo_slug) }.sort_by(&:mtime)
+
+if runs.empty?
+  puts "No audit history found for: #{repo_slug}"
+  exit 1
+end
+
+puts "\e[1m━" * 60
+puts "  METRICS HISTORY: #{repo_slug.upcase}"
+puts "━" * 60 + "\e[0m"
+puts "  %-25s %-12s %s" % ["Run Date", "Health Score", "Security/Hotspots/Offenses"]
+puts "  " + "─" * 58
+
+runs.each do |run|
+  summary_file = run.join("summary.json")
+  next unless summary_file.exist?
+  
+  data = JSON.parse(summary_file.read)
+  date = Time.parse(data["generated_at"]).strftime("%Y-%m-%d %H:%M")
+  score_raw = data["health_score"]
+  
+  if score_raw.nil?
+    score_str = "    N/A"
+    color = "\e[0m"
+  else
+    score = score_raw.to_f
+    score_str = "%11.1f" % score
+    color = case score
+            when 90..100 then "\e[32m"
+            when 70..89  then "\e[33m"
+            else              "\e[31m"
+            end
+  end
+          
+  s = data["scores"]
+  metrics = "%d / %d / %d" % [s["security_vulns"] + s.fetch("brakeman_high", 0), s.fetch("flog_hotspots", 0), s.fetch("rubocop_offenses", 0)]
+  
+  puts "  %-25s %s%s\e[0m  %s" % [date, color, score_str, metrics]
+end
+
+puts "\e[1m━" * 60 + "\e[0m"
+puts "  (M)etrics: Security Vulns / Complexity Hotspots / RuboCop Offenses"
