@@ -50,13 +50,23 @@ def diff_score(new_s, old_s, key)
   printf "%-20s: %3d -> %3d (%+d) %s\n", label, o, n, delta, color
 end
 
+def diff_health(new_s, old_s)
+  n = new_s["health_score"].to_f
+  o = old_s ? old_s["health_score"].to_f : 0.0
+  delta = (n - o).round(1)
+  color = delta < 0 ? "🔴" : (delta > 0 ? "🟢" : "⚪")
+  printf "%-20s: %5.1f -> %5.1f (%+5.1f) %s\n", "HEALTH SCORE", o, n, delta, color
+end
+
 puts "--- Change Summary ---"
 if old_summary
+  diff_health(new_summary, old_summary)
   %w[security_vulns brakeman_high brakeman_medium rubocop_offenses reek_smells flog_hotspots flay_duplicates].each do |k|
     diff_score(new_summary, old_summary, k)
   end
 else
   puts "No previous report found for comparison. Baseline generated."
+  printf "%-20s: %5.1f\n", "HEALTH SCORE", new_summary["health_score"]
   new_summary["scores"].each do |k, v|
     printf "%-20s: %3d\n", k.gsub("_", " ").capitalize, v
   end
@@ -71,6 +81,10 @@ File.open(diff_file, "w") do |f|
   if old_summary
     f.puts "Compared against run from: #{old_summary["generated_at"]}"
     f.puts ""
+    n_h = new_summary["health_score"].to_f
+    o_h = old_summary["health_score"].to_f
+    f.printf "%-20s: %5.1f -> %5.1f (%+5.1f)\n", "HEALTH SCORE", o_h, n_h, (n_h - o_h).round(1)
+    
     %w[security_vulns brakeman_high brakeman_medium rubocop_offenses reek_smells flog_hotspots flay_duplicates].each do |k|
       n = new_summary.dig("scores", k).to_i
       o = old_summary.dig("scores", k).to_i
@@ -79,6 +93,7 @@ File.open(diff_file, "w") do |f|
     end
   else
     f.puts "Baseline run."
+    f.printf "%-20s: %5.1f\n", "HEALTH SCORE", new_summary["health_score"]
   end
 end
 puts ""
