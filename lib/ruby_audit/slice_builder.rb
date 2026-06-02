@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "pathname"
 require "fileutils"
 
 module RubyAudit
@@ -15,7 +14,7 @@ module RubyAudit
   class SliceBuilder
     CHARS_PER_TOK = 4
     DEFAULT_BUDGET   = 32_000
-    DEFAULT_OVERHEAD = 3_000   # system prompt + conversation history
+    DEFAULT_OVERHEAD = 3_000 # system prompt + conversation history
 
     # Namespaces that get elevated priority (LLM/AI layer, security-relevant)
     PRIORITY_NAMESPACES = /\A(llm|ai|ml|openai|anthropic|admin|auth|security|payment)\z/i
@@ -38,7 +37,7 @@ module RubyAudit
     def build
       FileUtils.mkdir_p(@out_dir)
 
-      groups   = discover_groups
+      groups = discover_groups
       @sessions = plan_sessions(groups)
       @sessions.each { |s| write_session(s) }
       @sessions
@@ -133,20 +132,20 @@ module RubyAudit
         label: label, groups: groups, tokens: total }
     end
 
-    def split_group(g)
+    def split_group(group)
       parts = []
       current = []
       current_tokens = 0
 
-      g[:files].each do |f|
-        ft = tok_file(f)
-        if current_tokens + ft > @available && current.any?
+      group[:files].each do |file|
+        file_tokens = tok_file(file)
+        if current_tokens + file_tokens > @available && current.any?
           parts << current
-          current = [f]
-          current_tokens = ft
+          current = [file]
+          current_tokens = file_tokens
         else
-          current << f
-          current_tokens += ft
+          current << file
+          current_tokens += file_tokens
         end
       end
       parts << current if current.any?
@@ -155,8 +154,8 @@ module RubyAudit
 
     # ── Slice file writing ─────────────────────────────────────────────────────
 
-    def write_session(s)
-      out = @out_dir.join("#{s[:name]}.md")
+    def write_session(session)
+      out = @out_dir.join("#{session[:name]}.md")
 
       out.open("w") do |f|
         f.puts "# Audit Brief"
@@ -165,12 +164,13 @@ module RubyAudit
         f.puts ""
         f.puts "---"
         f.puts ""
-        f.puts "# Source: #{s[:label]}"
+        f.puts "# Source: #{session[:label]}"
         f.puts ""
 
-        s[:groups].each do |g|
-          g[:files].each do |file|
+        session[:groups].each do |group|
+          group[:files].each do |file|
             next unless file.exist?
+
             rel = file.relative_path_from(@root)
             f.puts "## `#{rel}`"
             f.puts "```ruby"
@@ -181,7 +181,7 @@ module RubyAudit
         end
       end
 
-      s[:path] = out
+      session[:path] = out
     end
 
     # ── Repo structure helpers ─────────────────────────────────────────────────
@@ -216,8 +216,8 @@ module RubyAudit
       patterns.flat_map { |p| Dir.glob(@root.join(p)) }.map { |f| Pathname.new(f) }.select(&:file?)
     end
 
-    def ns_priority(ns)
-      ns.match?(PRIORITY_NAMESPACES) ? 2 : 5
+    def ns_priority(namespace)
+      namespace.match?(PRIORITY_NAMESPACES) ? 2 : 5
     end
 
     # ── Flog hotspot extraction ────────────────────────────────────────────────
@@ -229,14 +229,14 @@ module RubyAudit
       hotspots.filter_map do |h|
         # flog method strings for named methods include the absolute path:
         #   "ClassName#method /abs/path/to/file.rb:start-end"
-        next unless h[:method] =~ /\s+(\/[^\s:]+\.rb):\d/
+        next unless h[:method] =~ %r{\s+(/[^\s:]+\.rb):\d}
 
         file = Pathname.new(Regexp.last_match(1))
         next unless file.exist?
         next if seen[file.to_s]
 
         seen[file.to_s] = true
-        { method: h[:method].split(/\s+\//).first.strip, file: file, score: h[:score] }
+        { method: h[:method].split(%r{\s+/}).first.strip, file: file, score: h[:score] }
       end.first(3)
     end
 
@@ -244,6 +244,7 @@ module RubyAudit
 
     def tok_file(path)
       return 0 unless path && File.exist?(path.to_s)
+
       File.size(path.to_s) / CHARS_PER_TOK
     end
   end

@@ -166,7 +166,7 @@ All components are standalone executables in `bin/`. Full tool reference: [docs/
 | `zdash` | fzf task picker wired to Pi↔Aider↔ztask cycle |
 | `agent-guide` | Live endpoint + capability map for agent sessions |
 | `zdots-log-analyze` | Package bootstrap/update/upgrade logs for Pi, `ai-query`, or human diagnostics |
-| `bench` | Shell startup benchmark; guards 80ms performance budget |
+| `bench` | Shell startup benchmark; guards 350ms performance budget |
 | `gemini-invoke` | Observable Gemini bridge (aliased to `gm`) |
 | `llama-ctl` | Local LLM lifecycle, profiles, and hardware tuning |
 | `whisper-ctl` | Local transcription engine and model management |

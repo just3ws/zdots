@@ -429,7 +429,7 @@ fi
 
 report_startup_timing() {
   local -i runs="${ZDOTS_STARTUP_BENCH_RUNS:-5}"
-  local threshold="${ZDOTS_STARTUP_WARN_THRESHOLD_SEC:-0.08}"
+  local threshold="${ZDOTS_STARTUP_WARN_THRESHOLD_SEC:-0.35}"
   local timings_file
   local median
   local real

@@ -10,11 +10,13 @@ require "json"
 require "pathname"
 require "time"
 
-def usage
+def usage(status = 1)
   puts "Usage: ruby-audit-diff <repo_slug> [new_run_dir] [old_run_dir]"
   puts "Example: ruby-audit-diff chatwoot"
-  exit 1
+  exit status
 end
+
+usage(0) if ["-h", "--help"].include?(ARGV.first)
 
 repo_slug = ARGV[0]
 usage unless repo_slug

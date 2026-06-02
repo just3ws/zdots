@@ -3,12 +3,11 @@
 require "open3"
 require "json"
 require "tmpdir"
-require "pathname"
 
 module RubyAudit
   # Runs each static analysis tool against a target directory.
   # All runners return a Hash: { ok:, output:, raw: }
-  module Runners
+  module Runners # rubocop:disable Metrics/ModuleLength
     ZDOTS         = Pathname.new(__dir__).parent.parent.freeze
     AUDIT_GEMFILE = ZDOTS.join("etc", "ruby-audit", "Gemfile").freeze
 
@@ -29,10 +28,14 @@ module RubyAudit
 
       result = run_cmd("bundle", "exec", "bundler-audit", "check", "--format", "json",
                        "--gemfile-lock", lockfile, cwd: ZDOTS.to_s)
-      raw = JSON.parse(result[:stdout]) rescue nil
+      raw = begin
+        JSON.parse(result[:stdout])
+      rescue StandardError
+        nil
+      end
       vulns = raw&.dig("results") || []
       { ok: vulns.empty?, output: vulns, raw: raw }
-    rescue => e
+    rescue StandardError => e
       { ok: false, output: [], raw: nil, error: e.message }
     end
 
@@ -48,12 +51,16 @@ module RubyAudit
         root,
         cwd: ZDOTS.to_s
       )
-      raw = JSON.parse(result[:stdout]) rescue nil
-      files    = raw&.dig("files")   || []
+      raw = begin
+        JSON.parse(result[:stdout])
+      rescue StandardError
+        nil
+      end
+      files    = raw&.dig("files") || []
       offenses = files.flat_map { |f| f["offenses"].map { |o| o.merge("path" => f["path"]) } }
       summary  = raw&.dig("summary") || {}
       { ok: summary["offense_count"].to_i.zero?, output: offenses, summary: summary, raw: raw }
-    rescue => e
+    rescue StandardError => e
       { ok: false, output: [], raw: nil, error: e.message }
     ensure
       File.delete(cfg) if cfg && File.exist?(cfg)
@@ -67,8 +74,11 @@ module RubyAudit
         return { ok: true, output: [], raw: nil, skipped: "no Gemfile (not a Rails app)" }
       end
 
-      rails_flag = rails_version&.start_with?("5") ? ["--rails5"] :
-                   rails_version&.start_with?("6") ? ["--rails6"] : []
+      rails_flag = if rails_version&.start_with?("5")
+                     ["--rails5"]
+                   else
+                     rails_version&.start_with?("6") ? ["--rails6"] : []
+                   end
 
       result = run_cmd(
         "bundle", "exec", "brakeman",
@@ -78,11 +88,15 @@ module RubyAudit
         "--path", root,
         cwd: ZDOTS.to_s
       )
-      raw      = JSON.parse(result[:stdout]) rescue nil
+      raw = begin
+        JSON.parse(result[:stdout])
+      rescue StandardError
+        nil
+      end
       warnings = raw&.dig("warnings") || []
       { ok: warnings.none? { |w| %w[High Medium].include?(w["confidence"]) },
         output: warnings, raw: raw }
-    rescue => e
+    rescue StandardError => e
       { ok: false, output: [], raw: nil, error: e.message }
     end
 
@@ -96,10 +110,14 @@ module RubyAudit
         root,
         cwd: ZDOTS.to_s
       )
-      raw   = JSON.parse(result[:stdout]) rescue []
+      raw = begin
+        JSON.parse(result[:stdout])
+      rescue StandardError
+        []
+      end
       smells = Array(raw)
       { ok: smells.empty?, output: smells, raw: raw }
-    rescue => e
+    rescue StandardError => e
       { ok: false, output: [], raw: nil, error: e.message }
     end
 
@@ -116,7 +134,7 @@ module RubyAudit
       threshold = 30
       high = entries.select { |e| e[:score] >= threshold }
       { ok: high.empty?, output: entries, high_complexity: high, raw: result[:stdout] }
-    rescue => e
+    rescue StandardError => e
       { ok: false, output: [], raw: nil, error: e.message }
     end
 
@@ -131,13 +149,13 @@ module RubyAudit
       )
       matches = parse_flay(result[:stdout])
       { ok: matches.empty?, output: matches, raw: result[:stdout] }
-    rescue => e
+    rescue StandardError => e
       { ok: false, output: [], raw: nil, error: e.message }
     end
 
     # ── helpers ───────────────────────────────────────────────────────────────
 
-    def self.write_rubocop_config(root, ruby_version)
+    def self.write_rubocop_config(_root, ruby_version)
       cfg_path = File.join(Dir.tmpdir, "ruby_audit_rubocop_#{Process.pid}.yml")
       target_version = ruby_version&.then { |v| v[/\A\d+\.\d+/] } || "2.7"
 

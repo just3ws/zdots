@@ -2,7 +2,10 @@ project_name: "Zdots"
 default_status: "To Do"
 statuses: ["To Do", "In Progress", "Done"]
 labels: ["agent-reported", "bug", "question", "request", "needs-info", "agent-ready"]
-definition_of_done: ["All acceptance criteria checked with evidence (command output, file path, or test result)", "make check passes with output captured in task notes or commit message", "All related changes committed — git status clean for files touched by this task"]
+definition_of_done:
+  - "All acceptance criteria checked with evidence (command output, file path, or test result)"
+  - "make check passes with output captured in task notes or commit message"
+  - "All related changes committed — git status clean for files touched by this task"
 date_format: yyyy-mm-dd
 max_column_width: 20
 default_editor: "/opt/homebrew/bin/nvim"
