@@ -185,7 +185,6 @@ brew "git-cliff"    # CHANGELOG generation from conventional commits
 brew "k9s"
 brew "kubernetes-cli"
 brew "kubectx"
-brew "kubens"
 brew "lazydocker"   # Docker TUI — companion to lazygit
 # otelcol-contrib is intentionally absent — custom binary managed by
 # bin/otel-collector install (not available via Homebrew)
