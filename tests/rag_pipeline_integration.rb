@@ -39,10 +39,10 @@ EMBED_ENDPOINT = ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT", "http://127.0.0.1:11501")
 DB_USER_RO     = "zdots_ro"
 DB_USER_RW     = "zdots_rw"
 DB_NAME        = "my"
-WORKER_TIMEOUT = 120  # seconds to wait for embed worker to finish
-MAX_PENDING_BEFORE_SKIP = 10  # skip worker tests if embed backlog is too deep
+WORKER_TIMEOUT = 120 # seconds to wait for embed worker to finish
+MAX_PENDING_BEFORE_SKIP = 10 # skip worker tests if embed backlog is too deep
 RUN_ID         = Process.pid.to_s
-TEST_SLUG      = "rag-e2e-#{RUN_ID}"
+TEST_SLUG      = "rag-e2e-#{RUN_ID}".freeze
 QUICK          = ARGV.include?("--quick")
 CLEAN_ONLY     = ARGV.include?("--clean")
 
@@ -84,7 +84,7 @@ def assert(cond, msg = "assertion failed")
 end
 
 def section(title)
-  puts "\n── #{title} #{('─' * [0, 58 - title.length].max)}"
+  puts "\n── #{title} #{'─' * [0, 58 - title.length].max}"
 end
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -112,6 +112,7 @@ def pg_query(sql, user: DB_USER_RO)
     "psql", "-q", "-X", "-U", user, DB_NAME, "-t", "-A", "-c", sql
   )
   raise "psql failed (#{status.exitstatus}): #{err}" unless status.success?
+
   # Return the last non-empty line — guards against any residual preamble
   out.lines.map(&:strip).reject(&:empty?).last.to_s
 end
@@ -133,7 +134,7 @@ def ingest_file(path, dry_run: false)
   brain_run(*args)
 end
 
-def write_test_doc(dir, slug:, title:, content:, tags: ["e2e-test", "rag-pipeline"])
+def write_test_doc(dir, slug:, title:, content:, tags: %w[e2e-test rag-pipeline])
   frontmatter = <<~FM
     ---
     type: reference
@@ -143,7 +144,7 @@ def write_test_doc(dir, slug:, title:, content:, tags: ["e2e-test", "rag-pipelin
     ---
   FM
   path = File.join(dir, "#{slug}.md")
-  File.write(path, frontmatter + "\n" + content)
+  File.write(path, "#{frontmatter}\n#{content}")
   path
 end
 
@@ -174,7 +175,7 @@ end
 # ─────────────────────────────────────────────────────────────────────────────
 # Test fixture: two documents with distinct topics for relevance verification
 # ─────────────────────────────────────────────────────────────────────────────
-AUTH_SLUG    = "#{TEST_SLUG}-auth"
+AUTH_SLUG    = "#{TEST_SLUG}-auth".freeze
 AUTH_TITLE   = "RAG E2E Test: JWT Authentication Flow"
 AUTH_CONTENT = <<~CONTENT
   ## JWT Authentication Flow
@@ -186,7 +187,7 @@ AUTH_CONTENT = <<~CONTENT
   in a Redis deny-list keyed by token jti claim.
 CONTENT
 
-CACHE_SLUG    = "#{TEST_SLUG}-cache"
+CACHE_SLUG    = "#{TEST_SLUG}-cache".freeze
 CACHE_TITLE   = "RAG E2E Test: Redis Cache Layer"
 CACHE_CONTENT = <<~CONTENT
   ## Redis Cache Layer
@@ -262,7 +263,7 @@ test "dry-run ingest reports correctly without writing" do
   assert out.include?("dry-run") || out.include?("would ingest"),
          "expected dry-run output, got: #{out}"
   count = pg_query("SELECT COUNT(*) FROM methodologies WHERE slug='#{AUTH_SLUG}'").to_i
-  assert count == 0, "dry-run must not write to DB (found #{count} records)"
+  assert count.zero?, "dry-run must not write to DB (found #{count} records)"
 end
 
 test "ingest auth doc → exit 0, record upserted" do
@@ -395,7 +396,7 @@ test "re-ingest with updated content → content updated in DB", slow: true do
     $tmpdir,
     slug: AUTH_SLUG,
     title: AUTH_TITLE,
-    content: AUTH_CONTENT + "\n\nUpdated: token rotation policy added."
+    content: "#{AUTH_CONTENT}\n\nUpdated: token rotation policy added."
   )
   _out, _err, status = ingest_file(updated_path)
   assert status.success?, "updated ingest failed"
@@ -457,8 +458,8 @@ end
 # Summary
 # ─────────────────────────────────────────────────────────────────────────────
 total = $results.values.sum
-puts "\n── #{$results[:fail] == 0 ? "\e[32mPASSED\e[0m" : "\e[31mFAILED\e[0m"}  " \
+puts "\n── #{$results[:fail].zero? ? "\e[32mPASSED\e[0m" : "\e[31mFAILED\e[0m"}  " \
      "#{$results[:pass]}/#{total} passed, #{$results[:skip]} skipped " \
      "─────────────────────────────────────────────────────"
 
-exit($results[:fail] > 0 ? 1 : 0)
+exit($results[:fail].positive? ? 1 : 0)

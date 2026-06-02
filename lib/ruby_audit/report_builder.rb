@@ -28,7 +28,7 @@ module RubyAudit
 
     def calculate_health_score
       score = 100.0
-      
+
       # 1. Security (Heavy: -20 per CVE, -15 per High, -5 per Medium)
       score -= vuln_count * 20
       score -= brakeman_by_confidence("High").length * 15
@@ -63,21 +63,21 @@ module RubyAudit
       io.puts "  Target:  #{@detector.root}"
       io.puts "  Date:    #{@ran_at}"
       io.puts ""
-      
+
       color = case @health_score
               when 90..100 then "\e[32m" # Green
               when 70..89  then "\e[33m" # Yellow
               else              "\e[31m" # Red
               end
-      
+
       io.puts "  \e[1mPlatform Health Score:\e[0m  #{color}#{@health_score}/100\e[0m"
       io.puts ""
-      
+
       io.puts "  \e[1mCORE METRICS\e[0m"
       score_rows.each do |label, count, status|
         printf(io, "  %-25s %4d  %s\n", label, count, status)
       end
-      
+
       io.puts ""
       io.puts "  \e[1mHOTSPOTS\e[0m"
       hotspots = @results.dig(:flog, :high_complexity) || []
@@ -86,7 +86,7 @@ module RubyAudit
       else
         io.puts "  ✅ No significant complexity hotspots."
       end
-      
+
       io.puts ""
       io.puts "\e[1m#{border}\e[0m"
       io.string
@@ -106,18 +106,18 @@ module RubyAudit
 
     def summary_hash
       {
-        generated_at:  @ran_at,
-        health_score:  @health_score,
-        target:        @detector.root.to_s,
-        versions:      @detector.summary,
+        generated_at: @ran_at,
+        health_score: @health_score,
+        target: @detector.root.to_s,
+        versions: @detector.summary,
         scores: {
-          security_vulns:    vuln_count,
-          brakeman_high:     brakeman_by_confidence("High").length,
-          brakeman_medium:   brakeman_by_confidence("Medium").length,
-          rubocop_offenses:  @results.dig(:rubocop, :summary, "offense_count").to_i,
-          reek_smells:       @results.dig(:reek, :output)&.length.to_i,
-          flog_hotspots:     @results.dig(:flog, :high_complexity)&.length.to_i,
-          flay_duplicates:   @results.dig(:flay, :output)&.length.to_i
+          security_vulns: vuln_count,
+          brakeman_high: brakeman_by_confidence("High").length,
+          brakeman_medium: brakeman_by_confidence("Medium").length,
+          rubocop_offenses: @results.dig(:rubocop, :summary, "offense_count").to_i,
+          reek_smells: @results.dig(:reek, :output)&.length.to_i,
+          flog_hotspots: @results.dig(:flog, :high_complexity)&.length.to_i,
+          flay_duplicates: @results.dig(:flay, :output)&.length.to_i
         },
         results: @results.transform_values { |r| r&.except(:raw) }
       }
@@ -130,7 +130,7 @@ module RubyAudit
       io.puts "**Target:** `#{@detector.root}`  "
       io.puts "**Generated:** #{@ran_at}  "
       io.puts "**Ruby:** #{@detector.ruby_version}  "
-      io.puts "**Rails:** #{@detector.rails_version || "n/a"}  "
+      io.puts "**Rails:** #{@detector.rails_version || 'n/a'}  "
       io.puts "**Framework:** #{@detector.framework}"
       io.puts ""
 
@@ -138,7 +138,7 @@ module RubyAudit
       io.puts ""
       io.puts "| Check | Count | Status |"
       io.puts "|-------|------:|--------|"
-      score_rows.each { |row| io.puts "| #{row.join(" | ")} |" }
+      score_rows.each { |row| io.puts "| #{row.join(' | ')} |" }
       io.puts ""
 
       section_bundler_audit(io)
@@ -161,7 +161,7 @@ module RubyAudit
       io.puts ""
       io.puts "## Versions"
       io.puts "- Ruby: #{@detector.ruby_version}"
-      io.puts "- Rails: #{@detector.rails_version || "not used"}"
+      io.puts "- Rails: #{@detector.rails_version || 'not used'}"
       io.puts "- Framework: #{@detector.framework}"
       io.puts ""
       io.puts "## Key Findings"
@@ -171,7 +171,7 @@ module RubyAudit
       vulns = @results.dig(:bundler_audit, :output) || []
       if vulns.any?
         io.puts "### Security Vulnerabilities (#{vulns.length})"
-        vulns.each { |v| io.puts "- **#{v["advisory"]["id"]}** in `#{v["gem"]["name"]}` #{v["gem"]["version"]}: #{v["advisory"]["title"]}" }
+        vulns.each { |v| io.puts "- **#{v['advisory']['id']}** in `#{v['gem']['name']}` #{v['gem']['version']}: #{v['advisory']['title']}" }
         io.puts ""
       end
 
@@ -180,7 +180,7 @@ module RubyAudit
       high_med = warnings.select { |w| %w[High Medium].include?(w["confidence"]) }
       if high_med.any?
         io.puts "### Brakeman High/Medium Warnings (#{high_med.length})"
-        high_med.each { |w| io.puts "- **#{w["warning_type"]}** in `#{w["file"]}:#{w["line"]}` [#{w["confidence"]}]: #{w["message"]}" }
+        high_med.each { |w| io.puts "- **#{w['warning_type']}** in `#{w['file']}:#{w['line']}` [#{w['confidence']}]: #{w['message']}" }
         io.puts ""
       end
 
@@ -202,7 +202,7 @@ module RubyAudit
       end
 
       io.puts "## Metrics"
-      io.puts "- RuboCop offenses: #{@results.dig(:rubocop, :summary, "offense_count").to_i}"
+      io.puts "- RuboCop offenses: #{@results.dig(:rubocop, :summary, 'offense_count').to_i}"
       io.puts "- Reek smells: #{smells.length}"
       io.puts "- Flog hotspots (≥30): #{hotspots.length}"
       io.puts "- Flay duplications: #{(@results.dig(:flay, :output) || []).length}"
@@ -227,7 +227,7 @@ module RubyAudit
         vulns.each do |v|
           gem  = v["gem"]
           adv  = v["advisory"]
-          io.puts "- **#{adv["id"]}** `#{gem["name"]} #{gem["version"]}` — #{adv["title"]} *(#{adv["cvss_v3"] || adv["cvss_v2"] || "no score"})*"
+          io.puts "- **#{adv['id']}** `#{gem['name']} #{gem['version']}` — #{adv['title']} *(#{adv['cvss_v3'] || adv['cvss_v2'] || 'no score'})*"
         end
       end
       io.puts ""
@@ -252,8 +252,8 @@ module RubyAudit
           group = brakeman_by_confidence(conf)
           next if group.empty?
 
-          io.puts "### #{SEVERITY_EMOJI[conf] || ""} #{conf} (#{group.length})"
-          group.each { |w| io.puts "- `#{w["file"]}:#{w["line"]}` **#{w["warning_type"]}** — #{w["message"]}" }
+          io.puts "### #{SEVERITY_EMOJI[conf] || ''} #{conf} (#{group.length})"
+          group.each { |w| io.puts "- `#{w['file']}:#{w['line']}` **#{w['warning_type']}** — #{w['message']}" }
           io.puts ""
         end
       end
@@ -266,7 +266,7 @@ module RubyAudit
       io.puts "## Style & Complexity (rubocop)"
       io.puts ""
       sum = r[:summary] || {}
-      io.puts "Files inspected: #{sum["inspected_file_count"].to_i} · Offenses: #{sum["offense_count"].to_i}"
+      io.puts "Files inspected: #{sum['inspected_file_count'].to_i} · Offenses: #{sum['offense_count'].to_i}"
       io.puts ""
       by_cop = (r[:output] || []).group_by { |o| o["cop_name"] }.sort_by { |_, v| -v.length }.first(15)
       by_cop.each do |cop, offenses|
@@ -287,7 +287,7 @@ module RubyAudit
       else
         by_type = smells.group_by { |s| s["smell_type"] }.sort_by { |_, v| -v.length }
         by_type.first(12).each do |type, instances|
-          io.puts "- **#{type}** (#{instances.length}): #{instances.first(2).map { |i| "`#{i["context"]}`" }.join(", ")}"
+          io.puts "- **#{type}** (#{instances.length}): #{instances.first(2).map { |i| "`#{i['context']}`" }.join(', ')}"
         end
       end
       io.puts ""
@@ -319,7 +319,7 @@ module RubyAudit
         io.puts "No significant duplication found."
       else
         matches.first(10).each do |m|
-          io.puts "- Mass #{m[:mass]}: #{m[:locations].map { |l| "`#{l[:file]}:#{l[:line]}`" }.join(", ")}"
+          io.puts "- Mass #{m[:mass]}: #{m[:locations].map { |l| "`#{l[:file]}:#{l[:line]}`" }.join(', ')}"
         end
       end
       io.puts ""
@@ -343,7 +343,7 @@ module RubyAudit
         ["RuboCop offenses", @results.dig(:rubocop, :summary, "offense_count").to_i, "ℹ️"],
         ["Reek smells",    @results.dig(:reek, :output)&.length.to_i,          "ℹ️"],
         ["Flog hotspots",  @results.dig(:flog, :high_complexity)&.length.to_i, "ℹ️"],
-        ["Flay duplicates", @results.dig(:flay, :output)&.length.to_i,          "ℹ️"]
+        ["Flay duplicates", @results.dig(:flay, :output)&.length.to_i, "ℹ️"]
       ]
     end
   end

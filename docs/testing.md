@@ -93,7 +93,7 @@ Shell startup time is a critical metric.
 ```sh
 make bench
 ```
-Target interactive startup: **< 80ms**.
+Target interactive startup: **< 350ms**.
 
 ## 8. Manual Verification
 

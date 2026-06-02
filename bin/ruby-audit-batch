@@ -9,6 +9,17 @@
 require "pathname"
 require "fileutils"
 
+def usage(status = 0)
+  puts "Usage: ruby-audit-batch"
+  puts "Clone the standard sample repos, run ruby-audit, and generate diffs."
+  puts "Options:"
+  puts "  -h, --help  Show this help"
+  exit status
+end
+
+usage if ["-h", "--help"].include?(ARGV.first)
+usage(1) unless ARGV.empty?
+
 REPOS = [
   "https://github.com/chatwoot/chatwoot",
   "https://github.com/thepracticaldev/dev.to",

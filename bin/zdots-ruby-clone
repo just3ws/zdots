@@ -10,13 +10,14 @@ require "pathname"
 require "fileutils"
 require "uri"
 
-def usage
+def usage(status = 1)
   puts "Usage: zdots-ruby-clone <repo_url>"
   puts "Example: zdots-ruby-clone https://github.com/rails/rails"
-  exit 1
+  exit status
 end
 
-usage if ARGV.empty? || ARGV.first == "--help"
+usage(0) if ["-h", "--help"].include?(ARGV.first)
+usage if ARGV.empty?
 
 url_str = ARGV.first
 begin

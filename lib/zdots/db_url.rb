@@ -13,6 +13,7 @@ module Zdots
   def self.database_url
     url = ENV.fetch("ZDOTS_DATABASE_URL", "postgresql://zdots_rw@/my")
     return url if url =~ %r{://[^/@]*:[^/@]*@} # already has user:pass@
+
     pw = keychain_password("ZDOTS_RW_PASSWORD")
     return url if pw.nil? || pw.empty?
 
