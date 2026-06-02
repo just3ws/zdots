@@ -9,6 +9,26 @@
 
 set -eo pipefail
 
+usage() {
+  cat <<EOF
+Usage: zdots-my-sync [OPTIONS]
+
+Initializes or updates the ~/my directory structure for knowledge ingestion.
+
+Options:
+  -h, --help    Show this help
+
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    *) printf 'zdots-my-sync: unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+  esac
+  shift
+done
+
 MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
 DIRS=(
   "backlog"
