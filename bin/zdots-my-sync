@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# ---
+# id: zdots-my-sync
+# title: "Zdots 'my' Directory Sync"
+# purpose: Initialize or update the ~/my directory structure for knowledge ingestion.
+# rationale: Keeps the local knowledge vault structure in alignment across machines.
+# ---
+# bin/zdots-my-sync — Ensures required ~/my structure exists.
+
+set -eo pipefail
+
+MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
+DIRS=(
+  "backlog"
+  "lessons"
+  "methodologies"
+  "standards"
+  "transcripts"
+  "adrs"
+)
+
+echo "==> Syncing ~/my structure in $MY_ROOT..."
+
+for dir in "${DIRS[@]}"; do
+  target="$MY_ROOT/$dir"
+  if [ ! -d "$target" ]; then
+    echo "  [+] Creating $target"
+    mkdir -p "$target"
+  fi
+done
+
+echo "==> ~/my sync complete."
+echo "    Next steps:"
+echo "    1. Populate $MY_ROOT/standards with platform docs."
+echo "    2. Run 'zdots-ctx ingest $MY_ROOT/standards/' to index documentation."
+echo "    3. Drop new transcripts in $MY_ROOT/transcripts/ and run ingest."
