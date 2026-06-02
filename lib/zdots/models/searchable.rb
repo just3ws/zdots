@@ -20,7 +20,7 @@ module Zdots
           if semantic
             order(Sequel.lit("embedding <=> ?", term))
           else
-            all.select { |r| text_match?(r, term) }
+            order(Sequel.desc(:created_at)).all.select { |r| text_match?(r, term) }
           end
         end
 

@@ -58,6 +58,7 @@ _known_gap() {
     zdots-ruby-bump
     zdots-ruby-clone
     zdots-update-local
+    zdots-my-sync
     zmetrics
     zmorning
     zsvc
@@ -168,7 +169,7 @@ _known_gap() {
     diff-review docker-reclaim gemini-mcp-register history-analyze history-import
     llama-caps llama-ctl local-ci nginx-ctl nginx-repair otel-collector ruby-audit ruby-audit-batch ruby-audit-diff pi-ctx-brief pi-ctx-hydrate
     pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-doctor
-    zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local
+    zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-my-sync
     zmetrics zmorning zsvc ztask
   )
 
