@@ -22,9 +22,10 @@ echo "==> Preprocessing: $FILE"
 
 case "$FILE" in
   *.pdf)
-    # Use marker to convert PDF to Markdown
+    # Use marker via virtual environment to convert PDF to Markdown
+    source ~/marker-env/bin/activate
     marker_output="${OUT_DIR}/$(basename "${FILE%.pdf}")"
-    marker "$FILE" "$marker_output" --batch_multiplier 2
+    marker "$FILE" --output_format markdown --output_dir "$marker_output"
     echo "  [+] PDF processed to $marker_output"
     ;;
   *.docx)
