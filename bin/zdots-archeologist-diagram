@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+# ---
+# id: zdots-archeologist-diagram
+# title: "Zdots Domain Diagram Generator"
+# purpose: Converts archeologist JSON output into Mermaid ER diagrams.
+# rationale: Visualizes domain model structure and relationships for modernization planning.
+# ---
+# Usage: bin/zdots-archeologist-diagram <model.json>
+
+require 'json'
+
+file_path = ARGV[0]
+if file_path.nil? || !File.exist?(file_path)
+  puts "Usage: bin/zdots-archeologist-diagram <model.json>"
+  exit 1
+end
+
+data = JSON.parse(File.read(file_path))
+
+puts "erDiagram"
+puts "  #{data['model'].split('::').last} {"
+
+data['columns'].each do |col|
+  puts "    #{col['type']} #{col['name']}"
+end
+
+puts "  }"
+
+data['associations'].each do |assoc|
+  # Simplistic mapping of Rails associations to Mermaid notation
+  relation = case assoc['macro']
+             when 'has_many' then "||--o{"
+             when 'belongs_to' then "}o--||"
+             when 'has_one' then "||--||"
+             else "--"
+             end
+  
+  puts "  #{data['model'].split('::').last} #{relation} #{assoc['class_name']} : \"#{assoc['name']}\""
+end
