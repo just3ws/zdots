@@ -5,10 +5,10 @@ title: >-
   ruby-audit-batch ruby-audit-diff zdots-ruby-clone zmetrics; some --help paths
   execute work; agent-guide reports stale service down state while platform is
   healthy
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-06-02 12:00'
-updated_date: '2026-06-02 12:03'
+updated_date: '2026-06-02 12:17'
 labels:
   - agent-reported
   - bug
