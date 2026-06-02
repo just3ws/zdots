@@ -18,8 +18,21 @@ setup() {
 # Helpers
 # ---------------------------------------------------------------------------
 
+_psql() {
+  local role="$1"
+  shift
+  local password
+  password="$(zdots_keychain_get "${role^^}_PASSWORD")"
+  
+  if [[ -z "$password" ]]; then
+    return 1
+  fi
+  
+  PGPASSWORD="$password" psql -q --no-psqlrc -U "$role" my "$@"
+}
+
 _pg_up() {
-  psql -q -U zdots_ro my -c "SELECT 1" >/dev/null 2>&1
+  _psql zdots_ro -c "SELECT 1" >/dev/null 2>&1
 }
 
 # ---------------------------------------------------------------------------
@@ -28,21 +41,21 @@ _pg_up() {
 
 @test "database: zdots_ro can connect to 'my'" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c "SELECT current_database()"
+  run _psql zdots_ro -c "SELECT current_database()"
   [ "$status" -eq 0 ]
   [[ "$output" == *"my"* ]]
 }
 
 @test "database: zdots_rw can connect to 'my'" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_rw my -c "SELECT current_database()"
+  run _psql zdots_rw -c "SELECT current_database()"
   [ "$status" -eq 0 ]
   [[ "$output" == *"my"* ]]
 }
 
 @test "database: 'zdots' database does not exist" {
   # The old zdots database was dropped; it must stay gone.
-  run psql -q -U zdots_ro -l
+  run _psql zdots_ro -l
   if [ "$status" -ne 0 ]; then skip "PostgreSQL not available"; fi
   [ "$status" -eq 0 ]
   [[ "$output" != *" zdots "* ]]
@@ -54,31 +67,31 @@ _pg_up() {
 
 @test "database: 'jobs' table exists" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c "\d jobs"
+  run _psql zdots_ro -c "\d jobs"
   [ "$status" -eq 0 ]
 }
 
 @test "database: 'lessons' table exists" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c "\d lessons"
+  run _psql zdots_ro -c "\d lessons"
   [ "$status" -eq 0 ]
 }
 
 @test "database: 'methodologies' table exists" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c "\d methodologies"
+  run _psql zdots_ro -c "\d methodologies"
   [ "$status" -eq 0 ]
 }
 
 @test "database: 'session_residue' table exists" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c "\d session_residue"
+  run _psql zdots_ro -c "\d session_residue"
   [ "$status" -eq 0 ]
 }
 
 @test "database: migration tracking table exists" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c "\d zdots_schema_migrations"
+  run _psql zdots_ro -c "\d zdots_schema_migrations"
   [ "$status" -eq 0 ]
 }
 
@@ -88,7 +101,7 @@ _pg_up() {
 
 @test "database: zdots_ro cannot INSERT into lessons" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c \
+  run _psql zdots_ro -c \
     "INSERT INTO lessons (context) VALUES ('test-permission-check')"
   [ "$status" -ne 0 ]
   [[ "$output" == *"permission denied"* ]]
@@ -96,14 +109,14 @@ _pg_up() {
 
 @test "database: zdots_ro cannot DELETE from lessons" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c "DELETE FROM lessons WHERE 1=0"
+  run _psql zdots_ro -c "DELETE FROM lessons WHERE 1=0"
   [ "$status" -ne 0 ]
   [[ "$output" == *"permission denied"* ]]
 }
 
 @test "database: zdots_ro cannot INSERT into jobs" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c \
+  run _psql zdots_ro -c \
     "INSERT INTO jobs (type, payload) VALUES ('test', '{}'::jsonb)"
   [ "$status" -ne 0 ]
   [[ "$output" == *"permission denied"* ]]
@@ -111,7 +124,7 @@ _pg_up() {
 
 @test "database: zdots_ro cannot DROP tables" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c "DROP TABLE lessons"
+  run _psql zdots_ro -c "DROP TABLE lessons"
   [ "$status" -ne 0 ]
   [[ "$output" == *"permission denied"* || "$output" == *"must be owner"* ]]
 }
@@ -123,14 +136,14 @@ _pg_up() {
 @test "database: claim_next_job function exists and is callable by zdots_rw" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
   # Call with worker_id and job_type — returns NULL when queue is empty, which is fine
-  run psql -q -U zdots_rw my -c \
+  run _psql zdots_rw -c \
     "SELECT claim_next_job('test-worker', 'nonexistent_type')"
   [ "$status" -eq 0 ]
 }
 
 @test "database: zdots_ro cannot call claim_next_job" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run psql -q -U zdots_ro my -c \
+  run _psql zdots_ro -c \
     "SELECT claim_next_job('test-worker', 'nonexistent_type')"
   [ "$status" -ne 0 ]
   [[ "$output" == *"permission denied"* ]]
