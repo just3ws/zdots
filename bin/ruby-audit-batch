@@ -1,0 +1,47 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# ---
+# id: ruby-audit-batch
+# title: "Ruby Audit Batch Processor"
+# purpose: Clone multiple repos and run a diffed audit on each.
+# ---
+
+require "pathname"
+require "fileutils"
+
+REPOS = [
+  "https://github.com/chatwoot/chatwoot",
+  "https://github.com/thepracticaldev/dev.to",
+  "https://github.com/mastodon/mastodon"
+].freeze
+
+ZDOTDIR = Pathname.new(__dir__).parent.freeze
+CLONE_BIN = ZDOTDIR.join("bin", "zdots-ruby-clone")
+AUDIT_BIN = ZDOTDIR.join("bin", "ruby-audit")
+DIFF_BIN  = ZDOTDIR.join("bin", "ruby-audit-diff")
+
+def log(msg)
+  puts "\n🚀 [batch] #{msg}\n"
+end
+
+REPOS.each do |url|
+  log "Processing: #{url}"
+  
+  # 1. Clone
+  path = `#{CLONE_BIN} #{url}`.split("\n").last
+  if path.nil? || !Dir.exist?(path)
+    puts "❌ Clone failed for #{url}"
+    next
+  end
+  slug = File.basename(path).gsub(".", "-")
+  
+  # 2. Audit (Fast mode for demo)
+  log "Auditing #{slug}..."
+  system("#{AUDIT_BIN} #{path} --skip flog --skip flay --no-slices --skip reek --skip rubocop --skip brakeman")
+  
+  # 3. Diff
+  log "Generating diff for #{slug}..."
+  system("#{DIFF_BIN} #{slug}")
+end
+
+log "Batch complete!"
