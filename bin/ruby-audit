@@ -318,19 +318,7 @@ end
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 hdr "Summary"
-
-summary = JSON.parse(File.read(out_dir.join("summary.json")))
-scores  = summary["scores"]
-
-fmt = "  %-28s %s"
-puts format(fmt, "Dependency CVEs:",        scores["security_vulns"].zero?    ? "✅  0" : "🔴  #{scores["security_vulns"]}")
-puts format(fmt, "Brakeman High:",          scores["brakeman_high"].zero?     ? "✅  0" : "🔴  #{scores["brakeman_high"]}")
-puts format(fmt, "Brakeman Medium:",        scores["brakeman_medium"].zero?   ? "✅  0" : "🟡  #{scores["brakeman_medium"]}")
-puts format(fmt, "RuboCop offenses:",       "ℹ️   #{scores["rubocop_offenses"]}")
-puts format(fmt, "Reek smells:",            "ℹ️   #{scores["reek_smells"]}")
-puts format(fmt, "Flog hotspots (≥30):",    "ℹ️   #{scores["flog_hotspots"]}")
-puts format(fmt, "Flay duplicates:",        "ℹ️   #{scores["flay_duplicates"]}")
-puts ""
+puts File.read(out_dir.join("dashboard.txt"))
 
 # ── Interrogate ────────────────────────────────────────────────────────────────
 
