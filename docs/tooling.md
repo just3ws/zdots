@@ -37,6 +37,11 @@ The zdots-specific stack. Every agent session should orient here first.
 | Issue filing | `zdots-issue "description"` | File a backlog task with trace ID attached |
 | AI router | `zdots-ask "prompt"` | Domain-aware prompt routing (shell/ruby/phi/default) |
 | AI smoke test | `zdots-quiz --quick` | 3-case probe of the local model |
+| Ruby audit suite | `ruby-audit <dir>` | Modern metric_fu: security, quality, complexity metrics + health score |
+| Ruby metrics history | `zmetrics <slug>` | Visualize health score and metric trends over time |
+| Ruby audit comparison | `ruby-audit-diff <slug>` | Compare the latest two audit runs for a project |
+| Ruby repo cloner | `zdots-ruby-clone <url>` | Organize repos into `~/github.com/org/repo` structure |
+| Ruby batch audit | `ruby-audit-batch` | Batch clone and audit a predefined set of repositories |
 | Startup benchmark | `bench` | Measure cold/warm shell startup latency; guards 80ms budget |
 | Morning ritual | `zmorning` | Daily context brief + optional Pi orientation session |
 | Task picker | `zdash` | fzf task picker wired to Pi↔Aider↔ztask cycle |
