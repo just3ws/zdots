@@ -13,16 +13,84 @@ module RubyAudit
       @results  = results
       @out_dir  = out_dir
       @ran_at   = Time.now.iso8601
+      @health_score = calculate_health_score
     end
 
     def write_all
       write_json
       write_markdown
       write_context
+      write_dashboard
       @out_dir
     end
 
     private
+
+    def calculate_health_score
+      score = 100.0
+      
+      # 1. Security (Heavy: -20 per CVE, -15 per High, -5 per Medium)
+      score -= vuln_count * 20
+      score -= brakeman_by_confidence("High").length * 15
+      score -= brakeman_by_confidence("Medium").length * 5
+
+      # 2. Complexity (Moderate: -2 per hotspot >= 30, -5 if any > 100)
+      hotspots = @results.dig(:flog, :high_complexity) || []
+      score -= hotspots.length * 2
+      score -= 5 if hotspots.any? { |h| h[:score] > 100 }
+
+      # 3. Duplication (Moderate: -1 per mass >= 50)
+      duplicates = @results.dig(:flay, :output) || []
+      score -= duplicates.count { |d| d[:mass] >= 50 }
+
+      # 4. Smells & Style (Light: -0.5 per smell, -0.1 per cop)
+      score -= (@results.dig(:reek, :output)&.length.to_i * 0.5)
+      score -= (@results.dig(:rubocop, :summary, "offense_count").to_i * 0.1)
+
+      [score, 0.0].max.round(1)
+    end
+
+    def write_dashboard
+      File.write(File.join(@out_dir, "dashboard.txt"), dashboard)
+    end
+
+    def dashboard
+      io = StringIO.new
+      border = "━" * 60
+      io.puts "\e[1m#{border}\e[0m"
+      io.puts "\e[1m  RUBY METRICS DASHBOARD\e[0m"
+      io.puts "\e[1m#{border}\e[0m"
+      io.puts "  Target:  #{@detector.root}"
+      io.puts "  Date:    #{@ran_at}"
+      io.puts ""
+      
+      color = case @health_score
+              when 90..100 then "\e[32m" # Green
+              when 70..89  then "\e[33m" # Yellow
+              else              "\e[31m" # Red
+              end
+      
+      io.puts "  \e[1mPlatform Health Score:\e[0m  #{color}#{@health_score}/100\e[0m"
+      io.puts ""
+      
+      io.puts "  \e[1mCORE METRICS\e[0m"
+      score_rows.each do |label, count, status|
+        printf(io, "  %-25s %4d  %s\n", label, count, status)
+      end
+      
+      io.puts ""
+      io.puts "  \e[1mHOTSPOTS\e[0m"
+      hotspots = @results.dig(:flog, :high_complexity) || []
+      if hotspots.any?
+        hotspots.first(3).each { |h| printf(io, "  ⚠️  %-35s %5.1f\n", h[:method][0..34], h[:score]) }
+      else
+        io.puts "  ✅ No significant complexity hotspots."
+      end
+      
+      io.puts ""
+      io.puts "\e[1m#{border}\e[0m"
+      io.string
+    end
 
     def write_json
       File.write(File.join(@out_dir, "summary.json"), JSON.pretty_generate(summary_hash))
@@ -39,6 +107,7 @@ module RubyAudit
     def summary_hash
       {
         generated_at:  @ran_at,
+        health_score:  @health_score,
         target:        @detector.root.to_s,
         versions:      @detector.summary,
         scores: {
