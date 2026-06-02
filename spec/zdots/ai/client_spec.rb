@@ -7,8 +7,8 @@ require "ruby_llm"
 RSpec.describe Zdots::AI do
   around do |example|
     saved = {
-      "ZDOTS_AI_MODE"           => ENV.fetch("ZDOTS_AI_MODE", nil),
-      "ZDOTS_AI_ENDPOINT"       => ENV.fetch("ZDOTS_AI_ENDPOINT", nil),
+      "ZDOTS_AI_MODE" => ENV.fetch("ZDOTS_AI_MODE", nil),
+      "ZDOTS_AI_ENDPOINT" => ENV.fetch("ZDOTS_AI_ENDPOINT", nil),
       "ZDOTS_AI_EMBED_ENDPOINT" => ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT", nil)
     }
     described_class.reset!
@@ -188,7 +188,7 @@ RSpec.describe Zdots::AI do
 
   describe "private .build_client" do
     let(:config_dbl) do
-      double("RubyLLMConfig").tap do |c| # rubocop:disable RSpec/VerifiedDoubles
+      double("RubyLLMConfig").tap do |c|
         allow(c).to receive(:openai_api_key=)
         allow(c).to receive(:openai_api_base=)
         allow(c).to receive(:openai_use_system_role=)
@@ -318,8 +318,8 @@ RSpec.describe Zdots::AI::EmbedConnection do
     context "when the response contains an empty embedding array" do
       let(:response) do
         instance_double(Net::HTTPResponse,
-          code: "200",
-          body: JSON.generate({ data: [{ embedding: [] }] }))
+                        code: "200",
+                        body: JSON.generate({ data: [{ embedding: [] }] }))
       end
 
       it "raises Empty embedding" do
@@ -331,8 +331,8 @@ RSpec.describe Zdots::AI::EmbedConnection do
     context "when the embedding key is absent from the response" do
       let(:response) do
         instance_double(Net::HTTPResponse,
-          code: "200",
-          body: JSON.generate({ data: [{}] }))
+                        code: "200",
+                        body: JSON.generate({ data: [{}] }))
       end
 
       it "raises Empty embedding" do

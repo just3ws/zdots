@@ -45,8 +45,7 @@ if [[ -o interactive && -o zle ]]; then
   bindkey '^Y' yank
 fi
 
-# iTerm2 shell integration is loaded conditionally in conf.d/70-integrations.zsh.
-
-
-test -e "${ZDOTDIR}/.iterm2_shell_integration.zsh" && source "${ZDOTDIR}/.iterm2_shell_integration.zsh" || true
-
+# iTerm2 shell integration is only useful in a real ZLE session.
+if [[ -o interactive && -o zle && -r "${ZDOTDIR}/.iterm2_shell_integration.zsh" ]]; then
+  source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
+fi

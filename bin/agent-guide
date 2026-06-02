@@ -43,32 +43,53 @@ AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 OTEL_ENDPOINT="http://127.0.0.1:4318"
 GRAFANA_URL="http://127.0.0.1:3000"
 LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
-LOG_ANALYZER="${ZDOTDIR:-$HOME/.config/zsh}/bin/zdots-log-analyze"
+AGENT_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+LOG_ANALYZER="${AGENT_ZDOTDIR}/bin/zdots-log-analyze"
 
 AI_UP=false
 AI_MODEL_ID="unknown"
-if curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; then
-  AI_UP=true
-  AI_MODEL_ID=$(curl -sf -m 2 "${AI_ENDPOINT}/v1/models" 2>/dev/null \
-    | jq -r '.data[0].id // "local"' 2>/dev/null || printf 'local')
-fi
-
 OTEL_UP=false
-if launchctl list com.zdots.otel-collector 2>/dev/null | grep -q '"PID"'; then
-  OTEL_UP=true
-fi
-
 GRAFANA_UP=false
-if curl -sf -m 2 "${GRAFANA_URL}/api/health" >/dev/null 2>&1; then
-  GRAFANA_UP=true
+COLIMA_UP=false
+
+CONTROL_STATUS_JSON=""
+if [ -x "${AGENT_ZDOTDIR}/bin/zdots-ctl" ]; then
+  CONTROL_STATUS_JSON="$("${AGENT_ZDOTDIR}/bin/zdots-ctl" status --json 2>/dev/null || true)"
 fi
 
-# Colima: prefer CLI probe; fall back to Grafana reachability (Grafana runs inside Colima).
-COLIMA_UP=false
-if colima status 2>&1 | grep -q "is running"; then
-  COLIMA_UP=true
-elif $GRAFANA_UP; then
-  COLIMA_UP=true
+if [ -n "$CONTROL_STATUS_JSON" ] && printf '%s\n' "$CONTROL_STATUS_JSON" | jq -e . >/dev/null 2>&1; then
+  AI_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '(.ai_server // false) or (.ai_socket_listening // false)')
+  AI_MODEL_ID=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.ai_model // empty')
+  if [ -z "$AI_MODEL_ID" ] || [ "$AI_MODEL_ID" = "unknown" ]; then
+    AI_MODEL_ID="${ZDOTS_AI_MODEL:-local}"
+  fi
+  AI_ENDPOINT=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.ai_endpoint // "'"$AI_ENDPOINT"'"')
+  OTEL_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.otel_collector // false')
+  OTEL_ENDPOINT=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.otlp_endpoint // "'"$OTEL_ENDPOINT"'"')
+  GRAFANA_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.lgtm // false')
+  GRAFANA_URL=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.grafana_url // "'"$GRAFANA_URL"'"')
+  COLIMA_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '(.colima // false) or (.lgtm // false)')
+else
+  if curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; then
+    AI_UP=true
+    AI_MODEL_ID=$(curl -sf -m 2 "${AI_ENDPOINT}/v1/models" 2>/dev/null \
+      | jq -r '.data[0].id // "local"' 2>/dev/null || printf 'local')
+  fi
+
+  if launchctl list com.zdots.otel-collector 2>/dev/null | grep -q '"PID"'; then
+    OTEL_UP=true
+  fi
+
+  if curl -sf -m 2 "${GRAFANA_URL}/api/health" >/dev/null 2>&1; then
+    GRAFANA_UP=true
+  fi
+
+  # Colima: prefer CLI probe; fall back to Grafana reachability.
+  if colima status 2>&1 | grep -q "is running"; then
+    COLIMA_UP=true
+  elif $GRAFANA_UP; then
+    COLIMA_UP=true
+  fi
 fi
 
 WHISPER_UP=false

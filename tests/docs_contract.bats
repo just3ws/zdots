@@ -43,6 +43,8 @@ _known_gap() {
     nginx-repair
     otel-collector
     ruby-audit
+    ruby-audit-batch
+    ruby-audit-diff
     whisper-ctl
     zdash
     zdots-ask
@@ -54,7 +56,9 @@ _known_gap() {
     zdots-status
     zdots-ctl
     zdots-ruby-bump
+    zdots-ruby-clone
     zdots-update-local
+    zmetrics
     zmorning
     zsvc
     ztask
@@ -162,10 +166,10 @@ _known_gap() {
   local -a tested=(
     agent-guide ai-query alias-suggest bootstrap capabilities commit-msg
     diff-review docker-reclaim gemini-mcp-register history-analyze history-import
-    llama-caps llama-ctl local-ci nginx-ctl nginx-repair otel-collector ruby-audit pi-ctx-brief pi-ctx-hydrate
+    llama-caps llama-ctl local-ci nginx-ctl nginx-repair otel-collector ruby-audit ruby-audit-batch ruby-audit-diff pi-ctx-brief pi-ctx-hydrate
     pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-doctor
-    zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-update-local
-    zmorning zsvc ztask
+    zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local
+    zmetrics zmorning zsvc ztask
   )
 
   local missing=()
