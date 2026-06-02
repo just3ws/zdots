@@ -15,7 +15,7 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
       "000-00-0000",
       "999-99-9999",
       "123-45-6789",
-      "Patient SSN is 123-45-6789 per record.",
+      "Patient SSN is 123-45-6789 per record."
     ].each do |input|
       it "redacts: #{input.inspect[0..60]}" do
         result = scrub.call(input)
@@ -38,11 +38,11 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
 
   describe "SSN near-misses that must not be redacted" do
     {
-      "123-4567-89"  => "wrong segmentation",
+      "123-4567-89" => "wrong segmentation",
       "555-867-5309" => "phone number NNN-NNN-NNNN",
-      "123456789"    => "no dashes",
-      "123.45.6789"  => "dots not dashes",
-      "123-45-678"   => "suffix too short",
+      "123456789" => "no dashes",
+      "123.45.6789" => "dots not dashes",
+      "123-45-678" => "suffix too short"
     }.each do |input, label|
       it "does not redact #{label}: #{input.inspect}" do
         expect(scrub.call(input)).to eq(input)
@@ -60,7 +60,7 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
       "MRN:12345",
       "MRN 99887766",
       "MRN:  99887766",
-      "chart lookup MRN: 12345 admitted",
+      "chart lookup MRN: 12345 admitted"
     ].each do |input|
       it "redacts: #{input.inspect}" do
         result = scrub.call(input)
@@ -75,9 +75,9 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
 
   describe "MRN near-misses that must not be redacted" do
     {
-      "mrn: 12345"  => "lowercase",
+      "mrn: 12345" => "lowercase",
       "MRNX: 12345" => "wrong prefix",
-      "MRN: abc"    => "letters not digits",
+      "MRN: abc" => "letters not digits"
     }.each do |input, label|
       it "does not redact #{label}: #{input.inspect}" do
         expect(scrub.call(input)).to eq(input)
@@ -95,7 +95,7 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
       "DOB: 01-15-1990",
       "DOB: 12/31/99",
       "Date of Birth: 3/7/85",
-      "date of Birth: 3/7/85",
+      "date of Birth: 3/7/85"
     ].each do |input|
       it "redacts: #{input.inspect}" do
         result = scrub.call(input)
@@ -110,8 +110,8 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
 
   describe "DOB near-misses that must not be redacted" do
     {
-      "DOB: unknown"    => "no date following",
-      "dob: 01/01/2000" => "all lowercase",
+      "DOB: unknown" => "no date following",
+      "dob: 01/01/2000" => "all lowercase"
     }.each do |input, label|
       it "does not redact #{label}: #{input.inspect}" do
         expect(scrub.call(input)).to eq(input)
@@ -127,7 +127,7 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
     [
       "postgresql://user:pass@host/db",
       "mysql://user:pass@host/db",
-      "redis://admin:s3cret@127.0.0.1:6379/0",
+      "redis://admin:s3cret@127.0.0.1:6379/0"
     ].each do |input|
       it "redacts credentials in: #{input.inspect}" do
         result = scrub.call(input)
@@ -148,13 +148,13 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
 
   describe "inline credential variants that must be redacted" do
     {
-      "api_key=sk-secret123"    => "sk-secret123",
+      "api_key=sk-secret123" => "sk-secret123",
       "access_token=ghp_abc123" => "ghp_abc123",
       "access-token=ghp_abc123" => "ghp_abc123",
-      "token=abc123secret"      => "abc123secret",
-      "password=hunter2"        => "hunter2",
-      "passwd=hunter2"          => "hunter2",
-      "secret=topsecret"        => "topsecret",
+      "token=abc123secret" => "abc123secret",
+      "password=hunter2" => "hunter2",
+      "passwd=hunter2" => "hunter2",
+      "secret=topsecret" => "topsecret"
     }.each do |input, secret|
       it "redacts inline cred: #{input.inspect}" do
         result = scrub.call(input)
@@ -185,7 +185,7 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
       ["myapp --secret topsecretval", "topsecretval"],
       ["curl --auth bearer:tok", "bearer:tok"],
       ["curl --authorization Bearer:abc123", "abc123"],
-      ["mysql -p mypassword mydb", "mypassword"],
+      ["mysql -p mypassword mydb", "mypassword"]
     ].each do |input, secret|
       it "redacts: #{input.inspect}" do
         result = scrub.call(input)

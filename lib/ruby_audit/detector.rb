@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "pathname"
-
 module RubyAudit
   # Detects Ruby/Rails/framework versions from a target directory.
   # Reads Gemfile.lock (authoritative), falls back to .ruby-version and Gemfile.
@@ -24,6 +22,7 @@ module RubyAudit
       return :rails  if rails_version
       return :sinatra if gem_version("sinatra")
       return :hanami  if gem_version("hanami")
+
       :ruby
     end
 
@@ -33,13 +32,18 @@ module RubyAudit
       return :mysql      if gem_version("mysql2") || gem_version("mysql")
       return :sqlite     if gem_version("sqlite3")
       return :mongodb    if gem_version("mongoid") || gem_version("mongo")
+
       nil
     end
 
     def infrastructure
       infra = []
       infra << :docker if (root / "Dockerfile").exist? || (root / "docker-compose.yml").exist? || (root / "docker-compose.yaml").exist?
-      infra << :k8s    if (root / "k8s").exist? || (root / "kubernetes").exist? || Dir.glob((root / "**/*.yaml").to_s).any? { |f| File.read(f).include?("apiVersion: v1") rescue false }
+      infra << :k8s    if (root / "k8s").exist? || (root / "kubernetes").exist? || Dir.glob((root / "**/*.yaml").to_s).any? do |f|
+        File.read(f).include?("apiVersion: v1")
+      rescue StandardError
+        false
+      end
       infra
     end
 
@@ -59,14 +63,14 @@ module RubyAudit
 
     def summary
       {
-        ruby:       ruby_version,
-        rails:      rails_version,
-        framework:  framework.to_s,
-        database:   database.to_s,
+        ruby: ruby_version,
+        rails: rails_version,
+        framework: framework.to_s,
+        database: database.to_s,
         infrastructure: infrastructure.join(", "),
-        gemfile:    (root / "Gemfile").exist?,
+        gemfile: (root / "Gemfile").exist?,
         gemfile_lock: (root / "Gemfile.lock").exist?,
-        schema:     (root / "db" / "schema.rb").exist? || (root / "db" / "structure.sql").exist?
+        schema: (root / "db" / "schema.rb").exist? || (root / "db" / "structure.sql").exist?
       }
     end
 
@@ -82,7 +86,7 @@ module RubyAudit
       return nil unless f.exist?
 
       f.each_line do |line|
-        return Regexp.last_match(1).strip if line =~ /\ARUBY VERSION\z/ || line =~ /\s+ruby (\S+)/
+        return Regexp.last_match(1).strip if line == "RUBY VERSION" || line =~ /\s+ruby (\S+)/
       end
       nil
     end
@@ -100,12 +104,12 @@ module RubyAudit
     def lockfile_gems
       @lockfile_gems ||= begin
         f = root / "Gemfile.lock"
-        return nil unless f.exist?
+        next nil unless f.exist?
 
         gems = {}
         in_specs = false
         f.each_line do |line|
-          in_specs = true  if line.strip == "GEM" || line.strip == "specs:"
+          in_specs = true  if ["GEM", "specs:"].include?(line.strip)
           in_specs = false if in_specs && line =~ /\A[A-Z]/ && line.strip != "specs:"
           next unless in_specs
 

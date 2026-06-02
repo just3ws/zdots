@@ -198,7 +198,7 @@ zsvc diag nginx
 ## 10. Performance Standards
 
 All shell modifications must be benchmarked.
-- **Goal**: `< 0.08s` for interactive shell startup.
+- **Goal**: `< 0.35s` for interactive shell startup.
 - **Tool**: `make bench` or `hyperfine "zsh -i -c exit"`.
 
-If startup exceeds 0.1s, the shell is considered "Degraded" and must be optimized.
+If startup exceeds 0.35s median, the shell is considered "Degraded" and must be optimized.

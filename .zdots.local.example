@@ -60,10 +60,7 @@ ZDOTS_AI_MODE=local
 #   security add-generic-password \
 #     -a "$USER" -s "ZDOTS_DB_ENCRYPTION_KEY" \
 #     -w "$(openssl rand -hex 32)" -T "" ~/Library/Keychains/login.keychain-db
-# Then retrieve it here at runtime:
-export ZDOTS_DB_ENCRYPTION_KEY=$(
-  security find-generic-password -a "$USER" -s "ZDOTS_DB_ENCRYPTION_KEY" -w 2>/dev/null
-)
+# env.sh loads ZDOTS_DB_ENCRYPTION_KEY from Keychain at runtime.
 
 # Session capture — disabled by default. Requires:
 #   1. ZDOTS_DB_ENCRYPTION_KEY set above (Keychain-backed)
