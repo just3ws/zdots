@@ -252,10 +252,11 @@ having even though it can be hopped. Their passwords are **ephemeral keys** held
 in macOS Keychain (service `zdots`, accounts `ZDOTS_RO_PASSWORD` /
 `ZDOTS_RW_PASSWORD`) and rotated on demand:
 
-```bash
-zdots-ctx rotate-creds            # rotate both (default --all)
-zdots-ctx rotate-creds zdots_rw   # rotate one role
-```
+| Command | Purpose |
+| :--- | :--- |
+| `zdots-ctx rotate-creds --all` | Rotates both `zdots_ro` and `zdots_rw` |
+| `zdots-ctx rotate-creds zdots_rw` | Rotates `zdots_rw` only |
+| `zdots-ctx rotate-creds zdots_ro` | Rotates `zdots_ro` only |
 
 Each rotation generates a fresh URL-safe key (`openssl rand -hex 24`), applies it
 via the superuser migration URL (`ALTER ROLE … PASSWORD`, password passed over
