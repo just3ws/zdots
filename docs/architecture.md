@@ -270,37 +270,70 @@ This creates the following directory hierarchy:
 └── adrs/            # Architecture Decision Records
 ```
 
-#### Document Ingestion Pipeline
+#### Domain Archeology & Asset Inventory
 
-To ensure the Brain receives high-quality, normalized data, use the
-`zdots-ingest-prepare` utility before ingestion. This tool standardizes
-heterogeneous file formats into clean Markdown.
-
-| Source Format | Preprocessing Tool | Strategy |
-| :--- | :--- | :--- |
-| **PDF** | `marker` | Extracts tables/headings into Markdown. |
-| **Docx** | `pandoc` | Converts to clean, unwrapped Markdown. |
-| **VTT/Transcript** | `sed` + `pi` | Strips timestamps, cleans run-ons, adds metadata. |
+To modernize the platform, we must first map the current domain complexity. We use
+the `bin/zdots-archeologist` utility to extract machine-readable structural data
+from ActiveRecord models, which is then refined into documentation and ingested
+into the Brain.
 
 **Workflow:**
 
-1.  **Prepare**: Standardize the document format:
+1.  **Extract**: Generate the JSON schema for a model from within the target repo:
     ```bash
-    zdots-ingest-prepare <file>
+    bin/zdots-archeologist <ModelName> > ~/my/standards/models/<model_name>.json
     ```
-    This outputs processed files into `./processed/`.
-2.  **Refine (Optional)**: For transcriptions or complex unstructured text, pipe
-    the generated Markdown through the Pi local agent for final noise removal:
+2.  **Report**: Convert the JSON into a standardized **Domain Asset Report** (see template below).
+3.  **Ingest**: Index the report into the Brain:
     ```bash
-    cat processed/doc.md | pi --system "Fix grammar, clean noise" > final.md
-    ```
-3.  **Ingest**: Index the finalized files:
-    ```bash
-    zdots-ctx ingest ./final.md
+    zdots-ctx ingest ~/my/standards/models/
     ```
 
-**Note**: Ensure `marker` and `pandoc` are installed via `brew bundle` (see
-`Brewfile.home`). Always run `zdots-update-local` after updating dependencies.
+**Template: Domain Asset Report (`~/my/standards/models/user.md`)**
+
+```markdown
+# Asset: User
+
+## Structural Schema
+```json
+{ 
+  "model": "User",
+  "columns": [ ... ],
+  "associations": [ ... ]
+}
+```
+
+## Domain Insights
+- **Complexity**: (e.g., High - God Model)
+- **Coupling**: (e.g., Highly coupled to Order/Payment models)
+- **Workflow Role**: (e.g., Delayed Job trigger)
+
+## Migration/Resilience Gaps
+- [ ] Refactor `after_save` callback.
+- [ ] Decouple from legacy Payment API.
+```
+
+**Example Report (Hypothetical `User` model in `just3ws/ccs`):**
+
+If you ran `bin/zdots-archeologist User` against the `just3ws/ccs` codebase, your JSON output would look like this, which you then populate into the Markdown report:
+
+```json
+{
+  "model": "User",
+  "columns": [
+    { "name": "id", "type": "integer" },
+    { "name": "email", "type": "string" },
+    { "name": "encrypted_password", "type": "string" }
+  ],
+  "associations": [
+    { "name": "orders", "macro": "has_many", "class_name": "Order" },
+    { "name": "account", "macro": "belongs_to", "class_name": "Account" }
+  ]
+}
+```
+
+This structured approach allows the Brain to semantically connect your code's
+structure to your modernization tasks.
 
 #### Operational Best Practices
 
