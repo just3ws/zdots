@@ -357,6 +357,90 @@ docker cp myapp:/app ./extracted-app
 ruby-audit ./extracted-app --ruby 2.6 --rails 5.2
 ```
 
+## Modern metric_fu Evolution
+
+`ruby-audit` has evolved into a high-signal metrics platform. It provides a
+unified view of codebase health, combining security, quality, and complexity.
+
+### Platform Health Score
+
+Every audit run calculates a **Health Score (0-100)** based on a weighted algorithm:
+- **Security (-20/CVE, -15/High)**: Critical vulnerabilities heavily impact the score.
+- **Complexity (-2/hotspot)**: High-complexity methods (score ≥ 30) reduce health.
+- **Style & Smells (-0.5/smell, -0.1/offense)**: Gradual erosion from low-quality code.
+
+### Terminal Dashboard
+
+Audit results are summarized in a high-signal terminal dashboard, providing
+immediate feedback on the project's state.
+
+```text
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RUBY METRICS DASHBOARD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Target:  /Users/mike/github.com/chatwoot/chatwoot
+  Date:    2026-06-01T21:31:27-05:00
+
+  Platform Health Score:  100.0/100
+
+  CORE METRICS
+  Dependency CVEs (bundler-audit)    0  ✅
+  Brakeman High                0  ✅
+  Brakeman Medium              0  ✅
+  RuboCop offenses             0  ℹ️
+  Reek smells                  0  ℹ️
+  Flog hotspots                0  ℹ️
+  Flay duplicates              0  ℹ️
+
+  HOTSPOTS
+  ✅ No significant complexity hotspots.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+## Extended Tooling
+
+The suite includes four companion tools for repository management and trend analysis.
+
+### 1. Repository Organization (`zdots-ruby-clone`)
+
+Automatically clones and organizes repositories into a standard structure:
+`$HOME/<provider>/<org>/<repo>`.
+
+```bash
+zdots-ruby-clone https://github.com/rails/rails
+# Clones to ~/github.com/rails/rails
+```
+
+### 2. Historical Trends (`zmetrics`)
+
+Visualizes the history of health scores and core metrics for a repository.
+
+```bash
+zmetrics chatwoot
+```
+
+### 3. Change Comparison (`ruby-audit-diff`)
+
+Generates a delta report between the two most recent audit runs, showing
+whether health is improving or degrading.
+
+```bash
+ruby-audit-diff chatwoot
+```
+
+### 4. Batch Processing (`ruby-audit-batch`)
+
+Clones and audits a predefined list of repositories, generating a baseline or
+diff report for each.
+
+```bash
+ruby-audit-batch
+```
+
+---
+
 ## Output locations
 
 Reports land in `~/.local/state/zsh/ruby-audits/<repo-slug>-<timestamp>/`:
@@ -364,15 +448,22 @@ Reports land in `~/.local/state/zsh/ruby-audits/<repo-slug>-<timestamp>/`:
 | File | Content |
 |------|---------|
 | `report.md` | Full Markdown report, one section per analyzer |
-| `summary.json` | Scores: CVE count, Brakeman counts, offense/smell/hotspot counts |
+| `dashboard.txt` | High-signal terminal dashboard view |
+| `summary.json` | Scores: Health score, CVE count, offense/smell counts |
+| `change-summary.txt` | Delta report from previous run (if generated) |
 | `context.md` | AI-ready analysis brief for LLM interrogation |
 | `repomix-context.md` | Full codebase pack (requires `repomix` in PATH) |
 | `system-prompt.md` | Assembled version-specific rules injected as LLM context |
+
+---
 
 ## Adding a new version prompt
 
 Drop a Markdown file in `etc/ruby-audit/prompts/`:
 - `ruby-3.3.md` — picked up automatically for Ruby 3.3.x targets
 - `rails-6.1.md` — picked up automatically for Rails 6.1.x targets
+- `db-mariadb.md` — MariaDB specific rule-pack
+- `db-mongodb.md` — MongoDB specific rule-pack
+- `infra-k8s.md` — Docker/Kubernetes/k9s rule-pack
 
-No code change required. Naming convention: `ruby-X.Y.md`, `rails-X.Y.md`.
+No code change required. Naming convention: `ruby-X.Y.md`, `rails-X.Y.md`, `db-NAME.md`, `infra-NAME.md`.
