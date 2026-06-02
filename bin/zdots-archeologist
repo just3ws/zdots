@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+# ---
+# id: zdots-archeologist
+# title: "Zdots Domain Archeology Miner"
+# purpose: Extract ActiveRecord model metadata for domain inventory and visualization.
+# rationale: Generates machine-readable maps of domain assets (schema/associations).
+# ---
+# Usage: bin/zdots-archeologist <ModelName>
+
+require 'json'
+
+model_name = ARGV[0]
+if model_name.nil?
+  puts "Usage: bin/zdots-archeologist <ModelName>"
+  exit 1
+end
+
+begin
+  require_relative 'config/environment'
+  model = model_name.constantize
+  
+  data = {
+    model: model_name,
+    columns: model.columns.map { |c| { name: c.name, type: c.type } },
+    associations: model.reflect_on_all_associations.map do |a|
+      { name: a.name, macro: a.macro, class_name: a.class_name }
+    end
+  }
+  
+  puts JSON.pretty_generate(data)
+rescue NameError
+  puts "Error: Model #{model_name} not found."
+  exit 1
+rescue StandardError => e
+  puts "Error: #{e.message}"
+  exit 1
+end
