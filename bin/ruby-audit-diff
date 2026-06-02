@@ -1,0 +1,85 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# ---
+# id: ruby-audit-diff
+# title: "Ruby Audit Run Comparison"
+# purpose: Compare the results of two ruby-audit runs and generate a change summary.
+# ---
+
+require "json"
+require "pathname"
+require "time"
+
+def usage
+  puts "Usage: ruby-audit-diff <repo_slug> [new_run_dir] [old_run_dir]"
+  puts "Example: ruby-audit-diff chatwoot"
+  exit 1
+end
+
+repo_slug = ARGV[0]
+usage unless repo_slug
+
+AUDIT_BASE = Pathname.new(Dir.home).join(".local/state/zsh/ruby-audits")
+
+# Find the latest two runs for this slug
+# Slugs are directory names before the first dash
+runs = AUDIT_BASE.children.select { |c| c.directory? && c.basename.to_s.start_with?(repo_slug) }.sort_by(&:mtime).reverse
+
+new_run = ARGV[1] ? Pathname.new(ARGV[1]) : runs[0]
+old_run = ARGV[2] ? Pathname.new(ARGV[2]) : runs[1]
+
+unless new_run && new_run.exist?
+  puts "Error: New run directory not found."
+  exit 1
+end
+
+puts "Comparing:"
+puts "  New: #{new_run}"
+puts "  Old: #{old_run || '(none)'}"
+puts ""
+
+new_summary = JSON.parse(File.read(new_run.join("summary.json")))
+old_summary = old_run && old_run.exist? ? JSON.parse(File.read(old_run.join("summary.json"))) : nil
+
+def diff_score(new_s, old_s, key)
+  n = new_s.dig("scores", key).to_i
+  o = old_s ? old_s.dig("scores", key).to_i : 0
+  delta = n - o
+  color = delta > 0 ? "🔴" : (delta < 0 ? "🟢" : "⚪")
+  label = key.gsub("_", " ").capitalize
+  printf "%-20s: %3d -> %3d (%+d) %s\n", label, o, n, delta, color
+end
+
+puts "--- Change Summary ---"
+if old_summary
+  %w[security_vulns brakeman_high brakeman_medium rubocop_offenses reek_smells flog_hotspots flay_duplicates].each do |k|
+    diff_score(new_summary, old_summary, k)
+  end
+else
+  puts "No previous report found for comparison. Baseline generated."
+  new_summary["scores"].each do |k, v|
+    printf "%-20s: %3d\n", k.gsub("_", " ").capitalize, v
+  end
+end
+
+# Write diff to the new run dir
+diff_file = new_run.join("change-summary.txt")
+File.open(diff_file, "w") do |f|
+  f.puts "Audit Comparison: #{new_summary["generated_at"]}"
+  f.puts "Target: #{new_summary["target"]}"
+  f.puts ""
+  if old_summary
+    f.puts "Compared against run from: #{old_summary["generated_at"]}"
+    f.puts ""
+    %w[security_vulns brakeman_high brakeman_medium rubocop_offenses reek_smells flog_hotspots flay_duplicates].each do |k|
+      n = new_summary.dig("scores", k).to_i
+      o = old_summary.dig("scores", k).to_i
+      delta = n - o
+      f.printf "%-20s: %3d -> %3d (%+d)\n", k.gsub("_", " ").capitalize, o, n, delta
+    end
+  else
+    f.puts "Baseline run."
+  end
+end
+puts ""
+puts "Summary saved to: #{diff_file}"
