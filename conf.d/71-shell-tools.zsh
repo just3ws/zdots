@@ -21,3 +21,5 @@ if command -v broot >/dev/null 2>&1; then
   source "$HOMEBREW_PREFIX/etc/bash_completion.d/broot" 2>/dev/null || true
   alias br='broot'
 fi
+
+return 0

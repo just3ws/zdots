@@ -69,3 +69,5 @@ EOF
     return 1
   fi
 }
+
+return 0

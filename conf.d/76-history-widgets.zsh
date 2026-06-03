@@ -29,3 +29,5 @@ if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-history-substr
     zvm_after_init_commands+=('bindkey -M vicmd "j" history-substring-search-down')
   fi
 fi
+
+return 0
