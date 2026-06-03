@@ -183,7 +183,7 @@ if [[ -f "$_vz_pid_file" ]]; then
   _vz_pid=$(cat "$_vz_pid_file" 2>/dev/null || true)
   if [[ -n "$_vz_pid" ]] && ! ps -p "$_vz_pid" -o comm= 2>/dev/null | grep -qiE "vz|lima|colima"; then
     _fail "colima stale vz.pid  PID ${_vz_pid} is not a VZ process ($(ps -p "$_vz_pid" -o comm= 2>/dev/null || echo 'gone'))"
-    _fix  "rm $HOME/.config/colima/_lima/colima/vz.pid $HOME/.config/colima/default/daemon/daemon.pid"
+    _fix  "rm $HOME/.colima/_lima/colima/vz.pid $HOME/.colima/default/daemon/daemon.pid"
     _fix  "colima start"
   fi
 fi
