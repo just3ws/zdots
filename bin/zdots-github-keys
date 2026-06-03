@@ -7,6 +7,7 @@ PROGRAM="${0##*/}"
 GITHUB_KEYGEN="${GITHUB_KEYGEN:-github-keygen}"
 DEFAULT_KEY_TYPE="${ZDOTS_GITHUB_KEY_TYPE:-ed25519}"
 DEFAULT_PROFILE="${ZDOTS_GITHUB_DEFAULT:-none}"
+PASSPHRASE="${ZDOTS_GITHUB_PASSPHRASE:-}"
 HOME_USER="${ZDOTS_GITHUB_HOME_USER:-}"
 WORK_USER="${ZDOTS_GITHUB_WORK_USER:-}"
 SSH_DIR="${HOME}/.ssh"
@@ -34,11 +35,12 @@ Required account options:
 Options:
   --default PROFILE    default github.com identity: home, work, or none
   --key-type TYPE      key type passed to github-keygen (default: ed25519)
+  --passphrase PASS    passphrase for new keys (default: prompt)
   --yes               required for commands that change ~/.ssh/config
 
 Environment equivalents:
   ZDOTS_GITHUB_HOME_USER, ZDOTS_GITHUB_WORK_USER
-  ZDOTS_GITHUB_DEFAULT, ZDOTS_GITHUB_KEY_TYPE
+  ZDOTS_GITHUB_DEFAULT, ZDOTS_GITHUB_KEY_TYPE, ZDOTS_GITHUB_PASSPHRASE
   GITHUB_KEYGEN
 
 Aliases and paths are fixed:
@@ -113,6 +115,9 @@ github_keygen_args_for_profile() {
   key="$(key_path "$selector")"
 
   printf '%s\0' "$profile" -i "$key" -t "$DEFAULT_KEY_TYPE" -C "$(comment_for "$profile")"
+  if [[ "${PASSPHRASE_SET:-0}" == "1" ]]; then
+    printf '%s\0' -p "$PASSPHRASE"
+  fi
   if [[ "$DEFAULT_PROFILE" == "$profile" && "$selector" == "$profile" ]]; then
     printf '%s\0' -d
   fi
@@ -223,7 +228,12 @@ rotate_stage() {
   local key
   key="$(key_path "$staged")"
 
-  "$GITHUB_KEYGEN" --offline "$staged" -i "$key" -t "$DEFAULT_KEY_TYPE" -C "$(comment_for "$profile")"
+  local args=("--offline" "$staged" -i "$key" -t "$DEFAULT_KEY_TYPE" -C "$(comment_for "$profile")")
+  if [[ "${PASSPHRASE_SET:-0}" == "1" ]]; then
+    args+=(-p "$PASSPHRASE")
+  fi
+
+  "$GITHUB_KEYGEN" "${args[@]}"
   cat <<NEXT
 staged: ${profile}
 host_alias: $(host_alias "$staged")
@@ -284,6 +294,7 @@ cmd="${1:-help}"
 shift || true
 
 yes=0
+PASSPHRASE_SET=0
 profile_arg=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -291,6 +302,7 @@ while [[ $# -gt 0 ]]; do
     --work-user) WORK_USER="${2:-}"; shift 2 ;;
     --default) DEFAULT_PROFILE="${2:-}"; shift 2 ;;
     --key-type) DEFAULT_KEY_TYPE="${2:-}"; shift 2 ;;
+    --passphrase) PASSPHRASE="${2:-}"; PASSPHRASE_SET=1; shift 2 ;;
     --yes) yes=1; shift ;;
     -h|--help|help) usage; exit 0 ;;
     --) shift; break ;;

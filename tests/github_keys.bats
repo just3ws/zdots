@@ -109,3 +109,24 @@ STUB
   [[ "$args" == *"work_next -r"* ]]
   [[ "$output" == *"ssh -T work.github.com"* ]]
 }
+
+@test "zdots-github-keys: public-key prints existing pubkey" {
+  mkdir -p "$HOME/.ssh"
+  printf 'ssh-ed25519 AAAAHOME\n' > "$HOME/.ssh/id_home@github.pub"
+  
+  run "$BIN/zdots-github-keys" public-key home
+  [ "$status" -eq 0 ]
+  [[ "$output" == "ssh-ed25519 AAAAHOME" ]]
+
+  run "$BIN/zdots-github-keys" public-key work
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"public key missing"* ]]
+}
+
+@test "zdots-github-keys: passphrase option passes -p to github-keygen" {
+  stub_github_keygen
+  run "$BIN/zdots-github-keys" apply --home-user just3ws --work-user workacct --passphrase "secret" --yes
+  [ "$status" -eq 0 ]
+  args="$(cat "$BATS_TEST_TMPDIR/github-keygen-args")"
+  [[ "$args" == *"-p secret"* ]]
+}
