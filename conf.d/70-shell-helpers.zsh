@@ -19,3 +19,5 @@ _is_zle_safe() {
   [[ -o interactive && -o zle ]] || return 1
   [[ -z "${ZSH_EXECUTION_STRING:-}" || "${ZDOTS_CHECK_ZLE:-0}" == "1" ]]
 }
+
+return 0

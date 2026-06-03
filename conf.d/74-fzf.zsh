@@ -25,3 +25,5 @@ if _is_zle_safe; then
   bindkey -M emacs '^I' expand-or-complete
   bindkey -M viins '^I' expand-or-complete
 fi
+
+return 0
