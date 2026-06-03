@@ -82,7 +82,7 @@ docker system df
 # qcow2/vz disk image on the macOS host filesystem.
 if command -v colima >/dev/null 2>&1; then
   printf '\ndocker-reclaim: pruning Colima...\n' >&2
-  yes | colima prune 2>/dev/null || true
+  colima prune -f 2>/dev/null || true
 
   printf 'docker-reclaim: running fstrim inside Colima VM...\n' >&2
   printf '  (releases freed blocks from VM disk image back to macOS host)\n' >&2
