@@ -246,7 +246,7 @@ cmd_reset_password() {
 cmd_run() {
   _check_deps
   _info "running GitHub Actions locally via act..."
-  DOCKER_HOST="unix://${XDG_CONFIG_HOME:-${HOME}/.config}/colima/default/docker.sock" \
+  DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" \
   act \
     --container-architecture linux/arm64 \
     --container-daemon-socket - \
