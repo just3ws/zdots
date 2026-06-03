@@ -67,6 +67,30 @@ _grafana_up() {
   [ "$status" -eq 0 ]
 }
 
+@test "docker-reclaim: force prune uses non-interactive colima prune" {
+  local stub_bin="$BATS_TEST_TMPDIR/docker-reclaim-stubs"
+  mkdir -p "$stub_bin"
+
+  cat > "$stub_bin/docker" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+  cat > "$stub_bin/colima" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$BATS_TEST_TMPDIR/colima-args"
+exit 0
+EOF
+  chmod +x "$stub_bin/docker" "$stub_bin/colima"
+
+  stderr=$(PATH="$stub_bin:$PATH" BATS_TEST_TMPDIR="$BATS_TEST_TMPDIR" "$BIN/docker-reclaim" -f 2>&1 >/dev/null)
+  status=$?
+
+  [ "$status" -eq 0 ]
+  [[ "$stderr" != *"Broken pipe"* ]]
+  [[ "$stderr" != *"[y/N]"* ]]
+  grep -q '^prune -f$' "$BATS_TEST_TMPDIR/colima-args"
+}
+
 @test "ai-query: --help exits 0" {
   run "$BIN/ai-query" --help
   [ "$status" -eq 0 ]
