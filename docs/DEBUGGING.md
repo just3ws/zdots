@@ -61,7 +61,7 @@ If any service is red, proceed to the specific component flows below.
 *   **Credential/Keychain Drift**: `zdots-ctx` depends on the keychain. If you change DB roles or manually tweak Postgres, `bin/zdots-ctx rotate-creds --all` is your immediate fix.
 *   **Missing Dependencies**: `brew bundle` may be out of sync. Always run `brew bundle check` if tests fail inexplicably.
 *   **XDG Compliance**: If services fail to write logs, ensure `$XDG_STATE_HOME` or `~/.local/state` exists and is writable.
-*   **Colima/Docker Socket**: If Postgres/Redis fail to start but appear registered, verify the Docker socket is present: `ls /Users/mike/.colima/default/docker.sock`.
+*   **Colima/Docker Socket**: If Postgres/Redis fail to start but appear registered, verify the Docker socket is present: `ls $HOME/.colima/default/docker.sock`.
 
 ---
 
