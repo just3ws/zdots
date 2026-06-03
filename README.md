@@ -301,6 +301,8 @@ zdots-ctl status        # Confirm entire stack is green
 ```
 
 *   [docs/lifecycle.md](docs/lifecycle.md) — **Project lifecycle, setup, and tutorial (NEW)**.
+*   [docs/TUTORIAL_ZDOTS_ONBOARDING.md](docs/TUTORIAL_ZDOTS_ONBOARDING.md) — End-to-end onboarding, capability map, and core workflows.
+*   [docs/TUTORIAL_GITHUB_SSH_KEYS.md](docs/TUTORIAL_GITHUB_SSH_KEYS.md) — Explicit GitHub SSH setup and rotation for home/work accounts.
 *   [docs/architecture.md](docs/architecture.md) — The DI pattern and loading sequence.
 *   [docs/platform-service-plane.md](docs/platform-service-plane.md) — Service lifecycles, E2E coverage, and stability isolation.
 *   [docs/architecture-diagram-audit-plan.md](docs/architecture-diagram-audit-plan.md) — Mermaid diagram audit plan for reasoning about the repo from many perspectives.

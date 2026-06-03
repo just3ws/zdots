@@ -202,3 +202,16 @@ All shell modifications must be benchmarked.
 - **Tool**: `make bench` or `hyperfine "zsh -i -c exit"`.
 
 If startup exceeds 0.35s median, the shell is considered "Degraded" and must be optimized.
+
+---
+
+## 11. Tutorial: GitHub SSH Setup and Rotation
+
+Use [docs/TUTORIAL_GITHUB_SSH_KEYS.md](TUTORIAL_GITHUB_SSH_KEYS.md) for the explicit home/work GitHub SSH setup flow.
+It documents the initial key creation, the exact file locations, and the staged rotation sequence.
+
+---
+
+## 12. Tutorial: Zdots Onboarding and Capability Map
+
+Use [docs/TUTORIAL_ZDOTS_ONBOARDING.md](TUTORIAL_ZDOTS_ONBOARDING.md) for the broader end-to-end introduction to the control plane, services, dependencies, and daily workflows.
