@@ -399,7 +399,7 @@ See `docs/otel-collector-guide.md` for scrape job configuration.
 
 ### `ai` — interactive shell function
 
-Defined in `conf.d/70-integrations.zsh`. **Requires an interactive zsh session.**
+Defined in `conf.d/72-ai-function.zsh`. **Requires an interactive zsh session.**
 
 ```sh
 ai "What does SIGPIPE mean in a curl pipe"

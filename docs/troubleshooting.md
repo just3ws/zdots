@@ -130,7 +130,7 @@ Expected:
 - `Alt-e`, `Alt-f`, and `Alt-z` widgets present in normal terminals
 
 If `zle=off`, the shell context cannot support widgets. If `zle=on` but widgets
-are missing, inspect `conf.d/60-bindings.zsh`, `conf.d/70-integrations.zsh`, and
+are missing, inspect `conf.d/60-bindings.zsh`, `conf.d/74-fzf.zsh`, `conf.d/76-history-widgets.zsh`, and
 `conf.d/97-zle-ai.zsh`.
 
 ## 3. Path, Homebrew, and Runtime Managers

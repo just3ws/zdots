@@ -162,7 +162,7 @@ assert_ctrl_r_policy() {
 
   fzf_bindings="$(ZDOTS_CHECK_ZLE=1 zsh "${shell_args[@]}" -c '
     zle -N fzf-history-widget self-insert
-    source "$ZDOTDIR/conf.d/70-integrations.zsh"
+    source "$ZDOTDIR/conf.d/74-fzf.zsh"
     echo "R: $(bindkey "^R")"
     echo "R-emacs: $(bindkey -M emacs "^R")"
     echo "R-viins: $(bindkey -M viins "^R")"

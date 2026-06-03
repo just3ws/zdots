@@ -2,30 +2,44 @@
 # ---
 # id: zdots-ruby-legacy-setup
 # title: "Zdots Legacy Rails Setup"
-# purpose: Configures Bundler for successful gem installation on modern macOS.
-# rationale: Links C-extensions to Homebrew dependencies without needing running services.
+# purpose: Configure Bundler for successful gem installation on modern macOS.
+# rationale: Links C extensions to Homebrew dependencies without running services.
 # ---
-# bin/zdots-ruby-legacy-setup — Configures Bundler for legacy Rails 5.2 gems.
 
-if [ ! -f "Gemfile" ]; then
-  echo "Error: Gemfile not found. Run this in a Rails project root."
+set -eo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: zdots-ruby-legacy-setup
+
+Run from a legacy Rails project root. Writes local Bundler build settings for
+Nokogiri, libxml-ruby, and mysql2 using Homebrew dependency prefixes.
+EOF
+}
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+if [[ ! -f "Gemfile" ]]; then
+  echo "Error: Gemfile not found. Run this in a Rails project root." >&2
   exit 1
 fi
 
 echo "==> Configuring Bundler for build-only setup..."
 
-# Nokogiri: Force linking to Homebrew libxml2/libxslt
 bundle config build.nokogiri \
   --with-xslt-dir="$(brew --prefix libxslt)" \
   --with-xml2-dir="$(brew --prefix libxml2)" \
   --with-xml2-include="$(brew --prefix libxml2)/include/libxml2"
 
-# libxml-ruby: Link to Homebrew libxml2
 bundle config build.libxml-ruby \
   --with-xml2-dir="$(brew --prefix libxml2)" \
   --with-xml2-include="$(brew --prefix libxml2)/include/libxml2"
 
-# mysql2: Link to Homebrew MariaDB client
 bundle config build.mysql2 --with-mysql-dir="$(brew --prefix mariadb-connector-c)"
 
 echo "==> Bundler config set. You can now run 'bundle install'."

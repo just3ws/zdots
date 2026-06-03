@@ -272,16 +272,16 @@ This creates the following directory hierarchy:
 
 #### Domain Archeology & Asset Inventory
 
-To modernize the platform, we must first map the current domain complexity. We use
-the `bin/zdots-archeologist` utility to extract machine-readable structural data
-from ActiveRecord models, which is then refined into documentation and ingested
-into the Brain.
+Domain archeology is optional Rails modernization tooling, not part of the core
+zdots command surface. The module lives in `modules/rails-modernization/` and
+extracts machine-readable structural data from ActiveRecord models, which is
+then refined into documentation and ingested into the Brain.
 
 **Workflow:**
 
 1.  **Extract**: Generate the JSON schema for a model from within the target repo:
     ```bash
-    bin/zdots-archeologist <ModelName> > ~/my/standards/models/<model_name>.json
+    "$ZDOTDIR/modules/rails-modernization/bin/zdots-archeologist" <ModelName> > ~/my/standards/models/<model_name>.json
     ```
 2.  **Report**: Convert the JSON into a standardized **Domain Asset Report** (see template below).
 3.  **Ingest**: Index the report into the Brain:
@@ -315,7 +315,9 @@ into the Brain.
 
 **Example Report (Hypothetical `User` model in `just3ws/ccs`):**
 
-If you ran `bin/zdots-archeologist User` against the `just3ws/ccs` codebase, your JSON output would look like this, which you then populate into the Markdown report:
+If you ran `zdots-archeologist User` from the optional Rails modernization module
+against the `just3ws/ccs` codebase, your JSON output would look like this, which
+you then populate into the Markdown report:
 
 ```json
 {
