@@ -6,7 +6,17 @@ This tutorial guides you through the process of mapping the domain complexity of
 - **Repository Access**: Cloned Rails codebase (e.g., `just3ws/ccs`).
 - **Environment**: Zdots environment initialized (`zdots-update-local`).
 - **Ruby Runtime**: Ruby 2.6.10 available via `mise`.
-- **System Dependencies**: `libxml2`, `libxslt`, `mariadb-connector-c`, `memcached`, `mongodb-database-tools` (installed via Homebrew).
+- **System Dependencies**: Install the optional module dependencies:
+
+```bash
+brew bundle --file "$ZDOTDIR/modules/rails-modernization/Brewfile"
+```
+
+For short command names in the current shell:
+
+```bash
+export PATH="$ZDOTDIR/modules/rails-modernization/bin:$PATH"
+```
 
 ---
 
@@ -26,7 +36,7 @@ Before installing gems for analysis, configure Bundler to link against your loca
 
 ```bash
 cd /path/to/rails-project
-zdots-ruby-legacy-setup
+"$ZDOTDIR/modules/rails-modernization/bin/zdots-ruby-legacy-setup"
 bundle install
 ```
 
@@ -38,8 +48,8 @@ bundle install
 Use the `zdots-archeologist-run` utility to automatically extract, map, and organize assets from a repository.
 
 ```bash
-# Usage: bin/zdots-archeologist-run <git_url> <ModelName>
-bin/zdots-archeologist-run git@github.com:just3ws/ccs.git User
+# Usage: zdots-archeologist-run <git_url> <ModelName>
+"$ZDOTDIR/modules/rails-modernization/bin/zdots-archeologist-run" git@github.com:just3ws/ccs.git User
 ```
 
 This command automatically:

@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+# ---
+# id: zdots-archeologist-diagram
+# title: "Zdots Domain Diagram Generator"
+# purpose: Convert archeologist JSON output into Mermaid ER diagrams.
+# rationale: Visualizes domain model structure and relationships for modernization planning.
+# ---
+
+require "json"
+
+def usage(io = $stdout)
+  io.puts <<~USAGE
+    Usage: zdots-archeologist-diagram <model.json>
+
+    Reads JSON emitted by zdots-archeologist and writes a Mermaid ER diagram.
+  USAGE
+end
+
+if ARGV[0] == "--help" || ARGV[0] == "-h"
+  usage
+  exit 0
+end
+
+file_path = ARGV[0]
+if file_path.nil? || !File.file?(file_path)
+  usage($stderr)
+  exit 1
+end
+
+data = JSON.parse(File.read(file_path))
+model = data.fetch("model").split("::").last
+
+puts "erDiagram"
+puts "  #{model} {"
+
+data.fetch("columns", []).each do |col|
+  puts "    #{col.fetch("type")} #{col.fetch("name")}"
+end
+
+puts "  }"
+
+data.fetch("associations", []).each do |assoc|
+  relation = case assoc.fetch("macro")
+             when "has_many" then "||--o{"
+             when "belongs_to" then "}o--||"
+             when "has_one" then "||--||"
+             else "--"
+             end
+
+  puts "  #{model} #{relation} #{assoc.fetch("class_name")} : \"#{assoc.fetch("name")}\""
+end

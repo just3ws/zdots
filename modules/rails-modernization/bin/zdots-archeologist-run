@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# ---
+# id: zdots-archeologist-run
+# title: "Zdots Domain Archeology Runner"
+# purpose: Run archeologist and diagrammer, outputting to a structured vault.
+# rationale: Standardizes analysis artifacts for Knowledge Layer ingestion.
+# ---
+
+set -eo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: zdots-archeologist-run <git_url> <ModelName>
+
+Run from a Rails project root. Writes JSON, Mermaid, and Markdown artifacts to:
+  ${ZDOTS_MY_ROOT:-$HOME/my}/analysis/<source>/<timestamp>/
+EOF
+}
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+if [[ $# -lt 2 ]]; then
+  usage >&2
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GIT_URL="$1"
+MODEL="$2"
+FILE_STEM="${MODEL//::/_}"
+TIMESTAMP=$(date +"%Y-%m-%d-%H%M")
+
+SOURCE=$(
+  printf '%s' "$GIT_URL" |
+    sed -E \
+      -e 's#^git@([^:]+):(.*)$#\1/\2#' \
+      -e 's#^https?://([^/]+)/(.*)$#\1/\2#' \
+      -e 's#\.git$##'
+)
+TARGET_DIR="${ZDOTS_MY_ROOT:-$HOME/my}/analysis/$SOURCE/$TIMESTAMP"
+
+mkdir -p "$TARGET_DIR"
+
+echo "==> Mining $MODEL from $SOURCE into $TARGET_DIR..."
+
+"$SCRIPT_DIR/zdots-archeologist" "$MODEL" > "$TARGET_DIR/${FILE_STEM}.json"
+"$SCRIPT_DIR/zdots-archeologist-diagram" "$TARGET_DIR/${FILE_STEM}.json" > "$TARGET_DIR/${FILE_STEM}.mmd"
+
+cat > "$TARGET_DIR/${FILE_STEM}_report.md" <<EOF
+# Analysis: $MODEL
+- **Timestamp**: $TIMESTAMP
+- **Source**: $SOURCE
+
+## Mermaid Diagram
+\`\`\`mermaid
+$(cat "$TARGET_DIR/${FILE_STEM}.mmd")
+\`\`\`
+
+## Schema
+\`\`\`json
+$(cat "$TARGET_DIR/${FILE_STEM}.json")
+\`\`\`
+EOF
+
+echo "==> Archeology complete. Artifacts in $TARGET_DIR/"
+echo "    Ingest with: zdots-ctx ingest $TARGET_DIR/"

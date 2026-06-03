@@ -22,7 +22,7 @@ unset conf
 
 # Syntax highlighting should be sourced last to catch all aliases and functions.
 # Load theme-specific styles first.
-# zdefer is provided by 70-integrations.zsh; skip in safe mode.
+# zdefer is provided by 70-shell-helpers.zsh; skip in safe mode.
 if [[ "${ZDOTS_SAFE_MODE:-0}" != "1" ]]; then
   if [[ -r "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh" ]]; then
     zdefer source "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh"
