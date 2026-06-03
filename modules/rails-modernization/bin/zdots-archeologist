@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+# ---
+# id: zdots-archeologist
+# title: "Zdots Domain Archeology Miner"
+# purpose: Extract ActiveRecord model metadata for domain inventory and visualization.
+# rationale: Generates machine-readable maps of domain assets.
+# ---
+
+require "json"
+
+def usage(io = $stdout)
+  io.puts <<~USAGE
+    Usage: zdots-archeologist <ModelName>
+
+    Run from a Rails project root. Loads ./config/environment and emits JSON
+    containing columns and ActiveRecord associations for ModelName.
+  USAGE
+end
+
+if ARGV[0] == "--help" || ARGV[0] == "-h"
+  usage
+  exit 0
+end
+
+model_name = ARGV[0]
+if model_name.nil? || model_name.empty?
+  usage($stderr)
+  exit 1
+end
+
+env_path = File.expand_path("config/environment.rb", Dir.pwd)
+unless File.file?(env_path)
+  warn "Error: config/environment.rb not found. Run this from a Rails project root."
+  exit 1
+end
+
+def constantize(name)
+  return name.constantize if name.respond_to?(:constantize)
+
+  name.split("::").inject(Object) { |ctx, const_name| ctx.const_get(const_name) }
+end
+
+begin
+  require env_path
+  model = constantize(model_name)
+
+  data = {
+    model: model_name,
+    columns: model.columns.map { |c| { name: c.name, type: c.type } },
+    associations: model.reflect_on_all_associations.map do |a|
+      { name: a.name, macro: a.macro, class_name: a.class_name }
+    end
+  }
+
+  puts JSON.pretty_generate(data)
+rescue NameError
+  warn "Error: Model #{model_name} not found."
+  exit 1
+rescue StandardError => e
+  warn "Error: #{e.message}"
+  exit 1
+end

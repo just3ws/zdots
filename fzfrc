@@ -1,6 +1,6 @@
 # vim:ft=zsh
 
-# Custom FZF overrides loaded from conf.d/70-integrations.zsh.
+# Custom FZF overrides loaded from conf.d/74-fzf.zsh.
 # Base FZF initialization is handled in $ZDOTDIR/.fzf.zsh.
 [[ -o interactive ]] || return 0
 
