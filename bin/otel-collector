@@ -79,7 +79,7 @@ cmd_install() {
   local url tmp_dir
   url="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${VERSION}/${DISTRO}_${VERSION}_${OS}_${ARCH}.tar.gz"
   tmp_dir=$(mktemp -d)
-  trap 'rm -rf "$tmp_dir"' EXIT
+  trap '[[ -n "${tmp_dir:-}" ]] && rm -rf "$tmp_dir"' EXIT
 
   if curl -L "$url" -o "${tmp_dir}/otel.tar.gz"; then
     tar -xzf "${tmp_dir}/otel.tar.gz" -C "$tmp_dir"
