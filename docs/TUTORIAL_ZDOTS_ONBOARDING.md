@@ -90,27 +90,20 @@ The practical rule is simple:
 On a new machine, follow the authoritative setup path:
 
 ```bash
+# Clone the repository
 git clone <your-remote> ~/.config/zsh
 cd ~/.config/zsh
-bin/bootstrap
-```
 
-Before bootstrap on a work machine, create `.zdots.local` and set the machine context:
-
-```bash
+# Create machine context
 cp .zdots.local.example .zdots.local
 $EDITOR .zdots.local
-```
-
-Set at least:
-
-```bash
-ZDOTS_CONTEXT=work
+# Set ZDOTS_CONTEXT=work (or home)
 ```
 
 Then complete the machine bootstrap and verify the result:
 
 ```bash
+bin/bootstrap
 zdots-ctl status
 zdots-ctl check
 ```
@@ -126,16 +119,28 @@ zdots-keychain add SOME_SECRET value
 zdots-keychain verify
 ```
 
-For GitHub SSH, use the explicit home/work workflow:
+### GitHub SSH Identity Management
 
-```bash
-zdots-github-keys plan \
-  --home-user HOME_GITHUB_USER \
-  --work-user WORK_GITHUB_USER \
-  --default home
-```
+To keep your home and work GitHub accounts clean and separate, Zdots provides the `zdots-github-keys` wrapper around `github-keygen`.
 
-That tutorial lives in [docs/TUTORIAL_GITHUB_SSH_KEYS.md](TUTORIAL_GITHUB_SSH_KEYS.md).
+1. **Review the `github-keygen` documentation**: [github-keygen](https://github.com/dolmen/github-keygen)
+2. **Plan your identities**:
+   ```bash
+   zdots-github-keys plan \
+     --home-user HOME_GITHUB_USER \
+     --work-user WORK_GITHUB_USER \
+     --default home
+   ```
+3. **Apply the configuration**:
+   ```bash
+   zdots-github-keys apply \
+     --home-user HOME_GITHUB_USER \
+     --work-user WORK_GITHUB_USER \
+     --default home \
+     --yes
+   ```
+4. **Follow the explicit setup tutorial**:
+   The full workflow, including rotation, is documented in [docs/TUTORIAL_GITHUB_SSH_KEYS.md](TUTORIAL_GITHUB_SSH_KEYS.md).
 
 ## 7. Daily Workflow
 
