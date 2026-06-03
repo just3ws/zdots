@@ -19,7 +19,7 @@ MODEL="$2"
 TIMESTAMP=$(date +"%Y-%m-%d-%H%M")
 
 # Parse URL: git@github.com:org/repo.git or https://github.com/org/repo
-SOURCE=$(echo "$GIT_URL" | sed -E 's|.*(github\.com|gitlab\.com)[:/](.*)\.git|\1/\2|' | sed 's|:|/|')
+SOURCE=$(echo "$GIT_URL" | sed -E 's|.*(github\.com|gitlab\.com)[:/](.*)(\.git)?|\1/\2|' | sed 's|:|/|')
 TARGET_DIR="${ZDOTS_MY_ROOT:-$HOME/my}/analysis/$SOURCE/$TIMESTAMP"
 
 mkdir -p "$TARGET_DIR"
