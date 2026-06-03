@@ -11,14 +11,42 @@ if [[ -n "$(command -v zdots_whisper_init)" ]]; then
   zdots_whisper_init
 fi
 
-# Aider sidecar — wires aider to the active llama.cpp endpoint.
-# Provides the zaider() function; does not affect the ZDOTS_SERVICE_AI chain.
-if [[ -r "$ZDOTDIR/providers/tools/aider.zsh" ]]; then
-  source "$ZDOTDIR/providers/tools/aider.zsh"
+_zdots_lazy_tool_provider() {
+  local provider_file="$1"
+  local function_name="$2"
+  shift 2
+
+  if [[ -r "$provider_file" ]]; then
+    source "$provider_file"
+  fi
+
+  if typeset -f "$function_name" >/dev/null 2>&1; then
+    "$function_name" "$@"
+  else
+    print -u2 "zdots: tool provider failed to define $function_name"
+    return 1
+  fi
+}
+
+# Agent sidecars are optional and can stay out of shell startup. Expose stable
+# functions, then source the heavier provider files only on first use.
+if [[ -r "$ZDOTDIR/providers/tools/pi.zsh" ]] && ! typeset -f zpi >/dev/null 2>&1; then
+  zpi() {
+    unfunction zpi 2>/dev/null || true
+    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/pi.zsh" zpi "$@"
+  }
 fi
 
-# Pi sidecar — wires pi coding agent to local llama.cpp.
-# Provides the zpi() function; session history lands in XDG state dir.
-if [[ -r "$ZDOTDIR/providers/tools/pi.zsh" ]]; then
-  source "$ZDOTDIR/providers/tools/pi.zsh"
+if [[ -r "$ZDOTDIR/providers/tools/aider.zsh" ]] && ! typeset -f zaider >/dev/null 2>&1; then
+  zaider() {
+    unfunction zaider 2>/dev/null || true
+    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/aider.zsh" zaider "$@"
+  }
+fi
+
+if [[ -r "$ZDOTDIR/providers/tools/aider.zsh" ]] && ! typeset -f laid >/dev/null 2>&1; then
+  laid() {
+    unfunction laid 2>/dev/null || true
+    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/aider.zsh" laid "$@"
+  }
 fi

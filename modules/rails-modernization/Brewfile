@@ -1,0 +1,12 @@
+# Optional Rails modernization dependencies.
+#
+# Install only when doing legacy Rails build-only analysis:
+#   brew bundle --file modules/rails-modernization/Brewfile
+
+brew "libxml2"
+brew "libxslt"
+brew "shared-mime-info"
+brew "mariadb-connector-c"
+brew "memcached"
+tap "mongodb/brew"
+brew "mongodb-database-tools"

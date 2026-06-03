@@ -43,9 +43,9 @@ Tests whether a specific file descriptor is connected to a terminal device:
 | Pattern | Where Used | Purpose |
 |---------|-----------|---------|
 | `[[ -o interactive ]]` | conf.d modules, providers | Universal interactive guard |
-| `[[ -o interactive && -o zle ]]` | conf.d/60-bindings.zsh, conf.d/70-integrations.zsh | Widget and key binding operations |
-| `[[ -t 1 ]]` | conf.d/70-integrations.zsh (iTerm2) | TTY output guard |
-| `[[ ! -t 0 ]]` | conf.d/70-integrations.zsh (ai function) | Detect piped stdin |
+| `[[ -o interactive && -o zle ]]` | conf.d/60-bindings.zsh, conf.d/74-fzf.zsh, conf.d/76-history-widgets.zsh | Widget and key binding operations |
+| `[[ -t 1 ]]` | conf.d/73-zsh-plugins.zsh (iTerm2) | TTY output guard |
+| `[[ ! -t 0 ]]` | conf.d/72-ai-function.zsh (ai function) | Detect piped stdin |
 
 ## Multiplexer Detection
 
