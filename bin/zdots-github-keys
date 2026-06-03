@@ -1,0 +1,331 @@
+#!/usr/bin/env bash
+# bin/zdots-github-keys - Explicit home/work GitHub SSH key setup via github-keygen.
+
+set -euo pipefail
+
+PROGRAM="${0##*/}"
+GITHUB_KEYGEN="${GITHUB_KEYGEN:-github-keygen}"
+DEFAULT_KEY_TYPE="${ZDOTS_GITHUB_KEY_TYPE:-ed25519}"
+DEFAULT_PROFILE="${ZDOTS_GITHUB_DEFAULT:-none}"
+HOME_USER="${ZDOTS_GITHUB_HOME_USER:-}"
+WORK_USER="${ZDOTS_GITHUB_WORK_USER:-}"
+SSH_DIR="${HOME}/.ssh"
+
+usage() {
+  cat <<'HELP'
+zdots-github-keys - explicit home/work GitHub SSH key management
+
+Commands:
+  plan                 show accounts, paths, aliases, and github-keygen command
+  apply --yes          create/update home/work github-keygen SSH config
+  status               show configured key paths and file presence
+  rotate-stage PROFILE create PROFILE_next key/config without changing PROFILE
+  rotate-promote PROFILE --yes
+                       switch PROFILE to staged key and remove PROFILE_next alias
+  public-key PROFILE   print the public key for PROFILE or PROFILE_next
+
+Profiles:
+  home, work
+
+Required account options:
+  --home-user USER     GitHub username for the home account
+  --work-user USER     GitHub username for the work account
+
+Options:
+  --default PROFILE    default github.com identity: home, work, or none
+  --key-type TYPE      key type passed to github-keygen (default: ed25519)
+  --yes               required for commands that change ~/.ssh/config
+
+Environment equivalents:
+  ZDOTS_GITHUB_HOME_USER, ZDOTS_GITHUB_WORK_USER
+  ZDOTS_GITHUB_DEFAULT, ZDOTS_GITHUB_KEY_TYPE
+  GITHUB_KEYGEN
+
+Aliases and paths are fixed:
+  home.github.com maps to ~/.ssh/id_home@github
+  work.github.com maps to ~/.ssh/id_work@github
+  staged rotation maps to ~/.ssh/id_<profile>@github.next
+
+Generated public keys must be added to the matching GitHub account:
+  https://github.com/settings/keys
+HELP
+}
+
+die() {
+  printf '%s: %s\n' "$PROGRAM" "$*" >&2
+  exit 1
+}
+
+profile_user() {
+  case "$1" in
+    home) printf '%s\n' "$HOME_USER" ;;
+    work) printf '%s\n' "$WORK_USER" ;;
+    *) die "invalid profile '$1' (expected home or work)" ;;
+  esac
+}
+
+key_path() {
+  case "$1" in
+    home|work) printf '%s/id_%s@github\n' "$SSH_DIR" "$1" ;;
+    home_next) printf '%s/id_home@github.next\n' "$SSH_DIR" ;;
+    work_next) printf '%s/id_work@github.next\n' "$SSH_DIR" ;;
+    *) die "invalid key selector '$1'" ;;
+  esac
+}
+
+host_alias() {
+  case "$1" in
+    home|work) printf '%s.github.com\n' "$1" ;;
+    home_next) printf 'home_next.github.com\n' ;;
+    work_next) printf 'work_next.github.com\n' ;;
+    *) die "invalid host alias selector '$1'" ;;
+  esac
+}
+
+comment_for() {
+  local profile="$1"
+  local github_user
+  github_user="$(profile_user "$profile")"
+  printf '%s/%s:%s@github.com\n' "$(hostname -s 2>/dev/null || hostname)" "$profile" "$github_user"
+}
+
+require_accounts() {
+  [[ -n "$HOME_USER" ]] || die "--home-user is required"
+  [[ -n "$WORK_USER" ]] || die "--work-user is required"
+  [[ "$HOME_USER" != "$WORK_USER" ]] || die "home and work GitHub usernames must differ"
+}
+
+require_github_keygen() {
+  command -v "$GITHUB_KEYGEN" >/dev/null 2>&1 || die "github-keygen not found; install with: brew install github-keygen"
+}
+
+require_default() {
+  case "$DEFAULT_PROFILE" in
+    home|work|none) ;;
+    *) die "--default must be home, work, or none" ;;
+  esac
+}
+
+github_keygen_args_for_profile() {
+  local profile="$1"
+  local selector="${2:-$profile}"
+  local key
+  key="$(key_path "$selector")"
+
+  printf '%s\0' "$profile" -i "$key" -t "$DEFAULT_KEY_TYPE" -C "$(comment_for "$profile")"
+  if [[ "$DEFAULT_PROFILE" == "$profile" && "$selector" == "$profile" ]]; then
+    printf '%s\0' -d
+  fi
+}
+
+print_shell_command() {
+  printf '%q ' "$@"
+  printf '\n'
+}
+
+build_apply_args() {
+  APPLY_ARGS=(--offline)
+  local part=()
+
+  while IFS= read -r -d '' item; do part+=("$item"); done < <(github_keygen_args_for_profile home)
+  APPLY_ARGS+=("${part[@]}")
+  part=()
+  while IFS= read -r -d '' item; do part+=("$item"); done < <(github_keygen_args_for_profile work)
+  APPLY_ARGS+=("${part[@]}")
+}
+
+print_plan() {
+  require_accounts
+  require_default
+
+  cat <<PLAN
+profiles:
+  home:
+    github_user: ${HOME_USER}
+    host_alias: $(host_alias home)
+    key_file: $(key_path home)
+    public_key: $(key_path home).pub
+  work:
+    github_user: ${WORK_USER}
+    host_alias: $(host_alias work)
+    key_file: $(key_path work)
+    public_key: $(key_path work).pub
+default: ${DEFAULT_PROFILE}
+
+git remotes:
+  home: git@home.github.com:OWNER/REPO.git
+  work: git@work.github.com:OWNER/REPO.git
+
+github-keygen command:
+PLAN
+
+  build_apply_args
+  print_shell_command "$GITHUB_KEYGEN" "${APPLY_ARGS[@]}"
+}
+
+run_apply() {
+  local yes="$1"
+  require_accounts
+  require_default
+  require_github_keygen
+  [[ "$yes" == "1" ]] || die "apply changes ~/.ssh/config; rerun with --yes"
+
+  build_apply_args
+  "$GITHUB_KEYGEN" "${APPLY_ARGS[@]}"
+  print_next_steps home
+  print_next_steps work
+}
+
+print_status() {
+  require_default
+  for profile in home work; do
+    local key pub alias user
+    key="$(key_path "$profile")"
+    pub="${key}.pub"
+    alias="$(host_alias "$profile")"
+    user="$(profile_user "$profile")"
+    printf '%s\n' "$profile:"
+    printf '  github_user: %s\n' "${user:-unset}"
+    printf '  host_alias: %s\n' "$alias"
+    printf '  key_file: %s [%s]\n' "$key" "$([[ -f "$key" ]] && printf present || printf missing)"
+    printf '  public_key: %s [%s]\n' "$pub" "$([[ -f "$pub" ]] && printf present || printf missing)"
+  done
+  printf 'default: %s\n' "$DEFAULT_PROFILE"
+  printf 'ssh_config: %s [%s]\n' "$SSH_DIR/config" "$([[ -f "$SSH_DIR/config" ]] && printf present || printf missing)"
+}
+
+print_next_steps() {
+  local profile="$1"
+  local key user
+  key="$(key_path "$profile")"
+  user="$(profile_user "$profile")"
+  cat <<NEXT
+
+${profile}: add this public key to GitHub account '${user}':
+  $(key_path "$profile").pub
+  https://github.com/settings/keys
+test:
+  ssh -T $(host_alias "$profile")
+NEXT
+  if [[ -f "${key}.pub" ]]; then
+    printf 'public key:\n'
+    sed 's/^/  /' "${key}.pub"
+  fi
+}
+
+rotate_stage() {
+  local profile="$1"
+  require_accounts
+  require_github_keygen
+  profile_user "$profile" >/dev/null
+
+  local staged="${profile}_next"
+  local key
+  key="$(key_path "$staged")"
+
+  "$GITHUB_KEYGEN" --offline "$staged" -i "$key" -t "$DEFAULT_KEY_TYPE" -C "$(comment_for "$profile")"
+  cat <<NEXT
+staged: ${profile}
+host_alias: $(host_alias "$staged")
+key_file: ${key}
+public_key: ${key}.pub
+
+Add the staged public key to GitHub account '$(profile_user "$profile")'.
+After GitHub accepts it, run:
+  ${PROGRAM} rotate-promote ${profile} --home-user ${HOME_USER} --work-user ${WORK_USER} --yes
+NEXT
+  [[ -f "${key}.pub" ]] && sed 's/^/  /' "${key}.pub"
+}
+
+rotate_promote() {
+  local profile="$1"
+  local yes="$2"
+  require_accounts
+  require_default
+  require_github_keygen
+  profile_user "$profile" >/dev/null
+  [[ "$yes" == "1" ]] || die "rotate-promote changes ~/.ssh/config; rerun with --yes"
+
+  local staged="${profile}_next"
+  local key
+  key="$(key_path "$staged")"
+  [[ -f "$key" ]] || die "staged private key missing: $key"
+  [[ -f "${key}.pub" ]] || die "staged public key missing: ${key}.pub"
+
+  local args=(--offline)
+  local part=()
+  while IFS= read -r -d '' item; do part+=("$item"); done < <(github_keygen_args_for_profile "$profile" "$staged")
+  args+=("${part[@]}" "$staged" -r)
+  "$GITHUB_KEYGEN" "${args[@]}"
+
+  cat <<NEXT
+promoted: ${profile}
+host_alias: $(host_alias "$profile")
+key_file: ${key}
+
+Test before revoking the old GitHub key:
+  ssh -T $(host_alias "$profile")
+NEXT
+}
+
+print_public_key() {
+  local selector="$1"
+  case "$selector" in
+    home|work|home_next|work_next) ;;
+    *) die "public-key expects home, work, home_next, or work_next" ;;
+  esac
+  local pub
+  pub="$(key_path "$selector").pub"
+  [[ -f "$pub" ]] || die "public key missing: $pub"
+  cat "$pub"
+}
+
+cmd="${1:-help}"
+shift || true
+
+yes=0
+profile_arg=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --home-user) HOME_USER="${2:-}"; shift 2 ;;
+    --work-user) WORK_USER="${2:-}"; shift 2 ;;
+    --default) DEFAULT_PROFILE="${2:-}"; shift 2 ;;
+    --key-type) DEFAULT_KEY_TYPE="${2:-}"; shift 2 ;;
+    --yes) yes=1; shift ;;
+    -h|--help|help) usage; exit 0 ;;
+    --) shift; break ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      if [[ -z "$profile_arg" ]]; then
+        profile_arg="$1"
+      else
+        die "unexpected argument: $1"
+      fi
+      shift
+      ;;
+  esac
+done
+
+case "$cmd" in
+  help|-h|--help) usage ;;
+  plan) print_plan ;;
+  apply) run_apply "$yes" ;;
+  status) print_status ;;
+  rotate-stage)
+    [[ -n "$profile_arg" ]] || die "rotate-stage requires profile: home or work"
+    rotate_stage "$profile_arg"
+    ;;
+  rotate-promote)
+    [[ -n "$profile_arg" ]] || die "rotate-promote requires profile: home or work"
+    rotate_promote "$profile_arg" "$yes"
+    ;;
+  public-key)
+    [[ -n "$profile_arg" ]] || die "public-key requires selector"
+    print_public_key "$profile_arg"
+    ;;
+  *)
+    die "unknown command '$cmd'; run: $PROGRAM help"
+    ;;
+esac
