@@ -44,7 +44,7 @@ docker-reclaim -f      # execute: prune + fstrim (actually reclaims host disk)
 2. `docker builder prune -af` — build cache (often largest: 7GB+ common)
 3. `docker image prune -af` — all unused images (not just dangling)
 4. `docker volume prune -f` — unused volumes
-5. `colima prune` — unused Colima instances/snapshots
+5. `colima prune -f` — unused Colima instances/snapshots
 6. `colima ssh -- sudo fstrim -av` — TRIM VM disk; shrinks host disk image
 
 ### Expected reclaim on a typical dev machine
