@@ -34,53 +34,29 @@ bundle install
 
 ---
 
-## 4. Extracting Domain Assets
-Use the `zdots-archeologist` tool to extract schema and association metadata. This is safe, read-only analysis.
+## 4. Mapping Domain Assets (The Automated Way)
+Use the `zdots-archeologist-run` utility to automatically extract, map, and organize assets from a repository.
 
 ```bash
-# Example: Mapping the User model
-bin/zdots-archeologist User > ~/my/standards/models/user.json
+# Usage: bin/zdots-archeologist-run <git_url> <ModelName>
+bin/zdots-archeologist-run git@github.com:just3ws/ccs.git User
 ```
+
+This command automatically:
+1.  **Extracts** the model's schema and associations into JSON.
+2.  **Visualizes** the model structure as a Mermaid ER diagram.
+3.  **Organizes** all artifacts into: `~/my/analysis/github.com/just3ws/ccs/<timestamp>/`.
 
 ---
 
-## 5. Documenting & Distilling
-Create a **Domain Asset Report** in the `~/my` structure. 
-
-1. **Create the file**: `~/my/standards/models/user.md`.
-2. **Populate**: Add the JSON output and your observations using the standard template:
-
-```markdown
-# Asset: User
-
-## Structural Schema
-```json
-{ ... JSON content here ... }
-```
-
-## Domain Insights
-- **Complexity**: (e.g., High - God Model)
-- **Coupling**: (e.g., Highly coupled to Order/Payment models)
-- **Workflow Role**: (e.g., Delayed Job trigger)
-
-## Migration/Resilience Gaps
-- [ ] Refactor `after_save` callback.
-- [ ] Decouple from legacy Payment API.
-```
-
-3. **Distill (Optional)**: If you need to refine the markdown, pipe it through Pi:
-   ```bash
-   cat ~/my/standards/models/user.md | pi --system "Improve grammar and clarity" > ~/my/standards/models/user_final.md
-   ```
-
----
-
-## 6. Indexing into the Brain
-Finally, ingest your findings so you can query them across the entire codebase.
+## 5. Indexing into the Brain
+Once the artifacts are generated, ingest them into the Brain:
 
 ```bash
-zdots-ctx ingest ~/my/standards/models/
+# Ingest all analysis artifacts for this repository
+zdots-ctx ingest ~/my/analysis/github.com/just3ws/ccs/
 ```
+
 
 **Querying Your Inventory:**
 Once indexed, you can ask the Brain questions like:
