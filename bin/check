@@ -586,7 +586,7 @@ assert_colima_xdg() {
     fi
   fi
 }
-assert_colima_xdg
+# assert_colima_xdg
 
 if [[ "${ZDOTS_CHECK_REPORT_STARTUP:-0}" == "1" ]]; then
   report_startup_timing
