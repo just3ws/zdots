@@ -28,11 +28,11 @@ restarts on crash with a 10-second throttle.
 ## First-Time Setup
 
 ```sh
-llama-ctl install         # brew install llama.cpp; write plist (no model yet — won't start)
+llama-ctl server install  # brew install llama.cpp; write plist
 # Add HUGGINGFACE_TOKEN to .zdots.env or .env for gated downloads
 llama-ctl model-download  # download active profile's GGUF (~4.7GB)
-llama-ctl install         # re-register plist with real model path; auto-starts server
-llama-ctl status          # verify
+llama-ctl server install  # re-register plist with real model path; auto-starts
+llama-ctl server status   # verify
 ```
 
 After the second `install`, the server runs automatically on every login.
@@ -45,15 +45,21 @@ After the second `install`, the server runs automatically on every login.
 
 | Command | What it does |
 |---|---|
-| `llama-ctl install` | Install binary (Homebrew), write launchd plist, auto-start if model present |
-| `llama-ctl start` | Load launchd service |
-| `llama-ctl stop` | Unload launchd service |
-| `llama-ctl restart` | Stop, wait 1s, start |
-| `llama-ctl status` | launchd state + health endpoint + active model |
-| `llama-ctl health` | Exit 0 if up, exit 1 if down |
-| `llama-ctl logs` | `tail -f` the server log |
-| `llama-ctl config` | Dump all resolved server configuration values |
-| `llama-ctl config --json` | Same, machine-readable JSON for tool integration |
+| `llama-ctl server install` | Install binary (Homebrew), write launchd plist, auto-start if model present |
+| `llama-ctl server start` | Load launchd service |
+| `llama-ctl server stop` | Unload launchd service |
+| `llama-ctl server restart` | Stop, wait 1s, start |
+| `llama-ctl server status` | launchd state + health endpoint + active model |
+| `llama-ctl server health` | Exit 0 if up, exit 1 if down |
+| `llama-ctl server logs` | `tail -f` the server log |
+| `llama-ctl server config` | Dump all resolved server configuration values |
+| `llama-ctl server validate`| Validate etc/ai-models.yaml (requires yq) |
+| `llama-ctl embed install` | Download embed model; write embedding plist; start server |
+| `llama-ctl embed start` | Load embedding launchd service |
+| `llama-ctl embed stop` | Unload embedding launchd service |
+| `llama-ctl embed status` | Status of the embedding server |
+
+*Note: Legacy commands (e.g., `llama-ctl install`, `llama-ctl install-embed`) remain supported for backward compatibility but are deprecated.*
 
 **`install` auto-reload behavior:** `install` unloads any running service, writes
 a fresh plist from `etc/ai-models.yaml`, then loads the service — but only if
@@ -63,10 +69,10 @@ instead of starting, which would otherwise trigger a crash loop.
 **Service management:**
 
 ```sh
-llama-ctl start
-llama-ctl stop
-llama-ctl status
-llama-ctl logs
+llama-ctl server start
+llama-ctl server stop
+llama-ctl server status
+llama-ctl server logs
 ```
 
 ### Model Management
@@ -88,7 +94,7 @@ llama-ctl model-switch constrained   # prints instructions
 # then follow the printed steps:
 ZDOTS_AI_PROFILE=constrained llama-ctl model-download
 # edit .zdots.env: export ZDOTS_AI_PROFILE=constrained
-ZDOTS_AI_PROFILE=constrained llama-ctl install
+ZDOTS_AI_PROFILE=constrained llama-ctl server install
 llama-ctl model-prune                # reclaim disk
 ```
 
@@ -118,7 +124,7 @@ All server startup flags and model profiles are defined here. After any change,
 regenerate the plist and restart the server with one command:
 
 ```sh
-llama-ctl install
+llama-ctl server install
 ```
 
 ### Profile Fields
@@ -175,7 +181,7 @@ sequence must fit within a single ubatch dispatch because mean/cls pooling
 requires all token vectors simultaneously. If input tokens > `ubatch_size`,
 llama-server returns HTTP 500 (`"input too large to process"`). Both values are
 set to 2048 so embedding inputs up to ~1500 words succeed. Tools that call the
-embeddings endpoint should read `llama-ctl config --json` and respect
+embeddings endpoint should read `llama-ctl server config --json` and respect
 `ubatch_size` as the hard maximum input length.
 
 **Logging:** `--log-file` is intentionally absent from the plist. The server
@@ -246,7 +252,7 @@ llama-server \
   --port 8081 --embeddings --pooling mean --n-gpu-layers 99 --ctx-size 2048
 
 # Or switch the managed server to the embed profile
-ZDOTS_AI_PROFILE=embed llama-ctl install
+ZDOTS_AI_PROFILE=embed llama-ctl server install
 ```
 
 ---
@@ -281,13 +287,13 @@ natively in Claude Code sessions. Its tools:
 
 ### Server configuration
 
-`llama-ctl config --json` outputs the fully-resolved server configuration as
+`llama-ctl server config --json` outputs the fully-resolved server configuration as
 JSON. Any tool that talks to the local llama-server can read this once at
 startup to self-configure rather than hard-coding values.
 
 ```sh
-llama-ctl config           # human-readable
-llama-ctl config --json    # machine-readable
+llama-ctl server config           # human-readable
+llama-ctl server config --json    # machine-readable
 ```
 
 Example JSON output:
@@ -333,7 +339,7 @@ Example JSON output:
 **Ruby/Rails example (e.g. RubyLLM):**
 
 ```ruby
-config = JSON.parse(`llama-ctl config --json`)
+config = JSON.parse(`llama-ctl server config --json`)
 # Respect the physical batch limit when chunking documents for embedding
 MAX_EMBED_TOKENS = config['ubatch_size']   # 2048
 ENDPOINT         = config['endpoint']      # http://127.0.0.1:11500
@@ -357,7 +363,7 @@ To disable (e.g., if you observe inference anomalies):
 flash_attn: false
 ```
 
-Then `llama-ctl install` to apply.
+Then `llama-ctl server install` to apply.
 
 ---
 
@@ -415,7 +421,7 @@ If the server is down, `ai` fails fast:
 
 ```
 ai: llama.cpp server not responding at http://127.0.0.1:11500
-    Start it with: llama-ctl start
+    Start it with: llama-ctl server start
 ```
 
 ### `ai-query` — subprocess-safe script
@@ -457,14 +463,14 @@ ai-query --help
 | `ZDOTS_AI_MODEL` | `local` | Model name / alias |
 
 `ai-query` does not emit OTel spans (no shell environment to read trace IDs from).
-Use `llama-ctl health` to check server state from a subprocess.
+Use `llama-ctl server health` to check server state from a subprocess.
 
 ---
 
 ## Health Check
 
 ```sh
-llama-ctl health && echo "up" || echo "down"
+llama-ctl server health && echo "up" || echo "down"
 
 # Raw endpoints
 curl -sf http://127.0.0.1:11500/health
@@ -487,7 +493,7 @@ deep diagnostic.
 
 ```sh
 brew upgrade llama.cpp    # update binary
-llama-ctl install         # regenerate plist with new binary path + restart
+llama-ctl server install  # regenerate plist with new binary path + restart
 ```
 
 Or via the zdots upgrade alias if wired:
@@ -559,12 +565,12 @@ server:
   - `ai-query <prompt>` — the subprocess-safe bash script in `bin/`
   - `curl` directly to `http://127.0.0.1:11500/v1/chat/completions`
   - `llama-ctl <command>` — the lifecycle script works from any bash context
-- **Discovering server limits:** Run `llama-ctl config --json` to get all
+- **Discovering server limits:** Run `llama-ctl server config --json` to get all
   resolved server parameters. Use `ubatch_size` as the maximum safe embedding
   input length. Use `alias` as the model name in API requests.
-- **Binary not installed:** `llama-ctl install` before any inference.
-- **Model not downloaded:** `llama-ctl model-download` before the second `llama-ctl install`.
-- **Config changes:** `llama-ctl install` is the only command needed — rewrites the plist and restarts the server.
+- **Binary not installed:** `llama-ctl server install` before any inference.
+- **Model not downloaded:** `llama-ctl model-download` before the second `llama-ctl server install`.
+- **Config changes:** `llama-ctl server install` is the only command needed — rewrites the plist and restarts the server.
 - **Composition root:** `ZDOTS_SERVICE_AI=llama-cpp` in `.zdots.env`. Changing this switches the entire AI subsystem.
 - **OOM:** Reduce `parallel: 1` or switch to `constrained` profile.
 - **Default profile:** `default_profile` in yaml is authoritative when `ZDOTS_AI_PROFILE` is not exported.
