@@ -18,7 +18,7 @@ trap '' PIPE
 # Colima uses a profile-specific socket, not /var/run/docker.sock.
 # Set DOCKER_HOST if not already set and Colima socket is present.
 if [[ -z "${DOCKER_HOST:-}" ]]; then
-  _colima_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/colima"
+  _colima_dir="${HOME}/.colima"
   if [[ -S "${_colima_dir}/default/docker.sock" ]]; then
     export DOCKER_HOST="unix://${_colima_dir}/default/docker.sock"
   elif [[ -S "${_colima_dir}/docker.sock" ]]; then

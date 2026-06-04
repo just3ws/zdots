@@ -168,16 +168,15 @@ for _f in .zshrc .zprofile .zlogin .zlogout; do
   fi
 done
 
-# Colima XDG drift
+# Colima location
 if [[ -d "$HOME/.colima" ]]; then
-  _fail "$HOME/.colima  present — colima ignores XDG_CONFIG_HOME"
-  _fix  "mv $HOME/.colima \"\${XDG_CONFIG_HOME:-\$HOME/.config}/colima\""
+  _ok "Colima  default location (~/.colima) present"
 else
-  _pass "$HOME/.colima  absent"
+  _fail "Colima  default location (~/.colima) missing"
 fi
 
 # Colima stale VZ pid — symptom: "vz driver is running but host agent is not"
-_colima_lima="${XDG_CONFIG_HOME:-$HOME/.config}/colima/_lima/colima"
+_colima_lima="$HOME/.colima/_lima/colima"
 _vz_pid_file="$_colima_lima/vz.pid"
 if [[ -f "$_vz_pid_file" ]]; then
   _vz_pid=$(cat "$_vz_pid_file" 2>/dev/null || true)
