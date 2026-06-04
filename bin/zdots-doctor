@@ -57,9 +57,9 @@ _fail() { printf '  [FAIL] %s\n' "$*"; }
 _fix()  { printf '         fix: %s\n' "$*"; }
 _skip() { [[ "$QUIET" -eq 0 ]] && printf '  [----] %s\n' "$*"; }
 
-_pass() { _PASS=$((_PASS+1)); [[ "$QUIET" -eq 0 ]] && printf '  ${_CLR_OK}[ok]   ${_CLR_RST}%s\n' "$*"; }
-_warn() { _WARN=$((_WARN+1)); printf '  ${_CLR_WARN}[warn] ${_CLR_RST}%s\n' "$*"; }
-_fail() { _FAIL=$((_FAIL+1)); printf '  ${_CLR_ERR}[FAIL] ${_CLR_RST}%s\n' "$*"; }
+_pass() { _PASS=$((_PASS+1)); [[ "$QUIET" -eq 0 ]] && printf "  ${_CLR_OK}[ok]   ${_CLR_RST}%s\n" "$*"; }
+_warn() { _WARN=$((_WARN+1)); printf "  ${_CLR_WARN}[warn] ${_CLR_RST}%s\n" "$*"; }
+_fail() { _FAIL=$((_FAIL+1)); printf "  ${_CLR_ERR}[FAIL] ${_CLR_RST}%s\n" "$*"; }
 
 _section() {
   printf '\n'
