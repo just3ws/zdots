@@ -139,11 +139,18 @@ LOCAL_URLS=(
 # Helpers
 # ---------------------------------------------------------------------------
 
-_ok()   { printf 'zsvc: [ok]  %s\n' "$*" >&2; }
-_warn() { printf 'zsvc: [!!]  %s\n' "$*" >&2; }
-_info() { printf 'zsvc: %s\n'       "$*" >&2; }
-_die()  { printf 'zsvc: [err] %s\n' "$*" >&2; exit 1; }
-_sep()  { printf '\n--- %s ---\n' "$*"; }
+# Color helpers
+_CLR_OK='\033[0;32m'
+_CLR_WARN='\033[0;33m'
+_CLR_ERR='\033[0;31m'
+_CLR_INFO='\033[0;36m'
+_CLR_RST='\033[0m'
+
+_ok()   { printf "zsvc: ${_CLR_OK}✅ [ok]${_CLR_RST}  %s\n" "$*" >&2; }
+_warn() { printf "zsvc: ${_CLR_WARN}⚠️  [!!]${_CLR_RST}  %s\n" "$*" >&2; }
+_info() { printf "zsvc: ${_CLR_INFO}ℹ️  %s${_CLR_RST}\n"       "$*" >&2; }
+_die()  { printf "zsvc: ${_CLR_ERR}❌ [err]${_CLR_RST} %s\n" "$*" >&2; exit 1; }
+_sep()  { printf "\n${_CLR_INFO}--- %s ---${_CLR_RST}\n" "$*"; }
 
 _json_escape() {
   sed 's/\\/\\\\/g; s/"/\\"/g' <<<"$1"
