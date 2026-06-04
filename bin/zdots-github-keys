@@ -321,7 +321,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$cmd" in
-  help|-h|--help) usage ;;
+  help|-h|--help) usage; exit 0 ;;
   plan) print_plan ;;
   apply) run_apply "$yes" ;;
   status) print_status ;;
