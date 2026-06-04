@@ -94,48 +94,27 @@ _yq_field() {
 
 usage() {
   cat <<EOF
-Usage: llama-ctl <command> [--json]
+Usage: llama-ctl <subcommand> [args] [--json]
 
-Service Lifecycle:
-  install           Install llama.cpp (Homebrew), write launchd plist, and
-                    auto-start the server if the active model is present.
-                    Re-run after any change to etc/ai-models.yaml.
-  start             Load launchd service (RunAtLoad + KeepAlive)
-  stop              Unload launchd service
-  restart           stop, wait 1s, start
-  status            launchd state + health endpoint + active model name
-  health            Exit 0 if server is up, exit 1 if down
-  logs              tail -f the server log
-  validate          Validate etc/ai-models.yaml (requires yq)
-  config            Dump all resolved server configuration values
+Subcommands:
+  server <command>  Manage inference server (install, start, stop, restart,
+                    status, health, logs, validate, config)
+  embed <command>   Manage embedding server (install, start, stop, status)
 
 Model Management:
-  model-list        List downloaded GGUFs with disk sizes; marks active model
-  model-download [--draft]  Download active profile's GGUF from HuggingFace (resumable).
-                            --draft also downloads the speculative draft model if defined.
-  model-switch <p>  Print step-by-step instructions to switch to profile <p>
+  model-list        List downloaded GGUFs
+  model-download [--draft] Download models
+  model-switch <p>  Print switch instructions
+  model-prune       DESTRUCTIVE: remove orphaned models
+  model-df          Disk usage summary
 
-Embedding Server (dedicated, port 11501):
-  install-embed     Download Nomic embed model if needed; write com.zdots.llama-embed.plist; start server.
-  start-embed       Load embed launchd service
-  stop-embed        Unload embed launchd service
-  status-embed      Status of the embedding server
-  model-prune       Delete all GGUFs except the active profile's model — DESTRUCTIVE
-  model-df          Disk usage summary for the model directory
+Legacy Commands (Deprecated):
+  install, start, stop, restart, status, health, logs, validate, config,
+  install-embed, start-embed, stop-embed, status-embed
 
 Options:
   --json      Output as JSON (valid for status, health, config)
   -h, --help  Show this help
-
-Config:
-  etc/ai-models.yaml   Model profiles (model_file, ctx_size, n_gpu_layers, ...)
-                       and server flags (batch sizes, KV cache, embeddings, ...)
-
-Environment:
-  ZDOTS_AI_PROFILE      Active profile; overrides default_profile from yaml
-                        (default: value of .default_profile in etc/ai-models.yaml)
-  ZDOTS_AI_MODELS_DIR   Model storage root
-                        (default: \${XDG_DATA_HOME:-~/.local/share}/llama-cpp/models)
 EOF
 }
 
@@ -813,7 +792,34 @@ status_embed() {
 }
 
 # ─── case dispatcher ──────────────────────────────────────────────────────────
+# Nested dispatcher
 case "${1:-}" in
+  server)
+    shift
+    case "${1:-}" in
+      install)  install_llama ;;
+      start)    start_llama ;;
+      stop)     stop_llama ;;
+      restart)  zdots_svc_restart stop_llama start_llama ;;
+      status)   shift; status_llama "${@}" ;;
+      health)   shift; health_llama "${@}" ;;
+      logs)     logs_llama ;;
+      validate) validate_llama ;;
+      config)   shift; config_dump "${@}" ;;
+      *)        printf 'llama-ctl: unknown server command: %s\n' "${1:-}" >&2; usage >&2; exit 1 ;;
+    esac
+    ;;
+  embed)
+    shift
+    case "${1:-}" in
+      install)  install_embed ;;
+      start)    start_embed ;;
+      stop)     stop_embed ;;
+      status)   shift; status_embed "${@}" ;;
+      *)        printf 'llama-ctl: unknown embed command: %s\n' "${1:-}" >&2; usage >&2; exit 1 ;;
+    esac
+    ;;
+  # Backward compatibility
   install)        install_llama ;;
   start)          start_llama ;;
   stop)           stop_llama ;;
