@@ -44,11 +44,22 @@ done
 # ---------------------------------------------------------------------------
 _PASS=0; _WARN=0; _FAIL=0
 
-_pass() { _PASS=$((_PASS+1)); [[ "$QUIET" -eq 0 ]] && printf '  [ok]   %s\n' "$*"; }
-_warn() { _WARN=$((_WARN+1)); printf '  [warn] %s\n' "$*"; }
-_fail() { _FAIL=$((_FAIL+1)); printf '  [FAIL] %s\n' "$*"; }
+# Color helpers
+_CLR_OK='\033[0;32m'
+_CLR_WARN='\033[0;33m'
+_CLR_ERR='\033[0;31m'
+_CLR_INFO='\033[0;36m'
+_CLR_RST='\033[0m'
+
+_ok()   { printf '  [ok]   %s\n' "$*"; }
+_warn() { printf '  [warn] %s\n' "$*"; }
+_fail() { printf '  [FAIL] %s\n' "$*"; }
 _fix()  { printf '         fix: %s\n' "$*"; }
 _skip() { [[ "$QUIET" -eq 0 ]] && printf '  [----] %s\n' "$*"; }
+
+_pass() { _PASS=$((_PASS+1)); [[ "$QUIET" -eq 0 ]] && printf '  ${_CLR_OK}[ok]   ${_CLR_RST}%s\n' "$*"; }
+_warn() { _WARN=$((_WARN+1)); printf '  ${_CLR_WARN}[warn] ${_CLR_RST}%s\n' "$*"; }
+_fail() { _FAIL=$((_FAIL+1)); printf '  ${_CLR_ERR}[FAIL] ${_CLR_RST}%s\n' "$*"; }
 
 _section() {
   printf '\n'
