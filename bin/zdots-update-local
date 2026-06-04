@@ -23,7 +23,7 @@ SKIP_AIDER=0
 SKIP_GEMS=0
 SKIP_GEMINI=0
 SKIP_CHECK=0
-PHASE_TOTAL=11
+PHASE_TOTAL=12
 PHASE_INDEX=0
 PHASE_DONE=0
 PHASE_NAMES=()
@@ -242,6 +242,22 @@ warn() {
 log "run_id=$RUN_ID repo=$ZDOTDIR log=$LOG_FILE summary=$SUMMARY_FILE"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   log "commit=$(git rev-parse --short HEAD)"
+fi
+
+phase "colima: reconcile storage paths"
+step "enforce ~/.colima -> ~/.config/colima symlink"
+# Ensure ~/.colima is the source of truth
+mkdir -p "$HOME/.colima"
+# Reconcile if ~/.config/colima exists and is not a symlink
+if [[ -d "$HOME/.config/colima" && ! -L "$HOME/.config/colima" ]]; then
+    log "Migrating ~/.config/colima to ~/.colima..."
+    mv "$HOME/.config/colima"/* "$HOME/.colima/" 2>/dev/null || true
+    rmdir "$HOME/.config/colima" 2>/dev/null || true
+fi
+# Recreate symlink if missing
+if [[ ! -L "$HOME/.config/colima" ]]; then
+    log "Linking ~/.config/colima -> ~/.colima"
+    ln -s "$HOME/.colima" "$HOME/.config/colima"
 fi
 
 phase "brew: reconcile selected Brewfile"
