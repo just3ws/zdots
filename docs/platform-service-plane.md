@@ -51,8 +51,14 @@ flowchart TB
     colima --> lgtm["LGTM container\nGrafana/Loki/Tempo/Mimir"]
     otelctl --> lgtm
 
-    llamactl --> llama["llama-server\n127.0.0.1:11500"]
-    llamactl --> embed["llama-embed\n127.0.0.1:11501"]
+    subgraph LlamaCtl[bin/llama-ctl]
+        LlamaServer[server]
+        LlamaEmbed[embed]
+    end
+
+    LlamaServer --> llama["llama-server\n127.0.0.1:11500"]
+    LlamaEmbed --> embed["llama-embed\n127.0.0.1:11501"]
+    
     pglaunch --> postgres["PostgreSQL 18\nmy database"]
     redislaunch --> redis["Redis\nanalytics buffer"]
     nginxctl --> nginx["nginx\n:80/:443 local URLs"]
@@ -93,8 +99,8 @@ sequenceDiagram
 
 | Component | Manager | Registration | Health | Logs |
 |---|---|---|---|---|
-| `llama-server` | `llama-ctl` / `zsvc llama` | user LaunchAgent `com.zdots.llama-server` | `GET :11500/health` | `~/.local/state/zsh/llama-server.log` |
-| `llama-embed` | `llama-ctl` / `zsvc embed` | user LaunchAgent `com.zdots.llama-embed` | `GET :11501/health` | `~/.local/state/zsh/llama-embed.log` |
+| `llama-server` | `llama-ctl server` | user LaunchAgent `com.zdots.llama-server` | `GET :11500/health` | `~/.local/state/zsh/llama-server.log` |
+| `llama-embed` | `llama-ctl embed` | user LaunchAgent `com.zdots.llama-embed` | `GET :11501/health` | `~/.local/state/zsh/llama-embed.log` |
 | `otel-collector` | `otel-collector` / `zsvc otel` | user LaunchAgent `com.zdots.otel-collector` | OTLP HTTP `:4318` | `~/.local/state/zsh/otel-collector.log` |
 | `colima` | `local-ci` / `zsvc colima` | Colima VM state | `colima status` | `colima logs` |
 | `nginx` | `nginx-ctl` / `zsvc nginx` | root LaunchDaemon `homebrew.mxcl.nginx` | `:80` listener and host probes | Homebrew nginx logs |
