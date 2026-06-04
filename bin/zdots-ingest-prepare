@@ -9,9 +9,26 @@
 
 set -eo pipefail
 
+usage() {
+  cat <<HELP
+Usage: zdots-ingest-prepare <file>
+
+Preprocesses files for zdots-ctx ingest.
+Supported formats: .pdf, .docx, .vtt
+
+Options:
+  -h, --help  Show this help
+HELP
+}
+
 if [[ $# -eq 0 ]]; then
-  echo "Usage: zdots-ingest-prepare <file>"
+  usage
   exit 1
+fi
+
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+  usage
+  exit 0
 fi
 
 FILE="$1"
