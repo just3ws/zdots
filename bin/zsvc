@@ -13,135 +13,45 @@ trap '' PIPE
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 BIN="$ZDOTDIR/bin"
-STATE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
 _LAUNCHD_UID="$(id -u)"
+
+# Single source of truth for the service catalog + health/state probes.
+# shellcheck source=lib/svc-registry.bash
+source "$ZDOTDIR/lib/svc-registry.bash"
 
 # ---------------------------------------------------------------------------
 # Service registry
 # Sets SVC_* vars for the given service alias.
 # ---------------------------------------------------------------------------
+# Populate the SVC_* variables for a service alias from the shared registry
+# (lib/svc-registry.bash). SVC_CTL resolves a repo bin/ script to its full
+# path; an external command (e.g. colima) or no ctl is left as-is.
 _svc_meta() {
-  local svc="$1"
-  case "$svc" in
-    llama|llama-server|ai|server)
-      SVC_NAME="llama"
-      SVC_DISPLAY="llama-server"
-      SVC_LABEL="com.zdots.llama-server"
-      SVC_LOG="$STATE/llama-server.log"
-      SVC_CTL="$BIN/llama-ctl"
-      SVC_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
-      SVC_TYPE="launchd"
-      SVC_INSTALL="install"
-      SVC_START="start"     SVC_STOP="stop"       SVC_RESTART="restart"
-      SVC_STATUS="status"   SVC_HEALTH="health"   SVC_LOGS="logs"
-      SVC_VALIDATE="validate"
-      ;;
-    embed|llama-embed|embedding)
-      SVC_NAME="embed"
-      SVC_DISPLAY="llama-embed"
-      SVC_LABEL="com.zdots.llama-embed"
-      SVC_LOG="$STATE/llama-embed.log"
-      SVC_CTL="$BIN/llama-ctl"
-      SVC_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
-      SVC_TYPE="launchd"
-      SVC_INSTALL="install-embed"
-      SVC_START="start-embed"  SVC_STOP="stop-embed"  SVC_RESTART=""
-      SVC_STATUS="status-embed" SVC_HEALTH=""          SVC_LOGS=""
-      SVC_VALIDATE=""
-      ;;
-    otel|otel-collector|telemetry|collector)
-      SVC_NAME="otel"
-      SVC_DISPLAY="otel-collector"
-      SVC_LABEL="com.zdots.otel-collector"
-      SVC_LOG="$STATE/otel-collector.log"
-      SVC_CTL="$BIN/otel-collector"
-      SVC_ENDPOINT="http://127.0.0.1:4318"
-      SVC_TYPE="launchd"
-      SVC_INSTALL="install"
-      SVC_START="start"     SVC_STOP="stop"       SVC_RESTART="restart"
-      SVC_STATUS="status"   SVC_HEALTH="health"   SVC_LOGS="logs"
-      SVC_VALIDATE="validate"
-      ;;
-    colima|vm|docker)
-      SVC_NAME="colima"
-      SVC_DISPLAY="colima"
-      SVC_LABEL="com.zdots.colima-autostart"
-      SVC_LOG=""
-      SVC_CTL="colima"
-      SVC_ENDPOINT=""
-      SVC_TYPE="colima"
-      SVC_INSTALL=""
-      SVC_START="start"   SVC_STOP="stop"   SVC_RESTART=""
-      SVC_STATUS="status" SVC_HEALTH=""     SVC_LOGS="logs"
-      SVC_VALIDATE=""
-      ;;
-    nginx|web|proxy)
-      SVC_NAME="nginx"
-      SVC_DISPLAY="nginx"
-      # System-domain root LaunchDaemon (binds 80/443). Managed via nginx-ctl,
-      # which uses `sudo launchctl` — not `brew services`. See bin/nginx-ctl.
-      SVC_LABEL="homebrew.mxcl.nginx"
-      SVC_LOG="$(brew --prefix 2>/dev/null || printf /opt/homebrew)/var/log/nginx/error.log"
-      SVC_CTL="$BIN/nginx-ctl"
-      SVC_ENDPOINT="https://my.local (+ llama/embed/grafana.local)"
-      SVC_TYPE="nginx"
-      SVC_INSTALL=""
-      SVC_START="start"   SVC_STOP="stop"     SVC_RESTART="restart"
-      SVC_STATUS="status" SVC_HEALTH="health" SVC_LOGS="logs"
-      SVC_VALIDATE="validate"
-      ;;
-    postgres|postgresql|pg|db|database)
-      SVC_NAME="postgres"
-      SVC_DISPLAY="postgresql@18"
-      # User-domain Homebrew LaunchAgent — managed directly via launchctl (no
-      # sudo, no `brew services`). Backs the `my` database (the Brain).
-      SVC_LABEL="homebrew.mxcl.postgresql@18"
-      SVC_LOG="$(brew --prefix 2>/dev/null || printf /opt/homebrew)/var/log/postgresql@18.log"
-      SVC_CTL=""
-      SVC_ENDPOINT="postgresql:///my (:5432)"
-      SVC_TYPE="plist"
-      SVC_INSTALL=""
-      SVC_START="start"   SVC_STOP="stop"   SVC_RESTART="restart"
-      SVC_STATUS="status" SVC_HEALTH="health" SVC_LOGS=""
-      SVC_VALIDATE=""
-      ;;
-    redis|cache|kv)
-      SVC_NAME="redis"
-      SVC_DISPLAY="redis"
-      SVC_LABEL="homebrew.mxcl.redis"
-      SVC_LOG="$(brew --prefix 2>/dev/null || printf /opt/homebrew)/var/log/redis.log"
-      SVC_CTL=""
-      SVC_ENDPOINT="127.0.0.1:6379"
-      SVC_TYPE="plist"
-      SVC_INSTALL=""
-      SVC_START="start"   SVC_STOP="stop"   SVC_RESTART="restart"
-      SVC_STATUS="status" SVC_HEALTH="health" SVC_LOGS=""
-      SVC_VALIDATE=""
-      ;;
-    worker|jobs|brain-worker)
-      SVC_NAME="worker"
-      SVC_DISPLAY="zdots-worker"
-      # User-domain LaunchAgent that runs `zdots-brain worker`, draining the
-      # async job queue (embed/distill/docs_sync) for the `my` database.
-      SVC_LABEL="com.zdots.worker"
-      SVC_LOG="$STATE/zdots-worker.log"
-      SVC_CTL="$BIN/zdots-worker"
-      SVC_ENDPOINT="jobs queue (my)"
-      SVC_TYPE="launchd"
-      SVC_INSTALL="install"
-      SVC_START="start"   SVC_STOP="stop"   SVC_RESTART="restart"
-      SVC_STATUS="status" SVC_HEALTH="health" SVC_LOGS="logs"
-      SVC_VALIDATE=""
-      ;;
-    *)
-      printf 'zsvc: unknown service: %s\n' "$svc" >&2
-      printf 'zsvc: known services: llama, embed, otel, colima, nginx, postgres, redis, worker\n' >&2
-      exit 1
-      ;;
-  esac
+  local svc
+  svc="$(zdots_svc_resolve "$1")" || {
+    printf 'zsvc: unknown service: %s\n' "$1" >&2
+    printf 'zsvc: known services: %s\n' "$(zdots_svc_managed | paste -sd, - | sed 's/,/, /g')" >&2
+    exit 1
+  }
+  SVC_NAME="$svc"
+  SVC_DISPLAY="${ZDOTS_SVC_DISPLAY[$svc]}"
+  SVC_LABEL="${ZDOTS_SVC_LABEL[$svc]}"
+  SVC_LOG="${ZDOTS_SVC_LOG[$svc]}"
+  SVC_ENDPOINT="${ZDOTS_SVC_ENDPOINT[$svc]}"
+  SVC_TYPE="${ZDOTS_SVC_TYPE[$svc]}"
+  local ctl="${ZDOTS_SVC_CTL[$svc]}"
+  if [[ -n "$ctl" && -f "$BIN/$ctl" ]]; then SVC_CTL="$BIN/$ctl"; else SVC_CTL="$ctl"; fi
+  SVC_INSTALL="${ZDOTS_SVC_INSTALL[$svc]}"
+  SVC_START="${ZDOTS_SVC_START[$svc]}"
+  SVC_STOP="${ZDOTS_SVC_STOP[$svc]}"
+  SVC_RESTART="${ZDOTS_SVC_RESTART[$svc]}"
+  SVC_STATUS="${ZDOTS_SVC_STATUS[$svc]}"
+  SVC_HEALTH="${ZDOTS_SVC_HEALTH[$svc]}"
+  SVC_LOGS="${ZDOTS_SVC_LOGS[$svc]}"
+  SVC_VALIDATE="${ZDOTS_SVC_VALIDATE[$svc]}"
 }
 
-ALL_SVCS=(llama embed otel colima nginx postgres redis worker)
+mapfile -t ALL_SVCS < <(zdots_svc_managed)
 LOCAL_URLS=(
   "llama.local|https://llama.local/health"
   "embed.local|https://embed.local/health"
@@ -171,36 +81,8 @@ _json_escape() {
   sed 's/\\/\\\\/g; s/"/\\"/g' <<<"$1"
 }
 
-_launchd_state() {
-  local label="$1" out state pid
-  if out=$(launchctl print "gui/${_LAUNCHD_UID}/${label}" 2>/dev/null); then
-    state=$(printf '%s\n' "$out" | awk '/[[:space:]]state = / {print $NF; exit}')
-    pid=$(printf '%s\n'   "$out" | awk '/[[:space:]]pid = /   {print $NF; exit}')
-    printf '%s\t%s' "${state:-unknown}" "${pid:--}"
-  else
-    printf 'not-registered\t-'
-  fi
-}
-
-_colima_state() {
-  if colima status >/dev/null 2>&1; then
-    printf 'running\t-'
-  else
-    printf 'stopped\t-'
-  fi
-}
-
-# nginx runs in the launchd SYSTEM domain (root daemon on 80/443), so its state
-# lives under system/<label>, not gui/<uid>/<label>. Readable without sudo.
-_nginx_state() {
-  local label="$1" out pid
-  if out=$(launchctl print "system/${label}" 2>/dev/null); then
-    pid=$(printf '%s\n' "$out" | awk '/[[:space:]]pid = /{print $NF; exit}')
-    printf 'running\t%s' "${pid:--}"
-  else
-    printf 'not-registered\t-'
-  fi
-}
+# State probing (launchd user-domain, nginx system-domain, colima) lives once
+# in lib/svc-registry.bash → zdots_svc_state. zsvc reads it through that seam.
 
 # Plain user-domain Homebrew LaunchAgents (postgres, redis): managed directly via
 # launchctl — never `brew services`. No bespoke ctl script.
@@ -221,68 +103,28 @@ _plist_health() {
   esac
 }
 
-_svc_state_pid() {
-  if [[ "$SVC_TYPE" == "colima" ]]; then
-    _colima_state
-  elif [[ "$SVC_TYPE" == "nginx" ]]; then
-    _nginx_state "$SVC_LABEL"
-  else
-    _launchd_state "$SVC_LABEL"
-  fi
-}
+_svc_state_pid() { zdots_svc_state "$SVC_NAME"; }
 
+# Health verdict for the current service: "ok\t<detail>" or "fail\t<detail>".
+# The probe itself lives once in the registry (zdots_svc_healthy); only the
+# human-facing detail label is chosen here.
 _svc_health_text() {
+  local detail
   case "$SVC_NAME" in
-    llama)
-      if curl -sf --max-time 3 "${SVC_ENDPOINT}/health" >/dev/null 2>&1; then
-        printf 'ok\t/health'
-      else
-        printf 'fail\t/health'
-      fi ;;
-    embed)
-      if curl -sf --max-time 3 "${SVC_ENDPOINT}/health" >/dev/null 2>&1; then
-        printf 'ok\t/health'
-      else
-        printf 'fail\t/health'
-      fi ;;
-    otel)
-      if "$SVC_CTL" health >/dev/null 2>&1; then
-        printf 'ok\tOTLP receiver'
-      else
-        printf 'fail\tOTLP receiver'
-      fi ;;
-    colima)
-      if colima status >/dev/null 2>&1; then
-        printf 'ok\tcolima status'
-      else
-        printf 'fail\tcolima status'
-      fi ;;
-    nginx)
-      if curl -s --max-time 3 -o /dev/null http://localhost/ 2>/dev/null; then
-        printf 'ok\tlocalhost:80'
-      else
-        printf 'fail\tlocalhost:80'
-      fi ;;
-    postgres)
-      if command -v pg_isready >/dev/null 2>&1 && pg_isready -q 2>/dev/null; then
-        printf 'ok\tpg_isready'
-      else
-        printf 'fail\tpg_isready'
-      fi ;;
-    redis)
-      if [[ "$(redis-cli ping 2>/dev/null)" == "PONG" ]]; then
-        printf 'ok\tPONG'
-      else
-        printf 'fail\tPONG'
-      fi ;;
-    worker)
-      # No endpoint to probe — liveness is "launchd process alive".
-      if "$SVC_CTL" health >/dev/null 2>&1; then
-        printf 'ok\tprocess alive'
-      else
-        printf 'fail\tnot running'
-      fi ;;
+    llama|embed) detail='/health' ;;
+    otel)        detail='OTLP receiver' ;;
+    colima)      detail='colima status' ;;
+    nginx)       detail='localhost:80' ;;
+    postgres)    detail='pg_isready' ;;
+    redis)       detail='PONG' ;;
+    worker)      detail='process alive' ;;
+    *)           detail='' ;;
   esac
+  if zdots_svc_healthy "$SVC_NAME"; then
+    printf 'ok\t%s' "$detail"
+  else
+    printf 'fail\t%s' "$detail"
+  fi
 }
 
 _local_url_health() {
@@ -312,13 +154,7 @@ cmd_list() {
   local svc state_pid state pid
   for svc in "${ALL_SVCS[@]}"; do
     _svc_meta "$svc"
-    if [[ "$SVC_TYPE" == "colima" ]]; then
-      state_pid=$(_colima_state)
-    elif [[ "$SVC_TYPE" == "nginx" ]]; then
-      state_pid=$(_nginx_state "$SVC_LABEL")
-    else
-      state_pid=$(_launchd_state "$SVC_LABEL")
-    fi
+    state_pid=$(zdots_svc_state "$SVC_NAME")
     state="${state_pid%%$'\t'*}"
     pid="${state_pid##*$'\t'}"
     printf '%-16s  %-18s  %-8s  %s\n' "$SVC_DISPLAY" "$state" "$pid" "${SVC_ENDPOINT:--}"
@@ -448,7 +284,7 @@ cmd_status() {
   local svc="$1"; shift
   _svc_meta "$svc"
   if [[ "$SVC_TYPE" == "plist" ]]; then
-    local sp; sp=$(_launchd_state "$SVC_LABEL")
+    local sp; sp=$(zdots_svc_state "$SVC_NAME")
     local st="${sp%%$'\t'*}" pid="${sp##*$'\t'}"
     if [[ "$st" == "running" ]]; then _ok "${SVC_DISPLAY} ${st} (pid ${pid}, ${SVC_ENDPOINT})"
     else _warn "${SVC_DISPLAY} ${st}"; fi

@@ -8,6 +8,8 @@ Terms used in code, docs, and agent instructions. Use exact names.
 
 Any long-running process managed by `zdots-ctl`: startable, stoppable, health-probeable, and tracked in `zdots-ctl status --json`. The umbrella category — does not imply a tier.
 
+**Registry:** the catalog (display, launchd label, log, ctl, endpoint, type, lifecycle verbs) and the health/state probes live once in `lib/svc-registry.bash` — the single source of truth. `bin/zsvc` (per-service lifecycle) and `bin/zdots-ctl` (platform health) both derive from it via `zdots_svc_resolve` (alias → canonical), `zdots_svc_managed` (the controllable set), `zdots_svc_state` (launchd/colima/nginx state+pid), and `zdots_svc_healthy` (one liveness probe per service). Adding or re-probing a service is one edit in the registry; the per-service `*-ctl` scripts remain the adapters the descriptor points to.
+
 **Core Service** — a Platform Service zdots itself depends on to function. Always present on any zdots host. Examples: llama.cpp (AI inference), whisper (transcription), otel-collector (observability), context engine (knowledge persistence), the Worker (async job drain).
 
 **Cache Service** — a Platform Service that improves throughput but degrades gracefully when absent. zdots continues to operate if a Cache Service is down, with automatic fallback to a slower path. Current instance: Redis (command analytics write buffer; falls back to async SQLite when unreachable). Tracked in `zdots-ctl status` and warned (not failed) in `zdots-ctl check`.
