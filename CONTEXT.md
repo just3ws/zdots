@@ -55,12 +55,18 @@ The canonical list of all sensitive-pattern redaction and suppression rules, def
 
 **Compilation:** `lib/phi_scrubber.bash` compiles the YAML at first use via `_phi_load_patterns`. Fails hard if `yq` is absent or the registry is missing. `phi_scrubber_init()` triggers eager compilation at shell startup. Two caches are produced: `_PHI_SED_ARGS` (redact patterns, for sed) and `_PHI_SUPPRESS_PATTERN` (suppress patterns, OR'd ERE for `=~` checks).
 
-**Consumers:**
+**Consumers (bash):**
 - `phi_scrub` — applies `_PHI_SED_ARGS` via sed; fails hard on suppress-pattern match
 - `phi_should_suppress` — fast `=~` check against `_PHI_SUPPRESS_PATTERN`; no fork
 - `aiq_scan` — reads entries with `weight` set for risk scoring
 - `conf.d/55-phi-history.zsh` — sources scrubber; uses `phi_should_suppress` + `phi_scrub`
 - `conf.d/56-cmd-analytics.zsh` — sources scrubber; uses `phi_should_suppress` + `phi_scrub`
+
+**Consumers (Ruby):**
+- `Zdots::AI::PhiScrubber` (`lib/zdots/ai/phi_scrubber.rb`) — the Ruby twin. `.call` redacts; raises `SuppressedError` on a suppress-flagged pattern. `.suppressed?` is the predicate twin of `phi_should_suppress`.
+- `Zdots::AI::Pipeline` maps `SuppressedError` → `Failure[:phi_suppressed]`, so both inference and embedding abort (never redact-and-continue) on a suppress match.
+
+**Two implementations, one behaviour:** the bash and Ruby scrubbers both compile this registry and **must agree** — same redactions, and suppress means fail-hard in both. They are pinned by the cross-implementation contract test (`spec/zdots/ai/phi_contract_spec.rb`); changing one without the other breaks the build.
 
 **Invariant:** a new sensitive pattern type requires exactly one file edit (`etc/phi-patterns.yaml`). No other file defines PHI or credential patterns.
 

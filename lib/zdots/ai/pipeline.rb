@@ -39,6 +39,8 @@ module Zdots
 
         def scrub(text)
           Success(PhiScrubber.call(text))
+        rescue PhiScrubber::SuppressedError => e
+          Failure[:phi_suppressed, e.message]
         end
 
         def infer(prompt, model:, temperature:, system:)
