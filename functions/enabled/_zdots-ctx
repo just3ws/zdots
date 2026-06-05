@@ -1,0 +1,60 @@
+#compdef zdots-ctx
+# Completion for zdots-ctx — the knowledge-layer / context-engine interface.
+# Verbs carry descriptions; high-value subcommands get argument completion
+# (role names, log kinds, files, flags).
+
+_zdots-ctx() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  local -a cmds
+  cmds=(
+    'status:check connection and report database metadata'
+    'init-db:create the database and apply initial schema'
+    'migrate:apply pending migrations from etc/db/migrations'
+    'rotate-creds:rotate a DB role password into Keychain'
+    'query:search methodologies or lessons'
+    'capture:distill the current session into a lesson'
+    'hydrate:get semantically relevant context for AI tasks'
+    'diagnose-log:package deploy logs for AI/HI diagnostics'
+    'seed:import existing standards from ~/my/standards'
+    'add-methodology:add a methodology entry'
+    'add-lesson:add a lesson entry'
+    'ingest:ingest Knowledge Vault documents'
+    'sync-history:sync SQLite analytics into PostgreSQL'
+    'enqueue:enqueue a job'
+    'requeue:requeue a job by id'
+    'jobs:list pending and recent jobs'
+    'worker:run a worker to process queued jobs'
+    'triage:review and resolve permanently failed (dead) jobs'
+    'clear-stale-jobs:reset running jobs that have timed out'
+    'metrics-loop:export queue-depth metrics to OTel continuously'
+    'backup:create a timestamped SQL dump in ~/my/backups'
+    'restore:restore the database from a dump file'
+    'stats:show system utilization statistics from traces'
+  )
+
+  _arguments -C \
+    '--json[output as JSON — valid for status, query, hydrate]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:command:->cmd' \
+    '*::arg:->args'
+
+  case "$state" in
+    cmd) _describe -t commands 'zdots-ctx command' cmds ;;
+    args)
+      case "${line[1]}" in
+        rotate-creds) _values 'role' 'zdots_rw' 'zdots_ro' '--all' ;;
+        diagnose-log) _values 'log kind' 'bootstrap' 'update' 'upgrade' ;;
+        query)        _arguments '--semantic[semantic vector search]' '*:term:' ;;
+        ingest)       _arguments '--dry-run[preview without writing]' '--all[ingest the whole vault]' '*:file:_files' ;;
+        sync-history) _arguments '--dry-run[preview without writing]' '*:db path:_files' ;;
+        worker)       _arguments '--type[restrict to a worker type]:type:' ;;
+        restore)      _arguments '*:dump file:_files' ;;
+        enqueue)      _arguments '--force[bypass dedup]' '*:type/payload/priority:' ;;
+        hydrate)      _message 'tag (optional)' ;;
+      esac
+      ;;
+  esac
+}
+
+_zdots-ctx "$@"
