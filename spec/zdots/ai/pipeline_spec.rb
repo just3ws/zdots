@@ -106,6 +106,15 @@ RSpec.describe Zdots::AI::Pipeline do
       end
       described_class.call("patient ssn: 123-45-6789")
     end
+
+    it "returns Failure[:phi_suppressed, …] and never calls the client on a suppress-flagged prompt" do
+      expect(fake_client).not_to receive(:chat)
+      result = described_class.call("connect to postgresql://user:pass@host/db now")
+      expect(result).to be_failure
+      reason, msg = result.failure
+      expect(reason).to eq(:phi_suppressed)
+      expect(msg).to match(/suppress/)
+    end
   end
 
   # ── Embed pipeline ─────────────────────────────────────────────────────────
@@ -159,6 +168,13 @@ RSpec.describe Zdots::AI::Pipeline do
       result = described_class.embed("hello")
       expect(result).to be_failure
       expect(result.failure.first).to eq(:locality)
+    end
+
+    it "returns Failure[:phi_suppressed, …] and never calls the embed client on a suppress-flagged input" do
+      expect(fake_embed_client).not_to receive(:embed)
+      result = described_class.embed("redis://admin:secret@127.0.0.1:6379")
+      expect(result).to be_failure
+      expect(result.failure.first).to eq(:phi_suppressed)
     end
   end
 end

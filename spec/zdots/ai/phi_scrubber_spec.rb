@@ -28,9 +28,17 @@ RSpec.describe Zdots::AI::PhiScrubber do
       expect(described_class.call("Date of Birth: 3-7-85")).to include("[REDACTED-DOB]")
     end
 
-    it "redacts connection strings with credentials" do
-      expect(described_class.call("postgresql://user:pass@host/db")).to include("[REDACTED-CONN]")
-      expect(described_class.call("redis://admin:secret@127.0.0.1:6379")).to include("[REDACTED-CONN]")
+    it "fails hard (raises) on connection strings with credentials" do
+      # suppress-flagged: refuse rather than redact, matching lib/phi_scrubber.bash.
+      expect { described_class.call("postgresql://user:pass@host/db") }
+        .to raise_error(Zdots::AI::PhiScrubber::SuppressedError)
+      expect { described_class.call("redis://admin:secret@127.0.0.1:6379") }
+        .to raise_error(Zdots::AI::PhiScrubber::SuppressedError)
+    end
+
+    it "reports suppressed? true for connection strings with credentials" do
+      expect(described_class.suppressed?("postgresql://user:pass@host/db")).to be(true)
+      expect(described_class.suppressed?("SELECT 1")).to be(false)
     end
 
     it "redacts --password flag value" do
