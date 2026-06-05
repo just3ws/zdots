@@ -118,15 +118,30 @@ _svc_meta() {
       SVC_STATUS="status" SVC_HEALTH="health" SVC_LOGS=""
       SVC_VALIDATE=""
       ;;
+    worker|jobs|brain-worker)
+      SVC_NAME="worker"
+      SVC_DISPLAY="zdots-worker"
+      # User-domain LaunchAgent that runs `zdots-brain worker`, draining the
+      # async job queue (embed/distill/docs_sync) for the `my` database.
+      SVC_LABEL="com.zdots.worker"
+      SVC_LOG="$STATE/zdots-worker.log"
+      SVC_CTL="$BIN/zdots-worker"
+      SVC_ENDPOINT="jobs queue (my)"
+      SVC_TYPE="launchd"
+      SVC_INSTALL="install"
+      SVC_START="start"   SVC_STOP="stop"   SVC_RESTART="restart"
+      SVC_STATUS="status" SVC_HEALTH="health" SVC_LOGS="logs"
+      SVC_VALIDATE=""
+      ;;
     *)
       printf 'zsvc: unknown service: %s\n' "$svc" >&2
-      printf 'zsvc: known services: llama, embed, otel, colima, nginx, postgres, redis\n' >&2
+      printf 'zsvc: known services: llama, embed, otel, colima, nginx, postgres, redis, worker\n' >&2
       exit 1
       ;;
   esac
 }
 
-ALL_SVCS=(llama embed otel colima nginx postgres redis)
+ALL_SVCS=(llama embed otel colima nginx postgres redis worker)
 LOCAL_URLS=(
   "llama.local|https://llama.local/health"
   "embed.local|https://embed.local/health"
@@ -259,6 +274,13 @@ _svc_health_text() {
         printf 'ok\tPONG'
       else
         printf 'fail\tPONG'
+      fi ;;
+    worker)
+      # No endpoint to probe — liveness is "launchd process alive".
+      if "$SVC_CTL" health >/dev/null 2>&1; then
+        printf 'ok\tprocess alive'
+      else
+        printf 'fail\tnot running'
       fi ;;
   esac
 }
@@ -631,6 +653,7 @@ SERVICES
   nginx     nginx          — TLS reverse proxy   80/443      [aliases: web, proxy]
   postgres  postgresql@18  — `my` database       port 5432   [aliases: pg, db]
   redis     redis          — analytics cache     port 6379   [aliases: cache, kv]
+  worker    zdots-worker   — async job queue drain            [aliases: jobs]
 
 NOTE
   nginx is a root (system-domain) LaunchDaemon and uses sudo via nginx-ctl.
