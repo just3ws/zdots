@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# bin/cc-hook-lint — Claude Code PostToolUse linter for edited shell files.
+#
+# Fires after Edit/Write/MultiEdit. If the edited file is a shell script,
+# runs shellcheck (warning severity). Findings are returned to Claude via
+# exit 2 (stderr → model context), closing a tight edit→lint→fix loop using
+# tooling already present on this machine.
+#
+# Fail-open everywhere: a missing tool, a non-shell file, or a parse error
+# exits 0 silently. Linting must never wedge a session.
+
+set -u
+
+command -v jq >/dev/null 2>&1 || exit 0
+command -v shellcheck >/dev/null 2>&1 || exit 0
+
+file="$(jq -r '.tool_input.file_path // ""' 2>/dev/null)" || exit 0
+[[ -z "$file" || ! -f "$file" ]] && exit 0
+
+# Only lint shell. Match by extension or shebang so extension-less bin/ tools
+# (which are shell here) still get checked.
+is_shell=0
+case "$file" in
+  *.sh|*.bash|*.zsh) is_shell=1 ;;
+  *)
+    if head -n1 "$file" 2>/dev/null | grep -Eq '^#!.*(bash|sh|zsh)'; then
+      is_shell=1
+    fi
+    ;;
+esac
+[[ "$is_shell" -eq 0 ]] && exit 0
+
+# zsh-only files: shellcheck has no zsh dialect; skip rather than emit noise.
+case "$file" in
+  *.zsh) exit 0 ;;
+esac
+
+findings="$(shellcheck -x --severity=warning --format=tty "$file" 2>/dev/null)" || true
+[[ -z "$findings" ]] && exit 0
+
+# Keep the feedback compact — first ~40 lines is plenty to act on.
+{
+  printf 'cc-hook-lint: shellcheck findings in %s\n' "$file"
+  printf '%s\n' "$findings" | head -n 40
+} >&2
+exit 2
