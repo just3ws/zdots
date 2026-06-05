@@ -120,25 +120,27 @@ RSpec.describe Zdots::AI::PhiScrubber, "fuzz / property tests" do
   end
 
   # ---------------------------------------------------------------------------
-  # Connection strings (Ruby scrubber redacts; bash scrubber suppresses)
+  # Connection strings — suppress-flagged: both Ruby and bash fail hard (refuse)
+  # rather than redact. Pinned across implementations by phi_contract_spec.rb.
   # ---------------------------------------------------------------------------
 
-  describe "connection string variants that must be redacted" do
+  describe "connection string variants that must be suppressed (raise)" do
     [
       "postgresql://user:pass@host/db",
       "mysql://user:pass@host/db",
       "redis://admin:s3cret@127.0.0.1:6379/0"
     ].each do |input|
-      it "redacts credentials in: #{input.inspect}" do
-        result = scrub.call(input)
-        expect(result).to include("[REDACTED-CONN]")
-        expect(result).not_to match(%r{://[^@\s]+:[^@\s]+@})
+      it "raises SuppressedError on: #{input.inspect}" do
+        expect { scrub.call(input) }
+          .to raise_error(Zdots::AI::PhiScrubber::SuppressedError)
+        expect(scrub.suppressed?(input)).to be(true)
       end
     end
   end
 
   it "passes through conn string with no credentials (no @)" do
     input = "postgresql://localhost/mydb"
+    expect(scrub.suppressed?(input)).to be(false)
     expect(scrub.call(input)).to eq(input)
   end
 
