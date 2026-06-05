@@ -415,78 +415,25 @@ pi_bin="$(command -v pi 2>/dev/null || true)"
 if [[ -z "$pi_bin" ]]; then
   pi_bin="$(find "$HOME/.local/share/mise/installs/node" -path '*/bin/pi' -type f 2>/dev/null | sort -V | tail -1 || true)"
 fi
+
 if [[ -n "$pi_bin" ]]; then
   AI_BASE="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/v1"
   log "pi binary=$pi_bin"
   step "ensure Pi agent directory"
   run mkdir -p "$PI_AGENT_DIR"
-  step "reconcile Pi settings"
-  if [[ ! -f "$PI_AGENT_DIR/settings.json" ]]; then
-    if [[ "$DRY_RUN" -eq 0 ]]; then
-      cat > "$PI_AGENT_DIR/settings.json" <<'PISETTINGS'
-{
-  "defaultModel": "local",
-  "defaultProvider": "llamacpp",
-  "defaultThinkingLevel": "off"
-}
-PISETTINGS
-      log "created ~/.pi/agent/settings.json"
-    else
-      log "dry-run: would create ~/.pi/agent/settings.json"
-    fi
+  
+  step "reconcile Pi settings and models from etc/pi-agent.yaml"
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+      # Generate settings.json
+      yq '.settings' "$ZDOTDIR/etc/pi-agent.yaml" > "$PI_AGENT_DIR/settings.json"
+      
+      # Generate models.json with dynamic endpoint injection
+      yq -n --arg base "$AI_BASE" \
+        '.providers.llamacpp = load("etc/pi-agent.yaml").provider.llamacpp | .providers.llamacpp.baseUrl = $base' \
+        > "$PI_AGENT_DIR/models.json"
+      log "updated ~/.pi/agent/ settings and models using etc/pi-agent.yaml"
   else
-    # Enforce defaultThinkingLevel=off — thinking mode burns the full 32k window on 7B.
-    thinking=$(jq -r '.defaultThinkingLevel // empty' "$PI_AGENT_DIR/settings.json" 2>/dev/null || true)
-    if [[ "$thinking" != "off" ]]; then
-      if [[ "$DRY_RUN" -eq 0 ]]; then
-        tmp=$(mktemp)
-        jq '.defaultThinkingLevel = "off"' "$PI_AGENT_DIR/settings.json" > "$tmp" \
-          && mv "$tmp" "$PI_AGENT_DIR/settings.json"
-        log "enforced defaultThinkingLevel=off in ~/.pi/agent/settings.json (was: ${thinking:-unset})"
-      else
-        log "dry-run: would set defaultThinkingLevel=off (currently: ${thinking:-unset})"
-      fi
-    else
-      log "Pi settings already correct (defaultThinkingLevel=off)"
-    fi
-  fi
-  step "reconcile Pi model endpoint"
-  if [[ ! -f "$PI_AGENT_DIR/models.json" ]] || ! grep -Fq "\"baseUrl\": \"${AI_BASE}\"" "$PI_AGENT_DIR/models.json"; then
-    if [[ "$DRY_RUN" -eq 0 ]]; then
-      [[ -f "$PI_AGENT_DIR/models.json" ]] && cp "$PI_AGENT_DIR/models.json" "$PI_AGENT_DIR/models.json.bak"
-      cat > "$PI_AGENT_DIR/models.json" <<PIMODELS
-{
-  "providers": {
-    "llamacpp": {
-      "api": "openai-completions",
-      "apiKey": "local",
-      "baseUrl": "${AI_BASE}",
-      "compat": {
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": false,
-        "maxTokensField": "max_tokens"
-      },
-      "models": [
-        {
-          "id": "local",
-          "name": "Qwen3-8B (llama.cpp)",
-          "contextWindow": 32768,
-          "maxTokens": 2048,
-          "input": ["text"],
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
-        }
-      ]
-    }
-  }
-}
-PIMODELS
-      log "wrote ~/.pi/agent/models.json endpoint=$AI_BASE"
-    else
-      log "dry-run: would write ~/.pi/agent/models.json endpoint=$AI_BASE"
-    fi
-  else
-    log "Pi models.json already targets $AI_BASE"
+      log "dry-run: would update ~/.pi/agent/ configs"
   fi
 else
   warn "pi not found; skipping Pi config reconciliation"
