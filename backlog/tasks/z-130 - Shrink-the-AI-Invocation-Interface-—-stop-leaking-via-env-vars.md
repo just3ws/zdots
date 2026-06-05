@@ -8,6 +8,7 @@ updated_date: '2026-06-05 22:04'
 labels:
   - architecture
   - refactor
+  - agent-ready
 dependencies: []
 priority: medium
 ordinal: 21890
