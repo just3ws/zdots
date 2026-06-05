@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# bin/cc-statusline — Claude Code status line for zdots.
+#
+# Renders:  <model> · AI:<mode> · ⎇ <branch> · llama:<up|down>
+#
+# Keeps the cloud-vs-local boundary visible mid-session: AI:<mode> reflects
+# ZDOTS_AI_MODE, and llama:<up|down> shows whether the local inference server
+# is live. Claude Code pipes session JSON on stdin and renders the first line
+# of stdout. Must be fast — the llama probe is cached with a short TTL so it
+# never adds latency per render.
+
+set -u
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+# --- session JSON (best-effort) --------------------------------------------
+model="claude"; cwd="$PWD"
+if command -v jq >/dev/null 2>&1; then
+  input="$(cat)"
+  _m="$(printf '%s' "$input" | jq -r '.model.display_name // empty' 2>/dev/null)"
+  _d="$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // empty' 2>/dev/null)"
+  [[ -n "${_m:-}" ]] && model="$_m"
+  [[ -n "${_d:-}" ]] && cwd="$_d"
+fi
+
+# --- AI boundary mode ------------------------------------------------------
+ai_mode="${ZDOTS_AI_MODE:-}"
+if [[ -z "$ai_mode" && -r "${ZDOTDIR}/.zdots.local" ]]; then
+  ai_mode="$(grep -E '^[[:space:]]*ZDOTS_AI_MODE=' "${ZDOTDIR}/.zdots.local" 2>/dev/null | tail -n1 | cut -d= -f2 | tr -d '"'"'"' ')"
+fi
+ai_mode="${ai_mode:-local}"
+
+# --- git branch ------------------------------------------------------------
+branch="$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+
+# --- llama health (cached, 10s TTL) ----------------------------------------
+endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+cache="${TMPDIR:-/tmp}/cc-statusline-llama.cache"
+llama="?"
+if [[ -f "$cache" ]]; then
+  age=$(( $(date +%s) - $(stat -f %m "$cache" 2>/dev/null || echo 0) ))
+else
+  age=999
+fi
+if (( age < 10 )); then
+  llama="$(cat "$cache" 2>/dev/null || echo '?')"
+else
+  if curl -sf -m 0.4 "${endpoint}/health" >/dev/null 2>&1; then llama="up"; else llama="down"; fi
+  printf '%s' "$llama" >| "$cache" 2>/dev/null || true
+fi
+
+# --- render ----------------------------------------------------------------
+out="${model} · AI:${ai_mode} · ⎇ ${branch:-—} · llama:${llama}"
+printf '%s' "$out"

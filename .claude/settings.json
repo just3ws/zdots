@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.zdots.secrets)",
+      "Read(./.zdots.secrets.*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.gnupg/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)",
+      "Bash(security find-generic-password:*)",
+      "Bash(security dump-keychain:*)"
+    ],
+    "allow": [
+      "Bash(zsvc:*)",
+      "Bash(zdots-doctor:*)",
+      "Bash(cc-doctor:*)",
+      "Bash(zdots-ctl status:*)",
+      "Bash(zdots-ctl check:*)",
+      "Bash(llama-ctl status:*)",
+      "Bash(llama-ctl health:*)",
+      "Bash(shellcheck:*)",
+      "Bash(shfmt:*)",
+      "Bash(bats:*)",
+      "Bash(make check:*)",
+      "Bash(make check-fast:*)",
+      "Bash(rg:*)",
+      "Bash(fd:*)",
+      "Bash(ast-grep:*)",
+      "Bash(jq:*)",
+      "Bash(yq:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(gh api:*)",
+      "Bash(gh repo view:*)",
+      "mcp__backlog__task_list",
+      "mcp__backlog__task_view",
+      "mcp__ctx__ctx_query",
+      "mcp__ctx__ctx_status"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-hook-guard\"" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-hook-lint\"" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-hook-session\"" }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-statusline\""
+  }
+}
