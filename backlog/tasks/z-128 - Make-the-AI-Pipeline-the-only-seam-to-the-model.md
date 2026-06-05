@@ -1,10 +1,10 @@
 ---
 id: Z-128
 title: Make the AI Pipeline the only seam to the model
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-06-05 19:58'
-updated_date: '2026-06-05 20:06'
+updated_date: '2026-06-05 21:07'
 labels:
   - architecture
   - refactor
@@ -30,14 +30,34 @@ Wins: closes the scrub-bypass leak, leverage (gate+scrub for every job free), lo
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 DocsSync routes inference through Zdots::AI::Pipeline, not client.chat
-- [ ] #2 DocsSync reads decrypted content via the SessionResidue model, not raw bytea
-- [ ] #3 No job bypasses the gate+scrub seam
+- [x] #1 DocsSync routes inference through Zdots::AI::Pipeline, not client.chat
+- [x] #2 DocsSync reads decrypted content via the SessionResidue model, not raw bytea
+- [x] #3 No job bypasses the gate+scrub seam
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+docs_sync.rb now reads via Zdots::Models::SessionResidue (decrypted .summary/.result, not raw bytea keys which were the wrong column names → empty strings) and routes inference through Zdots::AI::Pipeline.call (gate → PHI scrub → infer), matching Distill. Per-document decision extracted to #sync_document (DB-free, unit-tested).
+
+Evidence:
+- AC1/AC3: grep -rnE 'AI\.client|client\.chat' lib/zdots/jobs/ → no matches (no job bypasses the seam).
+- AC2: SessionResidue.where(trace_id:).first + .summary/.result decrypt via EncryptedContent.
+- spec/zdots/jobs/docs_sync_spec.rb 5/5; full rspec 157 examples, 0 failures.
+- make check exit=0 (480 bats tests pass). Two unrelated pre-existing bats breakages fixed in a separate commit: zdots-worker stub omission (fallout from the worker Platform Service) and update-local phase-number drift (06/11 → 07/12 after fabric/12th phase added).
+
+Commits: fa5acc6 (refactor), 425d91b (test fixes). Merged to main.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+DocsSync routed through the Pipeline seam; no job calls AI.client. Closed a scrub/gate bypass and a latent empty-prompt bug (raw :summary/:result keys). make check green.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
