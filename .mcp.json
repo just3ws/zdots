@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/mcp.json",
+  "mcpServers": {
+    "backlog": {
+      "type": "stdio",
+      "command": "backlog",
+      "args": ["mcp", "start"],
+      "env": {}
+    },
+    "ctx": {
+      "type": "stdio",
+      "command": "${CLAUDE_PROJECT_DIR}/bin/ctx-mcp",
+      "env": {
+        "ZDOTDIR": "${CLAUDE_PROJECT_DIR}"
+      }
+    },
+    "llama": {
+      "type": "stdio",
+      "command": "${CLAUDE_PROJECT_DIR}/bin/llama-mcp",
+      "env": {
+        "ZDOTDIR": "${CLAUDE_PROJECT_DIR}",
+        "ZDOTS_AI_ENDPOINT": "http://127.0.0.1:11500",
+        "PATH": "/Users/mike/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+      }
+    }
+  }
+}

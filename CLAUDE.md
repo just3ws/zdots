@@ -2,7 +2,25 @@
 
 Claude-specific instructions for Zdots.
 
-**CRITICAL:** Read [AGENTS.md](AGENTS.md) first for the core architectural guidelines, performance standards, **RTK token-optimization rules**, and **PHI Operating Mode** (Section 8 — non-negotiable on work machines).
+**CRITICAL:** Read [AGENTS.md](AGENTS.md) first for the core architectural guidelines, performance standards, **RTK token-optimization rules**, and **PHI Operating Mode** (Section 8 — non-negotiable on work machines). It is auto-imported below so it loads into every session:
+
+@AGENTS.md
+
+## Claude Code Health
+
+Run `cc-doctor` to audit this workstation's Claude Code integration — config
+validity, the secrets/PHI deny-list, MCP reproducibility, hook + statusline
+wiring, and the recommended toolchain. It is the "brew doctor" for the CC setup;
+run it periodically (or fold it into `zdots-doctor`) to keep the config from
+drifting. The tracked config lives in `.claude/settings.json` (permissions +
+hooks + statusline) and `.mcp.json` (backlog/ctx/llama servers); the gitignored
+`.claude/settings.local.json` holds only machine-specific permission grants.
+
+Note: Claude Code is a **cloud** tool — it bypasses the local
+`phi_scrub`/`ai_boundary` pipeline. The deny-list and `cc-hook-guard` are the
+guardrails that keep secrets, keys, and PHI out of cloud prompts on this
+PHI-adjacent machine. By Brewfile policy, CC is home/powerstation-only; work
+machines use Pi + the local LLM.
 
 ## Platform Control
 

@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+# bin/cc-doctor — Claude Code health check ("brew doctor" for the CC setup).
+#
+# Audits this workstation's Claude Code integration against current best
+# practice: config validity, the PHI/secrets deny-list, MCP reproducibility,
+# hooks + statusline wiring, and the recommended CLI toolchain. Run it
+# periodically (or from zdots-doctor) to keep the setup from drifting.
+#
+# Usage: cc-doctor [-q|--quiet] [-h|--help]
+#   -q, --quiet   Only print warnings and failures
+#
+# Exit: 0 when no failures, 1 on any [FAIL].
+
+set -uo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+PROJ_SETTINGS="${ZDOTDIR}/.claude/settings.json"
+PROJ_LOCAL="${ZDOTDIR}/.claude/settings.local.json"
+MCP_FILE="${ZDOTDIR}/.mcp.json"
+
+QUIET=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -q|--quiet) QUIET=1 ;;
+    -h|--help)  sed -n '2,12p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    *) printf 'cc-doctor: unknown option: %s\n' "$1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+_PASS=0; _WARN=0; _FAIL=0
+_OK='\033[0;32m'; _WN='\033[0;33m'; _ER='\033[0;31m'; _RS='\033[0m'
+_pass() { _PASS=$((_PASS+1)); [[ $QUIET -eq 0 ]] && printf "  ${_OK}[ok]${_RS}   %s\n" "$*"; }
+_warn() { _WARN=$((_WARN+1)); printf "  ${_WN}[warn]${_RS} %s\n" "$*"; }
+_fail() { _FAIL=$((_FAIL+1)); printf "  ${_ER}[FAIL]${_RS} %s\n" "$*"; }
+_fix()  { printf '         fix: %s\n' "$*"; }
+_sec()  { printf '\n━━━ %s\n' "$1"; }
+
+_has_jq=0; command -v jq >/dev/null 2>&1 && _has_jq=1
+
+# ---------------------------------------------------------------------------
+_sec "Claude Code"
+if command -v claude >/dev/null 2>&1; then
+  _pass "claude installed ($(claude --version 2>/dev/null | head -n1))"
+else
+  _warn "claude not on PATH (CC is home/powerstation-only by Brewfile policy)"
+fi
+
+# ---------------------------------------------------------------------------
+_sec "Project config (.claude/settings.json)"
+if [[ -f "$PROJ_SETTINGS" ]]; then
+  if (( _has_jq )) && jq empty "$PROJ_SETTINGS" 2>/dev/null; then
+    _pass "settings.json present and valid JSON"
+  else
+    _fail "settings.json present but invalid JSON"
+    _fix "validate: jq empty $PROJ_SETTINGS"
+  fi
+  if git -C "$ZDOTDIR" ls-files --error-unmatch .claude/settings.json >/dev/null 2>&1; then
+    _pass "settings.json is tracked in git (shared, reviewable)"
+  else
+    _warn "settings.json is not tracked — commit it so the config survives a reclone"
+    _fix "git -C $ZDOTDIR add .claude/settings.json"
+  fi
+else
+  _fail "no tracked .claude/settings.json (all config lives in the gitignored local file)"
+  _fix "create $PROJ_SETTINGS with deny-list + curated allow-list"
+fi
+
+# ---------------------------------------------------------------------------
+_sec "Secrets / PHI deny-list"
+if [[ -f "$PROJ_SETTINGS" ]] && (( _has_jq )); then
+  deny="$(jq -r '.permissions.deny[]? // empty' "$PROJ_SETTINGS" 2>/dev/null)"
+  _need=( ".zdots.secrets" ".env" ".ssh" "find-generic-password" )
+  _missing=()
+  for pat in "${_need[@]}"; do
+    printf '%s\n' "$deny" | grep -q "$pat" || _missing+=("$pat")
+  done
+  if [[ ${#_missing[@]} -eq 0 ]]; then
+    _pass "deny-list covers secrets, .env, ~/.ssh, and Keychain reads"
+  else
+    _fail "deny-list missing coverage for: ${_missing[*]}"
+    _fix "add Read(./.zdots.secrets), Read(./.env), Read(~/.ssh/**), Bash(security find-generic-password:*) to permissions.deny"
+  fi
+else
+  _warn "cannot check deny-list (no settings.json or jq)"
+fi
+
+# ---------------------------------------------------------------------------
+_sec "Permission hygiene (local allow-list)"
+if [[ -f "$PROJ_LOCAL" ]] && (( _has_jq )); then
+  n="$(jq '.permissions.allow | length' "$PROJ_LOCAL" 2>/dev/null || echo 0)"
+  if [[ "$n" =~ ^[0-9]+$ ]] && (( n > 150 )); then
+    _warn "settings.local.json has $n allow entries — many are stale one-offs"
+    _fix "run /fewer-permission-prompts, then promote stable wildcards to the tracked settings.json"
+  else
+    _pass "local allow-list size is reasonable (${n:-0} entries)"
+  fi
+else
+  _pass "no bloated local allow-list"
+fi
+
+# ---------------------------------------------------------------------------
+_sec "MCP servers (.mcp.json)"
+if [[ -f "$MCP_FILE" ]] && (( _has_jq )) && jq empty "$MCP_FILE" 2>/dev/null; then
+  _pass "tracked .mcp.json present and valid (reproducible on reclone)"
+  for srv in backlog ctx llama; do
+    if jq -e --arg s "$srv" '.mcpServers[$s]' "$MCP_FILE" >/dev/null 2>&1; then
+      _pass "mcp:$srv defined"
+    else
+      _warn "mcp:$srv not defined in .mcp.json"
+    fi
+  done
+  # Catch the historical :8080 → :11500 port drift.
+  if jq -r '.. | strings' "$MCP_FILE" 2>/dev/null | grep -q ':8080'; then
+    _fail "mcp config references :8080 — llama moved to :11500"
+    _fix "set ZDOTS_AI_ENDPOINT to http://127.0.0.1:11500 in .mcp.json"
+  else
+    _pass "no stale :8080 endpoint references"
+  fi
+else
+  _warn "no tracked .mcp.json — MCP servers live only in ~/.claude.json (not portable)"
+  _fix "create $MCP_FILE mirroring the backlog/ctx/llama servers"
+fi
+
+# ---------------------------------------------------------------------------
+_sec "Hooks & statusline"
+if [[ -f "$PROJ_SETTINGS" ]] && (( _has_jq )); then
+  for h in cc-hook-guard cc-hook-lint cc-hook-session cc-statusline; do
+    if grep -q "$h" "$PROJ_SETTINGS" 2>/dev/null; then
+      if [[ -x "${ZDOTDIR}/bin/$h" ]]; then
+        _pass "$h wired and executable"
+      else
+        _fail "$h referenced in settings.json but not executable"
+        _fix "chmod +x ${ZDOTDIR}/bin/$h"
+      fi
+    else
+      _warn "$h not wired in settings.json"
+    fi
+  done
+fi
+
+# ---------------------------------------------------------------------------
+_sec "Recommended toolchain"
+# Map of doctor-name → actual binary to probe.
+_tools=( "ripgrep:rg" "fd:fd" "ast-grep:ast-grep" "shellcheck:shellcheck"
+         "shfmt:shfmt" "delta:delta" "repomix:repomix" "rtk:rtk"
+         "jq:jq" "yq:yq" "gh:gh" "bats:bats" "difftastic:difft" )
+for entry in "${_tools[@]}"; do
+  name="${entry%%:*}"; bin="${entry##*:}"
+  if command -v "$bin" >/dev/null 2>&1; then
+    _pass "$name"
+  else
+    if [[ "$name" == "difftastic" ]]; then
+      _warn "$name absent (optional — structural diffs)"
+    else
+      _warn "$name absent — add to Brewfile and 'brew bundle'"
+    fi
+  fi
+done
+
+# ---------------------------------------------------------------------------
+_sec "CLAUDE.md"
+if [[ -f "${ZDOTDIR}/CLAUDE.md" ]]; then
+  if grep -q '^@AGENTS.md' "${ZDOTDIR}/CLAUDE.md" 2>/dev/null; then
+    _pass "CLAUDE.md @-imports AGENTS.md (auto-loaded into context)"
+  else
+    _warn "CLAUDE.md links to AGENTS.md but does not @-import it"
+    _fix "add a line '@AGENTS.md' so CC loads it automatically"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+printf '\n━━━ Summary\n'
+printf "  ${_OK}%d ok${_RS}  ${_WN}%d warn${_RS}  ${_ER}%d fail${_RS}\n" "$_PASS" "$_WARN" "$_FAIL"
+[[ $_FAIL -gt 0 ]] && exit 1 || exit 0
