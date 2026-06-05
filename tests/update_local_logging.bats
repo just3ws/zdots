@@ -30,12 +30,12 @@ teardown() {
   log_file="$(ls "$TMP_LOG_DIR"/zdots-update-local-[0-9]*.log | head -n 1)"
   summary_file="${log_file%.log}.summary.md"
 
-  grep -q '==> zdots-update-local phase 06/11: pi: reconcile local llama.cpp model config' "$log_file"
-  grep -q -- '--> zdots-update-local step 06.01: locate pi CLI' "$log_file"
-  grep -q -- '--> zdots-update-local step 11.01: emit log handoff' "$log_file"
+  grep -q '==> zdots-update-local phase 07/12: pi: reconcile local llama.cpp model config' "$log_file"
+  grep -q -- '--> zdots-update-local step 07.01: locate pi CLI' "$log_file"
+  grep -q -- '--> zdots-update-local step 12.01: emit log handoff' "$log_file"
   grep -q 'phase=pi: reconcile local llama.cpp model config step=' "$log_file"
 
-  grep -q -- '- phase 6/11: pi: reconcile local llama.cpp model config' "$summary_file"
-  grep -q -- '  - step 6.1: locate pi CLI' "$summary_file"
-  grep -q -- '  - step 11.1: emit log handoff' "$summary_file"
+  grep -q -- '- phase 7/12: pi: reconcile local llama.cpp model config' "$summary_file"
+  grep -q -- '  - step 7.1: locate pi CLI' "$summary_file"
+  grep -q -- '  - step 12.1: emit log handoff' "$summary_file"
 }
