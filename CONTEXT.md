@@ -160,6 +160,8 @@ The Core Service that drains the async job queue (the `jobs` table in the `my` d
 
 **Stale jobs:** a worker that dies mid-job leaves a row in `running`. `zdots-ctx clear-stale-jobs [interval]` (PL/pgSQL `clear_stale_jobs`) resets rows stuck in `running` past the interval to `failed`. KeepAlive restart does not reclaim them — clearing is a separate step.
 
+**Long content:** the embed job (`lib/zdots/jobs/embed.rb`) chunks content under the embedding model's 512-token context and mean-pools the per-chunk vectors, so long lessons/methodologies embed in full rather than failing. `zdots-brain reindex-embeddings` enqueues embed jobs for any rows still missing an embedding (idempotent via the embed fingerprint).
+
 ---
 
 ## Virtuous Loop
