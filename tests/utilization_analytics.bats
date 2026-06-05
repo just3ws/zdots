@@ -104,7 +104,7 @@ EOF
   mkdir -p "$TEST_TRACES_DIR/fake_zdots/bin"
   cp "$ZDOTDIR/bin/zdots-ctl" "$TEST_TRACES_DIR/fake_zdots/bin/"
   
-  for cmd in local-ci otel-collector llama-ctl zdots-ctx; do
+  for cmd in local-ci otel-collector llama-ctl zdots-ctx zdots-worker; do
     cat > "$TEST_TRACES_DIR/fake_zdots/bin/$cmd" <<EOF
 #!/bin/sh
 exit 0
