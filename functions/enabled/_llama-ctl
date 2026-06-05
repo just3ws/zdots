@@ -1,0 +1,41 @@
+#compdef llama-ctl
+# Completion for llama-ctl — local llama.cpp inference server lifecycle.
+# Prefer `zsvc` for routine start/stop; llama-ctl covers model management.
+
+_llama-ctl() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  local -a cmds
+  cmds=(
+    'install:install/provision the llama.cpp server'
+    'start:start the inference server'
+    'stop:stop the inference server'
+    'restart:restart the inference server'
+    'status:server status'
+    'health:live health check'
+    'logs:tail the server log'
+    'validate:validate server configuration'
+    'config:dump resolved server config'
+    'model-list:list available GGUF models'
+    'model-download:download/update a model'
+    'model-verify:verify the active model checksum'
+    'model-switch:switch the active model'
+    'model-prune:reclaim disk — remove non-active GGUFs'
+    'model-df:show model disk usage'
+    'install-embed:install the embedding server'
+    'start-embed:start the embedding server'
+    'stop-embed:stop the embedding server'
+    'status-embed:embedding server status'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[show usage]' \
+    '1:command:->cmd' \
+    '*::arg:->args'
+
+  case "$state" in
+    cmd) _describe -t commands 'llama-ctl command' cmds ;;
+  esac
+}
+
+_llama-ctl "$@"
