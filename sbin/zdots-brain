@@ -47,6 +47,8 @@ module Zdots
         cmd_enqueue(args)
       when "jobs"
         cmd_jobs
+      when "reindex-embeddings"
+        cmd_reindex_embeddings
       when "ingest"
         cmd_ingest(args)
       when "sync-history"
@@ -362,6 +364,32 @@ module Zdots
           printf "%-38s | %-13s | %-9s | %-8d | %-8d\n", j.id, j.type, j.status, j.priority, j.attempts
         end
       end
+    end
+
+    # reindex-embeddings — enqueue embed jobs for lessons and methodologies that
+    # are missing an embedding (e.g. rows whose content exceeded the old context
+    # limit, now handled by the chunking embed job). Idempotent: the embed
+    # fingerprint prevents duplicate pending jobs. The worker does the work.
+    def cmd_reindex_embeddings
+      enqueued = 0
+      {
+        "lessons"       => Zdots::Models::Lesson,
+        "methodologies" => Zdots::Models::Methodology
+      }.each do |table, model|
+        model.where(embedding: nil).each do |row|
+          text = row.content.to_s
+          next if text.strip.empty?
+
+          Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+            type: "embed",
+            payload: Sequel.pg_jsonb({ table: table, id: row.id, text: text }),
+            priority: 5,
+            fingerprint: Digest::MD5.hexdigest("embed-#{table}-#{row.id}")
+          )
+          enqueued += 1
+        end
+      end
+      puts "zdots-brain: enqueued #{enqueued} embed job(s) for rows missing embeddings."
     end
 
     # ingest — read Knowledge Vault documents and upsert into the Knowledge Base.
