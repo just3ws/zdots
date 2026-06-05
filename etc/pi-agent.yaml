@@ -1,0 +1,30 @@
+# Pi Agent Configuration
+# This file serves as the source of truth for ~/.pi/agent/ settings.
+# Reconciled by `bin/zdots-update-local`.
+
+settings:
+  defaultModel: "local"
+  defaultProvider: "llamacpp"
+  defaultThinkingLevel: "off"
+
+provider:
+  llamacpp:
+    api: "openai-completions"
+    apiKey: "local"
+    # Endpoints are derived from ZDOTS_AI_ENDPOINT in Zdots
+    compat:
+      supportsDeveloperRole: false
+      supportsReasoningEffort: false
+      supportsUsageInStreaming: false
+      maxTokensField: "max_tokens"
+    models:
+      - id: "local"
+        name: "Qwen3-8B (llama.cpp)"
+        contextWindow: 32768
+        maxTokens: 2048
+        input: ["text"]
+        cost: 
+          input: 0
+          output: 0
+          cacheRead: 0
+          cacheWrite: 0
