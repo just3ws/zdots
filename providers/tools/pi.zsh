@@ -19,15 +19,25 @@
 # See PI.md for usage guidance and the Pi↔Aider boundary rules.
 
 zdots_pi_init() {
-  # Gate + locality in one call — mode check and endpoint locality together.
+  # Gate + locality in one call
   if ! typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1; then
-    # shellcheck source=lib/ai_boundary.bash
     [[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
   fi
   typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1 \
     && zdots_ai_gated_endpoint "zpi" >/dev/null
 
-  # Telemetry off — no analytics from a PHI-adjacent machine.
+  # Prune Pi skills: only load project-local skills to avoid bloat/collisions.
+  local _pi_skills_dir="${XDG_STATE_HOME:-$HOME/.local/state}/pi/skills.tmp"
+  mkdir -p "$_pi_skills_dir"
+  # Clear existing links
+  rm -f "$_pi_skills_dir"/*
+  # Link only project-local skills
+  if [[ -d "${ZDOTDIR}/.pi/skills" ]]; then
+      find "${ZDOTDIR}/.pi/skills" -maxdepth 1 -mindepth 1 -type d -exec ln -s {} "$_pi_skills_dir/" \;
+  fi
+  export PI_SKILL_DIR="$_pi_skills_dir"
+
+  # Telemetry off
   export PI_TELEMETRY=0
 
   # Redirect session history to XDG state dir.
