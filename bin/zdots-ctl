@@ -29,10 +29,15 @@ source "${ZDOTDIR}/lib/trace_log.bash"
 # Config
 # ---------------------------------------------------------------------------
 
-AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
-EMBED_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
-OTLP_ENDPOINT="http://127.0.0.1:4318"
-GRAFANA_URL="http://127.0.0.1:3000"
+# Service catalog + health/state probes — the single source of truth shared
+# with bin/zsvc. Endpoints below derive from the registry descriptor.
+# shellcheck source=lib/svc-registry.bash
+source "${ZDOTDIR}/lib/svc-registry.bash"
+
+AI_ENDPOINT="${ZDOTS_SVC_ENDPOINT[llama]}"
+EMBED_ENDPOINT="${ZDOTS_SVC_ENDPOINT[embed]}"
+OTLP_ENDPOINT="${ZDOTS_SVC_ENDPOINT[otel]}"
+GRAFANA_URL="${ZDOTS_SVC_ENDPOINT[grafana]}"
 REDIS_HOST="${ZDOTS_REDIS_HOST:-127.0.0.1}"
 REDIS_PORT="${ZDOTS_REDIS_PORT:-6379}"
 WAIT_TIMEOUT="${ZDOTS_BOOT_TIMEOUT:-90}"
@@ -57,16 +62,18 @@ _fix()  { printf '         fix: %s\n' "$*"; }
 # Live probes — Enforce opaque service control seam
 # ---------------------------------------------------------------------------
 
-_ai_http_up()    { curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; }
+# Liveness probes derive from the shared registry (zdots_svc_healthy) — one
+# definition per service, shared with zsvc. _ai_socket_up is the one ctl-only
+# probe (socket-listening, distinct from the HTTP /health check).
+_ai_up()         { zdots_svc_healthy llama; }
 _ai_socket_up()  { zdots_svc_loopback_listening "$AI_ENDPOINT"; }
-_ai_up()         { _ai_http_up; }
-_embed_up()      { curl -sf -m 2 "${EMBED_ENDPOINT}/health" >/dev/null 2>&1; }
-_otel_up()       { "$BIN/otel-collector" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$OTLP_ENDPOINT"; }
-_grafana_up()    { "$BIN/local-ci" health >/dev/null 2>&1 || zdots_svc_loopback_listening "$GRAFANA_URL"; }
-_colima_up()     { colima status >/dev/null 2>&1; }
-_ctx_up()        { "$BIN/zdots-ctx" status >/dev/null 2>&1; }
-_redis_up()      { redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping >/dev/null 2>&1; }
-_worker_up()     { "$BIN/zdots-worker" health >/dev/null 2>&1; }
+_embed_up()      { zdots_svc_healthy embed; }
+_otel_up()       { zdots_svc_healthy otel; }
+_grafana_up()    { zdots_svc_healthy grafana; }
+_colima_up()     { zdots_svc_healthy colima; }
+_ctx_up()        { zdots_svc_healthy ctx; }
+_redis_up()      { zdots_svc_healthy redis; }
+_worker_up()     { zdots_svc_healthy worker; }
 
 _wait_for() {
   local label="$1" url="$2" timeout="${3:-$WAIT_TIMEOUT}"
@@ -578,7 +585,7 @@ cmd_check() {
   elif ! zdots-ruby -e 'require "ruby_llm"' >/dev/null 2>&1; then
     _chk_warn "ruby_llm gem not available — AI integration test skipped"
     _fix "cd $ZDOTDIR && bundle install"
-  elif ! _ai_http_up; then
+  elif ! zdots_svc_healthy llama; then
     _chk_warn "AI integration test skipped (server not running)"
     _fix "zdots-ctl up"
   else
