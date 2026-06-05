@@ -31,10 +31,12 @@ zdots_pi_init() {
   mkdir -p "$_pi_skills_dir"
   # Clear existing links
   /bin/rm -f "$_pi_skills_dir"/*
-  # Link only project-local skills
-  if [[ -d "${ZDOTDIR}/.pi/skills" ]]; then
-      find "${ZDOTDIR}/.pi/skills" -maxdepth 1 -mindepth 1 -type d -exec ln -s {} "$_pi_skills_dir/" \;
+  
+  # Link only the project-local 'zdots' skill
+  if [[ -d "${ZDOTDIR}/.pi/skills/zdots" ]]; then
+      ln -s "${ZDOTDIR}/.pi/skills/zdots" "$_pi_skills_dir/"
   fi
+  
   export PI_SKILL_DIR="$_pi_skills_dir"
 
   # Telemetry off
