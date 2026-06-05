@@ -1,0 +1,22 @@
+#compdef ruby-audit
+# Completion for ruby-audit — static-analysis suite for any Ruby/Rails app.
+# First positional arg is the target directory; the rest are options. --skip
+# and --only complete the known tool names and are repeatable.
+
+_ruby-audit() {
+  _arguments -s \
+    '--ruby[override detected Ruby version]:ruby version:(2.6 2.7 3.0 3.1 3.2 3.3 3.4)' \
+    '--rails[override detected Rails version]:rails version:(4.2 5.0 5.1 5.2 6.0 6.1 7.0 7.1 7.2 8.0)' \
+    '--out[output directory]:dir:_files -/' \
+    '*--skip[skip a tool]:tool:(bundler-audit brakeman rubocop reek flog flay)' \
+    '*--only[run only this tool (repeatable)]:tool:(bundler-audit brakeman rubocop reek flog flay)' \
+    '--interrogate[after report, launch an AI session with context loaded]' \
+    '--no-repomix[skip repomix context build (faster)]' \
+    '--no-slices[skip context slice generation]' \
+    '--budget[token budget per slice]:tokens:' \
+    '--setup[install the audit gem bundle and exit]' \
+    '--help[show help]' \
+    '1:directory:_files -/'
+}
+
+_ruby-audit "$@"
