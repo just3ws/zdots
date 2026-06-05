@@ -1,0 +1,10 @@
+#compdef cc-doctor
+# Completion for cc-doctor — Claude Code integration health check.
+
+_cc-doctor() {
+  _arguments \
+    '(-q --quiet)'{-q,--quiet}'[only print warnings and failures]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_cc-doctor "$@"

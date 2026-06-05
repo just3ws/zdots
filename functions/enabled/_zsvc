@@ -1,0 +1,65 @@
+#compdef zsvc
+# Completion for zsvc — per-service control. Verbs carry descriptions, and the
+# service argument is completed dynamically from the registry (names + aliases),
+# so the menu stays correct as services are added. Source of truth:
+# lib/svc-registry.bash (_svc_reg "name|display|label|log|ctl|endpoint|type|...|aliases|...").
+
+_zsvc_services() {
+  local zdotdir="${ZDOTDIR:-$HOME/.config/zsh}"
+  local reg="$zdotdir/lib/svc-registry.bash"
+  [[ -r "$reg" ]] || return 1
+
+  local line name endpoint aliases_field al
+  local -a names aliases f
+  while IFS= read -r line; do
+    line=${line#_svc_reg \"}
+    line=${line%\"}
+    f=("${(@s.|.)line}")
+    name=${f[1]}
+    endpoint=${f[6]}
+    aliases_field=${f[9]}
+    [[ -n "$name" ]] || continue
+    names+=("${name}:${endpoint:-service}")
+    for al in ${=aliases_field}; do
+      aliases+=("${al}:→ ${name}")
+    done
+  done < <(grep '^_svc_reg "' "$reg")
+
+  _describe -t services 'service' names
+  [[ ${#aliases} -gt 0 ]] && _describe -t aliases 'alias' aliases
+}
+
+_zsvc() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  local -a cmds
+  cmds=(
+    'list:table of all services — state, pid, endpoint'
+    'start:start a service'
+    'stop:stop a service'
+    'restart:restart a service'
+    'reload:reload a service in place'
+    'status:full status from the service ctl script'
+    'health:health probe'
+    'logs:tail the service log (Ctrl+C to stop)'
+    'diag:status + health + launchd state + last 50 log lines'
+    'validate:validate the service configuration'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[show usage]' \
+    '1:command:->cmd' \
+    '*::arg:->args'
+
+  case "$state" in
+    cmd) _describe -t commands 'zsvc command' cmds ;;
+    args)
+      case "${line[1]}" in
+        start|stop|restart|reload|status|health|logs|diag|validate)
+          _zsvc_services ;;
+      esac
+      ;;
+  esac
+}
+
+_zsvc "$@"

@@ -1,0 +1,11 @@
+#compdef zdots-doctor
+# Completion for zdots-doctor — system health check.
+
+_zdots-doctor() {
+  _arguments \
+    '--no-runtime[skip the zdots-ctl check section (fast mode)]' \
+    '(-q --quiet)'{-q,--quiet}'[only print warnings and failures]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_zdots-doctor "$@"
