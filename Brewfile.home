@@ -39,6 +39,7 @@ brew "curl"
 brew "dasel"
 brew "dashing"
 brew "diff-so-fancy"
+brew "difftastic"   # structural (AST-aware) diffs — easier for agents/humans to read
 brew "direnv"
 brew "docker"
 brew "docker-buildx"

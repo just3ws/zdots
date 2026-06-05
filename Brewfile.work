@@ -46,6 +46,7 @@ brew "curl"
 brew "dasel"
 brew "dashing"
 brew "diff-so-fancy"
+brew "difftastic"   # structural (AST-aware) diffs — local tool, no cloud
 brew "direnv"
 brew "docker"
 brew "docker-buildx"
