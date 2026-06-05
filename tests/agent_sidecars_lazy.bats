@@ -55,3 +55,23 @@ ZSH
   [[ "$output" == *"zaider:one"* ]]
   [[ "$output" == *"laid:two"* ]]
 }
+
+@test "95-ai exposes zai without sourcing the router provider at startup" {
+  make_provider_root
+  cat > "$LAZY_ROOT/providers/tools/router.zsh" <<'ZSH'
+print "router" >> "$LAZY_MARKER"
+zai() { print "zai:$*"; }
+ZSH
+
+  run zsh -c "
+    export ZDOTDIR='$LAZY_ROOT'
+    export LAZY_MARKER='$LAZY_MARKER'
+    source '$REPO_ROOT/conf.d/95-ai.zsh'
+    [[ ! -f '$LAZY_MARKER' ]] || exit 10
+    typeset -f zai >/dev/null || exit 11
+    zai route this
+    grep -q '^router$' '$LAZY_MARKER'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"zai:route this"* ]]
+}

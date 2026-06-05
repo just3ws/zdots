@@ -1,0 +1,17 @@
+#compdef zai
+# Completion for zai — the engine router. Engine flags are mutually exclusive
+# and self-describing; the rest of the line is the free-text task.
+
+_zai() {
+  _arguments -s \
+    '(- *)'{-h,--help}'[show help]' \
+    '(--pi --aider --haiku --claude-code)--local[local llama.cpp via zdots-ask (default)]' \
+    '(--local --aider --haiku --claude-code)--pi[zpi — explore / read / plan]' \
+    '(--local --pi --haiku --claude-code)--aider[zaider — edit / patch / commit]' \
+    '(--local --pi --aider --claude-code)--haiku[Claude Haiku — ROUTER Phase 3, not yet enabled]' \
+    '(--local --pi --aider --haiku)--claude-code[Claude Code — ROUTER Phase 2, not yet enabled]' \
+    '--dry-run[print the routing decision; run nothing]' \
+    '*:task:'
+}
+
+_zai "$@"
