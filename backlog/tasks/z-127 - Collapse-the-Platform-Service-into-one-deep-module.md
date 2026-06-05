@@ -1,9 +1,10 @@
 ---
 id: Z-127
 title: Collapse the Platform Service into one deep module
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-06-05 19:58'
+updated_date: '2026-06-05 21:09'
 labels:
   - architecture
   - refactor
