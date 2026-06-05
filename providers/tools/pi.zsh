@@ -30,7 +30,7 @@ zdots_pi_init() {
   local _pi_skills_dir="${XDG_STATE_HOME:-$HOME/.local/state}/pi/skills.tmp"
   mkdir -p "$_pi_skills_dir"
   # Clear existing links
-  rm -f "$_pi_skills_dir"/*
+  /bin/rm -f "$_pi_skills_dir"/*
   # Link only project-local skills
   if [[ -d "${ZDOTDIR}/.pi/skills" ]]; then
       find "${ZDOTDIR}/.pi/skills" -maxdepth 1 -mindepth 1 -type d -exec ln -s {} "$_pi_skills_dir/" \;
@@ -62,15 +62,27 @@ zdots_pi_init() {
 zpi() {
   zdots_pi_init
   local _pi_system_append=()
+  local _pi_skill_args=()
 
+  # 1. Clear + Link local skills
+  local _pi_skills_dir="${XDG_STATE_HOME:-$HOME/.local/state}/pi/skills.tmp"
+  mkdir -p "$_pi_skills_dir"
+  /bin/rm -f "$_pi_skills_dir"/*
+  if [[ -d "${ZDOTDIR}/.pi/skills" ]]; then
+      find "${ZDOTDIR}/.pi/skills" -maxdepth 1 -mindepth 1 -type d -exec ln -s {} "$_pi_skills_dir/" \;
+  fi
+
+  # 2. Prepare arguments to disable global skills and load project-local ones
+  _pi_skill_args+=(--no-skills)
+  _pi_skill_args+=(--skill "$_pi_skills_dir")
+
+  # 3. Add context prompts
   [[ -r "${ZDOTDIR}/PI.md" ]] \
     && _pi_system_append+=(--append-system-prompt "${ZDOTDIR}/PI.md")
 
   [[ -r "${PWD}/AGENT.md" ]] \
     && _pi_system_append+=(--append-system-prompt "${PWD}/AGENT.md")
 
-  # Inject compact KB+AI status without burning context on a full hydration.
-  # Write to a temp file — Pi's --append-system-prompt accepts a file path.
   local _brief_file
   _brief_file=$(mktemp 2>/dev/null) || true
   if [[ -n "$_brief_file" ]]; then
@@ -79,14 +91,14 @@ zpi() {
       && _pi_system_append+=(--append-system-prompt "$_brief_file")
   fi
 
-  # Performance Auditing: Log utilization
+  # 4. Performance Auditing
   if [[ -n "$1" ]]; then
     zdots_trace_log "ai_query" "tool=zpi,prompt=${1[1,128]}"
   else
     zdots_trace_log "ai_query" "tool=zpi,mode=interactive"
   fi
 
-  pi "${_pi_system_append[@]}" "$@"
+  pi "${_pi_skill_args[@]}" "${_pi_system_append[@]}" "$@"
 
   [[ -n "$_brief_file" ]] && rm -f "$_brief_file"
 }
