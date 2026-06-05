@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# bin/zdots-worker — manage the zdots Knowledge Layer job worker.
+#
+# The worker drains the async job queue (the `jobs` table in the `my` database):
+# embed, distill, docs_sync, transcription. It is a Core Service — without it,
+# enqueued work (embeddings, distillation, doc sync) is created but never
+# processed, so the queue backs up silently. See CONTEXT.md → "Worker".
+#
+# GRAMMAR:
+# Service lifecycle verbs are consistent with otel-collector and llama-ctl:
+#   install / start / stop / restart / status / health / logs
+# Plus one internal verb used only by launchd:
+#   run       Set up env, load the DB encryption key from Keychain, then exec
+#             `zdots-brain worker`. Not meant to be run by hand.
+#
+# SECURITY:
+# The DB encryption key (ZDOTS_DB_ENCRYPTION_KEY) is loaded from the macOS
+# Keychain at runtime inside `run` — it is NEVER written into the launchd plist.
+# The plist carries only HOME, PATH, and ZDOTDIR.
+
+set -euo pipefail
+
+# SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+LOG_FILE="$STATE/zdots-worker.log"
+PLIST_LABEL="com.zdots.worker"
+PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
+BRAIN="$ZDOTDIR/sbin/zdots-brain"
+
+# shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
+SVC_NAME="zdots-worker"
+# shellcheck source=lib/svc-launchd.bash
+source "${ZDOTDIR}/lib/svc-launchd.bash"
+# shellcheck source=lib/svc-process.bash
+source "${ZDOTDIR}/lib/svc-process.bash"
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+_die()  { printf 'zdots-worker: error: %s\n' "$*" >&2; exit 1; }
+_info() { printf 'zdots-worker: %s\n' "$*" >&2; }
+
+usage() {
+  cat <<EOF
+Usage: zdots-worker <command> [--json]
+
+Service Lifecycle:
+  install   Register the macOS launchd worker (KeepAlive, RunAtLoad)
+  start     Load and start the worker
+  stop      Unload and stop the worker
+  restart   stop then start
+  status    Show worker state and process info
+  health    Exit 0 if the worker process is alive, exit 1 otherwise
+  logs      Tail the worker log
+  run       launchd entry point — set up env + secrets, exec the worker loop
+            (internal; do not run by hand)
+
+Options:
+  --json      Output status/health as JSON (valid for status, health)
+  -h, --help  Show this help
+
+The worker drains the async job queue (embed, distill, docs_sync) for the
+\`my\` database. Manage it via \`zsvc <verb> worker\`; this script is the
+authoritative ctl backing that.
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# run — launchd entry point
+# ---------------------------------------------------------------------------
+# Replicates the interactive-shell environment closely enough for the Ruby
+# worker to connect to the database, pass the AI locality gate, and (for
+# distill jobs) decrypt/encrypt Lesson content. Execs the worker loop so
+# launchd tracks the Ruby process directly (KeepAlive restarts it on crash).
+cmd_run() {
+  cd "$ZDOTDIR" || _die "cannot cd to $ZDOTDIR"
+  export ZDOTDIR
+  export ZDOTS_DATABASE_URL="${ZDOTS_DATABASE_URL:-postgresql://zdots_rw@/my}"
+  export ZDOTS_AI_MODE="${ZDOTS_AI_MODE:-local}"
+  export ZDOTS_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+  export ZDOTS_AI_EMBED_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
+
+  # The DB encryption key is needed by distill jobs (encrypted Lesson writes).
+  # Load it from Keychain at runtime so the secret never lands in the plist.
+  if [[ -f "$ZDOTDIR/lib/keychain.bash" ]]; then
+    # shellcheck source=lib/keychain.bash
+    source "$ZDOTDIR/lib/keychain.bash"
+    zdots_keychain_load ZDOTS_DB_ENCRYPTION_KEY 2>/dev/null || true
+  fi
+
+  # Prefer `mise exec` so Ruby + gems resolve exactly as in the dev shell.
+  if command -v mise >/dev/null 2>&1; then
+    exec mise exec -- "$BRAIN" worker
+  fi
+  exec "$BRAIN" worker
+}
+
+# ---------------------------------------------------------------------------
+# Lifecycle
+# ---------------------------------------------------------------------------
+
+cmd_install() {
+  [[ "$OS" == "darwin" ]] || _die "launchd worker is macOS-only (nothing to install on $OS)"
+  [[ -x "$BRAIN" ]] || _die "zdots-brain not found or not executable: $BRAIN"
+  mkdir -p "$STATE"
+
+  # Capture HOME/PATH/ZDOTDIR into the plist so launchd finds mise, security,
+  # and Ruby exactly as the interactive shell does. PATH is captured at install
+  # time from the invoking shell — run `install` from a normal zdots shell.
+  ZDOTS_SVC_ENV_KEYS="HOME PATH ZDOTDIR" \
+    zdots_svc_launchd_register \
+      "$PLIST_LABEL" "$PLIST_FILE" "$ZDOTDIR/bin/zdots-worker" "$LOG_FILE" "run"
+}
+
+cmd_start() {
+  [[ "$OS" == "darwin" ]] || _die "macOS-only"
+  if [[ ! -f "$PLIST_FILE" ]]; then
+    _info "plist missing — running install first"
+    cmd_install
+  fi
+  zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
+}
+
+cmd_stop() {
+  [[ "$OS" == "darwin" ]] || _die "macOS-only"
+  zdots_svc_launchd_stop "$PLIST_LABEL"
+}
+
+cmd_status() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local state running pid
+  state=$(zdots_svc_launchd_status "$PLIST_LABEL")
+  running=$(echo "$state" | awk '{print $1}')
+  pid=$(echo "$state" | awk '{print $2}')
+
+  zdots_svc_print_status "$json" "$running" "$pid" "jobs queue (my)" "$LOG_FILE" \
+    "launchd=$([[ -f "$PLIST_FILE" ]] && echo true || echo false)"
+}
+
+cmd_health() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local state running healthy
+  state=$(zdots_svc_launchd_status "$PLIST_LABEL")
+  running=$(echo "$state" | awk '{print $1}')
+  [[ "$running" == "true" ]] && healthy=true || healthy=false
+
+  zdots_svc_print_health "$json" "$healthy" "jobs queue (my)"
+}
+
+cmd_logs() {
+  zdots_svc_logs "$LOG_FILE"
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
+case "${1:-}" in
+  install)   cmd_install ;;
+  start)     cmd_start ;;
+  stop)      cmd_stop ;;
+  restart)   zdots_svc_restart cmd_stop cmd_start ;;
+  status)    shift; cmd_status "${@}" ;;
+  health)    shift; cmd_health "${@}" ;;
+  logs)      cmd_logs ;;
+  run)       cmd_run ;;
+  -h|--help) usage; exit 0 ;;
+  "")        usage >&2; exit 1 ;;
+  *)         printf 'zdots-worker: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+esac

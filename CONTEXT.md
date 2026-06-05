@@ -8,7 +8,7 @@ Terms used in code, docs, and agent instructions. Use exact names.
 
 Any long-running process managed by `zdots-ctl`: startable, stoppable, health-probeable, and tracked in `zdots-ctl status --json`. The umbrella category — does not imply a tier.
 
-**Core Service** — a Platform Service zdots itself depends on to function. Always present on any zdots host. Examples: llama.cpp (AI inference), whisper (transcription), otel-collector (observability), context engine (knowledge persistence).
+**Core Service** — a Platform Service zdots itself depends on to function. Always present on any zdots host. Examples: llama.cpp (AI inference), whisper (transcription), otel-collector (observability), context engine (knowledge persistence), the Worker (async job drain).
 
 **Cache Service** — a Platform Service that improves throughput but degrades gracefully when absent. zdots continues to operate if a Cache Service is down, with automatic fallback to a slower path. Current instance: Redis (command analytics write buffer; falls back to async SQLite when unreachable). Tracked in `zdots-ctl status` and warned (not failed) in `zdots-ctl check`.
 
@@ -135,6 +135,24 @@ The Obsidian-managed document directory that is the source of truth for the Know
 **Frontmatter contract** (required for ingestion): `type`, `tags[]`, `slug`. The `slug` is the stable upsert key — re-ingesting a file updates the existing DB record without creating a duplicate.
 
 **Correction discipline:** corrections discovered in Pi conversations are applied by editing the source document in Obsidian and re-ingesting. The database is never edited directly.
+
+---
+
+## Worker
+
+The Core Service that drains the async job queue (the `jobs` table in the `my` database). Without it, jobs are enqueued but never processed, so the queue backs up silently and the Knowledge Base stops gaining embeddings, distillations, and doc syncs.
+
+**Implementation:** `sbin/zdots-brain worker` — an infinite `claim → perform → sleep 5` loop. Claims one job at a time via the `claim_next_job` PL/pgSQL function, dispatches by type through the Jobs registry, and marks the job complete or failed.
+
+**Job types:** `embed` (vector generation from payload text), `distill` (transcript → Lesson), `docs_sync` (Session Residue → maintained docs), `transcription`.
+
+**Lifecycle:** managed as a Platform Service. `bin/zdots-worker` is the authoritative ctl (install/start/stop/restart/status/health/logs); control it through `zsvc <verb> worker`. It runs under a user-domain launchd agent (`com.zdots.worker`, KeepAlive + RunAtLoad) so the queue always drains and the worker restarts on crash or at login.
+
+**Secret handling:** the launchd `run` entry point loads `ZDOTS_DB_ENCRYPTION_KEY` from the Keychain at runtime (needed by `distill` jobs for encrypted Lesson writes). The key is **never** written into the plist — the plist carries only `HOME`, `PATH`, and `ZDOTDIR`.
+
+**Health:** liveness is "launchd process alive" — there is no endpoint to probe. A worker that is alive but wedged (not draining) is not yet detected; queue-depth-over-time health is a future enhancement.
+
+**Stale jobs:** a worker that dies mid-job leaves a row in `running`. `zdots-ctx clear-stale-jobs [interval]` (PL/pgSQL `clear_stale_jobs`) resets rows stuck in `running` past the interval to `failed`. KeepAlive restart does not reclaim them — clearing is a separate step.
 
 ---
 
