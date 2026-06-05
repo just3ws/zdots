@@ -1,9 +1,10 @@
 ---
 id: Z-128
 title: Make the AI Pipeline the only seam to the model
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-06-05 19:58'
+updated_date: '2026-06-05 20:06'
 labels:
   - architecture
   - refactor
