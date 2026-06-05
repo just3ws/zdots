@@ -3,8 +3,12 @@
 Design doc for the `zai` engine router — the integration layer across the local
 LLM, Pi, Aider, Claude Haiku, and Claude Code.
 
-**Status:** DESIGN ONLY. Nothing here is implemented yet. This file captures the
-agreed architecture so a later session can build it in small, reversible phases.
+**Status:** Phase 1 IMPLEMENTED (2026-06-05) — `zai` routes local/Pi/Aider with a
+local advisory classifier, `--dry-run`, and trace logging; `--haiku` and
+`--claude-code` are declared but refuse pending Phases 2–3. Implementation:
+`providers/tools/router.zsh`, lazy stub in `conf.d/95-ai.zsh`, completion
+`functions/enabled/_zai`, tests `tests/zai_router.bats`. Phases 2–4 remain
+design-only below.
 
 **CRITICAL:** Read [AGENTS.md](AGENTS.md) first for architecture, performance
 standards, **RTK token rules**, and **PHI Operating Mode** (Section 8). The
@@ -118,8 +122,8 @@ The router adds **zero** new bypass of the boundary. It composes existing gates:
 
 ## Phased rollout
 
-- **Phase 1** — `zai` with `--local/--pi/--aider`, local advisory classifier,
-  `--dry-run`, engine logging. No cloud, no new deps. Pure rewiring.
+- **Phase 1** — ✅ DONE. `zai` with `--local/--pi/--aider`, local advisory
+  classifier, `--dry-run`, engine logging. No cloud, no new deps. Pure rewiring.
 - **Phase 2** — `zdots_ai_confirm_external` + `--claude-code` scrubbed handoff.
 - **Phase 3** — `--haiku` backend in `ai-query` behind `cloud` + confirm +
   scrub. Reads `ANTHROPIC_API_KEY` from Keychain (already tracked by

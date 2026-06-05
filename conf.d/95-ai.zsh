@@ -50,3 +50,10 @@ if [[ -r "$ZDOTDIR/providers/tools/aider.zsh" ]] && ! typeset -f laid >/dev/null
     _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/aider.zsh" laid "$@"
   }
 fi
+
+if [[ -r "$ZDOTDIR/providers/tools/router.zsh" ]] && ! typeset -f zai >/dev/null 2>&1; then
+  zai() {
+    unfunction zai 2>/dev/null || true
+    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/router.zsh" zai "$@"
+  }
+fi
