@@ -399,8 +399,43 @@ if [[ "$SKIP_FABRIC" -eq 0 ]]; then
         log "wrote Fabric config $FABRIC_CONF/.env"
       fi
     fi
-    step "update Fabric patterns"
-    run fabric-ai --updatepatterns
+    step "update Fabric patterns (shallow clone)"
+    # fabric-ai --updatepatterns does a full git clone with no depth/timeout and
+    # hangs on slow/proxied networks. Do our own shallow, sparse, blob-filtered
+    # clone of just data/patterns under a timeout, then mirror into the patterns
+    # dir. Non-fatal: patterns persist across runs, so a transient network blip
+    # must not fail the whole update.
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+      _fab_timeout="${ZDOTS_FABRIC_TIMEOUT:-120}"
+      _fab_tmp="$(mktemp -d)"
+      _tmo="$(command -v timeout || command -v gtimeout || true)"
+      _clone=(git clone --depth 1 --filter=blob:none --sparse \
+        https://github.com/danielmiessler/fabric.git "$_fab_tmp/fabric")
+      [[ -n "$_tmo" ]] && _clone=("$_tmo" "$_fab_timeout" "${_clone[@]}")
+      log "run phase=$CURRENT_PHASE step=$CURRENT_STEP command=${_clone[*]}"
+      if "${_clone[@]}" >/dev/null 2>&1 \
+        && git -C "$_fab_tmp/fabric" sparse-checkout set data/patterns >/dev/null 2>&1 \
+        && [[ -d "$_fab_tmp/fabric/data/patterns" ]]; then
+        mkdir -p "$FABRIC_CONF/patterns"
+        # Merge (no --delete): preserves any user-authored custom patterns.
+        if command -v rsync >/dev/null 2>&1; then
+          rsync -a "$_fab_tmp/fabric/data/patterns/" "$FABRIC_CONF/patterns/"
+        else
+          cp -R "$_fab_tmp/fabric/data/patterns/." "$FABRIC_CONF/patterns/"
+        fi
+        # Regenerate the pattern listing fabric caches (sorted dir names).
+        ( cd "$FABRIC_CONF/patterns" \
+          && find . -mindepth 1 -maxdepth 1 -type d ! -name '.*' -exec basename {} \; \
+          | sort ) > "$FABRIC_CONF/unique_patterns.txt"
+        log "ok phase=$CURRENT_PHASE step=$CURRENT_STEP patterns=$(grep -c . "$FABRIC_CONF/unique_patterns.txt" 2>/dev/null || echo 0)"
+      else
+        warn "fabric pattern clone failed or timed out (${_fab_timeout}s) — keeping existing patterns; retry: fabric-ai --updatepatterns"
+      fi
+      rm -rf "$_fab_tmp"
+      unset _fab_timeout _fab_tmp _tmo _clone
+    else
+      log "dry-run: would shallow-clone fabric patterns into $FABRIC_CONF/patterns"
+    fi
   else
     warn "fabric-ai not found; skipping pattern update"
   fi
