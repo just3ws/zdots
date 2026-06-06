@@ -194,6 +194,13 @@ cmd_reinit() {
   fi
   mkdir -p "$DATA_DIR"
   cmd_start
+  # The collector authenticates to O2 with the same Keychain password; if it
+  # changed, the running collector holds stale auth (401s). Re-sync it.
+  local otel_bin; otel_bin="$(dirname "$SELF")/otel-collector"
+  if [ -x "$otel_bin" ]; then
+    _info "re-syncing otel-collector OTLP auth"
+    "$otel_bin" restart >/dev/null 2>&1 || _info "warn: restart otel-collector manually to re-sync auth"
+  fi
   _info "re-init done — root user recreated from Keychain (email=${ROOT_EMAIL})"
   _info "reveal password: openobserve-ctl creds --show-password"
 }
