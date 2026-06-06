@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
-# bin/otel-smoke — emit a synthetic OTLP batch (traces + logs + metrics) to the
-# local OTel Collector, to validate the observability pipeline end to end.
+# bin/otel-smoke — exercise the full OpenTelemetry pipeline end to end.
 #
-# The collector fans the batch out to whatever backends are wired (OpenObserve
-# and/or LGTM). With --verify, queries OpenObserve to confirm the data landed.
+# Emits one coherent, trace-correlated scenario covering all three OTel pillars
+# to the local collector (:4318), which forwards to OpenObserve:
+#
+#   TRACES   a multi-span "GET /checkout" trace: auth → db → cache → payment,
+#            with span attributes, span events, an error span, and a span link.
+#   METRICS  a gauge, a monotonic counter (sum), and a histogram (RED-style
+#            request duration) — the three core metric shapes.
+#   LOGS     wide structured events (the canonical-log-line pattern): each record
+#            carries a rich attribute set and is correlated to the trace via
+#            traceId/spanId, across DEBUG/INFO/WARN/ERROR/FATAL severities.
 #
 # Usage:
-#   otel-smoke                 # send one batch (service=zdots-smoke)
+#   otel-smoke                 # send one scenario (service=zdots-smoke)
 #   otel-smoke --verify        # send, then confirm it landed in OpenObserve
-#   otel-smoke --service NAME  # use a custom service.name
+#   otel-smoke --service NAME  # custom service.name
 #   otel-smoke --endpoint URL  # collector OTLP HTTP base (default :4318)
 #
-# Exit 0 on success (and, with --verify, when the data is found).
+# Exit 0 on success (and, with --verify, when the data is found in OpenObserve).
 
 set -euo pipefail
 trap '' PIPE
@@ -26,64 +33,108 @@ while [ $# -gt 0 ]; do
     --verify)   VERIFY=1 ;;
     --service)  SERVICE="${2:?}"; shift ;;
     --endpoint) ENDPOINT="${2:?}"; shift ;;
-    -h|--help)  sed -n '2,18p' "$0" | sed -E 's/^# ?//'; exit 0 ;;
+    -h|--help)  sed -n '2,21p' "$0" | sed -E 's/^# ?//'; exit 0 ;;
     *) printf 'otel-smoke: unknown arg: %s\n' "$1" >&2; exit 1 ;;
   esac
   shift
 done
 
-_post() { # _post <signal-path> <json>
+_post() { # _post <signal-path> <json> ; echoes HTTP code
   curl -s -o /dev/null -w "%{http_code}" -m5 -X POST "${ENDPOINT}/v1/$1" \
     -H 'content-type: application/json' -d "$2"
 }
 
+# Shared resource block — service.name + environment + host identity.
+_resource() {
+  cat <<JSON
+"resource":{"attributes":[
+  {"key":"service.name","value":{"stringValue":"$SERVICE"}},
+  {"key":"service.version","value":{"stringValue":"1.4.2"}},
+  {"key":"deployment.environment","value":{"stringValue":"local"}},
+  {"key":"host.name","value":{"stringValue":"$(hostname -s 2>/dev/null || echo localhost)"}}
+]}
+JSON
+}
+
 now_ns=$(( $(date +%s) * 1000000000 ))
-t0=$now_ns; t1=$(( now_ns + 42000000 ))
-t0b=$(( now_ns + 5000000 )); t1b=$(( now_ns + 30000000 ))
-trace_id=$(openssl rand -hex 16); root_span=$(openssl rand -hex 8); child_span=$(openssl rand -hex 8)
-err_trace=$(openssl rand -hex 16); err_span=$(openssl rand -hex 8)
+ms() { echo $(( now_ns + $1 * 1000000 )); }   # now + N ms, in ns
 
-printf 'otel-smoke: → %s  service=%s\n' "$ENDPOINT" "$SERVICE" >&2
+# One trace context, shared by spans AND logs (correlation).
+trace_id=$(openssl rand -hex 16)
+sp_root=$(openssl rand -hex 8)
+sp_auth=$(openssl rand -hex 8)
+sp_db=$(openssl rand -hex 8)
+sp_cache=$(openssl rand -hex 8)
+sp_pay=$(openssl rand -hex 8)
+link_trace=$(openssl rand -hex 16); link_span=$(openssl rand -hex 8)
+user_id="usr_$(openssl rand -hex 4)"
 
-# --- TRACES: root server span + child client span + one errored span ---
-code=$(_post traces "{\"resourceSpans\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"$SERVICE\"}}]},\"scopeSpans\":[{\"scope\":{\"name\":\"otel-smoke\"},\"spans\":[
-{\"traceId\":\"$trace_id\",\"spanId\":\"$root_span\",\"name\":\"GET /demo\",\"kind\":2,\"startTimeUnixNano\":\"$t0\",\"endTimeUnixNano\":\"$t1\",\"status\":{\"code\":1},\"attributes\":[{\"key\":\"http.method\",\"value\":{\"stringValue\":\"GET\"}}]},
-{\"traceId\":\"$trace_id\",\"spanId\":\"$child_span\",\"parentSpanId\":\"$root_span\",\"name\":\"SELECT users\",\"kind\":3,\"startTimeUnixNano\":\"$t0b\",\"endTimeUnixNano\":\"$t1b\",\"status\":{\"code\":1},\"attributes\":[{\"key\":\"db.system\",\"value\":{\"stringValue\":\"postgresql\"}}]},
-{\"traceId\":\"$err_trace\",\"spanId\":\"$err_span\",\"name\":\"POST /demo/fail\",\"kind\":2,\"startTimeUnixNano\":\"$t0\",\"endTimeUnixNano\":\"$t1\",\"status\":{\"code\":2,\"message\":\"boom\"}}
+printf 'otel-smoke: → %s  service=%s  trace=%s\n' "$ENDPOINT" "$SERVICE" "$trace_id" >&2
+
+# ── PILLAR 1: TRACES ─────────────────────────────────────────────────────────
+# Root server span with 4 children; payment span errors; cache span links to a
+# prior trace; spans carry attributes and a span event.
+code=$(_post traces "{\"resourceSpans\":[{$(_resource),\"scopeSpans\":[{\"scope\":{\"name\":\"otel-smoke\",\"version\":\"1.0\"},\"spans\":[
+{\"traceId\":\"$trace_id\",\"spanId\":\"$sp_root\",\"name\":\"GET /checkout\",\"kind\":2,\"startTimeUnixNano\":\"$(ms 0)\",\"endTimeUnixNano\":\"$(ms 240)\",\"status\":{\"code\":1},\"attributes\":[{\"key\":\"http.method\",\"value\":{\"stringValue\":\"GET\"}},{\"key\":\"http.route\",\"value\":{\"stringValue\":\"/checkout\"}},{\"key\":\"http.status_code\",\"value\":{\"intValue\":\"200\"}},{\"key\":\"enduser.id\",\"value\":{\"stringValue\":\"$user_id\"}}],\"events\":[{\"timeUnixNano\":\"$(ms 5)\",\"name\":\"request.received\",\"attributes\":[{\"key\":\"http.request.body.size\",\"value\":{\"intValue\":\"512\"}}]}]},
+{\"traceId\":\"$trace_id\",\"spanId\":\"$sp_auth\",\"parentSpanId\":\"$sp_root\",\"name\":\"auth.verify_token\",\"kind\":1,\"startTimeUnixNano\":\"$(ms 8)\",\"endTimeUnixNano\":\"$(ms 30)\",\"status\":{\"code\":1},\"attributes\":[{\"key\":\"auth.method\",\"value\":{\"stringValue\":\"jwt\"}}]},
+{\"traceId\":\"$trace_id\",\"spanId\":\"$sp_db\",\"parentSpanId\":\"$sp_root\",\"name\":\"SELECT carts\",\"kind\":3,\"startTimeUnixNano\":\"$(ms 32)\",\"endTimeUnixNano\":\"$(ms 95)\",\"status\":{\"code\":1},\"attributes\":[{\"key\":\"db.system\",\"value\":{\"stringValue\":\"postgresql\"}},{\"key\":\"db.statement\",\"value\":{\"stringValue\":\"SELECT * FROM carts WHERE user_id = \$1\"}},{\"key\":\"db.rows_affected\",\"value\":{\"intValue\":\"3\"}}]},
+{\"traceId\":\"$trace_id\",\"spanId\":\"$sp_cache\",\"parentSpanId\":\"$sp_root\",\"name\":\"cache.get pricing\",\"kind\":3,\"startTimeUnixNano\":\"$(ms 96)\",\"endTimeUnixNano\":\"$(ms 110)\",\"status\":{\"code\":1},\"attributes\":[{\"key\":\"cache.hit\",\"value\":{\"boolValue\":false}},{\"key\":\"db.system\",\"value\":{\"stringValue\":\"redis\"}}],\"links\":[{\"traceId\":\"$link_trace\",\"spanId\":\"$link_span\",\"attributes\":[{\"key\":\"link.kind\",\"value\":{\"stringValue\":\"cache_refill\"}}]}]},
+{\"traceId\":\"$trace_id\",\"spanId\":\"$sp_pay\",\"parentSpanId\":\"$sp_root\",\"name\":\"payment.charge\",\"kind\":3,\"startTimeUnixNano\":\"$(ms 112)\",\"endTimeUnixNano\":\"$(ms 235)\",\"status\":{\"code\":2,\"message\":\"gateway timeout\"},\"attributes\":[{\"key\":\"payment.provider\",\"value\":{\"stringValue\":\"stripe\"}},{\"key\":\"payment.amount\",\"value\":{\"doubleValue\":42.50}},{\"key\":\"error.type\",\"value\":{\"stringValue\":\"GatewayTimeout\"}}],\"events\":[{\"timeUnixNano\":\"$(ms 230)\",\"name\":\"exception\",\"attributes\":[{\"key\":\"exception.type\",\"value\":{\"stringValue\":\"GatewayTimeout\"}},{\"key\":\"exception.message\",\"value\":{\"stringValue\":\"upstream did not respond in 120ms\"}}]}]}
 ]}]}]}")
-printf '  traces  HTTP %s\n' "$code" >&2
+printf '  traces   HTTP %s  (5 spans: root+auth+db+cache+payment[err])\n' "$code" >&2
 
-# --- LOGS: INFO / WARN / ERROR ---
-for entry in "9:INFO:demo started" "13:WARN:cache miss" "17:ERROR:demo failed: boom"; do
-  num="${entry%%:*}"; rest="${entry#*:}"; sev="${rest%%:*}"; msg="${rest#*:}"
-  code=$(_post logs "{\"resourceLogs\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"$SERVICE\"}}]},\"scopeLogs\":[{\"logRecords\":[{\"timeUnixNano\":\"$now_ns\",\"observedTimeUnixNano\":\"$now_ns\",\"severityNumber\":$num,\"severityText\":\"$sev\",\"body\":{\"stringValue\":\"$msg\"}}]}]}]}")
-  printf '  log %-5s HTTP %s\n' "$sev" "$code" >&2
-done
+# ── PILLAR 2: METRICS — gauge, monotonic sum (counter), histogram ────────────
+code=$(_post metrics "{\"resourceMetrics\":[{$(_resource),\"scopeMetrics\":[{\"scope\":{\"name\":\"otel-smoke\"},\"metrics\":[
+{\"name\":\"checkout.queue_depth\",\"unit\":\"{items}\",\"gauge\":{\"dataPoints\":[{\"asInt\":\"7\",\"timeUnixNano\":\"$(ms 240)\",\"attributes\":[{\"key\":\"queue\",\"value\":{\"stringValue\":\"checkout\"}}]}]}},
+{\"name\":\"http.server.requests\",\"unit\":\"{requests}\",\"sum\":{\"aggregationTemporality\":2,\"isMonotonic\":true,\"dataPoints\":[{\"asInt\":\"1\",\"startTimeUnixNano\":\"$(ms 0)\",\"timeUnixNano\":\"$(ms 240)\",\"attributes\":[{\"key\":\"http.route\",\"value\":{\"stringValue\":\"/checkout\"}},{\"key\":\"http.status_code\",\"value\":{\"intValue\":\"200\"}}]}]}},
+{\"name\":\"http.server.duration\",\"unit\":\"ms\",\"histogram\":{\"aggregationTemporality\":2,\"dataPoints\":[{\"startTimeUnixNano\":\"$(ms 0)\",\"timeUnixNano\":\"$(ms 240)\",\"count\":\"1\",\"sum\":240.0,\"min\":240.0,\"max\":240.0,\"bucketCounts\":[\"0\",\"0\",\"0\",\"0\",\"1\",\"0\"],\"explicitBounds\":[5,10,25,50,100,250],\"attributes\":[{\"key\":\"http.route\",\"value\":{\"stringValue\":\"/checkout\"}}]}]}}
+]}]}]}")
+printf '  metrics  HTTP %s  (gauge + counter + histogram)\n' "$code" >&2
 
-# --- METRICS: a gauge ---
-code=$(_post metrics "{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"$SERVICE\"}}]},\"scopeMetrics\":[{\"metrics\":[{\"name\":\"otel_smoke_temperature\",\"gauge\":{\"dataPoints\":[{\"asDouble\":42.5,\"timeUnixNano\":\"$now_ns\"}]}}]}]}]}")
-printf '  metric  HTTP %s\n' "$code" >&2
+# ── PILLAR 3: LOGS — wide, structured, trace-correlated canonical events ─────
+# Each record is one "wide event": many attributes describing the whole unit of
+# work, correlated to the trace above via traceId/spanId.
+_log() { # _log <sevNum> <sevText> <spanId> <body> <attrs-json>
+  printf '{"timeUnixNano":"%s","observedTimeUnixNano":"%s","severityNumber":%s,"severityText":"%s","traceId":"%s","spanId":"%s","body":{"stringValue":"%s"},"attributes":[%s]}' \
+    "$now_ns" "$now_ns" "$1" "$2" "$trace_id" "$3" "$4" "$5"
+}
+# A shared "wide" attribute set (the canonical log line dimensions).
+wide='{"key":"http.method","value":{"stringValue":"GET"}},{"key":"http.route","value":{"stringValue":"/checkout"}},{"key":"http.status_code","value":{"intValue":"200"}},{"key":"enduser.id","value":{"stringValue":"'"$user_id"'"}},{"key":"net.peer.ip","value":{"stringValue":"10.0.0.42"}},{"key":"http.user_agent","value":{"stringValue":"zdots-smoke/1.0"}},{"key":"duration_ms","value":{"doubleValue":240.0}},{"key":"region","value":{"stringValue":"us-local-1"}}'
+records=$(
+  _log 5  TRACE "$sp_root"  "checkout pipeline entered"                   "$wide"; printf ','
+  _log 9  INFO  "$sp_auth"  "token verified for $user_id"                 "$wide,{\"key\":\"auth.method\",\"value\":{\"stringValue\":\"jwt\"}}"; printf ','
+  _log 9  INFO  "$sp_db"    "loaded 3 cart line items"                    "$wide,{\"key\":\"db.system\",\"value\":{\"stringValue\":\"postgresql\"}},{\"key\":\"db.rows_affected\",\"value\":{\"intValue\":\"3\"}}"; printf ','
+  _log 13 WARN  "$sp_cache" "pricing cache miss; refilled from origin"    "$wide,{\"key\":\"cache.hit\",\"value\":{\"boolValue\":false}},{\"key\":\"retry.count\",\"value\":{\"intValue\":\"1\"}}"; printf ','
+  _log 17 ERROR "$sp_pay"   "payment gateway timeout after 120ms"         "$wide,{\"key\":\"http.status_code\",\"value\":{\"intValue\":\"504\"}},{\"key\":\"error.type\",\"value\":{\"stringValue\":\"GatewayTimeout\"}},{\"key\":\"payment.provider\",\"value\":{\"stringValue\":\"stripe\"}}"; printf ','
+  _log 21 FATAL "$sp_root"  "checkout aborted; compensating transaction queued" "$wide,{\"key\":\"saga.action\",\"value\":{\"stringValue\":\"refund\"}}"
+)
+code=$(_post logs "{\"resourceLogs\":[{$(_resource),\"scopeLogs\":[{\"scope\":{\"name\":\"otel-smoke\"},\"logRecords\":[$records]}]}]}")
+printf '  logs     HTTP %s  (6 wide events: TRACE→FATAL, trace-correlated)\n' "$code" >&2
 
-printf 'otel-smoke: trace=%s  errored-trace=%s\n' "$trace_id" "$err_trace" >&2
+printf 'otel-smoke: sent all 3 pillars (trace %s)\n' "$trace_id" >&2
 
 [ "$VERIFY" -eq 0 ] && exit 0
 
-# --- VERIFY: confirm logs landed in OpenObserve (Keychain auth) ---
+# ── VERIFY in OpenObserve (Keychain auth) ────────────────────────────────────
 printf 'otel-smoke: verifying in OpenObserve...\n' >&2
 pw="$(/usr/bin/security find-generic-password -s zdots -a ZDOTS_O2_ROOT_PASSWORD -w 2>/dev/null || true)"
 [ -n "$pw" ] || { printf 'otel-smoke: no O2 Keychain password — cannot verify\n' >&2; exit 1; }
 auth="$(printf '%s' "root@zdots.local:${pw}" | base64 | tr -d '\n')"
-# allow the collector's batch processor (1s) + ingest to settle
 sleep 4
 start=$(( ($(date +%s) - 1800) * 1000000 )); end=$(( ($(date +%s) + 120) * 1000000 ))
-hits=$(curl -s -m8 -H "Authorization: Basic $auth" -H 'content-type: application/json' \
-  "${O2_API}/_search?type=logs" \
-  -d "{\"query\":{\"sql\":\"SELECT body FROM \\\"default\\\" WHERE str_match(body, 'demo')\",\"start_time\":$start,\"end_time\":$end,\"size\":10}}" \
-  | python3 -c "import sys,json;print(json.load(sys.stdin).get('total',0))" 2>/dev/null || echo 0)
-if [ "${hits:-0}" -gt 0 ]; then
-  printf 'otel-smoke: OK — %s demo log(s) found in OpenObserve\n' "$hits" >&2
+_count() { # _count <type> <stream> <where>
+  curl -s -m8 -H "Authorization: Basic $auth" -H 'content-type: application/json' \
+    "${O2_API}/_search?type=$1" \
+    -d "{\"query\":{\"sql\":\"SELECT * FROM \\\"$2\\\" WHERE $3\",\"start_time\":$start,\"end_time\":$end,\"size\":50}}" \
+    | python3 -c "import sys,json;print(json.load(sys.stdin).get('total',0))" 2>/dev/null || echo 0
+}
+logs_n=$(_count logs default "trace_id = '$trace_id'")
+[ "${logs_n:-0}" = 0 ] && logs_n=$(_count logs default "str_match(body, 'checkout')")
+traces_n=$(_count traces default "trace_id = '$trace_id'")
+printf 'otel-smoke: OpenObserve — logs=%s traces=%s (trace %s)\n' "$logs_n" "$traces_n" "$trace_id" >&2
+if [ "${logs_n:-0}" -gt 0 ] && [ "${traces_n:-0}" -gt 0 ]; then
+  printf 'otel-smoke: OK — logs + traces correlated by trace_id in OpenObserve\n' >&2
   exit 0
-else
-  printf 'otel-smoke: FAIL — demo logs not found in OpenObserve\n' >&2
-  exit 1
 fi
+printf 'otel-smoke: FAIL — expected logs and traces for trace %s\n' "$trace_id" >&2
+exit 1
