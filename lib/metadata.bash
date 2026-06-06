@@ -4,7 +4,7 @@
 # RATIONALE:
 # Consolidates YAML configuration resolution into a single deep module.
 # Handles profile merging, environment overrides, and provides a consistent
-# interface for all Zdots services (AI, OTel, LGTM).
+# interface for all Zdots services (AI, OTel).
 #
 # DEPTH:
 # - Concentrates config knowledge (Locality).
@@ -41,7 +41,6 @@ _zdots_meta_get_file() {
   case "$service" in
     ai|whisper) echo "$ZDOTS_META_DIR/ai-models.yaml" ;;
     otel) echo "$ZDOTS_META_DIR/otel-collector.yaml" ;;
-    lgtm) echo "$ZDOTS_META_DIR/docker-compose.lgtm.yaml" ;;
     *)    return 1 ;;
   esac
 }
@@ -127,8 +126,7 @@ zdots_meta_dump() {
   if [[ "$service" == "platform" ]]; then
     local ai; ai=$(zdots_meta_resolve_yaml ai)
     local otel; otel=$(zdots_meta_resolve_yaml otel)
-    local lgtm; lgtm=$(zdots_meta_resolve_yaml lgtm)
-    printf '{"ai":%s,"otel":%s,"lgtm":%s}\n' "$ai" "$otel" "$lgtm"
+    printf '{"ai":%s,"otel":%s}\n' "$ai" "$otel"
   else
     zdots_meta_resolve_yaml "$service"
   fi

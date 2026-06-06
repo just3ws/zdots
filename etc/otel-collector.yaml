@@ -39,14 +39,12 @@ receivers:
       # process scraper omitted: macOS sandboxing prevents reading system PIDs
       processes:
 
-  # Container metrics: per-container CPU, memory, network, block I/O
-  docker_stats:
-    # Colima on this host is using ~/.colima.
-    endpoint: "unix://${env:HOME}/.colima/default/docker.sock"
-    collection_interval: 15s
-    provide_per_core_cpu_metrics: false
+  # NOTE (Z-134): the docker_stats receiver was removed when observability went
+  # native — Colima is no longer part of the observability plane, so scraping the
+  # Colima docker.sock just produced connection errors when the VM is stopped.
+  # Re-add it on a box that genuinely runs container workloads worth monitoring.
 
-  # Tail log files into Loki
+  # Tail log files into OpenObserve
   # Filelog receiver: uncomment and add application log paths as needed.
   # Do NOT include otel-collector.log — creates a feedback loop with debug exporter.
   # filelog:
@@ -124,7 +122,7 @@ service:
       exporters: [debug, file, otlphttp/openobserve, spanmetrics]
     # Metrics from apps + host + containers + spanmetrics
     metrics:
-      receivers: [otlp, hostmetrics, docker_stats, spanmetrics]
+      receivers: [otlp, hostmetrics, spanmetrics]
       processors: [resourcedetection, batch]
       exporters: [debug, otlphttp/openobserve]
     # Logs from apps + log files

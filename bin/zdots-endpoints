@@ -29,19 +29,18 @@ command -v zdots_trace_log >/dev/null 2>&1 && zdots_trace_log "endpoints_check" 
 
 # ── Per-host metadata. Unknown hosts fall back to "/" + the nginx error log. ──
 declare -A HEALTH=(
-  [llama.local]=/health     [embed.local]=/health   [grafana.local]=/api/health
-  [my.local]=/up            [dev.my.local]=/up       [lgtm.local]=/api/health
+  [llama.local]=/health     [embed.local]=/health   [o2.local]=/healthz
+  [my.local]=/up            [dev.my.local]=/up
 )
 declare -A LABEL=(
   [llama.local]="Qwen3 chat inference"   [embed.local]="Nomic embeddings"
-  [grafana.local]="Grafana dashboards"   [lgtm.local]="LGTM observability"
+  [o2.local]="OpenObserve (logs/metrics/traces)"
   [my.local]="context-engine (prod)"     [dev.my.local]="context-engine (dev)"
 )
 declare -A LOGCMD=(
   [llama.local]="zsvc logs llama"   [embed.local]="zsvc logs embed"
-  [grafana.local]="zsvc logs grafana"
+  [o2.local]="zsvc logs o2"
   [my.local]="tail -f $NGINX_ERR"   [dev.my.local]="tail -f $NGINX_ERR"
-  [lgtm.local]="zsvc logs otel"
 )
 
 # ── Colors (suppressed when not a tty) ───────────────────────────────────────
