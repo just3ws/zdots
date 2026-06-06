@@ -1,0 +1,27 @@
+#compdef openobserve-ctl
+# Completion for openobserve-ctl — native OpenObserve observability backend.
+
+_openobserve-ctl() {
+  local -a cmds
+  cmds=(
+    'install:download + sha-verify binary, provision creds, register launchd'
+    'start:load and start the launchd service'
+    'stop:unload and stop the service'
+    'restart:stop then start'
+    'status:show service state and process info'
+    'health:exit 0 if the endpoint is reachable'
+    'logs:tail the OpenObserve log'
+    'config:show endpoints (UI + OTLP ingest) and paths'
+    'creds:print root email (and reveal Keychain password)'
+  )
+  if (( CURRENT == 2 )); then
+    _describe 'command' cmds
+    return
+  fi
+  case "${words[2]}" in
+    status|health|config) _values 'flag' '--json[output as JSON]' ;;
+    creds) _values 'flag' '--show-password[reveal the Keychain password]' ;;
+  esac
+}
+
+_openobserve-ctl "$@"
