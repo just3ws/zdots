@@ -2,7 +2,9 @@
 #
 # Hardware targets:
 #   home — Apple M4, 16GB unified memory, 256GB storage  → qwen3-8b (default)
-#   work — Apple M5 Pro, 24GB unified memory, 1TB storage → qwen3-14b (default)
+#   work — Apple M5 Pro, 24GB unified memory, 1TB storage → work-light (default;
+#          a 4B reasoning model — leaves RAM for embed/Colima/Rails under load.
+#          qwen3-14b stays available via ZDOTS_AI_PROFILE=qwen3-14b when idle.)
 #
 # Storage discipline: keep ONE active model per profile. Delete unused GGUFs.
 # Override model storage path via ZDOTS_AI_MODELS_DIR in .zdots.env.
@@ -67,6 +69,24 @@ profiles:
     n_gpu_layers: 99
     description: "Ultra-lightweight Qwen2.5. Perfect for background tasks."
 
+  work-light:
+    model_file: "Qwen_Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+    hf_repo: "bartowski/Qwen_Qwen3-4B-Thinking-2507-GGUF"
+    # No draft_model — spec decoding off; a 0.6B draft barely helps a 4B target
+    # and just costs memory on a contended machine.
+    size_gb: 2.5
+    ctx_size: 16384
+    n_gpu_layers: 99
+    description: "Qwen3-4B-Thinking-2507. WORK DEFAULT for contended machines: dedicated always-on reasoning, same Qwen3 family as 8B/14B, ~4GB resident (model+KV) so embed/Colima/Rails get headroom. Reserve qwen3-14b (ZDOTS_AI_PROFILE=qwen3-14b) for idle/high-quality work."
+
+  work-light-phi:
+    model_file: "microsoft_Phi-4-mini-reasoning-Q4_K_M.gguf"
+    hf_repo: "bartowski/microsoft_Phi-4-mini-reasoning-GGUF"
+    size_gb: 2.5
+    ctx_size: 16384
+    n_gpu_layers: 99
+    description: "Phi-4-mini-reasoning (3.8B). Comparison profile — best reasoning-per-GB (beats Qwen2.5-14B on MATH). Different family; A/B against work-light via promptfoo (task Z-133)."
+
   embed:
     model_file: "nomic-embed-text-v2-moe.Q8_0.gguf"
     hf_repo: "nomic-ai/nomic-embed-text-v2-moe-GGUF"
@@ -98,7 +118,7 @@ whisper_profiles:
     description: "Fast, English-only transcription for background tasks."
 
 default_profile: "qwen3-8b"
-default_profile_work: "qwen3-14b"
+default_profile_work: "work-light"
 default_whisper_profile: "standard"
 
 # Settings for the dedicated embedding server (com.zdots.llama-embed, port 11501).
