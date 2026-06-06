@@ -29,6 +29,7 @@ LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.log"
 PLIST_LABEL="com.zdots.otel-collector"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 OTLP_ENDPOINT="http://127.0.0.1:4318"
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 
 # shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
 SVC_NAME="otel-collector"
@@ -91,10 +92,26 @@ cmd_install() {
   fi
 
   if [ "$OS" = "darwin" ]; then
-    ZDOTS_SVC_ENV_KEYS="HOME" \
-      zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$BINARY" "$LOG_FILE" \
-      "--config" "$CONFIG_FILE"
+    # launchd runs THIS script's `serve` verb (not the binary directly) so the
+    # OpenObserve OTLP credential is loaded from Keychain at boot, never embedded.
+    # ZDOTDIR must be embedded too — serve sources lib/*.bash via ${ZDOTDIR},
+    # and under launchd $(pwd) is "/" (→ //lib/... not found, crash loop).
+    ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR" \
+      zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$SELF" "$LOG_FILE" "serve"
   fi
+}
+
+# Internal launchd target: load the OpenObserve OTLP basic-auth from Keychain so
+# the credential is never written to the config file or the plist, then exec.
+cmd_serve() {
+  [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
+  local o2_pw
+  o2_pw="$(/usr/bin/security find-generic-password -s zdots -a ZDOTS_O2_ROOT_PASSWORD -w 2>/dev/null || true)"
+  if [ -n "$o2_pw" ]; then
+    ZDOTS_O2_OTLP_AUTH="Basic $(printf '%s' "root@zdots.local:${o2_pw}" | base64 | tr -d '\n')"
+    export ZDOTS_O2_OTLP_AUTH
+  fi
+  exec "$BINARY" --config "$CONFIG_FILE"
 }
 
 cmd_start() {
@@ -207,6 +224,7 @@ cmd_config() {
 
 case "${1:-}" in
   install)   cmd_install ;;
+  serve)     cmd_serve ;;
   start)     cmd_start ;;
   stop)      cmd_stop ;;
   restart)   zdots_svc_restart cmd_stop cmd_start ;;
