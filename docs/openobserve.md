@@ -44,11 +44,34 @@ openobserve-ctl creds --show-password   # login: root@zdots.local
 
 ## Lifecycle (`openobserve-ctl` / `zsvc o2`)
 
-`install · start · stop · restart · status · health · logs · config · creds`
+`install · start · stop · restart · reinit · status · health · logs · config · creds`
 
 `install` is idempotent — it skips the (~250 MB) download when the pinned version
 is already on disk, then re-provisions creds and the launchd plist. The binary is
 **not** committed to the repo; `install` pulls and sha256-verifies it.
+
+## Disposable data & credential sync
+
+Local telemetry is **disposable** — short-lived logs/metrics/traces for one
+developer, not a system of record. The design leans into that:
+
+- **Keychain is the single source of truth** for the root credential
+  (`zdots / ZDOTS_O2_ROOT_PASSWORD`). Both the UI login and the collector's OTLP
+  basic-auth derive from it.
+- OpenObserve only reads `ZO_ROOT_USER_PASSWORD` on **first init**, so a password
+  set/rotated later won't match the UI. The fix is not to protect the data — it's
+  to re-init cleanly:
+
+  ```bash
+  openobserve-ctl reinit            # wipe data dir; root re-created from Keychain
+  openobserve-ctl reinit --rotate   # also generate a fresh Keychain password first
+  ```
+
+  `reinit` guards the path before any `rm -rf`, stops the service, wipes
+  `ZO_DATA_DIR`, and restarts. Streams re-populate from the collector within ~15s.
+- **Retention** defaults to 14 days (`ZDOTS_O2_RETENTION_DAYS` →
+  `ZO_COMPACT_DATA_RETENTION_DAYS`) so the store self-trims instead of growing
+  unbounded.
 
 ## PHI / security posture
 
@@ -75,6 +98,7 @@ Pinned in `bin/openobserve-ctl`:
 | Log | `~/.local/state/zsh/openobserve.log` |
 | Root email | `root@zdots.local` |
 | Root password | Keychain `zdots / ZDOTS_O2_ROOT_PASSWORD` |
+| Retention | 14 days (`ZDOTS_O2_RETENTION_DAYS`) |
 
 ## Migration status (Z-134)
 
