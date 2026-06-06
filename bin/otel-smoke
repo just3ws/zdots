@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# bin/otel-smoke — emit a synthetic OTLP batch (traces + logs + metrics) to the
+# local OTel Collector, to validate the observability pipeline end to end.
+#
+# The collector fans the batch out to whatever backends are wired (OpenObserve
+# and/or LGTM). With --verify, queries OpenObserve to confirm the data landed.
+#
+# Usage:
+#   otel-smoke                 # send one batch (service=zdots-smoke)
+#   otel-smoke --verify        # send, then confirm it landed in OpenObserve
+#   otel-smoke --service NAME  # use a custom service.name
+#   otel-smoke --endpoint URL  # collector OTLP HTTP base (default :4318)
+#
+# Exit 0 on success (and, with --verify, when the data is found).
+
+set -euo pipefail
+trap '' PIPE
+
+ENDPOINT="${ZDOTS_OTEL_ENDPOINT:-http://127.0.0.1:4318}"
+SERVICE="zdots-smoke"
+VERIFY=0
+O2_API="${ZDOTS_O2_ENDPOINT:-http://127.0.0.1:5080}/api/default"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --verify)   VERIFY=1 ;;
+    --service)  SERVICE="${2:?}"; shift ;;
+    --endpoint) ENDPOINT="${2:?}"; shift ;;
+    -h|--help)  sed -n '2,18p' "$0" | sed -E 's/^# ?//'; exit 0 ;;
+    *) printf 'otel-smoke: unknown arg: %s\n' "$1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+_post() { # _post <signal-path> <json>
+  curl -s -o /dev/null -w "%{http_code}" -m5 -X POST "${ENDPOINT}/v1/$1" \
+    -H 'content-type: application/json' -d "$2"
+}
+
+now_ns=$(( $(date +%s) * 1000000000 ))
+t0=$now_ns; t1=$(( now_ns + 42000000 ))
+t0b=$(( now_ns + 5000000 )); t1b=$(( now_ns + 30000000 ))
+trace_id=$(openssl rand -hex 16); root_span=$(openssl rand -hex 8); child_span=$(openssl rand -hex 8)
+err_trace=$(openssl rand -hex 16); err_span=$(openssl rand -hex 8)
+
+printf 'otel-smoke: → %s  service=%s\n' "$ENDPOINT" "$SERVICE" >&2
+
+# --- TRACES: root server span + child client span + one errored span ---
+code=$(_post traces "{\"resourceSpans\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"$SERVICE\"}}]},\"scopeSpans\":[{\"scope\":{\"name\":\"otel-smoke\"},\"spans\":[
+{\"traceId\":\"$trace_id\",\"spanId\":\"$root_span\",\"name\":\"GET /demo\",\"kind\":2,\"startTimeUnixNano\":\"$t0\",\"endTimeUnixNano\":\"$t1\",\"status\":{\"code\":1},\"attributes\":[{\"key\":\"http.method\",\"value\":{\"stringValue\":\"GET\"}}]},
+{\"traceId\":\"$trace_id\",\"spanId\":\"$child_span\",\"parentSpanId\":\"$root_span\",\"name\":\"SELECT users\",\"kind\":3,\"startTimeUnixNano\":\"$t0b\",\"endTimeUnixNano\":\"$t1b\",\"status\":{\"code\":1},\"attributes\":[{\"key\":\"db.system\",\"value\":{\"stringValue\":\"postgresql\"}}]},
+{\"traceId\":\"$err_trace\",\"spanId\":\"$err_span\",\"name\":\"POST /demo/fail\",\"kind\":2,\"startTimeUnixNano\":\"$t0\",\"endTimeUnixNano\":\"$t1\",\"status\":{\"code\":2,\"message\":\"boom\"}}
+]}]}]}")
+printf '  traces  HTTP %s\n' "$code" >&2
+
+# --- LOGS: INFO / WARN / ERROR ---
+for entry in "9:INFO:demo started" "13:WARN:cache miss" "17:ERROR:demo failed: boom"; do
+  num="${entry%%:*}"; rest="${entry#*:}"; sev="${rest%%:*}"; msg="${rest#*:}"
+  code=$(_post logs "{\"resourceLogs\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"$SERVICE\"}}]},\"scopeLogs\":[{\"logRecords\":[{\"timeUnixNano\":\"$now_ns\",\"observedTimeUnixNano\":\"$now_ns\",\"severityNumber\":$num,\"severityText\":\"$sev\",\"body\":{\"stringValue\":\"$msg\"}}]}]}]}")
+  printf '  log %-5s HTTP %s\n' "$sev" "$code" >&2
+done
+
+# --- METRICS: a gauge ---
+code=$(_post metrics "{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"$SERVICE\"}}]},\"scopeMetrics\":[{\"metrics\":[{\"name\":\"otel_smoke_temperature\",\"gauge\":{\"dataPoints\":[{\"asDouble\":42.5,\"timeUnixNano\":\"$now_ns\"}]}}]}]}]}")
+printf '  metric  HTTP %s\n' "$code" >&2
+
+printf 'otel-smoke: trace=%s  errored-trace=%s\n' "$trace_id" "$err_trace" >&2
+
+[ "$VERIFY" -eq 0 ] && exit 0
+
+# --- VERIFY: confirm logs landed in OpenObserve (Keychain auth) ---
+printf 'otel-smoke: verifying in OpenObserve...\n' >&2
+pw="$(/usr/bin/security find-generic-password -s zdots -a ZDOTS_O2_ROOT_PASSWORD -w 2>/dev/null || true)"
+[ -n "$pw" ] || { printf 'otel-smoke: no O2 Keychain password — cannot verify\n' >&2; exit 1; }
+auth="$(printf '%s' "root@zdots.local:${pw}" | base64 | tr -d '\n')"
+# allow the collector's batch processor (1s) + ingest to settle
+sleep 4
+start=$(( ($(date +%s) - 1800) * 1000000 )); end=$(( ($(date +%s) + 120) * 1000000 ))
+hits=$(curl -s -m8 -H "Authorization: Basic $auth" -H 'content-type: application/json' \
+  "${O2_API}/_search?type=logs" \
+  -d "{\"query\":{\"sql\":\"SELECT body FROM \\\"default\\\" WHERE str_match(body, 'demo')\",\"start_time\":$start,\"end_time\":$end,\"size\":10}}" \
+  | python3 -c "import sys,json;print(json.load(sys.stdin).get('total',0))" 2>/dev/null || echo 0)
+if [ "${hits:-0}" -gt 0 ]; then
+  printf 'otel-smoke: OK — %s demo log(s) found in OpenObserve\n' "$hits" >&2
+  exit 0
+else
+  printf 'otel-smoke: FAIL — demo logs not found in OpenObserve\n' >&2
+  exit 1
+fi
