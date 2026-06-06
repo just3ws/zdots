@@ -765,13 +765,50 @@ install_embed() {
     printf 'llama-ctl: loading embed service...\n' >&2
     zdots_svc_launchd_start "$EMBED_PLIST_LABEL" "$EMBED_PLIST_FILE"
     printf 'llama-ctl: embed server started on %s\n' "$EMBED_ENDPOINT" >&2
+    # Block until it actually serves (or warn on timeout) — install should not
+    # report success while the endpoint is still loading.
+    _wait_embed "$EMBED_ENDPOINT" "$EMBED_LOG_FILE" || true
   else
     printf 'llama-ctl: embed model still missing — plist written but service not started\n' >&2
     printf '  Run: ZDOTS_AI_PROFILE=embed llama-ctl model-download && llama-ctl start-embed\n' >&2
   fi
 }
 
-start_embed()  { zdots_svc_launchd_start  "$EMBED_PLIST_LABEL" "$EMBED_PLIST_FILE"; }
+# Wait for the embed server to become ready (HTTP /health), so callers don't
+# race a launchd job that's still loading the model. Under memory pressure
+# (Colima/Rails/desktop apps sharing unified RAM) the load is slow; without this
+# wait, start returns "started" while the endpoint is not yet serving and any
+# immediate dependant (zdots-ctx capture, RAG) fails. /health is the readiness
+# signal every other probe in the stack uses (svc-registry, status_embed).
+# Override the budget with ZDOTS_EMBED_WAIT (seconds). Returns 1 on timeout.
+_wait_embed() {
+  local endpoint="$1" log_file="$2"
+  local max_wait="${ZDOTS_EMBED_WAIT:-60}" interval=3 elapsed=0
+  printf 'llama-embed: waiting for readiness' >&2
+  while (( elapsed < max_wait )); do
+    if curl -sf -m 3 "${endpoint}/health" >/dev/null 2>&1; then
+      printf ' ready\n' >&2
+      return 0
+    fi
+    printf '.' >&2
+    sleep "$interval"
+    elapsed=$(( elapsed + interval ))
+  done
+  printf ' TIMEOUT\n' >&2
+  # Only inspect recent log lines — the log accumulates across restarts.
+  if tail -100 "$log_file" 2>/dev/null | grep -q 'kIOGPUCommandBufferCallbackErrorOutOfMemory'; then
+    _svc_warn "GPU OOM in recent embed logs — free memory (Colima/Rails/apps) and retry: zsvc restart embed"
+    _svc_warn "check logs: tail -100 $log_file | grep OutOfMemory"
+  else
+    _svc_warn "embed not ready after ${max_wait}s — likely memory pressure; check: zsvc diag embed"
+  fi
+  return 1
+}
+
+start_embed()  {
+  zdots_svc_launchd_start "$EMBED_PLIST_LABEL" "$EMBED_PLIST_FILE" || return $?
+  _wait_embed "$EMBED_ENDPOINT" "$EMBED_LOG_FILE"
+}
 stop_embed()   { zdots_svc_launchd_stop   "$EMBED_PLIST_LABEL"; }
 
 status_embed() {
