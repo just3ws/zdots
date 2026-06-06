@@ -9,14 +9,23 @@
 set -u
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 
-# Resolve the AI boundary mode from .zdots.local (not exported into CC's env).
-ai_mode="local"
-if [[ -r "${ZDOTDIR}/.zdots.local" ]]; then
-  _m="$(grep -E '^[[:space:]]*ZDOTS_AI_MODE=' "${ZDOTDIR}/.zdots.local" 2>/dev/null | tail -n1 | cut -d= -f2 | tr -d '"'"'"' ')"
-  [[ -n "${_m:-}" ]] && ai_mode="$_m"
+# Shared, account-agnostic home/work + AI-mode resolver.
+context="home"; ai_mode="local"
+if [[ -r "${ZDOTDIR}/lib/cc-context.bash" ]]; then
+  source "${ZDOTDIR}/lib/cc-context.bash"
+  context="$(cc_context)"
+  ai_mode="$(cc_ai_mode)"
 fi
 
 printf '## zdots session brief (Claude Code)\n'
+if [[ "$context" == "work" ]]; then
+  printf 'CONTEXT: WORK machine (PHI-adjacent). Claude Code is HELP-ONLY here:\n'
+  printf '  - do NOT git commit or push — the guard hook blocks it; assist with the\n'
+  printf '    integration, leave commits to a normal terminal.\n'
+  printf '  - local-only AI is enforced (ZDOTS_AI_MODE=local via .zdots.work).\n'
+else
+  printf 'CONTEXT: HOME (powerstation) — full access.\n'
+fi
 printf 'ai-boundary: mode=%s — Claude Code is a CLOUD tool; it bypasses the local\n' "$ai_mode"
 printf '  phi_scrub/ai_boundary pipeline. Do NOT read .zdots.secrets, .env, keys,\n'
 printf '  or paste PHI/credentials into prompts. See CLAUDE.md + AGENTS.md (PHI mode).\n'
