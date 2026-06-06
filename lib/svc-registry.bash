@@ -81,12 +81,11 @@ _svc_reg "embed|llama-embed|com.zdots.llama-embed|${_SVC_REG_STATE}/llama-embed.
 _svc_reg "otel|otel-collector|com.zdots.otel-collector|${_SVC_REG_STATE}/otel-collector.log|otel-collector|http://127.0.0.1:4318|launchd|1|otel-collector telemetry collector|install|start|stop|restart|status|health|logs|validate"
 _svc_reg "o2|openobserve|com.zdots.openobserve|${_SVC_REG_STATE}/openobserve.log|openobserve-ctl|http://127.0.0.1:5080|launchd|1|openobserve observability obs telemetry-ui|install|start|stop|restart|status|health|logs|"
 _svc_reg "colima|colima|com.zdots.colima-autostart||colima||colima|1|vm docker||start|stop||status||logs|"
-_svc_reg "nginx|nginx|homebrew.mxcl.nginx|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.local (+ llama/embed/grafana.local)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate"
+_svc_reg "nginx|nginx|homebrew.mxcl.nginx|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.local (+ llama/embed/o2.local)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate"
 _svc_reg "postgres|postgresql@18|homebrew.mxcl.postgresql@18|${_SVC_REG_BREW}/var/log/postgresql@18.log||postgresql:///my (:5432)|plist|1|postgresql pg db database||start|stop|restart|status|health||"
 _svc_reg "redis|redis|homebrew.mxcl.redis|${_SVC_REG_BREW}/var/log/redis.log||127.0.0.1:6379|plist|1|cache kv||start|stop|restart|status|health||"
 _svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.log|zdots-worker|jobs queue (my)|launchd|1|jobs brain-worker|install|start|stop|restart|status|health|logs|"
 # Health-only platform services (not zsvc lifecycle-managed):
-_svc_reg "grafana|grafana|||local-ci|${GRAFANA_URL:-http://127.0.0.1:3000}|derived|0|lgtm||||||||"
 _svc_reg "ctx|context-engine|||zdots-ctx|postgres|derived|0|intelligence||||||||"
 
 # ── Lookups ─────────────────────────────────────────────────────────────────
@@ -143,7 +142,7 @@ zdots_svc_healthy() {
   case "$name" in
     llama|embed) curl -sf --max-time 3 "${ep}/health" >/dev/null 2>&1 ;;
     otel)        "${ZDOTS_SVC_BIN}/otel-collector" health >/dev/null 2>&1 ;;
-    grafana)     "${ZDOTS_SVC_BIN}/local-ci" health >/dev/null 2>&1 ;;
+    o2)          curl -sf --max-time 3 "${ep}/healthz" >/dev/null 2>&1 ;;
     colima)      colima status >/dev/null 2>&1 ;;
     nginx)       curl -s --max-time 3 -o /dev/null "http://localhost/" 2>/dev/null ;;
     postgres)    command -v pg_isready >/dev/null 2>&1 && pg_isready -q 2>/dev/null ;;

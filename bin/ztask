@@ -115,7 +115,7 @@ cmd_health() {
   if [[ -x "$ZDOTS_CTL" ]]; then
     platform_json="$("$ZDOTS_CTL" status --json 2>/dev/null || true)"
     if printf '%s\n' "$platform_json" | jq -e \
-      '.colima and .lgtm and .otel_collector and .ai_server and .embed_server and .intelligence_suite and .cache' \
+      '.openobserve and .otel_collector and .ai_server and .embed_server and .intelligence_suite and .cache' \
       >/dev/null 2>&1; then
       platform_ready=true
     fi

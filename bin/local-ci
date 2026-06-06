@@ -1,10 +1,16 @@
 #!/usr/bin/env zsh
-# bin/local-ci — Manage the Colima + LGTM observability stack and local CI.
+# bin/local-ci — Colima + local CI (act); DEPRECATED LGTM stack management.
 #
-# RATIONALE:
+# DEPRECATED (Z-134): Observability moved off the containerized LGTM stack to
+# native OpenObserve — use `zsvc o2` / `openobserve-ctl` and see docs/openobserve.md.
+# The LGTM verbs below (start/stop/status/health/logs) remain only as a rollback
+# path against the archived compose file (etc/archive/docker-compose.lgtm.yaml);
+# they are no longer wired into zdots-ctl or colima-autostart. The `run` (act),
+# `prune`, and `rebuild` Colima utilities are unaffected.
+#
+# RATIONALE (historical):
 # Colima provides the container runtime. The LGTM stack (Grafana, Loki, Tempo,
-# Mimir) runs inside Colima via Docker Compose and is the central observability
-# hub for this machine. This script manages their combined lifecycle.
+# Mimir) ran inside Colima via Docker Compose as the observability hub.
 #
 # GRAMMAR:
 # Service lifecycle verbs are consistent with llama-ctl and otel-collector:
@@ -25,7 +31,7 @@ cd "$REPO_ROOT"
 CPU=${ZDOTS_CI_CPU:-2}
 MEMORY=${ZDOTS_CI_MEMORY:-4}
 DISK=${ZDOTS_CI_DISK:-60}
-COMPOSE_FILE="$REPO_ROOT/etc/docker-compose.lgtm.yaml"
+COMPOSE_FILE="$REPO_ROOT/etc/archive/docker-compose.lgtm.yaml"  # DEPRECATED (Z-134): archived
 GRAFANA_URL="http://127.0.0.1:3000"
 IMAGE_MAPPING="macos-latest=catthehacker/ubuntu:act-latest"
 
@@ -114,9 +120,10 @@ cmd_start() {
     _info "starting Colima (CPU: ${CPU}, Memory: ${MEMORY}G, Disk: ${DISK}G)..."
     colima start --cpu "$CPU" --memory "$MEMORY" --disk "$DISK" --very-verbose
   fi
-  _info "starting LGTM stack..."
+  _warn "DEPRECATED: the LGTM stack is retired (Z-134). Observability is now native"
+  _warn "OpenObserve — use: zsvc start o2. Starting LGTM from the archived compose anyway..."
   _compose -f "$COMPOSE_FILE" up -d
-  _info "done. Grafana: ${GRAFANA_URL} (admin/admin)"
+  _info "done (rollback mode). Grafana: ${GRAFANA_URL} (admin/admin)"
 }
 
 cmd_stop() {

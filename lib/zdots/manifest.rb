@@ -15,11 +15,11 @@ module Zdots
         grpc_endpoint: "grpc://127.0.0.1:4317",
         start_cmd: "otel-collector start"
       },
-      grafana: {
-        title: "LGTM stack (Grafana/Loki/Tempo/Mimir)",
-        url: "http://127.0.0.1:3000",
-        credentials: "admin/admin",
-        start_cmd: "local-ci start"
+      openobserve: {
+        title: "OpenObserve (logs/metrics/traces, native)",
+        url: "http://127.0.0.1:5080",
+        credentials: "root@zdots.local / Keychain ZDOTS_O2_ROOT_PASSWORD",
+        start_cmd: "zsvc start o2"
       },
       intelligence: {
         title: "Intelligence Suite (PostgreSQL)",

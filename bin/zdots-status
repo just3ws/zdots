@@ -14,7 +14,7 @@ trap '' PIPE
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
-GRAFANA_URL="http://127.0.0.1:3000"
+O2_URL="http://127.0.0.1:5080"
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -91,7 +91,7 @@ probe_services() {
   AI_MODEL=$(  printf '%s' "$_j" | jq -r '.ai_model       // "unknown"')
   OTEL_UP=$(   printf '%s' "$_j" | jq -r '.otel_collector // false')
   COLIMA_UP=$( printf '%s' "$_j" | jq -r '.colima         // false')
-  GRAFANA_UP=$(printf '%s' "$_j" | jq -r '.lgtm           // false')
+  O2_UP=$(     printf '%s' "$_j" | jq -r '.openobserve    // false')
 }
 
 # ---------------------------------------------------------------------------
@@ -300,16 +300,16 @@ draw() {
   if $COLIMA_UP; then
     printf '  %s  %s\n' "$(_up)" "$(_field $w "Colima")"
   else
-    printf '  %s  %s  %slocal-ci start%s\n' \
+    printf '  %s  %s  %s(optional: colima start)%s\n' \
       "$(_down)" "$(_field $w "Colima")" "$DIM" "$RESET"
   fi
 
-  if $GRAFANA_UP; then
+  if $O2_UP; then
     printf '  %s  %s  %s%s%s\n' \
-      "$(_up)" "$(_field $w "LGTM / Grafana")" "$DIM" "$GRAFANA_URL" "$RESET"
+      "$(_up)" "$(_field $w "OpenObserve")" "$DIM" "$O2_URL" "$RESET"
   else
-    printf '  %s  %s  %slocal-ci start%s\n' \
-      "$(_down)" "$(_field $w "LGTM / Grafana")" "$DIM" "$RESET"
+    printf '  %s  %s  %szsvc start o2%s\n' \
+      "$(_down)" "$(_field $w "OpenObserve")" "$DIM" "$RESET"
   fi
 
   # ── Shell ─────────────────────────────────────────────────────────────

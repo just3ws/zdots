@@ -4,7 +4,6 @@
 
 set -eu
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Ensure Homebrew and common paths are available (for launchd)
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 LOG="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/colima-autostart.log"
@@ -43,12 +42,8 @@ if [ ! -S "$socket" ]; then
 fi
 log "Docker socket ready"
 
-# 3. Start LGTM observability stack
-log "Starting LGTM stack..."
-if docker compose -f "$REPO_ROOT/etc/docker-compose.lgtm.yaml" up -d >>"$LOG" 2>&1; then
-  log "LGTM stack started"
-else
-  log "WARNING: LGTM stack start failed (non-fatal)"
-fi
+# Observability is no longer a container workload — OpenObserve runs as a native
+# launchd service (com.zdots.openobserve). Colima is started here only for other
+# container workloads (e.g. the Rails app on a work box). See docs/openobserve.md.
 
 log "colima-autostart: done"
