@@ -4,7 +4,7 @@
 # RATIONALE:
 # To maintain high shell performance, we use a local bare-metal collector
 # on the host. It receives OTLP spans from the shell and apps, buffers them,
-# and forwards them to the heavier LGTM stack running in Colima.
+# and forwards them to the native OpenObserve backend (:5080).
 #
 # GRAMMAR:
 # Service lifecycle verbs are consistent with llama-ctl and local-ci:

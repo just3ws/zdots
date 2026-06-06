@@ -482,7 +482,7 @@ if command -v mkcert >/dev/null 2>&1; then
     mkcert \
       -cert-file "$_NGINX_PREFIX/certs/zdots-local.pem" \
       -key-file  "$_NGINX_PREFIX/certs/zdots-local-key.pem" \
-      llama.local embed.local grafana.local my.local dev.my.local localhost 127.0.0.1 \
+      llama.local embed.local o2.local my.local dev.my.local localhost 127.0.0.1 \
       || echo "bootstrap: WARNING: cert generation failed — run mkcert manually."
   else
     echo "bootstrap: TLS certs already present ($_CERT_PEM)"
@@ -541,7 +541,7 @@ unset _NGINX_PREFIX
 # 6e. /etc/hosts — local service hostnames
 # nginx routes requests by Host header; /etc/hosts maps hostnames to 127.0.0.1.
 # These entries require sudo — bootstrap prints the commands.
-_NEEDED_HOSTS="llama.local embed.local grafana.local lgtm.local o2.local my.local dev.my.local"
+_NEEDED_HOSTS="llama.local embed.local o2.local my.local dev.my.local"
 _MISSING_HOSTS=""
 for _HOST in $_NEEDED_HOSTS; do
   grep -qF "$_HOST" /etc/hosts 2>/dev/null || _MISSING_HOSTS="$_MISSING_HOSTS $_HOST"
