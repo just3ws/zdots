@@ -131,7 +131,8 @@ zdots-issue --high          "This is blocking my current task"
 | AI (llama.cpp) | `llama-ctl` | [docs/llama-cpp.md](docs/llama-cpp.md) |
 | Transcription | `whisper-ctl` | [README.md](README.md) |
 | OTel | `otel-collector` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
-| LGTM Stack | `local-ci` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
+| Observability | `openobserve-ctl` (`zsvc o2`) | [docs/openobserve.md](docs/openobserve.md) |
+| LGTM Stack (migrating → OpenObserve, Z-134) | `local-ci` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | Orchestrator | `zdots-ctl` | [README.md](README.md) |
 
 ## 7. Database
