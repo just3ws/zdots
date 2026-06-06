@@ -133,14 +133,20 @@ cmd_up() {
     _ok "AI server up"
   fi
 
-  # 4. Embed server (independent, port 11501)
+  # 4. Embed server (independent, port 11501) — optional (RAG/capture only).
+  #    Non-fatal: start-embed now waits for readiness and returns non-zero on
+  #    timeout, so a slow embed under memory pressure reports cleanly instead of
+  #    aborting the whole platform bring-up (the old _wait_for here was fatal).
   if _embed_up; then
     _ok "embed server already up"
   else
     _info "starting embed server..."
-    "$BIN/llama-ctl" start-embed
-    _wait_for "embed server" "${EMBED_ENDPOINT}/health" 60
-    _ok "embed server up"
+    if "$BIN/llama-ctl" start-embed; then
+      _ok "embed server up"
+    else
+      _warn "embed server not ready (RAG/capture disabled) — likely memory pressure"
+      _warn "  retry: zsvc restart embed | diagnose: zsvc diag embed | budget: ZDOTS_EMBED_WAIT=120"
+    fi
   fi
 
   # 5. Worker (drains the job queue; depends on DB + AI + embed being up)
@@ -409,11 +415,17 @@ cmd_check() {
   fi
 
   local embed_endpoint="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
+  local embed_plist_f="$HOME/Library/LaunchAgents/com.zdots.llama-embed.plist"
   if curl -sf -m 2 "${embed_endpoint}/health" >/dev/null 2>&1; then
     _chk_pass "embed server  reachable ($embed_endpoint)"
+  elif [[ -f "$embed_plist_f" ]]; then
+    # Registered but not answering: under memory pressure this is almost always
+    # still-loading or an OOM kill, not a missing install — point at diag/retry.
+    _chk_warn "embed server  registered but not serving — likely still loading or OOM (RAG/capture disabled)"
+    _fix "zsvc diag embed   (then: zsvc restart embed, or ZDOTS_EMBED_WAIT=120 zsvc start embed)"
   else
-    _chk_warn "embed server  unreachable — RAG/capture disabled"
-    _fix "llama-ctl install-embed  (then reload your shell)"
+    _chk_warn "embed server  not installed — RAG/capture disabled"
+    _fix "ZDOTS_AI_PROFILE=embed llama-ctl model-download && llama-ctl install-embed"
   fi
 
   # ── AI server network sandbox (darwin) ────────────────────────────────────
