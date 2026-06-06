@@ -424,12 +424,15 @@ if [[ -n "$pi_bin" ]]; then
   
   step "reconcile Pi settings and models from etc/pi-agent.yaml"
   if [[ "$DRY_RUN" -eq 0 ]]; then
-      # Generate settings.json
-      yq '.settings' "$ZDOTDIR/etc/pi-agent.yaml" > "$PI_AGENT_DIR/settings.json"
-      
-      # Generate models.json with dynamic endpoint injection for llamacpp
-      yq -n --arg base "$AI_BASE" \
-        '.providers = load("etc/pi-agent.yaml").provider | .providers.llamacpp.baseUrl = $base' \
+      # Generate settings.json (mikefarah yq defaults to YAML output; force JSON)
+      yq -o=json '.settings' "$ZDOTDIR/etc/pi-agent.yaml" > "$PI_AGENT_DIR/settings.json"
+
+      # Generate models.json with dynamic endpoint injection for llamacpp.
+      # mikefarah yq (not jq): env vars via strenv(), -o=json for JSON output.
+      base="$AI_BASE" yq -n -o=json \
+        'load("'"$ZDOTDIR"'/etc/pi-agent.yaml") as $cfg
+         | {"providers": $cfg.provider}
+         | .providers.llamacpp.baseUrl = strenv(base)' \
         > "$PI_AGENT_DIR/models.json"
       log "updated ~/.pi/agent/ settings and models using etc/pi-agent.yaml"
   else
