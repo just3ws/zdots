@@ -8,6 +8,7 @@ _openobserve-ctl() {
     'start:load and start the launchd service'
     'stop:unload and stop the service'
     'restart:stop then start'
+    'reinit:wipe disposable data dir; root user re-created from Keychain'
     'status:show service state and process info'
     'health:exit 0 if the endpoint is reachable'
     'logs:tail the OpenObserve log'
@@ -21,6 +22,7 @@ _openobserve-ctl() {
   case "${words[2]}" in
     status|health|config) _values 'flag' '--json[output as JSON]' ;;
     creds) _values 'flag' '--show-password[reveal the Keychain password]' ;;
+    reinit) _values 'flag' '--rotate[generate a fresh Keychain password first]' ;;
   esac
 }
 
