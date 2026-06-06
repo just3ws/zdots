@@ -796,7 +796,11 @@ _wait_embed() {
   done
   printf ' TIMEOUT\n' >&2
   # Only inspect recent log lines — the log accumulates across restarts.
-  if tail -100 "$log_file" 2>/dev/null | grep -q 'kIOGPUCommandBufferCallbackErrorOutOfMemory'; then
+  local recent; recent="$(tail -100 "$log_file" 2>/dev/null)"
+  if printf '%s' "$recent" | grep -qE 'failed to open GGUF file|No such file or directory|failed to load model from'; then
+    # Missing model file: launchd retry-loops forever; download is the fix, not RAM.
+    _svc_warn "embed model not on disk — download it: ZDOTS_AI_PROFILE=embed llama-ctl model-download && zsvc restart embed"
+  elif printf '%s' "$recent" | grep -q 'kIOGPUCommandBufferCallbackErrorOutOfMemory'; then
     _svc_warn "GPU OOM in recent embed logs — free memory (Colima/Rails/apps) and retry: zsvc restart embed"
     _svc_warn "check logs: tail -100 $log_file | grep OutOfMemory"
   else
