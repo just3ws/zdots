@@ -1,8 +1,8 @@
 # etc/otel-collector.yaml — Full-context local observability collector
 #
-# Architecture: Bare-metal collector on host → LGTM stack in Colima
+# Architecture: Bare-metal collector on host → OpenObserve (native, :5080)
 # Receives: OTLP push (apps), host metrics, container stats, log files
-# Exports:  Debug log, local file (rotated), LGTM (gRPC)
+# Exports:  Debug log, local file (rotated), OpenObserve (OTLP HTTP)
 
 receivers:
   # Application telemetry (traces, metrics, logs via OTLP gRPC + HTTP)
@@ -97,18 +97,6 @@ exporters:
     rotation:
       max_megabytes: 10
       max_backups: 3
-  # Central Hub: Forward to LGTM stack in Colima (HTTP → container :4318)
-  # Note: gRPC (4417) is unreliable through Colima port forwarding; OTLP HTTP works.
-  # MIGRATING (Z-134): being replaced by otlphttp/openobserve below; both run in
-  # parallel during validation, then this exporter is dropped from the pipelines.
-  otlphttp/lgtm:
-    endpoint: "http://127.0.0.1:4418"
-    tls:
-      insecure: true
-    retry_on_failure:
-      enabled: true
-    sending_queue:
-      enabled: true
   # OpenObserve (native, :5080). OTLP HTTP ingest under /api/<org>; the otlphttp
   # exporter appends /v1/{traces,metrics,logs}. Basic-auth is injected from the
   # Keychain at boot by `otel-collector serve` (env ZDOTS_O2_OTLP_AUTH) so the
@@ -133,14 +121,14 @@ service:
     traces:
       receivers: [otlp]
       processors: [resourcedetection, batch]
-      exporters: [debug, file, otlphttp/lgtm, otlphttp/openobserve, spanmetrics]
+      exporters: [debug, file, otlphttp/openobserve, spanmetrics]
     # Metrics from apps + host + containers + spanmetrics
     metrics:
       receivers: [otlp, hostmetrics, docker_stats, spanmetrics]
       processors: [resourcedetection, batch]
-      exporters: [debug, otlphttp/lgtm, otlphttp/openobserve]
+      exporters: [debug, otlphttp/openobserve]
     # Logs from apps + log files
     logs:
       receivers: [otlp]
       processors: [resourcedetection, batch]
-      exporters: [debug, otlphttp/lgtm, otlphttp/openobserve]
+      exporters: [debug, otlphttp/openobserve]
