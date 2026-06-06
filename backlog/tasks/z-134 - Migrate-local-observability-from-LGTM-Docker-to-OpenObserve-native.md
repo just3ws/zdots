@@ -4,7 +4,7 @@ title: Migrate local observability from LGTM (Docker) to OpenObserve (native)
 status: To Do
 assignee: []
 created_date: '2026-06-06 05:49'
-updated_date: '2026-06-06 06:19'
+updated_date: '2026-06-06 20:27'
 labels:
   - observability
   - infra
@@ -32,7 +32,7 @@ Replace the grafana/otel-lgtm Docker stack with a native OpenObserve single bina
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Phase 1 DONE (commit 1324710). openobserve-ctl installs pinned v0.90.3 darwin-arm64 (sha 328660dc...611304, idempotent), binds 127.0.0.1 only (:5080 UI/OTLP-HTTP, :5081 gRPC), ZO_TELEMETRY=false, root pw in Keychain (zdots/ZDOTS_O2_ROOT_PASSWORD) via 'serve' verb so plist is secret-free. zsvc 'o2' + completion. Running healthy on home, LGTM untouched. NOTE: the openobserve binary (~250M) is NOT committed — install pulls+verifies it; pinned-tarball sha is in the script. Phase 2 next: otel-collector.yaml exporter otlphttp/openobserve (OTLP HTTP :5080/api/default, basic-auth root@zdots.local + Keychain pw).
+Phase 2 IN PROGRESS (commit db0dec8): otlphttp/openobserve exporter added to all 3 pipelines, running PARALLEL with otlphttp/lgtm. Auth via new 'otel-collector serve' verb (Keychain -> ZDOTS_O2_OTLP_AUTH Basic; secret-free config+plist; ${env:..:-} default keeps validate working). plist now embeds HOME+ZDOTDIR (serve sources lib via $ZDOTDIR; launchd pwd=/ crash-looped //lib). VALIDATED: exporter authenticates (no 401), O2 auto-created metric streams + logs 'default' stream, otelcol healthy. REMAINING for AC#2: drop otlphttp/lgtm from the 3 pipelines after Mike confirms O2 UI. Note: O2 warns 'Too old data >5h discarded' for zero-timestamp data; widen via ZO_INGEST_ALLOWED_UPTO if needed (real metrics flow clean).
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
