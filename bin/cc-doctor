@@ -40,6 +40,23 @@ _sec()  { printf '\n━━━ %s\n' "$1"; }
 _has_jq=0; command -v jq >/dev/null 2>&1 && _has_jq=1
 
 # ---------------------------------------------------------------------------
+_sec "Context (home / work)"
+if [[ -r "${ZDOTDIR}/lib/cc-context.bash" ]]; then
+  # shellcheck source=lib/cc-context.bash
+  source "${ZDOTDIR}/lib/cc-context.bash"
+  _ctx="$(cc_context)"; _mode="$(cc_ai_mode)"
+  if [[ "$_ctx" == "work" ]]; then
+    _pass "context=work — Claude Code is help-only; commit/push blocked by cc-hook-guard"
+    [[ "$_mode" == "local" ]] && _pass "AI mode=local (enforced on work)" \
+      || _warn "AI mode=$_mode on a work machine — expected local"
+  else
+    _pass "context=home (powerstation) — full access"
+  fi
+else
+  _warn "lib/cc-context.bash missing — cannot resolve home/work context"
+fi
+
+# ---------------------------------------------------------------------------
 _sec "Claude Code"
 if command -v claude >/dev/null 2>&1; then
   _pass "claude installed ($(claude --version 2>/dev/null | head -n1))"
