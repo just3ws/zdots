@@ -64,6 +64,8 @@ Service Lifecycle:
   start     Load and start the launchd service
   stop      Unload and stop the service
   restart   stop then start
+  reinit    Wipe the (disposable) data dir; root user re-created from Keychain
+            on next boot — keeps the UI login in sync. [--rotate] new password.
   status    Show service state and process info
   health    Exit 0 if the OpenObserve endpoint is reachable, else 1
   logs      Tail the OpenObserve log
@@ -156,6 +158,8 @@ cmd_serve() {
   export ZO_GRPC_ADDR="$HTTP_ADDR"
   export ZO_GRPC_PORT="$GRPC_PORT"
   export ZO_TELEMETRY="false"        # PHI: no usage phone-home
+  # Disposable dev telemetry — self-trim instead of growing forever.
+  export ZO_COMPACT_DATA_RETENTION_DAYS="${ZDOTS_O2_RETENTION_DAYS:-14}"
   exec "$BINARY"
 }
 
@@ -165,6 +169,34 @@ cmd_start() {
 }
 
 cmd_stop() { zdots_svc_launchd_stop "$PLIST_LABEL"; }
+
+# Wipe the data dir and let OpenObserve re-create the root user from the Keychain
+# password on next boot. Local telemetry is disposable, so this is the supported
+# way to keep the UI login in sync with Keychain (O2 only reads the root password
+# env on first init). --rotate generates a fresh Keychain password first.
+cmd_reinit() {
+  local rotate=false
+  [ "${1:-}" = "--rotate" ] && rotate=true
+  # Guard: never rm -rf an unexpected path.
+  case "$DATA_DIR" in
+    "$HOME"/*/openobserve|"$HOME"/*/*/openobserve) : ;;
+    *) _die "refusing to wipe unexpected data dir: $DATA_DIR" ;;
+  esac
+  _info "re-init: erasing telemetry in $DATA_DIR (disposable)"
+  cmd_stop || true
+  local i=0
+  while pgrep -f "$BINARY" >/dev/null 2>&1 && [ $i -lt 10 ]; do sleep 1; i=$((i+1)); done
+  rm -rf "${DATA_DIR:?}"
+  if $rotate; then
+    /usr/bin/security delete-generic-password -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" >/dev/null 2>&1 || true
+    _pw_ensure >/dev/null
+    _info "rotated root password in Keychain"
+  fi
+  mkdir -p "$DATA_DIR"
+  cmd_start
+  _info "re-init done — root user recreated from Keychain (email=${ROOT_EMAIL})"
+  _info "reveal password: openobserve-ctl creds --show-password"
+}
 
 cmd_status() {
   local json=false; [ "${1:-}" = "--json" ] && json=true
@@ -225,6 +257,7 @@ case "${1:-}" in
   start)     cmd_start ;;
   stop)      cmd_stop ;;
   restart)   zdots_svc_restart cmd_stop cmd_start ;;
+  reinit)    shift; cmd_reinit "${@}" ;;
   status)    shift; cmd_status "${@}" ;;
   health)    shift; cmd_health "${@}" ;;
   logs)      cmd_logs ;;
