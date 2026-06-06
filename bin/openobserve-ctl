@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# bin/openobserve-ctl — Manage the native OpenObserve observability backend.
+#
+# RATIONALE:
+# Single-binary, OTLP-native store for logs + metrics + traces, replacing the
+# grafana/otel-lgtm Docker stack (which forced a 4GB Colima VM). The OTel
+# Collector forwards OTLP here; OpenObserve serves its own UI on :5080.
+# Local-only on a PHI-adjacent machine: binds loopback, telemetry disabled,
+# and the root password lives in Keychain — never in the plist.
+#
+# GRAMMAR (consistent with otel-collector / llama-ctl):
+#   install / start / stop / restart / status / health / logs / config / creds
+#   serve  — internal: launchd target; loads creds from Keychain and execs.
+
+set -euo pipefail
+trap '' PIPE
+
+VERSION="0.90.3"
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+[ "$ARCH" = "aarch64" ] && ARCH="arm64"
+[ "$ARCH" = "x86_64" ] && ARCH="amd64"
+
+# Pinned artifact — sha256 of the darwin-arm64 tarball, verified on download.
+# shellcheck disable=SC2034  # referenced indirectly via ${!sha_var} in cmd_install
+TARBALL_SHA256_darwin_arm64="328660dc3d2724f5534dce7b45b38487de3de67cd5697b4e769301b64e611304"
+
+INSTALL_DIR="${HOME}/.local/bin"
+BINARY="${INSTALL_DIR}/openobserve"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/openobserve"
+LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/openobserve.log"
+PLIST_LABEL="com.zdots.openobserve"
+PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
+
+# Loopback bind (PHI). HTTP serves both the UI and OTLP ingest; gRPC is OTLP too.
+HTTP_ADDR="127.0.0.1"
+HTTP_PORT="5080"
+GRPC_PORT="5081"
+ENDPOINT="http://${HTTP_ADDR}:${HTTP_PORT}"
+
+# Keychain-backed root credentials (never written to the plist).
+ROOT_EMAIL="root@zdots.local"
+KEYCHAIN_SERVICE="zdots"
+KEYCHAIN_ACCOUNT="ZDOTS_O2_ROOT_PASSWORD"
+
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
+# shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
+SVC_NAME="openobserve"
+# shellcheck source=lib/svc-launchd.bash
+source "${ZDOTDIR:-$(pwd)}/lib/svc-launchd.bash"
+# shellcheck source=lib/svc-process.bash
+source "${ZDOTDIR:-$(pwd)}/lib/svc-process.bash"
+
+_die()  { printf 'openobserve-ctl: error: %s\n' "$*" >&2; exit 1; }
+_info() { printf 'openobserve-ctl: %s\n' "$*" >&2; }
+
+usage() {
+  cat <<EOF
+Usage: openobserve-ctl <command> [--json]
+
+Service Lifecycle:
+  install   Download + sha-verify the pinned binary, provision creds, register launchd
+  start     Load and start the launchd service
+  stop      Unload and stop the service
+  restart   stop then start
+  status    Show service state and process info
+  health    Exit 0 if the OpenObserve endpoint is reachable, else 1
+  logs      Tail the OpenObserve log
+  config    Show endpoints (UI + OTLP ingest) and paths
+  creds     Print the root email (and reset/show the Keychain password)
+
+Internal:
+  serve     launchd target — loads Keychain creds + execs the binary (not for direct use)
+
+Endpoints:
+  UI / OTLP HTTP : ${ENDPOINT}
+  OTLP gRPC      : ${HTTP_ADDR}:${GRPC_PORT}
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Credentials (Keychain)
+# ---------------------------------------------------------------------------
+_pw_get() {
+  /usr/bin/security find-generic-password -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" -w 2>/dev/null || true
+}
+
+_pw_ensure() {
+  local existing; existing="$(_pw_get)"
+  [ -n "$existing" ] && { printf '%s' "$existing"; return; }
+  # Generate a policy-complete password (upper/lower/digit/special) and store it.
+  # openssl gives finite output — avoids the infinite-/dev/urandom + ignored-
+  # SIGPIPE hang (the script traps PIPE, so `tr </dev/urandom | head` never ends).
+  local pw; pw="$(openssl rand -base64 18 | LC_ALL=C tr -dc 'A-Za-z0-9')Aa9#"
+  /usr/bin/security add-generic-password -U -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" -w "$pw" \
+    || _die "failed to store root password in Keychain"
+  printf '%s' "$pw"
+}
+
+# ---------------------------------------------------------------------------
+# Subcommands
+# ---------------------------------------------------------------------------
+cmd_install() {
+  [ "$OS" = "darwin" ] || _die "only darwin is supported (got $OS)"
+  local sha_var="TARBALL_SHA256_${OS}_${ARCH}" expected_sha
+  expected_sha="${!sha_var:-}"
+  [ -n "$expected_sha" ] || _die "no pinned sha for ${OS}/${ARCH} (only darwin/arm64 is pinned)"
+
+  _info "installing OpenObserve v${VERSION} for ${OS}/${ARCH}..."
+  mkdir -p "$INSTALL_DIR" "$DATA_DIR"
+
+  # Idempotent: skip the (large) re-download when the pinned version is present.
+  if [ -x "$BINARY" ] && "$BINARY" --version 2>/dev/null | grep -q "v${VERSION}"; then
+    _info "binary v${VERSION} already present at $BINARY — skipping download"
+  else
+    local url tmp_dir
+    url="https://downloads.openobserve.ai/releases/openobserve/v${VERSION}/openobserve-v${VERSION}-${OS}-${ARCH}.tar.gz"
+    tmp_dir=$(mktemp -d)
+    trap '[[ -n "${tmp_dir:-}" ]] && rm -rf "$tmp_dir"' EXIT
+
+    curl -fL "$url" -o "${tmp_dir}/o2.tar.gz" || _die "download failed: $url"
+
+    local actual_sha
+    actual_sha="$(shasum -a 256 "${tmp_dir}/o2.tar.gz" | awk '{print $1}')"
+    [ "$actual_sha" = "$expected_sha" ] \
+      || _die "sha256 mismatch: expected $expected_sha got $actual_sha"
+    _info "sha256 verified: $actual_sha"
+
+    tar -xzf "${tmp_dir}/o2.tar.gz" -C "$tmp_dir"
+    mv "${tmp_dir}/openobserve" "$BINARY"
+    chmod +x "$BINARY"
+    _info "installed binary to $BINARY"
+  fi
+
+  _pw_ensure >/dev/null
+  _info "root credentials provisioned (email=${ROOT_EMAIL}, password in Keychain ${KEYCHAIN_SERVICE}/${KEYCHAIN_ACCOUNT})"
+
+  # launchd runs THIS script's `serve` verb so the password is read from
+  # Keychain at boot rather than embedded in the plist.
+  ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR" \
+    zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$SELF" "$LOG_FILE" "serve"
+  _info "registered launchd service ${PLIST_LABEL}"
+  _info "next: openobserve-ctl start   then open ${ENDPOINT}"
+}
+
+# Internal launchd target: set env from Keychain + exec the binary.
+cmd_serve() {
+  [ -x "$BINARY" ] || _die "binary not found. Run 'openobserve-ctl install' first."
+  mkdir -p "$DATA_DIR"
+  export ZO_ROOT_USER_EMAIL="$ROOT_EMAIL"
+  ZO_ROOT_USER_PASSWORD="$(_pw_ensure)"; export ZO_ROOT_USER_PASSWORD
+  export ZO_DATA_DIR="$DATA_DIR"
+  export ZO_HTTP_ADDR="$HTTP_ADDR"
+  export ZO_HTTP_PORT="$HTTP_PORT"
+  export ZO_GRPC_ADDR="$HTTP_ADDR"
+  export ZO_GRPC_PORT="$GRPC_PORT"
+  export ZO_TELEMETRY="false"        # PHI: no usage phone-home
+  exec "$BINARY"
+}
+
+cmd_start() {
+  [ -x "$BINARY" ] || _die "binary not found. Run 'openobserve-ctl install' first."
+  zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
+}
+
+cmd_stop() { zdots_svc_launchd_stop "$PLIST_LABEL"; }
+
+cmd_status() {
+  local json=false; [ "${1:-}" = "--json" ] && json=true
+  local running pid state healthy
+  state=$(zdots_svc_launchd_status "$PLIST_LABEL")
+  running=$(echo "$state" | awk '{print $1}')
+  pid=$(echo "$state" | awk '{print $2}')
+  zdots_svc_health_check_url "${ENDPOINT}/healthz" "GET" "" && healthy=true || healthy=false
+  zdots_svc_print_status "$json" "$running" "$pid" "$ENDPOINT" "$LOG_FILE" "healthy=${healthy}"
+}
+
+cmd_health() {
+  local json=false; [ "${1:-}" = "--json" ] && json=true
+  local healthy
+  zdots_svc_health_check_url "${ENDPOINT}/healthz" "GET" "" && healthy=true || healthy=false
+  zdots_svc_print_health "$json" "$healthy" "$ENDPOINT"
+}
+
+cmd_logs() { zdots_svc_logs "$LOG_FILE"; }
+
+cmd_config() {
+  local json=false; [ "${1:-}" = "--json" ] && json=true
+  if $json; then
+    printf '{\n'
+    printf '  "version": "%s",\n' "$VERSION"
+    printf '  "binary": "%s",\n' "$BINARY"
+    printf '  "data_dir": "%s",\n' "$DATA_DIR"
+    printf '  "ui": "%s",\n' "$ENDPOINT"
+    printf '  "otlp_http": "%s/api/default",\n' "$ENDPOINT"
+    printf '  "otlp_grpc": "%s:%s",\n' "$HTTP_ADDR" "$GRPC_PORT"
+    printf '  "root_email": "%s",\n' "$ROOT_EMAIL"
+    printf '  "telemetry": false\n'
+    printf '}\n'
+  else
+    printf '%-16s %s\n' "version:"   "$VERSION"
+    printf '%-16s %s\n' "binary:"    "$BINARY"
+    printf '%-16s %s\n' "data dir:"  "$DATA_DIR"
+    printf '%-16s %s\n' "UI:"        "$ENDPOINT"
+    printf '%-16s %s\n' "OTLP HTTP:" "${ENDPOINT}/api/default"
+    printf '%-16s %s\n' "OTLP gRPC:" "${HTTP_ADDR}:${GRPC_PORT}"
+    printf '%-16s %s\n' "root email:" "$ROOT_EMAIL"
+    printf '%-16s %s\n' "telemetry:" "disabled"
+  fi
+}
+
+cmd_creds() {
+  printf '%-16s %s\n' "root email:" "$ROOT_EMAIL"
+  if [ "${1:-}" = "--show-password" ]; then
+    printf '%-16s %s\n' "password:" "$(_pw_get)"
+  else
+    printf '%-16s %s\n' "password:" "(in Keychain — reveal with: openobserve-ctl creds --show-password)"
+  fi
+}
+
+case "${1:-}" in
+  install)   cmd_install ;;
+  serve)     cmd_serve ;;
+  start)     cmd_start ;;
+  stop)      cmd_stop ;;
+  restart)   zdots_svc_restart cmd_stop cmd_start ;;
+  status)    shift; cmd_status "${@}" ;;
+  health)    shift; cmd_health "${@}" ;;
+  logs)      cmd_logs ;;
+  config)    shift; cmd_config "${@}" ;;
+  creds)     shift; cmd_creds "${@}" ;;
+  -h|--help) usage; exit 0 ;;
+  "")        usage >&2; exit 1 ;;
+  *)         printf 'openobserve-ctl: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+esac
