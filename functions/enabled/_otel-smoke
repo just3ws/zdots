@@ -1,0 +1,12 @@
+#compdef otel-smoke
+# Completion for otel-smoke — emit a synthetic OTLP batch to the collector.
+
+_otel-smoke() {
+  _arguments \
+    '--verify[confirm the batch landed in OpenObserve]' \
+    '--service[service.name to tag the batch]:service name:' \
+    '--endpoint[collector OTLP HTTP base URL]:url:' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_otel-smoke "$@"
