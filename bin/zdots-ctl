@@ -6,11 +6,11 @@
 # Also runs a "brew doctor"-style deep environment check.
 #
 # Dependency order (up):
-#   1. Colima (VM)
-#      └── LGTM stack (docker-compose in Colima)
-#            └── otel-collector (bare-metal, forwards to LGTM)
+#   1. OpenObserve (native binary, launchd) — observability backend
+#      └── otel-collector (bare-metal, forwards to OpenObserve)
 #   2. llama-ctl / AI server (independent, launchd)
 #   3. llama-ctl embed server (independent, launchd, port 11501)
+# No Colima/Docker gate: the observability plane is all native binaries now.
 
 set -euo pipefail
 trap '' PIPE
@@ -37,7 +37,7 @@ source "${ZDOTDIR}/lib/svc-registry.bash"
 AI_ENDPOINT="${ZDOTS_SVC_ENDPOINT[llama]}"
 EMBED_ENDPOINT="${ZDOTS_SVC_ENDPOINT[embed]}"
 OTLP_ENDPOINT="${ZDOTS_SVC_ENDPOINT[otel]}"
-GRAFANA_URL="${ZDOTS_SVC_ENDPOINT[grafana]}"
+O2_ENDPOINT="${ZDOTS_SVC_ENDPOINT[o2]}"
 REDIS_HOST="${ZDOTS_REDIS_HOST:-127.0.0.1}"
 REDIS_PORT="${ZDOTS_REDIS_PORT:-6379}"
 WAIT_TIMEOUT="${ZDOTS_BOOT_TIMEOUT:-90}"
@@ -69,7 +69,7 @@ _ai_up()         { zdots_svc_healthy llama; }
 _ai_socket_up()  { zdots_svc_loopback_listening "$AI_ENDPOINT"; }
 _embed_up()      { zdots_svc_healthy embed; }
 _otel_up()       { zdots_svc_healthy otel; }
-_grafana_up()    { zdots_svc_healthy grafana; }
+_o2_up()         { zdots_svc_healthy o2; }
 _colima_up()     { zdots_svc_healthy colima; }
 _ctx_up()        { zdots_svc_healthy ctx; }
 _redis_up()      { zdots_svc_healthy redis; }
@@ -99,17 +99,17 @@ cmd_up() {
   _section "Bringing platform up"
   zdots_trace_log "platform_up" "start"
 
-  # 1. Colima + LGTM stack
-  if _grafana_up; then
-    _ok "LGTM stack already up (Grafana reachable)"
+  # 1. OpenObserve (native observability backend)
+  if _o2_up; then
+    _ok "OpenObserve already up"
   else
-    _info "starting LGTM stack (Colima + Grafana/Loki/Tempo/Mimir)..."
-    "$BIN/local-ci" start
-    _wait_for "Grafana" "${GRAFANA_URL}/api/health"
-    _ok "LGTM stack up"
+    _info "starting OpenObserve..."
+    "$BIN/openobserve-ctl" start
+    _wait_for "OpenObserve" "${O2_ENDPOINT}/healthz" 60
+    _ok "OpenObserve up"
   fi
 
-  # 2. otel-collector (needs LGTM to forward to)
+  # 2. otel-collector (forwards to OpenObserve)
   if _otel_up; then
     _ok "otel-collector already running"
   else
@@ -180,8 +180,8 @@ cmd_down() {
   "$BIN/llama-ctl" stop-embed 2>/dev/null || true
   _info "stopping AI server..."
   "$BIN/llama-ctl" stop 2>/dev/null || true
-  _info "stopping LGTM stack and Colima..."
-  "$BIN/local-ci" stop 2>/dev/null || true
+  _info "stopping OpenObserve..."
+  "$BIN/openobserve-ctl" stop 2>/dev/null || true
   _ok "platform down"
   zdots_trace_log "platform_down" "complete"
 }
@@ -199,6 +199,8 @@ cmd_install() {
   "$BIN/llama-ctl" install
   _info "installing embed server..."
   "$BIN/llama-ctl" install-embed
+  _info "installing OpenObserve..."
+  "$BIN/openobserve-ctl" install
   _info "installing otel-collector..."
   "$BIN/otel-collector" install
   _info "installing worker..."
@@ -213,8 +215,8 @@ cmd_status() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local lgtm_up ai_up ai_socket_up embed_up otel_up colima_up ctx_up redis_up worker_up
-  _grafana_up && lgtm_up=true   || lgtm_up=false
+  local o2_up ai_up ai_socket_up embed_up otel_up colima_up ctx_up redis_up worker_up
+  _o2_up      && o2_up=true     || o2_up=false
   _ai_up      && ai_up=true     || ai_up=false
   _ai_socket_up && ai_socket_up=true || ai_socket_up=false
   _embed_up   && embed_up=true  || embed_up=false
@@ -231,9 +233,9 @@ cmd_status() {
   fi
 
   if $json; then
-    printf '{"colima":%s,"lgtm":%s,"otel_collector":%s,"ai_server":%s,"ai_http_healthy":%s,"ai_socket_listening":%s,"embed_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"worker":%s,"grafana_url":"%s","ai_endpoint":"%s","embed_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
-      "$colima_up" "$lgtm_up" "$otel_up" "$ai_up" "$ai_up" "$ai_socket_up" "$embed_up" "$ai_model" "$ctx_up" "$redis_up" "$worker_up" \
-      "$GRAFANA_URL" "$AI_ENDPOINT" "$EMBED_ENDPOINT" "$OTLP_ENDPOINT" "$REDIS_HOST" "$REDIS_PORT"
+    printf '{"colima":%s,"openobserve":%s,"otel_collector":%s,"ai_server":%s,"ai_http_healthy":%s,"ai_socket_listening":%s,"embed_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"worker":%s,"o2_url":"%s","ai_endpoint":"%s","embed_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
+      "$colima_up" "$o2_up" "$otel_up" "$ai_up" "$ai_up" "$ai_socket_up" "$embed_up" "$ai_model" "$ctx_up" "$redis_up" "$worker_up" \
+      "$O2_ENDPOINT" "$AI_ENDPOINT" "$EMBED_ENDPOINT" "$OTLP_ENDPOINT" "$REDIS_HOST" "$REDIS_PORT"
     return
   fi
 
@@ -243,7 +245,7 @@ cmd_status() {
 
   printf 'zdots-ctl: platform status\n'
   printf '  %-20s %s  %s\n' "colima"         "$(_sym "$colima_up")" "$([ "$colima_up" = true ] && echo up || echo down)"
-  printf '  %-20s %s  %s\n' "LGTM stack"     "$(_sym "$lgtm_up")"  "$GRAFANA_URL"
+  printf '  %-20s %s  %s\n' "OpenObserve"    "$(_sym "$o2_up")"    "$O2_ENDPOINT"
   printf '  %-20s %s  %s\n' "otel-collector" "$(_sym "$otel_up")"  "$OTLP_ENDPOINT"
   printf '  %-20s %s  %s (socket: %s)\n' "AI server" "$(_sym "$ai_up")" "$AI_ENDPOINT" "$ai_socket_up"
   printf '  %-20s %s  %s\n' "embed server"   "$(_sym "$embed_up")" "$EMBED_ENDPOINT"
@@ -251,7 +253,7 @@ cmd_status() {
   printf '  %-20s %s  %s\n' "cache"          "$(_sym "$redis_up")" "${REDIS_HOST}:${REDIS_PORT}"
   printf '  %-20s %s  %s\n' "worker"         "$(_sym "$worker_up")" "jobs queue (my)"
 
-  if [[ "$lgtm_up" == false || "$ai_up" == false || "$embed_up" == false || "$otel_up" == false ]]; then
+  if [[ "$o2_up" == false || "$ai_up" == false || "$embed_up" == false || "$otel_up" == false ]]; then
     printf '\nzdots-ctl: to start all: zdots-ctl up\n'
   fi
 }
@@ -302,7 +304,6 @@ cmd_check() {
 
   _check_file "ai-models.yaml"      "$ZDOTDIR/etc/ai-models.yaml"         ""
   _check_file "otel-collector.yaml" "$ZDOTDIR/etc/otel-collector.yaml"    ""
-  _check_file "docker-compose.lgtm" "$ZDOTDIR/etc/docker-compose.lgtm.yaml" ""
 
   local llama_plist="$HOME/Library/LaunchAgents/com.zdots.llama-server.plist"
   local embed_plist="$HOME/Library/LaunchAgents/com.zdots.llama-embed.plist"
@@ -379,18 +380,19 @@ cmd_check() {
   # ── Service health ─────────────────────────────────────────────────────────
   printf '\nService health\n'
 
-  if _colima_up; then
-    _chk_pass "Colima  running"
+  if _o2_up; then
+    _chk_pass "OpenObserve  reachable ($O2_ENDPOINT)"
   else
-    _chk_warn "Colima  not running"
-    _fix "zdots-ctl up"
+    _chk_warn "OpenObserve  unreachable"
+    _fix "zsvc start o2  (or: zdots-ctl up)"
   fi
 
-  if _grafana_up; then
-    _chk_pass "LGTM stack  Grafana reachable ($GRAFANA_URL)"
+  # Colima is no longer part of the observability plane (native binaries now).
+  # It is only needed where a container workload runs (e.g. Rails on a work box).
+  if _colima_up; then
+    _chk_pass "Colima  running (container workloads)"
   else
-    _chk_warn "LGTM stack  Grafana unreachable"
-    _fix "zdots-ctl up"
+    _chk_pass "Colima  not running (not required — observability is native)"
   fi
 
   if _otel_up; then
@@ -528,7 +530,7 @@ cmd_check() {
       _chk_pass "nginx TLS certs  present ($cert_file)"
     else
       _chk_warn "nginx TLS certs  missing"
-      _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.local embed.local grafana.local lgtm.local o2.local my.local dev.my.local localhost 127.0.0.1"
+      _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.local embed.local o2.local my.local dev.my.local localhost 127.0.0.1"
     fi
   else
     _chk_warn "mkcert  not installed"
@@ -537,11 +539,11 @@ cmd_check() {
 
   # /etc/hosts entries for nginx virtual hosts
   local _missing_hosts=""
-  for _h in llama.local embed.local grafana.local; do
+  for _h in llama.local embed.local o2.local; do
     grep -qF "$_h" /etc/hosts 2>/dev/null || _missing_hosts="$_missing_hosts $_h"
   done
   if [[ -z "$_missing_hosts" ]]; then
-    _chk_pass "/etc/hosts  llama.local embed.local grafana.local all present"
+    _chk_pass "/etc/hosts  llama.local embed.local o2.local all present"
   else
     _chk_warn "/etc/hosts  missing entries:${_missing_hosts}"
     for _h in $_missing_hosts; do
@@ -804,7 +806,7 @@ Diagnostics:
   status --json  Same as JSON
 
 Dependency order (up):
-  1. Colima + LGTM stack  (local-ci start)
+  1. OpenObserve          (openobserve-ctl start)
   2. otel-collector       (otel-collector start)
   3. AI server            (llama-ctl start)
   4. Embed server         (llama-ctl start-embed)

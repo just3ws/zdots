@@ -55,7 +55,7 @@ mapfile -t ALL_SVCS < <(zdots_svc_managed)
 LOCAL_URLS=(
   "llama.local|https://llama.local/health"
   "embed.local|https://embed.local/health"
-  "grafana.local|https://grafana.local/api/health"
+  "o2.local|https://o2.local/healthz"
   "my.local|http://my.local/"
   "dev.my.local|http://dev.my.local/"
 )

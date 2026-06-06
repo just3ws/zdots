@@ -41,7 +41,7 @@ done
 # ---------------------------------------------------------------------------
 AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 OTEL_ENDPOINT="http://127.0.0.1:4318"
-GRAFANA_URL="http://127.0.0.1:3000"
+O2_URL="http://127.0.0.1:5080"
 LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
 AGENT_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 LOG_ANALYZER="${AGENT_ZDOTDIR}/bin/zdots-log-analyze"
@@ -49,7 +49,7 @@ LOG_ANALYZER="${AGENT_ZDOTDIR}/bin/zdots-log-analyze"
 AI_UP=false
 AI_MODEL_ID="unknown"
 OTEL_UP=false
-GRAFANA_UP=false
+O2_UP=false
 COLIMA_UP=false
 
 CONTROL_STATUS_JSON=""
@@ -66,9 +66,9 @@ if [ -n "$CONTROL_STATUS_JSON" ] && printf '%s\n' "$CONTROL_STATUS_JSON" | jq -e
   AI_ENDPOINT=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.ai_endpoint // "'"$AI_ENDPOINT"'"')
   OTEL_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.otel_collector // false')
   OTEL_ENDPOINT=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.otlp_endpoint // "'"$OTEL_ENDPOINT"'"')
-  GRAFANA_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.lgtm // false')
-  GRAFANA_URL=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.grafana_url // "'"$GRAFANA_URL"'"')
-  COLIMA_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '(.colima // false) or (.lgtm // false)')
+  O2_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.openobserve // false')
+  O2_URL=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.o2_url // "'"$O2_URL"'"')
+  COLIMA_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.colima // false')
 else
   if curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; then
     AI_UP=true
@@ -80,14 +80,12 @@ else
     OTEL_UP=true
   fi
 
-  if curl -sf -m 2 "${GRAFANA_URL}/api/health" >/dev/null 2>&1; then
-    GRAFANA_UP=true
+  if curl -sf -m 2 "${O2_URL}/healthz" >/dev/null 2>&1; then
+    O2_UP=true
   fi
 
-  # Colima: prefer CLI probe; fall back to Grafana reachability.
+  # Colima is optional now (container workloads only, not observability).
   if colima status 2>&1 | grep -q "is running"; then
-    COLIMA_UP=true
-  elif $GRAFANA_UP; then
     COLIMA_UP=true
   fi
 fi
@@ -121,8 +119,8 @@ if $JSON; then
     --argjson otel_up      "$OTEL_UP" \
     --arg     otel_ep      "$OTEL_ENDPOINT" \
     --argjson colima_up    "$COLIMA_UP" \
-    --argjson grafana_up   "$GRAFANA_UP" \
-    --arg     grafana_url  "$GRAFANA_URL" \
+    --argjson o2_up        "$O2_UP" \
+    --arg     o2_url       "$O2_URL" \
     --argjson whisper_up   "$WHISPER_UP" \
     --argjson fabric_up    "$FABRIC_UP" \
     --arg     current_user "$CURRENT_USER" \
@@ -134,8 +132,8 @@ if $JSON; then
         whisper_cpp: { up: $whisper_up,                                          start: "whisper-ctl install" },
         fabric_ai:   { up: $fabric_up,                                           start: "brew install fabric-ai" },
         otelcol:     { up: $otel_up,    endpoint: $otel_ep,                      start: "otel-collector start" },
-        colima:      { up: $colima_up,                                            start: "local-ci start" },
-        grafana:     { up: $grafana_up, url: $grafana_url,                       start: "local-ci start" }
+        colima:      { up: $colima_up,                                            start: "colima start" },
+        openobserve: { up: $o2_up,      url: $o2_url,                            start: "zsvc start o2" }
       },
       ai: {
         mode:              $ai_mode,
@@ -154,8 +152,8 @@ if $JSON; then
         otlp_http_endpoint:  $otel_ep,
         otlp_grpc_endpoint:  "grpc://127.0.0.1:4317",
         protocol:            "http/protobuf",
-        grafana_url:         $grafana_url,
-        grafana_credentials: "admin/admin"
+        backend:             "openobserve",
+        ui_url:              $o2_url
       },
       env: {
         ZDOTS_DATABASE_URL:            "postgresql://zdots_rw@/my",
@@ -291,7 +289,7 @@ AI/HI handoff:
   zdots-ctx diagnose-log update --tail 160
 
 These packs include a non-OTel system snapshot, so diagnostics still work when
-the collector, LGTM stack, or Grafana are down.
+the collector or OpenObserve are down.
 EOF
 
 _head "Live Service Status"
@@ -314,13 +312,13 @@ else
   printf '%s\n' "$(_down "Colima (container runtime)")"
 fi
 
-if $GRAFANA_UP; then
-  printf '%s  %s  (admin/admin)\n' "$(_ok "LGTM stack (Grafana/Loki/Tempo/Mimir)")" "$GRAFANA_URL"
+if $O2_UP; then
+  printf '%s  %s\n' "$(_ok "OpenObserve (logs/metrics/traces)")" "$O2_URL"
 else
-  printf '%s\n' "$(_down "LGTM stack (Grafana/Loki/Tempo/Mimir)")"
+  printf '%s\n' "$(_down "OpenObserve (logs/metrics/traces)")"
 fi
 
-if ! $AI_UP || ! $OTEL_UP || ! $COLIMA_UP || ! $GRAFANA_UP; then
+if ! $AI_UP || ! $OTEL_UP || ! $O2_UP; then
   printf '\n  To bring everything up: zdots-ctl up\n'
 fi
 
@@ -433,23 +431,23 @@ USAGE:
 Models are stored in: \${XDG_DATA_HOME:-~/.local/share}/whisper-cpp/models
 EOF
 
-_head "Observability — OTel + LGTM Stack"
+_head "Observability — OTel + OpenObserve"
 
 cat <<EOF
 Architecture:
   Your app → OTLP (http/protobuf :4318 or gRPC :4317)
-           → otelcol-contrib (host)
-           → LGTM stack in Colima
-           → Grafana :3000 / Loki / Tempo / Mimir
+           → otelcol-contrib (host, native)
+           → OpenObserve (native binary, :5080)
+           → UI / logs / metrics / traces at o2.local
 
 CONNECT YOUR APP — set these env vars:
   export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_ENDPOINT}"
   export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
 
-GRAFANA:  ${GRAFANA_URL}  (login: admin / admin)
-  - Traces → Tempo
-  - Logs   → Loki
-  - Metrics → Mimir (includes RED metrics auto-derived from traces)
+OPENOBSERVE:  ${O2_URL}  (login: root@zdots.local, password in Keychain)
+  - Traces → OpenObserve
+  - Logs   → OpenObserve
+  - Metrics → OpenObserve (includes RED metrics auto-derived from traces)
 
 VERIFY CONNECTIVITY:
   curl -sf ${OTEL_ENDPOINT}/v1/traces \
@@ -468,17 +466,15 @@ COLLECTOR MANAGEMENT:
   otel-collector logs             tail collector log
   otel-collector install          first-time: install otelcol-contrib binary
 
-LGTM STACK MANAGEMENT:
-  local-ci start                  start Colima + LGTM stack
-  local-ci stop                   stop LGTM stack
-  local-ci status                 check stack status
-  local-ci status --json          same, as JSON
-  local-ci health                 exits 0=up, 1=down
-  local-ci health --json          same, as JSON
-  local-ci logs                   tail LGTM logs
-  local-ci restart                stop then start
+OBSERVABILITY MANAGEMENT (OpenObserve, native):
+  zsvc start o2                   start OpenObserve
+  zsvc stop o2                    stop it
+  zsvc status o2                  state + health
+  zsvc logs o2                    tail the log
+  openobserve-ctl reinit          wipe + recreate root from Keychain
+  otel-smoke --verify             emit a test batch and confirm it landed
 
-Full guide: docs/otel-collector-guide.md
+Full guide: docs/openobserve.md
 EOF
 
 _head "Destructive Commands — Confirm Before Running"
@@ -497,8 +493,6 @@ without first reviewing a dry run or getting explicit user confirmation.
 
   llama-ctl model-df        safe: shows model directory disk usage (read-only)
   docker-df                 safe: shows Docker disk usage (read-only)
-  local-ci prune            DRY RUN — shows what Docker prune would free (safe)
-  local-ci prune -f         DESTRUCTIVE: executes Docker prune
 EOF
 
 _head "Database Access"
