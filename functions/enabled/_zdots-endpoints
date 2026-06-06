@@ -1,0 +1,21 @@
+#compdef zdots-endpoints
+# Completion for zdots-endpoints — verify *.local web endpoints.
+
+_zdots-endpoints() {
+  local -a hosts
+  # Discover *.local hosts from /etc/hosts (the endpoint source of truth).
+  hosts=(${(f)"$(grep -oE '[a-zA-Z0-9.-]+\.local' /etc/hosts 2>/dev/null | sort -u)"})
+
+  if (( CURRENT == 2 )); then
+    _alternative \
+      'commands:command:((logs:"tail a host log" open:"open a host in the browser"))' \
+      '(-q --quiet -h --help)flags:flag:((-q:"only non-healthy rows" --quiet:"only non-healthy rows" -h:"show help" --help:"show help"))'
+    return
+  fi
+
+  case "${words[2]}" in
+    logs|open) _describe 'host' hosts ;;
+  esac
+}
+
+_zdots-endpoints "$@"

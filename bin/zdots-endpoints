@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# bin/zdots-endpoints — verify the *.local web endpoints (nginx proxy chain)
+#
+# Discovers every *.local host from /etc/hosts, probes each through the full
+# chain (hosts → nginx → TLS → upstream), and prints a status table with
+# clickable links to open each interface and the command to tail its log.
+# Cross-checks against the deployed nginx vhosts to flag hosts that resolve but
+# have no server block, and flags any host not pointed at loopback.
+#
+# Usage:
+#   zdots-endpoints            Status table (default)
+#   zdots-endpoints logs HOST  Tail the log for HOST (e.g. llama.local)
+#   zdots-endpoints open HOST  Open HOST's interface in the browser
+#   zdots-endpoints -q         Quiet: only non-healthy rows
+#
+# Exit 0 when every vhost-backed endpoint is healthy; 1 otherwise.
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+BREW="$(brew --prefix 2>/dev/null || printf '/opt/homebrew')"
+NGINX_SERVERS="$BREW/etc/nginx/servers"
+NGINX_ERR="$BREW/var/log/nginx/error.log"
+
+# shellcheck source=/dev/null
+[[ -r "$ZDOTDIR/lib/trace_log.bash" ]] && source "$ZDOTDIR/lib/trace_log.bash"
+command -v zdots_trace_log >/dev/null 2>&1 && zdots_trace_log "endpoints_check" "tool=zdots-endpoints"
+
+# ── Per-host metadata. Unknown hosts fall back to "/" + the nginx error log. ──
+declare -A HEALTH=(
+  [llama.local]=/health     [embed.local]=/health   [grafana.local]=/api/health
+  [my.local]=/up            [dev.my.local]=/up       [lgtm.local]=/api/health
+)
+declare -A LABEL=(
+  [llama.local]="Qwen3 chat inference"   [embed.local]="Nomic embeddings"
+  [grafana.local]="Grafana dashboards"   [lgtm.local]="LGTM observability"
+  [my.local]="context-engine (prod)"     [dev.my.local]="context-engine (dev)"
+)
+declare -A LOGCMD=(
+  [llama.local]="zsvc logs llama"   [embed.local]="zsvc logs embed"
+  [grafana.local]="zsvc logs grafana"
+  [my.local]="tail -f $NGINX_ERR"   [dev.my.local]="tail -f $NGINX_ERR"
+  [lgtm.local]="zsvc logs otel"
+)
+
+# ── Colors (suppressed when not a tty) ───────────────────────────────────────
+if [[ -t 1 ]]; then
+  RST=$'\e[0m'; BOLD=$'\e[1m'; DIM=$'\e[2m'
+  RED=$'\e[0;31m'; GRN=$'\e[0;32m'; YEL=$'\e[0;33m'
+else
+  RST=''; BOLD=''; DIM=''; RED=''; GRN=''; YEL=''
+fi
+
+# OSC 8 hyperlink: clickable in iTerm2 / modern terminals, plain text elsewhere.
+# shellcheck disable=SC1003  # \e\\ is the OSC-8 ST terminator, not a quote escape
+_link() { printf '\e]8;;%s\e\\%s\e]8;;\e\\' "$1" "$2"; }
+
+# ── Discover *.local hosts and their mapped IPs from /etc/hosts ───────────────
+declare -A HOST_IP=()
+while read -r ip host _; do
+  [[ "$ip" == \#* || -z "${host:-}" ]] && continue
+  [[ "$host" == *.local ]] || continue
+  HOST_IP["$host"]="$ip"
+done < <(grep -E '[[:space:]][a-zA-Z0-9.-]+\.local([[:space:]]|$)' /etc/hosts 2>/dev/null || true)
+
+# ── Collect nginx server_names from the deployed vhosts ──────────────────────
+vhosts=""
+if [[ -d "$NGINX_SERVERS" ]]; then
+  vhosts="$(grep -rhE '^\s*server_name' "$NGINX_SERVERS" 2>/dev/null \
+    | sed -E 's/^\s*server_name\s+//; s/;.*//' | tr ' ' '\n' | sort -u)"
+fi
+_has_vhost() { printf '%s\n' "$vhosts" | grep -qx "$1"; }
+
+# ── Probe one URL through the proxy; echo a status token ─────────────────────
+# Tokens: <2xx/3xx>=ok  tls!<code>=ok-but-untrusted-cert  5xx=upstream-down
+#         4xx=responding  000=unreachable
+_probe() {
+  local url="$1" code
+  code="$(curl -sS -o /dev/null -m 6 -w '%{http_code}' "$url" 2>/dev/null || true)"
+  if [[ "$code" == "000" ]]; then
+    local k; k="$(curl -sSk -o /dev/null -m 6 -w '%{http_code}' "$url" 2>/dev/null || true)"
+    [[ "$k" != "000" ]] && { printf 'tls!%s' "$k"; return; }
+  fi
+  printf '%s' "$code"
+}
+
+# ── Subcommands ──────────────────────────────────────────────────────────────
+QUIET=0
+case "${1:-}" in
+  -h|--help) sed -n '2,18p' "$0" | sed -E 's/^# ?//'; exit 0 ;;
+  -q|--quiet) QUIET=1 ;;
+  logs)
+    host="${2:-}"; [[ -z "$host" ]] && { echo "usage: zdots-endpoints logs HOST" >&2; exit 1; }
+    cmd="${LOGCMD[$host]:-tail -f $NGINX_ERR}"
+    printf '%s>> %s%s\n' "$DIM" "$cmd" "$RST" >&2
+    # shellcheck disable=SC2086  # intentional word split: cmd is a trusted command line
+    exec $cmd ;;
+  open)
+    host="${2:-}"; [[ -z "$host" ]] && { echo "usage: zdots-endpoints open HOST" >&2; exit 1; }
+    exec open "https://$host/" ;;
+  "") : ;;
+  *) printf 'zdots-endpoints: unknown argument: %s\n' "$1" >&2; exit 1 ;;
+esac
+
+# ── nginx reachability (one-time) ────────────────────────────────────────────
+nginx_up=1
+# nginx's comm is "nginx: master process ...", so -x nginx never matches.
+pgrep -f 'nginx: master' >/dev/null 2>&1 || nginx_up=0
+printf '\n%s*.local endpoints%s  %s(via nginx %s)%s\n\n' "$BOLD" "$RST" "$DIM" \
+  "$([[ $nginx_up -eq 1 ]] && echo running || echo 'NOT running — start: zsvc start nginx')" "$RST"
+
+# ── Status table ─────────────────────────────────────────────────────────────
+fail=0
+for host in $(printf '%s\n' "${!HOST_IP[@]}" | sort); do
+  ip="${HOST_IP[$host]}"
+  url="https://$host${HEALTH[$host]:-/}"
+  label="${LABEL[$host]:-}"
+  log="${LOGCMD[$host]:-tail -f $NGINX_ERR}"
+
+  # Structural problems first — no point probing a host with no vhost / bad IP.
+  notes=""
+  [[ "$ip" =~ ^127\.0\.0\.1$|^::1$ ]] || notes+=" ${YEL}[ip=$ip — not loopback]${RST}"
+  if ! _has_vhost "$host"; then
+    badge="${YEL}NO VHOST${RST}"; fail=1
+    [[ $QUIET -eq 1 ]] && continue
+    printf '  %-14s %b%s\n' "$host" "$badge" "$notes"
+    printf '      %s%s — no nginx server block; add one in etc/nginx/servers/%s\n' "$DIM" "${label:-unmapped}" "$RST"
+    continue
+  fi
+
+  st="$(_probe "$url")"
+  case "$st" in
+    2*|3*)        badge="${GRN}UP${RST}      ($st)" ;;
+    tls!2*|tls!3*) badge="${YEL}UP${RST}      (cert untrusted — run: mkcert -install)"; fail=1 ;;
+    5*)           badge="${RED}UPSTREAM DOWN${RST} ($st)"; fail=1 ;;
+    4*)           badge="${YEL}HTTP $st${RST}" ;;
+    *)            badge="${RED}UNREACHABLE${RST}"; fail=1 ;;
+  esac
+
+  [[ $QUIET -eq 1 && "$st" =~ ^2|^3 ]] && continue
+
+  open_link="$(_link "https://$host/" "open ↗")"
+  printf '  %-14s %b%b\n' "$host" "$badge" "$notes"
+  printf '      %s%-22s%s  %s   %slog:%s %s\n' \
+    "$DIM" "${label}" "$RST" "$open_link" "$DIM" "$RST" "$log"
+done
+
+echo
+if [[ $fail -eq 0 ]]; then
+  printf '%s✓ all vhost-backed endpoints healthy%s\n' "$GRN" "$RST"
+else
+  printf '%stail a log:%s zdots-endpoints logs HOST   %sopen one:%s zdots-endpoints open HOST\n' \
+    "$DIM" "$RST" "$DIM" "$RST"
+fi
+exit "$fail"
