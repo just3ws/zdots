@@ -22,12 +22,13 @@ if command -v jq >/dev/null 2>&1; then
   [[ -n "${_d:-}" ]] && cwd="$_d"
 fi
 
-# --- AI boundary mode ------------------------------------------------------
-ai_mode="${ZDOTS_AI_MODE:-}"
-if [[ -z "$ai_mode" && -r "${ZDOTDIR}/.zdots.local" ]]; then
-  ai_mode="$(grep -E '^[[:space:]]*ZDOTS_AI_MODE=' "${ZDOTDIR}/.zdots.local" 2>/dev/null | tail -n1 | cut -d= -f2 | tr -d '"'"'"' ')"
+# --- home/work context + AI boundary mode ----------------------------------
+context="home"; ai_mode="local"
+if [[ -r "${ZDOTDIR}/lib/cc-context.bash" ]]; then
+  source "${ZDOTDIR}/lib/cc-context.bash"
+  context="$(cc_context)"
+  ai_mode="$(cc_ai_mode)"
 fi
-ai_mode="${ai_mode:-local}"
 
 # --- git branch ------------------------------------------------------------
 branch="$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
@@ -49,5 +50,8 @@ else
 fi
 
 # --- render ----------------------------------------------------------------
-out="${model} · AI:${ai_mode} · ⎇ ${branch:-—} · llama:${llama}"
+# Make work context loud — it changes what Claude Code is allowed to do.
+local_badge="home"
+[[ "$context" == "work" ]] && local_badge="WORK⚠"
+out="[${local_badge}] ${model} · AI:${ai_mode} · ⎇ ${branch:-—} · llama:${llama}"
 printf '%s' "$out"
