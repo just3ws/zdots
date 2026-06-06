@@ -528,7 +528,7 @@ cmd_check() {
       _chk_pass "nginx TLS certs  present ($cert_file)"
     else
       _chk_warn "nginx TLS certs  missing"
-      _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.local embed.local grafana.local lgtm.local my.local dev.my.local localhost 127.0.0.1"
+      _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.local embed.local grafana.local lgtm.local o2.local my.local dev.my.local localhost 127.0.0.1"
     fi
   else
     _chk_warn "mkcert  not installed"
