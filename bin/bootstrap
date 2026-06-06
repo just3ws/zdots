@@ -509,10 +509,17 @@ if command -v nginx >/dev/null 2>&1; then
     cp "$_REPO_NGINX/ssl_params.conf" "$_NGINX_PREFIX/ssl_params.conf"
     echo "bootstrap: installed nginx ssl_params.conf"
   fi
-  if [ ! -f "$_NGINX_PREFIX/servers/zdots.conf" ] && [ -f "$_REPO_NGINX/servers/zdots.conf" ]; then
-    cp "$_REPO_NGINX/servers/zdots.conf" "$_NGINX_PREFIX/servers/zdots.conf"
-    echo "bootstrap: installed nginx servers/zdots.conf"
-  fi
+  # Install every tracked vhost (zdots.conf, my.conf, …). Guard per-file so an
+  # operator-customized deployed config is never clobbered.
+  for _vhost in "$_REPO_NGINX"/servers/*.conf; do
+    [ -f "$_vhost" ] || continue
+    _vname="$(basename "$_vhost")"
+    if [ ! -f "$_NGINX_PREFIX/servers/$_vname" ]; then
+      cp "$_vhost" "$_NGINX_PREFIX/servers/$_vname"
+      echo "bootstrap: installed nginx servers/$_vname"
+    fi
+  done
+  unset _vhost _vname
   # Validate config before attempting start.
   if nginx -t 2>/dev/null; then
     echo "bootstrap: nginx config valid."
@@ -534,7 +541,7 @@ unset _NGINX_PREFIX
 # 6e. /etc/hosts — local service hostnames
 # nginx routes requests by Host header; /etc/hosts maps hostnames to 127.0.0.1.
 # These entries require sudo — bootstrap prints the commands.
-_NEEDED_HOSTS="llama.local embed.local grafana.local"
+_NEEDED_HOSTS="llama.local embed.local grafana.local lgtm.local my.local dev.my.local"
 _MISSING_HOSTS=""
 for _HOST in $_NEEDED_HOSTS; do
   grep -qF "$_HOST" /etc/hosts 2>/dev/null || _MISSING_HOSTS="$_MISSING_HOSTS $_HOST"

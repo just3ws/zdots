@@ -25,7 +25,7 @@ PLIST="/Library/LaunchDaemons/${LABEL}.plist"
 ERR_LOG="${BREW_PREFIX}/var/log/nginx/error.log"
 ACC_LOG="${BREW_PREFIX}/var/log/nginx/access.log"
 # Hostnames fronted by nginx (servers/*.conf). Used by `health`.
-HOSTS=(llama.local embed.local grafana.local my.local dev.my.local)
+HOSTS=(llama.local embed.local grafana.local lgtm.local my.local dev.my.local)
 
 _ok()   { printf 'nginx-ctl: [ok]  %s\n' "$*" >&2; }
 _warn() { printf 'nginx-ctl: [!!]  %s\n' "$*" >&2; }
