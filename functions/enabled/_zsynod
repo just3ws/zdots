@@ -17,6 +17,10 @@ _zsynod() {
     'handoff:record a handoff to a member'
     'log:show ledger entries'
     'minutes:regenerate minutes.md'
+    'view:regenerate + display the minutes'
+    'ask:pose a question to the forum'
+    'tail:tail a member transcript'
+    'console:interactive principal cockpit'
     'verify:re-walk the hash chain'
     'convene:open the tmux forum room (singleton)'
   )
@@ -34,6 +38,8 @@ _zsynod() {
     '--state[handoff state]:text' \
     '--ref[proposal reference]:id' \
     '--json[machine-readable log]' \
+    '(-f --follow)'{-f,--follow}'[follow transcript (tail -f)]' \
+    '(-n --lines)'{-n,--lines}'[transcript lines]:n' \
     '(-h --help)'{-h,--help}'[show help]'
 }
 

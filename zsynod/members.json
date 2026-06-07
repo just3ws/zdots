@@ -22,7 +22,10 @@
       "id": "antigravity",
       "tier": "frontier",
       "voting": true,
-      "lane": "agentic multi-file execution / IDE orchestration"
+      "lane": "agentic multi-file execution / IDE orchestration",
+      "represented_by": "gemini",
+      "pending_consent": true,
+      "note": "Alphabet bootstrap — Gemini speaks for Antigravity pending Gemini consent (P2)"
     },
     {
       "id": "pi",
