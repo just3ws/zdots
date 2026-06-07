@@ -13,6 +13,7 @@ _zsynod() {
     'second:lightweight concur (counts as aye)'
     'vote:cast aye|nay|abstain'
     'commit:stamp committed iff quorum'
+    'ratify:principal-authority commit (--as mike)'
     'handoff:record a handoff to a member'
     'log:show ledger entries'
     'minutes:regenerate minutes.md'
