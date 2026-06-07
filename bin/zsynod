@@ -29,6 +29,11 @@
 #   zsynod console                       interactive principal cockpit (prompts)
 #   zsynod verify                        re-walk the hash chain (integrity check)
 #   zsynod convene                       open the tmux forum room (one at a time)
+#   zsynod attach                        attach to the convened room
+#   zsynod goto <member>                 jump to a seat's window
+#   zsynod room                          list the room's windows
+#   zsynod adjourn                       close the forum (transcripts kept)
+#   (internal pane entrypoints: zsynod seat <id> · zsynod watch)
 #
 # Global: --as <member>
 
@@ -36,6 +41,7 @@ set -uo pipefail
 trap '' PIPE
 
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+SESSION="${ZSYNOD_SESSION:-zsynod}"   # the tmux room name = the singleton lock
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 DIR="${ZSYNOD_DIR:-$ZDOTDIR/zsynod}"
 LEDGER="$DIR/ledger.jsonl"
@@ -368,10 +374,60 @@ _launch_cmd() {  # member id → its agent command (members.json override wins)
   case "$m" in claude) printf 'cl' ;; pi) printf 'zpi' ;; aider) printf 'zaider' ;; *) printf '' ;; esac
 }
 
+# ── pane entrypoints (run AS a pane's command — no send-keys) ────────────────
+cmd_seat() {  # banner for a member's seat, then drop into an interactive shell
+  local id="${1:-${ZSYNOD_MEMBER:-}}"; [[ -n "$id" ]] || _die "seat needs a member id"
+  local lane cmd
+  lane="$(jq -r --arg m "$id" '.members[]|select(.id==$m)|.lane' "$MEMBERS" 2>/dev/null)"
+  cmd="$(_launch_cmd "$id")"
+  clear 2>/dev/null || true
+  printf '%s┌─ zsynod · seat: %s ─┐%s\n' "$B" "$id" "$RST"
+  printf 'you are %s%s%s — %s\n' "$B" "$id" "$RST" "${lane:-member}"
+  printf 'charter: %s · catch up: zsynod status · minutes: zsynod view\n' "$CHARTER"
+  printf 'act: zsynod speak|second|vote <P#> · handoff: zsynod handoff --to <m> --task "..."\n'
+  printf '%s§6 shared:%s PHI · append-only ledger · complete handoffs · scope · right-size · token economy (be brief; the strongest most of all)\n' "$D" "$RST"
+  [[ -n "$cmd" ]] && printf '%s▶ launch:%s %s\n' "$GRN" "$RST" "$cmd"
+  printf '\n'
+  exec "${SHELL:-/bin/zsh}" -i
+}
+
+cmd_watch() {  # live status loop for the floor window
+  local secs="${ZSYNOD_WATCH_SECS:-5}"
+  while :; do
+    clear 2>/dev/null || true
+    cmd_status
+    printf '\n%s(refreshing every %ss · Ctrl-b o → chair seat · Ctrl-b <n> → a seat)%s\n' "$D" "$secs" "$RST"
+    sleep "$secs"
+  done
+}
+
+# ── tmux interface suite (the api; never type raw tmux) ───────────────────────
+_has_room() { tmux has-session -t "$SESSION" 2>/dev/null; }
+cmd_attach() {
+  _has_room || _die "no forum convened — run: zsynod convene"
+  if [[ -n "${TMUX:-}" ]]; then tmux switch-client -t "$SESSION"; else exec tmux attach -t "$SESSION"; fi
+}
+cmd_adjourn() {
+  _has_room || { printf 'zsynod: no forum convened\n'; return 0; }
+  tmux kill-session -t "$SESSION"
+  printf '%sadjourned%s — transcripts kept in %s/transcripts/\n' "$YEL" "$RST" "$DIR"
+}
+cmd_goto() {
+  local m="${1:-}"; [[ -n "$m" ]] || _die "goto needs a member"
+  _has_room || _die "no forum convened"
+  tmux select-window -t "$SESSION:$m" 2>/dev/null || _die "no seat: $m (try: zsynod room)"
+  [[ -z "${TMUX:-}" ]] && exec tmux attach -t "$SESSION"
+}
+cmd_room() {
+  _has_room || { printf 'zsynod: no forum convened\n'; return 0; }
+  printf '%sroom %s:%s\n' "$B" "$SESSION" "$RST"
+  tmux list-windows -t "$SESSION" -F '  #{window_index}: #{window_name}#{?window_active, (active),}'
+}
+
 cmd_convene() {
   command -v tmux >/dev/null 2>&1 || _die "tmux is required to convene"
   [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
-  local S="zsynod"
+  local S="$SESSION"
   if tmux has-session -t "$S" 2>/dev/null; then
     printf '%szsynod already convened%s (single-instance) — attaching.\n' "$YEL" "$RST" >&2
     exec tmux attach -t "$S"
@@ -384,30 +440,24 @@ cmd_convene() {
   mkdir -p "$TDIR"
   _capture() { tmux pipe-pane -o -t "$1" "cat >> '$TDIR/$2.$stamp.log'"; }
 
-  # floor: live status (left) + the chair/human seat (right)
-  tmux new-session -d -s "$S" -n floor -c "$ZDOTDIR"
-  tmux send-keys -t "$S:floor" "while :; do clear; ZDOTDIR='$ZDOTDIR' '$SELF' status; sleep 5; done" C-m
-  tmux split-window -h -t "$S:floor" -c "$ZDOTDIR"
-  tmux send-keys -t "$S:floor.1" "printf 'principal/chair seat · read $CHARTER · zsynod status · zsynod ratify|commit <id>\\n'" C-m
+  # Every pane runs a zsynod entrypoint AS ITS COMMAND — no send-keys, no
+  # prompt-race, no quoting: `zsynod watch` (live status) and `zsynod seat <id>`
+  # (banner → interactive shell). Identity is passed via tmux env (-e).
+  tmux new-session -d -s "$S" -n floor -c "$ZDOTDIR" "'$SELF' watch"
+  tmux split-window -h -t "$S:floor" -c "$ZDOTDIR" -e "ZSYNOD_MEMBER=mike" "'$SELF' seat mike"
   _capture "$S:floor.1" "floor"
 
-  # one window per voting member, identity preset + primer + pre-typed launch
-  local id lane cmd
+  local id
   while read -r id; do
     [[ -z "$id" ]] && continue
-    lane="$(jq -r --arg m "$id" '.members[]|select(.id==$m)|.lane' "$MEMBERS")"
-    tmux new-window -t "$S" -n "$id" -c "$ZDOTDIR"
+    tmux new-window -t "$S" -n "$id" -c "$ZDOTDIR" -e "ZSYNOD_MEMBER=$id" "'$SELF' seat $id"
     _capture "$S:$id" "$id"
-    tmux send-keys -t "$S:$id" "export ZSYNOD_MEMBER='$id'" C-m
-    tmux send-keys -t "$S:$id" "printf '%s\\n' 'zsynod · you are $id ($lane).' 'Read $CHARTER, then: zsynod status.' 'Speak/second/vote: zsynod speak|second|vote <P#> ...  (identity preset).' 'Honor §6: PHI boundary · append-only ledger · complete handoffs · scope · right-size · token economy (be brief; the strongest most of all).'" C-m
-    cmd="$(_launch_cmd "$id")"
-    [[ -n "$cmd" ]] && tmux send-keys -t "$S:$id" "$cmd"  # pre-typed, NOT run — human reviews + Enter
   done < <(_voting_ids)
 
   tmux select-window -t "$S:floor"
   printf '%sconvened%s — %s seats + floor · transcripts → %s/*.%s.log (local, gitignored)\n' \
     "$GRN" "$RST" "$(_voting_ids|wc -l|tr -d ' ')" "$TDIR" "$stamp"
-  printf '%sdetach: Ctrl-b d · adjourn: tmux kill-session -t %s%s\n' "$D" "$S" "$RST"
+  printf '%sin-room: Ctrl-b <n> a seat · detach Ctrl-b d · zsynod goto <m> · zsynod adjourn%s\n' "$D" "$RST"
   exec tmux attach -t "$S"
 }
 
@@ -453,6 +503,12 @@ case "$SUB" in
   console)  cmd_console ;;
   verify)   cmd_verify ;;
   convene)  cmd_convene ;;
+  attach)   cmd_attach ;;
+  adjourn)  cmd_adjourn ;;
+  goto)     cmd_goto "${POS[1]:-}" ;;
+  room)     cmd_room ;;
+  seat)     cmd_seat "${POS[1]:-}" ;;
+  watch)    cmd_watch ;;
   ""|-h|--help) _usage ;;
   *) _die "unknown subcommand: $SUB (try -h)" ;;
 esac
