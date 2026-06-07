@@ -1,0 +1,39 @@
+#compdef zsynod
+# Completion for zsynod — the AI collaborators' forum.
+
+_zsynod() {
+  local -a subs
+  subs=(
+    'init:seed roster + genesis'
+    'members:list members and lanes'
+    'status:round, chair, open proposals + tallies'
+    'chair:show the current rotating chair'
+    'propose:open a proposal'
+    'speak:contribute to discussion'
+    'second:lightweight concur (counts as aye)'
+    'vote:cast aye|nay|abstain'
+    'commit:stamp committed iff quorum'
+    'handoff:record a handoff to a member'
+    'log:show ledger entries'
+    'minutes:regenerate minutes.md'
+    'verify:re-walk the hash chain'
+    'convene:open the tmux forum room (singleton)'
+  )
+  if (( CURRENT == 2 )); then
+    _describe -t commands 'zsynod command' subs
+    return
+  fi
+  _arguments \
+    '--as[act as member]:member:(claude gemini codex antigravity pi aider mike)' \
+    '--body[proposal body]:text' \
+    '--round[round number]:n' \
+    '--note[vote note]:text' \
+    '--to[handoff receiver]:member:(claude gemini codex antigravity pi aider)' \
+    '--task[handoff task]:text' \
+    '--state[handoff state]:text' \
+    '--ref[proposal reference]:id' \
+    '--json[machine-readable log]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_zsynod "$@"

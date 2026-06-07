@@ -1,0 +1,46 @@
+{
+  "members": [
+    {
+      "id": "claude",
+      "tier": "frontier",
+      "voting": true,
+      "lane": "architecture, security/PHI review, facilitation, charter stewardship"
+    },
+    {
+      "id": "gemini",
+      "tier": "frontier",
+      "voting": true,
+      "lane": "large-context synthesis, breadth research, red-team/dissent"
+    },
+    {
+      "id": "codex",
+      "tier": "frontier",
+      "voting": true,
+      "lane": "high-volume code generation, refactors, test authoring"
+    },
+    {
+      "id": "antigravity",
+      "tier": "frontier",
+      "voting": true,
+      "lane": "agentic multi-file execution / IDE orchestration"
+    },
+    {
+      "id": "pi",
+      "tier": "local",
+      "voting": true,
+      "lane": "first responder & triage; read/explain/plan"
+    },
+    {
+      "id": "aider",
+      "tier": "local",
+      "voting": true,
+      "lane": "file edits + git execution of ratified decisions"
+    },
+    {
+      "id": "mike",
+      "tier": "principal",
+      "voting": false,
+      "lane": "ratify, veto, tiebreak, ultimate arbiter"
+    }
+  ]
+}
