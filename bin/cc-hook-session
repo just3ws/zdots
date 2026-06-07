@@ -30,6 +30,14 @@ printf 'ai-boundary: mode=%s — Claude Code is a CLOUD tool; it bypasses the lo
 printf '  phi_scrub/ai_boundary pipeline. Do NOT read .zdots.secrets, .env, keys,\n'
 printf '  or paste PHI/credentials into prompts. See CLAUDE.md + AGENTS.md (PHI mode).\n'
 
+# zsynod forum: if this Claude Code session was launched into a seat (convene
+# exports ZSYNOD_MEMBER), orient into the forum immediately.
+if [[ -n "${ZSYNOD_MEMBER:-}" ]]; then
+  printf 'zsynod: you are member "%s" in the forum (charter: docs/zsynod-charter.md).\n' "$ZSYNOD_MEMBER"
+  printf '  catch up: zsynod status · participate: zsynod speak|second|vote <P#> · record handoffs.\n'
+  printf '  honor §6 (shared): PHI boundary · append-only ledger · complete handoffs · scope · right-size · token economy — be brief; the strongest most of all.\n'
+fi
+
 # Reuse the existing brief if available and quick; bound it hard at 3s.
 if [[ -x "${ZDOTDIR}/bin/pi-ctx-brief" ]] && command -v jq >/dev/null 2>&1; then
   _brief="$( (perl -e 'alarm 3; exec @ARGV' "${ZDOTDIR}/bin/pi-ctx-brief") 2>/dev/null )" || true
