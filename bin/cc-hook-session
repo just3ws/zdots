@@ -36,4 +36,16 @@ if [[ -x "${ZDOTDIR}/bin/pi-ctx-brief" ]] && command -v jq >/dev/null 2>&1; then
   [[ -n "${_brief:-}" ]] && printf '%s\n' "$_brief"
 fi
 
+# graphify code-graph nudge — only if this repo has a graph; compares the graph's
+# built_at_commit to HEAD and suggests /graphify if stale. Fail-open, no LLM.
+if [[ -f "graphify-out/graph.json" ]] && command -v jq >/dev/null 2>&1; then
+  _g_commit="$(jq -r '.built_at_commit // empty' graphify-out/graph.json 2>/dev/null || true)"
+  _head="$(git rev-parse HEAD 2>/dev/null || true)"
+  if [[ -n "$_g_commit" && -n "$_head" && "${_g_commit:0:8}" != "${_head:0:8}" ]]; then
+    printf 'graphify: code graph is stale (built %s, HEAD %s) — run /graphify to refresh.\n' "${_g_commit:0:8}" "${_head:0:8}"
+  else
+    printf 'graphify: code graph available — /graphify query|explain|path|affected (~130x fewer tokens than reading).\n'
+  fi
+fi
+
 exit 0
