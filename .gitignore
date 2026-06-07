@@ -28,3 +28,6 @@ traces-collected.json
 .aider*
 .claude/settings.local.json
 .bundle/config
+
+# graphify code-graph build artifacts (regenerate: graphify update .)
+graphify-out/
