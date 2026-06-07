@@ -48,4 +48,32 @@ if [[ -f "graphify-out/graph.json" ]] && command -v jq >/dev/null 2>&1; then
   fi
 fi
 
+# runtime digest (Z-135 P4) — push recent platform health from OpenObserve into
+# the session so Claude opens already aware of what's failing. Reads back through
+# zdots-o2-query (telemetry is scrubbed at the ingest edge; the digest surfaces
+# only counts + service/operation names, never log bodies). Fully bounded and
+# fail-open: if O2 is down or slow, it prints nothing and never delays startup.
+_bounded() { perl -e 'alarm shift; exec @ARGV' "$@" 2>/dev/null; }  # _bounded SECS cmd...
+_o2q="${ZDOTDIR}/bin/zdots-o2-query"
+_o2_url="${ZDOTS_O2_ENDPOINT:-http://127.0.0.1:5080}"
+_win="${ZDOTS_CC_DIGEST_SINCE:-6h}"
+if [[ -x "$_o2q" ]] && command -v jq >/dev/null 2>&1 && command -v perl >/dev/null 2>&1 \
+   && curl -sf -m 1 "${_o2_url}/healthz" >/dev/null 2>&1; then
+  _err="$(_bounded 3 "$_o2q" errors    --json --since "$_win" -n 500 --no-scrub || true)"; _err="${_err:-[]}"
+  _fail="$(_bounded 3 "$_o2q" failures --json --since "$_win" -n 500 --no-scrub || true)"; _fail="${_fail:-[]}"
+  _ec="$(printf '%s' "$_err"  | jq 'length' 2>/dev/null || echo 0)"
+  _fc="$(printf '%s' "$_fail" | jq 'length' 2>/dev/null || echo 0)"
+  if [[ "${_ec:-0}" -eq 0 && "${_fc:-0}" -eq 0 ]]; then
+    printf 'runtime (last %s, OpenObserve): clean — 0 error logs, 0 failed spans.\n' "$_win"
+  else
+    _etop="$(printf '%s' "$_err"  | jq -r 'map(.service//"?")|group_by(.)|map({s:.[0],n:length})|sort_by(-.n)|.[0:3]|map("\(.s) \(.n)")|join(", ")' 2>/dev/null || true)"
+    _ftop="$(printf '%s' "$_fail" | jq -r '[.[].op//"?"]|unique|.[0:3]|join(", ")' 2>/dev/null || true)"
+    printf 'runtime (last %s, OpenObserve): %s error logs' "$_win" "$_ec"
+    [[ -n "$_etop" ]] && printf ' (top: %s)' "$_etop"
+    printf ' · %s failed spans' "$_fc"
+    [[ -n "$_ftop" ]] && printf ' (%s)' "$_ftop"
+    printf '.\n  drill in: zdots-o2-query errors|failures|trace <id>  (read-only, scrubbed at ingest).\n'
+  fi
+fi
+
 exit 0
