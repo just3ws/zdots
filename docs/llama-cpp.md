@@ -387,7 +387,7 @@ Key metrics (prefix: `llamacpp:`):
 | `llamacpp:requests_processing` | gauge | Requests currently in flight |
 | `llamacpp:requests_deferred` | gauge | Requests waiting for a free slot |
 
-The local otelcol scrapes this endpoint and forwards to the LGTM stack.
+The local otelcol scrapes this endpoint and forwards to OpenObserve.
 See `docs/otel-collector-guide.md` for scrape job configuration.
 
 ---

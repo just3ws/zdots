@@ -46,4 +46,4 @@ We are shifting from **Naive RAG** (semantic chunking) to **Agentic Context Engi
 ## 4. Implementation Guidelines
 - **Security First**: All agentic loops must honor PHI/PII boundaries defined by the current `phi_scrubber` infrastructure.
 - **Local-first**: Prioritize local inference (`llama.cpp`) for all agentic retrieval and evaluation steps.
-- **Observability**: Every agentic step must emit a trace ID so failures (e.g., an LLM hallucination in retrieval) can be diagnosed via the LGTM stack.
+- **Observability**: Every agentic step must emit a trace ID so failures (e.g., an LLM hallucination in retrieval) can be diagnosed via OpenObserve.

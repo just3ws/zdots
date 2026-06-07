@@ -352,6 +352,40 @@ fi
 unset _ai_ep _ai_log _infer_resp
 
 # ---------------------------------------------------------------------------
+# Observability (OpenObserve — native; LGTM retired, Z-134)
+# ---------------------------------------------------------------------------
+_section "Observability"
+
+_o2_ep="${ZDOTS_O2_ENDPOINT:-http://127.0.0.1:5080}"
+if curl -sf -m 3 "${_o2_ep}/healthz" >/dev/null 2>&1; then
+  _pass "OpenObserve  healthy (${_o2_ep})"
+  # PHI: must bind loopback only, never 0.0.0.0
+  if command -v lsof >/dev/null 2>&1; then
+    if lsof -nP -iTCP:5080 -sTCP:LISTEN 2>/dev/null | grep -q '127.0.0.1:5080'; then
+      _pass "OpenObserve bind  loopback only (127.0.0.1)"
+    elif lsof -nP -iTCP:5080 -sTCP:LISTEN 2>/dev/null | grep -q '\*:5080\|0.0.0.0:5080'; then
+      _fail "OpenObserve bind  listening on all interfaces — PHI violation"
+      _fix  "ensure ZO_HTTP_ADDR=127.0.0.1 (openobserve-ctl serve) then: zsvc restart o2"
+    fi
+  fi
+else
+  _warn "OpenObserve  not reachable"
+  _fix  "zsvc start o2   (diagnose: zsvc diag o2)"
+fi
+
+# Collector must export to OpenObserve, not the retired LGTM stack
+_otel_cfg="${ZDOTDIR}/etc/otel-collector.yaml"
+if [[ -f "$_otel_cfg" ]]; then
+  if grep -q 'otlphttp/openobserve' "$_otel_cfg" && ! grep -q 'otlphttp/lgtm' "$_otel_cfg"; then
+    _pass "collector  exports to OpenObserve"
+  else
+    _warn "collector  config still references the retired LGTM exporter"
+    _fix  "repoint etc/otel-collector.yaml at OpenObserve — see docs/openobserve.md"
+  fi
+fi
+unset _o2_ep _otel_cfg
+
+# ---------------------------------------------------------------------------
 # Runtime health (zdots-ctl check)
 # ---------------------------------------------------------------------------
 _section "Runtime health  (zdots-ctl check)"
