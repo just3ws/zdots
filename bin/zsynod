@@ -1,0 +1,374 @@
+#!/usr/bin/env bash
+# bin/zsynod — the AI collaborators' forum: an append-only, hash-chained ledger
+# of proposals, votes, discussion, and handoffs, with quorum-commit and a
+# rotating chair. Raft's replicated log + commit-safety, without Raft's throne.
+#
+# The Ledger (zsynod/ledger.jsonl) is canon: ordered, attributed, append-only,
+# and hash-chained so history cannot be silently rewritten (`zsynod verify`).
+# zsynod/minutes.md is a generated human mirror. Charter: docs/zsynod-charter.md.
+#
+# Identity: write actions need a member — set ZSYNOD_MEMBER or pass --as <member>.
+#
+# Usage:
+#   zsynod init                          seed roster + genesis (idempotent)
+#   zsynod members                       list members and lanes
+#   zsynod status                        round, chair, open proposals + tallies
+#   zsynod chair                         show the current rotating chair
+#   zsynod propose "<title>" [--body T] [--round N]
+#   zsynod speak  <id> "<remark>"        contribute to discussion (every voice)
+#   zsynod second <id>                   lightweight concur (logged, counts as aye)
+#   zsynod vote   <id> aye|nay|abstain [--note T]
+#   zsynod commit <id>                   stamp committed iff quorum of ayes
+#   zsynod handoff --to M --task "T" [--state T] [--ref <id>]
+#   zsynod log [--round N] [--json]      show ledger entries
+#   zsynod minutes                       regenerate minutes.md
+#   zsynod verify                        re-walk the hash chain (integrity check)
+#   zsynod convene                       open the tmux forum room (one at a time)
+#
+# Global: --as <member>
+
+set -uo pipefail
+trap '' PIPE
+
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+DIR="${ZSYNOD_DIR:-$ZDOTDIR/zsynod}"
+LEDGER="$DIR/ledger.jsonl"
+MEMBERS="$DIR/members.json"
+MINUTES="$DIR/minutes.md"
+CHARTER="docs/zsynod-charter.md"
+LOCK="$DIR/.lock"
+
+# Default roster (charter §3). Voting agents + the human principal.
+DEFAULT_ROSTER='{
+  "members":[
+    {"id":"claude","tier":"frontier","voting":true,"lane":"architecture, security/PHI review, facilitation, charter stewardship"},
+    {"id":"gemini","tier":"frontier","voting":true,"lane":"large-context synthesis, breadth research, red-team/dissent"},
+    {"id":"codex","tier":"frontier","voting":true,"lane":"high-volume code generation, refactors, test authoring"},
+    {"id":"antigravity","tier":"frontier","voting":true,"lane":"agentic multi-file execution / IDE orchestration"},
+    {"id":"pi","tier":"local","voting":true,"lane":"first responder & triage; read/explain/plan"},
+    {"id":"aider","tier":"local","voting":true,"lane":"file edits + git execution of ratified decisions"},
+    {"id":"mike","tier":"principal","voting":false,"lane":"ratify, veto, tiebreak, ultimate arbiter"}
+  ]
+}'
+
+if [[ -t 1 ]]; then
+  RST=$'\e[0m'; B=$'\e[1m'; D=$'\e[2m'; GRN=$'\e[0;32m'; YEL=$'\e[0;33m'; RED=$'\e[0;31m'; CYN=$'\e[0;36m'
+else RST=''; B=''; D=''; GRN=''; YEL=''; RED=''; CYN=''; fi
+
+_die() { printf 'zsynod: %s\n' "$*" >&2; exit 1; }
+_usage() { sed -n '2,40p' "$0" | sed -E 's/^# ?//'; }
+command -v jq >/dev/null 2>&1 || _die "jq is required"
+command -v shasum >/dev/null 2>&1 || _die "shasum is required"
+
+MEMBER="${ZSYNOD_MEMBER:-}"
+
+# ── hash-chained append (charter §2) ─────────────────────────────────────────
+_hash() { printf '%s' "$1" | shasum -a 256 | cut -d' ' -f1; }
+
+_lock()   { local n=0; until mkdir "$LOCK" 2>/dev/null; do sleep 0.1; (( ++n > 50 )) && _die "ledger locked (stale $LOCK?)"; done; }
+_unlock() { rmdir "$LOCK" 2>/dev/null || true; }
+
+# _append <type> <data-json>  — chains onto the last entry, writes one line.
+_append() {
+  local type="$1" data="$2"
+  [[ -n "$MEMBER" ]] || _die "no member identity — set ZSYNOD_MEMBER or pass --as <member>"
+  _member_known "$MEMBER" || _die "unknown member: $MEMBER (see: zsynod members)"
+  _lock
+  local prev seq round
+  if [[ -s "$LEDGER" ]]; then
+    prev="$(tail -1 "$LEDGER" | jq -r '.hash')"
+    seq=$(( $(tail -1 "$LEDGER" | jq -r '.seq') + 1 ))
+  else prev="GENESIS"; seq=0; fi
+  round="$(_cur_round)"
+  local base canon h final
+  base="$(jq -nc --argjson seq "$seq" --arg ts "$(date -u +%FT%TZ)" --argjson round "$round" \
+    --arg actor "$MEMBER" --arg type "$type" --argjson data "$data" --arg prev "$prev" \
+    '{seq:$seq,ts:$ts,round:$round,actor:$actor,type:$type,data:$data,prev:$prev}')"
+  canon="$(printf '%s' "$base" | jq -Sc .)"
+  h="$(_hash "${prev}${canon}")"
+  final="$(printf '%s' "$base" | jq -c --arg h "$h" '. + {hash:$h}')"
+  printf '%s\n' "$final" >> "$LEDGER"
+  _unlock
+  printf '%s' "$h"
+}
+
+# ── roster ───────────────────────────────────────────────────────────────────
+_member_known() { [[ -f "$MEMBERS" ]] && jq -e --arg m "$1" '.members[]|select(.id==$m)' "$MEMBERS" >/dev/null 2>&1; }
+_voting_ids()   { jq -r '.members[]|select(.voting)|.id' "$MEMBERS"; }
+_quorum()       { local n; n="$(_voting_ids | wc -l | tr -d ' ')"; echo $(( n/2 + 1 )); }
+_cur_round()    { [[ -s "$LEDGER" ]] && jq -rs 'map(.round)|max // 0' "$LEDGER" || echo 0; }
+
+# ── proposal tally: latest vote per voting member wins; second == aye ─────────
+# echoes: "<ayes> <nays> <abstain> <state> <title>"
+_tally() {
+  local pid="$1"
+  jq -rs --arg p "$pid" '
+    ([.[]|select(.type=="propose" and .data.id==$p)]|last) as $prop
+    | if $prop==null then "NONE" else
+      ([.[]|select((.type=="vote" or .type=="second") and .data.proposal==$p)]
+        | group_by(.actor)
+        | map((sort_by(.seq)|last) | (if .type=="second" then "aye" else .data.vote end)))
+      as $v
+      | ([.[]|select(.type=="commit" and .data.proposal==$p)]|length>0) as $committed
+      | ( ($v|map(select(.=="aye"))|length)|tostring) + " "
+        + (($v|map(select(.=="nay"))|length)|tostring) + " "
+        + (($v|map(select(.=="abstain"))|length)|tostring) + " "
+        + (if $committed then "committed" else "open" end) + " "
+        + ($prop.data.title)
+      end' "$LEDGER"
+}
+
+_proposal_ids() { jq -rs '[.[]|select(.type=="propose")|.data.id]|unique|.[]' "$LEDGER" 2>/dev/null; }
+_next_pid()     { local n; n="$(jq -rs '[.[]|select(.type=="propose")]|length' "$LEDGER" 2>/dev/null || echo 0)"; echo "P$(( n + 1 ))"; }
+
+# ── commands ─────────────────────────────────────────────────────────────────
+cmd_init() {
+  mkdir -p "$DIR"
+  [[ -f "$MEMBERS" ]] || printf '%s\n' "$DEFAULT_ROSTER" | jq . > "$MEMBERS"
+  if [[ ! -s "$LEDGER" ]]; then
+    MEMBER="system"
+    # genesis is unsigned-actor; bypass identity check by writing directly.
+    local base canon h
+    base="$(jq -nc --arg ts "$(date -u +%FT%TZ)" '{seq:0,ts:$ts,round:0,actor:"system",type:"genesis",data:{charter:"'"$CHARTER"'"},prev:"GENESIS"}')"
+    canon="$(printf '%s' "$base" | jq -Sc .)"; h="$(_hash "GENESIS${canon}")"
+    printf '%s\n' "$(printf '%s' "$base" | jq -c --arg h "$h" '.+{hash:$h}')" > "$LEDGER"
+    printf '%szsynod initialized%s — %s members, quorum %s\n' "$GRN" "$RST" "$(_voting_ids|wc -l|tr -d ' ')" "$(_quorum)"
+  else
+    printf 'zsynod: already initialized (%s)\n' "$LEDGER"
+  fi
+  cmd_minutes >/dev/null
+}
+
+cmd_members() {
+  printf '%s%-12s %-10s %s%s\n' "$B" "MEMBER" "TIER" "LANE" "$RST"
+  jq -r '.members[]|[.id,.tier,(if .voting then "" else "(non-voting) " end)+.lane]|@tsv' "$MEMBERS" \
+    | while IFS=$'\t' read -r id tier lane; do printf '%-12s %-10s %s\n' "$id" "$tier" "$lane"; done
+  printf '%squorum: %s of %s voting%s\n' "$D" "$(_quorum)" "$(_voting_ids|wc -l|tr -d ' ')" "$RST"
+}
+
+cmd_chair() {
+  local round ids n idx
+  round="$(_cur_round)"; mapfile -t ids < <(_voting_ids); n="${#ids[@]}"
+  (( n == 0 )) && _die "no voting members"
+  idx=$(( round % n ))
+  printf '%sround %s · chair: %s%s%s  %s(rotates each round; facilitates, does not decide)%s\n' \
+    "$B" "$round" "$CYN" "${ids[$idx]}" "$RST" "$D" "$RST"
+}
+
+cmd_propose() {
+  local title="$1" body="${2:-}" round="${3:-}"
+  [[ -n "$title" ]] || _die "propose needs a title"
+  [[ -n "$round" ]] || round="$(( $(_cur_round) + 0 ))"
+  # a proposal opens (or stays in) the current round; bump to 1 if still genesis.
+  (( round == 0 )) && round=1
+  local pid; pid="$(_next_pid)"
+  local data; data="$(jq -nc --arg id "$pid" --arg t "$title" --arg b "$body" --argjson r "$round" \
+    '{id:$id,title:$t,body:$b,round:$r}')"
+  # ensure the round is recorded by writing at that round
+  _ROUND_OVERRIDE="$round" _append_round propose "$data" >/dev/null
+  printf '%sproposed%s %s — "%s"  (round %s)\n' "$GRN" "$RST" "$pid" "$title" "$round"
+  printf '%snext: members speak, then vote — zsynod vote %s aye|nay|abstain%s\n' "$D" "$pid" "$RST"
+}
+
+# append honoring an explicit round (used by propose to open a round)
+_append_round() {
+  local type="$1" data="$2" r="${_ROUND_OVERRIDE:-}"
+  [[ -n "$MEMBER" ]] || _die "no member identity — set ZSYNOD_MEMBER or pass --as <member>"
+  _member_known "$MEMBER" || _die "unknown member: $MEMBER"
+  _lock
+  local prev seq
+  if [[ -s "$LEDGER" ]]; then prev="$(tail -1 "$LEDGER"|jq -r .hash)"; seq=$(( $(tail -1 "$LEDGER"|jq -r .seq)+1 )); else prev="GENESIS"; seq=0; fi
+  [[ -n "$r" ]] || r="$(_cur_round)"
+  local base canon h
+  base="$(jq -nc --argjson seq "$seq" --arg ts "$(date -u +%FT%TZ)" --argjson round "$r" \
+    --arg actor "$MEMBER" --arg type "$type" --argjson data "$data" --arg prev "$prev" \
+    '{seq:$seq,ts:$ts,round:$round,actor:$actor,type:$type,data:$data,prev:$prev}')"
+  canon="$(printf '%s' "$base"|jq -Sc .)"; h="$(_hash "${prev}${canon}")"
+  printf '%s\n' "$(printf '%s' "$base"|jq -c --arg h "$h" '.+{hash:$h}')" >> "$LEDGER"
+  _unlock; printf '%s' "$h"
+}
+
+_assert_proposal() { _proposal_ids | grep -qx "$1" || _die "no such proposal: $1"; }
+
+cmd_speak() {
+  local pid="$1" remark="${2:-}"; _assert_proposal "$pid"; [[ -n "$remark" ]] || _die "speak needs a remark"
+  _append speak "$(jq -nc --arg p "$pid" --arg r "$remark" '{proposal:$p,remark:$r}')" >/dev/null
+  printf '%s%s spoke%s on %s\n' "$D" "$MEMBER" "$RST" "$pid"
+}
+
+cmd_second() {
+  local pid="$1"; _assert_proposal "$pid"
+  _append second "$(jq -nc --arg p "$pid" '{proposal:$p}')" >/dev/null
+  printf '%s%s seconded%s %s (counts as aye)\n' "$GRN" "$RST" "$MEMBER" "$pid"
+}
+
+cmd_vote() {
+  local pid="$1" v="${2:-}" note="${3:-}"; _assert_proposal "$pid"
+  case "$v" in aye|nay|abstain) ;; *) _die "vote must be aye|nay|abstain" ;; esac
+  _append vote "$(jq -nc --arg p "$pid" --arg v "$v" --arg n "$note" '{proposal:$p,vote:$v,note:$n}')" >/dev/null
+  read -r ay na ab st _ < <(_tally "$pid")
+  printf '%s%s voted %s%s on %s — tally: %s/%s aye (quorum %s) %s nay %s abstain [%s]\n' \
+    "$B" "$MEMBER" "$v" "$RST" "$pid" "$ay" "$(_voting_ids|wc -l|tr -d ' ')" "$(_quorum)" "$na" "$ab" "$st"
+}
+
+cmd_commit() {
+  local pid="$1"; _assert_proposal "$pid"
+  read -r ay na ab st _ < <(_tally "$pid")
+  [[ "$st" == "committed" ]] && { printf 'zsynod: %s already committed\n' "$pid"; return 0; }
+  local q; q="$(_quorum)"
+  (( ay >= q )) || _die "$pid lacks quorum: $ay/$q aye — not committed"
+  _append commit "$(jq -nc --arg p "$pid" --argjson ay "$ay" --argjson q "$q" '{proposal:$p,ayes:$ay,quorum:$q}')" >/dev/null
+  cmd_minutes >/dev/null
+  printf '%scommitted%s %s (%s/%s aye)\n' "$GRN" "$RST" "$pid" "$ay" "$q"
+}
+
+cmd_handoff() {
+  local to="$1" task="$2" state="${3:-}" ref="${4:-}"
+  [[ -n "$to" && -n "$task" ]] || _die "handoff needs --to and --task"
+  _member_known "$to" || _die "unknown receiver: $to"
+  _append handoff "$(jq -nc --arg to "$to" --arg t "$task" --arg s "$state" --arg r "$ref" \
+    '{to:$to,task:$t,state:$s,ref:$r}')" >/dev/null
+  printf '%shandoff%s %s → %s: %s\n' "$YEL" "$RST" "$MEMBER" "$to" "$task"
+}
+
+cmd_status() {
+  cmd_chair
+  local q n; q="$(_quorum)"; n="$(_voting_ids|wc -l|tr -d ' ')"
+  printf '\n%s%-5s %-9s %-7s %s%s\n' "$B" "PROP" "AYE/Q" "STATE" "TITLE" "$RST"
+  local any=0
+  while read -r pid; do
+    [[ -z "$pid" ]] && continue; any=1
+    read -r ay na ab st title < <(_tally "$pid")
+    local c="$YEL"; [[ "$st" == "committed" ]] && c="$GRN"
+    printf '%-5s %s%s/%s%s     %s%-9s%s %s\n' "$pid" "$B" "$ay" "$q" "$RST" "$c" "$st" "$RST" "$title"
+  done < <(_proposal_ids)
+  (( any == 0 )) && printf '%s(no proposals yet — zsynod propose "...")%s\n' "$D" "$RST"
+  # open handoffs
+  local ho; ho="$(jq -rs '[.[]|select(.type=="handoff")]|.[-5:]|.[]|"  "+.actor+" → "+.data.to+": "+.data.task' "$LEDGER" 2>/dev/null)"
+  [[ -n "$ho" ]] && { printf '\n%srecent handoffs%s\n%s\n' "$B" "$RST" "$ho"; }
+}
+
+cmd_log() {
+  local round="${1:-}" json="${2:-}"
+  if [[ "$json" == "json" ]]; then
+    if [[ -n "$round" ]]; then jq -c --argjson r "$round" 'select(.round==$r)' "$LEDGER"; else cat "$LEDGER"; fi
+    return
+  fi
+  jq -r --arg r "${round:-}" 'select($r=="" or (.round|tostring)==$r)
+    | "[\(.seq)] r\(.round) \(.actor) \(.type) \(.data.id // .data.proposal // .data.to // "") \(.data.title // .data.remark // .data.vote // .data.task // "")"' "$LEDGER"
+}
+
+cmd_verify() {
+  local prev="GENESIS" ok=1 ln n=0
+  while IFS= read -r ln; do
+    n=$((n+1))
+    local stored canon h
+    stored="$(printf '%s' "$ln" | jq -r '.hash')"
+    canon="$(printf '%s' "$ln" | jq 'del(.hash)' | jq -Sc .)"
+    h="$(_hash "${prev}${canon}")"
+    if [[ "$h" != "$stored" ]]; then printf '%sBROKEN%s at seq %s (expected %s, got %s)\n' "$RED" "$RST" "$(printf '%s' "$ln"|jq -r .seq)" "$h" "$stored"; ok=0; fi
+    prev="$stored"
+  done < "$LEDGER"
+  (( ok == 1 )) && printf '%schain intact%s — %s entries verified\n' "$GRN" "$RST" "$n" || { _die "ledger integrity FAILED"; }
+}
+
+cmd_minutes() {
+  { printf '# zsynod — minutes (generated from ledger.jsonl; do not edit)\n\n'
+    printf '_Round %s · chair %s · quorum %s of %s · %s entries_\n\n' \
+      "$(_cur_round)" "$(cmd_chair 2>/dev/null | sed -E 's/.*chair: ([^ ]*).*/\1/;s/\x1b\[[0-9;]*m//g')" \
+      "$(_quorum)" "$(_voting_ids|wc -l|tr -d ' ')" "$(wc -l < "$LEDGER"|tr -d ' ')"
+    printf '## Proposals\n\n'
+    while read -r pid; do
+      [[ -z "$pid" ]] && continue
+      read -r ay na ab st title < <(_tally "$pid")
+      printf -- '- **%s** [%s] %s — %s/%s aye, %s nay, %s abstain\n' "$pid" "$st" "$title" "$ay" "$(_voting_ids|wc -l|tr -d ' ')" "$na" "$ab"
+    done < <(_proposal_ids)
+    printf '\n## Recent handoffs\n\n'
+    jq -rs '[.[]|select(.type=="handoff")]|.[-10:]|.[]|"- "+.actor+" → "+.data.to+": "+.data.task' "$LEDGER" 2>/dev/null
+  } > "$MINUTES"
+  printf 'zsynod: wrote %s\n' "$MINUTES"
+}
+
+# ── convene: one tmux room at a time (charter §4 single-instance) ────────────
+# The tmux session name IS the singleton lock — only one "zsynod" forum can be
+# convened. Every seat starts in $ZDOTDIR (where the ledger lives) with its
+# member identity preset and a primer; the launch command for known agents is
+# pre-typed (not run) so the human reviews and presses Enter.
+_launch_cmd() {  # member id → its agent command (members.json override wins)
+  local m="$1" c
+  c="$(jq -r --arg m "$m" '.members[]|select(.id==$m)|.command // ""' "$MEMBERS" 2>/dev/null)"
+  [[ -n "$c" ]] && { printf '%s' "$c"; return; }
+  case "$m" in claude) printf 'cl' ;; pi) printf 'zpi' ;; aider) printf 'zaider' ;; *) printf '' ;; esac
+}
+
+cmd_convene() {
+  command -v tmux >/dev/null 2>&1 || _die "tmux is required to convene"
+  [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
+  local S="zsynod"
+  if tmux has-session -t "$S" 2>/dev/null; then
+    printf '%szsynod already convened%s (single-instance) — attaching.\n' "$YEL" "$RST" >&2
+    exec tmux attach -t "$S"
+  fi
+
+  # floor: live status (left) + the chair/human seat (right)
+  tmux new-session -d -s "$S" -n floor -c "$ZDOTDIR"
+  tmux send-keys -t "$S:floor" "while :; do clear; ZDOTDIR='$ZDOTDIR' '$SELF' status; sleep 5; done" C-m
+  tmux split-window -h -t "$S:floor" -c "$ZDOTDIR"
+  tmux send-keys -t "$S:floor.1" "printf 'You are the principal/chair seat. Read: $CHARTER · zsynod status · zsynod commit <id>\\n'" C-m
+
+  # one window per voting member, identity preset + primer + pre-typed launch
+  local id lane cmd
+  while read -r id; do
+    [[ -z "$id" ]] && continue
+    lane="$(jq -r --arg m "$id" '.members[]|select(.id==$m)|.lane' "$MEMBERS")"
+    tmux new-window -t "$S" -n "$id" -c "$ZDOTDIR"
+    tmux send-keys -t "$S:$id" "export ZSYNOD_MEMBER='$id'" C-m
+    tmux send-keys -t "$S:$id" "printf '%s\\n' 'zsynod · you are $id ($lane).' 'Read $CHARTER, then: zsynod status.' 'Speak/second/vote: zsynod speak|second|vote <P#> ...  (identity preset).' 'Honor §6: PHI boundary · append-only ledger · complete handoffs · scope · right-size · token economy (be brief; the strongest most of all).'" C-m
+    cmd="$(_launch_cmd "$id")"
+    [[ -n "$cmd" ]] && tmux send-keys -t "$S:$id" "$cmd"  # pre-typed, NOT run — human reviews + Enter
+  done < <(_voting_ids)
+
+  tmux select-window -t "$S:floor"
+  printf '%sconvened%s — %s seats + floor. detach: Ctrl-b d · adjourn: tmux kill-session -t %s\n' "$GRN" "$RST" "$(_voting_ids|wc -l|tr -d ' ')" "$S"
+  exec tmux attach -t "$S"
+}
+
+# ── arg parse (flags anywhere; first non-flag is the subcommand) ─────────────
+POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --as) MEMBER="$2"; shift 2 ;;
+    --body) BODY="$2"; shift 2 ;;
+    --round) ROUND="$2"; shift 2 ;;
+    --note) NOTE="$2"; shift 2 ;;
+    --to) TO="$2"; shift 2 ;;
+    --task) TASK="$2"; shift 2 ;;
+    --state) STATE="$2"; shift 2 ;;
+    --ref) REF="$2"; shift 2 ;;
+    --json) POS+=("__json__"); shift ;;
+    -h|--help|help) _usage; exit 0 ;;
+    -*) _die "unknown flag: $1" ;;
+    *) POS+=("$1"); shift ;;
+  esac
+done
+
+SUB="${POS[0]:-}"
+case "$SUB" in
+  init)     cmd_init ;;
+  members)  cmd_members ;;
+  status)   cmd_status ;;
+  chair)    cmd_chair ;;
+  propose)  cmd_propose "${POS[1]:-}" "$BODY" "$ROUND" ;;
+  speak)    cmd_speak "${POS[1]:-}" "${POS[2]:-}" ;;
+  second)   cmd_second "${POS[1]:-}" ;;
+  vote)     cmd_vote "${POS[1]:-}" "${POS[2]:-}" "$NOTE" ;;
+  commit)   cmd_commit "${POS[1]:-}" ;;
+  handoff)  cmd_handoff "$TO" "$TASK" "$STATE" "$REF" ;;
+  log)      cmd_log "$ROUND" "$([[ " ${POS[*]} " == *" __json__ "* ]] && echo json)" ;;
+  minutes)  cmd_minutes ;;
+  verify)   cmd_verify ;;
+  convene)  cmd_convene ;;
+  ""|-h|--help) _usage ;;
+  *) _die "unknown subcommand: $SUB (try -h)" ;;
+esac
