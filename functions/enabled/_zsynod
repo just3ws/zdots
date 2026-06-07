@@ -23,6 +23,10 @@ _zsynod() {
     'console:interactive principal cockpit'
     'verify:re-walk the hash chain'
     'convene:open the tmux forum room (singleton)'
+    'attach:attach to the convened room'
+    'goto:jump to a seat window'
+    'room:list the room windows'
+    'adjourn:close the forum (transcripts kept)'
   )
   if (( CURRENT == 2 )); then
     _describe -t commands 'zsynod command' subs
