@@ -8,4 +8,4 @@ Primary surfaces:
 - `trace-verify`
 - `zdots-log-analyze`
 
-OTel may be down while non-OTel diagnostics still work. `zdots-log-analyze` packages bootstrap/update/upgrade logs without requiring the collector or LGTM stack.
+OTel may be down while non-OTel diagnostics still work. `zdots-log-analyze` packages bootstrap/update/upgrade logs without requiring the collector or OpenObserve.

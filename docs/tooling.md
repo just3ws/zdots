@@ -211,11 +211,11 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 
 | Tool | Command | Purpose |
 |------|---------|---------|
-| `colima` | `colima start` | Lightweight Docker runtime for LGTM stack |
+| `colima` | `colima start` | Lightweight Docker runtime (optional; container workloads only) |
 | `lazydocker` | `lzd` | TUI for Docker containers and images |
 | `docker` / `docker-compose` | `docker compose up` | Container management |
 | `otel-collector` | `bin/otel-collector start` | Bare-metal OTel collector (managed, not Homebrew) |
-| `local-ci` | `bin/local-ci up` | LGTM stack in Colima (Grafana/Loki/Tempo) |
+| `openobserve-ctl` | `zsvc start o2` | Native OpenObserve backend (logs/metrics/traces) |
 | `zsvc` | `bin/zsvc health --json` / `bin/zsvc logs all --json` | Unified service registry, machine-readable health, and consolidated log sources |
 | `nginx` | (managed via launchctl) | TLS reverse proxy for local service hostnames |
 | `mkcert` | `mkcert -install` | Local CA + certs for `*.local` hostnames |

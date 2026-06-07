@@ -1,7 +1,7 @@
 ---
 id: otel-collector-guide
 title: "Connecting to the Local OTel Collector"
-purpose: Setup guide for routing telemetry from local applications to the LGTM stack.
+purpose: Setup guide for routing telemetry from local applications to OpenObserve via the local OTel Collector.
 links:
   - id: architecture
     rel: related
@@ -11,7 +11,7 @@ links:
 
 # Connecting to the Local OTel Collector
 
-This machine runs a bare-metal OpenTelemetry Collector (`otelcol-contrib`) that accepts telemetry from any local application and forwards it to a central LGTM (Loki, Grafana, Tempo, Mimir) stack.
+This machine runs a bare-metal OpenTelemetry Collector (`otelcol-contrib`) that accepts telemetry from any local application and forwards it to **OpenObserve** — a native single-binary backend for logs, metrics, and traces (UI at `o2.local` / `:5080`). See [openobserve](openobserve.md). The containerized LGTM stack it used to forward to was retired (Z-134).
 
 ## Quick Start
 
@@ -31,12 +31,12 @@ The collector accepts both **OTLP/gRPC** (port `4317`) and **OTLP/HTTP** (port `
 
 ### Architecture & Port Mapping
 
-To prevent collisions between the host-level collector and the LGTM stack running in Colima/Docker, we use a tiered port strategy:
+Apps and the shell send to the host collector, which forwards to OpenObserve:
 
 | Component | Layer | OTLP gRPC | OTLP HTTP | Purpose |
 |-----------|-------|-----------|-----------|---------|
-| **Host Collector** | Bare Metal | `4317` | `4318` | Primary ingest for apps & shell |
-| **LGTM Hub** | Container | `4417` | `4418` | Final destination (Loki/Tempo) |
+| **Host Collector** | Bare Metal (native) | `4317` | `4318` | Primary ingest for apps & shell |
+| **OpenObserve** | Bare Metal (native) | `5081` | `5080` | Final destination (logs/metrics/traces + UI) |
 
 **Note:** The Host Collector listens on `127.0.0.1:4318` for HTTP so browser-based applications can reach it from local development origins without exposing telemetry ingestion on the LAN.
 
@@ -65,8 +65,7 @@ bin/otel-collector logs      # Tail the collector logs (~/.local/state/zsh/otel-
 | Component | Managed by | Auto-starts | Auto-restarts |
 |-----------|-----------|-------------|---------------|
 | OTel Collector | `bin/otel-collector` | Yes (login) | Yes (`KeepAlive`) |
-| Colima + Docker | `local-ci up` | Manual | No |
-| LGTM container | Docker | With Docker | Yes |
+| OpenObserve | `bin/openobserve-ctl` (`zsvc o2`) | Yes (login) | Yes (`KeepAlive`) |
 
 ---
 
@@ -144,7 +143,7 @@ curl -X POST http://127.0.0.1:4318/v1/traces \
   }'
 ```
 
-**View in Grafana:** Explore → Tempo → Search by service name or trace ID.
+**View in OpenObserve:** Traces tab → stream `default` → search by service name or trace_id.
 
 ---
 
@@ -217,7 +216,7 @@ curl -X POST http://127.0.0.1:4318/v1/metrics \
   }'
 ```
 
-**View in Grafana:** Explore → Prometheus → Query by metric name (e.g., `http_request_duration`).
+**View in OpenObserve:** Metrics tab → query by metric name (e.g., `http_request_duration`).
 
 ---
 
@@ -281,7 +280,7 @@ curl -X POST http://127.0.0.1:4318/v1/logs \
 
 **Severity levels:** TRACE=1, DEBUG=5, INFO=9, WARN=13, ERROR=17, FATAL=21.
 
-**Correlating logs with traces:** Add `traceId` and `spanId` fields to the log record and they'll link automatically in Grafana:
+**Correlating logs with traces:** Add `traceId` and `spanId` fields to the log record and they'll link automatically in OpenObserve:
 ```json
 {
   "timeUnixNano": "1700000000000000000",
@@ -293,7 +292,7 @@ curl -X POST http://127.0.0.1:4318/v1/logs \
 }
 ```
 
-**View in Grafana:** Explore → Loki → Query by service or severity. Correlated logs appear alongside traces in the Tempo trace view.
+**View in OpenObserve:** Logs tab → stream `default` → query by service or severity. Logs carrying `traceId`/`spanId` correlate to their trace.
 
 ---
 
@@ -306,40 +305,46 @@ Your App ──OTLP/gRPC──→ Collector (127.0.0.1:4317)
         ──OTLP/HTTP──→          (127.0.0.1:4318)
                             │
 Host Metrics ──────────────→│  (CPU, memory, disk, network — every 15s)
-Docker Stats ──────────────→│  (per-container CPU, memory, I/O — every 15s)
                             │
                             ├──→ Debug (collector log file)
                             │
                             ├──→ Traces ──→ File (collector-traces.json, 10MB rotation)
-                            │          └──→ LGTM → Tempo
+                            │          └──→ OpenObserve (OTLP HTTP :5080/api/default)
                             │          └──→ Span Metrics (auto-generates RED metrics)
                             │
-                            ├──→ Metrics ──→ LGTM → Prometheus
+                            ├──→ Metrics ──→ OpenObserve
                             │
-                            └──→ Logs ─────→ LGTM → Loki
-
-                            LGTM: gRPC → 127.0.0.1:4417
+                            └──→ Logs ─────→ OpenObserve
 ```
 
 ### Active Collection (No App Changes Required)
 
 The collector automatically scrapes:
 - **Host metrics**: CPU utilization, memory utilization, disk, filesystem, load average, network I/O, paging, and process counts (every 15s)
-- **Docker container stats**: per-container CPU, memory, network, and block I/O via the Docker socket (every 15s)
 
-These appear in Grafana → Prometheus without any application instrumentation.
+These appear in OpenObserve → Metrics without any application instrumentation.
+
+> The `docker_stats` receiver was removed when observability went native (Z-134) —
+> Colima is no longer in the observability path. Re-add it on a box that runs
+> container workloads worth monitoring.
 
 ### Span Metrics (Automatic RED Metrics)
 
-The `spanmetrics` connector automatically derives **Rate**, **Error rate**, and **Duration** histogram metrics from every trace span. These metrics appear in Prometheus with no additional instrumentation — if you send traces, you get metrics for free.
+The `spanmetrics` connector automatically derives **Rate**, **Error rate**, and **Duration** histogram metrics from every trace span. These appear as `traces_span_metrics_*` metric streams with no additional instrumentation — if you send traces, you get metrics for free.
 
 ## Viewing Your Data
 
-- **Grafana:** http://127.0.0.1:3000 (default credentials: `admin` / `admin`)
-  - **Traces:** Explore → Tempo datasource → Search by service name or trace ID
-  - **Logs:** Explore → Loki datasource → `{service_name="my-service"}`
-  - **Metrics:** Explore → Prometheus datasource → Query by metric name
-  - **Correlations:** Clicking a trace ID in Loki jumps to the trace in Tempo, and vice versa
+- **OpenObserve:** https://o2.local (or http://127.0.0.1:5080) — login `root@zdots.local`, password in Keychain (`openobserve-ctl creds --show-password`)
+  - **Traces:** Traces tab → stream `default` → search by service name or trace_id
+  - **Logs:** Logs tab → stream `default` → query by service or severity
+  - **Metrics:** Metrics tab → query by metric name
+  - **Correlations:** logs carry `traceId`/`spanId`, so a log links to its trace
+
+## Validate the whole pipeline
+
+`otel-smoke --verify` emits one correlated scenario across all three pillars
+(5-span trace with events/link/error, gauge+counter+histogram metrics, and wide
+trace-correlated logs) and confirms it landed in OpenObserve.
 
 ## Lifecycle
 
@@ -348,8 +353,7 @@ The collector is managed as a macOS `launchd` service for reliability and persis
 | Component | Managed by | Auto-starts | Auto-restarts |
 |-----------|-----------|-------------|---------------|
 | OTel Collector | `bin/otel-collector` (`launchd`) | Yes (login) | Yes (`KeepAlive`) |
-| Colima + Docker | `local-ci up` / `colima start` | Manual | No |
-| LGTM container | Docker (`restart: unless-stopped`) | With Docker | Yes |
+| OpenObserve | `bin/openobserve-ctl` (`launchd`) | Yes (login) | Yes (`KeepAlive`) |
 
 ### Management Commands
 

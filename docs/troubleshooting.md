@@ -327,9 +327,9 @@ curl -v http://127.0.0.1:11500/health
 If launchd says running but health fails, the model may still be loading. Wait a
 few seconds, then check logs.
 
-## 6. Observability and LGTM
+## 6. Observability (OpenObserve)
 
-### No traces in Grafana
+### No traces/logs in OpenObserve
 
 Check the host collector first:
 
@@ -339,12 +339,16 @@ otel-collector health
 otel-collector logs
 ```
 
-Check the container stack:
+Check the backend, then validate the pipeline end to end:
 
 ```sh
-local-ci status
-docker compose -f "$ZDOTDIR/etc/docker-compose.lgtm.yaml" ps
+zsvc status o2          # OpenObserve up + healthy?
+zsvc diag o2            # status + health + launchd + recent log
+otel-smoke --verify     # emit a correlated batch; confirm it landed in O2
 ```
+
+If the collector logs show 401s from the OpenObserve exporter, its OTLP auth is
+stale — restart so it re-reads the Keychain password: `otel-collector restart`.
 
 Use `127.0.0.1`, not `localhost`, for OTLP clients:
 
@@ -371,7 +375,6 @@ Check:
 ```sh
 colima status
 docker context ls
-local-ci status
 ```
 
 Reclaim disk before rebuilding:

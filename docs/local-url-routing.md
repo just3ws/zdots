@@ -11,7 +11,7 @@ privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launch
 |-----|----------------|-----------|--------------|
 | `https://llama.local`     | `127.0.0.1:11500` | llama-server (Qwen3-8B) | `zsvc llama` |
 | `https://embed.local`     | `127.0.0.1:11501` | llama-embed (Nomic)     | `zsvc embed` |
-| `https://grafana.local`   | `127.0.0.1:3000`  | Grafana dashboards      | — |
+| `https://o2.local`        | `127.0.0.1:5080`  | OpenObserve (logs/metrics/traces) | `zsvc o2` |
 | `https://my.local`        | `unix:/tmp/my_prod.sock` | context-engine (Rails, prod) | — |
 | `https://dev.my.local`    | `unix:/tmp/my_dev.sock`  | context-engine (Rails, dev)  | — |
 
@@ -38,10 +38,10 @@ Status as of 2026-05-30. Severity: 🔴 breaks a URL · 🟡 latent/ops · ⚪ p
 |---|-----|-----|-------|
 | 1 | `llama.local`→`:8080` / `embed.local`→`:8090` were **stale**; services run on 11500/11501 | 🔴 | **Fixed** in `servers/zdots.conf`; run `zsvc nginx reload` (sudo) to apply |
 | 2 | nginx was a root LaunchDaemon but **not managed by `zsvc`** | 🟡 | **Fixed** — `bin/nginx-ctl` + `zsvc nginx` |
-| 3 | `grafana.local`→`:3000` but **:3000 is an ssh tunnel**, not Grafana | 🔴 | **Open** — start Grafana (Colima/LGTM) or repoint to its real port; frees the Rails 3000 conflict |
+| 3 | `grafana.local`→`:3000` Grafana | ⚪ | **Resolved (Z-134)** — LGTM/Grafana retired; observability moved to `o2.local`→`:5080` (native OpenObserve), freeing `:3000` |
 | 4 | `my.local`/`dev.my.local` down — context-engine **bundle not installed** (`bundle check` → rails 8.1.2 etc. missing), sockets absent | ⚪ | **Open** — pre-existing; needs `bundle install` in `~/my/context-engine`, then boot bound to `/tmp/my_dev.sock` |
-| 5 | `/etc/hosts`: `177.0.0.1 lgtm.local` **typo** (should be `127.0.0.1`) | 🟡 | **Open** (needs sudo) — see fix below |
-| 6 | `lgtm.local` in `/etc/hosts` but **no nginx server block** | 🟡 | **Open** — add a `lgtm.local` upstream/server, or drop the hosts line |
+| 5 | `/etc/hosts`: `177.0.0.1 lgtm.local` **typo** | ⚪ | **Resolved (Z-134)** — lgtm.local retired; drop the hosts line |
+| 6 | `lgtm.local` in `/etc/hosts` but **no nginx server block** | ⚪ | **Resolved (Z-134)** — retired with the LGTM stack |
 | 7 | nginx `servers/*.conf` + `/etc/hosts` live **outside the repo** (not version-controlled); lost on rebuild | 🟡 | **Open** — consider symlinking from `etc/nginx/` or templating in bootstrap |
 | 8 | `pg_hba.conf` scram rules (DB auth fence) **not version-controlled** | 🟡 | **Open** — capture in bootstrap so a Postgres rebuild re-applies them |
 
@@ -51,8 +51,9 @@ Status as of 2026-05-30. Severity: 🔴 breaks a URL · 🟡 latent/ops · ⚪ p
 # Gap 1 — apply the port fix (graceful, validated):
 zsvc nginx reload
 
-# Gap 5 — /etc/hosts typo (run yourself; needs sudo):
-sudo sed -i '' 's/^177\.0\.0\.1 lgtm\.local/127.0.0.1 lgtm.local/' /etc/hosts
+# o2.local — add the hosts entry for the OpenObserve vhost (needs sudo):
+echo '127.0.0.1 o2.local' | sudo tee -a /etc/hosts && nginx-ctl reload
+# (and drop the retired lgtm.local line if present)
 
 # Gap 4 — bring up the context-engine UI:
 ( cd ~/my/context-engine && bundle install && bin/rails server )   # binds /tmp/my_dev.sock per puma.rb

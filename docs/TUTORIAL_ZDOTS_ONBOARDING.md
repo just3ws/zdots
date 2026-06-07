@@ -57,7 +57,7 @@ These are the major services and what they provide.
 | `zsvc` | Service registry and health/log view | `list`, `health`, `logs`, `diag`, `restart` |
 | `llama-ctl` | Local chat model manager | `status`, `start`, `stop`, `install`, `model-download` |
 | `otel-collector` | Host-side trace collector | `status`, `start`, `stop`, `logs` |
-| `local-ci` | Containerized LGTM stack | `up`, `down`, `logs`, `health` |
+| `openobserve-ctl` | Containerized OpenObserve | `up`, `down`, `logs`, `health` |
 | `zdots-ctx` | PostgreSQL brain and knowledge layer | `query`, `capture`, `hydrate`, `migrate` |
 | `zdots-keychain` | macOS Keychain secret store | `add`, `get`, `list`, `verify` |
 | `zdots-github-keys` | GitHub SSH setup and rotation | `plan`, `apply`, `rotate-stage`, `rotate-promote` |
@@ -73,7 +73,7 @@ Use this mental model when deciding what depends on what.
 |---|---|---|
 | Shell runtime | `conf.d/`, `lib/`, `env.sh` | Loads the control plane into each shell session |
 | AI routing | `zdots-ask`, `ai-query`, `llama-ctl` | Local inference only unless explicitly reviewed otherwise |
-| Observability | `otel-collector`, `local-ci`, `zsvc` | Traces and logs are collected locally first |
+| Observability | `otel-collector`, `openobserve-ctl`, `zsvc` | Traces and logs are collected locally first |
 | Knowledge | `zdots-ctx`, PostgreSQL `my` | Stores lessons, methodologies, and session residue |
 | Secrets | `zdots-keychain`, Keychain | Secrets must not live in tracked plaintext files |
 | GitHub SSH | `github-keygen`, `zdots-github-keys` | Generates dedicated home/work identities and aliases |

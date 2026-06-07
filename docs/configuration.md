@@ -78,8 +78,10 @@ Defines the `llama-server` startup flags and model profiles.
 ### OTel Collector (`etc/otel-collector.yaml`)
 Defines the telemetry pipeline (receivers, processors, exporters).
 
-### LGTM Stack (`etc/docker-compose.lgtm.yaml`)
-Docker Compose configuration for the observability hub.
+### OpenObserve
+Native observability backend (logs/metrics/traces) configured in
+`bin/openobserve-ctl`; no compose file. See [openobserve](openobserve.md). The
+old `etc/docker-compose.lgtm.yaml` was archived when LGTM was retired (Z-134).
 
 ## 3. Secrets
 

@@ -111,27 +111,17 @@ graph TD
     Shell[Shell / Spans] -->|OTLP HTTP :4318| BMC[Bare Metal OTel Collector]
     Apps[Local Apps / Agents] -->|OTLP :4318| BMC
     
-    subgraph Host
+    subgraph Host (all native)
         BMC
+        O2[OpenObserve :5080\nlogs / metrics / traces + UI]
     end
     
-    subgraph Colima / Docker
-        LGTM[LGTM Stack]
-        Loki[Loki - Logs]
-        Tempo[Tempo - Traces]
-        Grafana[Grafana - UI]
-    end
-    
-    BMC -->|OTLP :4418| LGTM
-    LGTM --> Loki
-    LGTM --> Tempo
-    Grafana --> Loki
-    Grafana --> Tempo
+    BMC -->|OTLP HTTP :5080/api/default| O2
 ```
 
 1. **Bare Metal Collector (BMC)**: Runs directly on the host. It acts as a high-performance buffer and router. It is the primary "Ground Truth" for local traces.
-2. **LGTM Stack**: A bundled observability hub (Loki, Grafana, Tempo, Mimir) running in Colima.
-3. **Multi-hop Routing**: BMC forwards all collected spans to the LGTM stack via mapped ports (4417/4418), allowing for long-term storage and advanced visualization in Grafana.
+2. **OpenObserve**: A native single-binary backend for logs, metrics, and traces with its own UI (`o2.local`). Replaced the containerized LGTM stack (Z-134), removing the Colima/Docker dependency from the observability path.
+3. **Single-hop Routing**: BMC forwards all signals to OpenObserve over OTLP HTTP (`:5080/api/default`); auth is loaded from Keychain at boot.
 
 ---
 
