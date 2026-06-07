@@ -55,3 +55,31 @@ Graphify is a **low-cost, local-first code-graph + token-reduction tool worth ad
 5. **Keep** brakeman/bundler-audit/rubocop/rails-erd/k8s tooling — graphify augments them.
 
 Net: low risk, low cost, real token savings, and a structural-query capability that is most valuable precisely where you're headed (Rails/app + legacy archaeology). Worth keeping.
+
+## Alternatives considered: Kin (firelock-ai/kin)
+
+Kin is the closest competitor — same category (local-first, tree-sitter → code
+graph → fed to AI assistants over MCP). It is **a substitute, not a complement**:
+both sit between your code and Claude/Cursor/Gemini doing the same job, so you'd
+pick one, not run both.
+
+| | Graphify (chosen) | Kin |
+|---|---|---|
+| Core | tree-sitter → networkx `graph.json` | tree-sitter → embedded "KinDB" graph engine |
+| Outputs | query/path/explain/affected, token-cut context | entity graphs, semantic diffs, impact analysis, context packs |
+| Languages | ~30 incl. **Ruby + bash** | Tier-1: TS, Python, Go, Java, Rust — **no Ruby, no bash** |
+| Lang / license | Python, MIT | Rust, Apache-2.0 |
+| Install | pipx (pinned, sha-verifiable) | `curl \| sh` (default) or `cargo install` |
+| Model | plain graph.json + CLI | richer: Contracts / Specs / SemanticChanges, 4-plane |
+
+**Why Graphify wins here:** language fit is the dealbreaker — zdots is bash + Ruby
+and the real target (context-engine / Rails) is Ruby; Kin's first-class languages
+don't include either. Secondary: Graphify installs via pipx (the default Kin
+installer is a piped `curl | sh`, the supply-chain risk to avoid on a PHI-adjacent
+box — use `cargo install` if ever trialed), and Graphify is already validated and
+wired here.
+
+**Watch Kin** if (a) it makes Ruby a first-class language, and (b) you want its
+semantic-diff / contracts model — then a sandboxed `cargo install` trial would be
+worth it. Until then, don't adopt both; they're redundant.
+
