@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# bin/zdots-graph-audit — assert zdots' code-graph security invariants hold.
+#
+# A graph-based contract test over the Ruby in lib/zdots/ (the part of zdots that
+# graphify reads accurately): the local-AI/PHI gate and the encryption key store.
+# It encodes "every inference path routes through assert_local!" and "encrypted
+# attributes go through the key store" as queries against graphify's graph, so a
+# refactor that quietly bypasses a boundary fails the check. Also summarizes the
+# exposed capability surface (bin/ entrypoints + env requirements).
+#
+# Local-only, no LLM. Exit 0 if all invariants hold; exit 1 on any violation.
+# CI-friendly: run after changes under lib/zdots/.
+#
+# Usage: zdots-graph-audit [--no-build] [-h|--help]
+#   --no-build   use the existing graph as-is (don't refresh against HEAD)
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+GRAPH="graphify-out/graph.json"
+NO_BUILD=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-build) NO_BUILD=1 ;;
+    -h|--help) sed -n '2,14p' "$0" | sed -E 's/^# ?//'; exit 0 ;;
+    *) printf 'zdots-graph-audit: unknown arg: %s\n' "$1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+if [[ -t 1 ]]; then
+  RST=$'\e[0m'; BOLD=$'\e[1m'; DIM=$'\e[2m'; RED=$'\e[0;31m'; GRN=$'\e[0;32m'; YEL=$'\e[0;33m'
+else RST=''; BOLD=''; DIM=''; RED=''; GRN=''; YEL=''; fi
+
+_PASS=0; _FAIL=0; _WARN=0
+_ok()   { printf '  %s[ok]%s   %s\n'   "$GRN" "$RST" "$*"; _PASS=$((_PASS+1)); }
+_fail() { printf '  %s[FAIL]%s %s\n'   "$RED" "$RST" "$*"; _FAIL=$((_FAIL+1)); }
+_warn() { printf '  %s[warn]%s %s\n'   "$YEL" "$RST" "$*"; _WARN=$((_WARN+1)); }
+_sec()  { printf '\n%s── %s%s\n' "$BOLD" "$*" "$RST"; }
+
+command -v graphify >/dev/null 2>&1 || {
+  printf 'zdots-graph-audit: graphify not found — install: pipx install graphifyy\n' >&2; exit 1; }
+
+# ── Freshness: build the graph if missing or stale vs HEAD ───────────────────
+cd "$ZDOTDIR"
+if [[ "$NO_BUILD" -eq 0 ]]; then
+  _need_build=0
+  if [[ ! -f "$GRAPH" ]]; then
+    _need_build=1
+  elif command -v jq >/dev/null 2>&1; then
+    _gc="$(jq -r '.built_at_commit // empty' "$GRAPH" 2>/dev/null || true)"
+    _head="$(git rev-parse HEAD 2>/dev/null || true)"
+    [[ -n "$_gc" && -n "$_head" && "${_gc:0:8}" != "${_head:0:8}" ]] && _need_build=1
+  fi
+  if [[ "$_need_build" -eq 1 ]]; then
+    printf 'zdots-graph-audit: refreshing graph (graphify update .)...\n' >&2
+    graphify update . >/dev/null 2>&1 || { printf 'zdots-graph-audit: graph build failed\n' >&2; exit 1; }
+  fi
+fi
+[[ -f "$GRAPH" ]] || { printf 'zdots-graph-audit: no graph at %s — run: graphify update .\n' "$GRAPH" >&2; exit 1; }
+
+# ── Graph helpers (graphify always exits 0; parse stdout) ────────────────────
+_node_exists() { graphify explain "$1" 2>/dev/null | grep -q '^Node:'; }
+_path_exists() { graphify path "$1" "$2" 2>/dev/null | grep -q 'Shortest path'; }
+
+# Assert: symbol SRC reaches symbol DST. FAIL only when both exist but no path
+# (a real bypass); WARN if a contract symbol is missing (likely a refactor).
+_assert_reaches() {
+  local src="$1" dst="$2" why="$3"
+  if ! _node_exists "$dst"; then _warn "gate '${dst}' not in graph — refactored? update this audit"; return; fi
+  if ! _node_exists "$src"; then _warn "'${src}' not in graph (skip) — refactored or renamed?"; return; fi
+  if _path_exists "$src" "$dst"; then _ok "${src} → ${dst}  (${why})"
+  else _fail "${src} does NOT reach ${dst} — ${why}"; fi
+}
+
+printf '%szdots graph audit%s  %s(%s)%s\n' "$BOLD" "$RST" "$DIM" "$(git rev-parse --short HEAD 2>/dev/null || echo '?')" "$RST"
+
+# ── Invariant 1: local-AI / PHI boundary ─────────────────────────────────────
+# Every AI-pipeline entrypoint must route through the local-only gate.
+_sec "Local-AI boundary (every inference path → assert_local!)"
+AI_GATE="assert_local!"
+for fn in infer vectorize gate client embed_client; do
+  _assert_reaches "$fn" "$AI_GATE" "AI entrypoint must hit the local gate"
+done
+
+# ── Invariant 2: encryption key access ───────────────────────────────────────
+_sec "Encryption (attribute access → key store)"
+_assert_reaches "encrypted_attribute" "current_key" "encrypted attrs must go through the key store"
+
+# ── Drift: import cycles ─────────────────────────────────────────────────────
+_sec "Structure"
+if [[ -f graphify-out/GRAPH_REPORT.md ]]; then
+  if grep -A1 '## Import Cycles' graphify-out/GRAPH_REPORT.md | grep -q 'None detected'; then
+    _ok "no import cycles"
+  else
+    _warn "import cycles present — see graphify-out/GRAPH_REPORT.md"
+  fi
+fi
+
+# ── Capability surface (informational) ───────────────────────────────────────
+_sec "Exposed capability surface"
+if command -v jq >/dev/null 2>&1; then
+  _ent="$(jq '[.nodes[] | select((.metadata.kind // "") == "bash_entrypoint")] | length' "$GRAPH" 2>/dev/null || echo '?')"
+  _renv="$(jq '[.links[] | select(.relation == "requires_env")] | length' "$GRAPH" 2>/dev/null || echo '?')"
+  printf '  %sbin/ entrypoints: %s · requires_env edges: %s%s\n' "$DIM" "$_ent" "$_renv" "$RST"
+  printf '  %s(inspect: graphify explain "<tool>" · full report: graphify-out/GRAPH_REPORT.md)%s\n' "$DIM" "$RST"
+fi
+
+# ── Summary ──────────────────────────────────────────────────────────────────
+printf '\n%sSummary%s  %s%d ok%s  %s%d warn%s  %s%d fail%s\n' \
+  "$BOLD" "$RST" "$GRN" "$_PASS" "$RST" "$YEL" "$_WARN" "$RST" "$RED" "$_FAIL" "$RST"
+[[ "$_FAIL" -eq 0 ]]
