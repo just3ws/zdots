@@ -4,7 +4,7 @@ title: 'Runtime-insight feedback loop: scrub-at-ingest + session read-back (work
 status: To Do
 assignee: []
 created_date: '2026-06-07 16:55'
-updated_date: '2026-06-07 19:18'
+updated_date: '2026-06-07 19:21'
 labels:
   - agent-ready
   - observability
@@ -26,14 +26,14 @@ Close the runtime-insight loop so OpenObserve telemetry and command outcomes are
 - [x] #2 Phase 1 verify: otel-smoke emits PHI/secret-shaped trace+log+metric; confirm masked/dropped in O2 (nothing sensitive lands in storage)
 - [x] #3 Phase 2: bin/zdots-o2-query reads already-clean O2 data (errors/slow-spans/failed-service last Nh), light defense-in-depth scrub; work-safe
 - [ ] #4 Phase 3: optional o2 MCP server (4th) mirroring the ctx MCP pattern for on-demand pull
-- [ ] #5 Phase 4: cc-hook-session runtime digest (O2 error count + top failing commands + service-health delta), bounded+scrubbed, gated for work
-- [ ] #6 Single-source preserved: no PHI regex authored outside phi-patterns.yaml; cc-doctor/zdots-doctor still green
+- [x] #5 Phase 4: cc-hook-session runtime digest (O2 error count + top failing commands + service-health delta), bounded+scrubbed, gated for work
+- [x] #6 Single-source preserved: no PHI regex authored outside phi-patterns.yaml; cc-doctor/zdots-doctor still green
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P2 done+committed (60922eb): bin/zdots-o2-query — read-only O2 read-back (errors|slow|failures|service|logs|trace <id>|sql|streams), Keychain auth loopback, --json for agents, trace drill-down correlates spans+logs, registry-backed defense-in-depth scrub (§9 preserved, flags suppress-gap not hides it), SELECT-only sql. Verified on live O2: gemini-cli spans, smoke failures, [REDACTED-*] on PHI. Completion added. Remaining: P3 o2 MCP, P4 cc-hook-session digest.
+P4 done+committed (786cfc7): cc-hook-session appends a runtime digest at SessionStart — error-log count+top services, failed-span count+top ops over ZDOTS_CC_DIGEST_SINCE (default 6h), via zdots-o2-query read-back. Counts+service/op only (no bodies), bounded (perl alarm 3s/query), fail-open (dead O2 → 0 lines, 0.26s). cc-doctor 29/0/0. AC6 (single-source) preserved throughout: no PHI patterns authored outside phi-patterns.yaml across P1/P2/P4. Status: P1+P2+P4 DONE. P3 (o2 MCP, AC4) remains OPTIONAL — zdots-o2-query already covers on-demand pull from the CLI.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
