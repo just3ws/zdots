@@ -1,0 +1,10 @@
+#compdef zdots-graph-audit
+# Completion for zdots-graph-audit — code-graph security invariant check.
+
+_zdots-graph-audit() {
+  _arguments \
+    '--no-build[use the existing graph as-is (do not refresh against HEAD)]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_zdots-graph-audit "$@"
