@@ -1,0 +1,146 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# bin/zdots-otel-phi-compile — compile the OTel collector's PHI scrub layer from
+# the single pattern registry (etc/phi-patterns.yaml).
+#
+# This is the "scrub at the edge" cornerstone: rather than re-scrubbing telemetry
+# every time a session reads it back, the collector masks/drops sensitive values
+# on the way INTO OpenObserve, so the intelligence layer reads already-clean data.
+# Per AGENTS.md §9 the collector must never hand-author patterns — it is a
+# compiled consumer of the registry, exactly like phi_scrubber.bash/.rb.
+#
+# Reads:  etc/otel-collector.yaml      (base pipeline config — source of truth)
+#         etc/phi-patterns.yaml        (the only place patterns are defined)
+# Writes: etc/otel-collector.generated.yaml  (gitignored; what `serve` runs)
+#
+# It injects three processors, sourced entirely from the registry:
+#   redaction/phi  — masks any ATTRIBUTE value matching a pattern (all signals)
+#   transform/phi  — redacts log BODIES via OTTL replace_pattern (logs only)
+#   filter/phi     — DROPS logs/spans whose body matches a suppress pattern
+# and prepends them (scrub-first) into each pipeline's processor chain.
+#
+# Usage: zdots-otel-phi-compile [--check] [-o OUT]
+#   --check   compile to a temp file and validate it parses; don't overwrite OUT
+#   -o OUT    output path (default etc/otel-collector.generated.yaml)
+# Exit non-zero on any error so `serve` can fail closed (no unscrubbed flow).
+
+require "yaml"
+
+zdotdir = ENV.fetch("ZDOTDIR") { File.expand_path("..", __dir__) }
+base_path     = File.join(zdotdir, "etc", "otel-collector.yaml")
+patterns_path = File.join(zdotdir, "etc", "phi-patterns.yaml")
+out_path      = File.join(zdotdir, "etc", "otel-collector.generated.yaml")
+check_only    = false
+
+args = ARGV.dup
+until args.empty?
+  case (a = args.shift)
+  when "--check" then check_only = true
+  when "-o"      then out_path = args.shift or abort("zdots-otel-phi-compile: -o needs a path")
+  when "-h", "--help"
+    puts File.read(__FILE__).lines[2..32].join.gsub(/^# ?/, "")
+    exit 0
+  else abort("zdots-otel-phi-compile: unknown arg: #{a}")
+  end
+end
+
+[base_path, patterns_path].each do |p|
+  File.file?(p) or abort("zdots-otel-phi-compile: missing #{p}")
+end
+
+config   = YAML.load_file(base_path)
+registry = YAML.load_file(patterns_path).fetch("patterns")
+
+redact   = registry.reject { |p| p["suppress"] }
+suppress = registry.select { |p| p["suppress"] }
+abort("zdots-otel-phi-compile: registry has no patterns") if registry.empty?
+
+# Escape a registry regex for embedding inside an OTTL double-quoted string
+# literal (transform/filter). OTTL unescapes backslashes, so each literal
+# backslash must be doubled; embedded quotes escaped. (The redaction processor
+# reads blocked_values straight as Go regexps — those stay RAW, no escaping.)
+def ottl_re(regex)
+  regex.gsub("\\") { "\\\\" }.gsub('"') { '\\"' }
+end
+
+# Translate a sed-style replacement (\1) to OTTL/Go replacement ($1); guard any
+# literal $ first so it is not read as a group reference.
+def ottl_repl(replace)
+  replace.gsub("$") { "$$" }.gsub(/\\(\d)/) { "$#{Regexp.last_match(1)}" }
+end
+
+# 1. redaction/phi — every attribute value, every signal. RAW regexps.
+config["processors"]["redaction/phi"] = {
+  "allow_all_keys" => true,
+  "blocked_values" => registry.map { |p| p.fetch("regex") },
+  "summary"        => "silent",
+}
+
+# 2. transform/phi — log bodies only, guarded to string bodies.
+config["processors"]["transform/phi"] = {
+  "error_mode" => "ignore",
+  "log_statements" => [
+    {
+      "context" => "log",
+      "statements" => redact.map do |p|
+        %(replace_pattern(body, "#{ottl_re(p.fetch('regex'))}", "#{ottl_repl(p.fetch('replace'))}") where IsString(body))
+      end,
+    },
+  ],
+}
+
+# 3. filter/phi — drop records carrying a suppress-flagged value (e.g. a
+#    connection string with embedded credentials) outright, on logs and traces.
+unless suppress.empty?
+  log_conds  = suppress.map { |p| %(IsString(body) and IsMatch(body, "#{ottl_re(p.fetch('regex'))}")) }
+  span_conds = suppress.map { |p| %(IsMatch(name, "#{ottl_re(p.fetch('regex'))}")) }
+  config["processors"]["filter/phi"] = {
+    "error_mode" => "ignore",
+    "logs"   => { "log_record" => log_conds },
+    "traces" => { "span" => span_conds },
+  }
+end
+
+# 4. Prepend the scrub processors (scrub-first) into each pipeline. transform is
+#    log-only; redaction is all-signal; filter is logs+traces.
+pipelines = config.dig("service", "pipelines") || {}
+pipelines.each do |name, p|
+  # Order: drop suppressed first; then transform log bodies so they get semantic
+  # markers ([REDACTED-SSN]) — more useful to the intelligence layer than opaque
+  # masks; then redaction sweeps all attributes (and any body match transform
+  # missed) to ****. transform is log-only; redaction is all-signal.
+  pre = []
+  pre << "filter/phi" if (name == "logs" || name == "traces") && config["processors"].key?("filter/phi")
+  pre << "transform/phi" if name == "logs"
+  pre << "redaction/phi"
+  p["processors"] = pre + (p["processors"] || [])
+end
+
+header = <<~HDR
+  # etc/otel-collector.generated.yaml — GENERATED by zdots-otel-phi-compile.
+  # DO NOT EDIT. Edit etc/otel-collector.yaml (base) or etc/phi-patterns.yaml
+  # (the pattern registry); this file is recompiled by `otel-collector serve`.
+  # The redaction/transform/filter "*/phi" processors are the scrub-at-ingest
+  # layer — sourced entirely from etc/phi-patterns.yaml (AGENTS.md §9).
+HDR
+
+yaml = header + YAML.dump(config)
+
+target = check_only ? "#{out_path}.check.tmp" : out_path
+File.write(target, yaml)
+
+# Always parse-check what we wrote.
+begin
+  YAML.load_file(target)
+rescue StandardError => e
+  File.delete(target) if check_only && File.exist?(target)
+  abort("zdots-otel-phi-compile: generated YAML failed to parse: #{e.message}")
+end
+
+if check_only
+  File.delete(target) if File.exist?(target)
+  warn("zdots-otel-phi-compile: OK — #{redact.size} redact + #{suppress.size} suppress pattern(s) compile cleanly")
+else
+  warn("zdots-otel-phi-compile: wrote #{out_path} (#{redact.size} redact, #{suppress.size} suppress)")
+end
