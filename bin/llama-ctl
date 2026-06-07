@@ -271,9 +271,11 @@ install_llama() {
 
 # Wait for the server to accept actual inference requests (not just /health).
 # Catches GPU OOM crashes that would otherwise go undetected at install time.
+# Override the budget with ZDOTS_AI_WAIT (seconds) — a cold GGUF load under
+# memory pressure can exceed the default before /health answers (Z-120).
 _wait_inference() {
   local endpoint="$1" log_file="$2"
-  local max_wait=90 interval=5 elapsed=0
+  local max_wait="${ZDOTS_AI_WAIT:-90}" interval=5 elapsed=0
   printf 'llama-server: waiting for inference readiness' >&2
   while (( elapsed < max_wait )); do
     if curl -sf -m 3 "${endpoint}/health" >/dev/null 2>&1; then
@@ -392,6 +394,11 @@ start_llama() {
   fi
   zdots_model_verify "$_mp" || exit 1
   zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
+  # Wait for inference readiness instead of returning the moment launchd reports
+  # 'running' — under memory pressure the GGUF is still loading and /health 404s,
+  # which raced zdots-ctl's health probe into a fatal timeout (Z-120). Budget:
+  # ZDOTS_AI_WAIT. Returns non-zero on OOM so callers can report cleanly.
+  _wait_inference "${AI_ENDPOINT:-http://127.0.0.1:11500}" "$LOG_FILE"
 }
 
 stop_llama() {
