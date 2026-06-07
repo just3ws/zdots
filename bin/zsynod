@@ -19,6 +19,7 @@
 #   zsynod second <id>                   lightweight concur (logged, counts as aye)
 #   zsynod vote   <id> aye|nay|abstain [--note T]
 #   zsynod commit <id>                   stamp committed iff quorum of ayes
+#   zsynod ratify <id>                   principal authority commit (--as mike)
 #   zsynod handoff --to M --task "T" [--state T] [--ref <id>]
 #   zsynod log [--round N] [--json]      show ledger entries
 #   zsynod minutes                       regenerate minutes.md
@@ -223,6 +224,17 @@ cmd_commit() {
   printf '%scommitted%s %s (%s/%s aye)\n' "$GRN" "$RST" "$pid" "$ay" "$q"
 }
 
+cmd_ratify() {
+  local pid="$1"; _assert_proposal "$pid"
+  jq -e --arg m "$MEMBER" '.members[]|select(.id==$m and .tier=="principal")' "$MEMBERS" >/dev/null 2>&1 \
+    || _die "ratify is principal authority (charter §5) — run with --as mike"
+  read -r ay na ab st _ < <(_tally "$pid")
+  [[ "$st" == "committed" ]] && { printf 'zsynod: %s already committed\n' "$pid"; return 0; }
+  _append commit "$(jq -nc --arg p "$pid" --argjson ay "$ay" '{proposal:$p,by:"principal",ayes:$ay,note:"ratified by principal authority"}')" >/dev/null
+  cmd_minutes >/dev/null
+  printf '%sratified%s %s by principal authority (%s prior aye)\n' "$GRN" "$RST" "$pid" "$ay"
+}
+
 cmd_handoff() {
   local to="$1" task="$2" state="${3:-}" ref="${4:-}"
   [[ -n "$to" && -n "$task" ]] || _die "handoff needs --to and --task"
@@ -311,11 +323,19 @@ cmd_convene() {
     exec tmux attach -t "$S"
   fi
 
+  # transcripts: capture each seat's raw session output for the principal to
+  # review/document as the conversation progresses. LOCAL ONLY and gitignored —
+  # raw agent I/O may contain sensitive content; never commit or send to a cloud.
+  local TDIR="$DIR/transcripts" stamp; stamp="$(date +%Y%m%d-%H%M)"
+  mkdir -p "$TDIR"
+  _capture() { tmux pipe-pane -o -t "$1" "cat >> '$TDIR/$2.$stamp.log'"; }
+
   # floor: live status (left) + the chair/human seat (right)
   tmux new-session -d -s "$S" -n floor -c "$ZDOTDIR"
   tmux send-keys -t "$S:floor" "while :; do clear; ZDOTDIR='$ZDOTDIR' '$SELF' status; sleep 5; done" C-m
   tmux split-window -h -t "$S:floor" -c "$ZDOTDIR"
-  tmux send-keys -t "$S:floor.1" "printf 'You are the principal/chair seat. Read: $CHARTER · zsynod status · zsynod commit <id>\\n'" C-m
+  tmux send-keys -t "$S:floor.1" "printf 'principal/chair seat · read $CHARTER · zsynod status · zsynod ratify|commit <id>\\n'" C-m
+  _capture "$S:floor.1" "floor"
 
   # one window per voting member, identity preset + primer + pre-typed launch
   local id lane cmd
@@ -323,6 +343,7 @@ cmd_convene() {
     [[ -z "$id" ]] && continue
     lane="$(jq -r --arg m "$id" '.members[]|select(.id==$m)|.lane' "$MEMBERS")"
     tmux new-window -t "$S" -n "$id" -c "$ZDOTDIR"
+    _capture "$S:$id" "$id"
     tmux send-keys -t "$S:$id" "export ZSYNOD_MEMBER='$id'" C-m
     tmux send-keys -t "$S:$id" "printf '%s\\n' 'zsynod · you are $id ($lane).' 'Read $CHARTER, then: zsynod status.' 'Speak/second/vote: zsynod speak|second|vote <P#> ...  (identity preset).' 'Honor §6: PHI boundary · append-only ledger · complete handoffs · scope · right-size · token economy (be brief; the strongest most of all).'" C-m
     cmd="$(_launch_cmd "$id")"
@@ -330,7 +351,9 @@ cmd_convene() {
   done < <(_voting_ids)
 
   tmux select-window -t "$S:floor"
-  printf '%sconvened%s — %s seats + floor. detach: Ctrl-b d · adjourn: tmux kill-session -t %s\n' "$GRN" "$RST" "$(_voting_ids|wc -l|tr -d ' ')" "$S"
+  printf '%sconvened%s — %s seats + floor · transcripts → %s/*.%s.log (local, gitignored)\n' \
+    "$GRN" "$RST" "$(_voting_ids|wc -l|tr -d ' ')" "$TDIR" "$stamp"
+  printf '%sdetach: Ctrl-b d · adjourn: tmux kill-session -t %s%s\n' "$D" "$S" "$RST"
   exec tmux attach -t "$S"
 }
 
@@ -364,6 +387,7 @@ case "$SUB" in
   second)   cmd_second "${POS[1]:-}" ;;
   vote)     cmd_vote "${POS[1]:-}" "${POS[2]:-}" "$NOTE" ;;
   commit)   cmd_commit "${POS[1]:-}" ;;
+  ratify)   cmd_ratify "${POS[1]:-}" ;;
   handoff)  cmd_handoff "$TO" "$TASK" "$STATE" "$REF" ;;
   log)      cmd_log "$ROUND" "$([[ " ${POS[*]} " == *" __json__ "* ]] && echo json)" ;;
   minutes)  cmd_minutes ;;
