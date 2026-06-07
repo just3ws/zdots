@@ -1,0 +1,31 @@
+#compdef zdots-o2-query
+# Completion for zdots-o2-query — read runtime insight back from OpenObserve.
+
+_zdots-o2-query() {
+  local -a subs
+  subs=(
+    'errors:recent ERROR/FATAL logs'
+    'slow:slowest spans over --ms'
+    'failures:error-status spans'
+    'service:activity by service/severity'
+    'logs:general log search'
+    'trace:all spans + logs for a TRACE_ID'
+    'sql:read-only SELECT escape hatch'
+    'streams:list O2 streams'
+  )
+  if (( CURRENT == 2 )); then
+    _describe -t commands 'zdots-o2-query command' subs
+    return
+  fi
+  _arguments \
+    '--since[time window: 30s|15m|2h|1d]:duration' \
+    '(-n --limit)'{-n,--limit}'[max rows]:n' \
+    '--ms[slow threshold in ms]:ms' \
+    '--grep[match substring in log body]:string' \
+    '--type[stream type for sql]:type:(logs traces metrics)' \
+    '--json[machine-readable output]' \
+    '--no-scrub[skip defense-in-depth scrub]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_zdots-o2-query "$@"
