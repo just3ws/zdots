@@ -44,7 +44,7 @@ graph TD
     end
 
     subgraph "Infrastructure Layer"
-        Colima --> LGTM[LGTM Stack: Loki/Tempo/Grafana]
+        O2[OpenObserve: logs/metrics/traces]
         PG --> DB[(PostgreSQL: my)]
         Redis --> Cache[(Redis: analytics)]
         Nginx --> Proxy[Local .local URLs]
@@ -62,7 +62,7 @@ Services do not live in isolation. They form a web of horizontal dependencies.
 | **zdots-ctx** (Brain) | Postgres | Stores knowledge and methodologies. |
 | **zdots-ask** (AI) | llama-server | Performs local inference. |
 | **zdots-ask** (Context) | zdots-ctx | Hydrates prompts with brain context. |
-| **otel-collector** | local-ci (LGTM) | Exports traces to Tempo/Loki. |
+| **otel-collector** | OpenObserve (`o2`) | Exports logs/metrics/traces via OTLP. |
 | **zsvc health** | nginx | Probes local routing endpoints. |
 | **ztask** | Postgres | Tracks task state and shell history links. |
 | **agent-guide** | All Services | Advertises endpoints to AI agents. |

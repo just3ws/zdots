@@ -37,7 +37,7 @@ flowchart LR
     zsvc --> ai["llama :11500"]
     zsvc --> embed["embed :11501"]
     zsvc --> otel["otel :4318"]
-    zsvc --> colima["Colima + LGTM"]
+    zsvc --> o2["OpenObserve :5080"]
     zsvc --> nginx["nginx :80/:443"]
     zsvc --> pg["Postgres my"]
     zsvc --> redis["Redis :6379"]

@@ -34,7 +34,7 @@ flowchart TB
     operator["operator / agent"] --> ctl["zdots-ctl\nplatform orchestrator"]
     operator --> zsvc["zsvc\nper-service control"]
 
-    ctl --> localci["local-ci\nLGTM lifecycle"]
+    ctl --> o2ctl["openobserve-ctl\nobservability backend"]
     ctl --> otelctl["otel-collector\nhost collector"]
     ctl --> llamactl["llama-ctl\nAI + embed"]
     ctl --> brain["zdots-ctx status\nBrain readiness"]
@@ -42,14 +42,13 @@ flowchart TB
 
     zsvc --> llamactl
     zsvc --> otelctl
-    zsvc --> localci
+    zsvc --> o2ctl
     zsvc --> nginxctl["nginx-ctl\nroot LaunchDaemon"]
     zsvc --> pglaunch["launchctl\npostgresql@18"]
     zsvc --> redislaunch["launchctl\nredis"]
 
-    localci --> colima["Colima VM"]
-    colima --> lgtm["LGTM container\nGrafana/Loki/Tempo/Mimir"]
-    otelctl --> lgtm
+    o2ctl --> o2["OpenObserve\nlogs/metrics/traces (:5080)"]
+    otelctl --> o2
 
     subgraph LlamaCtl[bin/llama-ctl]
         LlamaServer[server]
@@ -73,15 +72,15 @@ flowchart TB
 sequenceDiagram
     participant Op as Operator
     participant Ctl as zdots-ctl
-    participant LGTM as local-ci / Colima
+    participant O2 as openobserve-ctl
     participant OTel as otel-collector
     participant AI as llama-ctl
     participant Brain as zdots-ctx
     participant Cache as Redis
 
     Op->>Ctl: zdots-ctl up
-    Ctl->>LGTM: start if Grafana health fails
-    LGTM-->>Ctl: Grafana /api/health
+    Ctl->>O2: start if /healthz fails
+    O2-->>Ctl: :5080/healthz
     Ctl->>OTel: start if OTLP health fails
     OTel-->>Ctl: :4318 reachable
     Ctl->>AI: start llama-server
@@ -102,7 +101,8 @@ sequenceDiagram
 | `llama-server` | `llama-ctl server` | user LaunchAgent `com.zdots.llama-server` | `GET :11500/health` | `~/.local/state/zsh/llama-server.log` |
 | `llama-embed` | `llama-ctl embed` | user LaunchAgent `com.zdots.llama-embed` | `GET :11501/health` | `~/.local/state/zsh/llama-embed.log` |
 | `otel-collector` | `otel-collector` / `zsvc otel` | user LaunchAgent `com.zdots.otel-collector` | OTLP HTTP `:4318` | `~/.local/state/zsh/otel-collector.log` |
-| `colima` | `local-ci` / `zsvc colima` | Colima VM state | `colima status` | `colima logs` |
+| `o2` (OpenObserve) | `openobserve-ctl` / `zsvc o2` | user LaunchAgent `com.zdots.openobserve` | `:5080/healthz` | `~/.local/state/zsh/openobserve.log` |
+| `colima` | `colima` / `zsvc colima` | Colima VM state (optional; container workloads) | `colima status` | `colima logs` |
 | `nginx` | `nginx-ctl` / `zsvc nginx` | root LaunchDaemon `homebrew.mxcl.nginx` | `:80` listener and host probes | Homebrew nginx logs |
 | `postgresql@18` | `zsvc postgres` | user LaunchAgent `homebrew.mxcl.postgresql@18` | `pg_isready` and `zdots-ctx status` | Homebrew Postgres log |
 | `redis` | `zsvc redis` | user LaunchAgent `homebrew.mxcl.redis` | `redis-cli PING` | Homebrew Redis log |

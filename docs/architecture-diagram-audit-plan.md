@@ -84,7 +84,7 @@ it to `flowchart`, `stateDiagram-v2`, or `sequenceDiagram`.
 
 | Diagram | Type | Primary Files | Reasoning Question |
 |---|---|---|---|
-| Host/container topology | `flowchart` or `architecture-beta` | `bin/zdots-ctl`, `bin/zsvc`, `bin/local-ci` | What runs where? |
+| Host/container topology | `flowchart` or `architecture-beta` | `bin/zdots-ctl`, `bin/zsvc`, `bin/openobserve-ctl` | What runs where? |
 | Service lifecycle state machine | `stateDiagram-v2` | `bin/zsvc`, service ctl scripts | What states can a service occupy? |
 | Startup orchestration | `sequenceDiagram` | `bin/zdots-ctl` | What starts first and why? |
 | Registration vs health | `stateDiagram-v2` | `bin/zsvc`, tests | How can a service be running but unhealthy? |

@@ -188,7 +188,7 @@ printf '<think>\nstep 1\nstep 2\n</think>\nFinal answer\n' | bash -c 'source lib
 - `--cache-type-k/v q8_0`: halved KV cache memory
 - `--alias local`: stable model name for API callers
 - `--temp 0.4`: server default temperature (per-request overrides honored)
-- `--metrics`: Prometheus metrics at /metrics for LGTM stack
+- `--metrics`: Prometheus metrics at /metrics for OpenObserve
 
 **Embeddings**: DISABLED on chat server. `--embeddings` + speculative decoding causes a
 llama.cpp crash loop (`embeddings required but tokens not marked as outputs`). RAG requires

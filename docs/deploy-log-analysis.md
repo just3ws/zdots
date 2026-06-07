@@ -49,7 +49,7 @@ The diagnostic pack includes a non-OTel system snapshot by default:
 - chat/embed endpoint reachability
 
 This snapshot is deliberately independent of OpenTelemetry so it still works
-when the collector, LGTM stack, or local service telemetry is down.
+when the collector, OpenObserve, or local service telemetry is down.
 
 For constrained Pi workflows, paste or pipe the generated diagnostic pack:
 
