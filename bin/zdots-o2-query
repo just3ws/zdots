@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# bin/zdots-o2-query — read runtime insight back from OpenObserve into a session.
+#
+# The other half of the feedback loop (Z-135): telemetry is scrubbed at the
+# INGEST edge (etc/otel-collector.generated.yaml, compiled from etc/phi-patterns.yaml),
+# so what lands in O2 is already clean. This tool reads it back — recent errors,
+# slow spans, failures, per-service activity, a single trace — as compact tables
+# or JSON an agent can reason over. A light phi_scrub pass is kept purely as
+# defense-in-depth; if it ever trips a suppress-flagged value, that signals an
+# ingest scrub gap, not normal operation.
+#
+# Read-only. Local only (loopback O2). Credentials come from the Keychain, never
+# the command line — safe on the work machine.
+#
+# Usage:
+#   zdots-o2-query errors   [--since 1h] [-n 20]          recent ERROR/FATAL logs
+#   zdots-o2-query slow     [--since 1h] [--ms 100] [-n]  slowest spans over --ms
+#   zdots-o2-query failures [--since 1h] [-n 20]          error-status spans
+#   zdots-o2-query service  [--since 1h]                  activity by service/severity
+#   zdots-o2-query logs     [--since 1h] [--grep STR] [-n] general log search
+#   zdots-o2-query trace    <TRACE_ID>                    all spans + logs for a trace
+#   zdots-o2-query sql --type logs|traces "SELECT ..." [--since 1h]   read-only escape hatch
+#   zdots-o2-query streams                               list O2 streams
+#
+# Global flags: --since DUR (30s|15m|2h|1d, default 1h) · -n/--limit N (default 20)
+#               --json (machine-readable) · --no-scrub (skip defense-in-depth) · -h
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+ENDPOINT="${ZDOTS_O2_ENDPOINT:-http://127.0.0.1:5080}"
+ORG="${ZDOTS_O2_ORG:-default}"
+STREAM="${ZDOTS_O2_STREAM:-default}"
+ROOT_EMAIL="${ZDOTS_O2_ROOT_EMAIL:-root@zdots.local}"
+API="${ENDPOINT}/api/${ORG}"
+
+SINCE="1h"; LIMIT=20; MS=100; GREP=""; SQLTYPE="logs"; JSON=0; NOSCRUB=0
+_SUPPRESS_HIT=0
+
+if [[ -t 1 ]]; then
+  RST=$'\e[0m'; BOLD=$'\e[1m'; DIM=$'\e[2m'; RED=$'\e[0;31m'; YEL=$'\e[0;33m'
+else RST=''; BOLD=''; DIM=''; RED=''; YEL=''; fi
+
+_die()  { printf 'zdots-o2-query: %s\n' "$*" >&2; exit 1; }
+_usage() { sed -n '2,40p' "$0" | sed -E 's/^# ?//'; }
+
+# ── defense-in-depth scrub (data is already clean from ingest) ────────────────
+# Source the registry-backed scrubber. If unavailable, continue unscrubbed and
+# say so — the ingest edge is the real guarantee, this is belt-and-suspenders.
+_have_scrub=0
+if [[ -r "$ZDOTDIR/lib/phi_scrubber.bash" ]]; then
+  # shellcheck source=/dev/null
+  { source "$ZDOTDIR/lib/phi_scrubber.bash" 2>/dev/null && command -v phi_scrub >/dev/null 2>&1 && {
+    phi_scrubber_init 2>/dev/null || true; _have_scrub=1; }; } || true
+fi
+
+# Scrub a single field. On a suppress hit (a conn-string that slipped past
+# ingest) substitute a marker and flag it — that is an actionable anomaly.
+_sf() {
+  local v="$1" out
+  { [[ "$NOSCRUB" -eq 1 || "$_have_scrub" -eq 0 ]]; } && { printf '%s' "$v"; return; }
+  if out="$(printf '%s' "$v" | phi_scrub 2>/dev/null)"; then printf '%s' "$out"
+  else _SUPPRESS_HIT=1; printf '[REDACTED-CONN]'; fi
+}
+
+_trunc() { local s="$1" n="${2:-80}"; (( ${#s} > n )) && printf '%s…' "${s:0:n-1}" || printf '%s' "$s"; }
+_fmt_ts() { date -r "$(( ${1:-0} / 1000000 ))" '+%m-%d %H:%M:%S' 2>/dev/null || printf '?'; }
+
+# ── duration parsing ─────────────────────────────────────────────────────────
+_dur_to_s() {
+  local d="$1"
+  case "$d" in
+    *s) printf '%s' "${d%s}" ;;
+    *m) printf '%s' "$(( ${d%m} * 60 ))" ;;
+    *h) printf '%s' "$(( ${d%h} * 3600 ))" ;;
+    *d) printf '%s' "$(( ${d%d} * 86400 ))" ;;
+    *[!0-9]*) _die "bad --since: $d (use 30s|15m|2h|1d)" ;;
+    *) printf '%s' "$d" ;;
+  esac
+}
+
+# ── O2 search ────────────────────────────────────────────────────────────────
+_auth() {
+  local pw; pw="$(/usr/bin/security find-generic-password -s zdots -a ZDOTS_O2_ROOT_PASSWORD -w 2>/dev/null || true)"
+  [[ -n "$pw" ]] || _die "no O2 password in Keychain (zdots/ZDOTS_O2_ROOT_PASSWORD) — is OpenObserve provisioned? (openobserve-ctl creds)"
+  printf '%s' "$(printf '%s' "${ROOT_EMAIL}:${pw}" | base64 | tr -d '\n')"
+}
+
+# _search <type> <sql>  → raw JSON on stdout
+_search() {
+  local type="$1" sql="$2" now start end
+  now=$(date +%s); start=$(( (now - $(_dur_to_s "$SINCE")) * 1000000 )); end=$(( (now + 120) * 1000000 ))
+  local body; body="$(jq -nc --arg sql "$sql" --argjson s "$start" --argjson e "$end" --argjson n "$LIMIT" \
+    '{query:{sql:$sql,start_time:$s,end_time:$e,size:$n}}')"
+  curl -s -m 15 -H "Authorization: Basic $(_auth)" -H 'content-type: application/json' \
+    "${API}/_search?type=${type}" -d "$body"
+}
+
+_warn_suppress() {
+  [[ "$_SUPPRESS_HIT" -eq 1 ]] && printf '%szdots-o2-query: ⚠ a suppress-flagged value (conn string) was present in O2 — ingest scrub gap, see Z-135%s\n' "$YEL" "$RST" >&2
+  return 0
+}
+
+# Emit hits as JSON (selected via a jq filter), scrubbed as a whole. On suppress
+# failure, fall back to a safe object rather than printing raw.
+_emit_json() {
+  local raw="$1" filter="$2" doc
+  doc="$(printf '%s' "$raw" | jq -c "$filter" 2>/dev/null || printf '[]')"
+  if [[ "$NOSCRUB" -eq 1 || "$_have_scrub" -eq 0 ]]; then printf '%s\n' "$doc"; return; fi
+  if out="$(printf '%s' "$doc" | phi_scrub 2>/dev/null)"; then printf '%s\n' "$out"
+  else _SUPPRESS_HIT=1
+       printf '%s' "$doc" | jq -c 'map(.body=null|.message=null|.status_message=null)' ; fi
+}
+
+# ── subcommands ──────────────────────────────────────────────────────────────
+cmd_errors() {
+  local sql="SELECT _timestamp, severity, service_name, body, trace_id FROM \"$STREAM\" WHERE severity IN ('ERROR','FATAL','Error','Fatal') ORDER BY _timestamp DESC"
+  local raw; raw="$(_search logs "$sql")"
+  if [[ "$JSON" -eq 1 ]]; then _emit_json "$raw" '[.hits[]? | {ts:._timestamp, severity, service:.service_name, body, trace_id}]'; _warn_suppress; return; fi
+  printf '%s%-14s %-6s %-16s %-50s %s%s\n' "$BOLD" "TIME" "SEV" "SERVICE" "MESSAGE" "TRACE" "$RST"
+  printf '%s' "$raw" | jq -r '.hits[]? | [(._timestamp|tostring), (.severity//"?"), (.service_name//"?"), (.body//""|gsub("\n";" ")), (.trace_id//"")] | @tsv' \
+  | while IFS=$'\t' read -r ts sev svc body tid; do
+      printf '%-14s %s%-6s%s %-16s %-50s %s%s%s\n' "$(_fmt_ts "$ts")" "$RED" "$(_trunc "$sev" 6)" "$RST" \
+        "$(_trunc "$svc" 16)" "$(_trunc "$(_sf "$body")" 50)" "$DIM" "${tid:0:12}" "$RST"
+    done
+  _warn_suppress
+}
+
+cmd_slow() {
+  local us=$(( MS * 1000 ))
+  local sql="SELECT _timestamp, duration, service_name, operation_name, span_status, trace_id FROM \"$STREAM\" WHERE duration >= $us ORDER BY duration DESC"
+  local raw; raw="$(_search traces "$sql")"
+  if [[ "$JSON" -eq 1 ]]; then _emit_json "$raw" '[.hits[]? | {ts:._timestamp, duration_ms:(.duration/1000), service:.service_name, op:.operation_name, status:.span_status, trace_id}]'; _warn_suppress; return; fi
+  printf '%s%-14s %9s %-16s %-34s %-8s %s%s\n' "$BOLD" "TIME" "DUR(ms)" "SERVICE" "OPERATION" "STATUS" "TRACE" "$RST"
+  printf '%s' "$raw" | jq -r '.hits[]? | [(._timestamp|tostring), ((.duration//0)/1000|tostring), (.service_name//"?"), (.operation_name//"?"), (.span_status//"?"), (.trace_id//"")] | @tsv' \
+  | while IFS=$'\t' read -r ts dur svc op st tid; do
+      local c="$RST"; [[ "$st" == "ERROR" ]] && c="$RED"
+      printf '%-14s %9s %-16s %-34s %s%-8s%s %s%s%s\n' "$(_fmt_ts "$ts")" "$dur" "$(_trunc "$svc" 16)" \
+        "$(_trunc "$(_sf "$op")" 34)" "$c" "$(_trunc "$st" 8)" "$RST" "$DIM" "${tid:0:12}" "$RST"
+    done
+  _warn_suppress
+}
+
+cmd_failures() {
+  local sql="SELECT _timestamp, service_name, operation_name, status_message, trace_id FROM \"$STREAM\" WHERE span_status = 'ERROR' OR status_code = 2 ORDER BY _timestamp DESC"
+  local raw; raw="$(_search traces "$sql")"
+  if [[ "$JSON" -eq 1 ]]; then _emit_json "$raw" '[.hits[]? | {ts:._timestamp, service:.service_name, op:.operation_name, status_message, trace_id}]'; _warn_suppress; return; fi
+  printf '%s%-14s %-16s %-30s %-30s %s%s\n' "$BOLD" "TIME" "SERVICE" "OPERATION" "MESSAGE" "TRACE" "$RST"
+  printf '%s' "$raw" | jq -r '.hits[]? | [(._timestamp|tostring), (.service_name//"?"), (.operation_name//"?"), (.status_message//""|gsub("\n";" ")), (.trace_id//"")] | @tsv' \
+  | while IFS=$'\t' read -r ts svc op msg tid; do
+      printf '%-14s %-16s %-30s %s%-30s%s %s%s%s\n' "$(_fmt_ts "$ts")" "$(_trunc "$svc" 16)" \
+        "$(_trunc "$(_sf "$op")" 30)" "$RED" "$(_trunc "$(_sf "$msg")" 30)" "$RST" "$DIM" "${tid:0:12}" "$RST"
+    done
+  _warn_suppress
+}
+
+cmd_service() {
+  local sql="SELECT service_name, severity, count(*) AS n FROM \"$STREAM\" GROUP BY service_name, severity ORDER BY n DESC"
+  LIMIT=200
+  local raw; raw="$(_search logs "$sql")"
+  if [[ "$JSON" -eq 1 ]]; then _emit_json "$raw" '[.hits[]? | {service:.service_name, severity, count:.n}]'; return; fi
+  printf '%s%-22s %-8s %8s%s\n' "$BOLD" "SERVICE" "SEVERITY" "COUNT" "$RST"
+  printf '%s' "$raw" | jq -r '.hits[]? | [(.service_name//"?"), (.severity//"?"), (.n|tostring)] | @tsv' \
+  | while IFS=$'\t' read -r svc sev n; do
+      local c="$RST"; case "$sev" in ERROR|FATAL|Error|Fatal) c="$RED";; WARN|Warn) c="$YEL";; esac
+      printf '%-22s %s%-8s%s %8s\n' "$(_trunc "$svc" 22)" "$c" "$(_trunc "$sev" 8)" "$RST" "$n"
+    done
+}
+
+cmd_logs() {
+  local where="1=1"; [[ -n "$GREP" ]] && where="str_match(body, '$(printf '%s' "$GREP" | sed "s/'/''/g")')"
+  local sql="SELECT _timestamp, severity, service_name, body, trace_id FROM \"$STREAM\" WHERE $where ORDER BY _timestamp DESC"
+  local raw; raw="$(_search logs "$sql")"
+  if [[ "$JSON" -eq 1 ]]; then _emit_json "$raw" '[.hits[]? | {ts:._timestamp, severity, service:.service_name, body, trace_id}]'; _warn_suppress; return; fi
+  printf '%s%-14s %-6s %-16s %-54s %s%s\n' "$BOLD" "TIME" "SEV" "SERVICE" "MESSAGE" "TRACE" "$RST"
+  printf '%s' "$raw" | jq -r '.hits[]? | [(._timestamp|tostring), (.severity//"?"), (.service_name//"?"), (.body//""|gsub("\n";" ")), (.trace_id//"")] | @tsv' \
+  | while IFS=$'\t' read -r ts sev svc body tid; do
+      printf '%-14s %-6s %-16s %-54s %s%s%s\n' "$(_fmt_ts "$ts")" "$(_trunc "$sev" 6)" \
+        "$(_trunc "$svc" 16)" "$(_trunc "$(_sf "$body")" 54)" "$DIM" "${tid:0:12}" "$RST"
+    done
+  _warn_suppress
+}
+
+cmd_trace() {
+  local tid="${1:-}"; [[ -n "$tid" ]] || _die "trace needs a TRACE_ID"
+  SINCE="${SINCE/#1h/7d}"; LIMIT=500
+  printf '%s── spans%s  %strace %s%s\n' "$BOLD" "$RST" "$DIM" "$tid" "$RST"
+  local tr; tr="$(_search traces "SELECT start_time, duration, operation_name, span_status, service_name FROM \"$STREAM\" WHERE trace_id = '$tid' ORDER BY start_time")"
+  printf '%s' "$tr" | jq -r '.hits[]? | [((.start_time//0)/1000000|tostring), ((.duration//0)/1000|tostring), (.service_name//"?"), (.operation_name//"?"), (.span_status//"?")] | @tsv' \
+  | while IFS=$'\t' read -r _ dur svc op st; do
+      local c="$RST"; [[ "$st" == "ERROR" ]] && c="$RED"
+      printf '  %9sms  %-16s %s%-32s%s %s\n' "$dur" "$(_trunc "$svc" 16)" "$c" "$(_trunc "$(_sf "$op")" 32)" "$RST" "$st"
+    done
+  printf '\n%s── logs%s\n' "$BOLD" "$RST"
+  local lg; lg="$(_search logs "SELECT _timestamp, severity, body FROM \"$STREAM\" WHERE trace_id = '$tid' ORDER BY _timestamp")"
+  printf '%s' "$lg" | jq -r '.hits[]? | [(._timestamp|tostring), (.severity//"?"), (.body//""|gsub("\n";" "))] | @tsv' \
+  | while IFS=$'\t' read -r ts sev body; do
+      printf '  %-14s %-6s %s\n' "$(_fmt_ts "$ts")" "$sev" "$(_trunc "$(_sf "$body")" 80)"
+    done
+  _warn_suppress
+}
+
+cmd_sql() {
+  local q="${1:-}"; [[ -n "$q" ]] || _die "sql needs a query string"
+  [[ "$q" =~ ^[[:space:]]*[Ss][Ee][Ll][Ee][Cc][Tt][[:space:]] ]] || _die "only SELECT queries allowed (read-only)"
+  [[ "$q" == *';'* ]] && _die "';' not allowed in query"
+  local raw; raw="$(_search "$SQLTYPE" "$q")"
+  if [[ "$JSON" -eq 1 ]]; then _emit_json "$raw" '[.hits[]?]'; _warn_suppress; return; fi
+  printf '%s' "$raw" | jq '.hits'
+  _warn_suppress
+}
+
+cmd_streams() {
+  for t in logs traces metrics; do
+    printf '%s%-8s%s ' "$BOLD" "$t" "$RST"
+    curl -s -m 8 -H "Authorization: Basic $(_auth)" "${API}/streams?type=$t" \
+      | jq -r '[.list[]?.name] | join(", ")' 2>/dev/null || printf '?'
+    printf '\n'
+  done
+}
+
+# ── arg parsing ──────────────────────────────────────────────────────────────
+[[ $# -gt 0 ]] || { _usage; exit 0; }
+POS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --since) SINCE="$2"; shift 2 ;;
+    -n|--limit) LIMIT="$2"; shift 2 ;;
+    --ms) MS="$2"; shift 2 ;;
+    --grep) GREP="$2"; shift 2 ;;
+    --type) SQLTYPE="$2"; shift 2 ;;
+    --json) JSON=1; shift ;;
+    --no-scrub) NOSCRUB=1; shift ;;
+    -h|--help) _usage; exit 0 ;;
+    --) shift; while [[ $# -gt 0 ]]; do POS+=("$1"); shift; done ;;
+    -*) _die "unknown flag: $1" ;;
+    *) POS+=("$1"); shift ;;
+  esac
+done
+
+command -v jq >/dev/null 2>&1 || _die "jq is required"
+[[ "$NOSCRUB" -eq 1 ]] && printf '%szdots-o2-query: --no-scrub: defense-in-depth scrub disabled%s\n' "$DIM" "$RST" >&2
+
+# First positional is the subcommand; the rest are its arguments.
+SUB="${POS[0]:-}"; ARG="${POS[1]:-}"
+case "$SUB" in
+  errors)   cmd_errors ;;
+  slow)     cmd_slow ;;
+  failures) cmd_failures ;;
+  service)  cmd_service ;;
+  logs)     cmd_logs ;;
+  trace)    cmd_trace "$ARG" ;;
+  sql)      cmd_sql "$ARG" ;;
+  streams)  cmd_streams ;;
+  -h|--help|help|"") _usage ;;
+  *) _die "unknown subcommand: $SUB (try -h)" ;;
+esac
