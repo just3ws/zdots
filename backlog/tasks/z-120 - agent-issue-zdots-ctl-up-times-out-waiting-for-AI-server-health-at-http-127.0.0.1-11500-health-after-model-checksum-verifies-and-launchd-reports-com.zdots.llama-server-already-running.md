@@ -4,10 +4,10 @@ title: >-
   [agent-issue] zdots-ctl up times out waiting for AI server health at
   http://127.0.0.1:11500/health after model checksum verifies and launchd
   reports com.zdots.llama-server already running
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-05-31 01:38'
-updated_date: '2026-05-31 19:03'
+updated_date: '2026-06-07 16:49'
 labels:
   - agent-reported
   - bug
@@ -49,3 +49,9 @@ launchctl probes can report false negatives while the host services are healthy.
 The original `zdots-ctl up` timeout is still worth reviewing because the AI
 server was launchd-running and socket-listening before HTTP readiness completed.
 <!-- SECTION:RECOVERY:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Root cause: start_llama was fire-and-forget — returned at launchd 'running' while the GGUF was still loading, so cmd_up's fatal 60s /health probe raced a slow cold load under memory pressure. Fix cb73fa2: start_llama blocks on _wait_inference; budget via ZDOTS_AI_WAIT (default 90); cmd_up uses non-fatal _wait_for_soft + diagnose hint. Verified: llama-ctl restart reports readiness wait (16s), zdots-ctl up clean, :11500 health 200.
+<!-- SECTION:NOTES:END -->
