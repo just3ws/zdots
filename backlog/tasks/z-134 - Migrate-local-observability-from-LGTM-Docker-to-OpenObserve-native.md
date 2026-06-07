@@ -4,7 +4,7 @@ title: Migrate local observability from LGTM (Docker) to OpenObserve (native)
 status: To Do
 assignee: []
 created_date: '2026-06-06 05:49'
-updated_date: '2026-06-06 23:22'
+updated_date: '2026-06-07 13:21'
 labels:
   - observability
   - infra
@@ -26,13 +26,13 @@ Replace the grafana/otel-lgtm Docker stack with a native OpenObserve single bina
 - [x] #3 Phase 3: nginx o2.local vhost -> :5080, /etc/hosts entry, cert SAN; zdots-endpoints shows o2.local UP
 - [x] #4 Phase 4: traces, metrics, and logs confirmed landing in OpenObserve UI
 - [x] #5 Phase 5: LGTM torn down — container stopped, docker-compose.lgtm.yaml archived, local-ci deprecated/retired, grafana+lgtm registry+host entries removed; Colima stopped on home if obs-only (work keeps it for Rails)
-- [ ] #6 Phase 6: docs (otel-collector-guide -> OpenObserve), zdots-doctor/zdots-ctl check updated, memory updated
+- [x] #6 Phase 6: docs (otel-collector-guide -> OpenObserve), zdots-doctor/zdots-ctl check updated, memory updated
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Phases 2,4,5 DONE (commits d3e2bc7, 1037300, 86ef93c). Phase 2: lgtm dropped from collector pipelines (O2-only). Phase 5 teardown: LGTM container stopped+removed, Colima stopped (~4GB reclaimed) + colima-autostart unloaded on home; grafana/lgtm retired across status plane (svc-registry, zdots-ctl up/down/install/status/check, zsvc, zdots-status, agent-guide, ztask readiness, manifest.rb, metadata.bash); docker_stats receiver removed; docker-compose.lgtm.yaml archived; local-ci deprecated to Colima/act+rollback; grafana.local/lgtm.local nginx vhosts + cert SANs + host lists removed (o2.local kept). zdots-ctl status all green on OpenObserve. Phase 4: otel-smoke upgraded to exercise all 3 pillars (5-span correlated trace w/ events+link+error span; gauge+counter+histogram metrics; 6 wide TRACE→FATAL trace-correlated logs); --verify confirms logs=6 traces=5 + metric streams in O2. REMAINING: Phase 3 activation (user sudo: o2.local /etc/hosts + nginx reload); Phase 6 docs/doctor sweep.
+Phase 6 DONE (commit aa73ad8): zdots-doctor gained an Observability section (O2 /healthz, loopback PHI check, collector-exporter sanity). Docs swept LGTM→OpenObserve: otel-collector-guide.md rewritten, README diagrams+tables, storage-hygiene/troubleshooting/configuration/local-url-routing fixed (wrong commands + resolved routing gaps), architecture/platform-service-plane/lifecycle/platform-discovery/tooling/wiki/tutorial swept. Only intentional 'retired (Z-134)' notes remain. doctor exit 0. ALL 6 ACs checked. ONLY remaining: Phase 3 activation is a user sudo action (echo '127.0.0.1 o2.local' | sudo tee -a /etc/hosts && nginx-ctl reload) — code/cert/config all in place.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
