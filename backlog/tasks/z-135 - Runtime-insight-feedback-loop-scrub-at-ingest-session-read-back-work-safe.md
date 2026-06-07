@@ -4,6 +4,7 @@ title: 'Runtime-insight feedback loop: scrub-at-ingest + session read-back (work
 status: To Do
 assignee: []
 created_date: '2026-06-07 16:55'
+updated_date: '2026-06-07 18:16'
 labels:
   - agent-ready
   - observability
@@ -21,13 +22,19 @@ Close the runtime-insight loop so OpenObserve telemetry and command outcomes are
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Phase 1 (cornerstone): bin/zdots-otel-phi-compile generates collector redaction (attributes, all signals) + transform (log bodies) + filter (suppress) processors FROM etc/phi-patterns.yaml; wired into all 3 pipelines; otel-collector serve regenerates it at boot
-- [ ] #2 Phase 1 verify: otel-smoke emits PHI/secret-shaped trace+log+metric; confirm masked/dropped in O2 (nothing sensitive lands in storage)
+- [x] #1 Phase 1 (cornerstone): bin/zdots-otel-phi-compile generates collector redaction (attributes, all signals) + transform (log bodies) + filter (suppress) processors FROM etc/phi-patterns.yaml; wired into all 3 pipelines; otel-collector serve regenerates it at boot
+- [x] #2 Phase 1 verify: otel-smoke emits PHI/secret-shaped trace+log+metric; confirm masked/dropped in O2 (nothing sensitive lands in storage)
 - [ ] #3 Phase 2: bin/zdots-o2-query reads already-clean O2 data (errors/slow-spans/failed-service last Nh), light defense-in-depth scrub; work-safe
 - [ ] #4 Phase 3: optional o2 MCP server (4th) mirroring the ctx MCP pattern for on-demand pull
 - [ ] #5 Phase 4: cc-hook-session runtime digest (O2 error count + top failing commands + service-health delta), bounded+scrubbed, gated for work
 - [ ] #6 Single-source preserved: no PHI regex authored outside phi-patterns.yaml; cc-doctor/zdots-doctor still green
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Phase 1 done+committed: bin/zdots-otel-phi-compile compiles redaction(attrs)/transform(log bodies, semantic markers)/filter(suppress-drop) from etc/phi-patterns.yaml into etc/otel-collector.generated.yaml (gitignored); otel-collector start/validate/install recompile in foreground, serve fails closed if missing. Verified: SSN/MRN/DOB→[REDACTED-*], attrs→****, conn-string record dropped, 0 raw secrets in O2; benign otel-smoke 6 logs+5 traces unaffected. cc-doctor 29/0/0, zdots-doctor obs green. Remaining: P2 zdots-o2-query, P3 o2 MCP, P4 cc-hook-session digest.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
