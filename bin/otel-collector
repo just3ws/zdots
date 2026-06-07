@@ -25,6 +25,12 @@ ARCH=$(uname -m)
 INSTALL_DIR="${HOME}/.local/bin"
 BINARY="${INSTALL_DIR}/${DISTRO}"
 CONFIG_FILE="${ZDOTDIR:-$(pwd)}/etc/otel-collector.yaml"
+# Compiled config actually run by `serve`: the base above plus the PHI scrub
+# processors compiled from etc/phi-patterns.yaml (scrub-at-ingest). Regenerated
+# in the foreground by start/validate/install where ruby+PATH are present; serve
+# fails closed if it is missing so unscrubbed telemetry never flows.
+GEN_CONFIG="${ZDOTDIR:-$(pwd)}/etc/otel-collector.generated.yaml"
+PHI_COMPILE="${ZDOTDIR:-$(pwd)}/bin/zdots-otel-phi-compile"
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.log"
 PLIST_LABEL="com.zdots.otel-collector"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
@@ -44,6 +50,14 @@ source "${ZDOTDIR:-$(pwd)}/lib/svc-process.bash"
 
 _die()  { printf 'otel-collector: error: %s\n' "$*" >&2; exit 1; }
 _info() { printf 'otel-collector: %s\n' "$*" >&2; }
+
+# Recompile the PHI scrub layer (etc/phi-patterns.yaml → GEN_CONFIG). Run in the
+# foreground (start/validate/install) where ruby and PATH are available; the
+# launchd `serve` verb only consumes the result. Returns non-zero on failure.
+_compile_phi() {
+  [ -x "$PHI_COMPILE" ] || { _info "phi-compile not found ($PHI_COMPILE) — scrub layer NOT applied"; return 1; }
+  "$PHI_COMPILE" -o "$GEN_CONFIG"
+}
 
 usage() {
   cat <<EOF
@@ -99,6 +113,9 @@ cmd_install() {
     ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR" \
       zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$SELF" "$LOG_FILE" "serve"
   fi
+
+  # Compile the PHI scrub layer up front so the first `serve` has a config to run.
+  _compile_phi || _die "failed to compile PHI scrub layer"
 }
 
 # Internal launchd target: load the OpenObserve OTLP basic-auth from Keychain so
@@ -111,15 +128,20 @@ cmd_serve() {
     ZDOTS_O2_OTLP_AUTH="Basic $(printf '%s' "root@zdots.local:${o2_pw}" | base64 | tr -d '\n')"
     export ZDOTS_O2_OTLP_AUTH
   fi
-  exec "$BINARY" --config "$CONFIG_FILE"
+  # Fail closed: run the compiled config (PHI scrub at ingest), never the raw
+  # base. start/validate/install regenerate it in the foreground; if it is
+  # somehow missing here, refuse rather than ship unscrubbed telemetry.
+  [ -f "$GEN_CONFIG" ] || _die "compiled config missing ($GEN_CONFIG) — run 'otel-collector start' to regenerate the PHI scrub layer"
+  exec "$BINARY" --config "$GEN_CONFIG"
 }
 
 cmd_start() {
   [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
+  _compile_phi || _die "failed to compile PHI scrub layer — refusing to start (would ship unscrubbed telemetry)"
   if [ "$OS" = "darwin" ]; then
     zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
   else
-    zdots_svc_pid_start "$BINARY --config $CONFIG_FILE" "$LOG_FILE" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
+    zdots_svc_pid_start "$BINARY --config $GEN_CONFIG" "$LOG_FILE" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
   fi
 }
 
@@ -165,8 +187,9 @@ cmd_logs() {
 
 cmd_validate() {
   [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
-  _info "validating $CONFIG_FILE..."
-  "$BINARY" validate --config "$CONFIG_FILE"
+  _compile_phi || _die "failed to compile PHI scrub layer"
+  _info "validating $GEN_CONFIG (base + compiled PHI scrub)..."
+  "$BINARY" validate --config "$GEN_CONFIG"
 }
 
 cmd_config() {
