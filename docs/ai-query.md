@@ -162,7 +162,7 @@ zdots-log-analyze bootstrap --tail 400 | ai-query "Diagnose this zdots deploymen
 ```
 
 This is the preferred path on constrained remote hosts where Pi or `ai-query`
-may be available before OTel/Grafana are running.
+may be available before OTel/OpenObserve are running.
 
 ---
 

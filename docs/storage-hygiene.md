@@ -70,19 +70,17 @@ colima-status          # alias for colima status (CPU, memory, disk, runtime)
 colima status          # same
 ```
 
-### LGTM stack (Grafana/Loki/Tempo/Mimir)
+### OpenObserve (logs/metrics/traces)
 
-The LGTM stack runs in Colima. Config: `etc/docker-compose.lgtm.yaml`.
-
-Loki and Tempo accumulate trace/log data over time. To prune stale data:
+Observability is native now (the containerized LGTM stack was retired, Z-134).
+OpenObserve self-trims at 14 days (`ZDOTS_O2_RETENTION_DAYS`). Its data dir is
+`${XDG_DATA_HOME:-~/.local/share}/openobserve`. To wipe and start fresh:
 
 ```sh
-# Stop and remove LGTM stack (data volumes included):
-cd ~/.config/zsh && docker compose -f etc/docker-compose.lgtm.yaml down -v
-
-# Restart fresh:
-docker compose -f etc/docker-compose.lgtm.yaml up -d
+openobserve-ctl reinit   # disposable telemetry; recreates root from Keychain
 ```
+
+See [openobserve](openobserve.md).
 
 Only do this when historical traces/logs are not needed. OTel spans from
 the current session will resume flowing immediately after restart.
@@ -151,7 +149,7 @@ llama-ctl model-prune
 # Update .zdots.env: export ZDOTS_AI_PROFILE=constrained
 # llama-ctl install && llama-ctl restart
 
-# 5. Nuclear Docker option (destroys all containers/volumes including LGTM):
+# 5. Nuclear Docker option (destroys all containers/volumes):
 # docker-reclaim -f  (already done above; step 2 is already aggressive)
 ```
 
@@ -162,8 +160,8 @@ llama-ctl model-prune
 - `docker-reclaim` without `-f` is always safe — prints usage only, no writes.
 - `fstrim` step requires Colima to be running. Skips if Colima unavailable.
 - Volume prune in `docker-reclaim` removes **all** unused volumes including named
-  ones. If LGTM data must be preserved, stop the stack first so its volumes
-  stay attached (attached volumes are not pruned).
+  ones. (Observability no longer uses Docker volumes — OpenObserve stores data on
+  the host filesystem under `~/.local/share/openobserve`.)
 - Model prune uses `ZDOTS_AI_PROFILE` to determine which model to keep.
   Verify the right profile is active before pruning.
 - `bin/docker-reclaim` source: inspect for exact prune order if uncertain.

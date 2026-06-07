@@ -36,7 +36,7 @@ Zdots is built on a "Deepened" architectural philosophy: a small number of seman
 |---|---|---|
 | **Local AI SOTA** | High-performance inference via **llama.cpp** and **whisper.cpp**. | `llama-ctl`, `whisper-ctl` |
 | **Shell Brain** | Structured PostgreSQL storage for methodologies and lessons. | `zdots-ctx`, `ctx-mcp` |
-| **System Observability** | Every shell command emits an OTel span to a local **LGTM** stack. | `bin/otel-collector`, `env.sh` |
+| **System Observability** | Every shell command emits an OTel span to **OpenObserve** (native, logs/metrics/traces). | `bin/otel-collector`, `bin/openobserve-ctl`, `env.sh` |
 | **Declarative Lifecycle** | Services define specs; a unified engine handles registration. | `lib/lifecycle.bash` |
 | **Sentient Workbench** | Task-driven orchestration, trace propagation, and UX awareness. | `ztask`, `gemini-invoke` |
 | **Semantic Config** | Centralized Registry resolves derived endpoints from YAML. | `lib/metadata.bash` |
@@ -48,7 +48,7 @@ Zdots is built on a "Deepened" architectural philosophy: a small number of seman
 
 Traditional shell configs are **shallow**: a bug in one service's management logic must be fixed everywhere. Zdots is **deep**:
 
-1.  **Opaque Service Seams**: The orchestrator (`zdots-ctl`) interacts with services (AI, OTel, LGTM) only through their CLI grammar. You can swap a background process for a Docker container without changing the orchestrator.
+1.  **Opaque Service Seams**: The orchestrator (`zdots-ctl`) interacts with services (AI, OTel, OpenObserve) only through their CLI grammar. You can swap a background process for a Docker container without changing the orchestrator.
 2.  **Locality of Logic**: `launchd` plist generation, HuggingFace model downloads, and endpoint construction are concentrated in core libraries.
 3.  **High-Signal Validation**: Includes a 303-test Bats suite and a high-confidence `secret-scan` to ensure platform integrity on every commit.
 
@@ -82,13 +82,10 @@ architecture-beta
     service embed(logos:meta)[llama cpp 11501 Embedding] in host
     service cache(logos:redis)[Redis] in host
 
-    service grafana(logos:grafana)[Grafana] in colima
-    service tempo(logos:opentelemetry)[Tempo] in colima
-    service loki(logos:opentelemetry)[Loki] in colima
+    service o2(logos:opentelemetry)[OpenObserve] in host
 
     zsh:R -- L:collector
-    collector:B -- T:tempo
-    collector:B -- T:loki
+    collector:B -- T:o2
     zsh:B -- T:brain
     zsh:L -- R:ai
     brain:R -- L:ai
@@ -103,7 +100,7 @@ Data is captured synchronously by the shell and asynchronously exported/persiste
 sequenceDiagram
     participant Shell as Zsh Shell
     participant Collector as OTel Collector (Host)
-    participant LGTM as LGTM Stack (Colima)
+    participant O2 as OpenObserve (Host, native)
     participant Disk as Local Storage
 
     Note over Shell: Command Executed
@@ -111,11 +108,11 @@ sequenceDiagram
     
     par Parallel Export
         Collector->>Disk: Write to collector-traces.json
-        Collector->>LGTM: Forward to Tempo/Loki (HTTP:4418)
+        Collector->>O2: Forward via OTLP HTTP (:5080/api/default)
     end
 
-    Note over LGTM: Data Indexed
-    LGTM->>LGTM: Correlate Logs + Traces
+    Note over O2: Data Indexed
+    O2->>O2: Correlate Logs + Traces
 ```
 
 ### Unified Service Lifecycle
@@ -126,7 +123,7 @@ graph LR
     subgraph ControlPlane ["zdots-ctl (Orchestrator)"]
         A[llama-ctl]
         B[otel-collector]
-        C[local-ci]
+        C[openobserve-ctl]
     end
 
     subgraph LifecycleEngine ["lib/lifecycle.bash"]
@@ -172,7 +169,7 @@ All components are standalone executables in `bin/`. Full tool reference: [docs/
 | `whisper-ctl` | Local transcription engine and model management |
 | `ai-query` | Guarded LLM inference with PHI scrubbing |
 | `otel-collector` | Bare-metal OTel collector and tracing pipeline |
-| `local-ci` | Containerized LGTM stack (Grafana/Loki/Tempo) |
+| `openobserve-ctl` | Native OpenObserve backend (logs/metrics/traces, `zsvc o2`) |
 | `secret-scan` | High-confidence credential leak detection |
 | `zdots-issue` | Agent help desk: file a bug, question, or capability request |
 

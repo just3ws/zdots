@@ -27,8 +27,8 @@ The following local services are managed by the Zdots control plane:
 | Service | Port | Protocol | Description |
 | :--- | :--- | :--- | :--- |
 | OTel Ingest (Host) | 4318 | OTLP/HTTP | High-performance host-based collector. |
-| OTel Ingest (Hub) | 4418 | OTLP/HTTP | Central LGTM stack in Colima. |
-| Grafana | 3000 | HTTP | UI for log and trace visualization. |
+| OpenObserve | 5080 | HTTP | Native backend + UI for logs/metrics/traces (o2.local). |
+| OpenObserve gRPC | 5081 | OTLP/gRPC | OpenObserve OTLP ingest. |
 | AI Inference | 11500 | HTTP | Local LLM service (llama.cpp). |
 | AI Embeddings | 11501 | HTTP | Dedicated llama.cpp embedding service. |
 
@@ -41,7 +41,7 @@ Future Gemini-based tasks should bridge their internal telemetry into the Zdots 
 
 ## 4. Alerting Contract
 
-The `platform.health` span is sent by `bin/capabilities`. Grafana alerts should be configured to monitor:
+The `platform.health` span is sent by `bin/capabilities`. OpenObserve alerts should be configured to monitor:
 - **`ai.status == 0`**: Local inference engine is offline.
 - **`disk.avail < 500M`**: Extreme resource constraint.
 - **`span.status == error`**: Contract violation detected in the environment.
