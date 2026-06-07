@@ -10,13 +10,15 @@
       "id": "gemini",
       "tier": "frontier",
       "voting": true,
-      "lane": "large-context synthesis, breadth research, red-team/dissent"
+      "lane": "large-context synthesis, breadth research, red-team/dissent",
+      "command": "gemini"
     },
     {
       "id": "codex",
       "tier": "frontier",
       "voting": true,
-      "lane": "high-volume code generation, refactors, test authoring"
+      "lane": "high-volume code generation, refactors, test authoring",
+      "command": "codex"
     },
     {
       "id": "antigravity",
