@@ -91,6 +91,17 @@ _wait_for() {
   printf ' ready\n' >&2
 }
 
+# Non-fatal readiness poll — returns 1 on timeout instead of _die, so the caller
+# can emit a context-specific hint (used for the AI server, see cmd_up).
+_wait_for_soft() {
+  local label="$1" url="$2" timeout="${3:-$WAIT_TIMEOUT}" elapsed=0
+  while ! curl -sf -m 2 "$url" >/dev/null 2>&1; do
+    (( elapsed >= timeout )) && return 1
+    sleep 3; elapsed=$((elapsed + 3))
+  done
+  return 0
+}
+
 # ---------------------------------------------------------------------------
 # Lifecycle commands
 # ---------------------------------------------------------------------------
@@ -123,14 +134,21 @@ cmd_up() {
     fi
   fi
 
-  # 3. AI server (independent)
+  # 3. AI server (independent). llama-ctl start now blocks on inference readiness
+  #    (ZDOTS_AI_WAIT budget) instead of returning the moment launchd reports
+  #    'running', so a cold GGUF load under memory pressure no longer races a
+  #    fatal health timeout here (Z-120). Confirm, then give a budget/OOM hint
+  #    on failure rather than a bare _die.
   if _ai_up; then
     _ok "AI server already up"
   else
     _info "starting AI server..."
-    "$BIN/llama-ctl" start
-    _wait_for "AI server" "${AI_ENDPOINT}/health" 60
-    _ok "AI server up"
+    "$BIN/llama-ctl" start || true
+    if _wait_for_soft "AI server" "${AI_ENDPOINT}/health" "${ZDOTS_AI_WAIT:-90}"; then
+      _ok "AI server up"
+    else
+      _die "AI server not ready — likely slow load/OOM under memory pressure. diagnose: zsvc diag llama | budget: ZDOTS_AI_WAIT=180 zdots-ctl up"
+    fi
   fi
 
   # 4. Embed server (independent, port 11501) — optional (RAG/capture only).
