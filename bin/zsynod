@@ -23,6 +23,10 @@
 #   zsynod handoff --to M --task "T" [--state T] [--ref <id>]
 #   zsynod log [--round N] [--json]      show ledger entries
 #   zsynod minutes                       regenerate minutes.md
+#   zsynod view                          regenerate + display the minutes
+#   zsynod ask "<question>"              pose a question to the forum (no vote)
+#   zsynod tail [member] [-f] [-n N]     tail a member's captured transcript
+#   zsynod console                       interactive principal cockpit (prompts)
 #   zsynod verify                        re-walk the hash chain (integrity check)
 #   zsynod convene                       open the tmux forum room (one at a time)
 #
@@ -296,10 +300,60 @@ cmd_minutes() {
       read -r ay na ab st title < <(_tally "$pid")
       printf -- '- **%s** [%s] %s — %s/%s aye, %s nay, %s abstain\n' "$pid" "$st" "$title" "$ay" "$(_voting_ids|wc -l|tr -d ' ')" "$na" "$ab"
     done < <(_proposal_ids)
+    printf '\n## Open questions\n\n'
+    jq -rs '[.[]|select(.type=="question")]|.[-10:]|.[]|"- ("+.actor+") "+.data.text' "$LEDGER" 2>/dev/null
     printf '\n## Recent handoffs\n\n'
     jq -rs '[.[]|select(.type=="handoff")]|.[-10:]|.[]|"- "+.actor+" → "+.data.to+": "+.data.task' "$LEDGER" 2>/dev/null
   } > "$MINUTES"
   printf 'zsynod: wrote %s\n' "$MINUTES"
+}
+
+cmd_view() {  # regenerate + display the minutes
+  cmd_minutes >/dev/null
+  if [[ -t 1 ]] && command -v less >/dev/null 2>&1; then less -R "$MINUTES"; else cat "$MINUTES"; fi
+}
+
+cmd_ask() {  # pose a question to the forum (logged, no vote required)
+  local q="$1"; [[ -n "$q" ]] || _die "ask needs a question"
+  _append question "$(jq -nc --arg t "$q" '{text:$t}')" >/dev/null
+  printf '%squestion logged%s by %s — answer with: zsynod speak <P#> "..." or zsynod log\n' "$CYN" "$RST" "$MEMBER"
+}
+
+cmd_tail() {  # tail a member's captured transcript (latest stamp)
+  local m="$1" follow="${2:-}" n="${3:-40}" TDIR="$DIR/transcripts"
+  [[ -d "$TDIR" ]] || _die "no transcripts yet — convene first"
+  if [[ -z "$m" ]]; then
+    printf '%stranscripts (member.stamp.log):%s\n' "$B" "$RST"; ls -1t "$TDIR" 2>/dev/null | sed 's/^/  /'; return
+  fi
+  local f; f="$(ls -1t "$TDIR/$m."*.log 2>/dev/null | head -1)"
+  [[ -n "$f" ]] || _die "no transcript for '$m' (try: zsynod tail)"
+  if [[ "$follow" == "-f" || "$follow" == "f" ]]; then tail -n "$n" -f "$f"; else tail -n "$n" "$f"; fi
+}
+
+cmd_console() {  # interactive principal cockpit — prompts for input
+  MEMBER="${MEMBER:-mike}"
+  _member_known "$MEMBER" || _die "unknown member: $MEMBER"
+  printf '%szsynod console%s — acting as %s. (q to exit)\n' "$B" "$RST" "$MEMBER"
+  local choice open
+  while :; do
+    open=""
+    while read -r p; do [[ -z "$p" ]] && continue; read -r _a _n _ab st _ < <(_tally "$p"); [[ "$st" == "open" ]] && open+="$p "; done < <(_proposal_ids)
+    printf '\n%szsynod [round %s · open: %s]%s\n' "$D" "$(_cur_round)" "${open:-none}" "$RST"
+    printf '  (s)tatus (m)inutes (t)ail (p)ropose (a)sk (r)atify (q)uit > '
+    read -r choice || break
+    case "$choice" in
+      s) cmd_status ;;
+      m) cmd_view ;;
+      t) local mm; read -r -p "  member (blank=list): " mm; cmd_tail "$mm" ;;
+      p) local title body; read -r -p "  proposal title: " title; [[ -z "$title" ]] && continue
+         read -r -p "  body (optional): " body; cmd_propose "$title" "$body" "" ;;
+      a) local q; read -r -p "  question: " q; [[ -n "$q" ]] && cmd_ask "$q" ;;
+      r) local rp; read -r -p "  ratify proposal id: " rp; [[ -n "$rp" ]] && cmd_ratify "$rp" ;;
+      q|"") break ;;
+      *) printf '  ? — pick s/m/t/p/a/r/q\n' ;;
+    esac
+  done
+  printf 'console closed.\n'
 }
 
 # ── convene: one tmux room at a time (charter §4 single-instance) ────────────
@@ -358,7 +412,7 @@ cmd_convene() {
 }
 
 # ── arg parse (flags anywhere; first non-flag is the subcommand) ─────────────
-POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""
+POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; FOLLOW=""; LINES=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --as) MEMBER="$2"; shift 2 ;;
@@ -369,6 +423,8 @@ while [[ $# -gt 0 ]]; do
     --task) TASK="$2"; shift 2 ;;
     --state) STATE="$2"; shift 2 ;;
     --ref) REF="$2"; shift 2 ;;
+    -f|--follow) FOLLOW="f"; shift ;;
+    -n|--lines) LINES="$2"; shift 2 ;;
     --json) POS+=("__json__"); shift ;;
     -h|--help|help) _usage; exit 0 ;;
     -*) _die "unknown flag: $1" ;;
@@ -391,6 +447,10 @@ case "$SUB" in
   handoff)  cmd_handoff "$TO" "$TASK" "$STATE" "$REF" ;;
   log)      cmd_log "$ROUND" "$([[ " ${POS[*]} " == *" __json__ "* ]] && echo json)" ;;
   minutes)  cmd_minutes ;;
+  view)     cmd_view ;;
+  tail)     cmd_tail "${POS[1]:-}" "$FOLLOW" "${LINES:-40}" ;;
+  ask)      cmd_ask "${POS[1]:-}" ;;
+  console)  cmd_console ;;
   verify)   cmd_verify ;;
   convene)  cmd_convene ;;
   ""|-h|--help) _usage ;;
