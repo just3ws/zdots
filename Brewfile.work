@@ -4,8 +4,9 @@
 #
 # Principle: tools that run locally or can be pointed at local endpoints
 #            are fine. Excluded = the product IS the cloud service
-#            (ChatGPT, Claude app, Gemini, railway, flyctl, etc.) or is
-#            purely personal (deezer, antigravity, gource, julia).
+#            (ChatGPT, Gemini, railway, flyctl, etc.) or is purely personal
+#            (deezer, antigravity, gource, julia). Claude is cleared for
+#            work (home/work parity); PHI deny-list + cc-hook-guard apply.
 #
 # To add a tool when cleared, uncomment from the "pending" section below
 # or add it here directly.
@@ -221,22 +222,25 @@ uv "aider-chat"   # LLM coding assistant — configurable to local endpoints
 
 npm "@earendil-works/pi-coding-agent"
 
+# Claude — cleared for work; home/work parity (mirrors Brewfile.home).
+# Provides the cl/claude CLI used as the zsynod frontier seat, plus the
+# desktop suite. Local-LLM defaults and the PHI deny-list still apply.
+cask "claude"
+cask "claude-code"
+cask "claude-devtools"
+cask "claudebar"
+vscode "saoudrizwan.claude-dev"
+
 # ---------------------------------------------------------------------------
 # Pending work approval — uncomment as cleared
 # ---------------------------------------------------------------------------
 # Cloud AI desktop apps (the service IS the cloud):
-# cask "claude"
-# cask "claude-code"
-# cask "claude-devtools"
-# cask "claudebar"
 # cask "chatgpt"
 # cask "codex"
 # cask "codex-app"
 # brew "gemini-cli"
 # brew "kimi-cli"
-# npm "@anthropic-ai/claude-code"
 # npm "@earendil-works/pi-coding-agent"
-# vscode "saoudrizwan.claude-dev"
 #
 # Cloud deployment platforms:
 # brew "railway"
