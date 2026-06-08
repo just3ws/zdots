@@ -1,0 +1,29 @@
+# tests/ci-allowlist.txt — bats files that run in GitHub Actions (public sanity).
+#
+# GHA is the PUBLIC SANITY gate: only hermetic tests belong here — pure logic,
+# temp-dir, or fully-mocked, with no dependency on live services, PostgreSQL,
+# Redis, the Keychain, or network endpoints. Within these files, any individual
+# env-dependent test is gated with `skip_in_ci` (skips when $CI is set).
+#
+# The LOCAL pipeline (bin/check / make check / make test) runs the FULL suite —
+# including the live-platform e2e tests not listed here.
+#
+# A file earns its place here only after being verified green under:
+#   CI=1 ZDOTS_SKIP_ENV_TESTS=1 bats tests/<file>
+#
+# One filename per line (relative to tests/). Blank lines and # comments ignored.
+
+cc_context.bats
+docs_contract.bats
+svc_registry.bats
+ztask_e2e.bats
+phi_scrubber_fuzz.bats
+env_posix.bats
+metadata.bats
+agent_sidecars_lazy.bats
+zsynod_init.bats
+zsynod_launch.bats
+zsynod_minutes.bats
+zsynod_tick.bats
+zsynod_queue.bats
+zsynod_risk.bats
