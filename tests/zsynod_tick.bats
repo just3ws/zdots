@@ -45,6 +45,13 @@ teardown() { rm -rf "$TMP"; }
   echo "$output" | jq -e '[.discussion[].actor] | index("gemini") != null'
 }
 
+@test "auto-pick rotates to a less-discussed issue across ticks" {
+  t1="$("$ZSYNOD" tick --json | jq -r .topic)"
+  t2="$("$ZSYNOD" tick --json | jq -r .topic)"
+  [ -n "$t1" ]
+  [ "$t1" != "$t2" ]   # second tick must move on, not re-pick the same issue
+}
+
 @test "stub ASK is 'none' so no proposals/handoffs are auto-written (gated)" {
   run "$ZSYNOD" tick --topic Z-999 --json
   [ "$status" -eq 0 ]
