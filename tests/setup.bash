@@ -25,3 +25,14 @@ setup_environment() {
   # Load keychain helpers
   source "$REPO_ROOT/lib/keychain.bash"
 }
+
+# skip_in_ci — quarantine environment-dependent tests from automated CI.
+# These need live services, launchd state, or a provisioned machine, so they are
+# meant to run on the LOCAL pipeline step (bin/check / make check, where $CI is
+# unset). In GitHub Actions ($CI=true) — or any run with ZDOTS_SKIP_ENV_TESTS=1 —
+# they skip instead of failing. Call as the first line of such a @test.
+skip_in_ci() {
+  if [[ -n "${CI:-}" || "${ZDOTS_SKIP_ENV_TESTS:-0}" == "1" ]]; then
+    skip "environment-dependent — run on the local pipeline step (make check); skipped in CI"
+  fi
+}

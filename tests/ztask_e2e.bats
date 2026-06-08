@@ -134,6 +134,7 @@ _ztask_isolated() {
 }
 
 @test "ztask start uses backlog CLI, hydrates a task, and health sees active state" {
+  skip_in_ci
   run _ztask_isolated start z-999
   [ "$status" -eq 0 ]
   [[ "$output" == *"hydrating task context"* ]]
@@ -173,6 +174,7 @@ _ztask_isolated() {
 }
 
 @test "ztask stop clears active task without breaking health" {
+  skip_in_ci
   run _ztask_isolated stop
   [ "$status" -eq 0 ]
 
