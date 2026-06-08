@@ -624,19 +624,29 @@ cmd_turn() {
 # Discussion auto-appends (type=discuss). Proposals and handoffs are GATED: printed
 # as ready-to-run commands for the principal to approve — never auto-written.
 # Set ZSYNOD_DISPATCH=0 to stub model calls (tests, offline).
+_tick_least_discussed() {  # open backlog id with fewest discuss entries (backlog order breaks ties → rotation)
+  local ids_json
+  ids_json="$(backlog task list --plain 2>/dev/null | grep -oE 'Z-[0-9]+' | awk '!seen[$0]++' | jq -R . | jq -sc .)"
+  [[ -n "$ids_json" && "$ids_json" != "[]" ]] || { echo ""; return; }
+  jq -rs --argjson ids "$ids_json" '
+    ([.[]|select(.type=="discuss")|.data.topic]|group_by(.)|map({key:.[0],value:length})|from_entries) as $c
+    | ($ids|map({id:.,n:($c[.]//0)})|sort_by(.n)|.[0].id) // ""' "$LEDGER" 2>/dev/null
+}
+
+_tick_history() {  # <id> -> recent prior remarks on the topic (so deliberation deepens, not repeats)
+  jq -rs --arg t "$1" '[.[]|select(.type=="discuss" and .data.topic==$t)]|.[-5:]|.[]|"- "+.actor+": "+.data.remark' "$LEDGER" 2>/dev/null
+}
+
 _tick_focus() {  # <topic> -> "ID<TAB>TITLE"
-  local topic="$1" line
-  if [[ -n "$topic" ]]; then
-    line="$(backlog task list --plain 2>/dev/null | grep -iE "(^|[^A-Za-z0-9])${topic}([^0-9]|$)" | head -1)"
-    [[ -n "$line" ]] || { printf '%s\t(not in backlog — deliberating by id)\n' "$topic"; return; }
-  else
-    line="$(backlog task list --plain 2>/dev/null | grep -E 'Z-[0-9]+' | head -1)"
-    [[ -n "$line" ]] || { printf 'none\t(no open backlog issues)\n'; return; }
+  local topic="$1" line id
+  if [[ -z "$topic" ]]; then
+    topic="$(_tick_least_discussed)"
+    [[ -n "$topic" ]] || { printf 'none\t(no open backlog issues)\n'; return; }
   fi
-  local id title
+  line="$(backlog task list --plain 2>/dev/null | grep -iE "(^|[^A-Za-z0-9])${topic}([^0-9]|$)" | head -1)"
+  [[ -n "$line" ]] || { printf '%s\t(not in backlog — deliberating by id)\n' "$topic"; return; }
   id="$(printf '%s' "$line" | grep -oE 'Z-[0-9]+' | head -1)"
-  title="$(printf '%s' "$line" | sed -E 's/.*Z-[0-9]+ - //')"
-  printf '%s\t%s\n' "${id:-$topic}" "$title"
+  printf '%s\t%s\n' "${id:-$topic}" "$(printf '%s' "$line" | sed -E 's/.*Z-[0-9]+ - //')"
 }
 
 _tick_dispatch() {  # <member> <prompt> -> raw model output on stdout
@@ -651,7 +661,8 @@ _tick_dispatch() {  # <member> <prompt> -> raw model output on stdout
   esac
 }
 
-_tick_prompt() {  # <member> <id> <title> <body>
+_tick_prompt() {  # <member> <id> <title> <body> <history>
+  local hist="${5:-}"
   cat <<EOF
 You are '$1', a member of the zsynod (AI collaborators' forum on the zdots platform).
 Deliberate on ONE issue and make a bounded, material contribution. Be concise (token economy).
@@ -659,9 +670,10 @@ Never reveal secrets or PHI. Prefer the smallest sufficient step (Kaizen).
 
 ISSUE $2: $3
 $4
+$( [[ -n "$hist" ]] && printf 'Prior discussion (ADVANCE it — do NOT repeat what is already said):\n%s\n' "$hist" )
 
 Output EXACTLY two lines, nothing else:
-REMARK: <one-line analysis or concrete plan step>
+REMARK: <one-line analysis or concrete step that ADVANCES the discussion past the prior remarks>
 ASK: none | PROPOSE <short title> :: <one-line execution plan> | HANDOFF <member> :: <task>
 EOF
 }
@@ -677,13 +689,15 @@ cmd_tick() {
     body="$(backlog task "$id" --plain 2>/dev/null | head -30)"
   fi
 
+  local hist; hist="$(_tick_history "$id")"
+
   local -a who=(pi)
   [[ "$frontier" == "1" ]] && who+=(codex gemini)
   local -a asks=() said_by=() said_remark=()
   local m out remark ask save
   for m in "${who[@]}"; do
     _member_known "$m" || continue
-    out="$(_tick_dispatch "$m" "$(_tick_prompt "$m" "$id" "$title" "$body")")"
+    out="$(_tick_dispatch "$m" "$(_tick_prompt "$m" "$id" "$title" "$body" "$hist")")"
     [[ -n "$out" ]] || continue
     remark="$(printf '%s' "$out" | sed -nE 's/^REMARK:[[:space:]]*//p' | head -1)"
     [[ -n "$remark" ]] || remark="$(printf '%s' "$out" | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//' | cut -c1-240)"
@@ -692,6 +706,7 @@ cmd_tick() {
     _append discuss "$(jq -nc --arg t "$id" --arg r "$remark" '{topic:$t,remark:$r}')" >/dev/null
     MEMBER="$save"
     said_by+=("$m"); said_remark+=("$remark")
+    hist="${hist:+$hist$'\n'}- $m: $remark"   # later members this tick build on earlier ones
     case "$ask" in
       PROPOSE*) local pt pb; pt="$(printf '%s' "$ask" | sed -E 's/^PROPOSE[[:space:]]*//; s/ ::.*//')"
         pb="$(printf '%s' "$ask" | sed -E 's/.* :: //')"
