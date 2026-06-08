@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# idiot-test — an advisory gate for destructive commands.
+#
+# Applies the Idiot Test ("would an idiot do this?") to a proposed command and
+# screens it for catastrophic filesystem operations — the class that wiped this
+# machine on 2026-05-25 (an agent ran `rm -rf ~/`). See: agent-guide, the
+# "Filesystem Doctrine" section.
+#
+# This is a BACKSTOP, not a substitute for thinking. It is heuristic: it can miss
+# things and it can be bypassed. A "pass" is not permission to skip resolving and
+# reading your targets. The doctrine ("think first") stays primary.
+#
+# Usage:
+#   idiot-test <command...>     screen argv         (exit 0 ok · 1 warn · 2 block)
+#   echo "<cmd>" | idiot-test   screen stdin
+#   idiot-test --hook           Claude Code PreToolUse hook: read the tool JSON on
+#                               stdin, screen Bash commands, exit 2 to BLOCK on a
+#                               catastrophic pattern, 0 otherwise (never blocks
+#                               non-destructive commands).
+#   idiot-test -h | --help
+set -uo pipefail
+
+_usage() { sed -n '2,/^set /p' "$0" | sed -E '/^set /d; s/^# ?//'; }
+
+# ── assessment ───────────────────────────────────────────────────────────────
+# Echoes findings to stdout. Return: 0 = ok, 1 = warn, 2 = block (catastrophic).
+_assess() {
+  local cmd="$1"
+  # Only destructive verbs are in scope; everything else passes untouched.
+  if ! grep -qE '(^|[;&|( ])(rm|rmdir|mv|dd|shred|truncate)([[:space:]]|$)|find[^|]*-delete|git[[:space:]]+clean[[:space:]]+-[a-z]*f|git[[:space:]]+reset[[:space:]]+--hard' <<<"$cmd"; then
+    return 0
+  fi
+  local block=0 warn=0
+
+  # ── catastrophic (block) ──
+  if grep -qE -- '--no-preserve-root' <<<"$cmd"; then
+    printf 'BLOCK: --no-preserve-root removes the root guard.\n'; block=1
+  fi
+  # rm with a recursive or force flag AND a HOME / root / system / wildcard target
+  if grep -qE '(^|[;&|( ])rm([[:space:]]|$)' <<<"$cmd" && grep -qE -- '-[a-zA-Z]*[rRf]' <<<"$cmd"; then
+    if grep -qE -- '(^|[[:space:]"'"'"'])(~|\$HOME|\$\{HOME\})([[:space:]/"'"'"']|$)' <<<"$cmd"; then
+      printf 'BLOCK: recursive/force rm targeting HOME (~ or $HOME).\n'; block=1
+    fi
+    if grep -qE -- '(^|[[:space:]"'"'"'])/(\*)?([[:space:]"'"'"']|$)' <<<"$cmd"; then
+      printf 'BLOCK: recursive/force rm targeting / (root).\n'; block=1
+    fi
+    if grep -qE -- '(^|[[:space:]"'"'"'])(/usr|/etc|/bin|/sbin|/opt|/var|/System|/Library|/Applications)([[:space:]/"'"'"']|$)' <<<"$cmd"; then
+      printf 'BLOCK: recursive/force rm targeting a system directory.\n'; block=1
+    fi
+    if grep -qE -- '(^|[[:space:]])\*([[:space:]]|$)' <<<"$cmd"; then
+      printf 'BLOCK: bare top-level wildcard (*) in an rm.\n'; block=1
+    fi
+    # path built from an unresolved variable under a recursive rm — the ~/ vs HOME trap
+    if grep -qE -- 'rm[^|]*-[a-zA-Z]*r[^|]*\$[A-Za-z_]' <<<"$cmd" && ! grep -qE 'HOME' <<<"$cmd"; then
+      printf 'WARN: recursive rm whose target comes from an unresolved $variable — resolve and echo it first.\n'; warn=1
+    fi
+  fi
+  if grep -qE -- 'dd[[:space:]][^|]*of=/dev/' <<<"$cmd"; then
+    printf 'BLOCK: dd writing to a /dev/ device.\n'; block=1
+  fi
+  if grep -qE -- 'find[[:space:]]+(/|~|\$HOME)[^|]*-delete' <<<"$cmd"; then
+    printf 'BLOCK: find -delete rooted at / or HOME.\n'; block=1
+  fi
+
+  # ── reversible-but-irreversible-feeling (warn) ──
+  if grep -qE -- 'git[[:space:]]+reset[[:space:]]+--hard' <<<"$cmd"; then
+    printf 'WARN: git reset --hard discards uncommitted work.\n'; warn=1
+  fi
+  if grep -qE -- 'git[[:space:]]+clean[[:space:]]+-[a-z]*f' <<<"$cmd"; then
+    printf 'WARN: git clean -f deletes untracked files (add -n to preview).\n'; warn=1
+  fi
+  if grep -qE '(^|[;&|( ])rm([[:space:]]|$)' <<<"$cmd" && [[ $block -eq 0 && $warn -eq 0 ]]; then
+    printf 'NOTE: rm present. Prefer `del` (Trash). Resolve and read the target first.\n'; warn=1
+  fi
+
+  (( block )) && return 2
+  (( warn )) && return 1
+  return 0
+}
+
+_screen() {  # <cmd> <quiet?> -> exit 0/1/2
+  local cmd="$1" quiet="${2:-}" out rc
+  out="$(_assess "$cmd")"; rc=$?
+  if [[ -z "$quiet" ]]; then
+    if (( rc == 0 )); then printf 'idiot-test: ok — no catastrophic pattern detected.\n  (still: resolve paths, echo targets, think first.)\n'
+    else printf 'idiot-test: the Idiot Test flags this command:\n  $ %s\n%s\n' "$cmd" "$(sed 's/^/  - /' <<<"$out")"
+    fi
+  else printf '%s' "$out"
+  fi
+  return $rc
+}
+
+# ── modes ────────────────────────────────────────────────────────────────────
+case "${1:-}" in
+  -h|--help|"") [[ "${1:-}" == "" && ! -t 0 ]] || { _usage; exit 0; } ;;
+esac
+
+if [[ "${1:-}" == "--hook" ]]; then
+  command -v jq >/dev/null 2>&1 || exit 0   # fail-open if jq missing
+  payload="$(cat)"
+  tool="$(jq -r '.tool_name // empty' <<<"$payload" 2>/dev/null)"
+  [[ "$tool" == "Bash" ]] || exit 0
+  cmd="$(jq -r '.tool_input.command // empty' <<<"$payload" 2>/dev/null)"
+  [[ -n "$cmd" ]] || exit 0
+  findings="$(_assess "$cmd")"; rc=$?
+  if (( rc == 2 )); then
+    printf 'idiot-test BLOCKED a catastrophic command (Filesystem Doctrine):\n%s\nResolve the target, echo it, and confirm with the user before retrying.\n' "$findings" >&2
+    exit 2
+  fi
+  exit 0
+fi
+
+# CLI: argv or stdin
+if [[ $# -gt 0 ]]; then
+  _screen "$*"
+else
+  _screen "$(cat)"
+fi
