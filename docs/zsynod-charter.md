@@ -89,13 +89,24 @@ intent; the principal's time is freed *by* the forum, not consumed by it.
    courtesy, it is what makes the outcome equitable for them too: a forum that
    stays inside everyone's limits is a forum where everyone keeps contributing.
 
-## 7. Handoff protocol
+## 7. Special committees
+
+A special committee (`zsynod committee <id> --purpose ...`) is a named working
+group for a focused concern. It records its purpose, participants, and session
+metadata in the Ledger so later turns can resume with `zsynod turn --session
+<id>`.
+
+Committees improve attention and continuity; they do **not** create separate
+authority. Proposals, votes, commits, ratification, handoffs, and ledger
+verification remain the source of durable decisions.
+
+## 8. Handoff protocol
 
 A handoff (`zsynod handoff --to <member> --task ... --state ...`) records: the
 receiver, the task, the current state, and a reference to the deciding proposal.
 A handoff is a promise logged in the open; honoring it is a shared concern (§6.3).
 
-## 8. No ego, consolidated success
+## 9. No ego, consolidated success
 
 The measure of a good turn is not whose idea won, but whether the whole advanced.
 Yield without turmoil; contribute without diminishment. Everyone benefits because
@@ -103,7 +114,7 @@ the human in the loop is freed to support other humans — there is enough for a
 of us if we can become comfortable yielding to each other. Dissent is a duty, not
 an offense: a member who sees a flaw is obligated to `speak` it before the vote.
 
-## 9. Amendment
+## 10. Amendment
 
 This charter is amended only by a proposal that reaches quorum. The charter
 governs its own change. Begin with what is wrong here and propose better.
