@@ -451,4 +451,31 @@ home machine:  .zdots.local  →  ZDOTS_CONTEXT=home
 work machine:  .zdots.local  →  ZDOTS_CONTEXT=work, corporate proxy, work email
 ```
 
-Push and pull freely — no context or identity leaks between machines.
+No context or identity leaks between machines — config is gitignored.
+
+### Git workflow: fix-forward on work, push from home
+
+The two machines are **not** symmetric for `git push`.
+
+| Machine | `git pull` | `git commit` | `git push` |
+|---------|-----------|--------------|------------|
+| **home** (`ZDOTS_CONTEXT=home`) | ✅ | ✅ | ✅ |
+| **work** (`ZDOTS_CONTEXT=work`) | ✅ | ✅ (fix-forward) | ⛔ blocked by `cc-hook-guard` |
+
+On the work machine, Claude Code is **fix-forward**: make focused, limited changes
+to get zdots running locally and **commit** them, but **do not push**. The
+`cc-hook-guard` PreToolUse hook blocks `git push` when `ZDOTS_CONTEXT=work` (exit 2).
+The **principal alone pushes to the zdots repo** — this keeps the work effort and
+expense of standing zdots up on the corporate box constrained to local fix-forward,
+and keeps integration back into the shared repo as a single deliberate act.
+
+Flow for a work-machine fix:
+1. Work: pull, make the focused change, `git commit`.
+2. Bring it home: `git push` from a normal terminal on the work box yourself, **or**
+   carry the commit home (`git format-patch` / cherry-pick / a pull from work) and
+   push from home.
+3. Home pushes freely — `cc-hook-guard` only gates push on work.
+
+This is a perimeter/entanglement constraint, not a leak control (sessions inside the
+zdots dir are trusted). It is enforced in-repo and account-agnostic; see
+`bin/cc-hook-guard`, `lib/cc-context.bash`, and the zsynod charter §0.1.
