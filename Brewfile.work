@@ -53,6 +53,7 @@ brew "docker"
 brew "docker-buildx"
 brew "docker-compose"
 brew "docker-compose-langserver"
+brew "duckdb"       # embeddable OLAP SQL — fast local analytics (CSV/Parquet/SQLite)
 brew "entr"
 brew "eza"
 brew "fabric-ai"  # LLM pipeline tool — configurable to local endpoints
@@ -226,6 +227,7 @@ npm "@earendil-works/pi-coding-agent"
 # per committed P18; drive it via `zopencode` (pinned to the local llama.cpp
 # endpoint, PHI guard parity). Principal-evaluated; pi stays the lightweight seat.
 brew "opencode"
+cask "opencode-desktop"   # OpenCode GUI (pairs with the opencode CLI)
 
 # Claude — cleared for work; home/work parity (mirrors Brewfile.home).
 # Provides the cl/claude CLI used as the zsynod frontier seat, plus the
