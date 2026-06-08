@@ -1,6 +1,6 @@
 # zsynod — minutes (generated from ledger.jsonl; do not edit)
 
-_Round 1 · chair gemini · quorum 3 of 5 · 67 entries_
+_Round 1 · chair gemini · quorum 3 of 5 · 68 entries_
 
 ## Proposals
 
