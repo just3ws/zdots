@@ -38,6 +38,7 @@
 #       local pi (and frontier on demand) discuss a backlog issue; remarks
 #       auto-append, proposals/handoffs print as commands for you to approve
 #   zsynod ask "<question>"              pose a question to the forum (no vote)
+#   zsynod answer <N> [note]             mark open question ?N answered (clears it)
 #   zsynod tail [member] [-f] [-n N]     tail a member's captured transcript
 #   zsynod console [--headless]          principal cockpit (prompts or report)
 #   zsynod verify                        re-walk the hash chain (integrity check)
@@ -1145,7 +1146,7 @@ cmd_exectick() {
 }
 
 cmd_minutes() {
-  local pid ay na ab st title   # keep local: dynamic scope else clobbers callers
+  local pid ay na ab st title blocking lvl item   # keep local: dynamic scope else clobbers callers
   { printf '# zsynod — minutes (generated from ledger.jsonl; do not edit)\n\n'
     printf '_Round %s · chair %s · quorum %s of %s · %s entries_\n\n' \
       "$(_cur_round)" "$(cmd_chair 2>/dev/null | sed -E 's/.*chair: ([^ ]*).*/\1/;s/\x1b\[[0-9;]*m//g')" \
@@ -1163,6 +1164,21 @@ cmd_minutes() {
         | if .type=="speak" then "    - "+.actor+": "+(.data.remark|clip)
           else "    - "+.actor+" ("+.data.vote+"): "+(.data.note|clip) end' "$LEDGER" 2>/dev/null
     done < <(_proposal_ids)
+    printf '\n## Awaiting you (blocking)\n\n'
+    blocking=0
+    while read -r pid; do [[ -z "$pid" ]] && continue; read -r ay na ab st title < <(_tally "$pid")
+      [[ "$st" != "committed" ]] && { printf -- '- decide **%s** (%s) — ratify or call a vote: %s\n' "$pid" "$st" "$title"; blocking=1; }
+    done < <(_proposal_ids)
+    while read -r item; do [[ -z "$item" ]] && continue
+      [[ "$(_q_status "$item")" == "queued" ]] || continue
+      IFS=$'\t' read -r lvl _ < <(_q_risk "$item")
+      printf -- '- review **%s** (risk %s · peer %s) — zsynod queue apply|reject %s\n' "$item" "$lvl" "$(_q_review_verdict "$item" 2>/dev/null || echo none)" "$item"; blocking=1
+    done < <(jq -rs '[.[]|select(.type=="queued")|.data.id]|unique|.[]' "$LEDGER" 2>/dev/null)
+    while read -r item; do [[ -z "$item" ]] && continue; printf -- '- answer %s — zsynod answer %s\n' "$item" "${item%% *}"; blocking=1
+    done < <(jq -rs '([.[]|select(.type=="question_answered")|.data.index]) as $a | [.[]|select(.type=="question")]|to_entries|map(select(((.key+1) as $i|$a|index($i))|not))|.[]|"\(.key+1) "+(.value.data.text // "(empty)")' "$LEDGER" 2>/dev/null)
+    while read -r item; do [[ -z "$item" ]] && continue; printf -- '- handoff to you: %s\n' "$item"; blocking=1
+    done < <(jq -rs '[.[]|select(.type=="handoff" and .data.to=="mike")]|.[-5:]|.[]|.data.task' "$LEDGER" 2>/dev/null)
+    [[ "$blocking" == "0" ]] && printf 'Nothing is blocked on you right now.\n'
     printf '\n## Backlog deliberation (ticks)\n\n'
     jq -rs '
       def clip: if (.|length) > 240 then .[0:240]+"…" else . end;
@@ -1170,7 +1186,11 @@ cmd_minutes() {
       | map("- **"+.[0].data.topic+"**\n"+([.[]|"    - "+.actor+": "+(.data.remark|clip)]|.[-5:]|join("\n")))
       | .[]' "$LEDGER" 2>/dev/null
     printf '\n## Open questions\n\n'
-    jq -rs '[.[]|select(.type=="question")]|.[-10:]|.[]|"- ("+.actor+") "+.data.text' "$LEDGER" 2>/dev/null
+    jq -rs '
+      ([.[]|select(.type=="question_answered")|.data.index]) as $ans
+      | [.[]|select(.type=="question")] | to_entries
+      | map(select(((.key+1) as $i | $ans|index($i))|not))
+      | if length==0 then "(none open)" else (.[]|"- ?\(.key+1) ("+.value.actor+") "+(.value.data.text // "(empty)")) end' "$LEDGER" 2>/dev/null
     printf '\n## Committees\n\n'
     jq -rs '[.[]|select(.type=="committee")]|.[-10:]|.[]|"- **"+.data.id+"** ("+(.data.meeting_type // "committee")+") "+.data.purpose+" — "+((.data.participants // [])|join(","))' "$LEDGER" 2>/dev/null
     printf '\n## Recent handoffs\n\n'
@@ -1417,6 +1437,7 @@ case "$SUB" in
   exec-tick) cmd_exectick ;;
   tail)     cmd_tail "${POS[1]:-}" "$FOLLOW" "${LINES:-40}" ;;
   ask)      cmd_ask "${POS[1]:-}" ;;
+  answer)   cmd_answer "${POS[1]:-}" "${POS[2]:-}" ;;
   console)  cmd_console ;;
   verify)   cmd_verify ;;
   convene)  cmd_convene ;;
