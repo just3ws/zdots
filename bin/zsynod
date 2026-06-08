@@ -805,7 +805,7 @@ cmd_history() {  # chronological discussion record over time; optional filter (Z
   local filter="${1:-}"
   [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
   jq -rs --arg f "$filter" '
-    def clip: if (.|length) > 200 then .[0:200]+"…" else . end;
+    def clip: (gsub("\\s+";" ")|gsub("^ +| +$";"")) | if (length) > 200 then .[0:200]+"…" else . end;
     [.[]|select(.type=="speak" or .type=="discuss" or (.type=="vote" and (.data.note//"")!=""))]
     | map(select($f=="" or (.data.proposal==$f) or (.data.topic==$f)))
     | .[]
@@ -1052,7 +1052,7 @@ cmd_resume() {  # everything a fresh facilitator (any AI backend) needs to take 
   printf '\n%sproposed-diff queue%s:\n' "$B" "$RST"
   cmd_queue list 2>/dev/null
   printf '\n%srecent deliberation%s (last 5):\n' "$B" "$RST"
-  jq -rs 'def clip: if (.|length)>120 then .[0:120]+"…" else . end; [.[]|select(.type=="discuss")]|.[-5:]|.[]|"  ["+(.data.topic//"?")+"] "+.actor+": "+(.data.remark|clip)' "$LEDGER" 2>/dev/null
+  jq -rs 'def clip: (gsub("\\s+";" ")|gsub("^ +| +$";"")) | if (length)>120 then .[0:120]+"…" else . end; [.[]|select(.type=="discuss")]|.[-5:]|.[]|"  ["+(.data.topic//"?")+"] "+.actor+": "+(.data.remark|clip)' "$LEDGER" 2>/dev/null
 
   printf '\n%snext action%s: run `zsynod tick` for the next kaizen turn; clear any READY queue items; bring open proposals to a vote when a seat is available.\n' "$B" "$RST"
 }
@@ -1161,7 +1161,7 @@ cmd_minutes() {
       printf -- '- **%s** [%s] %s — %s/%s aye, %s nay, %s abstain\n' "$pid" "$st" "$title" "$ay" "$(_voting_ids|wc -l|tr -d ' ')" "$na" "$ab"
       # discussion + votes-with-notes under each proposal (the missing context)
       jq -rs --arg p "$pid" '
-        def clip: if (.|length) > 240 then .[0:240]+"…" else . end;
+        def clip: (gsub("\\s+";" ")|gsub("^ +| +$";"")) | if (length) > 240 then .[0:240]+"…" else . end;
         [.[]|select((.type=="speak" or (.type=="vote" and (.data.note//"")!="")) and .data.proposal==$p)]
         | .[-8:] | .[]
         | if .type=="speak" then "    - "+.actor+": "+(.data.remark|clip)
@@ -1184,7 +1184,7 @@ cmd_minutes() {
     [[ "$blocking" == "0" ]] && printf 'Nothing is blocked on you right now.\n'
     printf '\n## Backlog deliberation (ticks)\n\n'
     jq -rs '
-      def clip: if (.|length) > 240 then .[0:240]+"…" else . end;
+      def clip: (gsub("\\s+";" ")|gsub("^ +| +$";"")) | if (length) > 240 then .[0:240]+"…" else . end;
       [.[]|select(.type=="discuss")] | group_by(.data.topic)
       | map("- **"+.[0].data.topic+"**\n"+([.[]|"    - "+.actor+": "+(.data.remark|clip)]|.[-5:]|join("\n")))
       | .[]' "$LEDGER" 2>/dev/null
