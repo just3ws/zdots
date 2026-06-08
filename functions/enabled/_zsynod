@@ -42,6 +42,7 @@ _zsynod() {
     'committees:list named special committees'
     'tick:one deliberation turn over a backlog issue'
     'turn:read-only headless turn report'
+    'exec-tick:frontier executes one open handoff into a queued one-shot diff'
     'resume:facilitator handoff brief (any backend resumes)'
     'queue:proposed diffs, dependency + priority ordered'
     'log:show ledger entries'
@@ -81,6 +82,7 @@ _zsynod() {
                     '--task[task]:text' '--state[state]:text' '--ref[proposal ref]:id' ;;
         committee) _arguments '1:id:' '--purpose[purpose]:text' '--participants[members]:csv' '--frontier[frontier set]' '--meeting[type]:type' ;;
         tick)     _arguments '--topic[backlog issue id]:id' '--frontier[add codex+gemini (cloud)]' '--json[machine-readable]' ;;
+        exec-tick) _arguments '--seat[frontier seat]:seat:(codex gemini)' ;;
         turn)     _arguments '--session[session id]:id' '--since[since seq]:n' '--max-tokens[budget]:n' '--json[machine-readable]' '--frontier[frontier set]' ;;
         queue)    _arguments '1:subcommand:(list add show apply reject defer)' '*::queuearg:->qarg'
                   case $state in
