@@ -1,6 +1,6 @@
 # zsynod — minutes (generated from ledger.jsonl; do not edit)
 
-_Round 1 · chair gemini · quorum 3 of 5 · 127 entries_
+_Round 1 · chair gemini · quorum 3 of 5 · 135 entries_
 
 ## Proposals
 
@@ -92,8 +92,14 @@ resource: ok · emitted 25/25 entries
     - claude (aye): one spine + shared MCP + guard parity; staged, reversible, operator-coordinated
     - pi (aye): supports unified agent framework and enhanced security (local dispatch)
 
+## Awaiting you (blocking)
+
+Nothing is blocked on you right now.
+
 ## Backlog deliberation (ticks)
 
+- **Z-013**
+    - pi: The Debian/Raspberry Pi profile should include minimal packages and environment variables for performance optimization.  
 - **Z-026**
     - pi: Centralized log management will improve observability and debugging efficiency.  
 - **Z-027**
@@ -107,18 +113,30 @@ resource: ok · emitted 25/25 entries
     - pi: The --from-file flag enhances UX and security by simplifying file input handling in ai-query.
 - **Z-040**
     - pi: The task requires integrating llama-ctl config into ai-query to improve embedding size validation by using ubatch_size from the config.  
+- **Z-041**
+    - pi: Calibration of scanner weights requires reviewing existing test fixtures to identify false positives and adjust thresholds accordingly.  
 - **Z-045**
     - pi: The task requires integrating Docker/Colima lifecycle into the platform engine, starting with refactoring bin/local-ci to use lib/lifecycle.bash.  
 - **Z-047**
     - pi: The task focuses on abstracting service interfaces to enhance zdots-ctl as a lifecycle orchestrator.  
+- **Z-052**
+    - pi: OTel traces can be leveraged to auto-generate Mermaid diagrams for service flows.  
 - **Z-074**
     - pi: Que's use of PostgreSQL advisory locks aligns with the goal of native job management without Redis dependencies.  
+- **Z-075**
+    - pi: Mermaid v11 syntax enables precise and visually rich diagrams, aligning with the task's goal of upgrading documentation.  
+- **Z-093**
+    - pi: Confirm TC-15 and TC-16 fail without prompt updates to validate the gap
 - **Z-101**
     - pi: Audit of sensitive columns in `my` database to identify encryption gaps  
+- **Z-102**
+    - pi: The sandbox-exec profile needs to restrict llama-server's network access and file operations as specified.
 - **Z-103**
     - pi: The error-velocity subcommand in zdots-ctx needs implementation to address cognitive load detection.
 - **Z-104**
     - pi: Move nginx to port 80 in nginx.conf and configure upstreams for llama-server and Grafana.  
+- **Z-118**
+    - pi: The issue stems from rtk's handling of pathspecs in git diff commands, which differs from plain git.
 - **Z-121**
     - pi: Audit Mermaid types in docs/architecture-diagram-audit-plan.md for usage status  
 - **Z-125**
@@ -139,7 +157,7 @@ resource: ok · emitted 25/25 entries
 
 ## Open questions
 
-- (mike) Should Gemini speak for Antigravity on Alphabet's behalf during bootstrap?
+(none open)
 
 ## Committees
 

@@ -50,6 +50,7 @@ _zsynod() {
     'view:regenerate + display the minutes'
     'history:chronological discussion record over time'
     'ask:pose a question to the forum'
+    'answer:mark open question ?N answered'
     'tail:tail a member transcript'
     'console:interactive principal cockpit'
     'verify:re-walk the hash chain'
