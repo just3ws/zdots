@@ -31,17 +31,21 @@ _known_gap() {
     alias-suggest
     bootstrap
     capabilities
+    cc-doctor
     commit-msg
     diff-review
     docker-reclaim
     history-analyze
     history-import
+    idiot-test
     llama-caps
     llama-ctl
     local-ci
     nginx-ctl
     nginx-repair
+    openobserve-ctl
     otel-collector
+    otel-smoke
     ruby-audit
     ruby-audit-batch
     ruby-audit-diff
@@ -50,8 +54,12 @@ _known_gap() {
     zdots-ask
     zdots-ctx
     zdots-doctor
+    zdots-endpoints
+    zdots-graph-audit
     zdots-keychain
     zdots-log-analyze
+    zdots-o2-query
+    zdots-otel-phi-compile
     zdots-quiz
     zdots-status
     zdots-ctl
@@ -63,6 +71,7 @@ _known_gap() {
     zmetrics
     zmorning
     zsvc
+    zsynod
     ztask
   "
   for command in $commands; do
@@ -164,15 +173,14 @@ _known_gap() {
 }
 
 @test "docs: every bin executable is --help-tested or in the known-gaps file" {
-  skip_in_ci
   # Canonical set of explicitly tested commands (mirrors the --help test above).
   local -a tested=(
-    agent-guide ai-query alias-suggest bootstrap capabilities commit-msg
+    agent-guide ai-query alias-suggest bootstrap capabilities cc-doctor commit-msg
     diff-review docker-reclaim gemini-mcp-register history-analyze history-import
-    llama-caps llama-ctl local-ci nginx-ctl nginx-repair otel-collector ruby-audit ruby-audit-batch ruby-audit-diff pi-ctx-brief pi-ctx-hydrate
+    idiot-test llama-caps llama-ctl local-ci nginx-ctl nginx-repair openobserve-ctl otel-collector otel-smoke ruby-audit ruby-audit-batch ruby-audit-diff pi-ctx-brief pi-ctx-hydrate
     pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-doctor
-    zdots-github-keys zdots-keychain zdots-log-analyze zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-my-sync zdots-ingest-prepare
-    zdots-worker
+    zdots-endpoints zdots-github-keys zdots-graph-audit zdots-keychain zdots-log-analyze zdots-o2-query zdots-otel-phi-compile zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-my-sync zdots-ingest-prepare
+    zdots-worker zsynod
     zmetrics zmorning zsvc ztask
   )
 
