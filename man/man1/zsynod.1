@@ -81,6 +81,16 @@ Remarks auto-append; proposals and handoffs are surfaced as commands
 for the principal to approve, never auto-written.
 .It Ic turn Oo Fl -session Ar id Oc Oo Fl -since Ar n Oc Oo Fl -json Oc
 Read-only headless turn report of forum state.
+.It Ic exec-tick Oo Fl -seat Ar codex Ns | Ns Ar gemini Oc
+Bounded frontier execution.
+Pulls one open handoff (ratified work) and asks a frontier seat for ONE atomic,
+composable change that lands green in a single turn
+.Pq the one-shot contract ,
+or a decomposition if it is too big.
+The diff is PROPOSED into the queue
+.Pq propose-not-apply ;
+nothing touches the tree until the principal applies it.
+zdots-only, hourly cadence.
 .It Ic resume
 Facilitator handoff brief.
 Emits everything any AI backend (frontier now, local later) needs
