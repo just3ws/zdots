@@ -20,6 +20,7 @@ _zsynod() {
     'log:show ledger entries'
     'minutes:regenerate minutes.md'
     'view:regenerate + display the minutes'
+    'history:chronological discussion record over time (optional Z-NNN/P# filter)'
     'tick:one deliberation turn over a backlog issue (pi; --frontier adds codex+gemini)'
     'ask:pose a question to the forum'
     'tail:tail a member transcript'
