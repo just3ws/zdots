@@ -29,6 +29,7 @@
 #   zsynod queue [list]                  proposed diffs in dependency + priority order
 #   zsynod queue add --summary T [--ref Z-NNN] [--after Q1,Q2] [--priority P] [--patch F|-]
 #   zsynod queue show|apply|reject|defer <Qid>   review / apply (git apply) / dispose
+#   zsynod resume                        facilitator handoff brief — any backend can pick up the loop
 #   zsynod turn [--session ID] [--since N] [--json]  headless ledger turn report
 #   zsynod tick [--topic Z-NNN] [--frontier] [--json] one deliberation turn:
 #       local pi (and frontier on demand) discuss a backlog issue; remarks
@@ -888,6 +889,39 @@ _q_set() {  # <Qid> <status> [note]
   printf '%s marked %s%s\n' "$qid" "$status" "${note:+ — $note}"
 }
 
+cmd_resume() {  # everything a fresh facilitator (any AI backend) needs to take over the synodic loop
+  [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
+  printf '%s# zsynod — facilitator resume brief%s\n' "$B" "$RST"
+  printf 'You are the FACILITATOR of the zsynod synodic cycle: zdots kaizen, in service of the principal (Mike).\n'
+  printf 'This role is handoff-able and backend-agnostic. Any AI harness — frontier now, local later — runs the loop\n'
+  printf 'from THIS brief plus the ledger. The ledger (zsynod/ledger.jsonl) is canon and outlives any single member.\n\n'
+  printf '%sintegrity:%s %s\n' "$B" "$RST" "$(cmd_verify 2>&1 | tail -1)"
+
+  printf '\n%sbinding law%s (charter: docs/zsynod-charter.md, Article 0):\n' "$B" "$RST"
+  printf '  - Safety Covenant: protect the system above any task (Asimov); if blast radius exceeds the task, stop and file (Schrute); smallest sufficient act, cut with the grain, know when to stop (wu wei).\n'
+  printf '  - Jurisdiction: act ONLY within zdots; never touch the principals work systems, PHI/EMR, or external services — advise only.\n'
+
+  printf '\n%stoken-scarcity protocol%s (the buck stops with the principal):\n' "$B" "$RST"
+  printf '  - Default to LOCAL pi for ticks (free). Escalate to a frontier seat ONLY when the work needs it.\n'
+  printf '  - The facilitator may be ANY backend. If you run low on tokens/resources: finish the current one-shot unit, then STOP cleanly. Leave nothing half-done. The next facilitator runs `zsynod resume` and continues seamlessly.\n'
+  printf '  - Spend the scarce resource (tokens, frontier calls) only where it earns its keep (charter §6.6); the strongest owe the most concision.\n'
+
+  printf '\n%sthe cycle (one turn)%s:\n' "$B" "$RST"
+  printf '  1. zsynod tick            local pi deliberates the next backlog issue (rotates to least-discussed); remarks auto-append.\n'
+  printf '  2. surface asks           PROPOSE/HANDOFF go to the principal for approval; never auto-commit.\n'
+  printf '  3. zsynod queue           proposed diffs, priority+dependency ordered; each must be ONE small composable change that lands green in a single turn — else decompose, never half-do.\n'
+  printf '  4. zsynod verify          before yielding. The ledger is the handoff.\n'
+
+  printf '\n%scurrent state%s:\n' "$B" "$RST"
+  cmd_status 2>/dev/null
+  printf '\n%sproposed-diff queue%s:\n' "$B" "$RST"
+  cmd_queue list 2>/dev/null
+  printf '\n%srecent deliberation%s (last 5):\n' "$B" "$RST"
+  jq -rs 'def clip: if (.|length)>120 then .[0:120]+"…" else . end; [.[]|select(.type=="discuss")]|.[-5:]|.[]|"  ["+(.data.topic//"?")+"] "+.actor+": "+(.data.remark|clip)' "$LEDGER" 2>/dev/null
+
+  printf '\n%snext action%s: run `zsynod tick` for the next kaizen turn; clear any READY queue items; bring open proposals to a vote when a seat is available.\n' "$B" "$RST"
+}
+
 cmd_queue() {
   [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
   local sub="${1:-list}"
@@ -1154,6 +1188,7 @@ case "$SUB" in
   view)     cmd_view ;;
   history)  cmd_history "${POS[1]:-}" ;;
   queue)    cmd_queue "${POS[1]:-}" "${POS[2]:-}" "${POS[3]:-}" ;;
+  resume)   cmd_resume ;;
   turn)     cmd_turn "$FORMAT" "$SINCE" "$MAX_TOKENS" "$TURN_SESSION" "$MEETING_TYPE" "$TURN_PARTICIPANTS" ;;
   tick)     cmd_tick "$FORMAT" "$TOPIC" "$FRONTIER" ;;
   tail)     cmd_tail "${POS[1]:-}" "$FOLLOW" "${LINES:-40}" ;;
