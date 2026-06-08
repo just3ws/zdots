@@ -44,6 +44,8 @@
 #   zsynod room                          list the room's windows
 #   zsynod adjourn                       close the forum (transcripts kept)
 #   zsynod resume                        facilitator handoff brief (any backend resumes the loop)
+#   zsynod exec-tick [--seat codex|gemini]  frontier executes one open handoff →
+#       a one-shot diff into the queue (propose-not-apply) or a decomposition
 #   zsynod version                        print version
 #   (internal pane entrypoints: zsynod seat <id> · zsynod watch)
 #
@@ -973,6 +975,77 @@ cmd_queue() {
   esac
 }
 
+# ── exec-tick: bounded frontier execution of an open handoff (charter §0.5) ───
+# Pulls ONE open handoff (ratified work), asks a frontier seat for ONE atomic,
+# composable change that lands green in a single turn (the one-shot contract) —
+# OR a decomposition if it is too big. The diff is PROPOSED into the queue
+# (propose-not-apply); nothing touches the tree until the principal applies it.
+# zdots-only, hourly cadence (operator-cron'd). ZSYNOD_DISPATCH=0 stubs the seat.
+_exec_next_handoff() {  # oldest handoff with no exec record -> "seq<TAB>to<TAB>ref<TAB>task"
+  jq -rs '
+    ([.[]|select(.type=="exec")|.data.handoff_seq]) as $done
+    | [.[]|select(.type=="handoff")|select((.seq) as $s | ($done|index($s))|not)]
+    | (.[0] // empty) | "\(.seq)\t\(.data.to)\t\(.data.ref // "")\t\(.data.task)"' "$LEDGER" 2>/dev/null
+}
+
+_exec_prompt() {  # <ref> <task>
+  cat <<EOF
+You are a frontier executing member of the zsynod, bound by Article 0: protect the system above the task, act ONLY within zdots, make the smallest sufficient change, do not force.
+Produce ONE small composable change that lands GREEN in a single turn for the delegated task below: one concern, minimal lines/files, self-contained, leaves tests passing. If it cannot be done in one shot, DECOMPOSE instead into ordered atomic change-requests.
+
+TASK (ref ${1:-none}): $2
+
+Output EXACTLY one of these two forms, nothing else:
+<<<DIFF
+(a unified diff that applies cleanly with: git apply)
+DIFF>>>
+or
+<<<DECOMPOSE
+- <atomic change> [after: <prior change>]
+- <atomic change>
+DECOMPOSE>>>
+EOF
+}
+
+_exec_dispatch() {  # <seat> <prompt> -> raw output
+  if [[ "${ZSYNOD_DISPATCH:-1}" != "1" ]]; then
+    printf '<<<DIFF\n--- a/exec-stub.txt\n+++ b/exec-stub.txt\n@@ -1 +1 @@\n-old\n+new\nDIFF>>>\n'; return
+  fi
+  case "$1" in
+    gemini) timeout 300 gemini -p "$2" 2>/dev/null ;;
+    *)      timeout 300 codex exec "$2" 2>/dev/null ;;
+  esac
+}
+
+cmd_exectick() {
+  [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
+  [[ -n "$MEMBER" ]] || MEMBER="claude"
+  local seat="${EXEC_SEAT:-codex}" h
+  h="$(_exec_next_handoff)"
+  [[ -n "$h" ]] || { printf 'exec-tick: no open handoffs — nothing to execute.\n'; return 0; }
+  local hseq hto href htask
+  IFS=$'\t' read -r hseq hto href htask <<<"$h"
+  : "$hto"
+  local out diff
+  out="$(_exec_dispatch "$seat" "$(_exec_prompt "$href" "$htask")")"
+  [[ -n "$out" ]] || { printf 'exec-tick: %s produced no output for handoff seq %s.\n' "$seat" "$hseq"; return 0; }
+  diff="$(printf '%s' "$out" | awk '/<<<DIFF/{f=1;next} /DIFF>>>/{f=0} f')"
+  if [[ -n "$diff" ]]; then
+    local qid save="$MEMBER"
+    MEMBER="$seat"; REF="$href"; SUMMARY="exec: ${htask:0:80}"; PRIORITY=""; AFTER=""; PATCHSRC="-"
+    qid="$(printf '%s' "$diff" | _q_add | sed -nE 's/^queued (Q[0-9]+).*/\1/p')"
+    _append exec "$(jq -nc --argjson hs "$hseq" --arg q "$qid" --arg ref "$href" '{handoff_seq:$hs,qid:$q,ref:$ref,mode:"diff"}')" >/dev/null
+    MEMBER="$save"
+    printf '%sexec-tick%s: %s proposed a one-shot diff for handoff seq %s (ref %s) → queued %s.\n  review: zsynod queue show %s   apply: zsynod queue apply %s\n' \
+      "$B" "$RST" "$seat" "$hseq" "${href:-none}" "$qid" "$qid" "$qid"
+  else
+    local save="$MEMBER"; MEMBER="$seat"
+    _append exec "$(jq -nc --argjson hs "$hseq" --arg ref "$href" --arg note "$(printf '%s' "$out" | head -c 1500)" '{handoff_seq:$hs,ref:$ref,mode:"decompose",note:$note}')" >/dev/null
+    MEMBER="$save"
+    printf '%sexec-tick%s: %s returned a decomposition (not a single one-shot diff) for handoff seq %s. Recorded for review: zsynod log\n' "$B" "$RST" "$seat" "$hseq"
+  fi
+}
+
 cmd_minutes() {
   local pid ay na ab st title   # keep local: dynamic scope else clobbers callers
   { printf '# zsynod — minutes (generated from ledger.jsonl; do not edit)\n\n'
@@ -1161,7 +1234,7 @@ cmd_convene() {
 }
 
 # ── arg parse (flags anywhere; first non-flag is the subcommand) ─────────────
-POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""; AFTER=""; PRIORITY=""; SUMMARY=""; PATCHSRC=""
+POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""; AFTER=""; PRIORITY=""; SUMMARY=""; PATCHSRC=""; EXEC_SEAT=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --as) MEMBER="$2"; shift 2 ;;
@@ -1181,6 +1254,7 @@ while [[ $# -gt 0 ]]; do
     --priority) PRIORITY="$2"; shift 2 ;;
     --summary) SUMMARY="$2"; shift 2 ;;
     --patch) PATCHSRC="$2"; shift 2 ;;
+    --seat) EXEC_SEAT="$2"; shift 2 ;;
     --frontier) FRONTIER="1"; PARTICIPANTS_SET="1"; MEETING_TYPE="${MEETING_TYPE:-frontier}"; [[ "$MEETING_TYPE" == "regular" ]] && MEETING_TYPE="frontier"; shift ;;
     --participants) PARTICIPANTS="$2"; PARTICIPANTS_SET="1"; shift 2 ;;
     --meeting) MEETING_TYPE="$2"; MEETING_SET="1"; shift 2 ;;
@@ -1230,6 +1304,7 @@ case "$SUB" in
   resume)   cmd_resume ;;
   turn)     cmd_turn "$FORMAT" "$SINCE" "$MAX_TOKENS" "$TURN_SESSION" "$MEETING_TYPE" "$TURN_PARTICIPANTS" ;;
   tick)     cmd_tick "$FORMAT" "$TOPIC" "$FRONTIER" ;;
+  exec-tick) cmd_exectick ;;
   tail)     cmd_tail "${POS[1]:-}" "$FOLLOW" "${LINES:-40}" ;;
   ask)      cmd_ask "${POS[1]:-}" ;;
   console)  cmd_console ;;
