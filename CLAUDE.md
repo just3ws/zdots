@@ -19,8 +19,9 @@ hooks + statusline) and `.mcp.json` (backlog/ctx/llama servers); the gitignored
 Note: Claude Code is a **cloud** tool — it bypasses the local
 `phi_scrub`/`ai_boundary` pipeline. The deny-list and `cc-hook-guard` are the
 guardrails that keep secrets, keys, and PHI out of cloud prompts on this
-PHI-adjacent machine. By Brewfile policy, CC is home/powerstation-only; work
-machines use Pi + the local LLM.
+PHI-adjacent machine. CC now runs on both home and work (Brewfile.home and
+Brewfile.work install it at parity); work also retains Pi + the local LLM. On
+work the deny-list and `cc-hook-guard` are mandatory, not optional.
 
 ## Platform Control
 
