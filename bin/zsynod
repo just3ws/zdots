@@ -1272,7 +1272,7 @@ _launch_cmd() {  # member id → its agent command (members.json override wins)
   local m="$1" c
   c="$(jq -r --arg m "$m" '.members[]|select(.id==$m)|.command // ""' "$MEMBERS" 2>/dev/null)"
   [[ -n "$c" ]] && { printf '%s' "$c"; return; }
-  case "$m" in claude) printf 'claude' ;; codex) printf 'codex' ;; gemini) printf 'gemini' ;; pi) printf 'zpi' ;; aider) printf 'zaider' ;; *) printf '' ;; esac
+  case "$m" in claude) printf 'claude' ;; codex) printf 'codex' ;; gemini) printf 'gemini' ;; pi) printf 'zpi' ;; aider) printf 'zaider' ;; opencode) printf 'zopencode' ;; *) printf '' ;; esac
 }
 
 _launch_harness_name() {  # <facilitator> <zsynod-session>
@@ -1306,6 +1306,13 @@ _launch_harness_json() {  # <facilitator> <zsynod-session>
       key="$(_launch_harness_name "$facilitator" "$session_id")"
       jq -nc --arg cli codex --arg key "$key" \
         '{cli:$cli,mode:"unsupported-create-name",key:$key,launch_args:[],resume_supported:false,note:"codex resume accepts a session name, but this CLI help exposes no create-with-name launch flag"}'
+      ;;
+    opencode)
+      # Local seat (P18) — never facilitates: launch requires a FRONTIER
+      # facilitator, so this entry is informational. Session/resume flags must
+      # be confirmed against `opencode --help` on the work machine (Z-137).
+      jq -nc --arg cli zopencode \
+        '{cli:$cli,mode:"local-seat-no-facilitate",launch_args:[],resume_supported:false,note:"local executing seat; verify session flags on work (Z-137)"}'
       ;;
     *)
       jq -nc --arg cli "$facilitator" '{cli:$cli,mode:"unsupported",launch_args:[],resume_supported:false}'

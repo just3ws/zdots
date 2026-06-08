@@ -41,6 +41,14 @@
       "lane": "file edits + git execution of ratified decisions"
     },
     {
+      "id": "opencode",
+      "tier": "local",
+      "voting": false,
+      "lane": "agentic multi-file execution (local) — fills antigravity's lane on-machine",
+      "command": "zopencode",
+      "note": "Seated per committed P18 (principal override of P12). Experimental: voting deferred until proven, so quorum is unchanged. Principal-evaluated hands-on. Pi retained as the lightweight first-responder. Reversible."
+    },
+    {
       "id": "mike",
       "tier": "principal",
       "voting": false,

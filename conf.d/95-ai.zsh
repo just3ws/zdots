@@ -51,6 +51,13 @@ if [[ -r "$ZDOTDIR/providers/tools/aider.zsh" ]] && ! typeset -f laid >/dev/null
   }
 fi
 
+if [[ -r "$ZDOTDIR/providers/tools/opencode.zsh" ]] && ! typeset -f zopencode >/dev/null 2>&1; then
+  zopencode() {
+    unfunction zopencode 2>/dev/null || true
+    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/opencode.zsh" zopencode "$@"
+  }
+fi
+
 if [[ -r "$ZDOTDIR/providers/tools/router.zsh" ]] && ! typeset -f zai >/dev/null 2>&1; then
   zai() {
     unfunction zai 2>/dev/null || true
