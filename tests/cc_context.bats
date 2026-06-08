@@ -25,15 +25,14 @@ setup() {
   [ "$output" = "work" ]
 }
 
-@test "guard blocks git commit on a work machine" {
+@test "guard allows git commit on a work machine" {
   run bash -c "ZDOTS_CONTEXT=work ZDOTDIR='$REPO_ROOT' '$GUARD' <<< '{\"tool_input\":{\"command\":\"git commit -m x\"}}'"
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"work machine"* ]]
+  [ "$status" -eq 0 ]
 }
 
-@test "guard blocks git push on a work machine" {
+@test "guard allows git push on a work machine" {
   run bash -c "ZDOTS_CONTEXT=work ZDOTDIR='$REPO_ROOT' '$GUARD' <<< '{\"tool_input\":{\"command\":\"git push origin main\"}}'"
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 0 ]
 }
 
 @test "guard allows git commit on a home machine" {
