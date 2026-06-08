@@ -21,12 +21,14 @@
 #   zsynod commit <id>                   stamp committed iff quorum of ayes
 #   zsynod ratify <id>                   principal authority commit (--as mike)
 #   zsynod handoff --to M --task "T" [--state T] [--ref <id>]
+#   zsynod committee <id> --purpose T    form a named special committee
 #   zsynod log [--round N] [--json]      show ledger entries
 #   zsynod minutes                       regenerate minutes.md
 #   zsynod view                          regenerate + display the minutes
+#   zsynod turn [--session ID] [--since N] [--json]  headless ledger turn report
 #   zsynod ask "<question>"              pose a question to the forum (no vote)
 #   zsynod tail [member] [-f] [-n N]     tail a member's captured transcript
-#   zsynod console                       interactive principal cockpit (prompts)
+#   zsynod console [--headless]          principal cockpit (prompts or report)
 #   zsynod verify                        re-walk the hash chain (integrity check)
 #   zsynod convene                       open the tmux forum room (one at a time)
 #   zsynod attach                        attach to the convened room
@@ -47,6 +49,7 @@ DIR="${ZSYNOD_DIR:-$ZDOTDIR/zsynod}"
 LEDGER="$DIR/ledger.jsonl"
 MEMBERS="$DIR/members.json"
 MINUTES="$DIR/minutes.md"
+SESSIONS="$DIR/sessions"
 CHARTER="docs/zsynod-charter.md"
 LOCK="$DIR/.lock"
 
@@ -132,6 +135,62 @@ _tally() {
 
 _proposal_ids() { jq -rs '[.[]|select(.type=="propose")|.data.id]|unique|.[]' "$LEDGER" 2>/dev/null; }
 _next_pid()     { local n; n="$(jq -rs '[.[]|select(.type=="propose")]|length' "$LEDGER" 2>/dev/null || echo 0)"; echo "P$(( n + 1 ))"; }
+
+_frontier_ids() { jq -r '.members[]|select(.tier=="frontier")|.id' "$MEMBERS"; }
+_session_path() { printf '%s/%s.json' "$SESSIONS" "$1"; }
+_session_turns_path() { printf '%s/%s.turns.jsonl' "$SESSIONS" "$1"; }
+_session_valid() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]]; }
+
+_participants_csv() {
+  local explicit="${1:-}" frontier="${2:-0}"
+  if [[ -n "$explicit" ]]; then
+    printf '%s' "$explicit"
+  elif [[ "$frontier" == "1" ]]; then
+    _frontier_ids | paste -sd, -
+  else
+    _voting_ids | paste -sd, -
+  fi
+}
+
+_validate_participants() {
+  local csv="${1:-}" id
+  [[ -z "$csv" ]] && return 0
+  IFS=',' read -r -a ids <<< "$csv"
+  for id in "${ids[@]}"; do
+    [[ -n "$id" ]] || _die "empty participant in --participants"
+    _member_known "$id" || _die "unknown participant: $id"
+  done
+}
+
+_session_resume_since() {
+  local id="${1:-}" fallback="${2:-0}" f
+  [[ -n "$id" ]] || { printf '%s' "$fallback"; return; }
+  f="$(_session_path "$id")"
+  if [[ -f "$f" ]]; then
+    jq -r '.last_seq // 0' "$f"
+  else
+    printf '%s' "$fallback"
+  fi
+}
+
+_session_resume_participants() {
+  local id="${1:-}" f
+  [[ -n "$id" ]] || return 0
+  f="$(_session_path "$id")"
+  [[ -f "$f" ]] || return 0
+  jq -r '(.participants // []) | join(",")' "$f"
+}
+
+_session_resume_meeting_type() {
+  local id="${1:-}" fallback="${2:-regular}" f
+  [[ -n "$id" ]] || { printf '%s' "$fallback"; return; }
+  f="$(_session_path "$id")"
+  if [[ -f "$f" ]]; then
+    jq -r --arg fallback "$fallback" '.meeting_type // $fallback' "$f"
+  else
+    printf '%s' "$fallback"
+  fi
+}
 
 # ── commands ─────────────────────────────────────────────────────────────────
 cmd_init() {
@@ -254,6 +313,61 @@ cmd_handoff() {
   printf '%shandoff%s %s → %s: %s\n' "$YEL" "$RST" "$MEMBER" "$to" "$task"
 }
 
+cmd_committee() {
+  local id="$1" purpose="$2" participants="$3" meeting_type="${4:-committee}" ref="${5:-}" meta now last_seq data
+  [[ -n "$id" ]] || _die "committee needs an id"
+  [[ -n "$purpose" ]] || _die "committee needs --purpose"
+  _session_valid "$id" || _die "invalid committee id: $id"
+  [[ "$meeting_type" == "regular" ]] && meeting_type="committee"
+  _validate_participants "$participants"
+  mkdir -p "$SESSIONS"
+  meta="$(_session_path "$id")"
+  [[ ! -e "$meta" ]] || _die "committee/session already exists: $id"
+  data="$(jq -nc \
+    --arg id "$id" \
+    --arg purpose "$purpose" \
+    --arg participants "$participants" \
+    --arg meeting_type "$meeting_type" \
+    --arg ref "$ref" \
+    '{
+      id:$id,
+      purpose:$purpose,
+      participants:(if $participants == "" then [] else ($participants|split(",")) end),
+      meeting_type:$meeting_type,
+      ref:$ref,
+      session:{id:$id, transcript:("sessions/" + $id + ".turns.jsonl")}
+    }')"
+  _append committee "$data" >/dev/null
+  now="$(date -u +%FT%TZ)"
+  last_seq="$(jq -rs 'map(.seq)|max // 0' "$LEDGER")"
+  printf '%s\n' "$data" | jq \
+    --arg ts "$now" \
+    --argjson last_seq "$last_seq" \
+    '. + {
+      kind:"committee",
+      created_at:$ts,
+      last_turn_at:null,
+      last_seq:$last_seq,
+      last_since:0,
+      turn_count:0,
+      transcript:.session.transcript,
+      resource:null
+    }' > "$meta"
+  printf '%scommittee%s %s — %s\n' "$GRN" "$RST" "$id" "$purpose"
+  printf '%snext: zsynod turn --session %s --participants %s%s\n' "$D" "$id" "${participants:-all-voting}" "$RST"
+}
+
+cmd_committees() {
+  local rows
+  rows="$(jq -rs '[.[]|select(.type=="committee")|.data] | unique_by(.id) | .[] |
+    [.id, (.meeting_type // "committee"), ((.participants // []) | join(",")), .purpose] | @tsv' "$LEDGER" 2>/dev/null)"
+  [[ -n "$rows" ]] || { printf '%s(no committees yet — zsynod committee <id> --purpose "...")%s\n' "$D" "$RST"; return 0; }
+  printf '%s%-24s %-12s %-28s %s%s\n' "$B" "COMMITTEE" "TYPE" "PARTICIPANTS" "PURPOSE" "$RST"
+  while IFS=$'\t' read -r id meeting participants purpose; do
+    printf '%-24s %-12s %-28s %s\n' "$id" "$meeting" "${participants:-all-voting}" "$purpose"
+  done <<< "$rows"
+}
+
 cmd_status() {
   cmd_chair
   local q n; q="$(_quorum)"; n="$(_voting_ids|wc -l|tr -d ' ')"
@@ -269,6 +383,8 @@ cmd_status() {
   # open handoffs
   local ho; ho="$(jq -rs '[.[]|select(.type=="handoff")]|.[-5:]|.[]|"  "+.actor+" → "+.data.to+": "+.data.task' "$LEDGER" 2>/dev/null)"
   [[ -n "$ho" ]] && { printf '\n%srecent handoffs%s\n%s\n' "$B" "$RST" "$ho"; }
+  local co; co="$(jq -rs '[.[]|select(.type=="committee")]|.[-5:]|.[]|"  "+.data.id+" ("+(.data.meeting_type // "committee")+"): "+.data.purpose' "$LEDGER" 2>/dev/null)"
+  [[ -n "$co" ]] && { printf '\n%scommittees%s\n%s\n' "$B" "$RST" "$co"; }
 }
 
 cmd_log() {
@@ -295,6 +411,211 @@ cmd_verify() {
   (( ok == 1 )) && printf '%schain intact%s — %s entries verified\n' "$GRN" "$RST" "$n" || { _die "ledger integrity FAILED"; }
 }
 
+_verify_json() {
+  local prev="GENESIS" ok=1 ln n=0 broken_seq="" expected="" got=""
+  while IFS= read -r ln; do
+    n=$((n+1))
+    local stored canon h
+    stored="$(printf '%s' "$ln" | jq -r '.hash')"
+    canon="$(printf '%s' "$ln" | jq 'del(.hash)' | jq -Sc .)"
+    h="$(_hash "${prev}${canon}")"
+    if [[ "$h" != "$stored" && "$ok" == "1" ]]; then
+      ok=0; broken_seq="$(printf '%s' "$ln" | jq -r .seq)"; expected="$h"; got="$stored"
+    fi
+    prev="$stored"
+  done < "$LEDGER"
+  jq -nc --argjson ok "$ok" --argjson entries "$n" --arg broken_seq "$broken_seq" \
+    --arg expected "$expected" --arg got "$got" \
+    '{ok:($ok == 1),entries:$entries}
+     + (if $ok == 1 then {} else {broken_seq:($broken_seq|tonumber),expected:$expected,got:$got} end)'
+}
+
+_turn_json() {
+  local since="${1:-0}" max_tokens="${2:-}" session_id="${3:-}" meeting_type="${4:-regular}" participants="${5:-}" verify_json stdin_text=""
+  [[ "$since" =~ ^[0-9]+$ ]] || _die "--since must be a non-negative integer"
+  [[ -z "$max_tokens" || "$max_tokens" =~ ^[0-9]+$ ]] || _die "--max-tokens must be a non-negative integer"
+  if [[ ! -t 0 ]]; then stdin_text="$(cat)"; fi
+  verify_json="$(_verify_json)"
+  jq -n \
+    --slurpfile ledger "$LEDGER" \
+    --slurpfile members "$MEMBERS" \
+    --argjson since "$since" \
+    --arg max_tokens "$max_tokens" \
+    --arg session_id "$session_id" \
+    --arg meeting_type "$meeting_type" \
+    --arg participants "$participants" \
+    --arg stdin "$stdin_text" \
+    --argjson verify "$verify_json" '
+    def voters: $members[0].members | map(select(.voting) | .id);
+    def quorum: ((voters | length) / 2 | floor) + 1;
+    def participant_ids: if $participants == "" then voters else ($participants | split(",")) end;
+    def latest_votes($p):
+      ($ledger
+        | map(select((.type == "vote" or .type == "second") and .data.proposal == $p))
+        | sort_by(.actor, .seq)
+        | group_by(.actor)
+        | map(last | if .type == "second" then "aye" else .data.vote end));
+    def tally($p):
+      (latest_votes($p)) as $v
+      | {
+          ayes: ($v | map(select(. == "aye")) | length),
+          nays: ($v | map(select(. == "nay")) | length),
+          abstain: ($v | map(select(. == "abstain")) | length)
+        };
+    def committed($p): any($ledger[]; .type == "commit" and .data.proposal == $p);
+    def max_token_num: if $max_tokens == "" then null else ($max_tokens | tonumber) end;
+    def entry_budget: if max_token_num == null then 1000000 else ([((max_token_num / 80) | floor), 1] | max) end;
+    def proposals:
+      $ledger
+      | map(select(.type == "propose"))
+      | unique_by(.data.id)
+      | map(
+          .data as $p
+          | (tally($p.id)) as $t
+          | (committed($p.id)) as $done
+          | {
+              id: $p.id,
+              title: $p.title,
+              round: $p.round,
+              state: (if $done then "committed" else "open" end),
+              ayes: $t.ayes,
+              nays: $t.nays,
+              abstain: $t.abstain,
+              quorum: quorum,
+              needed: (if $done then 0 else ([quorum - $t.ayes, 0] | max) end)
+            }
+        );
+    ($ledger | map(.round) | max // 0) as $round
+    | (voters) as $voters
+    | (proposals) as $props
+    | ($ledger | map(select(.seq > $since))) as $entries_since
+    | ($entries_since | if length > entry_budget then .[-entry_budget:] else . end) as $emitted_entries
+    | {
+        kind: "zsynod_turn",
+        round: $round,
+        chair: $voters[$round % ($voters | length)],
+        quorum: quorum,
+        voting_members: ($voters | length),
+        last_seq: ($ledger | map(.seq) | max // 0),
+        since: $since,
+        session: (
+          if $session_id == "" then null
+          else {
+            id: $session_id,
+            meeting_type: $meeting_type,
+            participants: participant_ids,
+            transcript: ("sessions/" + $session_id + ".turns.jsonl")
+          }
+          end
+        ),
+        resource: {
+          max_tokens: max_token_num,
+          entry_budget: entry_budget,
+          entries_available: ($entries_since | length),
+          entries_emitted: ($emitted_entries | length),
+          truncated: (($entries_since | length) > ($emitted_entries | length)),
+          status: (if (($entries_since | length) > ($emitted_entries | length)) then "constrained" else "ok" end)
+        },
+        verify: $verify,
+        stdin: (if $stdin == "" then null else $stdin end),
+        proposals: $props,
+        entries_since: $emitted_entries,
+        recent_handoffs: ($ledger | map(select(.type == "handoff")) | .[-10:]),
+        suggested_actions: (
+          $props
+          | map(select(.state == "open"))
+          | map(
+              if .needed == 0 then
+                {proposal:.id, action:"commit", command:("zsynod commit " + .id)}
+              else
+                {proposal:.id, action:"collect_votes", needed:.needed}
+              end
+            )
+        )
+      }'
+}
+
+_record_session_turn() {
+  local session_id="${1:-}" report="$2" participants="$3" meeting_type="$4" meta turns now created_at turn_count kind purpose ref
+  [[ -z "$session_id" ]] && return 0
+  _session_valid "$session_id" || _die "invalid session id: $session_id"
+  mkdir -p "$SESSIONS"
+  meta="$(_session_path "$session_id")"
+  turns="$(_session_turns_path "$session_id")"
+  now="$(date -u +%FT%TZ)"
+  created_at="$now"
+  kind="session"; purpose=""; ref=""
+  if [[ -f "$meta" ]]; then
+    created_at="$(jq -r '.created_at // empty' "$meta")"
+    kind="$(jq -r '.kind // "session"' "$meta")"
+    purpose="$(jq -r '.purpose // empty' "$meta")"
+    ref="$(jq -r '.ref // empty' "$meta")"
+  fi
+  [[ -n "$created_at" ]] || created_at="$now"
+  turn_count=0
+  [[ -f "$turns" ]] && turn_count="$(wc -l < "$turns" | tr -d ' ')"
+  turn_count=$(( turn_count + 1 ))
+  printf '%s\n' "$report" | jq -c --arg ts "$now" --argjson turn "$turn_count" \
+    '. + {turn:{index:$turn, recorded_at:$ts}}' >> "$turns"
+  printf '%s\n' "$report" | jq \
+    --arg id "$session_id" \
+    --arg kind "$kind" \
+    --arg purpose "$purpose" \
+    --arg ref "$ref" \
+    --arg meeting_type "$meeting_type" \
+    --arg participants "$participants" \
+    --arg ts "$now" \
+    --arg created_at "$created_at" \
+    --arg transcript "$turns" \
+    --argjson turn "$turn_count" \
+    '{
+      id:$id,
+      kind:$kind,
+      purpose:$purpose,
+      ref:$ref,
+      meeting_type:$meeting_type,
+      participants: (if $participants == "" then [] else ($participants|split(",")) end),
+      created_at:$created_at,
+      last_turn_at:$ts,
+      last_seq:.last_seq,
+      last_since:.since,
+      turn_count:$turn,
+      transcript:$transcript,
+      resource:.resource
+    }
+    | if .purpose == "" then del(.purpose) else . end
+    | if .ref == "" then del(.ref) else . end' > "$meta"
+}
+
+cmd_turn() {
+  local format="${1:-markdown}" since="${2:-0}" max_tokens="${3:-}" session_id="${4:-}" meeting_type="${5:-regular}" participants="${6:-}" report
+  [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
+  cmd_minutes >/dev/null
+  [[ -z "$session_id" ]] || _session_valid "$session_id" || _die "invalid session id: $session_id"
+  _validate_participants "$participants"
+  report="$(_turn_json "$since" "$max_tokens" "$session_id" "$meeting_type" "$participants")" || return 1
+  _record_session_turn "$session_id" "$report" "$participants" "$meeting_type"
+  if [[ "$format" == "json" ]]; then
+    printf '%s\n' "$report"
+    return
+  fi
+  printf '%s\n' "$report" | jq -r '
+    "# zsynod turn\n\n"
+    + (if .session == null then "" else "session: \(.session.id) · type: \(.session.meeting_type) · participants: \(.session.participants|join(","))\n" end)
+    + "round: \(.round) · chair: \(.chair) · quorum: \(.quorum) of \(.voting_members) · last seq: \(.last_seq)\n"
+    + "verify: \(if .verify.ok then "ok" else "broken" end) (\(.verify.entries) entries)\n"
+    + "resource: \(.resource.status) · emitted \(.resource.entries_emitted)/\(.resource.entries_available) entries"
+    + (if .resource.max_tokens == null then "" else " · max tokens \(.resource.max_tokens)" end)
+    + "\n\n"
+    + "## Proposals\n\n"
+    + ((.proposals | map("- **\(.id)** [\(.state)] \(.title) — \(.ayes)/\(.quorum) aye, need \(.needed)") | join("\n")) // "(none)")
+    + "\n\n## Since seq \(.since)\n\n"
+    + (if (.entries_since|length) == 0 then "(none)" else (.entries_since | map("- [\(.seq)] \(.actor) \(.type) \(.data.id // .data.proposal // .data.to // "") \(.data.title // .data.remark // .data.vote // .data.task // "")") | join("\n")) end)
+    + "\n\n## Suggested Actions\n\n"
+    + ((.suggested_actions | map(if .action == "commit" then "- \(.proposal): commit ready — `\(.command)`" else "- \(.proposal): collect \(.needed) more aye(s)" end) | join("\n")) // "(none)")
+  '
+}
+
 cmd_minutes() {
   { printf '# zsynod — minutes (generated from ledger.jsonl; do not edit)\n\n'
     printf '_Round %s · chair %s · quorum %s of %s · %s entries_\n\n' \
@@ -308,6 +629,8 @@ cmd_minutes() {
     done < <(_proposal_ids)
     printf '\n## Open questions\n\n'
     jq -rs '[.[]|select(.type=="question")]|.[-10:]|.[]|"- ("+.actor+") "+.data.text' "$LEDGER" 2>/dev/null
+    printf '\n## Committees\n\n'
+    jq -rs '[.[]|select(.type=="committee")]|.[-10:]|.[]|"- **"+.data.id+"** ("+(.data.meeting_type // "committee")+") "+.data.purpose+" — "+((.data.participants // [])|join(","))' "$LEDGER" 2>/dev/null
     printf '\n## Recent handoffs\n\n'
     jq -rs '[.[]|select(.type=="handoff")]|.[-10:]|.[]|"- "+.actor+" → "+.data.to+": "+.data.task' "$LEDGER" 2>/dev/null
   } > "$MINUTES"
@@ -337,6 +660,10 @@ cmd_tail() {  # tail a member's captured transcript (latest stamp)
 }
 
 cmd_console() {  # interactive principal cockpit — prompts for input
+  if [[ "$HEADLESS" == "1" ]]; then
+    cmd_turn "$FORMAT" "$SINCE" "$MAX_TOKENS" "$TURN_SESSION" "$MEETING_TYPE" "$TURN_PARTICIPANTS"
+    return
+  fi
   MEMBER="${MEMBER:-mike}"
   _member_known "$MEMBER" || _die "unknown member: $MEMBER"
   printf '%szsynod console%s — acting as %s. (q to exit)\n' "$B" "$RST" "$MEMBER"
@@ -462,7 +789,7 @@ cmd_convene() {
 }
 
 # ── arg parse (flags anywhere; first non-flag is the subcommand) ─────────────
-POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; FOLLOW=""; LINES=""
+POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --as) MEMBER="$2"; shift 2 ;;
@@ -473,14 +800,34 @@ while [[ $# -gt 0 ]]; do
     --task) TASK="$2"; shift 2 ;;
     --state) STATE="$2"; shift 2 ;;
     --ref) REF="$2"; shift 2 ;;
+    --purpose) PURPOSE="$2"; shift 2 ;;
+    --since) SINCE="$2"; SINCE_SET="1"; shift 2 ;;
+    --max-tokens) MAX_TOKENS="$2"; shift 2 ;;
+    --session) TURN_SESSION="$2"; shift 2 ;;
+    --frontier) FRONTIER="1"; PARTICIPANTS_SET="1"; MEETING_TYPE="${MEETING_TYPE:-frontier}"; [[ "$MEETING_TYPE" == "regular" ]] && MEETING_TYPE="frontier"; shift ;;
+    --participants) PARTICIPANTS="$2"; PARTICIPANTS_SET="1"; shift 2 ;;
+    --meeting) MEETING_TYPE="$2"; MEETING_SET="1"; shift 2 ;;
+    --headless) HEADLESS="1"; shift ;;
+    --markdown) FORMAT="markdown"; shift ;;
     -f|--follow) FOLLOW="f"; shift ;;
     -n|--lines) LINES="$2"; shift 2 ;;
-    --json) POS+=("__json__"); shift ;;
+    --json) FORMAT="json"; POS+=("__json__"); shift ;;
     -h|--help|help) _usage; exit 0 ;;
     -*) _die "unknown flag: $1" ;;
     *) POS+=("$1"); shift ;;
   esac
 done
+
+TURN_PARTICIPANTS="$(_participants_csv "$PARTICIPANTS" "$FRONTIER")"
+if [[ -n "$TURN_SESSION" && "$PARTICIPANTS_SET" == "0" ]]; then
+  TURN_PARTICIPANTS="$(_session_resume_participants "$TURN_SESSION")"
+fi
+if [[ -n "$TURN_SESSION" && "$MEETING_SET" == "0" ]]; then
+  MEETING_TYPE="$(_session_resume_meeting_type "$TURN_SESSION" "$MEETING_TYPE")"
+fi
+if [[ -n "$TURN_SESSION" && "$SINCE_SET" == "0" ]]; then
+  SINCE="$(_session_resume_since "$TURN_SESSION" "$SINCE")"
+fi
 
 SUB="${POS[0]:-}"
 case "$SUB" in
@@ -495,9 +842,12 @@ case "$SUB" in
   commit)   cmd_commit "${POS[1]:-}" ;;
   ratify)   cmd_ratify "${POS[1]:-}" ;;
   handoff)  cmd_handoff "$TO" "$TASK" "$STATE" "$REF" ;;
+  committee) cmd_committee "${POS[1]:-}" "$PURPOSE" "$TURN_PARTICIPANTS" "$MEETING_TYPE" "$REF" ;;
+  committees) cmd_committees ;;
   log)      cmd_log "$ROUND" "$([[ " ${POS[*]} " == *" __json__ "* ]] && echo json)" ;;
   minutes)  cmd_minutes ;;
   view)     cmd_view ;;
+  turn)     cmd_turn "$FORMAT" "$SINCE" "$MAX_TOKENS" "$TURN_SESSION" "$MEETING_TYPE" "$TURN_PARTICIPANTS" ;;
   tail)     cmd_tail "${POS[1]:-}" "$FOLLOW" "${LINES:-40}" ;;
   ask)      cmd_ask "${POS[1]:-}" ;;
   console)  cmd_console ;;
