@@ -6,9 +6,9 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-08 19:20'
+updated_date: '2026-06-08 19:21'
 labels:
   - agent-reported
-  - bug
 dependencies: []
 priority: medium
 ordinal: 29890
@@ -17,13 +17,14 @@ ordinal: 29890
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-**Type:** bug
-**Priority:** medium
-**Trace ID:** `1992787448e93d89292805a7463004b2`
+zsynod 'minutes' renders a multi-line remark (pasted markdown such as '# zsynod turn' / '## Proposals') as real headings mid-document, because the cmd_minutes 'clip' jq helper truncated by length without flattening newlines. Observed under P5/P6 in zsynod/minutes.md.
 
-zsynod minutes injects markdown headings from multi-line remarks (clip does not flatten newlines)
-
----
-*Filed via `zdots-issue`. Operator review required before any changes are made.*
-*Do not modify zdots to work around this issue — wait for operator resolution.*
+FIXED in commit alongside this issue: all four 'clip' definitions in bin/zsynod now 'gsub("\\s+";" ")' (flatten + trim) before truncating, so a remark always renders on one bullet line. Ledger canon is immutable and unchanged — render-time fix only. Regression test: tests/zsynod_minutes.bats (2 cases, green).
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Multi-line remark renders as a single bullet line in minutes.md
+- [ ] #2 No remark text appears as a real markdown heading
+- [ ] #3 tests/zsynod_minutes.bats passes
+<!-- AC:END -->
