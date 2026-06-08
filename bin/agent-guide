@@ -477,6 +477,62 @@ OBSERVABILITY MANAGEMENT (OpenObserve, native):
 Full guide: docs/openobserve.md
 EOF
 
+_head "Filesystem Doctrine — The Idiot Test"
+
+cat <<'EOF'
+This machine survived a near-total home-directory wipe on 2026-05-25 when an
+AI agent ran `rm -rf ~/` after confusing a literal subdirectory named `~`
+with shell HOME expansion. The user killed the process mid-traversal; only a
+permissions bottleneck in Music/ and go/pkg/mod/ saved Documents, Desktop,
+and the GitHub repos. Permanent losses included shell config, history, the
+entire ~/.config/ tree, and ~/context/[redacted]/ (irrecoverable research).
+
+Read this before any operation that removes, moves, resets, cleans, wipes,
+prunes, truncates, or overwrites filesystem state.
+
+THE RULE
+  Before any destructive command, apply the Idiot Test:
+    "Would an idiot do this?"
+  If yes — do not do it. Stop. Surface the resolved target list to the user
+  and wait for explicit confirmation. The cost of pausing is zero. The cost
+  of being wrong is unrecoverable.
+
+WHAT COUNTS AS "AN IDIOT WOULD DO THIS"
+  - rm -rf on any path that expands to or contains $HOME, ~, /, ., or *
+  - Recursive deletes where the path comes from an unresolved variable
+  - Any command whose target you have not echoed back and read
+  - "Cleaning up" a directory you did not create in this session
+  - Wildcards (*) at the top level of a deletion target
+  - Force flags (-f, --force, --no-preserve-root) without explicit user ask
+  - Touching dot-directories under $HOME you did not just write
+  - Trusting that "~" in a script is HOME — it may be a literal directory
+
+GUARDRAILS IN PLACE (backstop, not primary defense)
+  conf.d/15-safe-rm.zsh wraps `rm` and hard-blocks:
+    ~, $HOME, $HOME/, /, /usr, /etc, /bin, /sbin, /opt, /System,
+    /Library, /Applications, and bare wildcard deletes of home contents.
+  `del` is aliased to `trash` (macOS Trash) — prefer it over `rm`.
+  These guardrails fire only in interactive zsh. Subshells, bash scripts,
+  IDE-spawned shells, and direct execve calls bypass them entirely.
+  Do not rely on them. They are the last line, not the first.
+
+PRIMARY DEFENSE — THINK FIRST
+  1. Resolve every path variable to an absolute string before the command runs.
+  2. Echo the resolved targets. Read them. Out loud, in your head, in the log.
+  3. Ask: is any target a HOME, root, system, or shared path? If yes — stop.
+  4. Ask the Idiot Test. If yes — stop.
+  5. Prefer reversible operations: `trash`/`del`, `mv` to a quarantine dir,
+     or `git rm` inside a tracked repo. `rm -rf` is the last resort.
+  6. When the user asks for cleanup, propose the target list first. Wait.
+
+WHY THIS MATTERS HERE
+  No Time Machine destination is configured on this machine. No APFS
+  snapshots are retained. There is no cloud sync of $HOME. A destructive
+  command that escapes the guardrails has no undo. The work lost in the
+  2026-05-25 incident — including weeks of [redacted] company research — is
+  gone permanently. Do not add to that list.
+EOF
+
 _head "Destructive Commands — Confirm Before Running"
 
 cat <<EOF
