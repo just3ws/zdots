@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # bin/cc-hook-guard — Claude Code PreToolUse guard for Bash commands.
 #
-# Backstop for the two things the shell's own guards can't catch when Claude
+# Backstop for the things the shell's own guards can't catch when Claude
 # Code runs commands directly (it bypasses shell functions like safe-rm):
 #   1. `brew services ... nginx` — takes root ownership of Homebrew files and
 #      poisons the install. nginx must be driven via launchctl. (Known footgun.)
 #   2. Catastrophic `rm -rf` against a home/root target.
+#   3. `git push` on a WORK machine — work CC fixes forward (commits allowed),
+#      but the principal alone pushes to the zdots repo. Commit is NOT blocked.
 #
 # Contract: reads the PreToolUse hook JSON on stdin. Exit 2 blocks the tool
 # call and feeds stderr back to Claude as the reason. Exit 0 allows it. Any
@@ -36,6 +38,16 @@ _block() {
 # `sudo`. Anchoring here avoids false positives when the same words appear
 # inside a quoted string, a commit message, or an `echo` argument.
 _boundary='(^|[;&|`(]|&&|\|\|)[[:space:]]*(sudo[[:space:]]+)?'
+
+# 0. WORK MACHINE: no pushes. Work CC may commit (fix-forward, focused changes),
+#    but the principal is solely responsible for pushing to the zdots repo.
+_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+[[ -r "${_ZDOTDIR}/lib/cc-context.bash" ]] && source "${_ZDOTDIR}/lib/cc-context.bash"
+if typeset -f cc_is_work >/dev/null 2>&1 && cc_is_work; then
+  if printf '%s' "$cmd" | grep -Eq "${_boundary}git\b[^|;&]*[[:space:]]push\b"; then
+    _block "work machine: git push disabled — Claude Code fixes forward here (commit is fine); the principal pushes to the zdots repo from a normal terminal"
+  fi
+fi
 
 # 1. nginx via brew services — never (only as an actual invocation).
 if printf '%s' "$cmd" | grep -Eq "${_boundary}brew[[:space:]]+services\b" \
