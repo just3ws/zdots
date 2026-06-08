@@ -236,3 +236,4 @@ vscode "github.copilot-chat"
 vscode "saoudrizwan.claude-dev"
 uv "aider-chat"
 npm "@earendil-works/pi-coding-agent"
+brew "opencode"   # terminal agentic coding seat (synod P18); drive via zopencode
