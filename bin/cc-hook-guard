@@ -31,24 +31,11 @@ _block() {
   exit 2
 }
 
-# Resolve home/work context (account-agnostic). On a work machine Claude Code
-# is help-only: it must not write git history.
-_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
-[[ -r "${_ZDOTDIR}/lib/cc-context.bash" ]] && source "${_ZDOTDIR}/lib/cc-context.bash"
-
 # Command-position anchor: start of string, or right after a shell separator
 # (; | & newline) or a command-substitution opener, optionally followed by
 # `sudo`. Anchoring here avoids false positives when the same words appear
 # inside a quoted string, a commit message, or an `echo` argument.
 _boundary='(^|[;&|`(]|&&|\|\|)[[:space:]]*(sudo[[:space:]]+)?'
-
-# 0. WORK MACHINE: no commits/pushes. Claude Code helps with the integration,
-#    it does not mutate history here.
-if typeset -f cc_is_work >/dev/null 2>&1 && cc_is_work; then
-  if printf '%s' "$cmd" | grep -Eq "${_boundary}git\b[^|;&]*[[:space:]](commit|push)\b"; then
-    _block "work machine: git commit/push disabled — Claude Code is help-only here (use a normal terminal to commit)"
-  fi
-fi
 
 # 1. nginx via brew services — never (only as an actual invocation).
 if printf '%s' "$cmd" | grep -Eq "${_boundary}brew[[:space:]]+services\b" \

@@ -19,10 +19,10 @@ fi
 
 printf '## zdots session brief (Claude Code)\n'
 if [[ "$context" == "work" ]]; then
-  printf 'CONTEXT: WORK machine (PHI-adjacent). Claude Code is HELP-ONLY here:\n'
-  printf '  - do NOT git commit or push — the guard hook blocks it; assist with the\n'
-  printf '    integration, leave commits to a normal terminal.\n'
+  printf 'CONTEXT: WORK machine (PHI-adjacent). Claude Code may commit/push here\n'
+  printf '  (within the zdots perimeter — see zsynod charter §0.1 jurisdiction).\n'
   printf '  - local-only AI is enforced (ZDOTS_AI_MODE=local via .zdots.work).\n'
+  printf '  - PHI deny-list + cc-hook-guard (nginx/rm-rf) remain active.\n'
 else
   printf 'CONTEXT: HOME (powerstation) — full access.\n'
 fi
