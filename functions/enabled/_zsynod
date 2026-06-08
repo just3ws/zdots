@@ -15,6 +15,8 @@ _zsynod() {
     'commit:stamp committed iff quorum'
     'ratify:principal-authority commit (--as mike)'
     'handoff:record a handoff to a member'
+    'committee:form a named special committee'
+    'committees:list named special committees'
     'log:show ledger entries'
     'minutes:regenerate minutes.md'
     'view:regenerate + display the minutes'
@@ -41,6 +43,11 @@ _zsynod() {
     '--task[handoff task]:text' \
     '--state[handoff state]:text' \
     '--ref[proposal reference]:id' \
+    '--purpose[committee purpose]:text' \
+    '--session[named session or committee id]:id' \
+    '--participants[comma-separated participants]:members' \
+    '--frontier[use frontier participants]' \
+    '--meeting[meeting type]:type' \
     '--json[machine-readable log]' \
     '(-f --follow)'{-f,--follow}'[follow transcript (tail -f)]' \
     '(-n --lines)'{-n,--lines}'[transcript lines]:n' \

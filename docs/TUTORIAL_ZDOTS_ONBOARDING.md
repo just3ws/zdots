@@ -64,6 +64,7 @@ These are the major services and what they provide.
 | `zdots-ask` | Domain-aware local AI router | shell, ruby, phi, default prompt routing |
 | `zdots-quiz` | Local model smoke test | quick capability probe |
 | `ztask` | Task hydration and tracking | `start`, `done`, `stop`, `status` |
+| `zsynod` | AI collaborator forum | `status`, `propose`, `committee`, `turn`, `convene` |
 
 ## 4. Dependency Map
 
@@ -77,6 +78,7 @@ Use this mental model when deciding what depends on what.
 | Knowledge | `zdots-ctx`, PostgreSQL `my` | Stores lessons, methodologies, and session residue |
 | Secrets | `zdots-keychain`, Keychain | Secrets must not live in tracked plaintext files |
 | GitHub SSH | `github-keygen`, `zdots-github-keys` | Generates dedicated home/work identities and aliases |
+| AI forum | `zsynod`, `tmux`, `jq` | Keeps attributed proposals, votes, handoffs, minutes, and transcripts |
 
 The practical rule is simple:
 
@@ -84,6 +86,7 @@ The practical rule is simple:
 - If you need AI, use `zdots-ask` or `ai-query`, not raw model endpoints.
 - If you need state, use `zdots-ctx` and the `my` database.
 - If you need secrets, use `zdots-keychain`.
+- If you need multi-agent deliberation or ratification, use `zsynod`.
 
 ## 5. Fresh Machine Setup
 
@@ -195,6 +198,74 @@ zdots-ctx hydrate
 zdots-ctx status
 ```
 
+### zsynod Forum
+
+Use `zsynod` when a decision needs multiple AI seats, explicit attribution, or a durable handoff trail.
+Its ledger is append-only and hash-chained. The canonical state is `zsynod/ledger.jsonl`; `zsynod/minutes.md` is generated and should not be edited directly.
+
+Initialize or inspect the forum:
+
+```bash
+zsynod init
+zsynod members
+zsynod status
+zsynod verify
+zsynod view
+```
+
+Write actions need a member identity. Use `--as <member>` for one command or set `ZSYNOD_MEMBER` for a shell:
+
+```bash
+zsynod --as mike propose "Adopt a bounded investigation" --body "One reversible experiment, no platform drift."
+zsynod --as codex speak P1 "Support if the deliverable is concrete and PHI posture is unchanged."
+zsynod --as codex vote P1 aye --note "Scoped and reversible."
+zsynod --as mike ratify P1
+```
+
+Normal proposal flow:
+
+1. `zsynod propose "<title>" --body "..."` opens a proposal.
+2. Members use `zsynod speak P# "..."` to add discussion.
+3. Members use `zsynod vote P# aye|nay|abstain` or `zsynod second P#`.
+4. `zsynod commit P#` commits only after quorum; `zsynod ratify P#` is principal authority.
+5. `zsynod verify` checks the hash chain before acting on the result.
+
+Use headless mode for pipeable reports and resumable named sessions:
+
+```bash
+zsynod turn --json
+zsynod turn --since 12 --max-tokens 600
+zsynod turn --session frontier-capacity-20260607 --frontier --json
+zsynod console --headless --json
+```
+
+Use a special committee when the forum needs a durable working group around a focused concern:
+
+```bash
+zsynod --as mike committee ai-collab \
+  --purpose "Improve collaboration between AI integrations" \
+  --participants claude,gemini,codex,antigravity
+
+zsynod committees
+zsynod turn --session ai-collab --json
+```
+
+The committee command writes an attributed ledger event and creates session metadata.
+Later `turn --session <id>` resumes from the committee's last sequence and reuses its participant set unless you override it.
+
+Use the tmux room only when you want live seats and local transcripts:
+
+```bash
+zsynod convene
+zsynod room
+zsynod goto codex
+zsynod tail codex -n 80
+zsynod adjourn
+```
+
+Transcripts live under `zsynod/transcripts/` and named session records under `zsynod/sessions/`.
+They are local working artifacts, not the source of truth.
+
 ## 9. Modules
 
 The core repo also ships optional modules. The main one today is the Rails modernization module under `modules/rails-modernization/`.
@@ -228,6 +299,7 @@ The module README lives at [modules/rails-modernization/README.md](../modules/ra
 | Store a secret | `zdots-keychain` |
 | Rotate GitHub SSH keys | `zdots-github-keys` |
 | Start a tracked task | `ztask start` |
+| Convene AI collaborators | `zsynod status`, `zsynod turn`, or `zsynod convene` |
 
 ## 11. Recovery Rule
 
