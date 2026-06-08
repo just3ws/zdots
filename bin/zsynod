@@ -26,6 +26,9 @@
 #   zsynod minutes                       regenerate minutes.md
 #   zsynod view                          regenerate + display the minutes
 #   zsynod history [Z-NNN|P#]            chronological discussion record over time
+#   zsynod queue [list]                  proposed diffs in dependency + priority order
+#   zsynod queue add --summary T [--ref Z-NNN] [--after Q1,Q2] [--priority P] [--patch F|-]
+#   zsynod queue show|apply|reject|defer <Qid>   review / apply (git apply) / dispose
 #   zsynod turn [--session ID] [--since N] [--json]  headless ledger turn report
 #   zsynod tick [--topic Z-NNN] [--frontier] [--json] one deliberation turn:
 #       local pi (and frontier on demand) discuss a backlog issue; remarks
@@ -766,6 +769,139 @@ cmd_history() {  # chronological discussion record over time; optional filter (Z
   ' "$LEDGER" 2>/dev/null
 }
 
+# ── queue: priority + dependency aware review of proposed diffs (charter §0.5) ─
+# Members (esp. frontier-execution ticks) propose diffs here; the principal
+# reasons over them in dependency-topo + priority order and applies the ready
+# ones. Patches live in zsynod/queue/<Qid>.patch (gitignored); the ledger records
+# each queued item and every status change (canon, attributed, over-time record).
+QUEUE="$DIR/queue"
+
+_q_prank()  { case "$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')" in HIGH) echo 0;; LOW) echo 2;; *) echo 1;; esac; }
+_q_next()   { local n; n="$(jq -rs '[.[]|select(.type=="queued")|.data.id|ltrimstr("Q")|tonumber]|max // 0' "$LEDGER" 2>/dev/null)"; echo "Q$(( ${n:-0} + 1 ))"; }
+_q_status() { jq -rs --arg q "$1" '[.[]|select((.type=="queued" or .type=="queue_status") and .data.id==$q)] | (last.data.status // (if length>0 then "queued" else "" end))' "$LEDGER" 2>/dev/null; }
+_q_meta()   { jq -rs --arg q "$1" '[.[]|select(.type=="queued" and .data.id==$q)]|last.data // empty' "$LEDGER" 2>/dev/null; }
+
+_q_add() {  # uses globals REF SUMMARY PRIORITY AFTER PATCHSRC; patch from --patch file or stdin
+  [[ -n "$MEMBER" ]] || _die "queue add needs member identity (--as or ZSYNOD_MEMBER)"
+  [[ -n "$SUMMARY" ]] || _die "queue add needs --summary"
+  mkdir -p "$QUEUE"
+  local qid patchfile prio afterj
+  qid="$(_q_next)"; patchfile="$QUEUE/$qid.patch"
+  if [[ -n "$PATCHSRC" && "$PATCHSRC" != "-" ]]; then
+    [[ -f "$PATCHSRC" ]] || _die "patch file not found: $PATCHSRC"
+    cp "$PATCHSRC" "$patchfile"
+  else
+    cat > "$patchfile"
+  fi
+  [[ -s "$patchfile" ]] || { rm -f "$patchfile"; _die "empty patch — nothing queued"; }
+  prio="$PRIORITY"
+  if [[ -z "$prio" ]]; then
+    [[ "$REF" == Z-* ]] && prio="$(backlog task "$REF" --plain 2>/dev/null | sed -nE 's/.*[Pp]riority:?[[:space:]]*([A-Za-z]+).*/\1/p' | head -1)"
+    prio="${prio:-MEDIUM}"
+  fi
+  prio="$(printf '%s' "$prio" | tr '[:lower:]' '[:upper:]')"
+  afterj="$(printf '%s' "$AFTER" | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -sc .)"
+  _append queued "$(jq -nc --arg id "$qid" --arg ref "$REF" --arg s "$SUMMARY" --arg p "$prio" --argjson after "$afterj" --arg patch "queue/$qid.patch" \
+    '{id:$id,ref:$ref,summary:$s,priority:$p,after:$after,patch:$patch,status:"queued"}')" >/dev/null
+  printf 'queued %s [%s] %s%s\n' "$qid" "$prio" "$SUMMARY" "${REF:+ (ref $REF)}"
+}
+
+_q_ready() {  # <Qid> -> ready|blocked  (all 'after' deps applied?)
+  local dep r="ready"
+  while IFS= read -r dep; do [[ -z "$dep" ]] && continue; [[ "$(_q_status "$dep")" == "applied" ]] || r="blocked"; done < <(_q_meta "$1" | jq -r '.after[]? // empty')
+  echo "$r"
+}
+
+_q_list() {
+  local -a qids; mapfile -t qids < <(jq -rs '[.[]|select(.type=="queued")|.data.id]|unique|.[]' "$LEDGER" 2>/dev/null)
+  if [[ ${#qids[@]} -eq 0 ]]; then printf 'queue empty — no proposed diffs.\n'; return; fi
+  printf '%sproposed-diff queue%s (dependency + priority ordered)\n\n' "$B" "$RST"
+  local qid meta status prio ref summary rrank rows=""
+  for qid in "${qids[@]}"; do
+    status="$(_q_status "$qid")"; [[ "$status" == "rejected" ]] && continue
+    meta="$(_q_meta "$qid")"
+    prio="$(printf '%s' "$meta" | jq -r '.priority // "MEDIUM"')"
+    ref="$(printf '%s'  "$meta" | jq -r '.ref // ""')"
+    summary="$(printf '%s' "$meta" | jq -r '.summary // ""')"
+    case "$status" in
+      applied)  rrank=3 ;;
+      deferred) rrank=2 ;;
+      *) [[ "$(_q_ready "$qid")" == "ready" ]] && rrank=0 || rrank=1 ;;
+    esac
+    rows+="$rrank	$(_q_prank "$prio")	$qid	$status	$prio	$ref	$summary"$'\n'
+  done
+  local rr _pr _st rf sm label; printf '%s' "$rows" | sort -t$'\t' -k1,1n -k2,2n -k3,3 | while IFS=$'\t' read -r rr _pr qid _st prio rf sm; do
+    [[ -z "$qid" ]] && continue
+    case "$rr" in 0) label="READY ";; 1) label="blocked";; 2) label="defer ";; 3) label="done  ";; *) label="?";; esac
+    printf '  %-6s %-7s [%-6s] %s%s\n' "$qid" "$label" "$prio" "$sm" "${rf:+ (ref $rf)}"
+  done
+  _q_overlap_warn
+}
+
+_q_overlap_warn() {  # inferred deps: unapplied queued patches touching the same file
+  local qid f pairs="" line
+  while IFS= read -r qid; do
+    [[ -z "$qid" ]] && continue
+    local stt; stt="$(_q_status "$qid")"; [[ "$stt" == "applied" || "$stt" == "rejected" ]] && continue
+    local pf="$QUEUE/$qid.patch"; [[ -f "$pf" ]] || continue
+    while IFS= read -r f; do [[ -n "$f" ]] && pairs+="$f	$qid"$'\n'; done < <(sed -nE 's#^\+\+\+ b/##p' "$pf")
+  done < <(jq -rs '[.[]|select(.type=="queued")|.data.id]|unique|.[]' "$LEDGER" 2>/dev/null)
+  line="$(printf '%s' "$pairs" | sort | awk -F'\t' 'NF==2{c[$1]=c[$1]" "$2} END{for(k in c){n=split(c[k],a," ")-1; if(n>1) print "  ⚠ "k" touched by:"c[k]}}')"
+  [[ -n "$line" ]] && { printf '\n%sinferred file overlaps%s (consider --after to order):\n%s\n' "$YEL" "$RST" "$line"; }
+  return 0
+}
+
+_q_show() {
+  local qid="$1"; [[ -n "$qid" ]] || _die "queue show needs a Q id"
+  local meta; meta="$(_q_meta "$qid")"; [[ -n "$meta" ]] || _die "no such queued item: $qid"
+  printf '%s%s%s  [%s]  status: %s  ready: %s\n' "$B" "$qid" "$RST" \
+    "$(printf '%s' "$meta" | jq -r '.priority')" "$(_q_status "$qid")" "$(_q_ready "$qid")"
+  printf '%s\n' "$(printf '%s' "$meta" | jq -r '"ref: "+(.ref//"-")+"   after: "+((.after//[])|join(",")|if .=="" then "-" else . end)+"\nsummary: "+.summary')"
+  local pf="$QUEUE/$qid.patch"
+  printf '\n%spatch%s (%s):\n' "$B" "$RST" "$pf"
+  if [[ -f "$pf" ]]; then git apply --stat "$pf" 2>/dev/null || cat "$pf"; else printf '  (patch file missing)\n'; fi
+}
+
+_q_apply() {
+  local qid="$1"; [[ -n "$qid" ]] || _die "queue apply needs a Q id"
+  [[ -n "$MEMBER" ]] || _die "queue apply needs member identity (--as or ZSYNOD_MEMBER)"
+  local meta; meta="$(_q_meta "$qid")"; [[ -n "$meta" ]] || _die "no such queued item: $qid"
+  [[ "$(_q_status "$qid")" == "applied" ]] && _die "$qid already applied"
+  # covenant: do not force — refuse if deps unmet or the patch will not apply cleanly
+  local dep
+  while IFS= read -r dep; do [[ -z "$dep" ]] && continue
+    [[ "$(_q_status "$dep")" == "applied" ]] || _die "$qid blocked: dependency $dep not applied yet"
+  done < <(printf '%s' "$meta" | jq -r '.after[]? // empty')
+  local pf="$QUEUE/$qid.patch"; [[ -f "$pf" ]] || _die "patch file missing: $pf"
+  git apply --check "$pf" 2>/dev/null || _die "$qid does not apply cleanly to the working tree — refused (covenant: do not force)"
+  git apply "$pf" || _die "$qid apply failed"
+  _append queue_status "$(jq -nc --arg id "$qid" --arg s applied '{id:$id,status:$s}')" >/dev/null
+  printf '%sapplied %s%s to the working tree. Review and commit when ready.\n' "$GRN" "$qid" "$RST"
+}
+
+_q_set() {  # <Qid> <status> [note]
+  local qid="$1" status="$2" note="${3:-}"
+  [[ -n "$qid" ]] || _die "queue $status needs a Q id"
+  [[ -n "$MEMBER" ]] || _die "queue $status needs member identity (--as or ZSYNOD_MEMBER)"
+  [[ -n "$(_q_meta "$qid")" ]] || _die "no such queued item: $qid"
+  _append queue_status "$(jq -nc --arg id "$qid" --arg s "$status" --arg n "$note" '{id:$id,status:$s,note:$n}')" >/dev/null
+  printf '%s marked %s%s\n' "$qid" "$status" "${note:+ — $note}"
+}
+
+cmd_queue() {
+  [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
+  local sub="${1:-list}"
+  case "$sub" in
+    add)     _q_add ;;
+    list|"") _q_list ;;
+    show)    _q_show "${2:-}" ;;
+    apply)   _q_apply "${2:-}" ;;
+    reject)  _q_set "${2:-}" rejected "${3:-}" ;;
+    defer)   _q_set "${2:-}" deferred "${3:-}" ;;
+    *) _die "queue: unknown subcommand '$sub' (add|list|show|apply|reject|defer)" ;;
+  esac
+}
+
 cmd_minutes() {
   local pid ay na ab st title   # keep local: dynamic scope else clobbers callers
   { printf '# zsynod — minutes (generated from ledger.jsonl; do not edit)\n\n'
@@ -953,7 +1089,7 @@ cmd_convene() {
 }
 
 # ── arg parse (flags anywhere; first non-flag is the subcommand) ─────────────
-POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""
+POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""; AFTER=""; PRIORITY=""; SUMMARY=""; PATCHSRC=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --as) MEMBER="$2"; shift 2 ;;
@@ -969,6 +1105,10 @@ while [[ $# -gt 0 ]]; do
     --max-tokens) MAX_TOKENS="$2"; shift 2 ;;
     --session) TURN_SESSION="$2"; shift 2 ;;
     --topic) TOPIC="$2"; shift 2 ;;
+    --after) AFTER="$2"; shift 2 ;;
+    --priority) PRIORITY="$2"; shift 2 ;;
+    --summary) SUMMARY="$2"; shift 2 ;;
+    --patch) PATCHSRC="$2"; shift 2 ;;
     --frontier) FRONTIER="1"; PARTICIPANTS_SET="1"; MEETING_TYPE="${MEETING_TYPE:-frontier}"; [[ "$MEETING_TYPE" == "regular" ]] && MEETING_TYPE="frontier"; shift ;;
     --participants) PARTICIPANTS="$2"; PARTICIPANTS_SET="1"; shift 2 ;;
     --meeting) MEETING_TYPE="$2"; MEETING_SET="1"; shift 2 ;;
@@ -1013,6 +1153,7 @@ case "$SUB" in
   minutes)  cmd_minutes ;;
   view)     cmd_view ;;
   history)  cmd_history "${POS[1]:-}" ;;
+  queue)    cmd_queue "${POS[1]:-}" "${POS[2]:-}" "${POS[3]:-}" ;;
   turn)     cmd_turn "$FORMAT" "$SINCE" "$MAX_TOKENS" "$TURN_SESSION" "$MEETING_TYPE" "$TURN_PARTICIPANTS" ;;
   tick)     cmd_tick "$FORMAT" "$TOPIC" "$FRONTIER" ;;
   tail)     cmd_tail "${POS[1]:-}" "$FOLLOW" "${LINES:-40}" ;;
