@@ -26,6 +26,9 @@
 #   zsynod minutes                       regenerate minutes.md
 #   zsynod view                          regenerate + display the minutes
 #   zsynod turn [--session ID] [--since N] [--json]  headless ledger turn report
+#   zsynod tick [--topic Z-NNN] [--frontier] [--json] one deliberation turn:
+#       local pi (and frontier on demand) discuss a backlog issue; remarks
+#       auto-append, proposals/handoffs print as commands for you to approve
 #   zsynod ask "<question>"              pose a question to the forum (no vote)
 #   zsynod tail [member] [-f] [-n N]     tail a member's captured transcript
 #   zsynod console [--headless]          principal cockpit (prompts or report)
@@ -616,7 +619,122 @@ cmd_turn() {
   '
 }
 
+# ── tick: one deliberation turn over a backlog issue (charter §1; Kaizen) ─────
+# Local pi always deliberates (free). --frontier adds codex + gemini (cloud, opt-in).
+# Discussion auto-appends (type=discuss). Proposals and handoffs are GATED: printed
+# as ready-to-run commands for the principal to approve — never auto-written.
+# Set ZSYNOD_DISPATCH=0 to stub model calls (tests, offline).
+_tick_focus() {  # <topic> -> "ID<TAB>TITLE"
+  local topic="$1" line
+  if [[ -n "$topic" ]]; then
+    line="$(backlog task list --plain 2>/dev/null | grep -iE "(^|[^A-Za-z0-9])${topic}([^0-9]|$)" | head -1)"
+    [[ -n "$line" ]] || { printf '%s\t(not in backlog — deliberating by id)\n' "$topic"; return; }
+  else
+    line="$(backlog task list --plain 2>/dev/null | grep -E 'Z-[0-9]+' | head -1)"
+    [[ -n "$line" ]] || { printf 'none\t(no open backlog issues)\n'; return; }
+  fi
+  local id title
+  id="$(printf '%s' "$line" | grep -oE 'Z-[0-9]+' | head -1)"
+  title="$(printf '%s' "$line" | sed -E 's/.*Z-[0-9]+ - //')"
+  printf '%s\t%s\n' "${id:-$topic}" "$title"
+}
+
+_tick_dispatch() {  # <member> <prompt> -> raw model output on stdout
+  if [[ "${ZSYNOD_DISPATCH:-1}" != "1" ]]; then
+    printf 'REMARK: [stub] %s reviewed the issue; bounded next step noted.\nASK: none\n' "$1"; return
+  fi
+  case "$1" in
+    pi)     timeout 120 ai-query "$2" 2>/dev/null ;;
+    codex)  timeout 200 codex exec "$2" 2>/dev/null ;;
+    gemini) timeout 200 gemini -p "$2" 2>/dev/null ;;
+    *) return 1 ;;
+  esac
+}
+
+_tick_prompt() {  # <member> <id> <title> <body>
+  cat <<EOF
+You are '$1', a member of the zsynod (AI collaborators' forum on the zdots platform).
+Deliberate on ONE issue and make a bounded, material contribution. Be concise (token economy).
+Never reveal secrets or PHI. Prefer the smallest sufficient step (Kaizen).
+
+ISSUE $2: $3
+$4
+
+Output EXACTLY two lines, nothing else:
+REMARK: <one-line analysis or concrete plan step>
+ASK: none | PROPOSE <short title> :: <one-line execution plan> | HANDOFF <member> :: <task>
+EOF
+}
+
+cmd_tick() {
+  local format="${1:-markdown}" topic="${2:-}" frontier="${3:-0}"
+  [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
+  local focus id title body
+  focus="$(_tick_focus "$topic")"
+  id="${focus%%$'\t'*}"; title="${focus#*$'\t'}"
+  body=""
+  if [[ "${ZSYNOD_DISPATCH:-1}" == "1" && "$id" == Z-* ]]; then
+    body="$(backlog task "$id" --plain 2>/dev/null | head -30)"
+  fi
+
+  local -a who=(pi)
+  [[ "$frontier" == "1" ]] && who+=(codex gemini)
+  local -a asks=() said_by=() said_remark=()
+  local m out remark ask save
+  for m in "${who[@]}"; do
+    _member_known "$m" || continue
+    out="$(_tick_dispatch "$m" "$(_tick_prompt "$m" "$id" "$title" "$body")")"
+    [[ -n "$out" ]] || continue
+    remark="$(printf '%s' "$out" | sed -nE 's/^REMARK:[[:space:]]*//p' | head -1)"
+    [[ -n "$remark" ]] || remark="$(printf '%s' "$out" | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//' | cut -c1-240)"
+    ask="$(printf '%s' "$out" | sed -nE 's/^ASK:[[:space:]]*//p' | head -1)"
+    save="$MEMBER"; MEMBER="$m"
+    _append discuss "$(jq -nc --arg t "$id" --arg r "$remark" '{topic:$t,remark:$r}')" >/dev/null
+    MEMBER="$save"
+    said_by+=("$m"); said_remark+=("$remark")
+    case "$ask" in
+      PROPOSE*) local pt pb; pt="$(printf '%s' "$ask" | sed -E 's/^PROPOSE[[:space:]]*//; s/ ::.*//')"
+        pb="$(printf '%s' "$ask" | sed -E 's/.* :: //')"
+        asks+=("[$m] zsynod propose \"$pt\" --body \"$pb\"") ;;
+      HANDOFF*) local hm ht; hm="$(printf '%s' "$ask" | sed -E 's/^HANDOFF[[:space:]]*//; s/ ::.*//')"
+        ht="$(printf '%s' "$ask" | sed -E 's/.* :: //')"
+        asks+=("[$m] zsynod handoff --to $hm --task \"$ht\" --ref $id") ;;
+    esac
+  done
+  cmd_minutes >/dev/null
+
+  if [[ "$format" == "json" ]]; then
+    local disc i
+    disc="$(jq -nc '[]')"
+    for i in "${!said_by[@]}"; do
+      disc="$(printf '%s' "$disc" | jq -c --arg a "${said_by[$i]}" --arg r "${said_remark[$i]}" '. + [{actor:$a,remark:$r}]')"
+    done
+    local askj='[]'
+    if [[ ${#asks[@]} -gt 0 ]]; then
+      askj="$(printf '%s\n' "${asks[@]}" | jq -R . | jq -sc .)"
+    fi
+    jq -nc --arg id "$id" --arg title "$title" --argjson disc "$disc" --argjson asks "$askj" \
+      --argjson entries "$(wc -l < "$LEDGER" | tr -d ' ')" \
+      '{topic:$id,title:$title,discussion:$disc,asks_awaiting_approval:$asks,entries:$entries}'
+    return
+  fi
+
+  printf '%s# zsynod tick — %s %s%s\n' "$B" "$id" "$title" "$RST"
+  printf '%sparticipants: %s%s\n\n' "$D" "${who[*]}" "$RST"
+  printf 'discussion (appended to ledger):\n'
+  local i
+  if [[ ${#said_by[@]} -eq 0 ]]; then
+    printf '  (no contributions this tick)\n'
+  else
+    for i in "${!said_by[@]}"; do printf '  %s· %s%s: %s\n' "$CYN" "${said_by[$i]}" "$RST" "${said_remark[$i]}"; done
+  fi
+  printf '\n%sasks awaiting your approval%s (nothing written — run a line to approve):\n' "$YEL" "$RST"
+  if [[ ${#asks[@]} -eq 0 ]]; then printf '  (none)\n'; else printf '  %s\n' "${asks[@]}"; fi
+  printf '\nverify: %s\n' "$(cmd_verify 2>&1 | tail -1)"
+}
+
 cmd_minutes() {
+  local pid ay na ab st title   # keep local: dynamic scope else clobbers callers
   { printf '# zsynod — minutes (generated from ledger.jsonl; do not edit)\n\n'
     printf '_Round %s · chair %s · quorum %s of %s · %s entries_\n\n' \
       "$(_cur_round)" "$(cmd_chair 2>/dev/null | sed -E 's/.*chair: ([^ ]*).*/\1/;s/\x1b\[[0-9;]*m//g')" \
@@ -789,7 +907,7 @@ cmd_convene() {
 }
 
 # ── arg parse (flags anywhere; first non-flag is the subcommand) ─────────────
-POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"
+POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --as) MEMBER="$2"; shift 2 ;;
@@ -804,6 +922,7 @@ while [[ $# -gt 0 ]]; do
     --since) SINCE="$2"; SINCE_SET="1"; shift 2 ;;
     --max-tokens) MAX_TOKENS="$2"; shift 2 ;;
     --session) TURN_SESSION="$2"; shift 2 ;;
+    --topic) TOPIC="$2"; shift 2 ;;
     --frontier) FRONTIER="1"; PARTICIPANTS_SET="1"; MEETING_TYPE="${MEETING_TYPE:-frontier}"; [[ "$MEETING_TYPE" == "regular" ]] && MEETING_TYPE="frontier"; shift ;;
     --participants) PARTICIPANTS="$2"; PARTICIPANTS_SET="1"; shift 2 ;;
     --meeting) MEETING_TYPE="$2"; MEETING_SET="1"; shift 2 ;;
@@ -848,6 +967,7 @@ case "$SUB" in
   minutes)  cmd_minutes ;;
   view)     cmd_view ;;
   turn)     cmd_turn "$FORMAT" "$SINCE" "$MAX_TOKENS" "$TURN_SESSION" "$MEETING_TYPE" "$TURN_PARTICIPANTS" ;;
+  tick)     cmd_tick "$FORMAT" "$TOPIC" "$FRONTIER" ;;
   tail)     cmd_tail "${POS[1]:-}" "$FOLLOW" "${LINES:-40}" ;;
   ask)      cmd_ask "${POS[1]:-}" ;;
   console)  cmd_console ;;
