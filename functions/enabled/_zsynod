@@ -21,6 +21,7 @@ _zsynod() {
     'minutes:regenerate minutes.md'
     'view:regenerate + display the minutes'
     'history:chronological discussion record over time (optional Z-NNN/P# filter)'
+    'queue:proposed diffs in dependency + priority order (add|list|show|apply|reject|defer)'
     'tick:one deliberation turn over a backlog issue (pi; --frontier adds codex+gemini)'
     'ask:pose a question to the forum'
     'tail:tail a member transcript'
@@ -50,6 +51,10 @@ _zsynod() {
     '--participants[comma-separated participants]:members' \
     '--frontier[use frontier participants]' \
     '--topic[backlog issue id for a deliberation tick]:id' \
+    '--after[queue: comma-separated Q-id dependencies]:ids' \
+    '--priority[queue: HIGH|MEDIUM|LOW]:prio:(HIGH MEDIUM LOW)' \
+    '--summary[queue: one-line diff summary]:text' \
+    '--patch[queue: patch file or - for stdin]:file:_files' \
     '--meeting[meeting type]:type' \
     '--json[machine-readable log]' \
     '(-f --follow)'{-f,--follow}'[follow transcript (tail -f)]' \
