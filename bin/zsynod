@@ -33,6 +33,8 @@
 #   zsynod queue review <Qid> [--seat S] AI peer review (reviewer ≠ producer)
 #   zsynod queue auto                    auto-apply LOW-risk + peer-approved; gate the rest
 #   zsynod resume                        facilitator handoff brief — any backend can pick up the loop
+#   zsynod launch --facilitator M --ticks N [--session ID]
+#                                           start a live bounded facilitator session
 #   zsynod turn [--session ID] [--since N] [--json]  headless ledger turn report
 #   zsynod tick [--topic Z-NNN] [--frontier] [--json] one deliberation turn:
 #       local pi (and frontier on demand) discuss a backlog issue; remarks
@@ -71,6 +73,7 @@
 #   zsynod tick --topic Z-135            # one deliberation turn on an issue
 #   zsynod queue                         # review proposed diffs, ordered
 #   zsynod resume                        # hand the loop to another facilitator
+#   zsynod launch --facilitator codex --ticks 3 --frontier
 #
 # Charter: docs/zsynod-charter.md   ·   Man: man zsynod
 
@@ -1269,7 +1272,171 @@ _launch_cmd() {  # member id → its agent command (members.json override wins)
   local m="$1" c
   c="$(jq -r --arg m "$m" '.members[]|select(.id==$m)|.command // ""' "$MEMBERS" 2>/dev/null)"
   [[ -n "$c" ]] && { printf '%s' "$c"; return; }
-  case "$m" in claude) printf 'cl' ;; pi) printf 'zpi' ;; aider) printf 'zaider' ;; *) printf '' ;; esac
+  case "$m" in claude) printf 'claude' ;; codex) printf 'codex' ;; gemini) printf 'gemini' ;; pi) printf 'zpi' ;; aider) printf 'zaider' ;; *) printf '' ;; esac
+}
+
+_launch_harness_name() {  # <facilitator> <zsynod-session>
+  printf 'zsynod-%s-%s' "$2" "$1"
+}
+
+_launch_gemini_uuid() {  # <facilitator> <zsynod-session> -> deterministic UUID
+  local h
+  h="$(printf 'zsynod:%s:%s' "$2" "$1" | shasum -a 256 | cut -c1-32)"
+  printf '%s-%s-5%s-%s%s-%s' \
+    "${h:0:8}" "${h:8:4}" "${h:13:3}" \
+    "8" "${h:17:3}" "${h:20:12}"
+}
+
+_launch_harness_json() {  # <facilitator> <zsynod-session>
+  local facilitator="$1" session_id="$2" key mode
+  case "$facilitator" in
+    claude)
+      key="$(_launch_harness_name "$facilitator" "$session_id")"
+      mode="name"
+      jq -nc --arg cli claude --arg mode "$mode" --arg key "$key" --arg flag "--name" \
+        '{cli:$cli,mode:$mode,key:$key,launch_args:[$flag,$key],resume_supported:true}'
+      ;;
+    gemini)
+      key="$(_launch_gemini_uuid "$facilitator" "$session_id")"
+      mode="session-id"
+      jq -nc --arg cli gemini --arg mode "$mode" --arg key "$key" --arg flag "--session-id" \
+        '{cli:$cli,mode:$mode,key:$key,launch_args:[$flag,$key],resume_supported:true}'
+      ;;
+    codex)
+      key="$(_launch_harness_name "$facilitator" "$session_id")"
+      jq -nc --arg cli codex --arg key "$key" \
+        '{cli:$cli,mode:"unsupported-create-name",key:$key,launch_args:[],resume_supported:false,note:"codex resume accepts a session name, but this CLI help exposes no create-with-name launch flag"}'
+      ;;
+    *)
+      jq -nc --arg cli "$facilitator" '{cli:$cli,mode:"unsupported",launch_args:[],resume_supported:false}'
+      ;;
+  esac
+}
+
+_record_launch_harness() {  # <session> <facilitator> <harness-json>
+  local session_id="$1" facilitator="$2" harness="$3" meta launches now
+  [[ -n "$session_id" ]] || return 0
+  meta="$(_session_path "$session_id")"
+  launches="$SESSIONS/$session_id.launches.jsonl"
+  now="$(date -u +%FT%TZ)"
+  mkdir -p "$SESSIONS"
+  jq -nc --arg ts "$now" --arg f "$facilitator" --argjson h "$harness" \
+    '{ts:$ts,facilitator:$f,harness:$h}' >> "$launches"
+  [[ -f "$meta" ]] || return 0
+  local tmp="$meta.tmp.$$"
+  jq --arg f "$facilitator" --argjson h "$harness" \
+    '. + {harness: ((.harness // {}) + {($f): $h})}' "$meta" > "$tmp" && mv "$tmp" "$meta"
+}
+
+_launch_prompt() {  # <facilitator> <ticks> <session> <participants> <harness-json> <turn-report-json>
+  local facilitator="$1" ticks="$2" session_id="$3" participants="$4" harness="$5" report="$6" resume
+  resume="$(cmd_resume)"
+  cat <<EOF
+You are $facilitator, the LIVE FACILITATOR for zsynod session "$session_id".
+
+Frontier-first mandate: use frontier deliberation when running tick-cycles. You have shell access in $ZDOTDIR, but Article 0 governs every command.
+
+Bound: run at most $ticks tick-cycle(s), then stop and yield to Mike. A tick-cycle is:
+1. Run: zsynod tick --frontier
+2. Review any printed asks. Do not auto-ratify, auto-commit, or auto-apply queue items.
+3. Run: zsynod queue
+4. Run: zsynod verify
+5. Leave a compact final status with next action.
+
+Session: $session_id
+Participants: $participants
+Harness session:
+$harness
+
+Current turn report:
+$report
+
+Resume brief:
+$resume
+EOF
+}
+
+_launch_json() {  # <facilitator> <ticks> <session> <participants> <meeting> <harness> <report> <prompt>
+  jq -nc \
+    --arg f "$1" \
+    --argjson ticks "$2" \
+    --arg s "$3" \
+    --arg participants "$4" \
+    --arg meeting "$5" \
+    --argjson harness "$6" \
+    --argjson report "$7" \
+    --arg prompt "$8" \
+    '{
+      kind:"zsynod_launch",
+      facilitator:$f,
+      ticks:$ticks,
+      session:{id:$s,meeting_type:$meeting,participants:($participants|split(","))},
+      harness:$harness,
+      report:$report,
+      prompt:$prompt
+    }'
+}
+
+cmd_launch() {
+  [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
+  local facilitator="$FACILITATOR" ticks="$TICKS" session_id="$TURN_SESSION" participants="$TURN_PARTICIPANTS" meeting_type="$MEETING_TYPE"
+  [[ -n "$facilitator" ]] || _die "launch needs --facilitator <frontier-member>"
+  _member_known "$facilitator" || _die "unknown facilitator: $facilitator"
+  jq -e --arg m "$facilitator" '.members[]|select(.id==$m and .tier=="frontier")' "$MEMBERS" >/dev/null \
+    || _die "facilitator must be a frontier member"
+  [[ "$ticks" =~ ^[1-9][0-9]*$ ]] || _die "launch needs --ticks N (positive integer)"
+  [[ -n "$session_id" ]] || session_id="facilitation-$(date -u +%Y%m%d-%H%M%S)-$facilitator"
+  _session_valid "$session_id" || _die "invalid session id: $session_id"
+  if [[ "$PARTICIPANTS_SET" == "0" ]]; then
+    local resumed_participants=""
+    [[ -n "$TURN_SESSION" ]] && resumed_participants="$(_session_resume_participants "$TURN_SESSION")"
+    participants="${resumed_participants:-$(_participants_csv "" 1)}"
+  fi
+  [[ "$MEETING_SET" == "1" ]] || meeting_type="facilitation"
+  _validate_participants "$participants"
+
+  cmd_minutes >/dev/null
+  local report prompt harness
+  report="$(_turn_json "$SINCE" "$MAX_TOKENS" "$session_id" "$meeting_type" "$participants" < /dev/null)" || return 1
+  _record_session_turn "$session_id" "$report" "$participants" "$meeting_type"
+  harness="$(_launch_harness_json "$facilitator" "$session_id")"
+  _record_launch_harness "$session_id" "$facilitator" "$harness"
+  prompt="$(_launch_prompt "$facilitator" "$ticks" "$session_id" "$participants" "$harness" "$report")"
+
+  if [[ "${DRY_RUN:-0}" == "1" || "${ZSYNOD_DISPATCH:-1}" != "1" || "$FORMAT" == "json" ]]; then
+    if [[ "$FORMAT" == "json" ]]; then
+      _launch_json "$facilitator" "$ticks" "$session_id" "$participants" "$meeting_type" "$harness" "$report" "$prompt"
+    else
+      printf '%slaunch dry-run%s — facilitator %s · ticks %s · session %s\n' "$YEL" "$RST" "$facilitator" "$ticks" "$session_id"
+      printf 'participants: %s\n' "$participants"
+      printf 'harness: %s %s\n' "$(printf '%s' "$harness" | jq -r .cli)" "$(printf '%s' "$harness" | jq -r .mode)"
+      printf 'prompt bytes: %s\n' "$(printf '%s' "$prompt" | wc -c | tr -d ' ')"
+    fi
+    return 0
+  fi
+
+  case "$facilitator" in
+    codex)
+      command -v codex >/dev/null 2>&1 || _die "codex command not found"
+      exec env ZSYNOD_MEMBER="$facilitator" ZSYNOD_FACILITATOR=1 ZSYNOD_SESSION_ID="$session_id" \
+        codex -C "$ZDOTDIR" -s workspace-write "$prompt"
+      ;;
+    gemini)
+      command -v gemini >/dev/null 2>&1 || _die "gemini command not found"
+      cd "$ZDOTDIR" || _die "cannot cd to $ZDOTDIR"
+      exec env ZSYNOD_MEMBER="$facilitator" ZSYNOD_FACILITATOR=1 ZSYNOD_SESSION_ID="$session_id" \
+        gemini --skip-trust --approval-mode default --session-id "$(printf '%s' "$harness" | jq -r .key)" -i "$prompt"
+      ;;
+    claude)
+      local cmd; cmd="$(_launch_cmd "$facilitator")"
+      [[ -n "$cmd" ]] || _die "no launcher configured for $facilitator"
+      command -v "$cmd" >/dev/null 2>&1 || _die "$cmd command not found"
+      cd "$ZDOTDIR" || _die "cannot cd to $ZDOTDIR"
+      exec env ZSYNOD_MEMBER="$facilitator" ZSYNOD_FACILITATOR=1 ZSYNOD_SESSION_ID="$session_id" \
+        "$cmd" --name "$(printf '%s' "$harness" | jq -r .key)" "$prompt"
+      ;;
+    *) _die "no interactive launcher configured for $facilitator" ;;
+  esac
 }
 
 # ── pane entrypoints (run AS a pane's command — no send-keys) ────────────────
@@ -1360,7 +1527,7 @@ cmd_convene() {
 }
 
 # ── arg parse (flags anywhere; first non-flag is the subcommand) ─────────────
-POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""; AFTER=""; PRIORITY=""; SUMMARY=""; PATCHSRC=""; EXEC_SEAT=""
+POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""; AFTER=""; PRIORITY=""; SUMMARY=""; PATCHSRC=""; EXEC_SEAT=""; FACILITATOR=""; TICKS=""; DRY_RUN="0"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --as) MEMBER="$2"; shift 2 ;;
@@ -1381,6 +1548,9 @@ while [[ $# -gt 0 ]]; do
     --summary) SUMMARY="$2"; shift 2 ;;
     --patch) PATCHSRC="$2"; shift 2 ;;
     --seat) EXEC_SEAT="$2"; shift 2 ;;
+    --facilitator) FACILITATOR="$2"; shift 2 ;;
+    --ticks) TICKS="$2"; shift 2 ;;
+    --dry-run) DRY_RUN="1"; shift ;;
     --frontier) FRONTIER="1"; PARTICIPANTS_SET="1"; MEETING_TYPE="${MEETING_TYPE:-frontier}"; [[ "$MEETING_TYPE" == "regular" ]] && MEETING_TYPE="frontier"; shift ;;
     --participants) PARTICIPANTS="$2"; PARTICIPANTS_SET="1"; shift 2 ;;
     --meeting) MEETING_TYPE="$2"; MEETING_SET="1"; shift 2 ;;
@@ -1432,6 +1602,7 @@ case "$SUB" in
   history)  cmd_history "${POS[1]:-}" ;;
   queue)    cmd_queue "${POS[1]:-}" "${POS[2]:-}" "${POS[3]:-}" ;;
   resume)   cmd_resume ;;
+  launch)   cmd_launch ;;
   turn)     cmd_turn "$FORMAT" "$SINCE" "$MAX_TOKENS" "$TURN_SESSION" "$MEETING_TYPE" "$TURN_PARTICIPANTS" ;;
   tick)     cmd_tick "$FORMAT" "$TOPIC" "$FRONTIER" ;;
   exec-tick) cmd_exectick ;;

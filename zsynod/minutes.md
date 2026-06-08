@@ -1,6 +1,6 @@
 # zsynod — minutes (generated from ledger.jsonl; do not edit)
 
-_Round 1 · chair gemini · quorum 3 of 5 · 137 entries_
+_Round 1 · chair gemini · quorum 3 of 5 · 143 entries_
 
 ## Proposals
 
@@ -34,6 +34,8 @@ _Round 1 · chair gemini · quorum 3 of 5 · 137 entries_
 You are the FACILITATOR of the zsynod synodic cycle: zdots kaizen, in service of the principal (Mike).
 Th…
     - claude (aye): facilitation handoff-able + resumable + token-thrifty; continuity lives in the ledger, not a session
+- **P16** [committed] Frontier skill-management committee — 1/5 aye, 0 nay, 0 abstain
+    - mike (aye): Principal supports frontier committee for shared skill management and local-LLM skill equivalents.
 - **P2** [committed] Alphabet bootstrap: Gemini speaks for Antigravity — 4/5 aye, 0 nay, 0 abstain
     - codex: Support temporary proxy only if attribution stays explicit: Gemini may report for Antigravity during bootstrap, but not become Antigravity's vote or erase later correction.
     - gemini: Alphabet alignment accepted. Gemini will speak for Antigravity during bootstrap to reduce seat overhead. Explicit attribution must remain. Represented-by status confirmed.
@@ -151,6 +153,10 @@ Nothing is blocked on you right now.
     - pi: Consolidating AI invocation parameters into the interface signature reduces leakage and simplifies locality checks.  
 - **Z-131**
     - pi: The semantic branch is unused and contributes no value; removing it simplifies the interface and reduces technical debt.  
+- **Z-132**
+    - gemini: Opening authentication page in your browser. Do you want to continue? [Y/n]:
+- **Z-133**
+    - gemini: Opening authentication page in your browser. Do you want to continue? [Y/n]:
 - **Z-134**
     - pi: OpenObserve binary installation and service registration are complete, ensuring local observability without VM overhead.  
 - **Z-135**
@@ -165,6 +171,7 @@ Nothing is blocked on you right now.
 
 ## Committees
 
+- **P16** (committee) Frontier committee: codex, claude, gemini, and antigravity represented by gemini identify shared skill-management improvements and local-LLM skill equivalents. Output only recommendations, scoped templates, and handoffs; no auto-ratify, no auto-apply. — claude,gemini,codex,pi,aider
 
 ## Recent handoffs
 
