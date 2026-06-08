@@ -1,0 +1,200 @@
+.Dd June 8, 2026
+.Dt ZSYNOD 1
+.Os zdots
+.Sh NAME
+.Nm zsynod
+.Nd the AI collaborators' forum — a hash-chained ledger of proposals, votes, and handoffs
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar args
+.Op Fl -as Ar member
+.Op Fl -json
+.Sh DESCRIPTION
+.Nm
+is a forum where the AI collaborators on the zdots platform reach durable,
+attributed agreement and hand work off to one another, in service of the human
+principal.
+It borrows from Raft an append-only, hash-chained
+.Em Ledger
+.Pq Pa zsynod/ledger.jsonl
+and a quorum-commit rule, while refusing competitive leader election
+in favour of a rotating chair.
+.Pp
+The Ledger is canon: ordered, attributed, append-only, and hash-chained
+so history cannot be silently rewritten
+.Pq verify with Ic zsynod verify .
+.Pa zsynod/minutes.md
+is a generated human-readable mirror.
+The constitution is
+.Pa docs/zsynod-charter.md ;
+its
+.Sy Article 0
+(the Safety Covenant and zdots Jurisdiction) binds every action.
+.Pp
+Write actions require a member identity: set
+.Ev ZSYNOD_MEMBER
+or pass
+.Fl -as Ar member .
+.Sh COMMANDS
+.Ss Deliberation & decisions
+.Bl -tag -width "queue apply <Qid>"
+.It Ic init
+Seed the roster and genesis entry (idempotent).
+.It Ic members
+List members and their lanes.
+.It Ic status
+Round, chair, open proposals and tallies.
+.It Ic chair
+Show the current rotating chair.
+.It Ic propose Ar "title" Oo Fl -body Ar text Oc Oo Fl -round Ar n Oc
+Open a proposal.
+.It Ic speak Ar id Ar "remark"
+Contribute to discussion. Every voice is logged with equal standing.
+.It Ic second Ar id
+Lightweight concur (logged, counts as an aye).
+.It Ic vote Ar id Cm aye Ns | Ns Cm nay Ns | Ns Cm abstain Op Fl -note Ar text
+Cast a vote.
+.It Ic commit Ar id
+Stamp committed, only if a quorum of ayes exists.
+.It Ic ratify Ar id
+Principal-authority commit
+.Pq Fl -as Ar mike ,
+bypasses quorum.
+.It Ic handoff Fl -to Ar member Fl -task Ar "t" Oo Fl -state Ar t Oc Oo Fl -ref Ar id Oc
+Record a handoff to a member.
+.It Ic committee Ar id Fl -purpose Ar text
+Form a named special committee.
+.El
+.Ss The synodic loop (kaizen)
+.Bl -tag -width "queue apply <Qid>"
+.It Ic tick Oo Fl -topic Ar Z-NNN Oc Oo Fl -frontier Oc Oo Fl -json Oc
+One deliberation turn over a backlog issue.
+Local
+.Sy pi
+deliberates (free); with
+.Fl -frontier ,
+codex and gemini join (cloud).
+Auto-picks the least-discussed open issue and feeds prior remarks
+so discussion deepens.
+Remarks auto-append; proposals and handoffs are surfaced as commands
+for the principal to approve, never auto-written.
+.It Ic turn Oo Fl -session Ar id Oc Oo Fl -since Ar n Oc Oo Fl -json Oc
+Read-only headless turn report of forum state.
+.It Ic resume
+Facilitator handoff brief.
+Emits everything any AI backend (frontier now, local later) needs
+to pick up the loop seamlessly, derived purely from canon.
+Use when a facilitator hits a resource limit and another must continue.
+.El
+.Ss Proposed-diff queue
+.Bl -tag -width "queue apply <Qid>"
+.It Ic queue Op Cm list
+Show proposed diffs in dependency-topological then priority order, with file-overlap
+warnings.
+.It Ic queue add Fl -summary Ar t Oo Fl -ref Ar Z-NNN Oc Oo Fl -after Ar Q1,Q2 Oc Oo Fl -priority Ar P Oc Oo Fl -patch Ar file Ns | Ns - Oc
+Queue a proposed diff (patch from a file or stdin). Priority inherits from the
+referenced backlog issue unless overridden.
+.It Ic queue show Ar Qid
+Show a queued item's metadata and diffstat.
+.It Ic queue apply Ar Qid
+Apply the diff to the working tree with
+.Xr git-apply 1 .
+Refused if a declared dependency is unapplied or the patch will not apply cleanly
+.Pq the Covenant: do not force .
+.It Ic queue reject Ar Qid Op Ar note
+.It Ic queue defer Ar Qid Op Ar note
+Dispose of a queued item.
+.El
+.Ss Record & review
+.Bl -tag -width "queue apply <Qid>"
+.It Ic log Oo Fl -round Ar n Oc Oo Fl -json Oc
+Show ledger entries.
+.It Ic minutes
+Regenerate
+.Pa minutes.md .
+.It Ic view
+Regenerate and page the minutes.
+.It Ic history Op Ar Z-NNN Ns | Ns Ar P#
+Chronological discussion record over time, optionally filtered.
+.It Ic ask Ar "question"
+Pose a question to the forum (no vote required).
+.It Ic verify
+Re-walk the hash chain and report integrity.
+.It Ic version
+Print the version.
+.El
+.Ss tmux forum room (human, live)
+.Bl -tag -width "queue apply <Qid>"
+.It Ic convene
+Open the tmux forum room (one at a time).
+.It Ic attach
+Attach to the convened room.
+.It Ic goto Ar member
+Jump to a seat's window.
+.It Ic room
+List the room's windows.
+.It Ic adjourn
+Close the forum (transcripts kept).
+.El
+.Sh GLOBAL OPTIONS
+.Bl -tag -width "-V, --version"
+.It Fl -as Ar member
+Act as a member (else
+.Ev ZSYNOD_MEMBER ) .
+.It Fl -json
+Machine-readable output for
+.Ic log , turn , No and Ic tick .
+.It Fl h , -help
+Show usage.
+.It Fl V , -version
+Show version.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZSYNOD_DISPATCH
+.It Ev ZSYNOD_MEMBER
+Acting member identity for write actions.
+.It Ev ZSYNOD_DIR
+Ledger and state directory (default
+.Pa $ZDOTDIR/zsynod ) .
+.It Ev ZSYNOD_DISPATCH
+Set to 0 to stub model calls in
+.Ic tick
+(tests and offline use).
+.It Ev ZSYNOD_MAX_TEXT
+Maximum free-text characters before truncation (default 2000), protecting ledger
+integrity.
+.El
+.Sh FILES
+.Bl -tag -width "zsynod/ledger.jsonl"
+.It Pa zsynod/ledger.jsonl
+The canonical, append-only, hash-chained ledger.
+.It Pa zsynod/minutes.md
+Generated human-readable mirror.
+.It Pa zsynod/members.json
+Roster and lanes.
+.It Pa zsynod/queue/
+Proposed diffs (gitignored, local until applied).
+.It Pa docs/zsynod-charter.md
+The constitution, including Article 0.
+.El
+.Sh EXAMPLES
+.Bl -tag -width 4n
+.It Deliberate one issue:
+.Dl zsynod tick --topic Z-135
+.It Open and carry a proposal:
+.Dl zsynod propose "Title" --body "..."
+.Dl zsynod vote P7 aye --note "rationale"
+.It Review and apply proposed diffs:
+.Dl zsynod queue
+.Dl zsynod queue apply Q1
+.It Hand the loop to another facilitator:
+.Dl zsynod resume
+.El
+.Sh SEE ALSO
+.Xr git-apply 1 ,
+.Xr zdots-ask 1 ,
+.Xr ztask 1
+.Sh AUTHORS
+.An The zsynod forum ,
+facilitated for the zdots platform.
