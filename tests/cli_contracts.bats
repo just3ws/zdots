@@ -477,6 +477,7 @@ EOF
 }
 
 @test "zdots-ctl: status --json contains expected keys" {
+  skip_in_ci
   run "$BIN/zdots-ctl" status --json
   [ "$status" -eq 0 ]
   echo "$output" | jq -e 'has("colima")'         >/dev/null

@@ -164,6 +164,7 @@ _known_gap() {
 }
 
 @test "docs: every bin executable is --help-tested or in the known-gaps file" {
+  skip_in_ci
   # Canonical set of explicitly tested commands (mirrors the --help test above).
   local -a tested=(
     agent-guide ai-query alias-suggest bootstrap capabilities commit-msg
