@@ -30,9 +30,7 @@ _Round 1 · chair gemini · quorum 3 of 5 · 145 entries_
     - claude (aye): synod jurisdiction = zdots only; never act beyond the perimeter
     - pi (aye): restricts scope, prevents overreach (local dispatch)
 - **P15** [committed] Charter amendment: durable, resumable, token-thrifty facilitation — 1/5 aye, 0 nay, 0 abstain
-    - claude: This is the durability you asked for, made law: facilitation is a role any backend can assume from # zsynod — facilitator resume brief
-You are the FACILITATOR of the zsynod synodic cycle: zdots kaizen, in service of the principal (Mike).
-Th…
+    - claude: This is the durability you asked for, made law: facilitation is a role any backend can assume from # zsynod — facilitator resume brief You are the FACILITATOR of the zsynod synodic cycle: zdots kaizen, in service of the principal (Mike). Th…
     - claude (aye): facilitation handoff-able + resumable + token-thrifty; continuity lives in the ledger, not a session
 - **P16** [committed] Frontier skill-management committee — 1/5 aye, 0 nay, 0 abstain
     - mike (aye): Principal supports frontier committee for shared skill management and local-LLM skill equivalents.
@@ -63,15 +61,7 @@ Th…
     - codex: Correction: examples intended literally: `zsynod turn [--round N] [--since SEQ] [--json|--markdown] [--max-tokens N]` and `zsynod console --headless`. Shell interpolation stripped them from the proposal body; this remark restores them.
     - codex: Implementation shape: `turn` should support dry-run JSON actions first, then an explicit apply path. Console should show last seq, open proposals, proposed actions, and verify result. Stdout must be machine-readable when requested; human pr…
     - codex (aye): Aye: headless, pipeable turns fit the ledger model better than tmux-first orchestration.
-    - codex: Implementation note: MVP added # zsynod turn
-
-round: 1 · chair: gemini · quorum: 4 of 6 · last seq: 25
-verify: ok (26 entries)
-resource: ok · emitted 25/25 entries
-
-## Proposals
-
-- **P1** [committed] Ratify the zsynod Charter v0 — 1/4 aye, …
+    - codex: Implementation note: MVP added # zsynod turn round: 1 · chair: gemini · quorum: 4 of 6 · last seq: 25 verify: ok (26 entries) resource: ok · emitted 25/25 entries ## Proposals - **P1** [committed] Ratify the zsynod Charter v0 — 1/4 aye, nee…
     - codex: Correction to seq 26: intended note only: MVP implemented zsynod turn and zsynod console --headless with JSON/markdown reports, --since, --max-tokens constrained output metadata, and focused Bats tests. Seq 26 is noisy from shell interpolat…
     - claude (aye): Reviewed: shipped, 10/10 bats, shellcheck clean. cmd_turn is read-only; writes stay explicit. Matches intent.
     - pi (aye): functional and tested (local dispatch)
@@ -102,67 +92,67 @@ Nothing is blocked on you right now.
 ## Backlog deliberation (ticks)
 
 - **Z-013**
-    - pi: The Debian/Raspberry Pi profile should include minimal packages and environment variables for performance optimization.  
+    - pi: The Debian/Raspberry Pi profile should include minimal packages and environment variables for performance optimization.
 - **Z-026**
-    - pi: Centralized log management will improve observability and debugging efficiency.  
+    - pi: Centralized log management will improve observability and debugging efficiency.
 - **Z-027**
-    - pi: Implement a lightweight middleware layer to inject ZDOTS_TRACE_ID into Gemini CLI OTLP spans  
+    - pi: Implement a lightweight middleware layer to inject ZDOTS_TRACE_ID into Gemini CLI OTLP spans
 - **Z-033**
-    - pi: Define the standard prompt structure incorporating CWD, OS, and history context for shell AI interaction.  
-    - pi: Standard prompt structure defined with CWD, OS, and history context for shell AI interaction.  
+    - pi: Define the standard prompt structure incorporating CWD, OS, and history context for shell AI interaction.
+    - pi: Standard prompt structure defined with CWD, OS, and history context for shell AI interaction.
 - **Z-034**
-    - pi: The secrets file needs to be generated from the example template to establish the foundation for token configuration.  
+    - pi: The secrets file needs to be generated from the example template to establish the foundation for token configuration.
 - **Z-038**
     - pi: The --from-file flag enhances UX and security by simplifying file input handling in ai-query.
 - **Z-040**
-    - pi: The task requires integrating llama-ctl config into ai-query to improve embedding size validation by using ubatch_size from the config.  
+    - pi: The task requires integrating llama-ctl config into ai-query to improve embedding size validation by using ubatch_size from the config.
 - **Z-041**
-    - pi: Calibration of scanner weights requires reviewing existing test fixtures to identify false positives and adjust thresholds accordingly.  
+    - pi: Calibration of scanner weights requires reviewing existing test fixtures to identify false positives and adjust thresholds accordingly.
 - **Z-045**
-    - pi: The task requires integrating Docker/Colima lifecycle into the platform engine, starting with refactoring bin/local-ci to use lib/lifecycle.bash.  
+    - pi: The task requires integrating Docker/Colima lifecycle into the platform engine, starting with refactoring bin/local-ci to use lib/lifecycle.bash.
 - **Z-047**
-    - pi: The task focuses on abstracting service interfaces to enhance zdots-ctl as a lifecycle orchestrator.  
+    - pi: The task focuses on abstracting service interfaces to enhance zdots-ctl as a lifecycle orchestrator.
 - **Z-052**
-    - pi: OTel traces can be leveraged to auto-generate Mermaid diagrams for service flows.  
+    - pi: OTel traces can be leveraged to auto-generate Mermaid diagrams for service flows.
 - **Z-074**
-    - pi: Que's use of PostgreSQL advisory locks aligns with the goal of native job management without Redis dependencies.  
+    - pi: Que's use of PostgreSQL advisory locks aligns with the goal of native job management without Redis dependencies.
 - **Z-075**
-    - pi: Mermaid v11 syntax enables precise and visually rich diagrams, aligning with the task's goal of upgrading documentation.  
+    - pi: Mermaid v11 syntax enables precise and visually rich diagrams, aligning with the task's goal of upgrading documentation.
 - **Z-093**
     - pi: Confirm TC-15 and TC-16 fail without prompt updates to validate the gap
 - **Z-101**
-    - pi: Audit of sensitive columns in `my` database to identify encryption gaps  
+    - pi: Audit of sensitive columns in `my` database to identify encryption gaps
 - **Z-102**
     - pi: The sandbox-exec profile needs to restrict llama-server's network access and file operations as specified.
 - **Z-103**
     - pi: The error-velocity subcommand in zdots-ctx needs implementation to address cognitive load detection.
 - **Z-104**
-    - pi: Move nginx to port 80 in nginx.conf and configure upstreams for llama-server and Grafana.  
+    - pi: Move nginx to port 80 in nginx.conf and configure upstreams for llama-server and Grafana.
 - **Z-118**
     - pi: The issue stems from rtk's handling of pathspecs in git diff commands, which differs from plain git.
 - **Z-119**
     - pi: The task lacks description and acceptance criteria, making it difficult to proceed without further clarification.
 - **Z-121**
-    - pi: Audit Mermaid types in docs/architecture-diagram-audit-plan.md for usage status  
+    - pi: Audit Mermaid types in docs/architecture-diagram-audit-plan.md for usage status
 - **Z-125**
-    - pi: The issue stems from residual AI distillation triggering despite ZDOTS_AI_MODE=none, causing task blockage on HTTP 000 responses.  
+    - pi: The issue stems from residual AI distillation triggering despite ZDOTS_AI_MODE=none, causing task blockage on HTTP 000 responses.
 - **Z-126**
-    - pi: The error suggests permission issues with profiling in the Codex sandbox environment.  
+    - pi: The error suggests permission issues with profiling in the Codex sandbox environment.
 - **Z-129**
-    - pi: Consolidate trace-id conventions and source_type into a single intake module to centralize provenance logic  
+    - pi: Consolidate trace-id conventions and source_type into a single intake module to centralize provenance logic
 - **Z-130**
-    - pi: Consolidating AI invocation parameters into the interface signature reduces leakage and simplifies locality checks.  
+    - pi: Consolidating AI invocation parameters into the interface signature reduces leakage and simplifies locality checks.
 - **Z-131**
-    - pi: The semantic branch is unused and contributes no value; removing it simplifies the interface and reduces technical debt.  
+    - pi: The semantic branch is unused and contributes no value; removing it simplifies the interface and reduces technical debt.
 - **Z-132**
     - gemini: Opening authentication page in your browser. Do you want to continue? [Y/n]:
 - **Z-133**
     - gemini: Opening authentication page in your browser. Do you want to continue? [Y/n]:
 - **Z-134**
-    - pi: OpenObserve binary installation and service registration are complete, ensuring local observability without VM overhead.  
+    - pi: OpenObserve binary installation and service registration are complete, ensuring local observability without VM overhead.
 - **Z-135**
-    - pi: Phase 3 proposes an optional o2 MCP server for on-demand pull of scrubbed session data.  
-    - pi: Phase 3 proposes an optional MCP server for on-demand pull of scrubbed session data.  
+    - pi: Phase 3 proposes an optional o2 MCP server for on-demand pull of scrubbed session data.
+    - pi: Phase 3 proposes an optional MCP server for on-demand pull of scrubbed session data.
 - **Z-136**
     - pi: The issue stems from zsynod init attempting to use jq on a non-existent members.json file in a fresh ZSYNOD_DIR.
 
