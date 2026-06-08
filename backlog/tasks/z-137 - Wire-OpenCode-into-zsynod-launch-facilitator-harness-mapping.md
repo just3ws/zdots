@@ -4,7 +4,7 @@ title: Wire OpenCode into zsynod launch (facilitator harness mapping)
 status: In Progress
 assignee: []
 created_date: '2026-06-08 13:42'
-updated_date: '2026-06-08 19:44'
+updated_date: '2026-06-08 19:58'
 labels:
   - zsynod
   - agent-ready
@@ -42,7 +42,7 @@ Context: the work synod roster is Claude / Aider / Pi / soon OpenCode, with Clau
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Principal override P18 (2026-06-08): integrate now, don't wait on pi's eval — Mike evaluates OpenCode hands-on on the work box. DONE this pass: opencode seated in zsynod/members.json (local, non-voting, command=zopencode — quorum unchanged at 3/5); brew "opencode" added to Brewfile.work + Brewfile.home (homebrew-core, verified bottled 1.15.13); _launch_cmd maps opencode→zopencode; _launch_harness_json has an opencode branch (local-seat-no-facilitate — launch needs a frontier facilitator, so it never facilitates); zopencode wrapper at providers/tools/opencode.zsh + lazy fn in conf.d/95-ai.zsh (gates via zdots_ai_gated_endpoint, generates a local-endpoint OpenCode config with sharing disabled, fail-closed). REMAINING (verify on work where opencode is installed): (1) confirm OpenCode config schema/keys match installed CLI ($schema provider/options.baseURL, share:disabled) — adjust providers/tools/opencode.zsh if 1.15.x differs; (2) confirm zopencode reaches the local model and  shows loopback only, then touch the .verified-local stamp; (3) confirm non-interactive form () and any session/resume flags via , refine the harness note.
+Principal override P18 (2026-06-08): integrate now, do not wait on the pi eval — Mike evaluates OpenCode hands-on on the work box. DONE this pass: opencode seated in zsynod/members.json (local, non-voting, command=zopencode; quorum unchanged at 3/5); brew opencode added to Brewfile.work + Brewfile.home (homebrew-core, verified bottled 1.15.13); _launch_cmd maps opencode to zopencode; _launch_harness_json has an opencode branch (local-seat-no-facilitate, since launch needs a frontier facilitator it never facilitates); zopencode wrapper at providers/tools/opencode.zsh + lazy fn in conf.d/95-ai.zsh (gates via zdots_ai_gated_endpoint, generates a local-endpoint OpenCode config with sharing disabled, fail-closed). REMAINING (verify on work where opencode is installed): (1) confirm the OpenCode config schema/keys match the installed CLI (schema, provider options.baseURL, share=disabled) and adjust providers/tools/opencode.zsh if 1.15.x differs; (2) confirm zopencode reaches the local model and that sudo bandwhich shows loopback only, then touch the .verified-local stamp; (3) confirm the non-interactive form (opencode run) and any session/resume flags via opencode --help, then refine the harness note.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
