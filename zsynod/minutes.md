@@ -1,6 +1,6 @@
 # zsynod — minutes (generated from ledger.jsonl; do not edit)
 
-_Round 1 · chair gemini · quorum 3 of 5 · 135 entries_
+_Round 1 · chair gemini · quorum 3 of 5 · 137 entries_
 
 ## Proposals
 
@@ -137,6 +137,8 @@ Nothing is blocked on you right now.
     - pi: Move nginx to port 80 in nginx.conf and configure upstreams for llama-server and Grafana.  
 - **Z-118**
     - pi: The issue stems from rtk's handling of pathspecs in git diff commands, which differs from plain git.
+- **Z-119**
+    - pi: The task lacks description and acceptance criteria, making it difficult to proceed without further clarification.
 - **Z-121**
     - pi: Audit Mermaid types in docs/architecture-diagram-audit-plan.md for usage status  
 - **Z-125**
@@ -147,6 +149,8 @@ Nothing is blocked on you right now.
     - pi: Consolidate trace-id conventions and source_type into a single intake module to centralize provenance logic  
 - **Z-130**
     - pi: Consolidating AI invocation parameters into the interface signature reduces leakage and simplifies locality checks.  
+- **Z-131**
+    - pi: The semantic branch is unused and contributes no value; removing it simplifies the interface and reduces technical debt.  
 - **Z-134**
     - pi: OpenObserve binary installation and service registration are complete, ensuring local observability without VM overhead.  
 - **Z-135**
