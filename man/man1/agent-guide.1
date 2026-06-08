@@ -30,6 +30,28 @@ AI operating mode.
 .It Ev ZDOTS_LOG_DIR
 Deploy log directory.
 .El
+.Sh FILESYSTEM DOCTRINE
+Before any destructive filesystem operation, apply the Idiot Test:
+"would an idiot do this?" If yes, stop and confirm with the user.
+The 2026-05-25 incident (an agent ran
+.Ic rm -rf ~/
+after conflating a literal
+.Pa ~
+subdirectory with HOME expansion) caused permanent loss of shell config,
+history,
+.Pa ~/.config/ ,
+and
+.Pa ~/context/work/
+research.
+The
+.Pa conf.d/15-safe-rm.zsh
+wrapper is a backstop only \(em it does not fire in subshells, bash scripts,
+or IDE-spawned shells.
+Think first: resolve paths to absolute strings, echo and read the targets,
+and prefer reversible operations
+.Pq Ic del , Ic mv , Ic git rm
+over
+.Ic rm -rf .
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
