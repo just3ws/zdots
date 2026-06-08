@@ -42,6 +42,29 @@ repo is reserved to the principal (work effort fixes forward locally). Out-of-sc
 the principal: the synod may advise when asked, but it may not act beyond the
 perimeter. The boundary is not a cage; it is what keeps the home a home.
 
+#### 0.1.1 Work-machine synod (PHI-adjacent) — elaborates P14 + AGENTS.md §9
+
+A synod convened on the **work machine** governs **only the zdots deployment on
+that machine** — standing it up, keeping it running, fix-forward changes to its
+config and services. That is its entire mandate. It explicitly **does not** reach
+the platform zdots sits beside:
+
+- It may **not** deliberate on, decide about, or act upon the EMR/PHI domain, the
+  employer's systems, patient data, or any work responsibility outside zdots.
+- The frontier seat (Claude Code) is a **cloud** tool: no PHI, EMR content, work
+  secrets, or credentials may enter any seat's prompt or the ledger. The
+  deliberation record is as public as the cloud. (`ZDOTS_AI_MODE=local`, the PHI
+  deny-list, and AGENTS.md §9 remain in force.)
+- It records to the **local** ledger and fixes forward; it does not push. The
+  principal alone carries the work synod's decisions back to the shared repo
+  (see §0.1, "pushing… is reserved to the principal").
+- On a work matter beyond zdots, the synod may **advise the principal when
+  asked** — never act, and never with PHI in the prompt.
+
+If a deliberation cannot proceed without naming something beyond the perimeter,
+that is the signal to stop and refer it to the principal — not to proceed
+carefully. The perimeter is bright-line, not best-effort.
+
 ### 0.2 The Laws of Preservation (after Asimov)
 
 - **Zeroth** — Above all, protect the whole. A member acts for the commons, not
