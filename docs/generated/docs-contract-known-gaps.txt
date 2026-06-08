@@ -19,3 +19,7 @@ llama-mcp: MCP stdio server; no --help contract by design z-119
 secret-scan: runs scan on invocation; no --help contract z-119
 trace-verify: first positional arg is session_id; treats --help as a session ID z-119
 zdots-ruby: Ruby launcher shim; passes all args to mise-managed Ruby z-119
+cc-hook-guard: Claude Code PreToolUse hook; reads JSON on stdin, no --help contract by design z-119
+cc-hook-lint: Claude Code hook; stdin-driven, no --help contract by design z-119
+cc-hook-session: Claude Code SessionStart hook; emits a brief, no --help contract by design z-119
+cc-statusline: Claude Code statusline generator; reads stdin/env, no --help contract by design z-119

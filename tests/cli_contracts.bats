@@ -477,11 +477,10 @@ EOF
 }
 
 @test "zdots-ctl: status --json contains expected keys" {
-  skip_in_ci
   run "$BIN/zdots-ctl" status --json
   [ "$status" -eq 0 ]
   echo "$output" | jq -e 'has("colima")'         >/dev/null
-  echo "$output" | jq -e 'has("lgtm")'           >/dev/null
+  echo "$output" | jq -e 'has("openobserve")'    >/dev/null
   echo "$output" | jq -e 'has("otel_collector")' >/dev/null
   echo "$output" | jq -e 'has("ai_server")'      >/dev/null
   echo "$output" | jq -e 'has("ai_http_healthy")' >/dev/null

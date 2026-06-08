@@ -70,7 +70,7 @@ case "${1:-}" in
   up) exit 0 ;;
   status)
     if [[ "${2:-}" == "--json" ]]; then
-      printf '{"colima":true,"lgtm":true,"otel_collector":true,"ai_server":true,"embed_server":true,"intelligence_suite":true,"cache":true}\n'
+      printf '{"colima":true,"openobserve":true,"otel_collector":true,"ai_server":true,"embed_server":true,"intelligence_suite":true,"cache":true}\n'
       exit 0
     fi ;;
 esac
@@ -121,6 +121,7 @@ _ztask_isolated() {
 }
 
 @test "ztask health --json reports orchestration dependencies" {
+  skip_in_ci  # exercises the real platform (services + Brain); local pipeline only
   run "$ZTASK" health --json
   [ "$status" -eq 0 ]
   printf '%s\n' "$output" | jq -e '
@@ -134,7 +135,6 @@ _ztask_isolated() {
 }
 
 @test "ztask start uses backlog CLI, hydrates a task, and health sees active state" {
-  skip_in_ci
   run _ztask_isolated start z-999
   [ "$status" -eq 0 ]
   [[ "$output" == *"hydrating task context"* ]]
@@ -174,7 +174,6 @@ _ztask_isolated() {
 }
 
 @test "ztask stop clears active task without breaking health" {
-  skip_in_ci
   run _ztask_isolated stop
   [ "$status" -eq 0 ]
 

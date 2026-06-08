@@ -118,8 +118,15 @@ jobs:
             sleep 5
           done
 
-      # Bats suite. Environment-dependent tests (skip_in_ci) skip because GHA sets
-      # CI=true; live-service/model tests self-skip because no services run here.
-      # Those run intentionally on the LOCAL pipeline step (bin/check / make check).
-      - name: Run Bats (CI subset; env-dependent tests self-skip)
-        run: bats tests/
+      # Public-sanity bats: the hermetic subset listed in tests/ci-allowlist.txt
+      # (no live services / DB / Keychain / network). GHA sets CI=true, so any
+      # env-dependent test inside these files self-skips via skip_in_ci. The full
+      # suite — including live-platform e2e — runs on the LOCAL pipeline step.
+      - name: Run Bats (public-sanity hermetic subset)
+        shell: bash
+        env:
+          ZDOTS_SKIP_ENV_TESTS: "1"
+        run: |
+          mapfile -t files < <(grep -vE '^\s*#|^\s*$' tests/ci-allowlist.txt | sed 's#^#tests/#')
+          printf 'running %d allowlisted bats files\n' "${#files[@]}"
+          bats "${files[@]}"
