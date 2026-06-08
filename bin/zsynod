@@ -1076,10 +1076,11 @@ cmd_queue() {
 # OR a decomposition if it is too big. The diff is PROPOSED into the queue
 # (propose-not-apply); nothing touches the tree until the principal applies it.
 # zdots-only, hourly cadence (operator-cron'd). ZSYNOD_DISPATCH=0 stubs the seat.
-_exec_next_handoff() {  # oldest handoff with no exec record -> "seq<TAB>to<TAB>ref<TAB>task"
-  jq -rs '
+_exec_next_handoff() {  # [ref] -> oldest open handoff (optionally matching ref) "seq<TAB>to<TAB>ref<TAB>task"
+  jq -rs --arg ref "${1:-}" '
     ([.[]|select(.type=="exec")|.data.handoff_seq]) as $done
     | [.[]|select(.type=="handoff")|select((.seq) as $s | ($done|index($s))|not)]
+    | (if $ref=="" then . else map(select(.data.ref==$ref)) end)
     | (.[0] // empty) | "\(.seq)\t\(.data.to)\t\(.data.ref // "")\t\(.data.task)"' "$LEDGER" 2>/dev/null
 }
 
@@ -1106,18 +1107,20 @@ _exec_dispatch() {  # <seat> <prompt> -> raw output
   if [[ "${ZSYNOD_DISPATCH:-1}" != "1" ]]; then
     printf '<<<DIFF\n--- a/exec-stub.txt\n+++ b/exec-stub.txt\n@@ -1 +1 @@\n-old\n+new\nDIFF>>>\n'; return
   fi
+  # read-only sandbox: the seat can READ and respond but CANNOT modify the tree —
+  # propose-not-apply enforced at the call level (Article 0, defense in depth).
   case "$1" in
-    gemini) timeout 300 gemini -p "$2" 2>/dev/null ;;
-    *)      timeout 300 codex exec "$2" 2>/dev/null ;;
+    gemini) timeout 300 gemini -p --approval-mode plan "$2" 2>/dev/null ;;
+    *)      timeout 300 codex exec -s read-only "$2" 2>/dev/null ;;
   esac
 }
 
 cmd_exectick() {
   [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
   [[ -n "$MEMBER" ]] || MEMBER="claude"
-  local seat="${EXEC_SEAT:-codex}" h
-  h="$(_exec_next_handoff)"
-  [[ -n "$h" ]] || { printf 'exec-tick: no open handoffs — nothing to execute.\n'; return 0; }
+  local seat="${EXEC_SEAT:-codex}" want_ref="$REF" h
+  h="$(_exec_next_handoff "$want_ref")"
+  [[ -n "$h" ]] || { printf 'exec-tick: no open handoffs%s — nothing to execute.\n' "${want_ref:+ matching ref $want_ref}"; return 0; }
   local hseq hto href htask
   IFS=$'\t' read -r hseq hto href htask <<<"$h"
   : "$hto"
@@ -1185,7 +1188,15 @@ cmd_ask() {  # pose a question to the forum (logged, no vote required)
   local q="$1"; [[ -n "$q" ]] || _die "ask needs a question"
   q="$(_guard_text "$q")"
   _append question "$(jq -nc --arg t "$q" '{text:$t}')" >/dev/null
-  printf '%squestion logged%s by %s — answer with: zsynod speak <P#> "..." or zsynod log\n' "$CYN" "$RST" "$MEMBER"
+  printf '%squestion logged%s by %s — resolve later with: zsynod answer <N> [note]\n' "$CYN" "$RST" "$MEMBER"
+}
+
+cmd_answer() {  # mark question ?N answered (clears it from the minutes' open questions)
+  local n="$1" note="${2:-}"
+  [[ "$n" =~ ^[0-9]+$ ]] || _die "answer needs a question number (see: zsynod minutes → Open questions ?N)"
+  [[ -n "$MEMBER" ]] || _die "answer needs member identity (--as or ZSYNOD_MEMBER)"
+  _append question_answered "$(jq -nc --argjson i "$n" --arg note "$(_guard_text "$note")" '{index:$i,note:$note}')" >/dev/null
+  printf 'question ?%s marked answered%s\n' "$n" "${note:+ — $note}"
 }
 
 cmd_tail() {  # tail a member's captured transcript (latest stamp)
