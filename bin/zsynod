@@ -760,7 +760,20 @@ cmd_minutes() {
       [[ -z "$pid" ]] && continue
       read -r ay na ab st title < <(_tally "$pid")
       printf -- '- **%s** [%s] %s — %s/%s aye, %s nay, %s abstain\n' "$pid" "$st" "$title" "$ay" "$(_voting_ids|wc -l|tr -d ' ')" "$na" "$ab"
+      # discussion + votes-with-notes under each proposal (the missing context)
+      jq -rs --arg p "$pid" '
+        def clip: if (.|length) > 240 then .[0:240]+"…" else . end;
+        [.[]|select((.type=="speak" or (.type=="vote" and (.data.note//"")!="")) and .data.proposal==$p)]
+        | .[-8:] | .[]
+        | if .type=="speak" then "    - "+.actor+": "+(.data.remark|clip)
+          else "    - "+.actor+" ("+.data.vote+"): "+(.data.note|clip) end' "$LEDGER" 2>/dev/null
     done < <(_proposal_ids)
+    printf '\n## Backlog deliberation (ticks)\n\n'
+    jq -rs '
+      def clip: if (.|length) > 240 then .[0:240]+"…" else . end;
+      [.[]|select(.type=="discuss")] | group_by(.data.topic)
+      | map("- **"+.[0].data.topic+"**\n"+([.[]|"    - "+.actor+": "+(.data.remark|clip)]|.[-5:]|join("\n")))
+      | .[]' "$LEDGER" 2>/dev/null
     printf '\n## Open questions\n\n'
     jq -rs '[.[]|select(.type=="question")]|.[-10:]|.[]|"- ("+.actor+") "+.data.text' "$LEDGER" 2>/dev/null
     printf '\n## Committees\n\n'
