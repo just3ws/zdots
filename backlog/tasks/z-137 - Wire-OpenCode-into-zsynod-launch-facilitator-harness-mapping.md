@@ -1,9 +1,10 @@
 ---
 id: Z-137
 title: Wire OpenCode into zsynod launch (facilitator harness mapping)
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-06-08 13:42'
+updated_date: '2026-06-08 19:44'
 labels:
   - zsynod
   - agent-ready
@@ -37,6 +38,12 @@ Context: the work synod roster is Claude / Aider / Pi / soon OpenCode, with Clau
 - [ ] #3 A decision is recorded on whether OpenCode may facilitate a launch session; the frontier guard is updated or documented accordingly
 - [ ] #4 tests/zsynod_launch.bats covers the OpenCode path (launch and/or rejection, matching the facilitator decision)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Principal override P18 (2026-06-08): integrate now, don't wait on pi's eval — Mike evaluates OpenCode hands-on on the work box. DONE this pass: opencode seated in zsynod/members.json (local, non-voting, command=zopencode — quorum unchanged at 3/5); brew "opencode" added to Brewfile.work + Brewfile.home (homebrew-core, verified bottled 1.15.13); _launch_cmd maps opencode→zopencode; _launch_harness_json has an opencode branch (local-seat-no-facilitate — launch needs a frontier facilitator, so it never facilitates); zopencode wrapper at providers/tools/opencode.zsh + lazy fn in conf.d/95-ai.zsh (gates via zdots_ai_gated_endpoint, generates a local-endpoint OpenCode config with sharing disabled, fail-closed). REMAINING (verify on work where opencode is installed): (1) confirm OpenCode config schema/keys match installed CLI ($schema provider/options.baseURL, share:disabled) — adjust providers/tools/opencode.zsh if 1.15.x differs; (2) confirm zopencode reaches the local model and  shows loopback only, then touch the .verified-local stamp; (3) confirm non-interactive form () and any session/resume flags via , refine the harness note.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
