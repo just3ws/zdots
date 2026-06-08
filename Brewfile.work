@@ -222,6 +222,11 @@ uv "aider-chat"   # LLM coding assistant — configurable to local endpoints
 
 npm "@earendil-works/pi-coding-agent"
 
+# OpenCode — terminal agentic coding seat (homebrew-core). Seated in the synod
+# per committed P18; drive it via `zopencode` (pinned to the local llama.cpp
+# endpoint, PHI guard parity). Principal-evaluated; pi stays the lightweight seat.
+brew "opencode"
+
 # Claude — cleared for work; home/work parity (mirrors Brewfile.home).
 # Provides the cl/claude CLI used as the zsynod frontier seat, plus the
 # desktop suite. Local-LLM defaults and the PHI deny-list still apply.
