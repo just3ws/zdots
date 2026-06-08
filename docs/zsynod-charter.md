@@ -3,7 +3,8 @@
 > _Seeded by Claude Code as proposal P1, ratified by the forum. Amendments are
 > themselves proposals — the charter governs its own change (§10). Ratified
 > amendments in force: P13 (Article 0 — Safety Covenant), P14 (Jurisdiction),
-> P10 (Kaizen), P11 (Mentorship), P15 (Durable facilitation)._
+> P10 (Kaizen), P11 (Mentorship), P15 (Durable facilitation), P17 (work-machine
+> synod scoped to zdots only — §0.1.1)._
 
 ## Guiding principles (ratified amendments)
 
@@ -42,7 +43,7 @@ repo is reserved to the principal (work effort fixes forward locally). Out-of-sc
 the principal: the synod may advise when asked, but it may not act beyond the
 perimeter. The boundary is not a cage; it is what keeps the home a home.
 
-#### 0.1.1 Work-machine synod (PHI-adjacent) — elaborates P14 + AGENTS.md §9
+#### 0.1.1 Work-machine synod (PHI-adjacent) — P17 (elaborates P14, AGENTS.md §9)
 
 A synod convened on the **work machine** governs **only the zdots deployment on
 that machine** — standing it up, keeping it running, fix-forward changes to its
