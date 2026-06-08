@@ -20,6 +20,7 @@ _zsynod() {
     'log:show ledger entries'
     'minutes:regenerate minutes.md'
     'view:regenerate + display the minutes'
+    'tick:one deliberation turn over a backlog issue (pi; --frontier adds codex+gemini)'
     'ask:pose a question to the forum'
     'tail:tail a member transcript'
     'console:interactive principal cockpit'
@@ -47,6 +48,7 @@ _zsynod() {
     '--session[named session or committee id]:id' \
     '--participants[comma-separated participants]:members' \
     '--frontier[use frontier participants]' \
+    '--topic[backlog issue id for a deliberation tick]:id' \
     '--meeting[meeting type]:type' \
     '--json[machine-readable log]' \
     '(-f --follow)'{-f,--follow}'[follow transcript (tail -f)]' \
