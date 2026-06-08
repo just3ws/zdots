@@ -626,7 +626,7 @@ cmd_turn() {
 # Set ZSYNOD_DISPATCH=0 to stub model calls (tests, offline).
 _tick_least_discussed() {  # open backlog id with fewest discuss entries (backlog order breaks ties → rotation)
   local ids_json
-  ids_json="$(backlog task list --plain 2>/dev/null | grep -oE 'Z-[0-9]+' | awk '!seen[$0]++' | jq -R . | jq -sc .)"
+  ids_json="$(backlog task list --plain 2>/dev/null | sed -nE 's/^[[:space:]]*\[[A-Za-z]+\] (Z-[0-9]+).*/\1/p' | awk '!seen[$0]++' | jq -R . | jq -sc .)"
   [[ -n "$ids_json" && "$ids_json" != "[]" ]] || { echo ""; return; }
   jq -rs --argjson ids "$ids_json" '
     ([.[]|select(.type=="discuss")|.data.topic]|group_by(.)|map({key:.[0],value:length})|from_entries) as $c
@@ -638,15 +638,16 @@ _tick_history() {  # <id> -> recent prior remarks on the topic (so deliberation 
 }
 
 _tick_focus() {  # <topic> -> "ID<TAB>TITLE"
-  local topic="$1" line id
+  local topic="$1" line title
   if [[ -z "$topic" ]]; then
     topic="$(_tick_least_discussed)"
     [[ -n "$topic" ]] || { printf 'none\t(no open backlog issues)\n'; return; }
   fi
-  line="$(backlog task list --plain 2>/dev/null | grep -iE "(^|[^A-Za-z0-9])${topic}([^0-9]|$)" | head -1)"
+  # match the line whose LEADING id is the topic (a task title may name other ids)
+  line="$(backlog task list --plain 2>/dev/null | grep -iE "^[[:space:]]*\[[A-Za-z]+\] ${topic}([^0-9]|$)" | head -1)"
   [[ -n "$line" ]] || { printf '%s\t(not in backlog — deliberating by id)\n' "$topic"; return; }
-  id="$(printf '%s' "$line" | grep -oE 'Z-[0-9]+' | head -1)"
-  printf '%s\t%s\n' "${id:-$topic}" "$(printf '%s' "$line" | sed -E 's/.*Z-[0-9]+ - //')"
+  title="$(printf '%s' "$line" | sed -E "s/^[[:space:]]*\[[A-Za-z]+\] ${topic} - //")"
+  printf '%s\t%s\n' "$topic" "$title"
 }
 
 _tick_dispatch() {  # <member> <prompt> -> raw model output on stdout
