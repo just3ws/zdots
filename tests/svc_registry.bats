@@ -13,8 +13,7 @@ setup() {
 # ── Alias resolution ────────────────────────────────────────────────────────
 
 @test "registry: resolves canonical names to themselves" {
-  skip_in_ci
-  for s in llama embed otel colima nginx postgres redis worker grafana ctx; do
+  for s in llama embed otel o2 colima nginx postgres redis worker ctx; do
     run zdots_svc_resolve "$s"
     [ "$status" -eq 0 ]
     [ "$output" = "$s" ]
@@ -40,11 +39,10 @@ setup() {
 
 # ── Managed set ─────────────────────────────────────────────────────────────
 
-@test "registry: managed list is the eight zsvc-controllable services in order" {
-  skip_in_ci
+@test "registry: managed list is the nine zsvc-controllable services in order" {
   run zdots_svc_managed
   [ "$status" -eq 0 ]
-  expected=$'llama\nembed\notel\ncolima\nnginx\npostgres\nredis\nworker'
+  expected=$'llama\nembed\notel\no2\ncolima\nnginx\npostgres\nredis\nworker'
   [ "$output" = "$expected" ]
 }
 
