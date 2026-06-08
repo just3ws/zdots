@@ -913,8 +913,10 @@ _q_apply() {
     [[ "$(_q_status "$dep")" == "applied" ]] || _die "$qid blocked: dependency $dep not applied yet"
   done < <(printf '%s' "$meta" | jq -r '.after[]? // empty')
   local pf="$QUEUE/$qid.patch"; [[ -f "$pf" ]] || _die "patch file missing: $pf"
-  git apply --check "$pf" 2>/dev/null || _die "$qid does not apply cleanly to the working tree — refused (covenant: do not force)"
-  git apply "$pf" || _die "$qid apply failed"
+  # --recount tolerates miscounted hunk headers (common in frontier-generated diffs)
+  # but still fails on real content mismatch — the covenant guard holds.
+  git apply --recount --check "$pf" 2>/dev/null || _die "$qid does not apply cleanly to the working tree — refused (covenant: do not force)"
+  git apply --recount "$pf" || _die "$qid apply failed"
   _append queue_status "$(jq -nc --arg id "$qid" --arg s applied '{id:$id,status:$s}')" >/dev/null
   printf '%sapplied %s%s to the working tree. Review and commit when ready.\n' "$GRN" "$qid" "$RST"
 }
@@ -1270,18 +1272,22 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-TURN_PARTICIPANTS="$(_participants_csv "$PARTICIPANTS" "$FRONTIER")"
-if [[ -n "$TURN_SESSION" && "$PARTICIPANTS_SET" == "0" ]]; then
-  TURN_PARTICIPANTS="$(_session_resume_participants "$TURN_SESSION")"
-fi
-if [[ -n "$TURN_SESSION" && "$MEETING_SET" == "0" ]]; then
-  MEETING_TYPE="$(_session_resume_meeting_type "$TURN_SESSION" "$MEETING_TYPE")"
-fi
-if [[ -n "$TURN_SESSION" && "$SINCE_SET" == "0" ]]; then
-  SINCE="$(_session_resume_since "$TURN_SESSION" "$SINCE")"
+SUB="${POS[0]:-}"
+if [[ "$SUB" == "init" ]]; then
+  TURN_PARTICIPANTS="$PARTICIPANTS"
+else
+  TURN_PARTICIPANTS="$(_participants_csv "$PARTICIPANTS" "$FRONTIER")"
+  if [[ -n "$TURN_SESSION" && "$PARTICIPANTS_SET" == "0" ]]; then
+    TURN_PARTICIPANTS="$(_session_resume_participants "$TURN_SESSION")"
+  fi
+  if [[ -n "$TURN_SESSION" && "$MEETING_SET" == "0" ]]; then
+    MEETING_TYPE="$(_session_resume_meeting_type "$TURN_SESSION" "$MEETING_TYPE")"
+  fi
+  if [[ -n "$TURN_SESSION" && "$SINCE_SET" == "0" ]]; then
+    SINCE="$(_session_resume_since "$TURN_SESSION" "$SINCE")"
+  fi
 fi
 
-SUB="${POS[0]:-}"
 case "$SUB" in
   init)     cmd_init ;;
   members)  cmd_members ;;

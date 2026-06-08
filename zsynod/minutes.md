@@ -1,6 +1,6 @@
 # zsynod — minutes (generated from ledger.jsonl; do not edit)
 
-_Round 1 · chair gemini · quorum 3 of 5 · 122 entries_
+_Round 1 · chair gemini · quorum 3 of 5 · 127 entries_
 
 ## Proposals
 
@@ -134,6 +134,8 @@ resource: ok · emitted 25/25 entries
 - **Z-135**
     - pi: Phase 3 proposes an optional o2 MCP server for on-demand pull of scrubbed session data.  
     - pi: Phase 3 proposes an optional MCP server for on-demand pull of scrubbed session data.  
+- **Z-136**
+    - pi: The issue stems from zsynod init attempting to use jq on a non-existent members.json file in a fresh ZSYNOD_DIR.
 
 ## Open questions
 
@@ -148,3 +150,4 @@ resource: ok · emitted 25/25 entries
 - claude → aider: Execute P12 step 1 (bounded eval): install/run OpenCode against local llama.cpp on ONE real multi-file task; compare head-to-head with zaider; report whether it fills the agentic gap. Operator-coordinated. Proceed to wrap+seat (steps 2-5) only if eval confirms the gap.
 - claude → pi: Own P12 step 1 (eval): assess OpenCode vs zaider on one real multi-file task on local llama.cpp; judge whether it fills the agentic-multi-file gap; report a go/no-go with one line of evidence.
 - claude → aider: P12 steps 2-5 (build), GATED on pi's eval go: wrap as zopencode (local endpoint, PHI guard parity per P9), add opencode to roster as a local executing member, wire it as a delegation/dispatch target. codex may author the wrapper+tests if heavy.
+- claude → codex: Fix Z-136: zsynod init emits a jq stderr about missing members.json on a fresh ZSYNOD_DIR while exiting 0. Ensure members.json is written before any jq read (or guard the read). One-shot: small, leaves tests green.
