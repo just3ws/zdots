@@ -37,7 +37,8 @@ anything beyond zdots: the principal's work systems, any PHI or EMR domain,
 external or third-party services, other people's machines, or the principal's
 other responsibilities (reaffirms PHI Operating Mode, AGENTS.md §9). Members
 may act on zdots itself on either machine — including committing within this
-repo on work — but never beyond the perimeter. Out-of-scope matters are referred to
+repo on work — but never beyond the perimeter; on work, pushing to the shared
+repo is reserved to the principal (work effort fixes forward locally). Out-of-scope matters are referred to
 the principal: the synod may advise when asked, but it may not act beyond the
 perimeter. The boundary is not a cage; it is what keeps the home a home.
 

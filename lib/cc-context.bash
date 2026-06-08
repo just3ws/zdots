@@ -10,9 +10,10 @@
 #   3. safe default (home / local)
 #
 # Why this matters: Claude Code is a CLOUD tool. On a work (PHI-adjacent)
-# machine it must enforce local-only AI and the PHI deny-list (commits are now
-# permitted within the zdots perimeter). These helpers let every hook reach the
-# same verdict regardless of which account is logged in.
+# machine it must enforce local-only AI and the PHI deny-list. Work CC fixes
+# forward — commits are permitted, but `git push` is blocked (the principal
+# alone pushes to the zdots repo). These helpers let every hook reach the same
+# verdict regardless of which account is logged in.
 
 _cc_zdotdir() { printf '%s' "${ZDOTDIR:-$HOME/.config/zsh}"; }
 

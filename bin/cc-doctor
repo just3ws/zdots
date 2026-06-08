@@ -46,7 +46,7 @@ if [[ -r "${ZDOTDIR}/lib/cc-context.bash" ]]; then
   source "${ZDOTDIR}/lib/cc-context.bash"
   _ctx="$(cc_context)"; _mode="$(cc_ai_mode)"
   if [[ "$_ctx" == "work" ]]; then
-    _pass "context=work — Claude Code may commit/push; cc-hook-guard enforces nginx/rm-rf + PHI deny-list"
+    _pass "context=work — fix-forward: commit allowed, push blocked by cc-hook-guard (principal pushes); + nginx/rm-rf + PHI deny-list"
     [[ "$_mode" == "local" ]] && _pass "AI mode=local (enforced on work)" \
       || _warn "AI mode=$_mode on a work machine — expected local"
   else
