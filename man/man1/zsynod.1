@@ -115,6 +115,19 @@ Refused if a declared dependency is unapplied or the patch will not apply cleanl
 .It Ic queue reject Ar Qid Op Ar note
 .It Ic queue defer Ar Qid Op Ar note
 Dispose of a queued item.
+.It Ic queue risk Ar Qid
+Evaluate the change's risk level
+.Pq low , medium , No or Cm high .
+Docs/tests/completions are low; code changes are medium or high; a
+security, PHI, credential, or migration surface is always high.
+.It Ic queue review Ar Qid Op Fl -seat Ar codex Ns | Ns Ar gemini
+AI peer review by a seat other than the producer; records an approve/reject
+verdict and a risk assessment.
+.It Ic queue auto
+Auto-delegate: apply every ready item that is low-risk and peer-approved; gate
+everything else
+.Pq medium/high, blocked, or unreviewed
+to the principal.
 .El
 .Ss Record & review
 .Bl -tag -width "queue apply <Qid>"

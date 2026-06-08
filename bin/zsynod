@@ -28,7 +28,10 @@
 #   zsynod history [Z-NNN|P#]            chronological discussion record over time
 #   zsynod queue [list]                  proposed diffs in dependency + priority order
 #   zsynod queue add --summary T [--ref Z-NNN] [--after Q1,Q2] [--priority P] [--patch F|-]
-#   zsynod queue show|apply|reject|defer <Qid>   review / apply (git apply) / dispose
+#   zsynod queue show|apply|reject|defer <Qid>   inspect / apply (git apply) / dispose
+#   zsynod queue risk <Qid>              evaluate change risk (low|medium|high)
+#   zsynod queue review <Qid> [--seat S] AI peer review (reviewer ≠ producer)
+#   zsynod queue auto                    auto-apply LOW-risk + peer-approved; gate the rest
 #   zsynod resume                        facilitator handoff brief — any backend can pick up the loop
 #   zsynod turn [--session ID] [--since N] [--json]  headless ledger turn report
 #   zsynod tick [--topic Z-NNN] [--frontier] [--json] one deliberation turn:
@@ -821,6 +824,90 @@ _q_next()   { local n; n="$(jq -rs '[.[]|select(.type=="queued")|.data.id|ltrims
 _q_status() { jq -rs --arg q "$1" '[.[]|select((.type=="queued" or .type=="queue_status") and .data.id==$q)] | (last.data.status // (if length>0 then "queued" else "" end))' "$LEDGER" 2>/dev/null; }
 _q_meta()   { jq -rs --arg q "$1" '[.[]|select(.type=="queued" and .data.id==$q)]|last.data // empty' "$LEDGER" 2>/dev/null; }
 
+# ── risk evaluation + AI peer review → gated auto-delegation (charter §0.5) ────
+# Risk gates how a change may be applied. LOW (docs/tests/completions) may be
+# auto-delegated once an AI peer (≠ the producer) approves; MEDIUM/HIGH always
+# gate to the principal. Security/PHI/credential/migration surfaces are always HIGH.
+_q_risk() {  # <Qid> -> "level<TAB>reason"
+  local qid="$1"; local pf="$QUEUE/$qid.patch" files f lines n_code=0
+  [[ -f "$pf" ]] || { printf 'unknown\tno patch file\n'; return; }
+  files="$(sed -nE 's#^\+\+\+ b/##p; s#^--- a/##p' "$pf" | grep -v '^/dev/null' | sort -u)"
+  lines="$(grep -cE '^[+-]' "$pf" 2>/dev/null)"
+  if printf '%s\n' "$files" | grep -qiE 'phi-patterns|secret|ai_boundary|\.zdots\.(secrets|env)|pg_hba|/migrations?/|\.claude/settings|lib/(phi|ai_)'; then
+    printf 'high\tsecurity/PHI/credential/migration surface\n'; return
+  fi
+  while IFS= read -r f; do [[ -z "$f" ]] && continue
+    case "$f" in
+      docs/*|man/*|tests/*|*.md|functions/enabled/_*|README*|*.txt) : ;;
+      *) (( n_code++ )) ;;
+    esac
+  done <<<"$files"
+  if (( n_code == 0 )); then printf 'low\tdocs/tests/completions only (%s diff lines)\n' "$lines"; return; fi
+  if (( lines <= 40 )); then printf 'medium\tcode change, small (%s diff lines)\n' "$lines"; return; fi
+  printf 'high\tcode change, large (%s diff lines)\n' "$lines"
+}
+
+_q_review_verdict() { jq -rs --arg q "$1" '[.[]|select(.type=="queue_review" and .data.id==$q)]|last.data.verdict // ""' "$LEDGER" 2>/dev/null; }
+_q_producer()       { jq -rs --arg q "$1" '[.[]|select(.type=="exec" and .data.qid==$q)]|last.actor // ""' "$LEDGER" 2>/dev/null; }
+
+_q_review_dispatch() {  # <seat> <prompt> -> review text (stubbed approve/low when offline)
+  if [[ "${ZSYNOD_DISPATCH:-1}" != "1" ]]; then printf 'VERDICT: approve\nRISK: low\nNOTE: [stub] bounded and safe\n'; return; fi
+  _exec_dispatch "$1" "$2"
+}
+
+_q_review_prompt() {  # <Qid> <diff>
+  cat <<EOF
+You are an AI peer reviewer in the zsynod, bound by Article 0. Review this proposed diff for correctness, scope, and safety. Be strict: reject if it could harm the system, exceeds its task, or is not a clean one-shot change.
+
+$2
+
+Output EXACTLY three lines:
+VERDICT: approve | reject
+RISK: low | medium | high
+NOTE: <one short line>
+EOF
+}
+
+_q_review() {  # <Qid> [--seat]
+  local qid="$1"; [[ -n "$qid" ]] || _die "queue review needs a Q id"
+  local meta; meta="$(_q_meta "$qid")"; [[ -n "$meta" ]] || _die "no such queued item: $qid"
+  local producer seat; producer="$(_q_producer "$qid")"
+  seat="${EXEC_SEAT:-codex}"; [[ "$seat" == "$producer" ]] && seat="gemini"
+  [[ "$seat" == "$producer" ]] && _die "reviewer must differ from producer ($producer) — pass --seat"
+  local pf="$QUEUE/$qid.patch" out verdict risk note
+  out="$(_q_review_dispatch "$seat" "$(_q_review_prompt "$qid" "$(cat "$pf" 2>/dev/null)")")"
+  verdict="$(printf '%s' "$out" | sed -nE 's/^VERDICT:[[:space:]]*//Ip' | head -1 | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
+  risk="$(printf '%s' "$out" | sed -nE 's/^RISK:[[:space:]]*//Ip' | head -1 | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
+  note="$(printf '%s' "$out" | sed -nE 's/^NOTE:[[:space:]]*//Ip' | head -1)"
+  [[ "$verdict" == approve || "$verdict" == reject ]] || verdict="reject"
+  local save="$MEMBER"; MEMBER="$seat"
+  _append queue_review "$(jq -nc --arg q "$qid" --arg v "$verdict" --arg r "$risk" --arg n "$(_guard_text "$note")" '{id:$q,verdict:$v,risk:$r,note:$n}')" >/dev/null
+  MEMBER="$save"
+  printf '%s%s peer-reviewed %s%s: %s (reviewer risk %s)%s\n' "$B" "$seat" "$qid" "$RST" "$verdict" "${risk:-?}" "${note:+ — $note}"
+}
+
+_q_auto() {  # auto-apply READY + LOW-risk + peer-approved items; gate the rest to the principal
+  local -a qids; mapfile -t qids < <(jq -rs '[.[]|select(.type=="queued")|.data.id]|unique|.[]' "$LEDGER" 2>/dev/null)
+  local qid lvl _rsn verdict applied=0 gated=0
+  printf '%squeue auto%s (auto-delegate LOW-risk + peer-approved; gate the rest):\n' "$B" "$RST"
+  for qid in "${qids[@]}"; do
+    [[ "$(_q_status "$qid")" == "queued" ]] || continue
+    if [[ "$(_q_ready "$qid")" != "ready" ]]; then printf '  hold %s — blocked by deps\n' "$qid"; (( gated++ )); continue; fi
+    IFS=$'\t' read -r lvl _rsn < <(_q_risk "$qid")
+    verdict="$(_q_review_verdict "$qid")"
+    if [[ "$lvl" == "low" && "$verdict" == "approve" ]]; then
+      if ( _q_apply "$qid" ) >/dev/null 2>&1; then   # subshell contains _die/exit on a bad patch
+        printf '  %sauto-applied%s %s (low risk, peer-approved)\n' "$GRN" "$RST" "$qid"; (( applied++ ))
+      else
+        printf '  gate %s — would not apply cleanly\n' "$qid"; (( gated++ ))
+      fi
+    else
+      printf '  gate %s → you: risk=%s, review=%s\n' "$qid" "$lvl" "${verdict:-none}"; (( gated++ ))
+    fi
+  done
+  printf 'auto: %s applied, %s gated to the principal.\n' "$applied" "$gated"
+}
+
 _q_add() {  # uses globals REF SUMMARY PRIORITY AFTER PATCHSRC; patch from --patch file or stdin
   [[ -n "$MEMBER" ]] || _die "queue add needs member identity (--as or ZSYNOD_MEMBER)"
   [[ -n "$SUMMARY" ]] || _die "queue add needs --summary"
@@ -870,10 +957,11 @@ _q_list() {
     esac
     rows+="$rrank	$(_q_prank "$prio")	$qid	$status	$prio	$ref	$summary"$'\n'
   done
-  local rr _pr _st rf sm label; printf '%s' "$rows" | sort -t$'\t' -k1,1n -k2,2n -k3,3 | while IFS=$'\t' read -r rr _pr qid _st prio rf sm; do
+  local rr _pr _st rf sm label lvl rv; printf '%s' "$rows" | sort -t$'\t' -k1,1n -k2,2n -k3,3 | while IFS=$'\t' read -r rr _pr qid _st prio rf sm; do
     [[ -z "$qid" ]] && continue
     case "$rr" in 0) label="READY ";; 1) label="blocked";; 2) label="defer ";; 3) label="done  ";; *) label="?";; esac
-    printf '  %-6s %-7s [%-6s] %s%s\n' "$qid" "$label" "$prio" "$sm" "${rf:+ (ref $rf)}"
+    IFS=$'\t' read -r lvl _ < <(_q_risk "$qid"); rv="$(_q_review_verdict "$qid")"
+    printf '  %-6s %-7s [%-6s] risk:%-6s review:%-7s %s%s\n' "$qid" "$label" "$prio" "$lvl" "${rv:-none}" "$sm" "${rf:+ (ref $rf)}"
   done
   _q_overlap_warn
 }
@@ -897,6 +985,8 @@ _q_show() {
   printf '%s%s%s  [%s]  status: %s  ready: %s\n' "$B" "$qid" "$RST" \
     "$(printf '%s' "$meta" | jq -r '.priority')" "$(_q_status "$qid")" "$(_q_ready "$qid")"
   printf '%s\n' "$(printf '%s' "$meta" | jq -r '"ref: "+(.ref//"-")+"   after: "+((.after//[])|join(",")|if .=="" then "-" else . end)+"\nsummary: "+.summary')"
+  local lvl rsn; IFS=$'\t' read -r lvl rsn < <(_q_risk "$qid")
+  printf 'risk: %s (%s)   peer review: %s   producer: %s\n' "$lvl" "$rsn" "$(_q_review_verdict "$qid" || echo none)" "$(_q_producer "$qid" || echo -)"
   local pf="$QUEUE/$qid.patch"
   printf '\n%spatch%s (%s):\n' "$B" "$RST" "$pf"
   if [[ -f "$pf" ]]; then git apply --stat "$pf" 2>/dev/null || cat "$pf"; else printf '  (patch file missing)\n'; fi
@@ -973,7 +1063,10 @@ cmd_queue() {
     apply)   _q_apply "${2:-}" ;;
     reject)  _q_set "${2:-}" rejected "${3:-}" ;;
     defer)   _q_set "${2:-}" deferred "${3:-}" ;;
-    *) _die "queue: unknown subcommand '$sub' (add|list|show|apply|reject|defer)" ;;
+    risk)    _q_risk "${2:-}" ;;
+    review)  _q_review "${2:-}" ;;
+    auto)    _q_auto ;;
+    *) _die "queue: unknown subcommand '$sub' (add|list|show|apply|reject|defer|risk|review|auto)" ;;
   esac
 }
 
