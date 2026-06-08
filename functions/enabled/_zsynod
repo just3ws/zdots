@@ -1,10 +1,33 @@
 #compdef zsynod
-# Completion for zsynod — the AI collaborators' forum.
+# Completion for zsynod — the AI collaborators' forum. Context-aware: subcommand
+# first, then per-subcommand arguments, with dynamic proposal/queue/member ids.
 
 _zsynod() {
-  local -a subs
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  local zdir="${ZSYNOD_DIR:-${ZDOTDIR:-$HOME/.config/zsh}/zsynod}"
+  local ledger="$zdir/ledger.jsonl" mfile="$zdir/members.json"
+  local -a members subs
+
+  members=(claude gemini codex antigravity pi aider mike)
+  if [[ -r $mfile ]] && (( $+commands[jq] )); then
+    members=(${(f)"$(jq -r '.members[].id' $mfile 2>/dev/null)"}) || members=(claude gemini codex antigravity pi aider mike)
+  fi
+
+  # dynamic id helpers (cheap; only when the ledger is readable)
+  _zsynod_props() {
+    local -a p
+    [[ -r $ledger ]] && (( $+commands[jq] )) && p=(${(f)"$(jq -r 'select(.type=="propose")|.data.id' $ledger 2>/dev/null | sort -u)"})
+    _describe -t proposals 'proposal' p
+  }
+  _zsynod_qids() {
+    local -a q
+    [[ -r $ledger ]] && (( $+commands[jq] )) && q=(${(f)"$(jq -r 'select(.type=="queued")|.data.id' $ledger 2>/dev/null | sort -u)"})
+    _describe -t qitems 'queue item' q
+  }
+
   subs=(
-    'init:seed roster + genesis'
+    'init:seed roster + genesis (idempotent)'
     'members:list members and lanes'
     'status:round, chair, open proposals + tallies'
     'chair:show the current rotating chair'
@@ -17,50 +40,67 @@ _zsynod() {
     'handoff:record a handoff to a member'
     'committee:form a named special committee'
     'committees:list named special committees'
+    'tick:one deliberation turn over a backlog issue'
+    'turn:read-only headless turn report'
+    'resume:facilitator handoff brief (any backend resumes)'
+    'queue:proposed diffs, dependency + priority ordered'
     'log:show ledger entries'
     'minutes:regenerate minutes.md'
     'view:regenerate + display the minutes'
-    'history:chronological discussion record over time (optional Z-NNN/P# filter)'
-    'queue:proposed diffs in dependency + priority order (add|list|show|apply|reject|defer)'
-    'resume:facilitator handoff brief — any AI backend can pick up the loop'
-    'tick:one deliberation turn over a backlog issue (pi; --frontier adds codex+gemini)'
+    'history:chronological discussion record over time'
     'ask:pose a question to the forum'
     'tail:tail a member transcript'
     'console:interactive principal cockpit'
     'verify:re-walk the hash chain'
+    'version:print version'
     'convene:open the tmux forum room (singleton)'
     'attach:attach to the convened room'
     'goto:jump to a seat window'
     'room:list the room windows'
     'adjourn:close the forum (transcripts kept)'
   )
-  if (( CURRENT == 2 )); then
-    _describe -t commands 'zsynod command' subs
-    return
-  fi
-  _arguments \
-    '--as[act as member]:member:(claude gemini codex antigravity pi aider mike)' \
-    '--body[proposal body]:text' \
-    '--round[round number]:n' \
-    '--note[vote note]:text' \
-    '--to[handoff receiver]:member:(claude gemini codex antigravity pi aider)' \
-    '--task[handoff task]:text' \
-    '--state[handoff state]:text' \
-    '--ref[proposal reference]:id' \
-    '--purpose[committee purpose]:text' \
-    '--session[named session or committee id]:id' \
-    '--participants[comma-separated participants]:members' \
-    '--frontier[use frontier participants]' \
-    '--topic[backlog issue id for a deliberation tick]:id' \
-    '--after[queue: comma-separated Q-id dependencies]:ids' \
-    '--priority[queue: HIGH|MEDIUM|LOW]:prio:(HIGH MEDIUM LOW)' \
-    '--summary[queue: one-line diff summary]:text' \
-    '--patch[queue: patch file or - for stdin]:file:_files' \
-    '--meeting[meeting type]:type' \
-    '--json[machine-readable log]' \
-    '(-f --follow)'{-f,--follow}'[follow transcript (tail -f)]' \
-    '(-n --lines)'{-n,--lines}'[transcript lines]:n' \
-    '(-h --help)'{-h,--help}'[show help]'
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '(-V --version)'{-V,--version}'[show version]' \
+    '--as[act as member]:member:(${members})' \
+    '--json[machine-readable output]' \
+    '1: :->cmd' \
+    '*:: :->args' && return
+
+  case $state in
+    cmd) _describe -t commands 'zsynod command' subs ;;
+    args)
+      case $line[1] in
+        propose)  _arguments '1:title:' '--body[proposal body]:text' '--round[round]:n' ;;
+        speak)    _arguments '1:proposal:_zsynod_props' '2:remark:' ;;
+        second|commit|ratify) _arguments '1:proposal:_zsynod_props' ;;
+        vote)     _arguments '1:proposal:_zsynod_props' '2:vote:(aye nay abstain)' '--note[vote note]:text' ;;
+        handoff)  _arguments \
+                    "--to[receiver]:member:(${members})" \
+                    '--task[task]:text' '--state[state]:text' '--ref[proposal ref]:id' ;;
+        committee) _arguments '1:id:' '--purpose[purpose]:text' '--participants[members]:csv' '--frontier[frontier set]' '--meeting[type]:type' ;;
+        tick)     _arguments '--topic[backlog issue id]:id' '--frontier[add codex+gemini (cloud)]' '--json[machine-readable]' ;;
+        turn)     _arguments '--session[session id]:id' '--since[since seq]:n' '--max-tokens[budget]:n' '--json[machine-readable]' '--frontier[frontier set]' ;;
+        queue)    _arguments '1:subcommand:(list add show apply reject defer)' '*::queuearg:->qarg'
+                  case $state in
+                    qarg) case $line[1] in
+                            show|apply|reject|defer) _arguments '1:item:_zsynod_qids' '2:note:' ;;
+                            add) _arguments '--summary[one-line summary]:text' '--ref[backlog issue]:id' \
+                                   '--after[deps, comma-separated Q-ids]:ids' \
+                                   '--priority[priority]:prio:(HIGH MEDIUM LOW)' \
+                                   '--patch[patch file or -]:file:_files' ;;
+                          esac ;;
+                  esac ;;
+        history)  _arguments '1:filter (Z-NNN|P#):' ;;
+        log)      _arguments '--round[round]:n' '--json[machine-readable]' ;;
+        ask)      _arguments '1:question:' ;;
+        goto)     _arguments "1:member:(${members})" ;;
+        tail)     _arguments "1:member:(${members})" '(-f --follow)'{-f,--follow}'[follow]' '(-n --lines)'{-n,--lines}'[lines]:n' ;;
+        console)  _arguments '--headless[emit a turn report instead of prompting]' ;;
+      esac
+      ;;
+  esac
 }
 
 _zsynod "$@"
