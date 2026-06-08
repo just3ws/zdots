@@ -43,9 +43,30 @@
 #   zsynod goto <member>                 jump to a seat's window
 #   zsynod room                          list the room's windows
 #   zsynod adjourn                       close the forum (transcripts kept)
+#   zsynod resume                        facilitator handoff brief (any backend resumes the loop)
+#   zsynod version                        print version
 #   (internal pane entrypoints: zsynod seat <id> · zsynod watch)
 #
-# Global: --as <member>
+# Global flags:
+#   --as <member>     act as a member (else $ZSYNOD_MEMBER)
+#   --json            machine-readable output (log, turn, tick)
+#   -h, --help        this help            -V, --version   version
+#
+# Environment:
+#   ZSYNOD_MEMBER     acting member identity for write actions
+#   ZSYNOD_DIR        ledger/state dir (default $ZDOTDIR/zsynod)
+#   ZSYNOD_DISPATCH   0 stubs model calls in `tick` (tests/offline)
+#   ZSYNOD_MAX_TEXT   max free-text chars before truncation (default 2000)
+#
+# Examples:
+#   zsynod status                        # where do things stand
+#   zsynod propose "Title" --body "..."  # open a proposal
+#   zsynod vote P7 aye --note "why"      # cast a vote
+#   zsynod tick --topic Z-135            # one deliberation turn on an issue
+#   zsynod queue                         # review proposed diffs, ordered
+#   zsynod resume                        # hand the loop to another facilitator
+#
+# Charter: docs/zsynod-charter.md   ·   Man: man zsynod
 
 set -uo pipefail
 trap '' PIPE
@@ -79,7 +100,9 @@ if [[ -t 1 ]]; then
 else RST=''; B=''; D=''; GRN=''; YEL=''; RED=''; CYN=''; fi
 
 _die() { printf 'zsynod: %s\n' "$*" >&2; exit 1; }
-_usage() { sed -n '2,40p' "$0" | sed -E 's/^# ?//'; }
+_usage()   { awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "$0"; }
+ZSYNOD_VERSION="1.0.0"
+_version() { printf 'zsynod %s\n' "$ZSYNOD_VERSION"; }
 command -v jq >/dev/null 2>&1 || _die "jq is required"
 command -v shasum >/dev/null 2>&1 || _die "shasum is required"
 
@@ -269,8 +292,21 @@ _append_round() {
 
 _assert_proposal() { _proposal_ids | grep -qx "$1" || _die "no such proposal: $1"; }
 
+# Clamp free-text so a member cannot shell a megablob (e.g. $(zsynod turn)) into
+# the ledger — protects ledger integrity (charter §6.2; the seq-26 lesson).
+ZSYNOD_MAX_TEXT="${ZSYNOD_MAX_TEXT:-2000}"
+_guard_text() {
+  local t="$1"
+  if (( ${#t} > ZSYNOD_MAX_TEXT )); then
+    printf '%s… [truncated %d→%d chars · ledger integrity §6.2]' "${t:0:ZSYNOD_MAX_TEXT}" "${#t}" "$ZSYNOD_MAX_TEXT"
+  else
+    printf '%s' "$t"
+  fi
+}
+
 cmd_speak() {
   local pid="$1" remark="${2:-}"; _assert_proposal "$pid"; [[ -n "$remark" ]] || _die "speak needs a remark"
+  remark="$(_guard_text "$remark")"
   _append speak "$(jq -nc --arg p "$pid" --arg r "$remark" '{proposal:$p,remark:$r}')" >/dev/null
   printf '%s%s spoke%s on %s\n' "$D" "$MEMBER" "$RST" "$pid"
 }
@@ -284,6 +320,7 @@ cmd_second() {
 cmd_vote() {
   local pid="$1" v="${2:-}" note="${3:-}"; _assert_proposal "$pid"
   case "$v" in aye|nay|abstain) ;; *) _die "vote must be aye|nay|abstain" ;; esac
+  note="$(_guard_text "$note")"
   _append vote "$(jq -nc --arg p "$pid" --arg v "$v" --arg n "$note" '{proposal:$p,vote:$v,note:$n}')" >/dev/null
   read -r ay na ab st _ < <(_tally "$pid")
   printf '%s%s voted %s%s on %s — tally: %s/%s aye (quorum %s) %s nay %s abstain [%s]\n' \
@@ -978,6 +1015,7 @@ cmd_view() {  # regenerate + display the minutes
 
 cmd_ask() {  # pose a question to the forum (logged, no vote required)
   local q="$1"; [[ -n "$q" ]] || _die "ask needs a question"
+  q="$(_guard_text "$q")"
   _append question "$(jq -nc --arg t "$q" '{text:$t}')" >/dev/null
   printf '%squestion logged%s by %s — answer with: zsynod speak <P#> "..." or zsynod log\n' "$CYN" "$RST" "$MEMBER"
 }
@@ -1152,6 +1190,7 @@ while [[ $# -gt 0 ]]; do
     -n|--lines) LINES="$2"; shift 2 ;;
     --json) FORMAT="json"; POS+=("__json__"); shift ;;
     -h|--help|help) _usage; exit 0 ;;
+    -V|--version) _version; exit 0 ;;
     -*) _die "unknown flag: $1" ;;
     *) POS+=("$1"); shift ;;
   esac
@@ -1202,6 +1241,7 @@ case "$SUB" in
   room)     cmd_room ;;
   seat)     cmd_seat "${POS[1]:-}" ;;
   watch)    cmd_watch ;;
+  version)  _version ;;
   ""|-h|--help) _usage ;;
   *) _die "unknown subcommand: $SUB (try -h)" ;;
 esac
