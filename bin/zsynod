@@ -25,6 +25,7 @@
 #   zsynod log [--round N] [--json]      show ledger entries
 #   zsynod minutes                       regenerate minutes.md
 #   zsynod view                          regenerate + display the minutes
+#   zsynod history [Z-NNN|P#]            chronological discussion record over time
 #   zsynod turn [--session ID] [--since N] [--json]  headless ledger turn report
 #   zsynod tick [--topic Z-NNN] [--frontier] [--json] one deliberation turn:
 #       local pi (and frontier on demand) discuss a backlog issue; remarks
@@ -672,6 +673,7 @@ Never reveal secrets or PHI. Prefer the smallest sufficient step (Kaizen).
 ISSUE $2: $3
 $4
 $( [[ -n "$hist" ]] && printf 'Prior discussion (ADVANCE it — do NOT repeat what is already said):\n%s\n' "$hist" )
+$( [[ -n "$hist" ]] && printf 'This issue already has discussion. If it is ripe, ADVANCE it to action: set ASK to a PROPOSE with a concrete execution plan. Use ASK: none ONLY if genuinely more discussion is needed first.\n' )
 
 Output EXACTLY two lines, nothing else:
 REMARK: <one-line analysis or concrete step that ADVANCES the discussion past the prior remarks>
@@ -747,6 +749,21 @@ cmd_tick() {
   printf '\n%sasks awaiting your approval%s (nothing written — run a line to approve):\n' "$YEL" "$RST"
   if [[ ${#asks[@]} -eq 0 ]]; then printf '  (none)\n'; else printf '  %s\n' "${asks[@]}"; fi
   printf '\nverify: %s\n' "$(cmd_verify 2>&1 | tail -1)"
+}
+
+cmd_history() {  # chronological discussion record over time; optional filter (Z-NNN topic or P# proposal)
+  local filter="${1:-}"
+  [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
+  jq -rs --arg f "$filter" '
+    def clip: if (.|length) > 200 then .[0:200]+"…" else . end;
+    [.[]|select(.type=="speak" or .type=="discuss" or (.type=="vote" and (.data.note//"")!=""))]
+    | map(select($f=="" or (.data.proposal==$f) or (.data.topic==$f)))
+    | .[]
+    | (.ts[0:16]) + "  " + .actor
+      + (if .type=="discuss" then " ["+(.data.topic//"?")+"]" elif (.data.proposal//"")!="" then " ["+.data.proposal+"]" else "" end)
+      + (if .type=="vote" then " ("+.data.vote+")" else "" end)
+      + ": " + ((.data.remark // .data.note // "") | clip)
+  ' "$LEDGER" 2>/dev/null
 }
 
 cmd_minutes() {
@@ -995,6 +1012,7 @@ case "$SUB" in
   log)      cmd_log "$ROUND" "$([[ " ${POS[*]} " == *" __json__ "* ]] && echo json)" ;;
   minutes)  cmd_minutes ;;
   view)     cmd_view ;;
+  history)  cmd_history "${POS[1]:-}" ;;
   turn)     cmd_turn "$FORMAT" "$SINCE" "$MAX_TOKENS" "$TURN_SESSION" "$MEETING_TYPE" "$TURN_PARTICIPANTS" ;;
   tick)     cmd_tick "$FORMAT" "$TOPIC" "$FRONTIER" ;;
   tail)     cmd_tail "${POS[1]:-}" "$FOLLOW" "${LINES:-40}" ;;
