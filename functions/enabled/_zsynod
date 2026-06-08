@@ -84,10 +84,11 @@ _zsynod() {
         tick)     _arguments '--topic[backlog issue id]:id' '--frontier[add codex+gemini (cloud)]' '--json[machine-readable]' ;;
         exec-tick) _arguments '--seat[frontier seat]:seat:(codex gemini)' ;;
         turn)     _arguments '--session[session id]:id' '--since[since seq]:n' '--max-tokens[budget]:n' '--json[machine-readable]' '--frontier[frontier set]' ;;
-        queue)    _arguments '1:subcommand:(list add show apply reject defer)' '*::queuearg:->qarg'
+        queue)    _arguments '1:subcommand:(list add show apply reject defer risk review auto)' '*::queuearg:->qarg'
                   case $state in
                     qarg) case $line[1] in
-                            show|apply|reject|defer) _arguments '1:item:_zsynod_qids' '2:note:' ;;
+                            show|apply|reject|defer|risk) _arguments '1:item:_zsynod_qids' '2:note:' ;;
+                            review) _arguments '1:item:_zsynod_qids' '--seat[reviewer seat]:seat:(codex gemini)' ;;
                             add) _arguments '--summary[one-line summary]:text' '--ref[backlog issue]:id' \
                                    '--after[deps, comma-separated Q-ids]:ids' \
                                    '--priority[priority]:prio:(HIGH MEDIUM LOW)' \
