@@ -115,6 +115,9 @@ One section per lens, each metric tagged with its confidence class:
 - **Change-management archetypes** — issue-first, PR-first drive-by, review-heavy,
   CI-heavy, silent direct-to-main (proxy), abandoned request.
 - **Issue triage & rework** — time-to-first-response, assignment, reopen rate.
+- **Issue coordination** — shared labels/milestones across repos, cross-repo
+  issue actors, and issue-to-PR closure links including cross-repo closures when
+  GitHub exposes the linked issue repository.
 - **Conway / socio-technical** — actor↔repo, reviewer↔author, repo co-change, and
   boundary-spanner graphs (JSON edge-lists + inline Mermaid), hidden-team
   clustering.
