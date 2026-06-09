@@ -104,9 +104,13 @@ and Unknowns & Data Gaps sections — so prose stays in lockstep with the SQL.
 | `proxy` | an approximate stand-in for something GitHub does not record |
 | `unavailable` | cannot be known from the harvest (no view); recorded, not erased |
 
-Deploy lag, MTTR, queue-vs-active time, who-fixes-CI, and who-owns-release remain
-`unavailable` — they need deployment/incident data or per-run actors the GitHub
-API does not expose here.
+Every registered insight now has a source view — there are **no `unavailable`
+metrics**. Where GitHub does not record something directly (production deploys,
+incidents), the tool uses a clearly-labelled **proxy** rather than inventing
+certainty: deploy lag (merge → deploy-gate run), MTTR (CI failure → next
+success), change/CI-failure rate, deployment frequency, and queue-vs-active time.
+Who-fixes-CI and who-owns-release are `inferred` from run actors and deploy-gate
+operators. Read proxies as approximations, not ground truth.
 
 ### Determinism
 
