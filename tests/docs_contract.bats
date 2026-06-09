@@ -55,6 +55,7 @@ _known_gap() {
     zdots-ctx
     zdots-doctor
     zdots-endpoints
+    zdots-gh
     zdots-graph-audit
     zdots-keychain
     zdots-log-analyze
@@ -96,6 +97,7 @@ _known_gap() {
   pages="
     man/man1/capabilities.1
     man/man1/zdots-ctx.1
+    man/man1/zdots-gh.1
     man/man1/zmorning.1
     man/man1/agent-guide.1
     man/man1/ai-query.1
@@ -179,7 +181,7 @@ _known_gap() {
     diff-review docker-reclaim gemini-mcp-register history-analyze history-import
     idiot-test llama-caps llama-ctl local-ci nginx-ctl nginx-repair openobserve-ctl otel-collector otel-smoke ruby-audit ruby-audit-batch ruby-audit-diff pi-ctx-brief pi-ctx-hydrate
     pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-doctor
-    zdots-endpoints zdots-github-keys zdots-graph-audit zdots-keychain zdots-log-analyze zdots-o2-query zdots-otel-phi-compile zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-my-sync zdots-ingest-prepare
+    zdots-endpoints zdots-gh zdots-github-keys zdots-graph-audit zdots-keychain zdots-log-analyze zdots-o2-query zdots-otel-phi-compile zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-my-sync zdots-ingest-prepare
     zdots-worker zsynod
     zmetrics zmorning zsvc ztask
   )
