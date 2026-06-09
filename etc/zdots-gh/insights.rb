@@ -691,10 +691,12 @@ build_confidence
 
 header = <<~MD
   ---
+  type: reference
+  slug: gh-forensics-#{opts[:owner]}
   title: "GitHub Delivery-Process Forensics — #{opts[:owner]}"
   source: zdots-gh
   owner: #{opts[:owner]}
-  reference_date: #{AS_OF}
+  reference_date: "#{AS_OF}"
   report: insights
   tags: [github, dora, devex, flow, conway, change-management, #{opts[:owner]}]
   ---
