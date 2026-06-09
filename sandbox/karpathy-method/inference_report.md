@@ -1,14 +1,7 @@
-# Inference Performance Results (As of 2026-06-09)
+# Inference Performance Update (As of 2026-06-09)
 
-## Experimental Data
-| Context Size (Tokens) | Latency (ms) |
-| :--- | :--- |
-| 512 | 456 |
-| 1024 | 4110 |
-| 2048 | 8178 |
-| 4096 | 18184 |
-
-## Insights
-1. **The Threshold Wall:** We observed a massive, non-linear jump in latency when transitioning from 512 to 1024 tokens (a ~9x increase). This strongly suggests a memory-management threshold (swap invocation or VRAM cache limitation) on the M-series Mac.
-2. **"Prompt Tax" Quantified:** Beyond the 1024-token mark, latency increases at roughly ~4.5ms per token (~220 tokens/sec processing), but the initial jump indicates we should aggressively cap our context window *well below 1024 tokens* for high-frequency agentic tasks.
-3. **Implication:** Our "Context-as-Memory" strategy is not just optimization; it is a **hard performance requirement**. Any agent turn exceeding ~1024 tokens will be perceived as "hang" time by the user.
+## Regression Findings (Iteration 1.1)
+- **Experiment:** Increased `batch_size`/`ubatch_size` from 2048 to 4096.
+- **Outcome:** **Regression.** Latency increased significantly across all token counts (e.g., 1024 tokens went from ~6.5s to ~15.3s).
+- **Hypothesis:** Increased memory footprint for the 4096 batch buffer likely triggered aggressive OS swap or kernel-level memory management overhead, neutralizing any throughput gains from increased parallelism.
+- **Conclusion:** 2048 is the current stability/performance optimum for this hardware/model configuration.
