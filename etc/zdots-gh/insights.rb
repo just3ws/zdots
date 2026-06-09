@@ -452,6 +452,42 @@ def build_triage
     emit md_table(["Actor", "Assigned issues", "Repos"],
                   asg.map { |r| [at(r["actor"]), r["assigned"], r["repos"]] })
   end
+
+  actors = duck("SELECT actor, repos, issues, roles, repo_list FROM issue_actor_coordination " \
+                "ORDER BY repos DESC, issues DESC, actor LIMIT 12")
+  if actors.empty?
+    para "**Cross-repo issue coordinators**#{tag('issue_actor_coordination')}: none detected."
+  else
+    para "**Cross-repo issue coordinators**#{tag('issue_actor_coordination')} — actors touching issues across repos:"
+    emit md_table(["Actor", "Repos", "Issues", "Roles", "Spans"],
+                  actors.map { |r| [at(r["actor"]), r["repos"], r["issues"], r["roles"], r["repo_list"]] })
+  end
+
+  labels = duck("SELECT label, repos, issues, repo_list FROM issue_label_coordination " \
+                "ORDER BY repos DESC, issues DESC, label LIMIT 12")
+  milestones = duck("SELECT milestone, repos, issues, repo_list FROM issue_milestone_coordination " \
+                    "ORDER BY repos DESC, issues DESC, milestone LIMIT 12")
+  unless labels.empty? && milestones.empty?
+    para "**Shared planning vocabulary**#{tag('issue_label_coordination')} / " \
+         "**milestones**#{tag('issue_milestone_coordination')}:"
+    emit md_table(["Kind", "Name", "Repos", "Issues", "Spans"],
+                  labels.map { |r| ["label", "`#{r["label"]}`", r["repos"], r["issues"], r["repo_list"]] } +
+                  milestones.map { |r| ["milestone", r["milestone"], r["repos"], r["issues"], r["repo_list"]] })
+  end
+
+  closures = duck("SELECT issue_repo_name, issue_number, pr_repo_name, pr_number, cross_repo " \
+                  "FROM issue_closure_coordination ORDER BY cross_repo DESC, issue_repo_name, issue_number LIMIT 12")
+  if closures.empty?
+    para "**Issue-to-PR closure links**#{tag('issue_closure_coordination')}: none observed."
+  else
+    cross = closures.count { |r| r["cross_repo"] }
+    para "**Issue-to-PR closure links**#{tag('issue_closure_coordination')}: " \
+         "#{closures.size} sampled link(s), #{cross} cross-repo."
+    emit md_table(["Issue", "PR", "Cross-repo"],
+                  closures.map { |r| ["#{short(r["issue_repo_name"])}##{r["issue_number"]}",
+                                      "#{short(r["pr_repo_name"])}##{r["pr_number"]}",
+                                      r["cross_repo"] ? "yes" : "no"] })
+  end
 end
 
 # ── Conway / socio-technical (cat 9) — graphs + Mermaid ───────────────────────
@@ -476,10 +512,13 @@ def build_conway(graphs_dir)
   cochange   = duck("SELECT repo_a, repo_b, shared_actors FROM edge_repo_cochange ORDER BY shared_actors DESC, repo_a, repo_b")
   spanners   = duck("SELECT actor, repos, prs, repo_list FROM boundary_spanners ORDER BY repos DESC, actor")
   ownership  = duck("SELECT repo_name, top_author, top_author_share, authors FROM ownership_map ORDER BY repo_name")
+  issue_actors = duck("SELECT actor, repos, issues, roles, repo_list FROM issue_actor_coordination ORDER BY repos DESC, issues DESC, actor")
+  issue_closures = duck("SELECT issue_repo_name, issue_number, pr_repo_name, pr_number, cross_repo FROM issue_closure_coordination ORDER BY cross_repo DESC, issue_repo_name, issue_number")
 
   exports = {
     "actor_repo" => actor_repo, "review_pair" => review, "comment_pair" => comment,
-    "repo_cochange" => cochange, "boundary_spanners" => spanners, "ownership_map" => ownership
+    "repo_cochange" => cochange, "boundary_spanners" => spanners, "ownership_map" => ownership,
+    "issue_actor_coordination" => issue_actors, "issue_closure_coordination" => issue_closures
   }
   written = exports.map { |name, rows| [name, write_graph(graphs_dir, name, rows), rows.size] }
   para "**Exported graphs** (`#{File.basename(graphs_dir)}/`):"
