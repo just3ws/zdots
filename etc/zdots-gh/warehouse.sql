@@ -134,13 +134,15 @@ CREATE OR REPLACE TABLE workflow_runs AS
   SELECT * FROM read_json('__DATA_DIR__/*_runs.json', format='array',
     columns={repo_name:'VARCHAR', id:'BIGINT', name:'VARCHAR', workflow_id:'BIGINT',
              conclusion:'VARCHAR', status:'VARCHAR', event:'VARCHAR', head_branch:'VARCHAR',
+             actor:'VARCHAR', triggering_actor:'VARCHAR',
              created_at:'TIMESTAMP', run_started_at:'TIMESTAMP', updated_at:'TIMESTAMP'},
     maximum_object_size=67108864);
 
 CREATE OR REPLACE TABLE releases AS
   SELECT * FROM read_json('__DATA_DIR__/*_releases.json', format='array',
     columns={repo_name:'VARCHAR', id:'BIGINT', tag_name:'VARCHAR', name:'VARCHAR',
-             draft:'BOOLEAN', prerelease:'BOOLEAN', created_at:'TIMESTAMP', published_at:'TIMESTAMP'},
+             draft:'BOOLEAN', prerelease:'BOOLEAN', author:'VARCHAR',
+             created_at:'TIMESTAMP', published_at:'TIMESTAMP'},
     maximum_object_size=67108864);
 
 -- ── DevEx / DORA views ───────────────────────────────────────────────────────
@@ -730,3 +732,90 @@ CREATE OR REPLACE VIEW repo_health_meta AS
          m.open_issues_count
   FROM repo_health h
   LEFT JOIN repo_meta m ON h.repo_name = m.repo_name;
+
+-- ── Gap closure (Phase 2.5): metrics that were unavailable in Phase 2 ─────────
+
+-- who_fixes_ci: who triggers the success that follows a failure on a workflow
+-- (a CI "recovery"). src: workflow_runs.actor/triggering_actor  [inferred]
+CREATE OR REPLACE VIEW ci_fixers AS
+  WITH seq AS (
+    SELECT repo_name, workflow_id, name AS workflow, conclusion, run_started_at,
+           coalesce(triggering_actor, actor) AS actor,
+           lag(conclusion) OVER (PARTITION BY repo_name, workflow_id ORDER BY run_started_at) AS prev
+    FROM workflow_runs
+    WHERE conclusion IN ('success','failure'))
+  SELECT actor,
+         count(*)                                   AS recoveries,
+         count(DISTINCT repo_name || '/' || workflow) AS workflows
+  FROM seq
+  WHERE conclusion = 'success' AND prev = 'failure' AND actor IS NOT NULL
+    AND NOT regexp_matches(lower(actor), 'bot|github-actions|dependabot|renovate|^app/')
+  GROUP BY actor ORDER BY recoveries DESC, actor;
+
+-- who_owns_release: explicit release authors (observed), augmented by the
+-- operators who run name-inferred deploy gates (inferred fallback).
+-- src: releases.author, workflow_runs + deploy_workflows  [inferred]
+CREATE OR REPLACE VIEW release_owners AS
+  SELECT author AS actor, count(*) AS releases, count(DISTINCT repo_name) AS repos
+  FROM releases WHERE author IS NOT NULL
+  GROUP BY author ORDER BY releases DESC, actor;
+
+CREATE OR REPLACE VIEW deploy_operators AS
+  WITH dep AS (
+    SELECT coalesce(r.triggering_actor, r.actor) AS actor, r.repo_name
+    FROM workflow_runs r
+    JOIN deploy_workflows d ON r.repo_name = d.repo_name AND r.name = d.workflow
+    WHERE r.conclusion = 'success')
+  SELECT actor, count(*) AS deploy_runs, count(DISTINCT repo_name) AS repos
+  FROM dep WHERE actor IS NOT NULL
+    AND NOT regexp_matches(lower(actor), 'bot|github-actions|dependabot|renovate|^app/')
+  GROUP BY actor ORDER BY deploy_runs DESC, actor;
+
+-- deploy_lead_lag: merge (to default branch) → next successful deploy-gate run.
+-- PROXY: a name-inferred deploy gate is not a confirmed production deploy, and
+-- runs are capped at the recent 100/repo. src: prs, repo_meta, workflow_runs  [proxy]
+CREATE OR REPLACE VIEW deploy_lead_lag AS
+  WITH merges AS (
+    SELECT p.repo_name, p.number, p.merged_at
+    FROM prs p JOIN repo_meta m ON p.repo_name = m.repo_name
+    WHERE p.state = 'MERGED' AND p.merged_at IS NOT NULL AND NOT p.is_bot
+      AND (p.base_ref = m.default_branch OR p.base_ref IS NULL)),
+  deploys AS (
+    SELECT r.repo_name, r.run_started_at
+    FROM workflow_runs r
+    JOIN deploy_workflows d ON r.repo_name = d.repo_name AND r.name = d.workflow
+    WHERE r.conclusion = 'success' AND r.run_started_at IS NOT NULL)
+  SELECT m.repo_name, m.number,
+         date_diff('minute', m.merged_at, d.run_started_at) AS lag_minutes
+  FROM merges m
+  ASOF JOIN deploys d
+    ON m.repo_name = d.repo_name AND d.run_started_at >= m.merged_at;
+
+-- mttr_proxy: per workflow, time from a failing run to the next succeeding run
+-- (pipeline recovery). PROXY: this is CI restore time, NOT production-incident
+-- MTTR. src: workflow_runs  [proxy]
+CREATE OR REPLACE VIEW mttr_proxy AS
+  WITH fails AS (
+    SELECT repo_name, workflow_id, name AS workflow, run_started_at
+    FROM workflow_runs WHERE conclusion = 'failure' AND run_started_at IS NOT NULL),
+  succ AS (
+    SELECT repo_name, workflow_id, run_started_at
+    FROM workflow_runs WHERE conclusion = 'success' AND run_started_at IS NOT NULL)
+  SELECT f.repo_name, f.workflow,
+         date_diff('minute', f.run_started_at, s.run_started_at) AS recovery_minutes
+  FROM fails f
+  ASOF JOIN succ s
+    ON f.repo_name = s.repo_name AND f.workflow_id = s.workflow_id
+       AND s.run_started_at >= f.run_started_at;
+
+-- queue_vs_active_time: split PR cycle into waiting (open→first review) vs active
+-- (first review→merge). PROXY: only covers reviewed, merged PRs; assumes review
+-- marks the queue→active transition. src: prs, first_review_latency  [proxy]
+CREATE OR REPLACE VIEW queue_active_split AS
+  SELECT p.repo_name, p.number,
+         frl.hours_to_first_review AS waiting_hours,
+         date_diff('hour', p.created_at, p.merged_at) - frl.hours_to_first_review AS active_hours
+  FROM prs p
+  JOIN first_review_latency frl ON p.repo_name = frl.repo_name AND p.number = frl.number
+  WHERE p.merged_at IS NOT NULL AND NOT p.is_bot
+    AND frl.hours_to_first_review IS NOT NULL;

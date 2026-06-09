@@ -188,6 +188,10 @@ def build_dora
   ci_sig = scalar("SELECT sum(ci_signals) v FROM ci_failure_rate", 0)
   ci_fl  = scalar("SELECT sum(failures) v FROM ci_failure_rate", 0)
   leak   = scalar("SELECT count(*) v FROM process_leakage", 0)
+  dlag   = scalar("SELECT median(lag_minutes)/60.0 v FROM deploy_lead_lag")
+  dlag_n = scalar("SELECT count(*) v FROM deploy_lead_lag", 0)
+  mttr   = scalar("SELECT median(recovery_minutes)/60.0 v FROM mttr_proxy")
+  mttr_n = scalar("SELECT count(*) v FROM mttr_proxy", 0)
 
   rows = [
     ["Deployment frequency", "#{num(deploy_freq)}/wk", "merged PRs/week#{tag('deployment_frequency')}"],
@@ -195,10 +199,11 @@ def build_dora
     ["PR cycle time", "#{unit(cyc, 'h')} (p75 #{unit(cyc75, 'h')})", "open→merge#{tag('pr_cycle_time')}"],
     ["First-review latency", unit(rev, "h"), "open→1st review#{tag('first_review_latency')}"],
     ["CI failure rate", pct(ci_fl, ci_sig), "of #{ci_sig} rollup signals#{tag('ci_failure_rate')}"],
-    ["Change-failure proxy", "#{pct(leak, MERGED)} (#{leak})", "merged w/ CI-fail or 0 review#{tag('change_failure_proxy')}"]
+    ["Change-failure proxy", "#{pct(leak, MERGED)} (#{leak})", "merged w/ CI-fail or 0 review#{tag('change_failure_proxy')}"],
+    ["Deploy-lag proxy", unit(dlag, "h"), "merge→deploy-gate run (#{dlag_n})#{tag('deploy_lead_lag')}"],
+    ["Pipeline recovery (MTTR proxy)", unit(mttr, "h"), "CI failure→next success (#{mttr_n})#{tag('mttr')}"]
   ]
   emit md_table(%w[Metric Value Reading], rows)
-  para "_Deploy lag and MTTR are#{tag('deploy_lead_lag')} — see Unknowns & Data Gaps._"
 end
 
 # ── Flow (cat 3) ──────────────────────────────────────────────────────────────
@@ -218,12 +223,16 @@ def build_flow
     "AND reviewers=0 AND date_diff('day', created_at, #{TS}) > 30", 0
   )
   aband     = scalar("SELECT count(*) v FROM abandoned_prs", 0)
+  q_wait    = scalar("SELECT median(waiting_hours) v FROM queue_active_split")
+  q_active  = scalar("SELECT median(active_hours) v FROM queue_active_split")
+  q_n       = scalar("SELECT count(*) v FROM queue_active_split", 0)
 
   rows = [
     ["Open PR age", "med #{unit(pr_age_md, 'h')} / max #{unit(pr_age_mx, 'd', 0)}", "open PRs vs ref date#{tag('pr_age')}"],
     ["Open issue age", "max #{unit(iss_age_mx, 'd', 0)}", "open issues vs ref date#{tag('issue_age')}"],
     ["Batch size", "med #{num(churn_md, 0)} lines / #{num(files_md, 0)} files", "churn / files#{tag('batch_size')}"],
     ["Handoffs per PR", "med #{num(hand_md, 0)}", "reviewers+commenters#{tag('handoffs')}"],
+    ["Queue vs active", "#{unit(q_wait, 'h')} wait / #{unit(q_active, 'h')} active", "open→review→merge (#{q_n})#{tag('queue_vs_active_time')}"],
     ["Stale PRs", stale.to_s, "open >30d, unreviewed#{tag('stale_work')}"],
     ["Abandoned PRs", aband.to_s, "closed, never merged#{tag('abandoned_work')}"]
   ]
@@ -298,6 +307,30 @@ def build_actors
     para "**Merge gatekeepers**#{tag('who_merges')} — who actually lands changes:"
     emit md_table(["Actor", "Merges", "Repos"],
                   mg.map { |r| [at(r["actor"]), r["merges"], r["repos"]] })
+  end
+
+  cf = duck("SELECT actor, recoveries, workflows FROM ci_fixers ORDER BY recoveries DESC, actor LIMIT 6")
+  unless cf.empty?
+    para "**CI fixers**#{tag('who_fixes_ci')} — who turns a failed pipeline green again:"
+    emit md_table(["Actor", "Recoveries", "Workflows"],
+                  cf.map { |r| [at(r["actor"]), r["recoveries"], r["workflows"]] })
+  end
+
+  # who_owns_release: explicit release authors when present, else deploy-gate operators.
+  ro = duck("SELECT actor, releases, repos FROM release_owners ORDER BY releases DESC, actor LIMIT 6")
+  if !ro.empty?
+    para "**Release owners**#{tag('who_owns_release')} — who cuts releases:"
+    emit md_table(["Actor", "Releases", "Repos"],
+                  ro.map { |r| [at(r["actor"]), r["releases"], r["repos"]] })
+  else
+    op = duck("SELECT actor, deploy_runs, repos FROM deploy_operators ORDER BY deploy_runs DESC, actor LIMIT 6")
+    if op.empty?
+      para "**Release/deploy owners**#{tag('who_owns_release')}: no releases and no deploy-gate runs observed."
+    else
+      para "**Deploy owners**#{tag('who_owns_release')} — no GitHub Releases exist; inferred from who runs the deploy gates:"
+      emit md_table(["Actor", "Deploy runs", "Repos"],
+                    op.map { |r| [at(r["actor"]), r["deploy_runs"], r["repos"]] })
+    end
   end
 end
 
@@ -388,8 +421,8 @@ def build_releases
              "FROM releases_by_repo WHERE releases > 0 ORDER BY releases DESC, repo_name")
   if rel.empty?
     para "_No GitHub Releases exist across the estate.#{tag('releases_and_deploys')} Shipping is " \
-         "not cut as release artifacts here; deploy is inferred from Actions deploy gates instead. " \
-         "Deploy lag and MTTR therefore remain #{CONF_BADGE['unavailable']} (see Unknowns & Data Gaps)._"
+         "not cut as release artifacts here; deploy is inferred from Actions deploy gates instead " \
+         "(see the deploy-lag and pipeline-recovery proxies under DORA, and deploy owners under Actors)._"
   else
     emit md_table(["Repo", "Releases", "Final", "Last release"],
                   rel.map { |r| [short(r["repo_name"]), r["releases"], r["final_releases"],
@@ -605,11 +638,19 @@ end
 # ── Unknowns & data gaps (cat 1) ──────────────────────────────────────────────
 def build_gaps
   section "Unknowns & data gaps"
-  para "What GitHub still cannot tell us, even after the Phase-2 harvest expansion " \
-       "(Actions, releases, issue triage, repo metadata are now collected). These remain " \
-       "`unavailable` — recorded, not erased. Most need deployment/incident data or " \
-       "per-run actors that GitHub does not expose through the read-only API here."
   gaps = CATALOG.select { |i| i["confidence"] == "unavailable" }.sort_by { |i| i["name"] }
+  if gaps.empty?
+    nprox = CATALOG.count { |i| i["confidence"] == "proxy" }
+    para "Every registered insight now has a source view — there are no `unavailable` " \
+         "metrics. **#{nprox} are proxies** (deploy lag, MTTR, change/CI-failure, deployment " \
+         "frequency, queue-vs-active): GitHub does not record production deploys or incidents, " \
+         "so these stand in for them and are read accordingly. The proxies and their exact " \
+         "methods are in the Confidence model and `insights-catalog.yaml` — uncertainty is " \
+         "labelled, not erased."
+    return
+  end
+  para "What GitHub cannot tell us from the harvest. These remain `unavailable` — recorded, " \
+       "not erased."
   emit md_table(%w[Missing-insight Purpose Why-unavailable],
                 gaps.map { |i| [i["name"], i["purpose"], i["reason"]] })
 end
