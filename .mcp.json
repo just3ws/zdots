@@ -9,18 +9,18 @@
     },
     "ctx": {
       "type": "stdio",
-      "command": "${CLAUDE_PROJECT_DIR}/bin/ctx-mcp",
+      "command": "${HOME}/.config/zsh/bin/ctx-mcp",
       "env": {
-        "ZDOTDIR": "${CLAUDE_PROJECT_DIR}"
+        "ZDOTDIR": "${HOME}/.config/zsh"
       }
     },
     "llama": {
       "type": "stdio",
-      "command": "${CLAUDE_PROJECT_DIR}/bin/llama-mcp",
+      "command": "${HOME}/.config/zsh/bin/llama-mcp",
       "env": {
-        "ZDOTDIR": "${CLAUDE_PROJECT_DIR}",
+        "ZDOTDIR": "${HOME}/.config/zsh",
         "ZDOTS_AI_ENDPOINT": "http://127.0.0.1:11500",
-        "PATH": "/Users/mike/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+        "PATH": "${HOME}/.config/zsh/bin:${HOME}/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
       }
     }
   }
