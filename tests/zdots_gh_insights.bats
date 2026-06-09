@@ -79,19 +79,22 @@ JSON
   cat >"$CACHE/beta_workflows.json" <<'JSON'
 []
 JSON
+  # Runs carry actor/triggering_actor; CI alternates fail→success so the two
+  # recoveries are attributed to alice (who_fixes_ci, mttr_proxy). The Deploy
+  # run at 11:00 follows alpha#1's 10:00 merge (deploy_lead_lag = 60 min).
   cat >"$CACHE/alpha_runs.json" <<'JSON'
-[{"repo_name":"acme/alpha","id":1,"name":"CI","workflow_id":10,"conclusion":"success","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-10T10:00:00Z","run_started_at":"2026-01-10T10:00:00Z","updated_at":"2026-01-10T10:01:00Z"},
- {"repo_name":"acme/alpha","id":2,"name":"CI","workflow_id":10,"conclusion":"failure","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-11T10:00:00Z","run_started_at":"2026-01-11T10:00:00Z","updated_at":"2026-01-11T10:02:00Z"},
- {"repo_name":"acme/alpha","id":3,"name":"CI","workflow_id":10,"conclusion":"success","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-12T10:00:00Z","run_started_at":"2026-01-12T10:00:00Z","updated_at":"2026-01-12T10:01:00Z"},
- {"repo_name":"acme/alpha","id":4,"name":"CI","workflow_id":10,"conclusion":"failure","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-13T10:00:00Z","run_started_at":"2026-01-13T10:00:00Z","updated_at":"2026-01-13T10:02:00Z"},
- {"repo_name":"acme/alpha","id":5,"name":"CI","workflow_id":10,"conclusion":"success","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-14T10:00:00Z","run_started_at":"2026-01-14T10:00:00Z","updated_at":"2026-01-14T10:01:00Z"},
- {"repo_name":"acme/alpha","id":6,"name":"Deploy GitHub Pages","workflow_id":11,"conclusion":"success","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-11T11:00:00Z","run_started_at":"2026-01-11T11:00:00Z","updated_at":"2026-01-11T11:02:00Z"}]
+[{"repo_name":"acme/alpha","id":1,"name":"CI","workflow_id":10,"conclusion":"success","status":"completed","event":"push","head_branch":"main","actor":"bob","triggering_actor":"bob","created_at":"2026-01-10T10:00:00Z","run_started_at":"2026-01-10T10:00:00Z","updated_at":"2026-01-10T10:01:00Z"},
+ {"repo_name":"acme/alpha","id":2,"name":"CI","workflow_id":10,"conclusion":"failure","status":"completed","event":"push","head_branch":"main","actor":"bob","triggering_actor":"bob","created_at":"2026-01-11T10:00:00Z","run_started_at":"2026-01-11T10:00:00Z","updated_at":"2026-01-11T10:02:00Z"},
+ {"repo_name":"acme/alpha","id":3,"name":"CI","workflow_id":10,"conclusion":"success","status":"completed","event":"push","head_branch":"main","actor":"alice","triggering_actor":"alice","created_at":"2026-01-12T10:00:00Z","run_started_at":"2026-01-12T10:00:00Z","updated_at":"2026-01-12T10:01:00Z"},
+ {"repo_name":"acme/alpha","id":4,"name":"CI","workflow_id":10,"conclusion":"failure","status":"completed","event":"push","head_branch":"main","actor":"bob","triggering_actor":"bob","created_at":"2026-01-13T10:00:00Z","run_started_at":"2026-01-13T10:00:00Z","updated_at":"2026-01-13T10:02:00Z"},
+ {"repo_name":"acme/alpha","id":5,"name":"CI","workflow_id":10,"conclusion":"success","status":"completed","event":"push","head_branch":"main","actor":"alice","triggering_actor":"alice","created_at":"2026-01-14T10:00:00Z","run_started_at":"2026-01-14T10:00:00Z","updated_at":"2026-01-14T10:01:00Z"},
+ {"repo_name":"acme/alpha","id":6,"name":"Deploy GitHub Pages","workflow_id":11,"conclusion":"success","status":"completed","event":"push","head_branch":"main","actor":"alice","triggering_actor":"alice","created_at":"2026-01-11T11:00:00Z","run_started_at":"2026-01-11T11:00:00Z","updated_at":"2026-01-11T11:02:00Z"}]
 JSON
   cat >"$CACHE/beta_runs.json" <<'JSON'
 []
 JSON
   cat >"$CACHE/alpha_releases.json" <<'JSON'
-[{"repo_name":"acme/alpha","id":1,"tag_name":"v1.0","name":"v1.0","draft":false,"prerelease":false,"created_at":"2026-01-12T00:00:00Z","published_at":"2026-01-12T00:00:00Z"}]
+[{"repo_name":"acme/alpha","id":1,"tag_name":"v1.0","name":"v1.0","draft":false,"prerelease":false,"author":"alice","created_at":"2026-01-12T00:00:00Z","published_at":"2026-01-12T00:00:00Z"}]
 JSON
   cat >"$CACHE/beta_releases.json" <<'JSON'
 []
@@ -224,14 +227,37 @@ _render() { "$GH" insights "$OWNER" --as-of "$ASOF"; }
   assert_output "Ruby"
 }
 
-@test "remaining unavailable insights surface in Unknowns & Data Gaps" {
+@test "gap closure: every insight has a source view (0 unavailable)" {
   _render
-  # Post Phase-2, only these five remain unavailable (no source view).
-  for gap in deploy_lead_lag mttr queue_vs_active_time who_fixes_ci who_owns_release; do
-    grep -qF "$gap" "$MD" || { echo "missing gap: $gap"; return 1; }
-  done
-  # The flipped insights now render as observed, not in the gaps reasons.
-  grep -qF '`unavailable`' "$MD"
+  # The catalog no longer has any unavailable entry; the report says so.
+  run ruby -ryaml -e 'n=YAML.load_file(ARGV[0])["insights"].count{|i|i["confidence"]=="unavailable"}; abort("#{n} unavailable") unless n==0' \
+    "$REPO_ROOT/etc/zdots-gh/insights-catalog.yaml"
+  assert_success
+  grep -qF "no \`unavailable\` metrics" "$MD"
+  grep -qF "| \`unavailable\` | 0 |" "$MD"
+}
+
+@test "gap closure: who-fixes-CI, deploy lag, MTTR, queue/active, release owner" {
+  _render
+  db="$ZDOTS_GH_STATE/$OWNER.duckdb"
+  # alice triggers both post-failure successes (CI recovery).
+  run duckdb -readonly -noheader -list "$db" "SELECT recoveries FROM ci_fixers WHERE actor='alice'"
+  assert_output "2"
+  # Two failure→success transitions on the CI workflow.
+  run duckdb -readonly -noheader -list "$db" "SELECT count(*) FROM mttr_proxy"
+  assert_output "2"
+  # alpha#1 merged 10:00, Deploy gate ran 11:00 → 60-minute deploy lag.
+  run duckdb -readonly -noheader -list "$db" "SELECT lag_minutes FROM deploy_lead_lag"
+  assert_output "60"
+  # alpha#1 reviewed 2h after open → waiting=2h in the queue/active split.
+  run duckdb -readonly -noheader -list "$db" "SELECT waiting_hours FROM queue_active_split WHERE number=1"
+  assert_output "2"
+  # Explicit release author is recorded.
+  run duckdb -readonly -noheader -list "$db" "SELECT releases FROM release_owners WHERE actor='alice'"
+  assert_output "1"
+  # All surface in the rendered report.
+  grep -qF "CI fixers" "$MD"
+  grep -qF "Pipeline recovery (MTTR proxy)" "$MD"
 }
 
 @test "every confidence tag in the report is a known class" {

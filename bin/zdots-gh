@@ -255,9 +255,9 @@ cmd_harvest() {
     _harvest_rest "$repo" "$outdir" workflows "repos/${repo}/actions/workflows?per_page=100" \
       '[.workflows[]? | {repo_name:$repo, id, name, path, state}]'
     _harvest_rest "$repo" "$outdir" runs "repos/${repo}/actions/runs?per_page=100" \
-      '[.workflow_runs[]? | {repo_name:$repo, id, name, workflow_id, conclusion, status, event, head_branch, created_at, run_started_at, updated_at}]'
+      '[.workflow_runs[]? | {repo_name:$repo, id, name, workflow_id, conclusion, status, event, head_branch, actor: .actor.login, triggering_actor: .triggering_actor.login, created_at, run_started_at, updated_at}]'
     _harvest_rest "$repo" "$outdir" releases "repos/${repo}/releases?per_page=100" \
-      '[.[]? | {repo_name:$repo, id, tag_name, name, draft, prerelease, created_at, published_at}]'
+      '[.[]? | {repo_name:$repo, id, tag_name, name, draft, prerelease, author: .author.login, created_at, published_at}]'
   done <<<"$repos"
 
   _ok "harvested ${n} repos → ${outdir}"
