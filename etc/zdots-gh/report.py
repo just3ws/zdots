@@ -142,6 +142,8 @@ def render_markdown(**k) -> str:
     )
 
     return f"""---
+type: reference
+slug: gh-delivery-health-{owner}
 title: "GitHub Delivery Health — {owner}"
 source: zdots-gh
 owner: {owner}

@@ -13,12 +13,22 @@ module Zdots
 
       # The embedding model (Nomic v2) has a 512-token context. Content longer
       # than that is split into character-budgeted chunks, each embedded, then
-      # mean-pooled into one normalized vector — so long lessons/methodologies
+      # mean-pooled into one normalized vector, so long lessons/methodologies
       # are represented in full rather than failing or being truncated.
-      # Budget is conservative: dense markdown/code measured ~3.1 chars/token,
-      # so 1200 chars ≈ 390 tokens — comfortable margin under 512. Short content
-      # yields a single chunk and behaves exactly as before.
+      #
+      # MAX_CHARS is a *performance hint*, not a correctness boundary. The
+      # chars/token ratio is content-dependent: prose runs ~3.1 chars/token
+      # (1200 chars ~= 390 tokens) but dense markdown tables / numeric forensics
+      # run ~2.3 (1200 chars ~= 515 tokens, over the 512 limit). Rather than
+      # chase a magic number that the next denser document breaks, the embed
+      # path is self-healing: a chunk the server rejects for exceeding context
+      # is split and re-embedded (see #embed_chunk). So no document can silently
+      # drop out of the index, regardless of how it tokenizes.
       MAX_CHARS = 1200
+
+      # A chunk this short can never exceed a 512-token context, so an overflow
+      # at this size signals a different problem; stop recursing and surface it.
+      MIN_SPLIT_CHARS = 64
 
       def run
         table = payload["table"]
@@ -44,13 +54,41 @@ module Zdots
       # Embed possibly-long text by chunking under the model context and
       # mean-pooling the per-chunk vectors into a single document vector.
       def embed_document(text)
-        vectors = chunk(text).map do |part|
-          result = Zdots::AI::Pipeline.embed(part)
-          raise "Embed pipeline failed: #{result.failure}" unless result.success?
+        mean_pool(chunk(text).flat_map { |part| embed_chunk(part) })
+      end
 
-          result.value!
+      # Embed one chunk, returning its vector(s). Self-healing on context
+      # overflow: if the server rejects the chunk for exceeding its context
+      # window (dense content tokenizing past MAX_CHARS' assumed budget), split
+      # it and embed each half, so the document is still represented in full.
+      # Any other failure (PHI-suppressed, locality, server down) is fatal and
+      # re-raised, preserving the job's retry/dead-letter policy.
+      def embed_chunk(part)
+        result = Zdots::AI::Pipeline.embed(part)
+        return [result.value!] if result.success?
+
+        unless context_overflow?(result.failure) && part.length > MIN_SPLIT_CHARS
+          raise "Embed pipeline failed: #{result.failure}"
         end
-        mean_pool(vectors)
+
+        mid = split_point(part)
+        embed_chunk(part[0...mid]) + embed_chunk(part[mid..])
+      end
+
+      # True when a Pipeline failure is the embed server refusing an over-long
+      # input; the one failure mode that splitting can recover from.
+      def context_overflow?(failure)
+        reason, message = failure
+        reason == :embed_error &&
+          message.to_s.match?(/exceed_context_size_error|larger than the max context size/i)
+      end
+
+      # Midpoint split, nudged to the next whitespace boundary so words aren't
+      # cut, falling back to the hard midpoint when none is near.
+      def split_point(part)
+        mid = part.length / 2
+        ws  = part.index(/\s/, mid)
+        ws && ws < part.length - 1 ? ws + 1 : mid
       end
 
       # Split text into chunks of at most MAX_CHARS, preferring whitespace
