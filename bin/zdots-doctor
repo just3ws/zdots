@@ -279,6 +279,59 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# GitHub delivery insights (zdots-gh) — harvest→warehouse→insights→ingest.
+# Feeds the local knowledge vault; gh is its only network source.
+# ---------------------------------------------------------------------------
+_section "GitHub insights (zdots-gh)"
+
+if [[ -x "${BIN}/zdots-gh" ]]; then
+  _zgh_assets_missing=()
+  for _a in warehouse.sql insights.rb insights-catalog.yaml report.py; do
+    [[ -f "${ZDOTDIR}/etc/zdots-gh/${_a}" ]] || _zgh_assets_missing+=("${_a}")
+  done
+  if [[ ${#_zgh_assets_missing[@]} -eq 0 ]]; then
+    _pass "zdots-gh  present, assets complete"
+  else
+    _fail "zdots-gh  assets missing: ${_zgh_assets_missing[*]}"
+    _fix  "git -C ${ZDOTDIR} checkout -- etc/zdots-gh"
+  fi
+
+  _zgh_deps_missing=()
+  for _d in gh duckdb ruby jq; do
+    command -v "$_d" >/dev/null 2>&1 || _zgh_deps_missing+=("$_d")
+  done
+  if [[ ${#_zgh_deps_missing[@]} -eq 0 ]]; then
+    _pass "zdots-gh deps  gh, duckdb, ruby, jq present"
+  else
+    _warn "zdots-gh deps  missing: ${_zgh_deps_missing[*]} — 'zdots-gh run' will fail"
+    _fix  "brew bundle  (gh, duckdb); ensure ruby on PATH"
+  fi
+
+  # The catalog drives the confidence/traceability + data-gaps reports.
+  if command -v ruby >/dev/null 2>&1; then
+    if ruby -ryaml -e 'YAML.load_file(ARGV[0])' \
+         "${ZDOTDIR}/etc/zdots-gh/insights-catalog.yaml" >/dev/null 2>&1; then
+      _pass "insights catalog  valid YAML"
+    else
+      _fail "insights catalog  invalid — the insights report will degrade"
+      _fix  "ruby -ryaml -e 'YAML.load_file(\"etc/zdots-gh/insights-catalog.yaml\")'"
+    fi
+  fi
+
+  # Informational: how many owners have been harvested locally.
+  _zgh_state="${ZDOTS_GH_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/zdots/gh}"
+  if [[ -d "$_zgh_state" ]]; then
+    _zgh_owners=$(find "$_zgh_state" -maxdepth 1 -mindepth 1 -type d ! -name reports 2>/dev/null \
+                  | wc -l | tr -d ' ' || echo 0)
+    _ok "zdots-gh cache  ${_zgh_owners} owner(s) under ${_zgh_state}"
+  else
+    _skip "zdots-gh cache  none yet — run: zdots-gh run <org-or-user>"
+  fi
+else
+  _skip "zdots-gh  not present (optional GitHub delivery-insights tool)"
+fi
+
+# ---------------------------------------------------------------------------
 # Work-machine requirements (ZDOTS_CONTEXT=work only)
 # ---------------------------------------------------------------------------
 if [[ "${ZDOTS_CONTEXT:-home}" == "work" ]]; then
