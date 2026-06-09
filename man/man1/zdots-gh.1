@@ -1,0 +1,180 @@
+.Dd June 9, 2026
+.Dt ZDOTS-GH 1
+.Os zdots
+.Sh NAME
+.Nm zdots-gh
+.Nd GitHub org/user delivery-health and process-forensics insights
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar owner
+.Op Ar options
+.Sh DESCRIPTION
+.Nm
+harvests GitHub organization or user metadata into a local DuckDB warehouse and
+renders delivery-health and forensic process-inference reports for the zdots
+knowledge base. It is local-first: the authenticated GitHub API
+.Pq via Xr gh 1
+is the only network egress; analysis runs in DuckDB and reports render with Ruby
+and Python. No cloud LLM is involved.
+.Pp
+An
+.Ar owner
+is a GitHub organization
+.Em or
+user login
+.Pq Ic gh repo list Ar owner No covers both .
+The pipeline runs in four stages, each available as its own subcommand and
+chained by
+.Ic run :
+.Bl -enum -compact -offset indent
+.It
+.Ic harvest
+\(em fetch PR/issue metadata (GraphQL) and Actions, releases, and repository
+metadata (REST) into a per-repo JSON cache (incremental; skips fresh files).
+.It
+.Ic warehouse
+\(em build the per-owner DuckDB warehouse from the cache.
+.It
+.Ic report / Ic insights
+\(em render Markdown reports (and an optional HTML dashboard) plus
+coordination-graph edge-lists.
+.It
+.Ic ingest
+\(em feed the Markdown reports into the knowledge base via
+.Xr zdots-ctx 1 .
+.El
+.Pp
+The
+.Ic insights
+report is forensic: it infers the
+.Em observed
+engineering process from GitHub behaviour \(em flow metrics, DORA-adjacent
+proxies, change classification, actor and bus-factor analysis, repository
+health, change-management archetypes, GitHub Actions reliability, releases,
+issue triage, Conway/socio-technical coordination graphs, and a three-year
+temporal comparison. Every metric carries a confidence tag
+.Pq Em observed , inferred , proxy , No or Em unavailable
+and is traceable to a source view; what GitHub cannot show is recorded under
+.Dq Unknowns & Data Gaps ,
+not hidden. Given a fixed
+.Fl -as-of
+reference date the report is deterministic.
+.Sh COMMANDS
+.Bl -tag -width warehouse
+.It Ic harvest Ar owner
+Fetch PR/issue + Actions/releases/repo metadata into the JSON cache
+(incremental; use
+.Fl -force
+to refresh).
+.It Ic warehouse Ar owner
+(Re)build the per-owner DuckDB warehouse from the cache.
+.It Ic report Ar owner Op Fl -html
+Render the DORA/DevEx Markdown report, and the HTML dashboard with
+.Fl -html .
+.It Ic insights Ar owner Op Fl -as-of Ar date
+Render the forensic process-inference report and coordination-graph edge-lists.
+.It Ic ingest Ar owner
+Ingest the Markdown report(s) into the knowledge base.
+.It Ic run Ar owner Op Fl -html
+Run the full pipeline: harvest \(-> warehouse \(-> report \(-> insights \(-> ingest.
+.It Ic status Op Ar owner
+Show cache, warehouse, report, and insights freshness for one or all owners.
+.El
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -force
+Re-harvest even if cached JSON exists.
+.It Fl -html
+Also emit the rich HTML dashboard (for
+.Ic report
+and
+.Ic run ) .
+.It Fl -as-of Ar date
+Reference date for
+.Ic insights
+.Pq Ar YYYY-MM-DD ; No default today .
+Anchors open-item age and the 1/2/3-year temporal buckets, making the report
+reproducible.
+.It Fl -no-insights
+For
+.Ic run :
+skip the forensic insights step.
+.It Fl -no-ingest
+For
+.Ic run :
+skip the knowledge-base ingest step.
+.It Fl -dry-run
+For
+.Ic ingest :
+show what would be ingested, change nothing.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_GH_INCLUDE_ARCHIVED
+.It Ev ZDOTS_GH_STATE
+Cache/warehouse/report root
+.Pq default Pa $XDG_STATE_HOME/zdots/gh .
+.It Ev ZDOTS_GH_REPO_LIMIT
+Max repos to enumerate
+.Pq default 100 .
+.It Ev ZDOTS_GH_PR_PAGE
+Pull requests fetched per GraphQL page
+.Pq default 25 .
+.It Ev ZDOTS_GH_ISSUE_PAGE
+Issues fetched per GraphQL page
+.Pq default 50 .
+.It Ev ZDOTS_GH_INCLUDE_FORKS
+Set to 1 to include forks
+.Pq default 0 .
+.It Ev ZDOTS_GH_INCLUDE_ARCHIVED
+Set to 1 to include archived repos
+.Pq default 0 .
+.El
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa $ZDOTS_GH_STATE/<owner>/*.json
+Raw cache: PRs/issues (GraphQL) plus Actions, releases, and repo metadata (REST).
+.It Pa $ZDOTS_GH_STATE/<owner>/graphs/*.json
+Coordination-graph edge-lists exported by
+.Ic insights .
+.It Pa $ZDOTS_GH_STATE/<owner>.duckdb
+Analytical warehouse.
+.It Pa $ZDOTS_GH_STATE/reports/<owner>.md
+Ingestable DORA/DevEx report.
+.It Pa $ZDOTS_GH_STATE/reports/<owner>.insights.md
+Forensic process-inference report.
+.It Pa $ZDOTS_GH_STATE/reports/<owner>.html
+Executive HTML dashboard
+.Pq Fl -html .
+.It Pa etc/zdots-gh/warehouse.sql
+DuckDB schema and analytical views.
+.It Pa etc/zdots-gh/insights-catalog.yaml
+Metric registry: confidence class and source view per insight.
+.It Pa etc/zdots-gh/insights.rb , Pa etc/zdots-gh/report.py
+The insights and report renderers.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Full pipeline with the HTML dashboard:
+.Pp
+.Dl zdots-gh run phalanxduel --html
+.Pp
+A reproducible forensic snapshot for a fixed reference date:
+.Pp
+.Dl zdots-gh insights phalanxduel --as-of 2026-06-09
+.Pp
+Refresh a user's cache from scratch:
+.Pp
+.Dl zdots-gh harvest just3ws --force
+.Pp
+Show freshness for every harvested owner:
+.Pp
+.Dl zdots-gh status
+.Sh SEE ALSO
+.Xr duckdb 1 ,
+.Xr gh 1 ,
+.Xr zdots-ctx 1 ,
+.Xr zdots 7

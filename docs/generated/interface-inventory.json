@@ -102,6 +102,17 @@
       "env": ["ZDOTDIR", "ZDOTS_AI_ENDPOINT", "ZDOTS_AI_EMBED_ENDPOINT", "ZDOTS_AI_MODE", "ZDOTS_CONTEXT", "ZDOTS_ENV_PROFILE", "ZDOTS_LOG_ANALYZE_AI_TIMEOUT", "ZDOTS_LOG_DIR"],
       "live_probes": ["log files", "optional AI endpoint"],
       "mutates": false
+    },
+    {
+      "name": "zdots-gh",
+      "path": "bin/zdots-gh",
+      "section": 1,
+      "purpose": "GitHub org/user delivery-health and process-forensics insights.",
+      "commands": ["harvest", "warehouse", "report", "insights", "ingest", "run", "status"],
+      "flags": ["--force", "--html", "--as-of", "--no-insights", "--no-ingest", "--dry-run", "--help", "-h"],
+      "env": ["ZDOTS_GH_STATE", "ZDOTS_GH_REPO_LIMIT", "ZDOTS_GH_PR_PAGE", "ZDOTS_GH_ISSUE_PAGE", "ZDOTS_GH_INCLUDE_FORKS", "ZDOTS_GH_INCLUDE_ARCHIVED"],
+      "live_probes": ["gh auth status", "gh GraphQL/REST", "duckdb", "zdots-ctx ingest"],
+      "mutates": true
     }
   ]
 }

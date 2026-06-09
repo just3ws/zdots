@@ -54,7 +54,7 @@ GitHub org/user delivery-health insights (DORA + DevEx) for the zdots brain.
 An <owner> is a GitHub organization OR user login (e.g. phalanxduel, just3ws).
 
 Commands:
-  harvest   <owner>          Fetch repo/PR/issue metadata → JSON cache (incremental)
+  harvest   <owner>          Fetch PR/issue + Actions/releases/repo metadata → JSON cache
   warehouse <owner>          (Re)build the per-owner DuckDB warehouse from the cache
   report    <owner> [--html] Render the DORA/DevEx Markdown (+ HTML) report
   insights  <owner> [--as-of D] Forensic process-inference report + coordination graphs
@@ -77,6 +77,7 @@ Environment:
   ZDOTS_GH_STATE          Cache/warehouse/report root (default \$XDG_STATE_HOME/zdots/gh)
   ZDOTS_GH_REPO_LIMIT     Max repos to enumerate (default ${REPO_LIMIT})
   ZDOTS_GH_PR_PAGE        PRs per GraphQL page (default ${PR_PAGE})
+  ZDOTS_GH_ISSUE_PAGE     Issues per GraphQL page (default ${ISSUE_PAGE})
   ZDOTS_GH_INCLUDE_FORKS  1 = include forks (default ${INCLUDE_FORKS})
   ZDOTS_GH_INCLUDE_ARCHIVED 1 = include archived repos (default ${INCLUDE_ARCHIVED})
 
@@ -88,10 +89,10 @@ Examples:
   zdots-gh status                      # all owners harvested so far
 
 Outputs (under \$ZDOTS_GH_STATE):
-  <owner>/*.json            raw GraphQL cache
+  <owner>/*.json            raw cache: PRs/issues (GraphQL) + Actions/releases/meta (REST)
   <owner>/graphs/*.json     coordination graph edge-lists (insights)
   <owner>.duckdb            analytical warehouse
-  reports/<owner>.md        ingestable DORA/DevEx report
+  reports/<owner>.md        ingestable DORA/DevEx report (report)
   reports/<owner>.insights.md  forensic process-inference report (insights)
   reports/<owner>.html      executive dashboard (--html)
 EOF

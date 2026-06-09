@@ -1,0 +1,63 @@
+#compdef zdots-gh
+# Completion for zdots-gh — GitHub delivery-health + process-forensics insights.
+# Verbs carry descriptions; subcommands get their relevant flags. The <owner>
+# argument is a free-form org/user login, so it is left to the user (offered as
+# a message hint rather than a guessed list).
+
+_zdots-gh() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  local -a cmds
+  cmds=(
+    'harvest:fetch PR/issue + Actions/releases/repo metadata into the JSON cache'
+    'warehouse:(re)build the per-owner DuckDB warehouse from the cache'
+    'report:render the DORA/DevEx Markdown report (+ HTML with --html)'
+    'insights:render the forensic process-inference report + coordination graphs'
+    'ingest:ingest the Markdown report(s) into the knowledge base'
+    'run:full pipeline — harvest -> warehouse -> report -> insights -> ingest'
+    'status:show cache/warehouse/report/insights freshness'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:command:->cmd' \
+    '*::arg:->args'
+
+  case "$state" in
+    cmd) _describe -t commands 'zdots-gh command' cmds ;;
+    args)
+      case "${line[1]}" in
+        harvest)
+          _arguments \
+            '--force[re-harvest even if cached JSON exists]' \
+            ':owner (org or user login):' ;;
+        warehouse)
+          _arguments ':owner (org or user login):' ;;
+        report)
+          _arguments \
+            '--html[also emit the rich HTML dashboard]' \
+            ':owner (org or user login):' ;;
+        insights)
+          _arguments \
+            '--as-of[reference date YYYY-MM-DD (default: today)]:date:' \
+            ':owner (org or user login):' ;;
+        ingest)
+          _arguments \
+            '--dry-run[show what would be ingested, change nothing]' \
+            ':owner (org or user login):' ;;
+        run)
+          _arguments \
+            '--html[also emit the rich HTML dashboard]' \
+            '--as-of[reference date YYYY-MM-DD for insights]:date:' \
+            '--force[re-harvest even if cached JSON exists]' \
+            '--no-insights[skip the forensic insights step]' \
+            '--no-ingest[skip the knowledge-base ingest step]' \
+            ':owner (org or user login):' ;;
+        status)
+          _message 'owner (optional; omit for all harvested owners)' ;;
+      esac
+      ;;
+  esac
+}
+
+_zdots-gh "$@"
