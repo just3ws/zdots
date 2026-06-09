@@ -1,0 +1,5 @@
+{
+  "timestamp": "20260609_174550",
+  "label": "revert_to_baseline",
+  "results": [{"tokens": 512, "latency_ms": 8288},{"tokens": 1024, "latency_ms": 6508},{"tokens": 2048, "latency_ms": 12919}]
+}
