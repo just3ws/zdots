@@ -42,7 +42,7 @@ _write_fixture() {
   # PRs carry Phase-2 fields (headRefName/baseRefName/isDraft/mergedBy/reviewRequests).
   cat >"$CACHE/alpha_prs.json" <<'JSON'
 [{"data":{"repository":{"nameWithOwner":"acme/alpha","pullRequests":{"nodes":[
-  {"number":1,"title":"feat: add login","state":"MERGED","createdAt":"2026-01-10T10:00:00Z","mergedAt":"2026-01-11T10:00:00Z","headRefName":"feature/login","baseRefName":"main","isDraft":false,"mergedBy":{"login":"alice"},"reviewRequests":{"totalCount":1},"author":{"login":"alice"},"labels":{"nodes":[{"name":"feature"}]},"files":{"nodes":[{"path":"src/login.rb","additions":50,"deletions":2},{"path":"spec/login_spec.rb","additions":30,"deletions":0}]},"reviewThreads":{"totalCount":1},"statusCheckRollup":{"state":"SUCCESS"},"closingIssuesReferences":{"nodes":[{"number":7}]},"comments":{"nodes":[{"author":{"login":"bob"},"createdAt":"2026-01-10T11:00:00Z"}]},"reviews":{"nodes":[{"author":{"login":"bob"},"state":"APPROVED","createdAt":"2026-01-10T12:00:00Z"}]}},
+  {"number":1,"title":"feat: add login","state":"MERGED","createdAt":"2026-01-10T10:00:00Z","mergedAt":"2026-01-11T10:00:00Z","headRefName":"feature/login","baseRefName":"main","isDraft":false,"mergedBy":{"login":"alice"},"reviewRequests":{"totalCount":1},"author":{"login":"alice"},"labels":{"nodes":[{"name":"feature"}]},"files":{"nodes":[{"path":"src/login.rb","additions":50,"deletions":2},{"path":"spec/login_spec.rb","additions":30,"deletions":0}]},"reviewThreads":{"totalCount":1},"statusCheckRollup":{"state":"SUCCESS"},"closingIssuesReferences":{"nodes":[{"number":7,"repository":{"nameWithOwner":"acme/alpha"}},{"number":8,"repository":{"nameWithOwner":"acme/beta"}}]},"comments":{"nodes":[{"author":{"login":"bob"},"createdAt":"2026-01-10T11:00:00Z"}]},"reviews":{"nodes":[{"author":{"login":"bob"},"state":"APPROVED","createdAt":"2026-01-10T12:00:00Z"}]}},
   {"number":2,"title":"fix: npe on logout","state":"OPEN","createdAt":"2026-03-01T09:00:00Z","mergedAt":null,"headRefName":"fix/logout","baseRefName":"main","isDraft":false,"mergedBy":null,"reviewRequests":{"totalCount":0},"author":{"login":"bob"},"labels":{"nodes":[{"name":"bug"}]},"files":{"nodes":[{"path":"src/logout.rb","additions":5,"deletions":1}]},"reviewThreads":{"totalCount":0},"statusCheckRollup":null,"closingIssuesReferences":{"nodes":[]},"comments":{"nodes":[]},"reviews":{"nodes":[]}}
 ],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}]
 JSON
@@ -50,7 +50,7 @@ JSON
   # Issue carries Phase-2 fields (assignees/milestone/comments/reopened).
   cat >"$CACHE/alpha_issues.json" <<'JSON'
 [{"data":{"repository":{"nameWithOwner":"acme/alpha","issues":{"nodes":[
-  {"number":7,"title":"Login broken","state":"CLOSED","createdAt":"2026-01-09T08:00:00Z","closedAt":"2026-01-11T10:00:00Z","author":{"login":"bob"},"labels":{"nodes":[{"name":"bug"}]},"assignees":{"nodes":[{"login":"bob"}]},"milestone":{"title":"v1"},"comments":{"nodes":[{"author":{"login":"alice"},"createdAt":"2026-01-09T10:00:00Z"}]},"reopened":{"totalCount":1}}
+  {"number":7,"title":"Login broken","state":"CLOSED","createdAt":"2026-01-09T08:00:00Z","closedAt":"2026-01-11T10:00:00Z","author":{"login":"bob"},"labels":{"nodes":[{"name":"bug"},{"name":"epic"}]},"assignees":{"nodes":[{"login":"bob"}]},"milestone":{"title":"v1"},"comments":{"nodes":[{"author":{"login":"alice"},"createdAt":"2026-01-09T10:00:00Z"}]},"reopened":{"totalCount":1}}
 ],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}]
 JSON
 
@@ -61,7 +61,9 @@ JSON
 JSON
 
   cat >"$CACHE/beta_issues.json" <<'JSON'
-[{"data":{"repository":{"nameWithOwner":"acme/beta","issues":{"nodes":[],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}]
+[{"data":{"repository":{"nameWithOwner":"acme/beta","issues":{"nodes":[
+  {"number":8,"title":"Coordinate login docs","state":"CLOSED","createdAt":"2026-01-09T09:00:00Z","closedAt":"2026-01-11T10:00:00Z","author":{"login":"carol"},"labels":{"nodes":[{"name":"epic"}]},"assignees":{"nodes":[{"login":"alice"}]},"milestone":{"title":"v1"},"comments":{"nodes":[{"author":{"login":"alice"},"createdAt":"2026-01-09T11:00:00Z"}]},"reopened":{"totalCount":0}}
+],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}]
 JSON
 
   # ── Phase-2 REST sources (field-projected flat arrays, as the harvester writes) ──
@@ -155,7 +157,7 @@ _render() { "$GH" insights "$OWNER" --as-of "$ASOF"; }
 
 @test "Conway graphs export as valid, non-empty JSON" {
   _render
-  for g in actor_repo review_pair repo_cochange boundary_spanners ownership_map comment_pair; do
+  for g in actor_repo review_pair repo_cochange boundary_spanners ownership_map comment_pair issue_actor_coordination issue_closure_coordination; do
     [ -f "$GRAPHS/$g.json" ] || { echo "missing graph: $g"; return 1; }
     run ruby -rjson -e "JSON.parse(File.read('$GRAPHS/$g.json'))"
     assert_success
@@ -219,6 +221,22 @@ _render() { "$GH" insights "$OWNER" --as-of "$ASOF"; }
   run duckdb -readonly -noheader -list "$db" \
     "SELECT hours_to_first_response FROM issue_triage WHERE number=7"
   assert_output "2"
+  # Issues coordinate across repos via shared labels, milestones, actors, and closure links.
+  run duckdb -readonly -noheader -list "$db" \
+    "SELECT repos FROM issue_label_coordination WHERE label='epic'"
+  assert_output "2"
+  run duckdb -readonly -noheader -list "$db" \
+    "SELECT repos FROM issue_milestone_coordination WHERE milestone='v1'"
+  assert_output "2"
+  run duckdb -readonly -noheader -list "$db" \
+    "SELECT repos FROM issue_actor_coordination WHERE actor='alice'"
+  assert_output "2"
+  run duckdb -readonly -noheader -list "$db" \
+    "SELECT count(*) FROM issue_closure_coordination WHERE cross_repo"
+  assert_output "1"
+  grep -qF "Cross-repo issue coordinators" "$MD"
+  grep -qF "Shared planning vocabulary" "$MD"
+  grep -qF "beta#8 | alpha#1 | yes" "$MD"
   # alpha has a release; beta has none.
   run duckdb -readonly -noheader -list "$db" "SELECT releases FROM releases_by_repo WHERE repo_name='acme/alpha'"
   assert_output "1"
