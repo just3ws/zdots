@@ -83,6 +83,7 @@ CREATE OR REPLACE TABLE pr_comments AS
 -- PR → closing issue links (drives spec-to-code lifecycle).
 CREATE OR REPLACE TABLE pr_issue_links AS
   SELECT repo_name,
+         coalesce(json_extract_string(to_json(ci), '$.repository.nameWithOwner'), repo_name) AS issue_repo_name,
          node.number AS pr_number,
          ci.number   AS issue_number,
          node.createdAt::TIMESTAMP AS pr_created_at,
@@ -194,17 +195,17 @@ CREATE OR REPLACE VIEW developer_mobility AS
 -- Issue lifecycle: spec-to-code (issue→first linked PR) and code-to-merge.
 CREATE OR REPLACE VIEW issue_lifecycle AS
   WITH first_pr AS (
-    SELECT l.repo_name, l.issue_number,
+    SELECT l.repo_name, l.issue_repo_name, l.issue_number,
            min(l.pr_created_at) AS first_pr_created_at,
            min(l.pr_merged_at)  AS first_pr_merged_at
     FROM pr_issue_links l
-    GROUP BY l.repo_name, l.issue_number)
+    GROUP BY l.repo_name, l.issue_repo_name, l.issue_number)
   SELECT i.repo_name, i.number AS issue_number, i.title, i.author,
          date_diff('hour', i.created_at, fp.first_pr_created_at) AS spec_to_code_hours,
          date_diff('hour', fp.first_pr_created_at, fp.first_pr_merged_at) AS code_to_merge_hours,
          date_diff('hour', i.created_at, fp.first_pr_merged_at) AS total_lead_time_hours
   FROM issues i JOIN first_pr fp
-    ON i.repo_name = fp.repo_name AND i.number = fp.issue_number
+    ON i.repo_name = coalesce(fp.issue_repo_name, fp.repo_name) AND i.number = fp.issue_number
   WHERE fp.first_pr_merged_at IS NOT NULL;
 
 -- Backlog decay: open issues with no linked PR, ranked by how long they linger.
@@ -213,7 +214,7 @@ CREATE OR REPLACE VIEW issue_linger AS
          date_diff('day', i.created_at, now()) AS days_open
   FROM issues i
   LEFT JOIN pr_issue_links l
-    ON i.repo_name = l.repo_name AND i.number = l.issue_number
+    ON i.repo_name = coalesce(l.issue_repo_name, l.repo_name) AND i.number = l.issue_number
   WHERE i.state = 'OPEN' AND l.issue_number IS NULL
   ORDER BY days_open DESC;
 
@@ -327,8 +328,8 @@ CREATE OR REPLACE VIEW issue_flow AS
               THEN date_diff('hour', i.created_at, i.closed_at) END AS resolution_hours,
          (l.issue_number IS NOT NULL) AS has_linked_pr
   FROM issues i
-  LEFT JOIN (SELECT DISTINCT repo_name, issue_number FROM pr_issue_links) l
-    ON i.repo_name = l.repo_name AND i.number = l.issue_number;
+  LEFT JOIN (SELECT DISTINCT repo_name, issue_repo_name, issue_number FROM pr_issue_links) l
+    ON i.repo_name = coalesce(l.issue_repo_name, l.repo_name) AND i.number = l.issue_number;
 
 -- Work-in-progress (open state is a snapshot fact — no time dependence). [observed]
 CREATE OR REPLACE VIEW wip_by_repo AS
@@ -718,6 +719,72 @@ CREATE OR REPLACE VIEW reopen_summary AS
          count(*) FILTER (WHERE reopen_count > 0)  AS reopened_issues,
          sum(reopen_count)                         AS reopen_events
   FROM issues GROUP BY repo_name;
+
+-- Shared issue labels across repos: planned coordination vocabulary.
+-- src: issue_labels  [observed]
+CREATE OR REPLACE VIEW issue_label_coordination AS
+  SELECT lower(label) AS label,
+         count(DISTINCT repo_name) AS repos,
+         count(*) AS issues,
+         string_agg(DISTINCT repo_name, '; ' ORDER BY repo_name) AS repo_list
+  FROM issue_labels
+  WHERE label IS NOT NULL
+  GROUP BY lower(label)
+  HAVING count(DISTINCT repo_name) >= 2
+  ORDER BY repos DESC, issues DESC, label;
+
+-- Shared milestones across repos: explicit planning horizon reused by multiple
+-- repositories. src: issues.milestone  [observed]
+CREATE OR REPLACE VIEW issue_milestone_coordination AS
+  SELECT milestone,
+         count(DISTINCT repo_name) AS repos,
+         count(*) AS issues,
+         string_agg(DISTINCT repo_name, '; ' ORDER BY repo_name) AS repo_list
+  FROM issues
+  WHERE milestone IS NOT NULL AND milestone <> ''
+  GROUP BY milestone
+  HAVING count(DISTINCT repo_name) >= 2
+  ORDER BY repos DESC, issues DESC, milestone;
+
+-- People who coordinate issues across repos, regardless of whether they author,
+-- respond to, or are assigned the issue. src: issues, issue_comments,
+-- issue_assignees  [observed]
+CREATE OR REPLACE VIEW issue_actor_coordination AS
+  WITH responder AS (
+    SELECT c.commenter AS actor, 'responder' AS role, c.repo_name, c.issue_number
+    FROM issue_comments c
+    JOIN issues i ON c.repo_name = i.repo_name AND c.issue_number = i.number
+    WHERE c.commenter IS DISTINCT FROM i.author),
+  actor_issue AS (
+    SELECT author AS actor, 'author' AS role, repo_name, number AS issue_number
+    FROM issues WHERE author IS NOT NULL
+    UNION ALL
+    SELECT assignee AS actor, 'assignee' AS role, repo_name, issue_number
+    FROM issue_assignees WHERE assignee IS NOT NULL
+    UNION ALL
+    SELECT actor, role, repo_name, issue_number FROM responder)
+  SELECT actor,
+         count(DISTINCT repo_name) AS repos,
+         count(DISTINCT repo_name || '#' || issue_number) AS issues,
+         string_agg(DISTINCT role, ', ' ORDER BY role) AS roles,
+         string_agg(DISTINCT repo_name, '; ' ORDER BY repo_name) AS repo_list
+  FROM actor_issue
+  WHERE actor IS NOT NULL
+    AND NOT regexp_matches(lower(actor), 'bot|github-actions|dependabot|renovate|^app/')
+  GROUP BY actor
+  HAVING count(DISTINCT repo_name) >= 2
+  ORDER BY repos DESC, issues DESC, actor;
+
+-- Issue-to-PR closure links, including cross-repo links when the harvester has
+-- the linked issue repository. Older caches lack issue_repo_name and fall back
+-- to the PR repo. src: pr_issue_links  [observed]
+CREATE OR REPLACE VIEW issue_closure_coordination AS
+  SELECT coalesce(issue_repo_name, repo_name) AS issue_repo_name,
+         issue_number,
+         repo_name AS pr_repo_name,
+         pr_number,
+         (coalesce(issue_repo_name, repo_name) <> repo_name) AS cross_repo
+  FROM pr_issue_links;
 
 -- ── Repo metadata enrichment (cat 6) ─────────────────────────────────────────
 -- repo_health + real language / default branch / archived / last push.

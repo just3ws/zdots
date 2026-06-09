@@ -598,6 +598,50 @@ insights:
     example: "just3ws is assigned every assigned issue."
     source_view: issue_assignment
 
+  - name: issue_actor_coordination
+    section: triage
+    purpose: People coordinating issues across multiple repositories.
+    required_data: [issues.author, issue_comments.commenter, issue_assignees.assignee]
+    method: union issue authors, assignees, and non-author responders; keep actors spanning >=2 repos
+    confidence: observed
+    caveats: Counts visible GitHub issue activity only; label-only triage without comments is invisible.
+    output: cross-repo issue actors with roles and repo spans
+    example: "alice coordinates issues across alpha and beta as author/responder."
+    source_view: issue_actor_coordination
+
+  - name: issue_label_coordination
+    section: triage
+    purpose: Shared issue labels used as cross-repo planning vocabulary.
+    required_data: [issue_labels.label]
+    method: labels appearing on issues in >=2 repos
+    confidence: observed
+    caveats: A shared label name may hide different local meanings unless the team enforces taxonomy.
+    output: cross-repo labels with repo spans
+    example: "`epic` appears across 4 repos."
+    source_view: issue_label_coordination
+
+  - name: issue_milestone_coordination
+    section: triage
+    purpose: Shared milestones used to coordinate issues across repositories.
+    required_data: [issues.milestone]
+    method: milestone titles appearing on issues in >=2 repos
+    confidence: observed
+    caveats: Same milestone title can be coincidental unless release planning is centralized.
+    output: cross-repo milestones with repo spans
+    example: "`v1` coordinates issues across alpha and beta."
+    source_view: issue_milestone_coordination
+
+  - name: issue_closure_coordination
+    section: triage
+    purpose: Which PRs close which issues, including cross-repo closure when GitHub exposes it.
+    required_data: [pr_issue_links.issue_repo_name, pr_issue_links.pr_number]
+    method: render PR closing issue references and flag issue_repo != pr_repo
+    confidence: observed
+    caveats: Older harvested caches may lack linked issue repository and fall back to same-repo links.
+    output: sampled issue-to-PR closure links
+    example: "alpha#10 closes roadmap#3 (cross-repo)."
+    source_view: issue_closure_coordination
+
   # ── Repo metadata enrichment (cat 6) — Phase 2 ─────────────────────────────
   - name: repo_metadata
     section: repo_health

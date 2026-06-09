@@ -149,7 +149,7 @@ query(\$owner: String!, \$name: String!, \$endCursor: String) {
         reviewThreads { totalCount }
         reviewRequests { totalCount }
         statusCheckRollup { state }
-        closingIssuesReferences(first: 10) { nodes { number } }
+        closingIssuesReferences(first: 10) { nodes { number repository { nameWithOwner } } }
         comments(first: 50) { nodes { author { login } createdAt } }
         reviews(first: 30) { nodes { author { login } state createdAt } }
       }
