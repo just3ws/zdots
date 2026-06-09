@@ -26,24 +26,26 @@ profiles:
     # Speculative decoding: enabled on work context (M5 Pro 24GB), disabled on
     # home (M4 16GB — GPU OOM). Gated by ZDOTS_CONTEXT in llama-ctl install.
     # Override with ZDOTS_SPEC_DECODING=1 (force on) or =0 (force off).
-    draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
+    # draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
     draft_hf_repo: "bartowski/Qwen_Qwen3-0.6B-GGUF"
     size_gb: 5.4
     ctx_size: 32768
     n_gpu_layers: 99
-    description: "Qwen3-8B. Thinking off by default (--reasoning off); use /think in prompt to enable. n_embd=4096."
+    description: "Qwen3-8B. Thinking off by default (--reasoning off); use /think in
+      prompt to enable. n_embd=4096."
 
   qwen3-14b:
     model_file: "Qwen_Qwen3-14B-Q4_K_M.gguf"
     hf_repo: "bartowski/Qwen_Qwen3-14B-GGUF"
     # Spec decoding: enabled on work context (ZDOTS_CONTEXT=work).
-    draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
+    # draft_model_file: "Qwen_Qwen3-0.6B-Q4_K_M.gguf"
     draft_hf_repo: "bartowski/Qwen_Qwen3-0.6B-GGUF"
     size_gb: 8.5
     ctx_size: 32768
     n_gpu_layers: 99
-    parallel: 2   # overrides server default (1); M5 Pro 24GB fits 14B + 2x KV cache + draft at ~15.9GB
-    description: "Qwen3-14B. Work default (M5 Pro 24GB). Better quality than 8B. Thinking off by default; use /think to enable."
+    parallel: 2 # overrides server default (1); M5 Pro 24GB fits 14B + 2x KV cache + draft at ~15.9GB
+    description: "Qwen3-14B. Work default (M5 Pro 24GB). Better quality than 8B.
+      Thinking off by default; use /think to enable."
 
   standard:
     model_file: "qwen2.5-coder-7b-instruct-q4_k_m.gguf"
@@ -51,7 +53,8 @@ profiles:
     size_gb: 4.7
     ctx_size: 32768
     n_gpu_layers: 99
-    description: "Rollback: Qwen2.5-Coder 7B. n_embd=3584 (requires vector dimension migration to revert)."
+    description: "Rollback: Qwen2.5-Coder 7B. n_embd=3584 (requires vector dimension
+      migration to revert)."
 
   llama-3.1:
     model_file: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
@@ -59,7 +62,8 @@ profiles:
     size_gb: 4.9
     ctx_size: 16384
     n_gpu_layers: 99
-    description: "Meta Llama 3.1. High-quality instruction following and general knowledge. Gated model."
+    description: "Meta Llama 3.1. High-quality instruction following and general
+      knowledge. Gated model."
 
   constrained:
     model_file: "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
@@ -77,7 +81,10 @@ profiles:
     size_gb: 2.5
     ctx_size: 16384
     n_gpu_layers: 99
-    description: "Qwen3-4B-Thinking-2507. WORK DEFAULT for contended machines: dedicated always-on reasoning, same Qwen3 family as 8B/14B, ~4GB resident (model+KV) so embed/Colima/Rails get headroom. Reserve qwen3-14b (ZDOTS_AI_PROFILE=qwen3-14b) for idle/high-quality work."
+    description: "Qwen3-4B-Thinking-2507. WORK DEFAULT for contended machines:
+      dedicated always-on reasoning, same Qwen3 family as 8B/14B, ~4GB resident
+      (model+KV) so embed/Colima/Rails get headroom. Reserve qwen3-14b
+      (ZDOTS_AI_PROFILE=qwen3-14b) for idle/high-quality work."
 
   work-light-phi:
     model_file: "microsoft_Phi-4-mini-reasoning-Q4_K_M.gguf"
@@ -85,7 +92,9 @@ profiles:
     size_gb: 2.5
     ctx_size: 16384
     n_gpu_layers: 99
-    description: "Phi-4-mini-reasoning (3.8B). Comparison profile — best reasoning-per-GB (beats Qwen2.5-14B on MATH). Different family; A/B against work-light via promptfoo (task Z-133)."
+    description: "Phi-4-mini-reasoning (3.8B). Comparison profile — best
+      reasoning-per-GB (beats Qwen2.5-14B on MATH). Different family; A/B
+      against work-light via promptfoo (task Z-133)."
 
   embed:
     model_file: "nomic-embed-text-v2-moe.Q8_0.gguf"
@@ -108,7 +117,8 @@ whisper_profiles:
     hf_repo: "ggerganov/whisper.cpp"
     size_gb: 3.1
     url_prefix: ""
-    description: "Absolute highest precision available. Slower than turbo, but superior for complex audio."
+    description: "Absolute highest precision available. Slower than turbo, but
+      superior for complex audio."
 
   light:
     model_file: "ggml-small.en.bin"
@@ -169,7 +179,7 @@ server:
   # a common prefix — every `ai` shell call sends the same system prompt, so
   # this eliminates redundant prefill work after the first call.
   # Value is the minimum matching prefix length in tokens to trigger reuse.
-  cache_reuse: 256  # re-enabled: no draft model conflict
+  cache_reuse: 256 # re-enabled: no draft model conflict
   # Cap generation length per request. -1 = unlimited (generation stops at EOS).
   # 2048 was the previous cap; removed because it silently truncated migration
   # scripts, security audits, and any long explanation mid-generation.
