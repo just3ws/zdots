@@ -695,11 +695,53 @@ cmd_check() {
       _fix "log show --predicate 'subsystem == \"com.zdots\"' --last 24h"
     fi
 
-    # Model hash integrity (if manifest exists)
+    # Model provenance (context-aware). Integrity is never relaxed: every model
+    # present on disk is hash-verified, and a mismatch hard-fails. But a model
+    # that is absent is only a WARNING when the ACTIVE profile/context actually
+    # needs it. Manifest entries that this host does not use — e.g. the
+    # speculative-decoding draft on home (spec-decoding is off there) — are
+    # reported informationally ([----]), not as warnings. If the active profile
+    # can't be resolved (no yq / bad config) we fall back to the conservative
+    # "warn on any absent model" behaviour.
     local _manifest="$ZDOTDIR/lib/llama-models.sha256"
+    local _cfg="$ZDOTDIR/etc/ai-models.yaml"
     if [[ -f "$_manifest" ]]; then
       printf '\nModel provenance\n'
       local _models_dir="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
+
+      # Resolve the active profile exactly as llama-ctl does: explicit
+      # ZDOTS_AI_PROFILE wins, else the context default.
+      local _prof="${ZDOTS_AI_PROFILE:-}"
+      if [[ -z "$_prof" && -f "$_cfg" ]] && command -v yq >/dev/null 2>&1; then
+        if [[ "${ZDOTS_CONTEXT:-home}" != "home" ]]; then
+          _prof=$(yq -r ".default_profile_${ZDOTS_CONTEXT} // .default_profile // \"\"" "$_cfg" 2>/dev/null)
+        else
+          _prof=$(yq -r '.default_profile // ""' "$_cfg" 2>/dev/null)
+        fi
+      fi
+
+      # Speculative-decoding gate (mirrors llama-ctl): off on home, on elsewhere;
+      # ZDOTS_SPEC_DECODING overrides either way.
+      local _spec_ok=false
+      [[ "${ZDOTS_CONTEXT:-home}" != "home" ]] && _spec_ok=true
+      [[ "${ZDOTS_SPEC_DECODING:-}" == "1" ]] && _spec_ok=true
+      [[ "${ZDOTS_SPEC_DECODING:-}" == "0" ]] && _spec_ok=false
+
+      # Files this host needs: active chat model + embed model, and the active
+      # profile's draft model only when speculative decoding is on.
+      local _chat_model="" _draft_model="" _embed_model="" _all_drafts=""
+      if [[ -n "$_prof" && -f "$_cfg" ]] && command -v yq >/dev/null 2>&1; then
+        _chat_model=$(yq -r ".profiles.\"${_prof}\".model_file // \"\"" "$_cfg" 2>/dev/null)
+        _draft_model=$(yq -r ".profiles.\"${_prof}\".draft_model_file // \"\"" "$_cfg" 2>/dev/null)
+        _embed_model=$(yq -r '.profiles.embed.model_file // ""' "$_cfg" 2>/dev/null)
+        _all_drafts=$(yq -r '.profiles[].draft_model_file' "$_cfg" 2>/dev/null | awk '$0!="null" && NF' | sort -u | tr '\n' ' ')
+      fi
+      [[ "$_chat_model" == "null" ]] && _chat_model=""
+      local _required=" $_chat_model $_embed_model "
+      if $_spec_ok && [[ -n "$_draft_model" && "$_draft_model" != "null" ]]; then
+        _required+="$_draft_model "
+      fi
+
       local _any_fail=0
       while IFS= read -r line; do
         [[ "$line" =~ ^# || -z "$line" ]] && continue
@@ -707,16 +749,25 @@ cmd_check() {
         _hash=$(printf '%s' "$line" | awk '{print $1}')
         _fname=$(printf '%s' "$line" | awk '{print $2}')
         local _fpath="$_models_dir/$_fname"
-        if [[ ! -f "$_fpath" ]]; then
+        if [[ -f "$_fpath" ]]; then
+          # Always verify the integrity of whatever is on disk.
+          local _actual; _actual=$(shasum -a 256 "$_fpath" | awk '{print $1}')
+          if [[ "$_actual" == "$_hash" ]]; then
+            _chk_pass "model  $_fname hash OK"
+          else
+            _chk_fail "model  $_fname SHA256 MISMATCH"
+            _any_fail=1
+          fi
+        elif [[ -z "$_chat_model" ]]; then
+          # Couldn't classify (no yq / bad config) — stay conservative.
           _chk_warn "model  $_fname not downloaded"
-          continue
-        fi
-        local _actual; _actual=$(shasum -a 256 "$_fpath" | awk '{print $1}')
-        if [[ "$_actual" == "$_hash" ]]; then
-          _chk_pass "model  $_fname hash OK"
+        elif [[ "$_required" == *" $_fname "* ]]; then
+          _chk_warn "model  $_fname not downloaded (required by profile ${_prof})"
+        elif [[ " $_all_drafts " == *" $_fname "* ]]; then
+          printf '  [----] model  %s not used (speculative-decoding draft; off on %s)\n' \
+            "$_fname" "${ZDOTS_CONTEXT:-home}"
         else
-          _chk_fail "model  $_fname SHA256 MISMATCH"
-          _any_fail=1
+          printf '  [----] model  %s not used by the active profile (%s)\n' "$_fname" "$_prof"
         fi
       done < "$_manifest"
     fi
