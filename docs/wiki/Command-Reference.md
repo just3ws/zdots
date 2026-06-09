@@ -37,4 +37,12 @@ Canonical command contracts live in `man/` and `docs/generated/interface-invento
 | `zdots-ask` | Domain-aware prompt router |
 | `llama-ctl` | Local llama.cpp lifecycle |
 
+## GitHub insights
+
+| Command | Purpose |
+|---|---|
+| `zdots-gh run <owner>` | Full pipeline: harvest → warehouse → report → insights → ingest |
+| `zdots-gh insights <owner> [--as-of D]` | Forensic process-inference report + coordination graphs |
+| `zdots-gh status` | Cache / warehouse / report / insights freshness |
+
 Known gaps are listed in `docs/generated/docs-contract-known-gaps.txt`.
