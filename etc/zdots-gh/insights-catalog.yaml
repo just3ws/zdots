@@ -26,8 +26,8 @@
 #   source_view    the warehouse view/table backing it (null for unavailable)
 #   reason         (unavailable only) why it cannot be computed yet
 
-version: 2
-phase: 2
+version: 3
+phase: 2.5
 
 insights:
 
@@ -100,17 +100,27 @@ insights:
 
   - name: deploy_lead_lag
     section: dora
-    purpose: Merge → production deploy delay.
-    confidence: unavailable
-    reason: GitHub exposes no production-deploy events; Actions run timestamps don't mark deploys.
-    source_view: null
+    purpose: Merge → deploy delay (time from a default-branch merge to the next deploy-gate run).
+    required_data: [prs.merged_at, prs.base_ref, repo_meta.default_branch, workflow_runs.run_started_at]
+    method: ASOF-join each default-branch merge to the next successful name-inferred deploy-gate run
+    confidence: proxy
+    caveats: A name-inferred deploy gate is not a confirmed production deploy; runs are capped at
+      the recent 100/repo, so older merges may find no matching run (counted as no signal).
+    output: median minutes (merge → deploy run)
+    example: "Deploy-lag proxy is n/a — captured deploy runs don't follow the human merges here."
+    source_view: deploy_lead_lag
 
   - name: mttr
     section: dora
-    purpose: Mean time to restore after an incident.
-    confidence: unavailable
-    reason: Requires incident signals plus a deploy timeline — neither is exposed by the API here.
-    source_view: null
+    purpose: Pipeline recovery time — a failing workflow run to its next success.
+    required_data: [workflow_runs.conclusion, workflow_runs.run_started_at]
+    method: ASOF-join each failing run to the next succeeding run of the same workflow
+    confidence: proxy
+    caveats: This is CI/pipeline restore time, NOT production-incident MTTR; GitHub exposes no
+      incident signal. Read it as "how fast broken pipelines go green again."
+    output: median minutes (failure → next success)
+    example: "Pipeline-recovery proxy is ~54m median across 47 failure→success transitions."
+    source_view: mttr_proxy
 
   # ── Flow metrics (cat 3) ───────────────────────────────────────────────────
   - name: pr_age
@@ -214,10 +224,15 @@ insights:
 
   - name: queue_vs_active_time
     section: flow
-    purpose: Split of cycle time into waiting vs active work.
-    confidence: unavailable
-    reason: Needs the per-event PR timeline (ready/review-request events); only coarse open→merge exists.
-    source_view: null
+    purpose: Split PR cycle time into waiting (open→first review) vs active (review→merge).
+    required_data: [prs.created_at, prs.merged_at, first_review_latency.hours_to_first_review]
+    method: waiting = open→first review; active = first review→merge, over reviewed merged PRs
+    confidence: proxy
+    caveats: Covers only reviewed, merged PRs and treats first review as the queue→active
+      transition; PRs that merged without a review are excluded (here, all of them).
+    output: median waiting vs active hours
+    example: "Queue-vs-active is n/a — no merged PR received a review to split on."
+    source_view: queue_active_split
 
   # ── Change classification (cat 4) ──────────────────────────────────────────
   - name: change_class
@@ -301,17 +316,26 @@ insights:
 
   - name: who_fixes_ci
     section: actor
-    purpose: Who repairs broken pipelines.
-    confidence: unavailable
-    reason: The workflow-run triggering actor is not projected into the runs cache.
-    source_view: null
+    purpose: Who repairs broken pipelines (triggers the success after a failure).
+    required_data: [workflow_runs.triggering_actor, workflow_runs.conclusion]
+    method: count successes that immediately follow a failure on the same workflow, per actor (bots excluded)
+    confidence: inferred
+    caveats: A re-run that goes green may be a real fix or just a flaky retry; bots are excluded.
+    output: per-actor recovery counts
+    example: "just3ws drives CI recovery (10 post-failure successes across 2 workflows)."
+    source_view: ci_fixers
 
   - name: who_owns_release
     section: actor
     purpose: Who drives releases/deploys.
-    confidence: unavailable
-    reason: No GitHub Releases exist and release authorship is not projected.
-    source_view: null
+    required_data: [releases.author, workflow_runs + deploy_workflows]
+    method: release authors when releases exist; else operators of name-inferred deploy gates
+    confidence: inferred
+    caveats: With no GitHub Releases, ownership is inferred from who runs the deploy gates; a
+      name-inferred gate may not actually deploy.
+    output: per-actor release/deploy-run counts
+    example: "just3ws owns deploys (7 successful deploy-gate runs); no GitHub Releases exist."
+    source_view: deploy_operators
 
   # ── Repository health (cat 6) ──────────────────────────────────────────────
   - name: repo_health
