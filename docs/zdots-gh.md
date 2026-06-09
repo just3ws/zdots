@@ -48,6 +48,41 @@ harvest → warehouse → report / insights → ingest
 | `insights`  | DuckDB → forensic Markdown + graph edge-lists via `etc/zdots-gh/insights.rb` |
 | `ingest`    | the Markdown report(s) → `zdots-ctx ingest` (Knowledge Vault) |
 
+### Knowledge-base landing contract
+
+The goal of `ingest` is not just to write Markdown files; the generated analysis
+must land in the `my` knowledge base and remain discoverable by later agents.
+
+After `zdots-gh run <owner>` or `zdots-gh ingest <owner>`, verify:
+
+```bash
+rtk psql -d my -c \
+  "select slug, title, tags, embedding is not null as has_embedding,
+          octet_length(content_enc) as encrypted_bytes
+     from methodologies
+    where slug in ('gh-delivery-health-<owner>', 'gh-forensics-<owner>');"
+
+rtk psql -d my -c \
+  "select status, count(*) from jobs where type='embed' group by status;"
+
+zdots-ctx query "GitHub Delivery Health"
+zdots-ctx query "forensics"
+zdots-ctx query --semantic "delivery process forensics <owner>"
+```
+
+Passing criteria:
+
+- both `gh-delivery-health-<owner>` and `gh-forensics-<owner>` exist;
+- `content_enc` is non-empty for both records;
+- `has_embedding` is true for both records;
+- there are no pending or dead `embed` jobs;
+- text search finds the reports by title/content terms;
+- semantic search returns both GitHub reports.
+
+If an embed job fails with an embed-server context overflow, do not mark the
+analysis landed. Fix or requeue the embed job, then verify retrieval again. See
+`docs/wiki/AI-and-Knowledge-Layer.md` for the general agent discovery workflow.
+
 ### Outputs (under `$ZDOTS_GH_STATE`, default `$XDG_STATE_HOME/zdots/gh`)
 
 | Path | Contents |
