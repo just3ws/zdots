@@ -41,3 +41,6 @@ zsynod/sessions/
 # Claude Code session scheduler (transient)
 .claude/scheduled_tasks.lock
 zsynod/queue/
+
+# zdots-gh: Python bytecode cache for report.py
+etc/zdots-gh/__pycache__/
