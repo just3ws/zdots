@@ -128,6 +128,7 @@ end
 
 def short(repo) = repo.to_s.split("/").last
 def at(actor)   = "@#{actor}"
+def trunc(s, n = 40) = s.to_s.length > n ? "#{s.to_s[0, n - 1]}…" : s.to_s
 
 SECTIONS = +"" # accumulates the report body
 
@@ -161,7 +162,7 @@ def build_inventory
   para "Every insight below is registered in `insights-catalog.yaml` with its " \
        "confidence class and the source view/table it derives from. This is the " \
        "audit map: what GitHub data is directly supported, inferred, a proxy, or " \
-       "simply unavailable from the Phase-1 harvest."
+       "simply unavailable from the harvest."
   rows = CATALOG.sort_by { |i| [i["section"], i["name"]] }.map do |i|
     [i["name"], i["section"], CONF_BADGE[i["confidence"]],
      "`#{i['source_view'] || '—'}`",
@@ -257,6 +258,10 @@ def build_classification
   bfc = duck("SELECT change_class, authors, prs FROM bus_factor_class ORDER BY prs DESC, change_class")
   para "**Bus factor by change class**#{tag('bus_factor_class')} — how many people can do each kind of work:"
   emit md_table(%w[Class Authors PRs], bfc.map { |r| [r["change_class"], r["authors"], r["prs"]] })
+
+  bs = duck("SELECT branch_prefix, count(*) n FROM branch_signal GROUP BY 1 ORDER BY n DESC, branch_prefix")
+  para "**Branch-name signal**#{tag('branch_name_signal')}: " +
+       (bs.empty? ? "no human PRs." : bs.map { |r| "#{r['branch_prefix']}=#{r['n']}" }.join(", ") + ".")
 end
 
 # ── Actor / bus-factor (cat 5) ────────────────────────────────────────────────
@@ -284,22 +289,37 @@ def build_actors
     emit md_table(["Repo", "Reviewers", "HHI (→1 = concentrated)"],
                   rc.map { |r| [short(r["repo_name"]), r["reviewers"], num(r["hhi"], 2)] })
   end
+
+  mg = duck("SELECT actor, merges, repos FROM merge_gatekeepers WHERE NOT is_bot " \
+            "ORDER BY merges DESC, actor LIMIT 8")
+  if mg.empty?
+    para "**Merge gatekeepers**#{tag('who_merges')}: no human-attributed merges recorded."
+  else
+    para "**Merge gatekeepers**#{tag('who_merges')} — who actually lands changes:"
+    emit md_table(["Actor", "Merges", "Repos"],
+                  mg.map { |r| [at(r["actor"]), r["merges"], r["repos"]] })
+  end
 end
 
 # ── Repo health (cat 6) ───────────────────────────────────────────────────────
 def build_repo_health
   section "Repository health index"
+  # Idle uses the repo's real last-push (repo_meta) when present, else PR activity.
   rows = duck("SELECT repo_name, prs, merged, authors, reviewed_share, single_owner, no_ci, " \
-              "date_diff('day', last_activity, #{TS}) AS idle_days FROM repo_health ORDER BY prs DESC, repo_name")
-  para "Active = activity within 90d of the reference date.#{tag('repo_health')} " \
-       "`single` = single-author bus-factor risk; `no-ci` = no status rollup seen."
-  emit md_table(%w[Repo PRs Merged Authors Reviewed Idle State Flags],
+              "language, archived, " \
+              "date_diff('day', coalesce(pushed_at, last_activity), #{TS}) AS idle_days " \
+              "FROM repo_health_meta ORDER BY prs DESC, repo_name")
+  para "Active = pushed within 90d of the reference date.#{tag('repo_metadata')} " \
+       "`single` = single-author bus-factor risk; `no-ci` = no status rollup seen; " \
+       "`arch` = archived."
+  emit md_table(%w[Repo Lang PRs Merged Authors Reviewed Idle State Flags],
                 rows.map { |r|
                   flags = []
                   flags << "single" if r["single_owner"]
                   flags << "no-ci"  if r["no_ci"]
+                  flags << "arch"   if r["archived"]
                   state = r["idle_days"].to_i > 90 ? "abandoned" : "active"
-                  [short(r["repo_name"]), r["prs"], r["merged"], r["authors"],
+                  [short(r["repo_name"]), r["language"] || "—", r["prs"], r["merged"], r["authors"],
                    pct(r["reviewed_share"].to_f, 1.0), "#{r['idle_days']}d", state,
                    flags.empty? ? "—" : flags.join(",")]
                 })
@@ -323,6 +343,81 @@ def build_archetypes
     para "**Evidence sample:**"
     emit md_table(["PR", "Archetype", "Evidence"],
                   sample.map { |r| ["##{r['number']}", r["archetype"], "`#{r['evidence']}`"] })
+  end
+end
+
+# ── GitHub Actions reliability (cat 7) — Phase 2 ──────────────────────────────
+def build_actions
+  section "GitHub Actions reliability"
+  by_repo = duck("SELECT repo_name, active_workflows, runs, failures, failure_rate " \
+                 "FROM actions_by_repo ORDER BY runs DESC, repo_name")
+  if by_repo.empty?
+    para "_No GitHub Actions runs were harvested for this estate.#{tag('actions_reliability')}_"
+    return
+  end
+  para "Most-recent runs per repo (harvest caps at 100/repo).#{tag('actions_reliability')}"
+  emit md_table(["Repo", "Workflows", "Runs", "Failures", "Failure rate"],
+                by_repo.map { |r| [short(r["repo_name"]), r["active_workflows"], r["runs"],
+                                   r["failures"], pct(r["failure_rate"].to_f, 1.0)] })
+
+  worst = duck("SELECT repo_name, workflow, runs, failure_rate, median_min " \
+               "FROM workflow_reliability WHERE runs >= 3 " \
+               "ORDER BY failure_rate DESC, runs DESC, workflow LIMIT 8")
+  unless worst.empty?
+    para "**Least-reliable workflows**#{tag('workflow_failure_detail')}:"
+    emit md_table(["Repo", "Workflow", "Runs", "Fail rate", "Med min"],
+                  worst.map { |r| [short(r["repo_name"]), trunc(r["workflow"]), r["runs"],
+                                   pct(r["failure_rate"].to_f, 1.0), num(r["median_min"])] })
+  end
+
+  flaky = duck("SELECT workflow, failure_rate FROM flaky_workflows ORDER BY failure_rate DESC, workflow LIMIT 8")
+  para "**Flaky workflows**#{tag('flaky_workflows')}: " +
+       (flaky.empty? ? "none detected." :
+        flaky.map { |r| "#{trunc(r['workflow'], 30)} (#{pct(r['failure_rate'].to_f, 1.0)})" }.join("; ") + ".")
+
+  dep = duck("SELECT DISTINCT workflow FROM deploy_workflows ORDER BY workflow")
+  para "**Deploy/release gates**#{tag('deploy_gates')} (name-inferred): " +
+       (dep.empty? ? "none detected." :
+        dep.map { |r| "`#{trunc(r['workflow'], 30)}`" }.join(", ") + ".")
+end
+
+# ── Releases / deploy signal (cat 2, 8) — Phase 2 ─────────────────────────────
+def build_releases
+  section "Releases & deploy signal"
+  rel = duck("SELECT repo_name, releases, final_releases, last_release " \
+             "FROM releases_by_repo WHERE releases > 0 ORDER BY releases DESC, repo_name")
+  if rel.empty?
+    para "_No GitHub Releases exist across the estate.#{tag('releases_and_deploys')} Shipping is " \
+         "not cut as release artifacts here; deploy is inferred from Actions deploy gates instead. " \
+         "Deploy lag and MTTR therefore remain #{CONF_BADGE['unavailable']} (see Unknowns & Data Gaps)._"
+  else
+    emit md_table(["Repo", "Releases", "Final", "Last release"],
+                  rel.map { |r| [short(r["repo_name"]), r["releases"], r["final_releases"],
+                                 r["last_release"].to_s[0, 10]] })
+  end
+end
+
+# ── Issue triage & rework (cat 3, 5, 8) — Phase 2 ─────────────────────────────
+def build_triage
+  section "Issue triage & rework"
+  ftr      = median_q("hours_to_first_response", "issue_triage WHERE hours_to_first_response IS NOT NULL")
+  responded = scalar("SELECT count(*) v FROM issue_triage WHERE first_response IS NOT NULL", 0)
+  total_iss = scalar("SELECT count(*) v FROM issue_triage", 0)
+  reop      = scalar("SELECT coalesce(sum(reopened_issues),0) v FROM reopen_summary", 0)
+  rows = [
+    ["First-response latency", unit(ftr, "h"), "median issue→1st reply#{tag('triage_first_response')}"],
+    ["Triage coverage", "#{responded}/#{total_iss}", "issues with any response#{tag('triage_first_response')}"],
+    ["Reopened issues", reop.to_s, "rework signal#{tag('reopen_rate')}"]
+  ]
+  emit md_table(%w[Signal Value Reading], rows)
+
+  asg = duck("SELECT actor, assigned, repos FROM issue_assignment ORDER BY assigned DESC, actor LIMIT 10")
+  if asg.empty?
+    para "**Assignment / ownership**#{tag('assignment_ownership')}: no issues are assigned."
+  else
+    para "**Assignment / ownership**#{tag('assignment_ownership')}:"
+    emit md_table(["Actor", "Assigned issues", "Repos"],
+                  asg.map { |r| [at(r["actor"]), r["assigned"], r["repos"]] })
   end
 end
 
@@ -490,6 +585,19 @@ def build_decision_support
   cochange = scalar("SELECT count(*) v FROM edge_repo_cochange", 0)
   bullets << "**Coordination:** no cross-repo coupling observed — the estate behaves as #{REPOS} independent unit(s)." if cochange.to_i.zero?
 
+  worst_wf = duck("SELECT repo_name, workflow, failure_rate, runs FROM workflow_reliability " \
+                  "WHERE runs >= 5 AND failure_rate >= 0.5 ORDER BY failure_rate DESC, runs DESC, workflow LIMIT 1").first
+  if worst_wf
+    bullets << "**CI/deploy risk:** `#{trunc(worst_wf['workflow'], 40)}` in #{short(worst_wf['repo_name'])} " \
+               "fails #{pct(worst_wf['failure_rate'].to_f, 1.0)} of #{worst_wf['runs']} runs — a broken pipeline."
+  end
+
+  sole = duck("SELECT actor, merges FROM merge_gatekeepers WHERE NOT is_bot ORDER BY merges DESC, actor LIMIT 1").first
+  total_merges = scalar("SELECT count(*) v FROM prs WHERE state='MERGED' AND merged_by IS NOT NULL", 0)
+  if sole && total_merges.to_i.positive? && (sole["merges"].to_f / total_merges.to_i) >= 0.8
+    bullets << "**Gatekeeping:** #{at(sole['actor'])} lands #{pct(sole['merges'], total_merges)} of all merges — a single integration point."
+  end
+
   bullets << "_No elevated structural risks detected in the available signals._" if bullets.empty?
   bullets.each { |b| emit "- #{b}\n" }
 end
@@ -497,10 +605,10 @@ end
 # ── Unknowns & data gaps (cat 1) ──────────────────────────────────────────────
 def build_gaps
   section "Unknowns & data gaps"
-  para "What GitHub cannot tell us from the Phase-1 harvest. These are tracked as " \
-       "`unavailable` catalog entries — uncertainty is recorded, not erased. " \
-       "Phase-2 harvest expansion (Actions, releases, issue timeline, repo metadata) " \
-       "unlocks them."
+  para "What GitHub still cannot tell us, even after the Phase-2 harvest expansion " \
+       "(Actions, releases, issue triage, repo metadata are now collected). These remain " \
+       "`unavailable` — recorded, not erased. Most need deployment/incident data or " \
+       "per-run actors that GitHub does not expose through the read-only API here."
   gaps = CATALOG.select { |i| i["confidence"] == "unavailable" }.sort_by { |i| i["name"] }
   emit md_table(%w[Missing-insight Purpose Why-unavailable],
                 gaps.map { |i| [i["name"], i["purpose"], i["reason"]] })
@@ -514,7 +622,7 @@ def build_confidence
     ["`observed`", counts.fetch("observed", 0), "directly present in harvested GitHub data"],
     ["`inferred`", counts.fetch("inferred", 0), "defensible derivation; rules stated in the catalog"],
     ["`proxy`", counts.fetch("proxy", 0), "approximate stand-in for something GitHub does not record"],
-    ["`unavailable`", counts.fetch("unavailable", 0), "cannot be known from the Phase-1 harvest"]
+    ["`unavailable`", counts.fetch("unavailable", 0), "cannot be known from the harvest at all"]
   ])
 end
 
@@ -526,11 +634,14 @@ FileUtils.mkdir_p(File.dirname(opts[:md]))
 
 build_inventory
 build_dora
+build_actions
+build_releases
 build_flow
 build_classification
 build_actors
 build_repo_health
 build_archetypes
+build_triage
 build_conway(opts[:graphs])
 build_temporal
 build_decision_support
