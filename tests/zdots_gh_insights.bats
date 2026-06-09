@@ -39,51 +39,94 @@ setup() {
 # Two repos; alice authors in BOTH (boundary spanner + repo co-change), bob
 # reviews alice and authors a bug fix (review edge + bug classification).
 _write_fixture() {
+  # PRs carry Phase-2 fields (headRefName/baseRefName/isDraft/mergedBy/reviewRequests).
   cat >"$CACHE/alpha_prs.json" <<'JSON'
 [{"data":{"repository":{"nameWithOwner":"acme/alpha","pullRequests":{"nodes":[
-  {"number":1,"title":"feat: add login","state":"MERGED","createdAt":"2026-01-10T10:00:00Z","mergedAt":"2026-01-11T10:00:00Z","author":{"login":"alice"},"labels":{"nodes":[{"name":"feature"}]},"files":{"nodes":[{"path":"src/login.rb","additions":50,"deletions":2},{"path":"spec/login_spec.rb","additions":30,"deletions":0}]},"reviewThreads":{"totalCount":1},"statusCheckRollup":{"state":"SUCCESS"},"closingIssuesReferences":{"nodes":[{"number":7}]},"comments":{"nodes":[{"author":{"login":"bob"},"createdAt":"2026-01-10T11:00:00Z"}]},"reviews":{"nodes":[{"author":{"login":"bob"},"state":"APPROVED","createdAt":"2026-01-10T12:00:00Z"}]}},
-  {"number":2,"title":"fix: npe on logout","state":"OPEN","createdAt":"2026-03-01T09:00:00Z","mergedAt":null,"author":{"login":"bob"},"labels":{"nodes":[{"name":"bug"}]},"files":{"nodes":[{"path":"src/logout.rb","additions":5,"deletions":1}]},"reviewThreads":{"totalCount":0},"statusCheckRollup":null,"closingIssuesReferences":{"nodes":[]},"comments":{"nodes":[]},"reviews":{"nodes":[]}}
+  {"number":1,"title":"feat: add login","state":"MERGED","createdAt":"2026-01-10T10:00:00Z","mergedAt":"2026-01-11T10:00:00Z","headRefName":"feature/login","baseRefName":"main","isDraft":false,"mergedBy":{"login":"alice"},"reviewRequests":{"totalCount":1},"author":{"login":"alice"},"labels":{"nodes":[{"name":"feature"}]},"files":{"nodes":[{"path":"src/login.rb","additions":50,"deletions":2},{"path":"spec/login_spec.rb","additions":30,"deletions":0}]},"reviewThreads":{"totalCount":1},"statusCheckRollup":{"state":"SUCCESS"},"closingIssuesReferences":{"nodes":[{"number":7}]},"comments":{"nodes":[{"author":{"login":"bob"},"createdAt":"2026-01-10T11:00:00Z"}]},"reviews":{"nodes":[{"author":{"login":"bob"},"state":"APPROVED","createdAt":"2026-01-10T12:00:00Z"}]}},
+  {"number":2,"title":"fix: npe on logout","state":"OPEN","createdAt":"2026-03-01T09:00:00Z","mergedAt":null,"headRefName":"fix/logout","baseRefName":"main","isDraft":false,"mergedBy":null,"reviewRequests":{"totalCount":0},"author":{"login":"bob"},"labels":{"nodes":[{"name":"bug"}]},"files":{"nodes":[{"path":"src/logout.rb","additions":5,"deletions":1}]},"reviewThreads":{"totalCount":0},"statusCheckRollup":null,"closingIssuesReferences":{"nodes":[]},"comments":{"nodes":[]},"reviews":{"nodes":[]}}
 ],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}]
 JSON
 
+  # Issue carries Phase-2 fields (assignees/milestone/comments/reopened).
   cat >"$CACHE/alpha_issues.json" <<'JSON'
 [{"data":{"repository":{"nameWithOwner":"acme/alpha","issues":{"nodes":[
-  {"number":7,"title":"Login broken","state":"CLOSED","createdAt":"2026-01-09T08:00:00Z","closedAt":"2026-01-11T10:00:00Z","author":{"login":"bob"},"labels":{"nodes":[{"name":"bug"}]}}
+  {"number":7,"title":"Login broken","state":"CLOSED","createdAt":"2026-01-09T08:00:00Z","closedAt":"2026-01-11T10:00:00Z","author":{"login":"bob"},"labels":{"nodes":[{"name":"bug"}]},"assignees":{"nodes":[{"login":"bob"}]},"milestone":{"title":"v1"},"comments":{"nodes":[{"author":{"login":"alice"},"createdAt":"2026-01-09T10:00:00Z"}]},"reopened":{"totalCount":1}}
 ],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}]
 JSON
 
   cat >"$CACHE/beta_prs.json" <<'JSON'
 [{"data":{"repository":{"nameWithOwner":"acme/beta","pullRequests":{"nodes":[
-  {"number":1,"title":"docs: update readme","state":"MERGED","createdAt":"2026-02-01T09:00:00Z","mergedAt":"2026-02-01T15:00:00Z","author":{"login":"alice"},"labels":{"nodes":[]},"files":{"nodes":[{"path":"README.md","additions":10,"deletions":0}]},"reviewThreads":{"totalCount":0},"statusCheckRollup":{"state":"SUCCESS"},"closingIssuesReferences":{"nodes":[]},"comments":{"nodes":[]},"reviews":{"nodes":[]}}
+  {"number":1,"title":"docs: update readme","state":"MERGED","createdAt":"2026-02-01T09:00:00Z","mergedAt":"2026-02-01T15:00:00Z","headRefName":"docs/readme","baseRefName":"main","isDraft":false,"mergedBy":{"login":"alice"},"reviewRequests":{"totalCount":0},"author":{"login":"alice"},"labels":{"nodes":[]},"files":{"nodes":[{"path":"README.md","additions":10,"deletions":0}]},"reviewThreads":{"totalCount":0},"statusCheckRollup":{"state":"SUCCESS"},"closingIssuesReferences":{"nodes":[]},"comments":{"nodes":[]},"reviews":{"nodes":[]}}
 ],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}]
 JSON
 
   cat >"$CACHE/beta_issues.json" <<'JSON'
 [{"data":{"repository":{"nameWithOwner":"acme/beta","issues":{"nodes":[],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}]
 JSON
+
+  # ── Phase-2 REST sources (field-projected flat arrays, as the harvester writes) ──
+  # alpha: a flaky CI workflow (3✓/2✗) + a Deploy gate; beta: empty (tests both paths).
+  cat >"$CACHE/alpha_meta.json" <<'JSON'
+[{"repo_name":"acme/alpha","default_branch":"main","language":"Ruby","archived":false,"private":false,"fork":false,"created_at":"2025-01-01T00:00:00Z","pushed_at":"2026-03-01T00:00:00Z","stargazers_count":2,"forks_count":0,"open_issues_count":1}]
+JSON
+  cat >"$CACHE/beta_meta.json" <<'JSON'
+[{"repo_name":"acme/beta","default_branch":"main","language":"Markdown","archived":false,"private":false,"fork":false,"created_at":"2025-06-01T00:00:00Z","pushed_at":"2026-02-01T00:00:00Z","stargazers_count":0,"forks_count":0,"open_issues_count":0}]
+JSON
+  cat >"$CACHE/alpha_workflows.json" <<'JSON'
+[{"repo_name":"acme/alpha","id":10,"name":"CI","path":".github/workflows/ci.yml","state":"active"},
+ {"repo_name":"acme/alpha","id":11,"name":"Deploy GitHub Pages","path":".github/workflows/deploy.yml","state":"active"}]
+JSON
+  cat >"$CACHE/beta_workflows.json" <<'JSON'
+[]
+JSON
+  cat >"$CACHE/alpha_runs.json" <<'JSON'
+[{"repo_name":"acme/alpha","id":1,"name":"CI","workflow_id":10,"conclusion":"success","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-10T10:00:00Z","run_started_at":"2026-01-10T10:00:00Z","updated_at":"2026-01-10T10:01:00Z"},
+ {"repo_name":"acme/alpha","id":2,"name":"CI","workflow_id":10,"conclusion":"failure","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-11T10:00:00Z","run_started_at":"2026-01-11T10:00:00Z","updated_at":"2026-01-11T10:02:00Z"},
+ {"repo_name":"acme/alpha","id":3,"name":"CI","workflow_id":10,"conclusion":"success","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-12T10:00:00Z","run_started_at":"2026-01-12T10:00:00Z","updated_at":"2026-01-12T10:01:00Z"},
+ {"repo_name":"acme/alpha","id":4,"name":"CI","workflow_id":10,"conclusion":"failure","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-13T10:00:00Z","run_started_at":"2026-01-13T10:00:00Z","updated_at":"2026-01-13T10:02:00Z"},
+ {"repo_name":"acme/alpha","id":5,"name":"CI","workflow_id":10,"conclusion":"success","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-14T10:00:00Z","run_started_at":"2026-01-14T10:00:00Z","updated_at":"2026-01-14T10:01:00Z"},
+ {"repo_name":"acme/alpha","id":6,"name":"Deploy GitHub Pages","workflow_id":11,"conclusion":"success","status":"completed","event":"push","head_branch":"main","created_at":"2026-01-11T11:00:00Z","run_started_at":"2026-01-11T11:00:00Z","updated_at":"2026-01-11T11:02:00Z"}]
+JSON
+  cat >"$CACHE/beta_runs.json" <<'JSON'
+[]
+JSON
+  cat >"$CACHE/alpha_releases.json" <<'JSON'
+[{"repo_name":"acme/alpha","id":1,"tag_name":"v1.0","name":"v1.0","draft":false,"prerelease":false,"created_at":"2026-01-12T00:00:00Z","published_at":"2026-01-12T00:00:00Z"}]
+JSON
+  cat >"$CACHE/beta_releases.json" <<'JSON'
+[]
+JSON
 }
 
 _render() { "$GH" insights "$OWNER" --as-of "$ASOF"; }
 
-@test "warehouse builds the Phase-1 views from the fixture" {
-  run duckdb -readonly -noheader -list "$ZDOTS_GH_STATE/$OWNER.duckdb" \
-    "SELECT count(*) FROM change_class"
+@test "warehouse builds the views from the fixture (Phase 1 + 2)" {
+  db="$ZDOTS_GH_STATE/$OWNER.duckdb"
+  run duckdb -readonly -noheader -list "$db" "SELECT count(*) FROM change_class"
   assert_success
   assert_output "3"
+  # Phase-2 tables build too (Actions runs harvested, releases present for alpha).
+  run duckdb -readonly -noheader -list "$db" "SELECT count(*) FROM workflow_runs"
+  assert_output "6"
+  run duckdb -readonly -noheader -list "$db" "SELECT count(*) FROM releases"
+  assert_output "1"
 }
 
-@test "insights renders all Phase-1 sections" {
+@test "insights renders all sections (Phase 1 + 2)" {
   run _render
   assert_success
   [ -f "$MD" ]
   for header in \
     "Data inventory & traceability" \
     "DORA-adjacent" \
+    "GitHub Actions reliability" \
+    "Releases & deploy signal" \
     "Flow metrics" \
     "Change classification" \
     "Actor involvement" \
     "Repository health index" \
     "Change-management archetypes" \
+    "Issue triage & rework" \
     "Conway / socio-technical coordination" \
     "Temporal trend" \
     "Decision support" \
@@ -140,12 +183,54 @@ _render() { "$GH" insights "$OWNER" --as-of "$ASOF"; }
   assert_success
 }
 
-@test "unavailable insights surface in Unknowns & Data Gaps" {
+@test "Phase-2: Actions reliability — flaky CI + deploy gate" {
   _render
-  for gap in actions_reliability releases_and_deploys reopen_rate mttr who_merges; do
+  db="$ZDOTS_GH_STATE/$OWNER.duckdb"
+  # CI workflow: 3 success / 2 failure ⇒ failure_rate 0.4, and flaky (≥4 runs, mid-range).
+  run duckdb -readonly -noheader -list "$db" \
+    "SELECT failure_rate FROM workflow_reliability WHERE workflow='CI'"
+  assert_output "0.4"
+  run duckdb -readonly -noheader -list "$db" "SELECT count(*) FROM flaky_workflows WHERE workflow='CI'"
+  assert_output "1"
+  # The Deploy workflow is name-inferred as a deploy gate and rendered.
+  grep -qF "Deploy GitHub Pages" "$MD"
+  grep -qF "## GitHub Actions reliability" "$MD"
+}
+
+@test "Phase-2: merge gatekeeper, branch signal, triage, releases" {
+  _render
+  db="$ZDOTS_GH_STATE/$OWNER.duckdb"
+  # alice merged both merged PRs (alpha#1, beta#1).
+  run duckdb -readonly -noheader -list "$db" \
+    "SELECT merges FROM merge_gatekeepers WHERE actor='alice'"
+  assert_output "2"
+  # Branch prefixes are extracted from head refs.
+  run duckdb -readonly -noheader -list "$db" \
+    "SELECT branch_prefix FROM branch_signal ORDER BY branch_prefix"
+  assert_line --index 0 "docs"
+  assert_line --index 1 "feature"
+  assert_line --index 2 "fix"
+  # Issue #7 was reopened once (rework) and got a first response from a non-author.
+  run duckdb -readonly -noheader -list "$db" "SELECT sum(reopen_events) FROM reopen_summary"
+  assert_output "1"
+  run duckdb -readonly -noheader -list "$db" \
+    "SELECT hours_to_first_response FROM issue_triage WHERE number=7"
+  assert_output "2"
+  # alpha has a release; beta has none.
+  run duckdb -readonly -noheader -list "$db" "SELECT releases FROM releases_by_repo WHERE repo_name='acme/alpha'"
+  assert_output "1"
+  # Repo metadata enriches health (language).
+  run duckdb -readonly -noheader -list "$db" "SELECT language FROM repo_health_meta WHERE repo_name='acme/alpha'"
+  assert_output "Ruby"
+}
+
+@test "remaining unavailable insights surface in Unknowns & Data Gaps" {
+  _render
+  # Post Phase-2, only these five remain unavailable (no source view).
+  for gap in deploy_lead_lag mttr queue_vs_active_time who_fixes_ci who_owns_release; do
     grep -qF "$gap" "$MD" || { echo "missing gap: $gap"; return 1; }
   done
-  # Confidence model legend present.
+  # The flipped insights now render as observed, not in the gaps reasons.
   grep -qF '`unavailable`' "$MD"
 }
 

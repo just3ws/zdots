@@ -140,10 +140,13 @@ query(\$owner: String!, \$name: String!, \$endCursor: String) {
     pullRequests(first: ${PR_PAGE}, after: \$endCursor, orderBy: {field: CREATED_AT, direction: DESC}) {
       nodes {
         number title state createdAt mergedAt
+        headRefName baseRefName isDraft
+        mergedBy { login }
         author { login ... on User { name company } }
         labels(first: 15) { nodes { name } }
         files(first: 100) { nodes { path additions deletions } }
         reviewThreads { totalCount }
+        reviewRequests { totalCount }
         statusCheckRollup { state }
         closingIssuesReferences(first: 10) { nodes { number } }
         comments(first: 50) { nodes { author { login } createdAt } }
@@ -166,6 +169,10 @@ query(\$owner: String!, \$name: String!, \$endCursor: String) {
         number title state createdAt closedAt
         author { login ... on User { name company } }
         labels(first: 15) { nodes { name } }
+        assignees(first: 10) { nodes { login } }
+        milestone { title }
+        comments(first: 30) { nodes { author { login } createdAt } }
+        reopened: timelineItems(itemTypes: [REOPENED_EVENT]) { totalCount }
       }
       pageInfo { hasNextPage endCursor }
     }
@@ -192,6 +199,27 @@ _harvest_one() {
   return 1
 }
 
+# REST harvest for the Phase-2 auxiliary sources (Actions, releases, repo meta).
+# Each response is field-PROJECTED through jq into a flat array tagged with the
+# repo — not the verbatim raw body. Rationale: schema stability for the warehouse
+# (explicit columns survive empty estates) and a far smaller cache. The empty-[]
+# fallback guarantees the file always exists, so the warehouse glob always
+# matches and a repo with no Actions/releases simply contributes zero rows.
+_harvest_rest() {
+  local repo="$1" outdir="$2" kind="$3" path="$4" filter="$5"
+  local safe="${repo//\//_}"
+  local out="${outdir}/${safe}_${kind}.json"
+  if [[ -f "$out" && "$OPT_FORCE" -ne 1 ]]; then return 0; fi
+  if gh api "$path" 2>/dev/null | jq -c --arg repo "$repo" "$filter" >"${out}.tmp" 2>/dev/null; then
+    mv -f "${out}.tmp" "$out"
+  else
+    printf '[]\n' >"$out"      # endpoint absent/empty → typed-empty contribution
+    rm -f "${out}.tmp"
+  fi
+  return 0
+}
+
+# shellcheck disable=SC2016  # jq filters intentionally single-quote $repo (a jq --arg var)
 cmd_harvest() {
   _require_owner
   _need gh "install: brew bundle (gh) and run: gh auth login"
@@ -218,6 +246,17 @@ cmd_harvest() {
     printf '  %s%2d%s %s\n' "$DIM" "$n" "$RST" "$repo" >&2
     _harvest_one "$repo" "$outdir" prs    "$prq" || true
     _harvest_one "$repo" "$outdir" issues "$isq" || true
+    # Phase-2 auxiliary sources (REST, field-projected). Best-effort: a missing
+    # endpoint yields an empty contribution, never a harvest failure. The jq
+    # filters below use $repo (a jq --arg var) — single-quoted on purpose.
+    _harvest_rest "$repo" "$outdir" meta "repos/${repo}" \
+      '[{repo_name:$repo, default_branch, language, archived, private, fork, created_at, pushed_at, stargazers_count, forks_count, open_issues_count}]'
+    _harvest_rest "$repo" "$outdir" workflows "repos/${repo}/actions/workflows?per_page=100" \
+      '[.workflows[]? | {repo_name:$repo, id, name, path, state}]'
+    _harvest_rest "$repo" "$outdir" runs "repos/${repo}/actions/runs?per_page=100" \
+      '[.workflow_runs[]? | {repo_name:$repo, id, name, workflow_id, conclusion, status, event, head_branch, created_at, run_started_at, updated_at}]'
+    _harvest_rest "$repo" "$outdir" releases "repos/${repo}/releases?per_page=100" \
+      '[.[]? | {repo_name:$repo, id, tag_name, name, draft, prerelease, created_at, published_at}]'
   done <<<"$repos"
 
   _ok "harvested ${n} repos → ${outdir}"
