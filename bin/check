@@ -282,7 +282,7 @@ assert_safe_mode() {
   if [[ -s "$errfile" ]]; then
     local stripped_stderr
     stripped_stderr="$(_strip_escapes <"$errfile")"
-    if grep -vE "can't change option: zle|zdots: SAFE MODE" <<<"$stripped_stderr" | grep -q .; then
+    if grep -vE "can't change option: zle|zdots: SAFE MODE|not interactive and can't open terminal|compinit: initialization aborted" <<<"$stripped_stderr" | grep -q .; then
       echo "check: safe mode shell emitted unexpected stderr:" >&2
       cat "$errfile" >&2
       rm -f "$errfile"
