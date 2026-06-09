@@ -141,6 +141,42 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+_sec "GitHub insights (zdots-gh)"
+# zdots-gh harvests GitHub delivery-health/forensics into the local knowledge
+# vault that the ctx MCP serves back to Claude Code — so its readiness is a CC
+# concern. gh is its only network source (no cloud LLM).
+if [[ -x "${ZDOTDIR}/bin/zdots-gh" ]]; then
+  _zgh_missing=()
+  for a in warehouse.sql insights.rb insights-catalog.yaml report.py; do
+    [[ -f "${ZDOTDIR}/etc/zdots-gh/$a" ]] || _zgh_missing+=("$a")
+  done
+  if [[ ${#_zgh_missing[@]} -eq 0 ]]; then
+    _pass "zdots-gh present, assets complete (warehouse.sql, insights.rb, catalog, report.py)"
+  else
+    _fail "zdots-gh assets missing: ${_zgh_missing[*]}"
+    _fix "git -C ${ZDOTDIR} checkout -- etc/zdots-gh"
+  fi
+  if (( _has_jq )) || command -v ruby >/dev/null 2>&1; then
+    if command -v ruby >/dev/null 2>&1 \
+       && ruby -ryaml -e 'YAML.load_file(ARGV[0])' "${ZDOTDIR}/etc/zdots-gh/insights-catalog.yaml" >/dev/null 2>&1; then
+      _pass "insights-catalog.yaml is valid (drives the confidence/traceability report)"
+    elif command -v ruby >/dev/null 2>&1; then
+      _fail "insights-catalog.yaml is invalid — the insights report will degrade"
+    fi
+  fi
+  _zgh_deps=()
+  for d in gh duckdb ruby jq; do command -v "$d" >/dev/null 2>&1 || _zgh_deps+=("$d"); done
+  if [[ ${#_zgh_deps[@]} -eq 0 ]]; then
+    _pass "deps present (gh, duckdb, ruby, jq) — harvest→warehouse→insights→ingest ready"
+  else
+    _warn "zdots-gh deps absent: ${_zgh_deps[*]} — 'zdots-gh run' will fail"
+    _fix "brew bundle (gh, duckdb); ensure ruby on PATH"
+  fi
+else
+  _warn "zdots-gh not present/executable — GitHub delivery insights won't feed the knowledge vault"
+fi
+
+# ---------------------------------------------------------------------------
 _sec "Hooks & statusline"
 if [[ -f "$PROJ_SETTINGS" ]] && (( _has_jq )); then
   for h in cc-hook-guard cc-hook-lint cc-hook-session cc-statusline; do
