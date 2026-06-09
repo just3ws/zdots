@@ -43,6 +43,7 @@ utilization_analytics.bats
 zai_router.bats
 zdots_ask.bats
 zdots_eval.bats
+zdots_gh_insights.bats
 zdots_worker.bats
 zsynod_exectick.bats
 zsynod_headless.bats
