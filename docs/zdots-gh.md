@@ -29,6 +29,8 @@ zdots-gh status                          # freshness for all harvested owners
 
 See `man zdots-gh` for the full interface, or `zdots-gh --help`.
 
+Reusable agent workflow: `.agents/skills/github-kb-analysis/SKILL.md`.
+
 ---
 
 ## Pipeline
@@ -52,6 +54,31 @@ harvest → warehouse → report / insights → ingest
 
 The goal of `ingest` is not just to write Markdown files; the generated analysis
 must land in the `my` knowledge base and remain discoverable by later agents.
+
+For a first pass on a moderate org, bound the harvest before widening scope:
+
+```bash
+export ZDOTS_GH_REPO_LIMIT=25
+GH_TOKEN=$(gh auth token) zdots-gh run <owner> --html
+```
+
+`ZDOTS_GH_REPO_LIMIT` limits repository count only. It does not limit PR/issue
+pagination depth within each repository, so a high-history first repo can still
+take several minutes. Validate the process on a smaller owner before widening to
+larger organizations.
+
+If the user is specifically interested in GitHub Issues as the coordination
+surface, inspect the forensic report sections and graph exports after rendering:
+
+```bash
+grep -n "Issue triage & rework" "$ZDOTS_GH_STATE/reports/<owner>.insights.md"
+grep -n "Cross-repo issue coordinators" "$ZDOTS_GH_STATE/reports/<owner>.insights.md"
+ls "$ZDOTS_GH_STATE/<owner>/graphs"
+```
+
+Key graph files are `issue_actor_coordination.json`,
+`issue_closure_coordination.json`, `repo_cochange.json`, and
+`boundary_spanners.json`.
 
 After `zdots-gh run <owner>` or `zdots-gh ingest <owner>`, verify:
 
