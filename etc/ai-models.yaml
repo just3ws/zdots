@@ -69,7 +69,7 @@ profiles:
     model_file: "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
     hf_repo: "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF"
     size_gb: 1.1
-    ctx_size: 8192
+    ctx_size: 32768
     n_gpu_layers: 99
     description: "Ultra-lightweight Qwen2.5. Perfect for background tasks."
 
