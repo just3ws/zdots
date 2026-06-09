@@ -11,7 +11,7 @@
 #   observed     directly present in the harvested GitHub data
 #   inferred     a defensible derivation from observed data (rules stated in `method`)
 #   proxy        an approximate stand-in for something GitHub does not record directly
-#   unavailable  cannot be known from the Phase-1 harvest at all (no view exists)
+#   unavailable  cannot be known from the harvest at all (no view exists)
 #
 # Per-entry fields (cat 12 query decomposition):
 #   name           stable key the renderer references
@@ -26,8 +26,8 @@
 #   source_view    the warehouse view/table backing it (null for unavailable)
 #   reason         (unavailable only) why it cannot be computed yet
 
-version: 1
-phase: 1
+version: 2
+phase: 2
 
 insights:
 
@@ -38,7 +38,7 @@ insights:
     required_data: [prs.merged_at, prs.created_at]
     method: merged non-bot PRs ÷ observed span in weeks
     confidence: proxy
-    caveats: Merge ≠ deploy. True deploy frequency needs release/deployment data (Phase 2).
+    caveats: Merge ≠ deploy. True deploy frequency needs real deploy events (releases are empty here).
     output: merges per week
     example: "Deployment-frequency proxy is 0.2 merged PRs/week across 1 active repo."
     source_view: prs
@@ -102,14 +102,14 @@ insights:
     section: dora
     purpose: Merge → production deploy delay.
     confidence: unavailable
-    reason: No deployment/release data is harvested in Phase 1.
+    reason: GitHub exposes no production-deploy events; Actions run timestamps don't mark deploys.
     source_view: null
 
   - name: mttr
     section: dora
     purpose: Mean time to restore after an incident.
     confidence: unavailable
-    reason: Requires incident + deployment timeline (releases/deployments) not harvested in Phase 1.
+    reason: Requires incident signals plus a deploy timeline — neither is exposed by the API here.
     source_view: null
 
   # ── Flow metrics (cat 3) ───────────────────────────────────────────────────
@@ -203,16 +203,20 @@ insights:
 
   - name: reopen_rate
     section: flow
-    purpose: How often closed work is reopened (rework signal).
-    confidence: unavailable
-    reason: Reopen/closed timeline events are not harvested in Phase 1.
-    source_view: null
+    purpose: How often closed issues are reopened (rework signal).
+    required_data: [issues.reopen_count]
+    method: share of issues with ≥1 REOPENED_EVENT in their timeline
+    confidence: observed
+    caveats: Counts issue reopens only; PR reopen is not tracked.
+    output: reopened issues / total per repo
+    example: "0 of 1 issues were ever reopened."
+    source_view: reopen_summary
 
   - name: queue_vs_active_time
     section: flow
     purpose: Split of cycle time into waiting vs active work.
     confidence: unavailable
-    reason: Needs review-request + per-event timeline; only coarse open→merge is available in Phase 1.
+    reason: Needs the per-event PR timeline (ready/review-request events); only coarse open→merge exists.
     source_view: null
 
   # ── Change classification (cat 4) ──────────────────────────────────────────
@@ -241,10 +245,14 @@ insights:
 
   - name: branch_name_signal
     section: classification
-    purpose: Use branch naming (feature/, hotfix/, fix/) as a change signal.
-    confidence: unavailable
-    reason: headRefName is not harvested in Phase 1.
-    source_view: null
+    purpose: Branch naming (feature/, hotfix/, fix/, release/) as an independent change signal.
+    required_data: [prs.head_ref]
+    method: extract the conventional prefix before the first slash of the head branch
+    confidence: observed
+    caveats: Many teams don't follow a branch convention; 'none' is common and not a defect.
+    output: per-prefix distribution
+    example: "No human PR uses a conventional branch prefix (all 'none')."
+    source_view: branch_signal
 
   # ── Actor / process (cat 5) ────────────────────────────────────────────────
   - name: actor_activity
@@ -282,23 +290,27 @@ insights:
 
   - name: who_merges
     section: actor
-    purpose: Who performs merges (gatekeeper role).
-    confidence: unavailable
-    reason: mergedBy is not harvested in Phase 1.
-    source_view: null
+    purpose: Who performs merges — the gatekeeper role.
+    required_data: [prs.merged_by, prs.state]
+    method: count merged PRs per mergedBy login; bot mergers flagged
+    confidence: observed
+    caveats: A single gatekeeper merging others' work is both throughput and bus-factor risk.
+    output: per-actor merge counts
+    example: "just3ws is the sole merge gatekeeper (11 merges)."
+    source_view: merge_gatekeepers
 
   - name: who_fixes_ci
     section: actor
     purpose: Who repairs broken pipelines.
     confidence: unavailable
-    reason: Requires Actions run actors (Phase 2).
+    reason: The workflow-run triggering actor is not projected into the runs cache.
     source_view: null
 
   - name: who_owns_release
     section: actor
     purpose: Who drives releases/deploys.
     confidence: unavailable
-    reason: No release/deployment data harvested in Phase 1.
+    reason: No GitHub Releases exist and release authorship is not projected.
     source_view: null
 
   # ── Repository health (cat 6) ──────────────────────────────────────────────
@@ -482,31 +494,94 @@ insights:
     example: "Authorship is 100% concentrated this year."
     source_view: prs
 
-  # ── Pure data gaps (cat 1, 7) — surfaced in Unknowns & Data Gaps ───────────
+  # ── GitHub Actions (cat 7) — Phase 2 ───────────────────────────────────────
   - name: actions_reliability
-    section: gaps
-    purpose: Workflow run frequency, failure rate, duration, flakiness (cat 7).
-    confidence: unavailable
-    reason: GitHub Actions (workflows/runs/jobs/conclusions/durations) are not harvested in Phase 1.
-    source_view: null
+    section: actions
+    purpose: Workflow run volume, failure rate, and duration per repo.
+    required_data: [workflow_runs.conclusion, workflow_runs.run_started_at, workflow_runs.updated_at]
+    method: per-repo runs + failure rate over decided (success/failure) runs
+    confidence: observed
+    caveats: Runs are capped at the most-recent 100 per repo by the harvest; older history is truncated.
+    output: per-repo workflow/run/failure-rate rollup
+    example: "phalanxduel: 203 recent runs, 16% failure rate across 14 workflows."
+    source_view: actions_by_repo
 
+  - name: workflow_failure_detail
+    section: actions
+    purpose: Which individual workflows fail and how long they run.
+    required_data: [workflow_runs.name, workflow_runs.conclusion]
+    method: per-(repo,workflow) failure rate + median minutes over decided runs
+    confidence: observed
+    caveats: Dependabot/auto-generated run names can be long and noisy.
+    output: per-workflow reliability rows
+    example: "'Deploy GitHub Pages' fails 71% of runs — a broken deploy gate."
+    source_view: workflow_reliability
+
+  - name: flaky_workflows
+    section: actions
+    purpose: Workflows that both pass and fail (intermittent, mid-range failure rate).
+    required_data: [workflow_reliability]
+    method: workflows with ≥4 runs and failure rate in (0.1, 0.9)
+    confidence: inferred
+    caveats: Mid-range failure can be genuine flakiness or a workflow under active repair.
+    output: flaky workflow list
+    example: "2 workflows are flaky (~71% failure over 24 runs each)."
+    source_view: flaky_workflows
+
+  - name: deploy_gates
+    section: actions
+    purpose: Workflows that behave like deploy/release/publish gates.
+    required_data: [workflows.name, workflows.path]
+    method: name/path matches deploy|release|publish|cd|pages
+    confidence: inferred
+    caveats: Name-based inference; a matched workflow may not actually deploy.
+    output: candidate deploy-gate list
+    example: "'Deploy GitHub Pages' and 'pages-build-deployment' act as deploy gates."
+    source_view: deploy_workflows
+
+  # ── Releases / deploy (cat 2, 8) — Phase 2 ─────────────────────────────────
   - name: releases_and_deploys
-    section: gaps
-    purpose: Release/tag/deployment cadence and deploy gates (cat 2, 7, 8).
-    confidence: unavailable
-    reason: Releases, tags, and deployments are not harvested in Phase 1.
-    source_view: null
+    section: releases
+    purpose: Release cadence and the most recent release per repo.
+    required_data: [releases.published_at, releases.created_at]
+    method: per-repo release count + first/last release timestamps
+    confidence: observed
+    caveats: Only GitHub Releases; tag-only or external deploys are invisible.
+    output: per-repo release cadence
+    example: "No GitHub Releases exist — shipping is not cut as releases here."
+    source_view: releases_by_repo
 
+  # ── Issue triage (cat 3, 5, 8) — Phase 2 ───────────────────────────────────
   - name: triage_first_response
-    section: gaps
-    purpose: Time-to-first-response and time-to-triage on issues (cat 3, 5, 8).
-    confidence: unavailable
-    reason: Issue comments, assignees, and timeline events are not harvested in Phase 1.
-    source_view: null
+    section: triage
+    purpose: Time from issue open to first non-author response (triage latency).
+    required_data: [issues.created_at, issue_comments.commented_at]
+    method: earliest non-author comment minus issue open time
+    confidence: observed
+    caveats: Reaction-only or label-only triage without a comment reads as no response.
+    output: median hours-to-first-response + reopen counts
+    example: "Issue #4 got a first response within the hour."
+    source_view: issue_triage
 
   - name: assignment_ownership
-    section: gaps
-    purpose: Who is assigned / owns each issue (cat 5).
-    confidence: unavailable
-    reason: Issue assignees and milestones are not harvested in Phase 1.
-    source_view: null
+    section: triage
+    purpose: Who is assigned to / owns issues.
+    required_data: [issue_assignees.assignee]
+    method: count assigned issues per actor
+    confidence: observed
+    caveats: Many issues are unassigned; assignment ≠ who actually does the work.
+    output: per-actor assigned-issue counts
+    example: "just3ws is assigned every assigned issue."
+    source_view: issue_assignment
+
+  # ── Repo metadata enrichment (cat 6) — Phase 2 ─────────────────────────────
+  - name: repo_metadata
+    section: repo_health
+    purpose: Real language, default branch, archived flag, and last-push recency per repo.
+    required_data: [repo_meta.language, repo_meta.default_branch, repo_meta.archived, repo_meta.pushed_at]
+    method: join repo metadata onto the repo health index
+    confidence: observed
+    caveats: open_issues_count from the API conflates open issues and open PRs.
+    output: enriched repo-health row
+    example: "phalanxduel is TypeScript, default branch main, not archived."
+    source_view: repo_health_meta
