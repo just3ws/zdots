@@ -43,6 +43,11 @@ CREATE OR REPLACE TABLE prs AS
          node.mergedAt::TIMESTAMP            AS merged_at,
          coalesce(node.reviewThreads.totalCount, 0) AS thread_count,
          node.statusCheckRollup.state         AS ci_state,
+         node.headRefName                     AS head_ref,    -- Phase 2
+         node.baseRefName                     AS base_ref,    -- Phase 2
+         coalesce(node.isDraft, false)        AS is_draft,    -- Phase 2
+         node.mergedBy.login                  AS merged_by,   -- Phase 2 (who_merges)
+         coalesce(node.reviewRequests.totalCount, 0) AS review_requests, -- Phase 2
          (node.author.login IS NULL
             OR node.author.login LIKE 'app/%'
             OR lower(node.author.login) LIKE '%[bot]%'
@@ -92,8 +97,51 @@ CREATE OR REPLACE TABLE issues AS
          node.state                AS state,
          node.author.login         AS author,
          node.createdAt::TIMESTAMP AS created_at,
-         node.closedAt::TIMESTAMP  AS closed_at
+         node.closedAt::TIMESTAMP  AS closed_at,
+         node.milestone.title      AS milestone,                  -- Phase 2
+         coalesce(node.reopened.totalCount, 0) AS reopen_count    -- Phase 2 (rework)
   FROM issue_nodes;
+
+-- Issue discussion + ownership (Phase 2). src: issue GraphQL  [observed]
+CREATE OR REPLACE TABLE issue_comments AS
+  SELECT repo_name, node.number AS issue_number,
+         c.author.login         AS commenter,
+         c.createdAt::TIMESTAMP  AS commented_at
+  FROM issue_nodes, unnest(node.comments.nodes) AS t(c)
+  WHERE node.comments.nodes IS NOT NULL AND c.author.login IS NOT NULL;
+
+CREATE OR REPLACE TABLE issue_assignees AS
+  SELECT repo_name, node.number AS issue_number, a.login AS assignee
+  FROM issue_nodes, unnest(node.assignees.nodes) AS t(a)
+  WHERE node.assignees.nodes IS NOT NULL;
+
+-- ── Phase-2 REST sources (field-projected arrays; explicit columns so empty
+--    estates yield typed-empty tables, never a no-schema bind error) ──────────
+CREATE OR REPLACE TABLE repo_meta AS
+  SELECT * FROM read_json('__DATA_DIR__/*_meta.json', format='array',
+    columns={repo_name:'VARCHAR', default_branch:'VARCHAR', language:'VARCHAR',
+             archived:'BOOLEAN', private:'BOOLEAN', fork:'BOOLEAN',
+             created_at:'TIMESTAMP', pushed_at:'TIMESTAMP',
+             stargazers_count:'BIGINT', forks_count:'BIGINT', open_issues_count:'BIGINT'},
+    maximum_object_size=67108864);
+
+CREATE OR REPLACE TABLE workflows AS
+  SELECT * FROM read_json('__DATA_DIR__/*_workflows.json', format='array',
+    columns={repo_name:'VARCHAR', id:'BIGINT', name:'VARCHAR', path:'VARCHAR', state:'VARCHAR'},
+    maximum_object_size=67108864);
+
+CREATE OR REPLACE TABLE workflow_runs AS
+  SELECT * FROM read_json('__DATA_DIR__/*_runs.json', format='array',
+    columns={repo_name:'VARCHAR', id:'BIGINT', name:'VARCHAR', workflow_id:'BIGINT',
+             conclusion:'VARCHAR', status:'VARCHAR', event:'VARCHAR', head_branch:'VARCHAR',
+             created_at:'TIMESTAMP', run_started_at:'TIMESTAMP', updated_at:'TIMESTAMP'},
+    maximum_object_size=67108864);
+
+CREATE OR REPLACE TABLE releases AS
+  SELECT * FROM read_json('__DATA_DIR__/*_releases.json', format='array',
+    columns={repo_name:'VARCHAR', id:'BIGINT', tag_name:'VARCHAR', name:'VARCHAR',
+             draft:'BOOLEAN', prerelease:'BOOLEAN', created_at:'TIMESTAMP', published_at:'TIMESTAMP'},
+    maximum_object_size=67108864);
 
 -- ── DevEx / DORA views ───────────────────────────────────────────────────────
 
@@ -557,3 +605,128 @@ CREATE OR REPLACE VIEW boundary_spanners AS
   FROM prs WHERE NOT is_bot AND author IS NOT NULL
   GROUP BY author HAVING count(DISTINCT repo_name) >= 2
   ORDER BY repos DESC, prs DESC;
+
+-- ╔══════════════════════════════════════════════════════════════════════════╗
+-- ║  PHASE 2 — harvest-expansion layer (Actions, releases, repo metadata,      ║
+-- ║  PR/issue richness). Flips catalog entries from unavailable → observed.     ║
+-- ╚══════════════════════════════════════════════════════════════════════════╝
+
+-- ── GitHub Actions (cat 7) ───────────────────────────────────────────────────
+
+-- Per-(repo, workflow) run reliability. failure_rate over decided runs only
+-- (success/failure); duration median over the same to exclude stuck/cancelled
+-- outliers. src: workflow_runs  [observed]
+CREATE OR REPLACE VIEW workflow_reliability AS
+  SELECT repo_name, name AS workflow,
+         count(*)                                          AS runs,
+         count(*) FILTER (WHERE conclusion = 'failure')    AS failures,
+         count(*) FILTER (WHERE conclusion = 'cancelled')  AS cancelled,
+         round(count(*) FILTER (WHERE conclusion = 'failure')::DOUBLE
+               / nullif(count(*) FILTER (WHERE conclusion IN ('success','failure')), 0), 3) AS failure_rate,
+         round(median(date_diff('second', run_started_at, updated_at))
+               FILTER (WHERE conclusion IN ('success','failure')) / 60.0, 1) AS median_min
+  FROM workflow_runs
+  GROUP BY repo_name, name;
+
+-- Per-repo Actions rollup. src: workflow_runs, workflows  [observed]
+CREATE OR REPLACE VIEW actions_by_repo AS
+  SELECT r.repo_name,
+         count(DISTINCT r.workflow_id)                     AS active_workflows,
+         count(*)                                          AS runs,
+         count(*) FILTER (WHERE r.conclusion = 'failure')  AS failures,
+         round(count(*) FILTER (WHERE r.conclusion = 'failure')::DOUBLE
+               / nullif(count(*) FILTER (WHERE r.conclusion IN ('success','failure')), 0), 3) AS failure_rate
+  FROM workflow_runs r
+  GROUP BY r.repo_name;
+
+-- Flaky workflows: both pass and fail with a mid-range failure rate. [inferred]
+CREATE OR REPLACE VIEW flaky_workflows AS
+  SELECT repo_name, workflow, runs, failure_rate
+  FROM workflow_reliability
+  WHERE runs >= 4 AND failure_rate > 0.1 AND failure_rate < 0.9
+  ORDER BY failure_rate DESC, runs DESC;
+
+-- Workflows whose name/path implies a deploy/release/publish gate (deploy
+-- proxy until real deployments are harvested). src: workflows  [inferred]
+CREATE OR REPLACE VIEW deploy_workflows AS
+  SELECT DISTINCT repo_name, name AS workflow, path
+  FROM workflows
+  WHERE regexp_matches(lower(name), 'deploy|release|publish|\bcd\b|ship|production|pages')
+     OR regexp_matches(lower(coalesce(path, '')), 'deploy|release|publish|/cd');
+
+-- ── Releases / deploy signals (cat 2, 8) ─────────────────────────────────────
+-- src: releases  [observed]
+CREATE OR REPLACE VIEW releases_by_repo AS
+  SELECT repo_name,
+         count(*)                                  AS releases,
+         count(*) FILTER (WHERE NOT prerelease)    AS final_releases,
+         min(coalesce(published_at, created_at))   AS first_release,
+         max(coalesce(published_at, created_at))   AS last_release
+  FROM releases GROUP BY repo_name;
+
+-- ── Branch-name signal (cat 4) ───────────────────────────────────────────────
+-- Conventional branch prefix as an independent change signal. src: prs  [observed]
+CREATE OR REPLACE VIEW branch_signal AS
+  SELECT repo_name, number, head_ref,
+         CASE WHEN regexp_matches(lower(coalesce(head_ref, '')),
+                    '^(hotfix|release|feat|feature|fix|bug|chore|docs|refactor|ci|test|dependabot|renovate)/')
+              THEN regexp_extract(lower(head_ref), '^([a-z]+)/', 1)
+              ELSE 'none' END AS branch_prefix
+  FROM prs WHERE NOT is_bot;
+
+-- ── Merge gatekeepers (cat 5, who_merges) ────────────────────────────────────
+-- src: prs.merged_by  [observed]
+CREATE OR REPLACE VIEW merge_gatekeepers AS
+  SELECT merged_by AS actor,
+         count(*)                  AS merges,
+         count(DISTINCT repo_name) AS repos,
+         (lower(merged_by) LIKE '%bot%' OR merged_by LIKE 'app/%'
+          OR lower(merged_by) IN ('github-actions','dependabot','renovate')) AS is_bot
+  FROM prs WHERE state = 'MERGED' AND merged_by IS NOT NULL
+  GROUP BY merged_by ORDER BY merges DESC;
+
+-- ── Issue triage (cat 3, 5, 8) ───────────────────────────────────────────────
+-- Time-to-first-response + reopen (rework) per issue. first response is the
+-- earliest non-author comment. src: issues, issue_comments  [observed]
+CREATE OR REPLACE VIEW issue_triage AS
+  WITH fc AS (SELECT c.repo_name, c.issue_number, min(c.commented_at) AS first_response
+              FROM issue_comments c
+              JOIN issues i ON c.repo_name = i.repo_name AND c.issue_number = i.number
+              WHERE c.commenter IS DISTINCT FROM i.author
+              GROUP BY c.repo_name, c.issue_number)
+  SELECT i.repo_name, i.number, i.author, i.created_at, i.closed_at, i.milestone,
+         i.reopen_count,
+         fc.first_response,
+         date_diff('hour', i.created_at, fc.first_response) AS hours_to_first_response
+  FROM issues i
+  LEFT JOIN fc ON i.repo_name = fc.repo_name AND i.number = fc.issue_number;
+
+-- Issue assignment / ownership (cat 5). src: issue_assignees  [observed]
+CREATE OR REPLACE VIEW issue_assignment AS
+  SELECT assignee AS actor,
+         count(*)                  AS assigned,
+         count(DISTINCT repo_name) AS repos
+  FROM issue_assignees WHERE assignee IS NOT NULL
+  GROUP BY assignee ORDER BY assigned DESC;
+
+-- Reopen (rework) rate per repo. src: issues.reopen_count  [observed]
+CREATE OR REPLACE VIEW reopen_summary AS
+  SELECT repo_name,
+         count(*)                                 AS issues,
+         count(*) FILTER (WHERE reopen_count > 0)  AS reopened_issues,
+         sum(reopen_count)                         AS reopen_events
+  FROM issues GROUP BY repo_name;
+
+-- ── Repo metadata enrichment (cat 6) ─────────────────────────────────────────
+-- repo_health + real language / default branch / archived / last push.
+-- src: repo_health, repo_meta  [observed]
+CREATE OR REPLACE VIEW repo_health_meta AS
+  SELECT h.*,
+         m.language,
+         m.default_branch,
+         m.archived,
+         m.pushed_at,
+         m.stargazers_count,
+         m.open_issues_count
+  FROM repo_health h
+  LEFT JOIN repo_meta m ON h.repo_name = m.repo_name;
