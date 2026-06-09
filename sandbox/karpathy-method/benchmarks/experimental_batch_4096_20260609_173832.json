@@ -1,0 +1,5 @@
+{
+  "timestamp": "20260609_173832",
+  "label": "experimental_batch_4096",
+  "results": [{"tokens": 512, "latency_ms": 7541},{"tokens": 1024, "latency_ms": 15359},{"tokens": 2048, "latency_ms": 12797}]
+}
