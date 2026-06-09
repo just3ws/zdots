@@ -17,6 +17,7 @@ This file is the human-readable companion to `interface-inventory.json`. It trac
 | `zdots-ask` | 1 | no | Domain-aware local AI prompt router |
 | `ztask` | 1 | yes | Task-driven environment bridge |
 | `zdots-log-analyze` | 1 | no | Package deploy logs for diagnostics |
+| `zdots-gh` | 1 | yes | GitHub delivery-health and process-forensics insights |
 
 ## Core Environment Variables
 
