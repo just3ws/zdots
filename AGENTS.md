@@ -81,6 +81,7 @@ Full tool reference with usage examples: [docs/tooling.md](docs/tooling.md)
 
 - **Tasks:** Use the `backlog` CLI. See [docs/backlog.md](docs/backlog.md).
 - **Environment:** Use `ztask start <id>` when starting work to hydrate context.
+- **Knowledge Base:** Use `zdots-ctx query`, `zdots-ctx query --semantic`, and `zdots-ctx hydrate` before claiming missing context. See [docs/wiki/AI-and-Knowledge-Layer.md](docs/wiki/AI-and-Knowledge-Layer.md).
 - **Observability:** This is an observable session linked to the shell via `gemini-invoke`. Every tool call you make is tracked.
 - **Standards:** Follow the [Zsh Quality Rubric](docs/zsh-quality-rubric.md).
 - **Setup:** See [SETUP.md](SETUP.md) for new machine setup.
