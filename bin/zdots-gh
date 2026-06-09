@@ -1,0 +1,370 @@
+#!/usr/bin/env bash
+# ---
+# id: zdots-gh
+# title: "Zdots GitHub Org Insights"
+# purpose: Harvest GitHub org/user metadata into a local DuckDB warehouse, render
+#          DORA + DevEx delivery-health reports (Markdown/HTML), and ingest the
+#          distilled insights into the zdots knowledge base.
+# rationale: An engineering-leadership view of delivery health — lead time, change
+#            failure, review friction, bus factor, knowledge decay — for estates of
+#            up to ~100 repos. Local-first: `gh` for read-only metadata, DuckDB for
+#            analytics, `zdots-ctx ingest` (zdots-brain) for the knowledge loop. No
+#            cloud LLM; the only network egress is the authenticated GitHub API.
+# ---
+# bin/zdots-gh — GitHub org/user delivery-health insights for the zdots brain.
+#
+# Pipeline:  harvest → warehouse → report → ingest
+#   harvest    gh GraphQL → per-repo JSON cache (incremental; skips fresh files)
+#   warehouse  cache JSON → per-owner DuckDB (etc/zdots-gh/warehouse.sql)
+#   report     DuckDB → Markdown (always) + HTML (--html)  (etc/zdots-gh/report.py)
+#   ingest     the Markdown report → `zdots-ctx ingest` (Knowledge Vault)
+#   run        all four, in order
+#   status     cache age, counts, warehouse + report freshness for an owner
+#
+# An "owner" is a GitHub org OR user login — `gh repo list <owner>` covers both.
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+ASSET_DIR="${ZDOTDIR}/etc/zdots-gh"
+STATE_DIR="${ZDOTS_GH_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/zdots/gh}"
+
+# Tunables (sane defaults for ≤100-repo estates with a couple-dozen contributors).
+PR_PAGE="${ZDOTS_GH_PR_PAGE:-25}"      # PRs fetched per GraphQL page
+ISSUE_PAGE="${ZDOTS_GH_ISSUE_PAGE:-50}"
+REPO_LIMIT="${ZDOTS_GH_REPO_LIMIT:-100}"
+INCLUDE_FORKS="${ZDOTS_GH_INCLUDE_FORKS:-0}"
+INCLUDE_ARCHIVED="${ZDOTS_GH_INCLUDE_ARCHIVED:-0}"
+
+if [[ -t 1 ]]; then
+  RST=$'\e[0m'; BOLD=$'\e[1m'; DIM=$'\e[2m'; RED=$'\e[0;31m'; GRN=$'\e[0;32m'; YEL=$'\e[0;33m'; BLU=$'\e[0;34m'
+else RST=''; BOLD=''; DIM=''; RED=''; GRN=''; YEL=''; BLU=''; fi
+
+_log()  { printf '%s==>%s %s\n' "$BLU" "$RST" "$*" >&2; }
+_ok()   { printf '  %s[ok]%s   %s\n' "$GRN" "$RST" "$*" >&2; }
+_warn() { printf '  %s[warn]%s %s\n' "$YEL" "$RST" "$*" >&2; }
+_die()  { printf '%szdots-gh: %s%s\n' "$RED" "$*" "$RST" >&2; exit 1; }
+
+usage() {
+  cat <<EOF
+Usage: zdots-gh <command> <owner> [options]
+
+GitHub org/user delivery-health insights (DORA + DevEx) for the zdots brain.
+An <owner> is a GitHub organization OR user login (e.g. phalanxduel, just3ws).
+
+Commands:
+  harvest   <owner>          Fetch repo/PR/issue metadata → JSON cache (incremental)
+  warehouse <owner>          (Re)build the per-owner DuckDB warehouse from the cache
+  report    <owner> [--html] Render the DORA/DevEx Markdown (+ HTML) report
+  insights  <owner> [--as-of D] Forensic process-inference report + coordination graphs
+  ingest    <owner>          Ingest the Markdown report(s) into the knowledge base
+  run       <owner> [--html] harvest → warehouse → report → insights → ingest
+  status    [owner]          Show cache/warehouse/report freshness
+  -h, --help                 Show this help
+
+Options:
+  --force         Re-harvest even if cached JSON exists
+  --html          Also emit the rich HTML dashboard (report/run)
+  --as-of DATE    Reference date for insights (YYYY-MM-DD; default: today).
+                  Anchors open-item age + the 1/2/3-year temporal buckets, and
+                  makes the report reproducible.
+  --no-insights   For 'run': skip the forensic insights step
+  --no-ingest     For 'run': skip the knowledge-base ingest step
+  --dry-run       For 'ingest': show what would be ingested, change nothing
+
+Environment:
+  ZDOTS_GH_STATE          Cache/warehouse/report root (default \$XDG_STATE_HOME/zdots/gh)
+  ZDOTS_GH_REPO_LIMIT     Max repos to enumerate (default ${REPO_LIMIT})
+  ZDOTS_GH_PR_PAGE        PRs per GraphQL page (default ${PR_PAGE})
+  ZDOTS_GH_INCLUDE_FORKS  1 = include forks (default ${INCLUDE_FORKS})
+  ZDOTS_GH_INCLUDE_ARCHIVED 1 = include archived repos (default ${INCLUDE_ARCHIVED})
+
+Examples:
+  zdots-gh run phalanxduel --html      # full loop + dashboard + insights
+  zdots-gh insights phalanxduel        # forensic report + coordination graphs
+  zdots-gh insights phalanxduel --as-of 2026-06-09   # reproducible snapshot
+  zdots-gh harvest just3ws --force     # refresh a user's cache
+  zdots-gh status                      # all owners harvested so far
+
+Outputs (under \$ZDOTS_GH_STATE):
+  <owner>/*.json            raw GraphQL cache
+  <owner>/graphs/*.json     coordination graph edge-lists (insights)
+  <owner>.duckdb            analytical warehouse
+  reports/<owner>.md        ingestable DORA/DevEx report
+  reports/<owner>.insights.md  forensic process-inference report (insights)
+  reports/<owner>.html      executive dashboard (--html)
+EOF
+}
+
+# ── arg parse ────────────────────────────────────────────────────────────────
+CMD="${1:-}"; [[ -z "$CMD" || "$CMD" == "-h" || "$CMD" == "--help" ]] && { usage; exit 0; }
+shift || true
+
+OWNER=""; OPT_FORCE=0; OPT_HTML=0; OPT_NO_INGEST=0; OPT_DRYRUN=0
+OPT_NO_INSIGHTS=0; OPT_ASOF=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force)       OPT_FORCE=1 ;;
+    --html)        OPT_HTML=1 ;;
+    --no-ingest)   OPT_NO_INGEST=1 ;;
+    --no-insights) OPT_NO_INSIGHTS=1 ;;
+    --as-of)       shift; OPT_ASOF="${1:-}"; [[ -n "$OPT_ASOF" ]] || _die "--as-of needs a date (YYYY-MM-DD)" ;;
+    --as-of=*)     OPT_ASOF="${1#*=}" ;;
+    --dry-run)     OPT_DRYRUN=1 ;;
+    -h|--help)     usage; exit 0 ;;
+    -*)            _die "unknown option: $1" ;;
+    *)             if [[ -z "$OWNER" ]]; then OWNER="$1"; else _die "unexpected argument: $1"; fi ;;
+  esac
+  shift
+done
+
+_need() { command -v "$1" >/dev/null 2>&1 || _die "$1 not found — $2"; }
+_require_owner() { [[ -n "$OWNER" ]] || _die "missing <owner> — try: zdots-gh $CMD <org-or-user>"; }
+_owner_dir()  { printf '%s/%s' "$STATE_DIR" "$1"; }
+_owner_db()   { printf '%s/%s.duckdb' "$STATE_DIR" "$1"; }
+_report_md()  { printf '%s/reports/%s.md' "$STATE_DIR" "$1"; }
+_report_html(){ printf '%s/reports/%s.html' "$STATE_DIR" "$1"; }
+_report_insights(){ printf '%s/reports/%s.insights.md' "$STATE_DIR" "$1"; }
+_graphs_dir() { printf '%s/graphs' "$(_owner_dir "$1")"; }
+
+# ── harvest ──────────────────────────────────────────────────────────────────
+# One paginated GraphQL query per connection (PRs, issues) — the PoC's bug was
+# paginating pullRequests AND issues on one shared $endCursor, which silently
+# truncated both. We query them separately so --paginate follows each correctly.
+_pr_query() {
+  cat <<GQL
+query(\$owner: String!, \$name: String!, \$endCursor: String) {
+  repository(owner: \$owner, name: \$name) {
+    nameWithOwner
+    pullRequests(first: ${PR_PAGE}, after: \$endCursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+      nodes {
+        number title state createdAt mergedAt
+        author { login ... on User { name company } }
+        labels(first: 15) { nodes { name } }
+        files(first: 100) { nodes { path additions deletions } }
+        reviewThreads { totalCount }
+        statusCheckRollup { state }
+        closingIssuesReferences(first: 10) { nodes { number } }
+        comments(first: 50) { nodes { author { login } createdAt } }
+        reviews(first: 30) { nodes { author { login } state createdAt } }
+      }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+}
+GQL
+}
+
+_issue_query() {
+  cat <<GQL
+query(\$owner: String!, \$name: String!, \$endCursor: String) {
+  repository(owner: \$owner, name: \$name) {
+    nameWithOwner
+    issues(first: ${ISSUE_PAGE}, after: \$endCursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+      nodes {
+        number title state createdAt closedAt
+        author { login ... on User { name company } }
+        labels(first: 15) { nodes { name } }
+      }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+}
+GQL
+}
+
+_harvest_one() {
+  local repo="$1" outdir="$2" kind="$3" query="$4"
+  local safe="${repo//\//_}"
+  local out="${outdir}/${safe}_${kind}.json"
+  if [[ -f "$out" && "$OPT_FORCE" -ne 1 ]]; then
+    return 0  # incremental: already cached
+  fi
+  if gh api graphql --paginate --slurp \
+        -f owner="${repo%/*}" -f name="${repo#*/}" -f query="$query" \
+        >"${out}.tmp" 2>/dev/null; then
+    mv -f "${out}.tmp" "$out"
+    return 0
+  fi
+  rm -f "${out}.tmp"
+  _warn "failed to harvest ${kind} for ${repo}"
+  return 1
+}
+
+cmd_harvest() {
+  _require_owner
+  _need gh "install: brew bundle (gh) and run: gh auth login"
+  gh auth status >/dev/null 2>&1 || _die "gh is not authenticated — run: gh auth login"
+
+  local outdir; outdir="$(_owner_dir "$OWNER")"
+  mkdir -p "$outdir"
+
+  local list_args=(--limit "$REPO_LIMIT" --json nameWithOwner -q '.[].nameWithOwner')
+  [[ "$INCLUDE_FORKS" -eq 1 ]]    || list_args=(--source "${list_args[@]}")
+  [[ "$INCLUDE_ARCHIVED" -eq 1 ]] || list_args=(--no-archived "${list_args[@]}")
+
+  _log "enumerating repos for ${BOLD}${OWNER}${RST} (limit ${REPO_LIMIT})"
+  local repos
+  repos="$(gh repo list "$OWNER" "${list_args[@]}" 2>/dev/null)" \
+    || _die "could not list repos for '${OWNER}' — is it a valid org/user you can see?"
+  [[ -n "$repos" ]] || _die "no repositories found for '${OWNER}'"
+
+  local n=0 prq isq
+  prq="$(_pr_query)"; isq="$(_issue_query)"
+  while IFS= read -r repo; do
+    [[ -n "$repo" ]] || continue
+    n=$((n+1))
+    printf '  %s%2d%s %s\n' "$DIM" "$n" "$RST" "$repo" >&2
+    _harvest_one "$repo" "$outdir" prs    "$prq" || true
+    _harvest_one "$repo" "$outdir" issues "$isq" || true
+  done <<<"$repos"
+
+  _ok "harvested ${n} repos → ${outdir}"
+}
+
+# ── warehouse ────────────────────────────────────────────────────────────────
+cmd_warehouse() {
+  _require_owner
+  _need duckdb "install: brew bundle (duckdb)"
+  local outdir db sql
+  outdir="$(_owner_dir "$OWNER")"; db="$(_owner_db "$OWNER")"
+  [[ -d "$outdir" ]] || _die "no cache for '${OWNER}' — run: zdots-gh harvest ${OWNER}"
+  [[ -f "${ASSET_DIR}/warehouse.sql" ]] || _die "missing ${ASSET_DIR}/warehouse.sql"
+
+  _log "building warehouse → ${db}"
+  rm -f "$db"
+  # Substitute the cache glob into the schema, then build the DuckDB file.
+  sql="$(sed "s#__DATA_DIR__#${outdir}#g" "${ASSET_DIR}/warehouse.sql")"
+  printf '%s' "$sql" | duckdb "$db" \
+    || _die "warehouse build failed (see DuckDB error above)"
+  _ok "warehouse ready: ${db}"
+}
+
+# ── report ───────────────────────────────────────────────────────────────────
+cmd_report() {
+  _require_owner
+  _need uv "install: brew bundle (uv) — runs report.py with duckdb in an ephemeral env"
+  local db md html
+  db="$(_owner_db "$OWNER")"; md="$(_report_md "$OWNER")"; html="$(_report_html "$OWNER")"
+  [[ -f "$db" ]] || cmd_warehouse
+  mkdir -p "$(dirname "$md")"
+  [[ -f "${ASSET_DIR}/report.py" ]] || _die "missing ${ASSET_DIR}/report.py"
+
+  _log "rendering report for ${BOLD}${OWNER}${RST}"
+  local args=(--owner "$OWNER" --db "$db" --asset-dir "$ASSET_DIR" --md "$md")
+  [[ "$OPT_HTML" -eq 1 ]] && args+=(--html "$html")
+  uv run --quiet --with duckdb python "${ASSET_DIR}/report.py" "${args[@]}" \
+    || _die "report generation failed"
+  _ok "markdown: ${md}"
+  # if/fi (not `[[ ]] && _ok`): a false test as the last statement would make the
+  # function return 1 and abort the `run` loop under `set -e` before insights/ingest.
+  if [[ "$OPT_HTML" -eq 1 ]]; then _ok "html:     ${html}"; fi
+}
+
+# ── insights (forensic process-inference report) ─────────────────────────────
+# Renders the extended Markdown report + graph edge-lists via the zero-gem Ruby
+# renderer querying the warehouse. Separate artifact from `report` (which is left
+# untouched). Deterministic given (warehouse, --as-of).
+cmd_insights() {
+  _require_owner
+  _need ruby "install: mise ruby — runs insights.rb (queries the DuckDB warehouse)"
+  local db md graphs catalog rb
+  db="$(_owner_db "$OWNER")"; md="$(_report_insights "$OWNER")"
+  graphs="$(_graphs_dir "$OWNER")"; catalog="${ASSET_DIR}/insights-catalog.yaml"
+  rb="${ASSET_DIR}/insights.rb"
+  [[ -f "$db" ]] || cmd_warehouse
+  [[ -f "$rb" ]]      || _die "missing ${rb}"
+  [[ -f "$catalog" ]] || _die "missing ${catalog}"
+  mkdir -p "$(dirname "$md")" "$graphs"
+
+  _log "rendering forensic insights for ${BOLD}${OWNER}${RST}"
+  local args=(--owner "$OWNER" --db "$db" --catalog "$catalog" --md "$md" --graphs-dir "$graphs")
+  [[ -n "$OPT_ASOF" ]] && args+=(--as-of "$OPT_ASOF")
+  ruby "$rb" "${args[@]}" || _die "insights generation failed"
+  _ok "insights: ${md}"
+  _ok "graphs:   ${graphs}/"
+}
+
+# ── ingest ───────────────────────────────────────────────────────────────────
+cmd_ingest() {
+  _require_owner
+  local md imd ctx
+  md="$(_report_md "$OWNER")"; imd="$(_report_insights "$OWNER")"; ctx="${ZDOTDIR}/bin/zdots-ctx"
+  [[ -f "$md" ]] || _die "no report for '${OWNER}' — run: zdots-gh report ${OWNER}"
+  [[ -x "$ctx" ]] || _die "zdots-ctx not found at ${ctx}"
+  if [[ "$OPT_DRYRUN" -eq 1 ]]; then
+    _log "dry-run: would ingest ${md} via zdots-ctx ingest"
+    "$ctx" ingest --dry-run "$md"
+    [[ -f "$imd" ]] && "$ctx" ingest --dry-run "$imd"
+    return 0
+  fi
+  _log "ingesting insights into the knowledge base"
+  "$ctx" ingest "$md" && _ok "ingested: ${md}"
+  # The forensic report is a second, richer artifact — ingest it too when present.
+  # if/fi keeps the function's exit status 0 when the insights report is absent.
+  if [[ -f "$imd" ]]; then "$ctx" ingest "$imd" && _ok "ingested: ${imd}"; fi
+}
+
+# ── run (full loop) ──────────────────────────────────────────────────────────
+cmd_run() {
+  _require_owner
+  cmd_harvest
+  cmd_warehouse
+  cmd_report
+  if [[ "$OPT_NO_INSIGHTS" -eq 1 ]]; then
+    _warn "skipping insights (--no-insights)"
+  else
+    cmd_insights
+  fi
+  if [[ "$OPT_NO_INGEST" -eq 1 ]]; then
+    _warn "skipping ingest (--no-ingest)"
+  else
+    cmd_ingest
+  fi
+}
+
+# ── status ───────────────────────────────────────────────────────────────────
+_age() { # human age of a file's mtime
+  local f="$1" now mt d
+  [[ -e "$f" ]] || { printf -- '-'; return; }
+  now="$(date +%s)"; mt="$(stat -f %m "$f" 2>/dev/null || echo "$now")"
+  d=$(( (now - mt) / 3600 ))
+  if   (( d < 1 ));  then printf '<1h'
+  elif (( d < 48 )); then printf '%dh' "$d"
+  else printf '%dd' "$(( d / 24 ))"; fi
+}
+
+cmd_status() {
+  [[ -d "$STATE_DIR" ]] || { _warn "no zdots-gh state yet ($STATE_DIR)"; return 0; }
+  if [[ -n "$OWNER" ]]; then
+    local owners=("$OWNER")
+  else
+    local owners=()
+    while IFS= read -r d; do owners+=("$(basename "$d")"); done \
+      < <(find "$STATE_DIR" -maxdepth 1 -mindepth 1 -type d ! -name reports 2>/dev/null | sort)
+  fi
+  [[ ${#owners[@]} -gt 0 ]] || { _warn "no owners harvested yet"; return 0; }
+
+  printf '%s%-20s %8s %6s %8s %8s %8s%s\n' "$BOLD" "OWNER" "REPOS" "CACHE" "WHOUSE" "REPORT" "INSIGHTS" "$RST" >&2
+  local o dir nrepos
+  for o in "${owners[@]}"; do
+    dir="$(_owner_dir "$o")"
+    nrepos=0
+    [[ -d "$dir" ]] && nrepos="$(find "$dir" -name '*_prs.json' 2>/dev/null | wc -l | tr -d ' ')"
+    printf '%-20s %8s %6s %8s %8s %8s\n' \
+      "$o" "$nrepos" "$(_age "$dir")" "$(_age "$(_owner_db "$o")")" \
+      "$(_age "$(_report_md "$o")")" "$(_age "$(_report_insights "$o")")"
+  done
+}
+
+case "$CMD" in
+  harvest)   cmd_harvest ;;
+  warehouse) cmd_warehouse ;;
+  report)    cmd_report ;;
+  insights)  cmd_insights ;;
+  ingest)    cmd_ingest ;;
+  run)       cmd_run ;;
+  status)    cmd_status ;;
+  *)         _die "unknown command: ${CMD} (try: zdots-gh --help)" ;;
+esac

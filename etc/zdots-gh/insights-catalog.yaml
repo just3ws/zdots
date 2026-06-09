@@ -1,0 +1,512 @@
+# etc/zdots-gh/insights-catalog.yaml — the metric registry for `zdots-gh insights`.
+#
+# This file is the single source of truth for traceability + confidence. The Ruby
+# renderer (insights.rb) iterates it to build the Data Inventory, Confidence Model,
+# and Unknowns & Data Gaps reports, and to tag every rendered metric with its
+# confidence class. It keeps the prose in lockstep with the SQL: an insight that
+# is not registered here is not trustworthy, and an `unavailable` entry is how we
+# refuse to erase uncertainty (cat 1, 12, 13 of the spec).
+#
+# Confidence vocabulary (cat 13):
+#   observed     directly present in the harvested GitHub data
+#   inferred     a defensible derivation from observed data (rules stated in `method`)
+#   proxy        an approximate stand-in for something GitHub does not record directly
+#   unavailable  cannot be known from the Phase-1 harvest at all (no view exists)
+#
+# Per-entry fields (cat 12 query decomposition):
+#   name           stable key the renderer references
+#   section        which report section it appears under
+#   purpose        one line: what question it answers
+#   required_data  source columns/tables it depends on (traceability)
+#   method         how it is calculated
+#   confidence     observed | inferred | proxy | unavailable
+#   caveats        what NOT to read into it
+#   output         shape of the value
+#   example        a sentence the report might emit
+#   source_view    the warehouse view/table backing it (null for unavailable)
+#   reason         (unavailable only) why it cannot be computed yet
+
+version: 1
+phase: 1
+
+insights:
+
+  # ── DORA-adjacent (cat 2) ──────────────────────────────────────────────────
+  - name: deployment_frequency
+    section: dora
+    purpose: How often change reaches a mergeable/shippable state.
+    required_data: [prs.merged_at, prs.created_at]
+    method: merged non-bot PRs ÷ observed span in weeks
+    confidence: proxy
+    caveats: Merge ≠ deploy. True deploy frequency needs release/deployment data (Phase 2).
+    output: merges per week
+    example: "Deployment-frequency proxy is 0.2 merged PRs/week across 1 active repo."
+    source_view: prs
+
+  - name: lead_time_for_change
+    section: dora
+    purpose: Time from intent (issue open) to change delivered (first linked PR merged).
+    required_data: [issues.created_at, pr_issue_links, prs.merged_at]
+    method: median total_lead_time_hours over linked, merged issues
+    confidence: inferred
+    caveats: Only covers issues with an explicit closing-PR link; unlinked work is invisible here.
+    output: median hours (+ p25/p75)
+    example: "Median lead time for change is 41h over 3 linked issues."
+    source_view: issue_lifecycle
+
+  - name: pr_cycle_time
+    section: dora
+    purpose: PR open → merge, the core change throughput signal.
+    required_data: [prs.created_at, prs.merged_at]
+    method: median date_diff('hour', created_at, merged_at) over merged non-bot PRs
+    confidence: observed
+    caveats: Excludes bot PRs and still-open PRs.
+    output: median hours (+ p25/p75)
+    example: "Median PR cycle time is 14h (p75 41h)."
+    source_view: pr_cycle_time
+
+  - name: first_review_latency
+    section: dora
+    purpose: PR open → first human review (feedback-loop friction).
+    required_data: [prs.created_at, pr_reviews.reviewed_at]
+    method: median hours_to_first_review over reviewed non-bot PRs
+    confidence: observed
+    caveats: Only PRs that received a review at all; silent merges are excluded.
+    output: median hours
+    example: "Median time to first review is 6h."
+    source_view: first_review_latency
+
+  - name: ci_failure_rate
+    section: dora
+    purpose: Share of PRs whose status-check rollup reports failure.
+    required_data: [prs.ci_state]
+    method: PRs with ci_state=FAILURE ÷ PRs with a non-null rollup
+    confidence: proxy
+    caveats: The rollup is not a real Actions run; absent rollup = no signal, not a pass.
+    output: percent
+    example: "CI-failure proxy is 8% of PRs carrying a status rollup."
+    source_view: ci_failure_rate
+
+  - name: change_failure_proxy
+    section: dora
+    purpose: Merged changes that bypassed guardrails (CI failure or zero review).
+    required_data: [prs.state, prs.ci_state, pr_reviews]
+    method: merged non-bot PRs with ci_state=FAILURE OR zero reviews ÷ merged non-bot PRs
+    confidence: proxy
+    caveats: A guardrail bypass is not a confirmed production failure; it is elevated risk.
+    output: percent (+ count)
+    example: "Change-failure proxy is 100% — every merge shipped without a recorded review."
+    source_view: process_leakage
+
+  - name: deploy_lead_lag
+    section: dora
+    purpose: Merge → production deploy delay.
+    confidence: unavailable
+    reason: No deployment/release data is harvested in Phase 1.
+    source_view: null
+
+  - name: mttr
+    section: dora
+    purpose: Mean time to restore after an incident.
+    confidence: unavailable
+    reason: Requires incident + deployment timeline (releases/deployments) not harvested in Phase 1.
+    source_view: null
+
+  # ── Flow metrics (cat 3) ───────────────────────────────────────────────────
+  - name: pr_age
+    section: flow
+    purpose: How long open PRs have waited (as of the report reference date).
+    required_data: [pr_flow.created_at, prs.state]
+    method: renderer computes date_diff('hour', created_at, --as-of) over OPEN PRs
+    confidence: observed
+    caveats: Age is measured against --as-of, not wall-clock, for reproducibility.
+    output: median + max hours
+    example: "Oldest open PR has waited 19d as of the reference date."
+    source_view: pr_flow
+
+  - name: issue_age
+    section: flow
+    purpose: How long open issues have lingered (as of the reference date).
+    required_data: [issue_flow.created_at, issues.state]
+    method: renderer computes date_diff('day', created_at, --as-of) over OPEN issues
+    confidence: observed
+    caveats: Measured against --as-of.
+    output: median + max days
+    example: "1 open issue has lingered 12d with no linked PR."
+    source_view: issue_flow
+
+  - name: wip_by_repo
+    section: flow
+    purpose: Open PRs + issues carried per repo (work-in-progress load).
+    required_data: [prs.state, issues.state]
+    method: count OPEN non-bot PRs and OPEN issues per repo
+    confidence: observed
+    caveats: Snapshot of current state, not a flow rate.
+    output: per-repo counts
+    example: "phalanxduel carries 0 open PRs / 1 open issue."
+    source_view: wip_by_repo
+
+  - name: wip_by_actor
+    section: flow
+    purpose: Open PRs an individual is holding (personal WIP).
+    required_data: [prs.state, prs.author]
+    method: count OPEN non-bot PRs per author
+    confidence: observed
+    caveats: Authoring WIP only; review WIP is separate.
+    output: per-actor counts
+    example: "No contributor is holding open PRs."
+    source_view: wip_by_actor
+
+  - name: batch_size
+    section: flow
+    purpose: How large changes are (small batches flow faster).
+    required_data: [pr_files.additions, pr_files.deletions]
+    method: median churn (additions+deletions) and files-changed per non-bot PR
+    confidence: observed
+    caveats: File/line counts are capped at 100 files/PR by the harvest query.
+    output: median churn + files
+    example: "Median PR is 320 lines across 7 files."
+    source_view: pr_flow
+
+  - name: handoffs
+    section: flow
+    purpose: Distinct people a PR passed through (reviewers + commenters).
+    required_data: [pr_reviews.reviewer, pr_comments.commenter]
+    method: distinct reviewers + distinct commenters per PR
+    confidence: inferred
+    caveats: A proxy for coordination cost, not a literal assignment handoff.
+    output: median handoffs/PR
+    example: "Median PR involves 1 additional person beyond the author."
+    source_view: pr_flow
+
+  - name: stale_work
+    section: flow
+    purpose: Open PRs that are aged and unreviewed (blocked/forgotten).
+    required_data: [prs.state, prs.created_at, pr_reviews]
+    method: renderer flags OPEN PRs older than 30d (vs --as-of) with zero reviews
+    confidence: inferred
+    caveats: Staleness threshold is a heuristic (30d); not every old PR is abandoned.
+    output: list + count
+    example: "0 PRs are stale (open >30d, unreviewed)."
+    source_view: pr_flow
+
+  - name: abandoned_work
+    section: flow
+    purpose: PRs closed without merging (discarded effort).
+    required_data: [prs.state, prs.merged_at]
+    method: non-bot PRs in CLOSED state with null merged_at
+    confidence: observed
+    caveats: Some closures are intentional supersessions, not waste.
+    output: list + count
+    example: "0 PRs were closed without merging."
+    source_view: abandoned_prs
+
+  - name: reopen_rate
+    section: flow
+    purpose: How often closed work is reopened (rework signal).
+    confidence: unavailable
+    reason: Reopen/closed timeline events are not harvested in Phase 1.
+    source_view: null
+
+  - name: queue_vs_active_time
+    section: flow
+    purpose: Split of cycle time into waiting vs active work.
+    confidence: unavailable
+    reason: Needs review-request + per-event timeline; only coarse open→merge is available in Phase 1.
+    source_view: null
+
+  # ── Change classification (cat 4) ──────────────────────────────────────────
+  - name: change_class
+    section: classification
+    purpose: Classify each PR (bug/feature/security/deps/docs/test/infra/refactor/…).
+    required_data: [pr_labels.label, prs.title, pr_files.file_path]
+    method: first-match rules over labels, then title, then file mix; evidence column records inputs
+    confidence: inferred
+    caveats: Labels may be untruthful and titles inconsistent; every row keeps its evidence so
+      classifications are auditable, not asserted. Branch-name signal is unavailable in Phase 1.
+    output: per-PR class + evidence; distribution
+    example: "Of 3 human PRs: 1 feature, 1 security, 1 documentation."
+    source_view: change_class
+
+  - name: bus_factor_class
+    section: classification
+    purpose: How many people can do each class of work.
+    required_data: [change_class.change_class, change_class.author]
+    method: distinct authors per change class
+    confidence: inferred
+    caveats: Inherits change_class's classification uncertainty.
+    output: per-class author count
+    example: "Security changes have a bus factor of 1."
+    source_view: bus_factor_class
+
+  - name: branch_name_signal
+    section: classification
+    purpose: Use branch naming (feature/, hotfix/, fix/) as a change signal.
+    confidence: unavailable
+    reason: headRefName is not harvested in Phase 1.
+    source_view: null
+
+  # ── Actor / process (cat 5) ────────────────────────────────────────────────
+  - name: actor_activity
+    section: actor
+    purpose: Per-person involvement across authoring, review, comment, issues.
+    required_data: [prs, pr_reviews, pr_comments, issues]
+    method: union of per-role counts per actor; bots filtered
+    confidence: observed
+    caveats: Counts are activity, not responsibility or seniority.
+    output: per-actor role counts + total touches
+    example: "just3ws drives the estate: 3 PRs, 12 comments, 1 issue."
+    source_view: actor_activity
+
+  - name: reviewer_concentration
+    section: actor
+    purpose: Whether one reviewer carries a repo (HHI of review volume).
+    required_data: [pr_reviews.reviewer]
+    method: Herfindahl index of reviewer share per repo
+    confidence: observed
+    caveats: HHI near 1.0 = concentrated; undefined where no reviews exist.
+    output: per-repo HHI
+    example: "No repo has a recorded review culture to concentrate."
+    source_view: reviewer_concentration
+
+  - name: actor_overload
+    section: actor
+    purpose: Individuals carrying disproportionate total load.
+    required_data: [actor_activity.total_touches]
+    method: rank actors by total_touches; flag top share of cumulative load
+    confidence: inferred
+    caveats: High touches can mean ownership or a bottleneck — context required.
+    output: ranked actors
+    example: "1 actor accounts for 100% of human activity."
+    source_view: actor_activity
+
+  - name: who_merges
+    section: actor
+    purpose: Who performs merges (gatekeeper role).
+    confidence: unavailable
+    reason: mergedBy is not harvested in Phase 1.
+    source_view: null
+
+  - name: who_fixes_ci
+    section: actor
+    purpose: Who repairs broken pipelines.
+    confidence: unavailable
+    reason: Requires Actions run actors (Phase 2).
+    source_view: null
+
+  - name: who_owns_release
+    section: actor
+    purpose: Who drives releases/deploys.
+    confidence: unavailable
+    reason: No release/deployment data harvested in Phase 1.
+    source_view: null
+
+  # ── Repository health (cat 6) ──────────────────────────────────────────────
+  - name: repo_health
+    section: repo_health
+    purpose: Per-repo delivery health index.
+    required_data: [prs, pr_reviews]
+    method: prs/merged/authors/reviewed_share/no_ci/last_activity; active-vs-abandoned vs --as-of
+    confidence: observed
+    caveats: A no_ci flag means no status rollup was seen, which can also mean checks aren't surfaced.
+    output: per-repo index row
+    example: "phalanxduel: 3 PRs, single-owner, 0% reviewed."
+    source_view: repo_health
+
+  - name: bus_factor_repo
+    section: repo_health
+    purpose: Per-repo knowledge-concentration risk.
+    required_data: [ownership_map.authors, ownership_map.top_author_share]
+    method: classify by author count and top-author dominance
+    confidence: inferred
+    caveats: Authorship ≠ knowledge, but it is the best available proxy.
+    output: per-repo risk label
+    example: "phalanxduel is critical bus-factor (single author)."
+    source_view: bus_factor_repo
+
+  - name: ownership_map
+    section: repo_health
+    purpose: Who dominates each repo's authorship.
+    required_data: [prs.author, prs.repo_name]
+    method: arg_max author by PR count per repo + dominance share
+    confidence: observed
+    caveats: Reflects authorship volume only.
+    output: per-repo top author + share
+    example: "just3ws owns 100% of phalanxduel authorship."
+    source_view: ownership_map
+
+  # ── Change-management archetypes (cat 8) ───────────────────────────────────
+  - name: change_archetype
+    section: archetype
+    purpose: The observed process shape of each change.
+    required_data: [prs, pr_reviews, pr_issue_links]
+    method: rules over review count, issue-link, CI, merge speed; evidence recorded per row
+    confidence: inferred
+    caveats: The silent direct-to-main archetype is a proxy (merged, zero reviews, <24h) — not
+      proof of a bypassed policy; several archetypes need Phase-2 timeline data to sharpen.
+    output: per-PR archetype + evidence; distribution
+    example: "All 3 merges are 'silent direct-to-main (proxy)' — no recorded review gate."
+    source_view: change_archetype
+
+  # ── Conway / socio-technical (cat 9) ───────────────────────────────────────
+  - name: edge_actor_repo
+    section: conway
+    purpose: Actor→repo contribution graph.
+    required_data: [prs.author, prs.repo_name]
+    method: PR counts per (author, repo) edge
+    confidence: observed
+    caveats: Authoring only; review/comment contribution is in separate graphs.
+    output: edge list (graphs/actor_repo.json)
+    example: "The contribution graph has 1 actor spanning 1 repo."
+    source_view: edge_actor_repo
+
+  - name: edge_review_pair
+    section: conway
+    purpose: Reviewer→author graph (who reviews whom).
+    required_data: [pr_reviews.reviewer, prs.author]
+    method: review counts per (reviewer, author) edge
+    confidence: observed
+    caveats: Empty where no reviews are recorded.
+    output: edge list (graphs/review_pair.json)
+    example: "No review edges exist — review is not happening on GitHub here."
+    source_view: edge_review_pair
+
+  - name: edge_comment_pair
+    section: conway
+    purpose: Commenter→author discussion graph.
+    required_data: [pr_comments.commenter, prs.author]
+    method: comment counts per (commenter, author) edge
+    confidence: observed
+    caveats: Bot comments are excluded at the actor level but present in raw comments.
+    output: edge list (graphs/comment_pair.json)
+    example: "Discussion is self-directed (author commenting on own PRs)."
+    source_view: edge_comment_pair
+
+  - name: edge_repo_cochange
+    section: conway
+    purpose: Repo↔repo coupling inferred from shared authors (architectural coupling proxy).
+    required_data: [prs.author, prs.repo_name]
+    method: count of shared distinct authors between each repo pair (undirected, weighted)
+    confidence: inferred
+    caveats: Shared authorship implies coordination, not a code dependency.
+    output: edge list (graphs/repo_cochange.json) + Mermaid
+    example: "No repo-to-repo coupling: human work is isolated to one repo."
+    source_view: edge_repo_cochange
+
+  - name: boundary_spanners
+    section: conway
+    purpose: Actors bridging ≥2 repos — the connective tissue / single points of coordination.
+    required_data: [prs.author, prs.repo_name]
+    method: authors with distinct-repo count ≥ 2, with their repo set
+    confidence: inferred
+    caveats: A spanner is risk and value at once; absence here reflects a one-repo estate.
+    output: ranked spanners (graphs/boundary_spanners.json)
+    example: "No boundary spanners — no one bridges repositories yet."
+    source_view: boundary_spanners
+
+  - name: hidden_teams
+    section: conway
+    purpose: Clusters of repos that move together (de-facto teams).
+    required_data: [edge_repo_cochange]
+    method: connected components over the repo-cochange graph
+    confidence: inferred
+    caveats: Components are co-authorship clusters, not org-chart teams.
+    output: cluster list
+    example: "1 trivial cluster (a single repo); no cross-repo team is visible."
+    source_view: edge_repo_cochange
+
+  # ── Temporal comparison (cat 10) ───────────────────────────────────────────
+  - name: temporal_volume
+    section: temporal
+    purpose: PR/issue volume now vs 1/2/3 calendar years ago.
+    required_data: [prs.created_at, issues.created_at]
+    method: yr_offset(created_at, --as-of) buckets {0,1,2,3}
+    confidence: observed
+    caveats: Buckets older than the harvested history render as n/a, not zero-with-meaning.
+    output: per-bucket counts
+    example: "PR volume: 3 this year, n/a for prior years (history starts 2026-02)."
+    source_view: prs
+
+  - name: temporal_actors
+    section: temporal
+    purpose: Distinct contributors per year bucket.
+    required_data: [prs.author, prs.created_at]
+    method: distinct non-bot authors per yr_offset bucket
+    confidence: observed
+    caveats: Same history-depth caveat.
+    output: per-bucket actor counts
+    example: "1 contributor this year; no prior-year baseline yet."
+    source_view: prs
+
+  - name: temporal_cycle_time
+    section: temporal
+    purpose: PR cycle-time trend across year buckets.
+    required_data: [prs.created_at, prs.merged_at]
+    method: median cycle_hours per yr_offset bucket
+    confidence: observed
+    caveats: Sparse buckets give noisy medians.
+    output: per-bucket median hours
+    example: "Cycle time has no multi-year trend yet (single year of data)."
+    source_view: pr_cycle_time
+
+  - name: temporal_ci_reliability
+    section: temporal
+    purpose: CI-failure-proxy trend across year buckets.
+    required_data: [prs.ci_state, prs.created_at]
+    method: failure-rate proxy per yr_offset bucket
+    confidence: proxy
+    caveats: Inherits the status-rollup proxy caveat.
+    output: per-bucket failure rate
+    example: "No multi-year CI trend available."
+    source_view: ci_failure_rate
+
+  - name: temporal_review_culture
+    section: temporal
+    purpose: Share of PRs reviewed, per year bucket (review-culture trend).
+    required_data: [pr_reviews, prs.created_at]
+    method: reviewed-PR share per yr_offset bucket
+    confidence: inferred
+    caveats: Zero reviews recorded ⇒ either no review culture or off-GitHub review.
+    output: per-bucket reviewed share
+    example: "Reviewed share is 0% this year; no prior baseline."
+    source_view: prs
+
+  - name: temporal_ownership
+    section: temporal
+    purpose: Ownership-concentration trend (top-author share) per year bucket.
+    required_data: [prs.author, prs.created_at]
+    method: top-author PR share per yr_offset bucket
+    confidence: inferred
+    caveats: Concentration on tiny volumes is not yet meaningful.
+    output: per-bucket dominance share
+    example: "Authorship is 100% concentrated this year."
+    source_view: prs
+
+  # ── Pure data gaps (cat 1, 7) — surfaced in Unknowns & Data Gaps ───────────
+  - name: actions_reliability
+    section: gaps
+    purpose: Workflow run frequency, failure rate, duration, flakiness (cat 7).
+    confidence: unavailable
+    reason: GitHub Actions (workflows/runs/jobs/conclusions/durations) are not harvested in Phase 1.
+    source_view: null
+
+  - name: releases_and_deploys
+    section: gaps
+    purpose: Release/tag/deployment cadence and deploy gates (cat 2, 7, 8).
+    confidence: unavailable
+    reason: Releases, tags, and deployments are not harvested in Phase 1.
+    source_view: null
+
+  - name: triage_first_response
+    section: gaps
+    purpose: Time-to-first-response and time-to-triage on issues (cat 3, 5, 8).
+    confidence: unavailable
+    reason: Issue comments, assignees, and timeline events are not harvested in Phase 1.
+    source_view: null
+
+  - name: assignment_ownership
+    section: gaps
+    purpose: Who is assigned / owns each issue (cat 5).
+    confidence: unavailable
+    reason: Issue assignees and milestones are not harvested in Phase 1.
+    source_view: null
