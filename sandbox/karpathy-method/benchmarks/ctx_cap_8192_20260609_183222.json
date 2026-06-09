@@ -1,0 +1,5 @@
+{
+  "timestamp": "20260609_183222",
+  "label": "ctx_cap_8192",
+  "results": [{"tokens": 512, "latency_ms": 7288},{"tokens": 1024, "latency_ms": 8014},{"tokens": 2048, "latency_ms": 10822}]
+}
