@@ -82,6 +82,14 @@ cmd_start() {
   # 4. Save active task state
   mkdir -p "$(dirname "$ACTIVE_TASK_FILE")"
   echo "$id" > "$ACTIVE_TASK_FILE"
+
+  # 5. Notify zsynod (deliberation heartbeat)
+  if [[ -x "${ZDOTDIR}/bin/zsynod" ]]; then
+    _svc_log "notifying zsynod of task focus..."
+    # Run a headless deliberation turn for the local 'pi' member.
+    # This hydrates the synod with the backlog item and gets a first take.
+    "${ZDOTDIR}/bin/zsynod" tick --topic "$id" >/dev/null 2>&1 &
+  fi
   
   _svc_ok "task $id active. Shell environment hydrated."
 }
