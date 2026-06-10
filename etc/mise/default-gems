@@ -21,6 +21,7 @@ solargraph             # documentation + type inference; heavier but richer hove
 # ── Code quality (global, not project-specific) ───────────────────────────────
 
 rubocop                # needed globally for editor integration (Rubocop LSP)
+standard               # Standard Ruby formatter/linter; provides standardrb
 
 # ── Rails convenience ─────────────────────────────────────────────────────────
 
@@ -39,3 +40,4 @@ bundler
 sqlite3                # zdots-brain sync-history: SQLite command_runs → PostgreSQL
 pg                     # zdots-brain: PostgreSQL writer (my database)
 sequel                 # zdots-brain: query/migration layer
+ruby_llm               # global RubyLLM client/tooling for shell experiments
