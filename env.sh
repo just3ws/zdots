@@ -1,5 +1,6 @@
 # env.sh — POSIX-compatible environment core
 # This file is sourced by sh, bash, and zsh.
+# shellcheck shell=bash  # analyze as bash (the entropy block uses $RANDOM/printf -v)
 
 # 0. Security Baseline
 # Ensure files and directories created by the shell are user-only by default.
@@ -20,9 +21,11 @@ fi
 _zdots_secrets="${ZDOTDIR:-$HOME/.config/zsh}/.zdots.secrets"
 _zdots_kc_lib="${ZDOTDIR:-$HOME/.config/zsh}/lib/keychain.bash"
 if [ -f "$_zdots_secrets" ]; then
+  # shellcheck source=/dev/null
   . "$_zdots_secrets"
 fi
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -f "$_zdots_kc_lib" ]; then
+  # shellcheck source=/dev/null
   . "$_zdots_kc_lib"
   zdots_keychain_load \
     ZDOTS_DB_ENCRYPTION_KEY \
@@ -63,10 +66,10 @@ if [ -z "${ZDOTS_TRACE_ID:-}" ]; then
       $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM
     export ZDOTS_TRACE_ID
   elif command -v openssl >/dev/null 2>&1; then
-    export ZDOTS_TRACE_ID="$(openssl rand -hex 16)"
+    ZDOTS_TRACE_ID="$(openssl rand -hex 16)"; export ZDOTS_TRACE_ID
   else
     # Fallback to a timestamp + PID if openssl is missing.
-    export ZDOTS_TRACE_ID="$(date +%s%N | cksum | awk '{print $1}')-$(printf "%x" $$ | xargs printf "%016s" | tr ' ' '0')"
+    ZDOTS_TRACE_ID="$(date +%s%N | cksum | awk '{print $1}')-$(printf "%x" $$ | xargs printf "%016s" | tr ' ' '0')"; export ZDOTS_TRACE_ID
   fi
 fi
 
@@ -77,9 +80,9 @@ if [ -z "${ZDOTS_SPAN_ID:-}" ]; then
     printf -v ZDOTS_SPAN_ID '%04x%04x%04x%04x' $RANDOM $RANDOM $RANDOM $RANDOM
     export ZDOTS_SPAN_ID
   elif command -v openssl >/dev/null 2>&1; then
-    export ZDOTS_SPAN_ID="$(openssl rand -hex 8)"
+    ZDOTS_SPAN_ID="$(openssl rand -hex 8)"; export ZDOTS_SPAN_ID
   else
-    export ZDOTS_SPAN_ID="$(printf "%x" $$ | xargs printf "%016s" | tr ' ' '0')"
+    ZDOTS_SPAN_ID="$(printf "%x" $$ | xargs printf "%016s" | tr ' ' '0')"; export ZDOTS_SPAN_ID
   fi
 fi
 
@@ -187,6 +190,7 @@ zdots_safe_source() {
   # Attempt to source in a subshell-like protected way if possible,
   # but for standard POSIX env.sh we just source directly and rely 
   # on 'set +e' to prevent collapse.
+  # shellcheck source=/dev/null
   if . "$file"; then
     return 0
   else
@@ -247,7 +251,8 @@ export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
 
 # 5. General Environment
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
-OTEL_SERVICE_NAME="zdots-shell"   # intentionally not exported — must not bleed into child processes
+# shellcheck disable=SC2034  # intentionally not exported — must not bleed into child processes
+OTEL_SERVICE_NAME="zdots-shell"
 export LANG='en_US.UTF-8'
 export EDITOR='vi'
 export VISUAL="$EDITOR"
@@ -339,9 +344,13 @@ if [ -n "$(command -v zdots_node_runtime_paths)" ]; then
 fi
 
 # 9c. User Binaries (Highest precedence)
+# Each call prepends, so the LAST line wins. $HOME/bin is the personal override
+# dir — placed last so it shadows everything (drop a binary there to override a
+# packaged one without touching the repo).
 _zdots_path_add "$ZDOTDIR/bin"
 _zdots_path_add "$HOME/.local/bin"
 _zdots_path_add "$HOME/.antigravity/antigravity/bin"
+_zdots_path_add "$HOME/bin"
 
 export PATH
 unset -f _zdots_path_add
