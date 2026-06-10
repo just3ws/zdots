@@ -79,6 +79,24 @@ Auto-picks the least-discussed open issue and feeds prior remarks
 so discussion deepens.
 Remarks auto-append; proposals and handoffs are surfaced as commands
 for the principal to approve, never auto-written.
+.It Ic repl Oo Fl -ticks Ar n Oc Oo Fl -topic Ar Z-NNN Oc
+Hybrid follow-along cockpit (no tmux).
+Auto-runs deliberation ticks
+.Pq local Sy pi , free
+and renders the delta inline, then
+.Em pauses
+the moment something needs you: a ledger item awaiting your vote, answer, or
+queue-apply, or a proposal/handoff
+.Sy pi
+suggested this tick.
+You act, it resumes.
+Bounded by
+.Fl -ticks
+.Pq default 10
+so it never runs away;
+.Ic Ctrl-C
+drops to a control prompt.
+Article 0 holds \(em nothing is written or applied without your keystroke.
 .It Ic turn Oo Fl -session Ar id Oc Oo Fl -since Ar n Oc Oo Fl -json Oc
 Read-only headless turn report of forum state.
 .It Ic exec-tick Oo Fl -seat Ar codex Ns | Ns Ar gemini Oc
