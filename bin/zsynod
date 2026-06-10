@@ -359,12 +359,12 @@ cmd_ratify() {
 }
 
 cmd_handoff() {
-  local to="$1" task="$2" state="${3:-}" ref="${4:-}"
+  local to="$1" task="$2" state="${3:-}" ref="${4:-}" test_ref="${5:-}"
   [[ -n "$to" && -n "$task" ]] || _die "handoff needs --to and --task"
   _member_known "$to" || _die "unknown receiver: $to"
-  _append handoff "$(jq -nc --arg to "$to" --arg t "$task" --arg s "$state" --arg r "$ref" \
-    '{to:$to,task:$t,state:$s,ref:$r}')" >/dev/null
-  printf '%shandoff%s %s → %s: %s\n' "$YEL" "$RST" "$MEMBER" "$to" "$task"
+  _append handoff "$(jq -nc --arg to "$to" --arg t "$task" --arg s "$state" --arg r "$ref" --arg tr "$test_ref" \
+    '{to:$to,task:$t,state:$s,ref:$r,test:$tr}')" >/dev/null
+  printf '%shandoff%s %s → %s: %s%s\n' "$YEL" "$RST" "$MEMBER" "$to" "$task" "${test_ref:+ (test $test_ref)}"
 }
 
 cmd_committee() {
@@ -852,6 +852,49 @@ _q_risk() {  # <Qid> -> "level<TAB>reason"
 }
 
 _q_review_verdict() { jq -rs --arg q "$1" '[.[]|select(.type=="queue_review" and .data.id==$q)]|last.data.verdict // ""' "$LEDGER" 2>/dev/null; }
+
+_q_verify() {
+  local qid="$1"; [[ -n "$qid" ]] || _die "queue verify needs a Q id"
+  local meta; meta="$(_q_meta "$qid")"; [[ -n "$meta" ]] || _die "no such queued item: $qid"
+  local tref; tref="$(printf '%s' "$meta" | jq -r '.test // ""')"
+  [[ -n "$tref" ]] || { printf 'verify %s: no test reference associated.\n' "$qid"; return 0; }
+  
+  local pf="$QUEUE/$qid.patch"; [[ -f "$pf" ]] || _die "patch file missing: $pf"
+  printf 'verify %s: running test %s...\n' "$qid" "$tref"
+  
+  # Covenant: do not force. Use a temporary apply to run the test.
+  if ! git apply --recount --check "$pf" 2>/dev/null; then
+    printf '%sverify %s failed%s: patch does not apply cleanly.\n' "$RED" "$qid" "$RST"
+    return 1
+  fi
+
+  # Apply, test, revert.
+  git apply --recount "$pf"
+  local status=0
+  if [[ "$tref" == *.bats ]]; then
+    bats "$tref" || status=$?
+  else
+    # Treat as a generic command if not .bats
+    eval "$tref" || status=$?
+  fi
+
+  # Revert the patch regardless of test result
+  git apply --recount -R "$pf" >/dev/null 2>&1 || true
+
+  if [[ $status -eq 0 ]]; then
+    printf '%sverify %s passed%s\n' "$GRN" "$qid" "$RST"
+    _append queue_verify "$(jq -nc --arg id "$qid" --arg v passed '{id:$id,verdict:$v}')" >/dev/null
+  else
+    printf '%sverify %s failed%s (exit %d)\n' "$RED" "$qid" "$RST" "$status"
+    _append queue_verify "$(jq -nc --arg id "$qid" --arg v failed --argjson c "$status" '{id:$id,verdict:$v,code:$c}')" >/dev/null
+    # Log failure back to deliberation if actor is present
+    if [[ -n "$MEMBER" ]]; then
+       _append discuss "$(jq -nc --arg t "$(_q_meta "$qid"|jq -r .ref)" --arg r "Automated verification of $qid failed (exit $status). Re-evaluating." \
+         '{topic:$t,remark:$r}')" >/dev/null
+    fi
+  fi
+  return $status
+}
 _q_producer()       { jq -rs --arg q "$1" '[.[]|select(.type=="exec" and .data.qid==$q)]|last.actor // ""' "$LEDGER" 2>/dev/null; }
 
 _q_review_dispatch() {  # <seat> <prompt> -> review text (stubbed approve/low when offline)
@@ -932,9 +975,9 @@ _q_add() {  # uses globals REF SUMMARY PRIORITY AFTER PATCHSRC; patch from --pat
   fi
   prio="$(printf '%s' "$prio" | tr '[:lower:]' '[:upper:]')"
   afterj="$(printf '%s' "$AFTER" | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -sc .)"
-  _append queued "$(jq -nc --arg id "$qid" --arg ref "$REF" --arg s "$SUMMARY" --arg p "$prio" --argjson after "$afterj" --arg patch "queue/$qid.patch" \
-    '{id:$id,ref:$ref,summary:$s,priority:$p,after:$after,patch:$patch,status:"queued"}')" >/dev/null
-  printf 'queued %s [%s] %s%s\n' "$qid" "$prio" "$SUMMARY" "${REF:+ (ref $REF)}"
+  _append queued "$(jq -nc --arg id "$qid" --arg ref "$REF" --arg s "$SUMMARY" --arg p "$prio" --argjson after "$afterj" --arg patch "queue/$qid.patch" --arg tr "$TEST_REF" \
+    '{id:$id,ref:$ref,summary:$s,priority:$p,after:$after,patch:$patch,test:$tr,status:"queued"}')" >/dev/null
+  printf 'queued %s [%s] %s%s%s\n' "$qid" "$prio" "$SUMMARY" "${REF:+ (ref $REF)}" "${TEST_REF:+ (test $TEST_REF)}"
 }
 
 _q_ready() {  # <Qid> -> ready|blocked  (all 'after' deps applied?)
@@ -1069,8 +1112,9 @@ cmd_queue() {
     defer)   _q_set "${2:-}" deferred "${3:-}" ;;
     risk)    _q_risk "${2:-}" ;;
     review)  _q_review "${2:-}" ;;
+    verify)  _q_verify "${2:-}" ;;
     auto)    _q_auto ;;
-    *) _die "queue: unknown subcommand '$sub' (add|list|show|apply|reject|defer|risk|review|auto)" ;;
+    *) _die "queue: unknown subcommand '$sub' (add|list|show|apply|reject|defer|risk|review|verify|auto)" ;;
   esac
 }
 
@@ -1080,12 +1124,12 @@ cmd_queue() {
 # OR a decomposition if it is too big. The diff is PROPOSED into the queue
 # (propose-not-apply); nothing touches the tree until the principal applies it.
 # zdots-only, hourly cadence (operator-cron'd). ZSYNOD_DISPATCH=0 stubs the seat.
-_exec_next_handoff() {  # [ref] -> oldest open handoff (optionally matching ref) "seq<TAB>to<TAB>ref<TAB>task"
+_exec_next_handoff() {  # [ref] -> oldest open handoff (optionally matching ref) "seq<TAB>to<TAB>ref<TAB>task<TAB>test"
   jq -rs --arg ref "${1:-}" '
     ([.[]|select(.type=="exec")|.data.handoff_seq]) as $done
     | [.[]|select(.type=="handoff")|select((.seq) as $s | ($done|index($s))|not)]
     | (if $ref=="" then . else map(select(.data.ref==$ref)) end)
-    | (.[0] // empty) | "\(.seq)\t\(.data.to)\t\(.data.ref // "")\t\(.data.task)"' "$LEDGER" 2>/dev/null
+    | (.[0] // empty) | "\(.seq)\t\(.data.to)\t\(.data.ref // "")\t\(.data.task)\t\(.data.test // "")"' "$LEDGER" 2>/dev/null
 }
 
 _exec_prompt() {  # <ref> <task>
@@ -1125,8 +1169,8 @@ cmd_exectick() {
   local seat="${EXEC_SEAT:-codex}" want_ref="$REF" h
   h="$(_exec_next_handoff "$want_ref")"
   [[ -n "$h" ]] || { printf 'exec-tick: no open handoffs%s — nothing to execute.\n' "${want_ref:+ matching ref $want_ref}"; return 0; }
-  local hseq hto href htask
-  IFS=$'\t' read -r hseq hto href htask <<<"$h"
+  local hseq hto href htask htest
+  IFS=$'\t' read -r hseq hto href htask htest <<<"$h"
   : "$hto"
   local out diff
   out="$(_exec_dispatch "$seat" "$(_exec_prompt "$href" "$htask")")"
@@ -1134,7 +1178,7 @@ cmd_exectick() {
   diff="$(printf '%s' "$out" | awk '/<<<DIFF/{f=1;next} /DIFF>>>/{f=0} f')"
   if [[ -n "$diff" ]]; then
     local qid save="$MEMBER"
-    MEMBER="$seat"; REF="$href"; SUMMARY="exec: ${htask:0:80}"; PRIORITY=""; AFTER=""; PATCHSRC="-"
+    MEMBER="$seat"; REF="$href"; TEST_REF="$htest"; SUMMARY="exec: ${htask:0:80}"; PRIORITY=""; AFTER=""; PATCHSRC="-"
     qid="$(printf '%s' "$diff" | _q_add | sed -nE 's/^queued (Q[0-9]+).*/\1/p')"
     _append exec "$(jq -nc --argjson hs "$hseq" --arg q "$qid" --arg ref "$href" '{handoff_seq:$hs,qid:$q,ref:$ref,mode:"diff"}')" >/dev/null
     MEMBER="$save"
@@ -1534,7 +1578,7 @@ cmd_convene() {
 }
 
 # ── arg parse (flags anywhere; first non-flag is the subcommand) ─────────────
-POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""; AFTER=""; PRIORITY=""; SUMMARY=""; PATCHSRC=""; EXEC_SEAT=""; FACILITATOR=""; TICKS=""; DRY_RUN="0"
+POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; TEST_REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""; AFTER=""; PRIORITY=""; SUMMARY=""; PATCHSRC=""; EXEC_SEAT=""; FACILITATOR=""; TICKS=""; DRY_RUN="0"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --as) MEMBER="$2"; shift 2 ;;
@@ -1545,6 +1589,7 @@ while [[ $# -gt 0 ]]; do
     --task) TASK="$2"; shift 2 ;;
     --state) STATE="$2"; shift 2 ;;
     --ref) REF="$2"; shift 2 ;;
+    --test) TEST_REF="$2"; shift 2 ;;
     --purpose) PURPOSE="$2"; shift 2 ;;
     --since) SINCE="$2"; SINCE_SET="1"; shift 2 ;;
     --max-tokens) MAX_TOKENS="$2"; shift 2 ;;
@@ -1600,7 +1645,7 @@ case "$SUB" in
   vote)     cmd_vote "${POS[1]:-}" "${POS[2]:-}" "$NOTE" ;;
   commit)   cmd_commit "${POS[1]:-}" ;;
   ratify)   cmd_ratify "${POS[1]:-}" ;;
-  handoff)  cmd_handoff "$TO" "$TASK" "$STATE" "$REF" ;;
+  handoff)  cmd_handoff "$TO" "$TASK" "$STATE" "$REF" "$TEST_REF" ;;
   committee) cmd_committee "${POS[1]:-}" "$PURPOSE" "$TURN_PARTICIPANTS" "$MEETING_TYPE" "$REF" ;;
   committees) cmd_committees ;;
   log)      cmd_log "$ROUND" "$([[ " ${POS[*]} " == *" __json__ "* ]] && echo json)" ;;
