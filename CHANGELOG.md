@@ -127,7 +127,7 @@
 - *(ai)* AIQ_TEMPERATURE + AIQ_JSON_SCHEMA plumbing in aiq_submit; distillation uses 0.1
 - *(safety)* Rm guard blocking home dir and critical system paths
 - *(bootstrap)* Clone gdots from just3ws/gdots instead of writing inline fallback
-- *(launch)* EMR-Bear launch day polish
+- *(launch)* Work launch day polish
 - *(knowledge-layer)* Add ingest command + establish domain glossary
 - *(zpi)* Auto-append AGENT.md from \$PWD as project-local Pi system prompt
 - *(analytics)* Add command_runs capture layer + PostgreSQL sync
