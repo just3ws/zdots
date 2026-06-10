@@ -43,6 +43,9 @@
 #   zsynod answer <N> [note]             mark open question ?N answered (clears it)
 #   zsynod tail [member] [-f] [-n N]     tail a member's captured transcript
 #   zsynod console [--headless]          principal cockpit (prompts or report)
+#   zsynod repl [--ticks N]              hybrid follow-along: auto-ticks (local pi),
+#       renders the delta, pauses when something needs you (vote/answer/apply or a
+#       pi-suggested proposal); bounded by --ticks (default 10). No tmux.
 #   zsynod verify                        re-walk the hash chain (integrity check)
 #   zsynod convene                       open the tmux forum room (one at a time)
 #   zsynod attach                        attach to the convened room
@@ -746,7 +749,7 @@ cmd_tick() {
 
   local -a who=(pi)
   [[ "$frontier" == "1" ]] && who+=(codex gemini)
-  local -a asks=() said_by=() said_remark=()
+  local -a asks=() asks_struct=() said_by=() said_remark=()
   local m out remark ask save
   for m in "${who[@]}"; do
     _member_known "$m" || continue
@@ -763,10 +766,12 @@ cmd_tick() {
     case "$ask" in
       PROPOSE*) local pt pb; pt="$(printf '%s' "$ask" | sed -E 's/^PROPOSE[[:space:]]*//; s/ ::.*//')"
         pb="$(printf '%s' "$ask" | sed -E 's/.* :: //')"
-        asks+=("[$m] zsynod propose \"$pt\" --body \"$pb\"") ;;
+        asks+=("[$m] zsynod propose \"$pt\" --body \"$pb\"")
+        asks_struct+=("$(jq -nc --arg m "$m" --arg t "$pt" --arg b "$pb" '{kind:"propose",member:$m,title:$t,body:$b}')") ;;
       HANDOFF*) local hm ht; hm="$(printf '%s' "$ask" | sed -E 's/^HANDOFF[[:space:]]*//; s/ ::.*//')"
         ht="$(printf '%s' "$ask" | sed -E 's/.* :: //')"
-        asks+=("[$m] zsynod handoff --to $hm --task \"$ht\" --ref $id") ;;
+        asks+=("[$m] zsynod handoff --to $hm --task \"$ht\" --ref $id")
+        asks_struct+=("$(jq -nc --arg m "$m" --arg to "$hm" --arg task "$ht" --arg ref "$id" '{kind:"handoff",member:$m,to:$to,task:$task,ref:$ref}')") ;;
     esac
   done
   cmd_minutes >/dev/null
@@ -777,13 +782,17 @@ cmd_tick() {
     for i in "${!said_by[@]}"; do
       disc="$(printf '%s' "$disc" | jq -c --arg a "${said_by[$i]}" --arg r "${said_remark[$i]}" '. + [{actor:$a,remark:$r}]')"
     done
-    local askj='[]'
+    local askj='[]' askstructj='[]'
     if [[ ${#asks[@]} -gt 0 ]]; then
       askj="$(printf '%s\n' "${asks[@]}" | jq -R . | jq -sc .)"
     fi
+    if [[ ${#asks_struct[@]} -gt 0 ]]; then
+      askstructj="$(printf '%s\n' "${asks_struct[@]}" | jq -sc .)"
+    fi
     jq -nc --arg id "$id" --arg title "$title" --argjson disc "$disc" --argjson asks "$askj" \
+      --argjson asks_struct "$askstructj" \
       --argjson entries "$(wc -l < "$LEDGER" | tr -d ' ')" \
-      '{topic:$id,title:$title,discussion:$disc,asks_awaiting_approval:$asks,entries:$entries}'
+      '{topic:$id,title:$title,discussion:$disc,asks_awaiting_approval:$asks,asks_struct:$asks_struct,entries:$entries}'
     return
   fi
 
@@ -1192,8 +1201,36 @@ cmd_exectick() {
   fi
 }
 
+# Single source of truth for "what is blocked on the principal right now".
+# Emits one TAB-separated record per item: KIND<TAB>ID<TAB>LABEL
+#   proposal  P#   "<title> (<status>)"   — needs a vote or ratify
+#   queue     q#   "risk <lvl> · peer <verdict>" — needs apply/reject
+#   question  N    "<text>"               — needs an answer
+#   handoff   -    "<task>"               — handed to mike
+# Consumed by cmd_minutes (the "Awaiting you" section) and cmd_repl (the pause
+# gate). Keep them reading the same list so the two never drift apart.
+_blocking_items() {
+  local pid _ay _na _ab st title lvl item
+  while read -r pid; do [[ -z "$pid" ]] && continue
+    read -r _ay _na _ab st title < <(_tally "$pid")
+    [[ "$st" != "committed" ]] && printf 'proposal\t%s\t%s (%s)\n' "$pid" "$title" "$st"
+  done < <(_proposal_ids)
+  while read -r item; do [[ -z "$item" ]] && continue
+    [[ "$(_q_status "$item")" == "queued" ]] || continue
+    IFS=$'\t' read -r lvl _ < <(_q_risk "$item")
+    printf 'queue\t%s\trisk %s · peer %s\n' "$item" "$lvl" "$(_q_review_verdict "$item" 2>/dev/null || echo none)"
+  done < <(jq -rs '[.[]|select(.type=="queued")|.data.id]|unique|.[]' "$LEDGER" 2>/dev/null)
+  while read -r item; do [[ -z "$item" ]] && continue
+    printf 'question\t%s\t%s\n' "${item%% *}" "${item#* }"
+  done < <(jq -rs '([.[]|select(.type=="question_answered")|.data.index]) as $a | [.[]|select(.type=="question")]|to_entries|map(select(((.key+1) as $i|$a|index($i))|not))|.[]|"\(.key+1) "+(.value.data.text // "(empty)")' "$LEDGER" 2>/dev/null)
+  while read -r item; do [[ -z "$item" ]] && continue
+    printf 'handoff\t-\t%s\n' "$item"
+  done < <(jq -rs '[.[]|select(.type=="handoff" and .data.to=="mike")]|.[-5:]|.[]|.data.task' "$LEDGER" 2>/dev/null)
+}
+
 cmd_minutes() {
-  local pid ay na ab st title blocking lvl item   # keep local: dynamic scope else clobbers callers
+  local kind id label blocking   # keep local: dynamic scope else clobbers callers
+  local pid ay na ab st title
   { printf '# zsynod — minutes (generated from ledger.jsonl; do not edit)\n\n'
     printf '_Round %s · chair %s · quorum %s of %s · %s entries_\n\n' \
       "$(_cur_round)" "$(cmd_chair 2>/dev/null | sed -E 's/.*chair: ([^ ]*).*/\1/;s/\x1b\[[0-9;]*m//g')" \
@@ -1213,18 +1250,16 @@ cmd_minutes() {
     done < <(_proposal_ids)
     printf '\n## Awaiting you (blocking)\n\n'
     blocking=0
-    while read -r pid; do [[ -z "$pid" ]] && continue; read -r ay na ab st title < <(_tally "$pid")
-      [[ "$st" != "committed" ]] && { printf -- '- decide **%s** (%s) — ratify or call a vote: %s\n' "$pid" "$st" "$title"; blocking=1; }
-    done < <(_proposal_ids)
-    while read -r item; do [[ -z "$item" ]] && continue
-      [[ "$(_q_status "$item")" == "queued" ]] || continue
-      IFS=$'\t' read -r lvl _ < <(_q_risk "$item")
-      printf -- '- review **%s** (risk %s · peer %s) — zsynod queue apply|reject %s\n' "$item" "$lvl" "$(_q_review_verdict "$item" 2>/dev/null || echo none)" "$item"; blocking=1
-    done < <(jq -rs '[.[]|select(.type=="queued")|.data.id]|unique|.[]' "$LEDGER" 2>/dev/null)
-    while read -r item; do [[ -z "$item" ]] && continue; printf -- '- answer %s — zsynod answer %s\n' "$item" "${item%% *}"; blocking=1
-    done < <(jq -rs '([.[]|select(.type=="question_answered")|.data.index]) as $a | [.[]|select(.type=="question")]|to_entries|map(select(((.key+1) as $i|$a|index($i))|not))|.[]|"\(.key+1) "+(.value.data.text // "(empty)")' "$LEDGER" 2>/dev/null)
-    while read -r item; do [[ -z "$item" ]] && continue; printf -- '- handoff to you: %s\n' "$item"; blocking=1
-    done < <(jq -rs '[.[]|select(.type=="handoff" and .data.to=="mike")]|.[-5:]|.[]|.data.task' "$LEDGER" 2>/dev/null)
+    while IFS=$'\t' read -r kind id label; do
+      [[ -z "$kind" ]] && continue
+      blocking=1
+      case "$kind" in
+        proposal) printf -- '- decide **%s** — ratify or call a vote: %s\n' "$id" "$label" ;;
+        queue)    printf -- '- review **%s** (%s) — zsynod queue apply|reject %s\n' "$id" "$label" "$id" ;;
+        question) printf -- '- answer ?%s — zsynod answer %s: %s\n' "$id" "$id" "$label" ;;
+        handoff)  printf -- '- handoff to you: %s\n' "$label" ;;
+      esac
+    done < <(_blocking_items)
     [[ "$blocking" == "0" ]] && printf 'Nothing is blocked on you right now.\n'
     printf '\n## Backlog deliberation (ticks)\n\n'
     jq -rs '
@@ -1305,6 +1340,154 @@ cmd_console() {  # interactive principal cockpit — prompts for input
     esac
   done
   printf 'console closed.\n'
+}
+
+# ── repl: hybrid follow-along cockpit (no tmux) ──────────────────────────────
+# Auto-runs deliberation ticks (local pi, free) and renders the delta inline;
+# pauses the moment something needs the principal (a pi-suggested proposal/
+# handoff, or a ledger item awaiting your vote/answer/queue-apply), takes your
+# input, then resumes. Bounded by --ticks (default 10) so it never runs away.
+# This is the "interact and follow along" path — Article 0 holds: nothing is
+# written or applied without your keystroke.
+declare -gA _REPL_SKIP   # session-scoped "don't re-prompt me about this" set
+
+_repl_next_blocking() {  # first non-skipped blocking item (KIND<TAB>ID<TAB>LABEL), or nonzero
+  local kind id label
+  while IFS=$'\t' read -r kind id label; do
+    [[ -z "$kind" ]] && continue
+    [[ -n "${_REPL_SKIP[$kind:$id]:-}" ]] && continue
+    printf '%s\t%s\t%s\n' "$kind" "$id" "$label"; return 0
+  done < <(_blocking_items)
+  return 1
+}
+
+_repl_resolve() {  # handle one blocking ledger item; return 1 to quit the repl
+  local kind id label reply
+  IFS=$'\t' read -r kind id label < <(_repl_next_blocking)
+  [[ -z "$kind" ]] && return 0
+  printf '\n%s⏸ AWAITING YOU%s (blocking)\n' "$YEL" "$RST"
+  case "$kind" in
+    proposal)
+      printf '  %s%s%s  %s\n' "$B" "$id" "$RST" "$label"
+      printf '  [a]ye  [n]ay  [r]atify  [m]inutes  [s]kip  [q]uit > '
+      read -r reply || return 1
+      case "$reply" in
+        a) MEMBER=mike cmd_vote "$id" aye "" ;;
+        n) MEMBER=mike cmd_vote "$id" nay "" ;;
+        r) MEMBER=mike cmd_ratify "$id" ;;
+        m) cmd_view ;;
+        s) _REPL_SKIP["$kind:$id"]=1 ;;
+        q|"") return 1 ;;
+      esac ;;
+    queue)
+      printf '  %squeue %s%s  (%s)\n' "$B" "$id" "$RST" "$label"
+      printf '  [y]apply  [x]reject  [d]iff  [s]kip  [q]uit > '
+      read -r reply || return 1
+      case "$reply" in
+        y) cmd_queue apply "$id" ;;
+        x) cmd_queue reject "$id" ;;
+        d) cmd_queue show "$id" ;;
+        s) _REPL_SKIP["$kind:$id"]=1 ;;
+        q|"") return 1 ;;
+      esac ;;
+    question)
+      printf '  %s?%s%s  %s\n' "$B" "$id" "$RST" "$label"
+      printf '  type an answer, or [s]kip / [q]uit > '
+      read -r reply || return 1
+      case "$reply" in
+        s) _REPL_SKIP["$kind:$id"]=1 ;;
+        q|"") return 1 ;;
+        *) MEMBER=mike cmd_answer "$id" "$reply" ;;
+      esac ;;
+    handoff)
+      printf '  %shandoff → you%s: %s\n' "$B" "$RST" "$label"
+      printf '  [enter] acknowledge  [q]uit > '
+      read -r reply || return 1
+      case "$reply" in q) return 1 ;; *) _REPL_SKIP["$kind:$label"]=1 ;; esac ;;
+  esac
+  return 0
+}
+
+_repl_offer_asks() {  # <tick-json> — offer to enact pi's suggested proposals/handoffs; 1=quit
+  local json="$1" n i kind member title body to task ref reply
+  n="$(printf '%s' "$json" | jq '.asks_struct|length' 2>/dev/null)" || return 0
+  [[ "${n:-0}" -gt 0 ]] || return 0
+  for ((i=0; i<n; i++)); do
+    kind="$(printf '%s' "$json" | jq -r ".asks_struct[$i].kind")"
+    member="$(printf '%s' "$json" | jq -r ".asks_struct[$i].member")"
+    printf '\n%s⏸ %s proposes%s (nothing written yet)\n' "$YEL" "$member" "$RST"
+    case "$kind" in
+      propose)
+        title="$(printf '%s' "$json" | jq -r ".asks_struct[$i].title")"
+        body="$(printf '%s' "$json" | jq -r ".asks_struct[$i].body")"
+        printf '  PROPOSE: %s%s%s\n  %s%s%s\n' "$B" "$title" "$RST" "$D" "$body" "$RST"
+        printf '  [p] enter as a proposal  [s]kip  [q]uit > '
+        read -r reply || return 1
+        case "$reply" in
+          p) MEMBER=mike cmd_propose "$title" "$body" "" ;;
+          q) return 1 ;; *) : ;;
+        esac ;;
+      handoff)
+        to="$(printf '%s' "$json" | jq -r ".asks_struct[$i].to")"
+        task="$(printf '%s' "$json" | jq -r ".asks_struct[$i].task")"
+        ref="$(printf '%s' "$json" | jq -r ".asks_struct[$i].ref")"
+        printf '  HANDOFF → %s: %s%s%s (ref %s)\n' "$to" "$B" "$task" "$RST" "$ref"
+        printf '  [h] record handoff  [s]kip  [q]uit > '
+        read -r reply || return 1
+        case "$reply" in
+          h) MEMBER=mike cmd_handoff "$to" "$task" "pending" "$ref" "" ;;
+          q) return 1 ;; *) : ;;
+        esac ;;
+    esac
+  done
+  return 0
+}
+
+cmd_repl() {
+  [[ -s "$LEDGER" ]] || _die "run 'zsynod init' first"
+  [[ -t 0 && -t 1 ]] || _die "repl needs an interactive terminal (for headless cadence use: zsynod tick)"
+  MEMBER="${MEMBER:-mike}"
+  _member_known "$MEMBER" || _die "unknown member: $MEMBER"
+  local max="${TICKS:-10}" n=0 paused=0 json
+  trap 'paused=1' INT
+  printf '%szsynod repl%s — facilitating as %s · max %s ticks · Ctrl-C to pause\n' \
+    "$B" "$RST" "$MEMBER" "$max"
+  while :; do
+    # 1. Resolve anything already blocking you before spending a tick.
+    if _repl_next_blocking >/dev/null; then
+      _repl_resolve || break
+      continue
+    fi
+    # 2. Ctrl-C, or the tick budget, drops you to the control prompt.
+    if [[ "$paused" == "1" ]] || (( n >= max )); then
+      paused=0
+      [[ $n -ge $max ]] && printf '\n%s⏹ reached %s ticks.%s\n' "$YEL" "$max" "$RST"
+      printf '  [c]ontinue  [m]inutes  [Q]ueue  [v]erify  [q]uit > '
+      local reply; read -r reply || break
+      case "$reply" in
+        c|"") n=0 ;;
+        m) cmd_view ;;
+        Q) cmd_queue list ;;
+        v) cmd_verify ;;
+        q) break ;;
+        *) : ;;
+      esac
+      continue
+    fi
+    # 3. Advance one deliberation tick (local pi, free) and render the delta.
+    n=$((n+1))
+    printf '\n%s▶ tick %s/%s · round %s%s\n' "$D" "$n" "$max" "$(_cur_round)" "$RST"
+    json="$(cmd_tick json "$TOPIC" 0 2>/dev/null)"
+    if [[ -n "$json" ]]; then
+      printf '%s' "$json" | jq -r '.topic as $t | "  '"$D"'topic '"$RST"'"+$t,
+        (.discussion[]? | "  '"$CYN"'· \(.actor)'"$RST"': \(.remark)")' 2>/dev/null
+      _repl_offer_asks "$json" || break
+    else
+      printf '  (tick produced nothing — pi may be busy; pausing)\n'; paused=1
+    fi
+  done
+  trap - INT
+  printf 'repl closed.\n'
 }
 
 # ── convene: one tmux room at a time (charter §4 single-instance) ────────────
@@ -1662,6 +1845,7 @@ case "$SUB" in
   ask)      cmd_ask "${POS[1]:-}" ;;
   answer)   cmd_answer "${POS[1]:-}" "${POS[2]:-}" ;;
   console)  cmd_console ;;
+  repl)     cmd_repl ;;
   verify)   cmd_verify ;;
   convene)  cmd_convene ;;
   attach)   cmd_attach ;;
