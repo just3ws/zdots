@@ -190,7 +190,7 @@ config_stanza() {
     printf '# Host <add hostnames here>\n'
   fi
   printf '  IdentitiesOnly yes\n'
-  printf '  IdentityFile %s\n' "~/.ssh/id_$(env_slug "$env")@${ORG}"
+  printf '  IdentityFile %s\n' "$HOME/.ssh/id_$(env_slug "$env")@${ORG}"
   printf '  User %s\n' "$REMOTE_USER"
 }
 
@@ -235,8 +235,7 @@ generate_key() {
 # ---------------------------------------------------------------------------
 print_plan() {
   for env in staging production; do
-    local slug key
-    slug="$(env_slug "$env")"
+    local key
     key="$(key_path "$env")"
     printf '%s:\n' "$env"
     printf '  key_file:   %s\n' "$key"
