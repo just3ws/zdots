@@ -182,7 +182,7 @@ _known_gap() {
     idiot-test llama-caps llama-ctl local-ci nginx-ctl nginx-repair openobserve-ctl otel-collector otel-smoke ruby-audit ruby-audit-batch ruby-audit-diff pi-ctx-brief pi-ctx-hydrate
     pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-doctor
     zdots-endpoints zdots-gh zdots-github-keys zdots-graph-audit zdots-keychain zdots-log-analyze zdots-o2-query zdots-otel-phi-compile zdots-quiz zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-my-sync zdots-ingest-prepare
-    zdots-worker zsynod
+    zdots-worker zsynod zdots-mlx-prepare
     zmetrics zmorning zsvc ztask
   )
 

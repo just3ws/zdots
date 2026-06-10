@@ -4,7 +4,7 @@ import subprocess
 
 def run_compaction(context):
     process = subprocess.Popen(
-        ["python3", "context-compact.py"],
+        ["python3", "/Users/mike/.config/zsh/lib/karpathy_method/bin/context_compact.py"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
