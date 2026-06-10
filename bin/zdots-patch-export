@@ -1,0 +1,398 @@
+#!/usr/bin/env bash
+# bin/zdots-patch-export - Export git patches to ~/Desktop/outbox for transfer.
+#
+# OVERVIEW
+# --------
+# zdots-patch-export produces a single .patch file from a git repository and
+# writes it to an outbox directory (default: ~/Desktop/outbox) with a
+# timestamp-prefixed, descriptive filename.  It is designed for the personal
+# dots/config workflow where patches are generated on one machine and applied
+# on another with git-apply(1) or git-am(1).
+#
+# PATCH STRATEGY
+# --------------
+# Two strategies are used depending on whether a ref is supplied:
+#
+#   Uncommitted (default, no ref)
+#     git diff HEAD  →  captures all staged and unstaged changes relative to
+#     HEAD in a single unified diff.  Apply on the receiving end with:
+#       git apply <file.patch>
+#     Use this for work-in-progress that has not been committed.
+#
+#   Committed (ref or range supplied)
+#     git format-patch <ref> --stdout  →  produces a mail-formatted patch with
+#     the commit message, author, and date embedded.  Apply with:
+#       git am <file.patch>
+#     Use this for shipping a finished, committed change.
+#
+#   Both modes output a .patch file.  The filename signals which apply command
+#   to use: files containing "uncommitted" should use git-apply; files
+#   produced from a ref should use git-am.  A header comment inside the patch
+#   reinforces this.
+#
+# PATCH CONTENT CHECK
+# -------------------
+# Before writing anything the tool checks whether there is actually something
+# to patch.  For the uncommitted path it checks git diff HEAD --quiet; for the
+# ref path it checks that format-patch produces non-empty output.  If there is
+# nothing to export it prints "no patch to create" and exits 0.
+#
+# LABELED LOCATIONS
+# -----------------
+# Three short labels resolve to the dots repos without needing full paths:
+#
+#   zdots  →  ~/.config/zsh               (git dir: .git inside work tree)
+#   adots  →  $HOME, git dir ~/.homegit   (bare repo with separate work tree)
+#   vdots  →  ~/.config/nvim              (git dir: .git inside work tree)
+#
+# adots is special: the git dir and work tree are separate, so all git
+# commands for it are run with --git-dir and --work-tree explicitly.
+#
+# PATH ARGUMENT
+# -------------
+# If the argument is not a label and is a path, the tool resolves it to the
+# containing git repository root and derives the patch name slug from the
+# remote origin URL (git remote get-url origin), falling back to the
+# directory basename.
+#
+# OUTBOX NAMING
+# -------------
+# Patch files are named:
+#   YYYYMMDDTHHMMSS-{slug}-{descriptor}.patch
+#
+# {descriptor} is:
+#   uncommitted         no ref supplied
+#   {short-sha}         single commit SHA
+#   {from-sha}_{to-sha} range
+#   {branch-slug}       branch name (slashes replaced with dashes)
+#
+# This ordering allows ls -t and ls to both show files in chronological order.
+#
+# ADOTS RELATIONSHIP
+# ------------------
+# This tool lives in zdots (bin/zdots-patch-export) but operates on all three
+# dots repos.  adots is a configuration-facilitating layer; it does not
+# contain tooling.  ZDOTS_PATCH_OUTBOX may be set in the adots shell
+# environment to redirect the outbox globally without a per-call flag.
+#
+# ENVIRONMENT VARIABLES
+#   ZDOTS_PATCH_OUTBOX  override outbox directory (default: ~/Desktop/outbox)
+#
+# SEE ALSO
+#   zdots-github-keys(1), zdots-server-keys(1), git-diff(1),
+#   git-format-patch(1), git-apply(1), git-am(1)
+#   man zdots-patch-export
+
+set -euo pipefail
+
+PROGRAM="${0##*/}"
+OUTBOX="${ZDOTS_PATCH_OUTBOX:-${HOME}/Desktop/outbox}"
+
+# ---------------------------------------------------------------------------
+# Known labeled repo locations.
+# adots requires a separate git-dir and work-tree; the others are normal.
+# ---------------------------------------------------------------------------
+ZDOTS_DIR="${HOME}/.config/zsh"
+ADOTS_WORK="${HOME}"
+ADOTS_GIT="${HOME}/.homegit"
+VDOTS_DIR="${HOME}/.config/nvim"
+
+usage() {
+  cat <<'HELP'
+zdots-patch-export - export git patches to ~/Desktop/outbox
+
+Usage:
+  zdots-patch-export [TARGET] [REF] [options] [-- git-diff-args...]
+
+Targets (optional, default: current directory):
+  zdots             ~/.config/zsh
+  adots             $HOME tracked via ~/.homegit
+  vdots             ~/.config/nvim
+  <path>            any directory inside a git repo
+
+Ref (optional, default: uncommitted changes):
+  <sha>             single commit — uses git format-patch
+  <sha>..<sha>      range — uses git format-patch
+  <branch>          tip of branch — uses git format-patch
+
+Patch strategy:
+  No ref supplied   git diff HEAD → apply with: git apply <patch>
+  Ref supplied      git format-patch <ref> → apply with: git am <patch>
+
+Options:
+  --name SLUG       override the descriptive slug in the filename
+  --outbox DIR      override outbox directory (default: ~/Desktop/outbox
+                    or ZDOTS_PATCH_OUTBOX)
+  -h, --help        show this help
+
+Pass-through (after --):
+  Additional arguments forwarded to git diff (uncommitted mode only).
+
+Outbox naming:
+  YYYYMMDDTHHMMSS-{slug}-{descriptor}.patch
+
+Examples:
+  zdots-patch-export zdots
+  zdots-patch-export adots
+  zdots-patch-export zdots HEAD~1
+  zdots-patch-export vdots abc1234..def5678
+  zdots-patch-export /path/to/repo --name myfix
+  zdots-patch-export zdots -- --stat    # dry-run: just show what changed
+HELP
+}
+
+die()  { printf '%s: %s\n' "$PROGRAM" "$*" >&2; exit 1; }
+info() { printf '%s: %s\n' "$PROGRAM" "$*"; }
+
+# ---------------------------------------------------------------------------
+# slugify STR
+#
+# Reduce a string to a filename-safe lowercase slug: strip the URL scheme and
+# domain from remote URLs, keep only alphanumerics and dashes, collapse runs.
+# ---------------------------------------------------------------------------
+slugify() {
+  local s="$1"
+  # Strip git@host:org/ and https://host/org/ prefixes, keep repo name.
+  s="${s##*/}"       # basename
+  s="${s%.git}"      # drop .git suffix
+  # Replace non-alphanumeric runs with a single dash; lowercase.
+  printf '%s' "$s" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\{1,\}/-/g; s/^-//; s/-$//'
+}
+
+# ---------------------------------------------------------------------------
+# repo_slug GIT_ARGS...
+#
+# Derive a short slug for the patch filename.  Prefer the remote origin URL;
+# fall back to the work-tree basename.  GIT_ARGS are the --git-dir /
+# --work-tree flags for adots, empty for normal repos.
+# -------------------------------------------[118;1:3u--------------------------------
+repo_slug() {
+  local remote
+  remote="$(git "$@" remote get-url origin 2>/dev/null || true)"
+  if [[ -n "$remote" ]]; then
+    slugify "$remote"
+  else
+    local work
+    work="$(git "$@" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$(pwd)")"
+    slugify "$(basename "$work")"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# ref_descriptor REF
+#
+# Produce the patch filename descriptor for a given ref.
+# Ranges become from_to; single refs are shortened to 8 chars; branch names
+# have slashes replaced with dashes.
+# ---------------------------------------------------------------------------
+ref_descriptor() {
+  local ref="$1"
+  if [[ "$ref" == *..* ]]; then
+    # Range: shorten each end.
+    local from to
+    from="${ref%..*}"
+    to="${ref#*..}"
+    printf '%s_%s' "${from:0:8}" "${to:0:8}"
+  else
+    # Single SHA or branch name.
+    printf '%s' "$ref" | tr '/' '-' | cut -c1-24
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# ensure_outbox
+#
+# Create the outbox directory if it does not exist.
+# ---------------------------------------------------------------------------
+ensure_outbox() {
+  if [[ ! -d "$OUTBOX" ]]; then
+    mkdir -p "$OUTBOX"
+    info "created outbox: ${OUTBOX}"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# export_uncommitted GIT_ARGS SLUG EXTRA_DIFF_ARGS...
+#
+# Check for uncommitted changes and write a git-diff-HEAD patch to the outbox.
+# Exits 0 with a "no patch to create" message if the working tree is clean.
+# EXTRA_DIFF_ARGS are additional arguments forwarded to git diff (e.g. --stat).
+# ---------------------------------------------------------------------------
+export_uncommitted() {
+  local slug="$1"; shift
+  local git_args=("$@")
+  local extra_diff_args=()
+
+  # Split git_args from extra_diff_args at the -- sentinel.
+  local after_sep=0
+  local resolved_git_args=()
+  for arg in "${git_args[@]+"${git_args[@]}"}"; do
+    if [[ "$arg" == "--EXTRA--" ]]; then
+      after_sep=1; continue
+    fi
+    if [[ "$after_sep" -eq 1 ]]; then
+      extra_diff_args+=("$arg")
+    else
+      resolved_git_args+=("$arg")
+    fi
+  done
+
+  # Check if there is anything to patch.
+  if git "${resolved_git_args[@]+"${resolved_git_args[@]}"}" diff HEAD --quiet \
+       "${extra_diff_args[@]+"${extra_diff_args[@]}"}" 2>/dev/null; then
+    printf '%s: no patch to create\n' "$PROGRAM"
+    exit 0
+  fi
+
+  local ts descriptor outfile
+  ts="$(date +%Y%m%dT%H%M%S)"
+  descriptor="uncommitted"
+  outfile="${OUTBOX}/${ts}-${slug}-${descriptor}.patch"
+
+  ensure_outbox
+
+  # Write the patch with a header comment so the receiver knows how to apply.
+  {
+    printf '# Generated by zdots-patch-export\n'
+    printf '# Apply with: git apply %s\n' "$(basename "$outfile")"
+    printf '# Source: %s\n' "$slug"
+    printf '#\n'
+    git "${resolved_git_args[@]+"${resolved_git_args[@]}"}" diff HEAD \
+        "${extra_diff_args[@]+"${extra_diff_args[@]}"}"
+  } > "$outfile"
+
+  info "patch written: ${outfile}"
+  printf 'apply with:\n  git apply %s\n' "$outfile"
+}
+
+# ---------------------------------------------------------------------------
+# export_ref GIT_ARGS SLUG REF
+#
+# Format a patch for a committed ref or range using git-format-patch and write
+# it to the outbox.  Exits 0 with a message if format-patch produces nothing.
+# ---------------------------------------------------------------------------
+export_ref() {
+  local slug="$1"; shift
+  local ref="$1"; shift
+  local git_args=("$@")
+
+  local ts descriptor outfile patch_content
+  ts="$(date +%Y%m%dT%H%M%S)"
+  descriptor="$(ref_descriptor "$ref")"
+  outfile="${OUTBOX}/${ts}-${slug}-${descriptor}.patch"
+
+  # Generate patch content first; bail if empty.
+  patch_content="$(git "${git_args[@]+"${git_args[@]}"}" format-patch "$ref" --stdout 2>/dev/null || true)"
+  if [[ -z "$patch_content" ]]; then
+    printf '%s: no patch to create\n' "$PROGRAM"
+    exit 0
+  fi
+
+  ensure_outbox
+  printf '%s\n' "$patch_content" > "$outfile"
+
+  info "patch written: ${outfile}"
+  printf 'apply with:\n  git am %s\n' "$outfile"
+}
+
+# ---------------------------------------------------------------------------
+# resolve_target TARGET
+#
+# Resolve a label or path to (work_tree, git_dir_flag...).
+# Outputs three lines: WORK_TREE, GIT_DIR (empty for normal repos), LABEL.
+# ---------------------------------------------------------------------------
+resolve_target() {
+  local target="$1"
+  case "$target" in
+    zdots)
+      printf '%s\n%s\nzdots\n' "$ZDOTS_DIR" ""
+      ;;
+    adots)
+      # adots uses a bare git dir separate from the work tree.
+      printf '%s\n%s\nadots\n' "$ADOTS_WORK" "$ADOTS_GIT"
+      ;;
+    vdots)
+      printf '%s\n%s\nvdots\n' "$VDOTS_DIR" ""
+      ;;
+    *)
+      # Treat as a filesystem path; resolve the git root.
+      [[ -e "$target" ]] || die "path not found: ${target}"
+      local root
+      root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" \
+        || die "not a git repository: ${target}"
+      printf '%s\n%s\n%s\n' "$root" "" "$root"
+      ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+TARGET=""
+REF=""
+NAME_OVERRIDE=""
+EXTRA_DIFF_ARGS=()
+PARSING_EXTRA=0
+
+while [[ $# -gt 0 ]]; do
+  if [[ "$PARSING_EXTRA" -eq 1 ]]; then
+    EXTRA_DIFF_ARGS+=("$1"); shift; continue
+  fi
+  case "$1" in
+    --outbox) OUTBOX="${2:-}"; shift 2 ;;
+    --name)   NAME_OVERRIDE="${2:-}"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    --) PARSING_EXTRA=1; shift ;;
+    -*)  die "unknown option: $1 (try --help)" ;;
+    *)
+      if [[ -z "$TARGET" ]]; then
+        TARGET="$1"
+      elif [[ -z "$REF" ]]; then
+        REF="$1"
+      else
+        die "unexpected argument: $1"
+      fi
+      shift
+      ;;
+  esac
+done
+
+# Default target: current working directory.
+[[ -z "$TARGET" ]] && TARGET="$(pwd)"
+
+# ---------------------------------------------------------------------------
+# Resolve target to git invocation args and a slug.
+# ---------------------------------------------------------------------------
+resolved="$(resolve_target "$TARGET")"
+WORK_TREE="$(printf '%s\n' "$resolved" | sed -n '1p')"
+GIT_BARE="$(printf '%s\n' "$resolved"  | sed -n '2p')"
+LABEL="$(printf '%s\n' "$resolved"     | sed -n '3p')"
+
+# Build the base git argument list.
+GIT_ARGS=()
+if [[ -n "$GIT_BARE" ]]; then
+  # adots: bare repo with explicit work tree.
+  GIT_ARGS+=(--git-dir="$GIT_BARE" --work-tree="$WORK_TREE")
+else
+  GIT_ARGS+=(-C "$WORK_TREE")
+fi
+
+# Derive the slug: prefer --name, then remote-derived slug, then label.
+if [[ -n "$NAME_OVERRIDE" ]]; then
+  SLUG="$(slugify "$NAME_OVERRIDE")"
+elif [[ "$LABEL" == zdots || "$LABEL" == adots || "$LABEL" == vdots ]]; then
+  SLUG="$LABEL"
+else
+  SLUG="$(repo_slug "${GIT_ARGS[@]}")"
+fi
+
+# ---------------------------------------------------------------------------
+# Dispatch: ref-based (format-patch) or uncommitted (diff HEAD).
+# ---------------------------------------------------------------------------
+if [[ -n "$REF" ]]; then
+  export_ref "$SLUG" "$REF" "${GIT_ARGS[@]}"
+else
+  # Pass extra diff args through using a sentinel so export_uncommitted can
+  # split its own git args from the user-supplied diff args without a subshell.
+  export_uncommitted "$SLUG" "${GIT_ARGS[@]}" --EXTRA-- "${EXTRA_DIFF_ARGS[@]+"${EXTRA_DIFF_ARGS[@]}"}"
+fi

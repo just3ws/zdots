@@ -1,0 +1,502 @@
+#!/usr/bin/env bash
+# bin/zdots-server-keys - Environment-scoped SSH key management for server access.
+#
+# OVERVIEW
+# --------
+# zdots-server-keys manages ed25519 SSH keys used to authenticate against
+# remote servers, separated by deployment environment (staging, production).
+# It is the server-access counterpart to zdots-github-keys, which handles
+# GitHub identity keys.  Both scripts share the same key-naming convention
+# and the same command vocabulary (plan / apply / status / rotate-stage /
+# rotate-promote / public-key).
+#
+# KEY NAMING CONVENTION
+# ---------------------
+# Keys are named   id_{slug}@{org}   and stored in ~/.ssh:
+#
+#   staging    →  ~/.ssh/id_staging@[redacted]        (active key)
+#   production →  ~/.ssh/id_prod@[redacted]            (active key)
+#   staged     →  ~/.ssh/id_{slug}@{org}.next       (rotation candidate)
+#
+# The .next suffix mirrors the github-keygen rotate-stage pattern so that
+# both key families behave consistently.  The active key is never replaced
+# until rotate-promote is called explicitly.
+#
+# SSH CONFIG INTEGRATION
+# ----------------------
+# apply --yes appends a Host block for each environment to ~/.ssh/config.
+# Each block is guarded by a comment marker so subsequent runs are idempotent.
+# Pass --host to wire specific hostnames into the block; omit it to leave a
+# placeholder comment for later hand-editing.
+#
+# ROTATION WORKFLOW
+# -----------------
+# 1. rotate-stage ENV      — generate id_{slug}@{org}.next without touching
+#                            the active key or the SSH config stanza.
+# 2. copy-id ENV --host H  — push the new public key to each target host
+#                            BEFORE the old key is revoked.
+# 3. rotate-promote ENV    — mv .next → active; test connectivity first.
+# 4. Revoke the old public key on each host manually.
+#
+# ADOTS RELATIONSHIP
+# ------------------
+# adots is a configuration-facilitating layer, not a tooling layer.  The
+# ZDOTS_SERVER_ORG / ZDOTS_SERVER_USER env vars may be set in the adots
+# shell environment to customise defaults here, but no key logic lives
+# inside adots itself.
+#
+# ENVIRONMENT VARIABLES
+#   ZDOTS_SERVER_ORG      organisation slug used in key names (default: [redacted])
+#   ZDOTS_SERVER_USER     remote login for SSH config and ssh-copy-id (default: $USER)
+#   ZDOTS_SERVER_KEY_TYPE ssh-keygen algorithm (default: ed25519)
+#
+# SEE ALSO
+#   zdots-github-keys(1), ssh-keygen(1), ssh-copy-id(1), ssh_config(5)
+#   man zdots-server-keys
+
+set -euo pipefail
+
+PROGRAM="${0##*/}"
+
+# ---------------------------------------------------------------------------
+# Defaults — all overridable via env vars or CLI options
+# ---------------------------------------------------------------------------
+ORG="${ZDOTS_SERVER_ORG:-[redacted]}"
+DEFAULT_KEY_TYPE="${ZDOTS_SERVER_KEY_TYPE:-ed25519}"
+REMOTE_USER="${ZDOTS_SERVER_USER:-$(id -un)}"
+SSH_DIR="${HOME}/.ssh"
+SSH_CONFIG="${SSH_DIR}/config"
+
+# Accumulated --host values; used by plan, apply, and copy-id.
+HOSTS=()
+
+usage() {
+  cat <<'HELP'
+zdots-server-keys - environment-scoped SSH key management for server access
+
+Commands:
+  plan                   show key paths, SSH config stanza, and next steps
+  apply --yes            generate keys and append SSH config stanza
+  status                 show key presence and configured hosts
+  copy-id ENV            ssh-copy-id public key to --host targets
+  rotate-stage ENV       generate ENV staged key without changing active key
+  rotate-promote ENV --yes
+                         switch ENV to staged key and remove staged alias
+  public-key ENV         print the public key for ENV (or ENV_next)
+
+Environments:
+  staging    → ~/.ssh/id_staging@{org}
+  production → ~/.ssh/id_prod@{org}
+
+Options:
+  --org ORG       organisation slug in key name (default: [redacted] or ZDOTS_SERVER_ORG)
+  --user USER     remote username for ssh-copy-id and SSH config (default: current user)
+  --host HOST     hostname for SSH config stanza and copy-id; repeatable
+  --key-type TYPE ssh-keygen key type (default: ed25519)
+  --yes           required for commands that change ~/.ssh/config
+
+Environment equivalents:
+  ZDOTS_SERVER_ORG, ZDOTS_SERVER_USER, ZDOTS_SERVER_KEY_TYPE
+
+Key naming convention:
+  staging    → ~/.ssh/id_staging@{org}
+  production → ~/.ssh/id_prod@{org}
+  staged     → ~/.ssh/id_{slug}@{org}.next
+
+Generated public keys must be installed on target hosts:
+  zdots-server-keys copy-id staging --host staging
+  ssh-copy-id -i ~/.ssh/id_staging@[redacted].pub user@host
+HELP
+}
+
+die()  { printf '%s: %s\n' "$PROGRAM" "$*" >&2; exit 1; }
+info() { printf '%s: %s\n' "$PROGRAM" "$*"; }
+
+# ---------------------------------------------------------------------------
+# env_slug ENV
+#
+# Normalise the user-supplied environment name to the canonical key slug.
+# "production" and "prod" both map to "prod" so commands are forgiving.
+# ---------------------------------------------------------------------------
+env_slug() {
+  case "$1" in
+    staging)         printf 'staging' ;;
+    production|prod) printf 'prod' ;;
+    *) die "invalid environment '$1' (expected staging or production)" ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# key_path SELECTOR
+#
+# Return the absolute path of the private key file for a given selector.
+# Selectors: staging, production/prod   → active key
+#            staging_next, production_next/prod_next → staged rotation key
+# The .next suffix keeps staged keys adjacent to their active counterparts
+# in ~/.ssh and mirrors the github-keygen convention.
+# ---------------------------------------------------------------------------
+key_path() {
+  local selector="$1"
+  case "$selector" in
+    staging|production|prod)
+      printf '%s/id_%s@%s\n' "$SSH_DIR" "$(env_slug "$selector")" "$ORG"
+      ;;
+    staging_next|production_next|prod_next)
+      local base="${selector%_next}"
+      printf '%s/id_%s@%s.next\n' "$SSH_DIR" "$(env_slug "$base")" "$ORG"
+      ;;
+    *) die "invalid key selector '$selector'" ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# key_comment ENV
+#
+# Build the -C comment embedded in the public key.
+# Format: USER@SLUG.ORG  e.g. deploy@staging.[redacted]
+# This makes it easy to identify the key's purpose in authorized_keys files.
+# ---------------------------------------------------------------------------
+key_comment() {
+  local env="$1"
+  printf '%s@%s.%s\n' "$REMOTE_USER" "$(env_slug "$env")" "$ORG"
+}
+
+# ---------------------------------------------------------------------------
+# config_marker ENV
+#
+# Emit the comment line used as an idempotency marker in ~/.ssh/config.
+# apply --yes greps for this marker before appending; if already present
+# the stanza is not written a second time.
+# ---------------------------------------------------------------------------
+config_marker() {
+  local env="$1"
+  printf '# zdots-server-keys: %s@%s\n' "$(env_slug "$env")" "$ORG"
+}
+
+# ---------------------------------------------------------------------------
+# config_stanza ENV
+#
+# Emit the full Host block for ENV, including the idempotency marker.
+# When HOSTS is populated, the Host line lists them explicitly; otherwise
+# a commented placeholder is emitted so the file remains valid and the
+# operator can fill in hostnames later.
+# ---------------------------------------------------------------------------
+config_stanza() {
+  local env="$1"
+  config_marker "$env"
+  if [[ ${#HOSTS[@]} -gt 0 ]]; then
+    printf 'Host %s\n' "${HOSTS[*]}"
+  else
+    printf '# Host <add hostnames here>\n'
+  fi
+  printf '  IdentitiesOnly yes\n'
+  printf '  IdentityFile %s\n' "~/.ssh/id_$(env_slug "$env")@${ORG}"
+  printf '  User %s\n' "$REMOTE_USER"
+}
+
+# ---------------------------------------------------------------------------
+# ensure_ssh_dir
+#
+# Create ~/.ssh with the required 0700 permissions if it does not exist.
+# ssh and ssh-keygen refuse to use directories with looser permissions.
+# ---------------------------------------------------------------------------
+ensure_ssh_dir() {
+  [[ -d "$SSH_DIR" ]] || { mkdir -m 0700 "$SSH_DIR"; info "created ${SSH_DIR}"; }
+}
+
+# ---------------------------------------------------------------------------
+# generate_key KEY_PATH COMMENT
+#
+# Run ssh-keygen to create a new private/public key pair at KEY_PATH.
+# No-op if the private key already exists — never clobbers.
+# Permissions are set explicitly: 600 for the private key, 644 for .pub.
+# The passphrase is empty (-N ""); servers are typically accessed without
+# interactive passphrases and rely on the agent for session caching.
+# ---------------------------------------------------------------------------
+generate_key() {
+  local key="$1"
+  local comment="$2"
+  if [[ -f "$key" ]]; then
+    info "key already exists: ${key}"
+    return 0
+  fi
+  ensure_ssh_dir
+  ssh-keygen -t "$DEFAULT_KEY_TYPE" -C "$comment" -f "$key" -N ""
+  chmod 600 "$key"
+  chmod 644 "${key}.pub"
+  info "generated: ${key}"
+}
+
+# ---------------------------------------------------------------------------
+# print_plan
+#
+# Dry-run output: show what apply --yes would create.  No files are written.
+# Useful as a first step before committing to key generation.
+# ---------------------------------------------------------------------------
+print_plan() {
+  for env in staging production; do
+    local slug key
+    slug="$(env_slug "$env")"
+    key="$(key_path "$env")"
+    printf '%s:\n' "$env"
+    printf '  key_file:   %s\n' "$key"
+    printf '  public_key: %s.pub\n' "$key"
+    printf '  comment:    %s\n' "$(key_comment "$env")"
+    printf '\n'
+  done
+  printf 'SSH config stanza (staging):\n'
+  config_stanza staging | sed 's/^/  /'
+  printf '\nSSH config stanza (production):\n'
+  config_stanza production | sed 's/^/  /'
+  printf '\nTo apply:\n'
+  printf '  %s apply --yes\n' "$PROGRAM"
+}
+
+# ---------------------------------------------------------------------------
+# run_apply YES
+#
+# Generate keys for both environments and append their SSH config stanzas.
+# Requires --yes to prevent accidental ~/.ssh/config mutation.
+# Each stanza is appended at most once; the idempotency marker prevents
+# duplicate blocks on repeated runs.
+# ---------------------------------------------------------------------------
+run_apply() {
+  local yes="$1"
+  [[ "$yes" == "1" ]] || die "apply changes ~/.ssh/config; rerun with --yes"
+  ensure_ssh_dir
+
+  for env in staging production; do
+    local key
+    key="$(key_path "$env")"
+    generate_key "$key" "$(key_comment "$env")"
+
+    # Guard against double-appending the stanza on re-runs.
+    local marker
+    marker="$(config_marker "$env")"
+    if grep -qF "$marker" "$SSH_CONFIG" 2>/dev/null; then
+      info "SSH config stanza already present for ${env}; skipping"
+    else
+      { printf '\n'; config_stanza "$env"; printf '\n'; } >> "$SSH_CONFIG"
+      chmod 600 "$SSH_CONFIG"
+      info "appended SSH config stanza for ${env}"
+    fi
+  done
+
+  print_next_steps staging
+  print_next_steps production
+}
+
+# ---------------------------------------------------------------------------
+# print_status
+#
+# Report the on-disk presence of every active and staged key, plus the
+# SSH config file itself.  Read-only — nothing is written.
+# ---------------------------------------------------------------------------
+print_status() {
+  for env in staging production; do
+    local key pub
+    key="$(key_path "$env")"
+    pub="${key}.pub"
+    printf '%s:\n' "$env"
+    printf '  key_file:   %s [%s]\n' "$key" "$([[ -f "$key" ]] && printf present || printf missing)"
+    printf '  public_key: %s [%s]\n' "$pub" "$([[ -f "$pub" ]] && printf present || printf missing)"
+    # Surface any staged rotation key so the operator knows a rotation is in progress.
+    local next_key
+    next_key="$(key_path "${env}_next")"
+    if [[ -f "$next_key" ]]; then
+      printf '  staged_key: %s [present]\n' "$next_key"
+    fi
+  done
+  printf 'ssh_config: %s [%s]\n' "$SSH_CONFIG" "$([[ -f "$SSH_CONFIG" ]] && printf present || printf missing)"
+}
+
+# ---------------------------------------------------------------------------
+# run_copy_id ENV
+#
+# Copy the active public key for ENV to each host in HOSTS via ssh-copy-id.
+# The host must already be reachable with some credential (e.g. password auth
+# or an existing key) for ssh-copy-id to succeed.
+# During rotation, copy-id is called with the staged key (.next) before
+# promote, so both old and new keys are briefly authorised on the host.
+# ---------------------------------------------------------------------------
+run_copy_id() {
+  local env="$1"
+  [[ ${#HOSTS[@]} -gt 0 ]] || die "copy-id requires at least one --host"
+  local pub
+  pub="$(key_path "$env").pub"
+  [[ -f "$pub" ]] || die "public key missing: ${pub} (run: ${PROGRAM} apply --yes first)"
+  for host in "${HOSTS[@]}"; do
+    info "copying key to ${REMOTE_USER}@${host}"
+    ssh-copy-id -i "$pub" "${REMOTE_USER}@${host}"
+  done
+}
+
+# ---------------------------------------------------------------------------
+# rotate_stage ENV
+#
+# Generate a new staged key (id_{slug}@{org}.next) without touching the
+# active key or its SSH config stanza.  The staged key is a normal ed25519
+# key pair; it just lives at a .next path until promoted.
+#
+# Rotation sequence:
+#   1. rotate-stage ENV         — create the .next key pair
+#   2. Install .next on servers — ssh-copy-id or manual authorized_keys edit
+#   3. Verify connectivity       — ssh -i id_{slug}@{org}.next user@host
+#   4. rotate-promote ENV --yes — mv .next → active
+#   5. Revoke old key on servers
+# ---------------------------------------------------------------------------
+rotate_stage() {
+  local env="$1"
+  local staged="${env}_next"
+  local key
+  key="$(key_path "$staged")"
+  generate_key "$key" "$(key_comment "$env")"
+  cat <<NEXT
+
+staged: ${env}
+key_file: ${key}
+public_key: ${key}.pub
+
+Install the staged public key on target hosts before promoting:
+  ssh-copy-id -i ${key}.pub ${REMOTE_USER}@<host>
+
+After hosts accept the staged key, promote it:
+  ${PROGRAM} rotate-promote ${env} --yes
+NEXT
+  [[ -f "${key}.pub" ]] && cat "${key}.pub"
+}
+
+# ---------------------------------------------------------------------------
+# rotate_promote ENV YES
+#
+# Atomically replace the active key with the staged .next key by renaming
+# both the private and public key files.  The SSH config stanza is unchanged
+# because it already references id_{slug}@{org} — the path stays constant
+# across rotations, only the file content changes.
+#
+# Requires --yes as a safety gate; never clobbers without explicit consent.
+# ---------------------------------------------------------------------------
+rotate_promote() {
+  local env="$1"
+  local yes="$2"
+  [[ "$yes" == "1" ]] || die "rotate-promote replaces key files; rerun with --yes"
+
+  local staged="${env}_next"
+  local next_key active_key
+  next_key="$(key_path "$staged")"
+  active_key="$(key_path "$env")"
+
+  [[ -f "$next_key" ]]       || die "staged private key missing: ${next_key}"
+  [[ -f "${next_key}.pub" ]] || die "staged public key missing: ${next_key}.pub"
+
+  # Replace active key files.  mv is atomic within the same filesystem.
+  mv "$next_key"       "$active_key"
+  mv "${next_key}.pub" "${active_key}.pub"
+  chmod 600 "$active_key"
+  chmod 644 "${active_key}.pub"
+
+  info "promoted staged key to: ${active_key}"
+  cat <<NEXT
+
+Test connectivity before revoking the old key on target hosts:
+  ssh -i ${active_key} ${REMOTE_USER}@<host>
+NEXT
+}
+
+# ---------------------------------------------------------------------------
+# print_public_key SELECTOR
+#
+# Cat the .pub file for SELECTOR to stdout.  Useful for piping to
+# pbcopy or pasting into authorized_keys / provider consoles.
+# ---------------------------------------------------------------------------
+print_public_key() {
+  local selector="$1"
+  local pub
+  pub="$(key_path "$selector").pub"
+  [[ -f "$pub" ]] || die "public key missing: ${pub}"
+  cat "$pub"
+}
+
+# ---------------------------------------------------------------------------
+# print_next_steps ENV
+#
+# Emit the post-apply guidance for ENV: how to copy the key to hosts and
+# how to verify connectivity.  Called automatically by run_apply.
+# ---------------------------------------------------------------------------
+print_next_steps() {
+  local env="$1"
+  local key
+  key="$(key_path "$env")"
+  cat <<NEXT
+
+${env}: install public key on target hosts:
+  ${PROGRAM} copy-id ${env} --host <host>
+  or: ssh-copy-id -i ${key}.pub ${REMOTE_USER}@<host>
+test:
+  ssh <host>
+NEXT
+  [[ -f "${key}.pub" ]] && cat "${key}.pub"
+}
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+#
+# Command is the first positional argument.  All subsequent tokens are either
+# flag/value pairs or a single positional env_arg consumed by subcommands
+# that operate on one environment at a time.
+# ---------------------------------------------------------------------------
+cmd="${1:-help}"
+shift || true
+
+yes=0
+env_arg=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --org)      ORG="${2:-}";              shift 2 ;;
+    --user)     REMOTE_USER="${2:-}";      shift 2 ;;
+    --host)     HOSTS+=("${2:-}");         shift 2 ;;
+    --key-type) DEFAULT_KEY_TYPE="${2:-}"; shift 2 ;;
+    --yes)      yes=1; shift ;;
+    -h|--help|help) usage; exit 0 ;;
+    --) shift; break ;;
+    -*) die "unknown option: $1" ;;
+    *)
+      # Accept exactly one positional env argument per invocation.
+      if [[ -z "$env_arg" ]]; then
+        env_arg="$1"
+      else
+        die "unexpected argument: $1"
+      fi
+      shift
+      ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
+# Command dispatch
+# ---------------------------------------------------------------------------
+case "$cmd" in
+  help|-h|--help) usage; exit 0 ;;
+  plan)           print_plan ;;
+  apply)          run_apply "$yes" ;;
+  status)         print_status ;;
+  copy-id)
+    [[ -n "$env_arg" ]] || die "copy-id requires environment: staging or production"
+    run_copy_id "$env_arg"
+    ;;
+  rotate-stage)
+    [[ -n "$env_arg" ]] || die "rotate-stage requires environment: staging or production"
+    rotate_stage "$env_arg"
+    ;;
+  rotate-promote)
+    [[ -n "$env_arg" ]] || die "rotate-promote requires environment: staging or production"
+    rotate_promote "$env_arg" "$yes"
+    ;;
+  public-key)
+    [[ -n "$env_arg" ]] || die "public-key requires environment selector"
+    print_public_key "$env_arg"
+    ;;
+  *)
+    die "unknown command '$cmd'; run: $PROGRAM help"
+    ;;
+esac
