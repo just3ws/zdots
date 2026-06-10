@@ -1,0 +1,20 @@
+Help on function generate in module mlx_lm.generate:
+
+generate(
+    model: nn.Module,
+    tokenizer: Union[PreTrainedTokenizer, TokenizerWrapper],
+    prompt: Union[str, List[int]],
+    verbose: bool = False,
+    **kwargs
+) -> str
+    Generate a complete response from the model.
+
+    Args:
+       model (nn.Module): The language model.
+       tokenizer (PreTrainedTokenizer): The tokenizer.
+       prompt (Union[str, List[int]]): The input prompt string or integer tokens.
+       verbose (bool): If ``True``, print tokens and timing information.
+           Default: ``False``.
+       kwargs: The remaining options get passed to :func:`stream_generate`.
+          See :func:`stream_generate` for more details.
+

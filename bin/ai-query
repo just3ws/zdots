@@ -51,15 +51,6 @@
 set -euo pipefail
 trap '' PIPE
 
-# 1. Routing Logic (MLX or Llama-cpp)
-INFERENCE_ENGINE="${ZDOTS_INFERENCE_ENGINE:-llama-cpp}"
-
-if [[ "$INFERENCE_ENGINE" == "mlx" ]]; then
-  # Call MLX wrapper
-  python3 -c "from lib.inference.mlx_engine import get_engine; engine = get_engine('local', 'mlx'); print(engine.generate_completion('''$PROMPT'''))"
-  exit 0
-fi
-
 # 2. Existing Guardrail Layers (Llama-cpp)
 # ... (existing curl/llama-server logic)
 # ---------------------------------------------------------------------------

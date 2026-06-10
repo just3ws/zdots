@@ -1,5 +1,0 @@
-{
-  "timestamp": "20260609_172728",
-  "label": "golden_baseline",
-  "results": [{"tokens": 512, "latency_ms": 2875},{"tokens": 1024, "latency_ms": 6555},{"tokens": 2048, "latency_ms": 10739}]
-}
