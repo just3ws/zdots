@@ -1,7 +1,17 @@
 # Inference Performance Update (As of 2026-06-09)
 
-## Regression Findings (Iteration 1.1)
-- **Experiment:** Increased `batch_size`/`ubatch_size` from 2048 to 4096.
-- **Outcome:** **Regression.** Latency increased significantly across all token counts (e.g., 1024 tokens went from ~6.5s to ~15.3s).
-- **Hypothesis:** Increased memory footprint for the 4096 batch buffer likely triggered aggressive OS swap or kernel-level memory management overhead, neutralizing any throughput gains from increased parallelism.
-- **Conclusion:** 2048 is the current stability/performance optimum for this hardware/model configuration.
+## 1. Inference Engine Comparison: llama-cpp (Optimized) vs. MLX (Default)
+- **Baseline:** Optimized `llama-cpp` (Flash Attention, 8-bit KV Quantization, 2048 Batch Size).
+- **MLX Engine:** Default `mlx_lm` configuration.
+- **Result:** **Regression.** The default MLX implementation is significantly slower than our highly-tuned `llama-cpp` baseline (e.g., 512-token turns are ~80% slower).
+- **Conclusion:** MLX is not a "magic bullet." Without applying equivalent performance tuning (KV quantization, native Metal kernel parameters), it performs worse than the mature `llama.cpp` pipeline.
+
+## 2. Next Ratchet: MLX Optimization
+To beat the `llama-cpp` baseline, we must tune MLX:
+1. **Quantization:** Enable 4-bit/8-bit KV cache quantization in MLX.
+2. **Flash Attention:** Verify MLX is utilizing hardware-native attention kernels (it should be default, but requires validation).
+3. **Batching:** Explicitly control batch sizes if possible via `mlx_lm` kwargs.
+
+## 3. Plan
+- [ ] Implement `context_compaction` in `mlx_engine.py` (mandatory requirement).
+- [ ] Re-run benchmark with KV cache quantization enabled in MLX.
