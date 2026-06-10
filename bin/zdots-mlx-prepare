@@ -2,7 +2,7 @@
 import argparse
 import os
 import sys
-from mlx_lm import convert
+import mlx_lm
 
 # Directory to store MLX models
 MLX_MODELS_DIR = os.path.expanduser("~/.local/share/mlx/models")
@@ -20,9 +20,9 @@ def prepare_model(hf_repo, model_name):
     print(f"Preparing MLX model: {model_name} from {hf_repo}...")
     
     # mlx_lm.convert handles the conversion from HuggingFace to MLX native
-    # We pass the repo ID directly to the converter
+    # Direct function call as identified by signature
     try:
-        convert.convert(
+        mlx_lm.convert(
             hf_path=hf_repo,
             mlx_path=output_path,
             quantize=True  # Default to 4-bit quantization for performance

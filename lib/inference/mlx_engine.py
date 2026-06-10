@@ -3,17 +3,21 @@ import json
 import os
 
 class MLXEngine:
-    def __init__(self, model_path_or_id):
-        self.model, self.tokenizer = mlx_lm.load(model_path_or_id)
+    def __init__(self, model_name):
+        # Map 'local' to the specific prepared model directory
+        if model_name == 'local':
+            model_path = os.path.expanduser("~/.local/share/mlx/models/Qwen2.5-Coder-7B")
+        else:
+            model_path = os.path.expanduser(f"~/.local/share/mlx/models/{model_name}")
+        self.model, self.tokenizer = mlx_lm.load(model_path)
         
-    def generate_completion(self, system_prompt, user_prompt, max_tokens=100, temperature=0.7):
+    def generate_completion(self, system_prompt, user_prompt, max_tokens=100):
         prompt = f"System: {system_prompt}\nUser: {user_prompt}\nAssistant:"
         response = mlx_lm.generate(
             self.model,
             self.tokenizer,
             prompt=prompt,
-            max_tokens=max_tokens,
-            temp=temperature
+            max_tokens=max_tokens
         )
         return response
 
