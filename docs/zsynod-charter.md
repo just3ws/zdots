@@ -126,6 +126,7 @@ to dissolve.
   attributed, append-only, **hash-chained** (each entry signs the previous, so
   history cannot be silently rewritten — verify with `zsynod verify`).
 - `zsynod/minutes.md` is a generated human-readable mirror. The JSONL is canon.
+- The **Lifecycle** (`zsynod/LIFECYCLE.md`) defines the stages from proposal to execution.
 
 ## 3. Membership & lanes
 
