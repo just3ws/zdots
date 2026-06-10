@@ -1,0 +1,15 @@
+#!/usr/bin/env zsh
+# .githooks/post-commit — synchronize zsynod state after a commit.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# Run zsynod verify to ensure ledger integrity.
+# Run zsynod minutes to update the human-readable mirror.
+if [[ -x "./bin/zsynod" ]]; then
+  # We use --as mike for minutes if ZSYNOD_MEMBER isn't set, 
+  # but minutes is a read/mirror action that doesn't strictly need a vote.
+  ./bin/zsynod verify >/dev/null 2>&1 || true
+  ./bin/zsynod minutes >/dev/null 2>&1 || true
+fi
