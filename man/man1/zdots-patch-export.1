@@ -1,0 +1,215 @@
+.Dd June 10, 2026
+.Dt ZDOTS-PATCH-EXPORT 1
+.Os zdots
+.Sh NAME
+.Nm zdots-patch-export
+.Nd export git patches to a timestamped outbox for transfer
+.Sh SYNOPSIS
+.Nm
+.Op Ar target
+.Op Ar ref
+.Op Fl -name Ar slug
+.Op Fl -outbox Ar dir
+.Op Fl - Ar git-diff-args ...
+.Sh DESCRIPTION
+.Nm
+produces a single
+.Pa .patch
+file from a git repository and writes it to an outbox directory
+.Pq default: Pa ~/Desktop/outbox
+with a timestamp-prefixed, descriptive filename.
+It is designed for the personal dots and config workflow: generate a patch
+on one machine, transfer it, apply it on another.
+.Pp
+Two patch strategies are selected automatically based on whether a
+.Ar ref
+is supplied:
+.Bl -tag -width uncommitted
+.It Em Uncommitted Pq default
+.Xr git-diff 1
+.Li HEAD
+captures all staged and unstaged changes relative to HEAD in a single
+unified diff.
+Apply on the receiving end with:
+.Dl git apply <patch>
+Use this for work-in-progress that has not yet been committed.
+.It Em Ref or range
+.Xr git-format-patch 1
+embeds the commit message, author, and date in a mail-formatted patch.
+Apply on the receiving end with:
+.Dl git am <patch>
+Use this for shipping a finished, committed change.
+.El
+.Pp
+If there is nothing to export
+.Pq clean working tree or empty format-patch output ,
+.Nm
+prints
+.Dq no patch to create
+and exits 0.
+.Pp
+The outbox directory is created automatically if it does not exist.
+Patch files are named
+.Sm off
+.Ar YYYYMMDDTHHMMSS - slug - descriptor .patch
+.Sm on
+so that
+.Xr ls 1
+lists them in chronological order.
+.Sh TARGETS
+A target selects the repository to patch.
+If omitted the current working directory is used.
+.Bl -tag -width production
+.It Ic zdots
+.Pa ~/.config/zsh
+.It Ic adots
+.Pa $HOME
+tracked via the bare repository at
+.Pa ~/.homegit .
+.It Ic vdots
+.Pa ~/.config/nvim
+.It Ar path
+Any directory inside a git repository.
+The patch name slug is derived from the
+.Li origin
+remote URL, falling back to the directory basename.
+.El
+.Sh REF
+An optional ref selects which commits to include.
+When omitted, uncommitted changes are exported.
+.Bl -tag -width Ar
+.It Ar sha
+Single commit.
+Passed to
+.Xr git-format-patch 1
+as
+.Fl 1 Ar sha .
+.It Ar from Ns Li .. Ns Ar to
+Commit range.
+Passed to
+.Xr git-format-patch 1
+directly.
+.It Ar branch
+Tip of a branch.
+Passed to
+.Xr git-format-patch 1
+as
+.Fl 1 Ar branch .
+.El
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -name Ar slug
+Override the descriptive slug embedded in the patch filename.
+Useful when the remote URL would produce a poor name.
+.It Fl -outbox Ar dir
+Write the patch to
+.Ar dir
+instead of the default outbox.
+Created automatically if absent.
+.It Fl h , Fl -help
+Show usage.
+.It Fl -
+Pass remaining arguments to
+.Xr git-diff 1
+.Pq uncommitted mode only .
+Use
+.Fl -stat
+to preview the diff without producing a patch file.
+.El
+.Sh OUTBOX NAMING
+Patch files follow the pattern:
+.Pp
+.Dl YYYYMMDDTHHMMSS-{slug}-{descriptor}.patch
+.Pp
+.Bl -tag -width descriptor -compact
+.It Em slug
+Derived from the remote origin URL, the known label
+.Pq Li zdots , Li adots , Li vdots ,
+or
+.Fl -name .
+.It Em descriptor
+.Li uncommitted
+for the diff-HEAD path; the shortened SHA or branch name for the
+format-patch path; a
+.Li from_to
+pair for a range.
+.El
+.Sh PATCH STRATEGY GUIDANCE
+For a personal workflow without kernel-style review overhead:
+.Bl -bullet
+.It
+Use the uncommitted default for WIP changes that have not been committed.
+Apply with
+.Xr git-apply 1 .
+.It
+Commit your work first and pass a
+.Ar ref
+when you want the commit message and authorship preserved in the patch.
+Apply with
+.Xr git-am 1 .
+.It
+.Nm
+prints the correct apply command after writing each patch.
+A header comment inside each file also records the apply command.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_PATCH_OUTBOX
+.It Ev ZDOTS_PATCH_OUTBOX
+Override the outbox directory globally.
+Set in the adots shell environment to redirect patches on all machines
+without a per-call flag.
+.El
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa ~/Desktop/outbox/
+Default outbox directory.
+Created on first use.
+.It Pa ~/Desktop/outbox/ Ns Ar timestamp Ns - Ns Ar slug Ns - Ns Ar descriptor Ns Pa .patch
+Individual patch file.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Export uncommitted zdots changes:
+.Pp
+.Dl zdots-patch-export zdots
+.Pp
+Export uncommitted adots changes:
+.Pp
+.Dl zdots-patch-export adots
+.Pp
+Export the last committed zdots change as a format-patch:
+.Pp
+.Dl zdots-patch-export zdots HEAD~1
+.Pp
+Export a specific commit from vdots:
+.Pp
+.Dl zdots-patch-export vdots abc1234
+.Pp
+Export a commit range:
+.Pp
+.Dl zdots-patch-export zdots HEAD~3..HEAD
+.Pp
+Export uncommitted changes from an arbitrary repo with a custom name:
+.Pp
+.Dl zdots-patch-export ~/work/myrepo --name myfix
+.Pp
+Preview what the uncommitted diff contains without writing a file:
+.Pp
+.Dl zdots-patch-export zdots -- --stat
+.Pp
+Apply an uncommitted-mode patch on the receiving machine:
+.Pp
+.Dl git apply 20260610T120000-zdots-uncommitted.patch
+.Pp
+Apply a format-patch on the receiving machine:
+.Pp
+.Dl git am 20260610T120000-zdots-HEAD~1.patch
+.Sh SEE ALSO
+.Xr zdots-server-keys 1 ,
+.Xr zdots-github-keys 1 ,
+.Xr git-diff 1 ,
+.Xr git-format-patch 1 ,
+.Xr git-apply 1 ,
+.Xr git-am 1 ,
+.Xr zdots 7
