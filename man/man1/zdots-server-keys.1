@@ -104,7 +104,7 @@ or pasting into
 .Bl -tag -width Fl
 .It Fl -org Ar org
 Organisation slug embedded in key names
-.Pq default: Li [redacted] No or Ev ZDOTS_SERVER_ORG .
+.Pq default: Li work No or Ev ZDOTS_SERVER_ORG .
 .It Fl -user Ar user
 Remote username written into the SSH config stanza and passed to
 .Xr ssh-copy-id 1
@@ -135,11 +135,11 @@ stored in
 .Pp
 .Bl -tag -width production -compact
 .It staging
-.Pa ~/.ssh/id_staging@[redacted]
+.Pa ~/.ssh/id_staging@work
 .It production
-.Pa ~/.ssh/id_prod@[redacted]
+.Pa ~/.ssh/id_prod@work
 .It staged
-.Pa ~/.ssh/id_{slug}@[redacted].next
+.Pa ~/.ssh/id_{slug}@work.next
 .El
 .Pp
 The
@@ -154,13 +154,13 @@ Key rotation replaces the active key without a window of lost access:
 .It
 .Dl zdots-server-keys rotate-stage staging
 Generate
-.Pa ~/.ssh/id_staging@[redacted].next .
+.Pa ~/.ssh/id_staging@work.next .
 .It
 .Dl zdots-server-keys copy-id staging --host staging
 Install the staged public key on each host alongside the existing key.
 .It
 Verify the staged key works:
-.Dl ssh -i ~/.ssh/id_staging@[redacted].next user@staging
+.Dl ssh -i ~/.ssh/id_staging@work.next user@staging
 .It
 .Dl zdots-server-keys rotate-promote staging --yes
 Rename
@@ -175,7 +175,7 @@ on each host.
 .Bl -tag -width ZDOTS_SERVER_KEY_TYPE
 .It Ev ZDOTS_SERVER_ORG
 Organisation slug used in key names
-.Pq default: Li [redacted] .
+.Pq default: Li work .
 .It Ev ZDOTS_SERVER_USER
 Remote username for SSH config and
 .Xr ssh-copy-id 1
@@ -187,15 +187,15 @@ Key algorithm for
 .El
 .Sh FILES
 .Bl -tag -width Pa
-.It Pa ~/.ssh/id_staging@[redacted]
+.It Pa ~/.ssh/id_staging@work
 Active private key for staging hosts.
-.It Pa ~/.ssh/id_staging@[redacted].pub
+.It Pa ~/.ssh/id_staging@work.pub
 Active public key for staging hosts.
-.It Pa ~/.ssh/id_prod@[redacted]
+.It Pa ~/.ssh/id_prod@work
 Active private key for production hosts.
-.It Pa ~/.ssh/id_prod@[redacted].pub
+.It Pa ~/.ssh/id_prod@work.pub
 Active public key for production hosts.
-.It Pa ~/.ssh/id_{slug}@[redacted].next
+.It Pa ~/.ssh/id_{slug}@work.next
 Staged rotation candidate
 .Pq present only during an in-progress rotation .
 .It Pa ~/.ssh/config
@@ -235,7 +235,7 @@ Print the staging public key to the clipboard:
 Stage a new staging key for rotation, install it, then promote:
 .Pp
 .Dl zdots-server-keys rotate-stage staging
-.Dl ssh-copy-id -i ~/.ssh/id_staging@[redacted].next user@staging
+.Dl ssh-copy-id -i ~/.ssh/id_staging@work.next user@staging
 .Dl zdots-server-keys rotate-promote staging --yes
 .Sh SEE ALSO
 .Xr zdots-github-keys 1 ,

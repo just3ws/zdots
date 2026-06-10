@@ -485,7 +485,7 @@ AI agent ran `rm -rf ~/` after confusing a literal subdirectory named `~`
 with shell HOME expansion. The user killed the process mid-traversal; only a
 permissions bottleneck in Music/ and go/pkg/mod/ saved Documents, Desktop,
 and the GitHub repos. Permanent losses included shell config, history, the
-entire ~/.config/ tree, and ~/context/[redacted]/ (irrecoverable research).
+entire ~/.config/ tree, and ~/context/work/ (irrecoverable research).
 
 Read this before any operation that removes, moves, resets, cleans, wipes,
 prunes, truncates, or overwrites filesystem state.
@@ -529,7 +529,7 @@ WHY THIS MATTERS HERE
   No Time Machine destination is configured on this machine. No APFS
   snapshots are retained. There is no cloud sync of $HOME. A destructive
   command that escapes the guardrails has no undo. The work lost in the
-  2026-05-25 incident — including weeks of [redacted] company research — is
+  2026-05-25 incident — including weeks of Work company research — is
   gone permanently. Do not add to that list.
 EOF
 

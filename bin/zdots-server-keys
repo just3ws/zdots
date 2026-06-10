@@ -14,8 +14,8 @@
 # ---------------------
 # Keys are named   id_{slug}@{org}   and stored in ~/.ssh:
 #
-#   staging    →  ~/.ssh/id_staging@[redacted]        (active key)
-#   production →  ~/.ssh/id_prod@[redacted]            (active key)
+#   staging    →  ~/.ssh/id_staging@work        (active key)
+#   production →  ~/.ssh/id_prod@work            (active key)
 #   staged     →  ~/.ssh/id_{slug}@{org}.next       (rotation candidate)
 #
 # The .next suffix mirrors the github-keygen rotate-stage pattern so that
@@ -46,7 +46,7 @@
 # inside adots itself.
 #
 # ENVIRONMENT VARIABLES
-#   ZDOTS_SERVER_ORG      organisation slug used in key names (default: [redacted])
+#   ZDOTS_SERVER_ORG      organisation slug used in key names (default: work)
 #   ZDOTS_SERVER_USER     remote login for SSH config and ssh-copy-id (default: $USER)
 #   ZDOTS_SERVER_KEY_TYPE ssh-keygen algorithm (default: ed25519)
 #
@@ -61,7 +61,7 @@ PROGRAM="${0##*/}"
 # ---------------------------------------------------------------------------
 # Defaults — all overridable via env vars or CLI options
 # ---------------------------------------------------------------------------
-ORG="${ZDOTS_SERVER_ORG:-[redacted]}"
+ORG="${ZDOTS_SERVER_ORG:-work}"
 DEFAULT_KEY_TYPE="${ZDOTS_SERVER_KEY_TYPE:-ed25519}"
 REMOTE_USER="${ZDOTS_SERVER_USER:-$(id -un)}"
 SSH_DIR="${HOME}/.ssh"
@@ -89,7 +89,7 @@ Environments:
   production → ~/.ssh/id_prod@{org}
 
 Options:
-  --org ORG       organisation slug in key name (default: [redacted] or ZDOTS_SERVER_ORG)
+  --org ORG       organisation slug in key name (default: work or ZDOTS_SERVER_ORG)
   --user USER     remote username for ssh-copy-id and SSH config (default: current user)
   --host HOST     hostname for SSH config stanza and copy-id; repeatable
   --key-type TYPE ssh-keygen key type (default: ed25519)
@@ -105,7 +105,7 @@ Key naming convention:
 
 Generated public keys must be installed on target hosts:
   zdots-server-keys copy-id staging --host staging
-  ssh-copy-id -i ~/.ssh/id_staging@[redacted].pub user@host
+  ssh-copy-id -i ~/.ssh/id_staging@work.pub user@host
 HELP
 }
 
@@ -153,7 +153,7 @@ key_path() {
 # key_comment ENV
 #
 # Build the -C comment embedded in the public key.
-# Format: USER@SLUG.ORG  e.g. deploy@staging.[redacted]
+# Format: USER@SLUG.ORG  e.g. deploy@staging.work
 # This makes it easy to identify the key's purpose in authorized_keys files.
 # ---------------------------------------------------------------------------
 key_comment() {
