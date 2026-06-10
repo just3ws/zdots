@@ -1,10 +1,10 @@
 ---
 id: Z-135
 title: 'Runtime-insight feedback loop: scrub-at-ingest + session read-back (work-safe)'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-06-07 16:55'
-updated_date: '2026-06-07 19:21'
+updated_date: '2026-06-10 13:14'
 labels:
   - agent-ready
   - observability
