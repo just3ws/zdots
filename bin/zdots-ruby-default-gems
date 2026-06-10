@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Install zdots' global Ruby tool gems into a specific mise Ruby.
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+GEMS_FILE="${ZDOTS_RUBY_DEFAULT_GEMS:-$ZDOTDIR/etc/mise/default-gems}"
+TARGET_RUBY="${1:-}"
+
+log() {
+  printf 'zdots-ruby-default-gems: %s\n' "$*"
+}
+
+warn() {
+  printf 'zdots-ruby-default-gems: WARN %s\n' "$*" >&2
+}
+
+if [[ ! -f "$GEMS_FILE" ]]; then
+  warn "default gems file not found: $GEMS_FILE"
+  exit 0
+fi
+
+if [[ -n "$TARGET_RUBY" ]]; then
+  if command -v mise >/dev/null 2>&1; then
+    gem_cmd=(mise exec "ruby@$TARGET_RUBY" -- gem)
+  else
+    warn "mise not found; cannot target ruby@$TARGET_RUBY"
+    exit 1
+  fi
+else
+  gem_cmd=(gem)
+fi
+
+log "ensuring gems from $GEMS_FILE${TARGET_RUBY:+ for ruby@$TARGET_RUBY}"
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line="${line%%#*}"
+  line="${line#"${line%%[![:space:]]*}"}"
+  line="${line%"${line##*[![:space:]]}"}"
+  [[ -z "$line" ]] && continue
+
+  gem_name="${line%%[[:space:]]*}"
+  gem_version="${line#"$gem_name"}"
+  gem_version="${gem_version#"${gem_version%%[![:space:]]*}"}"
+
+  if [[ -n "$gem_version" ]]; then
+    if "${gem_cmd[@]}" list --exact --installed "$gem_name" --version "$gem_version" >/dev/null 2>&1; then
+      log "already installed: $gem_name $gem_version"
+      continue
+    fi
+  elif "${gem_cmd[@]}" list --exact --installed "$gem_name" >/dev/null 2>&1; then
+    log "already installed: $gem_name"
+    continue
+  fi
+
+  if [[ -n "$gem_version" ]]; then
+    log "installing: $gem_name $gem_version"
+    "${gem_cmd[@]}" install "$gem_name" --version "$gem_version" --no-document \
+      || warn "install failed: $gem_name $gem_version"
+  else
+    log "installing: $gem_name"
+    "${gem_cmd[@]}" install "$gem_name" --no-document \
+      || warn "install failed: $gem_name"
+  fi
+done < "$GEMS_FILE"

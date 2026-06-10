@@ -4,6 +4,8 @@
 # 1. Source POSIX-compatible core environment
 if [[ -f "$HOME/.config/zsh/env.sh" ]]; then
   source "$HOME/.config/zsh/env.sh"
+elif [[ $- == *i* ]]; then
+  printf 'zdots: zdots missing at %s; clone just3ws/zdots and run ~/.config/zsh/bin/bootstrap\n' "$HOME/.config/zsh" >&2
 fi
 
 # 2. RTK Priming (Bash compatibility)
