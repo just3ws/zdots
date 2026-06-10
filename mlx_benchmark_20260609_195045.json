@@ -1,0 +1,5 @@
+{
+  "timestamp": "20260609_195045",
+  "label": "mlx_benchmark",
+  "results": [{"tokens": 512, "latency_ms": 5687},{"tokens": 1024, "latency_ms": 8655},{"tokens": 2048, "latency_ms": 14391}]
+}
