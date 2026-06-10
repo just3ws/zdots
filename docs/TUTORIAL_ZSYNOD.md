@@ -52,11 +52,24 @@ zsynod --as claude handoff --to aider --task "Implement P22 Whisper log rotation
 ```
 
 ### 4. The Ratchet Clicks (`exec-tick`)
-The executing seat (`aider`) performs the work.
+The executing seat (`aider`) performs the work, optionally specifying a test file.
 ```bash
 zsynod exec-tick --seat aider
 ```
-*Outcome:* A diff is added to `zsynod queue`. You review it with `zsynod queue show Q1` and apply it with `zsynod queue apply Q1`. The system has been "ratcheted" forward safely.
+*Note:* If a test file was provided in the handoff, you can now verify it.
+
+### 5. Automated Verification
+Before applying, validate that the change actually passes tests without permanently modifying the tree.
+```bash
+zsynod queue verify Q2
+```
+*Outcome:* The system applies the patch, runs the test, and reverts automatically. If it passes, it's safe to apply.
+
+### 6. Integration
+```bash
+zsynod queue apply Q2
+```
+*Outcome:* The diff is committed to the tree, and the ratchet has successfully clicked forward.
 
 ---
 
