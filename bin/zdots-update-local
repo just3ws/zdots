@@ -311,16 +311,13 @@ if [[ "$SKIP_GEMS" -eq 0 ]]; then
     _skipped=0
     _failed=0
     while IFS= read -r _line || [[ -n "$_line" ]]; do
-      # Strip comments and blank lines
+      # Strip comments, then split on whitespace. `read` trims leading/trailing
+      # whitespace and collapses runs, so a name-only line with trailing spaces
+      # before a comment (e.g. "standard   # ...") yields an EMPTY version rather
+      # than a whitespace one (which gem rejects: Illformed requirement ["  "]).
       _line="${_line%%#*}"
-      _line="${_line//  / }"
-      _line="${_line# }"
-      _line="${_line% }"
-      [[ -z "$_line" ]] && continue
-
-      _gem_name="${_line%% *}"
-      _gem_ver="${_line#"$_gem_name"}"
-      _gem_ver="${_gem_ver# }"
+      read -r _gem_name _gem_ver _ <<< "$_line"
+      [[ -z "$_gem_name" ]] && continue
 
       step "ensure gem: $_gem_name${_gem_ver:+ $_gem_ver}"
 
