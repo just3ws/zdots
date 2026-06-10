@@ -54,6 +54,7 @@ _zsynod() {
     'answer:mark open question ?N answered'
     'tail:tail a member transcript'
     'console:interactive principal cockpit'
+    'repl:hybrid follow-along cockpit (auto-tick, pause when you are needed)'
     'verify:re-walk the hash chain'
     'version:print version'
     'convene:open the tmux forum room (singleton)'
@@ -104,6 +105,7 @@ _zsynod() {
         goto)     _arguments "1:member:(${members})" ;;
         tail)     _arguments "1:member:(${members})" '(-f --follow)'{-f,--follow}'[follow]' '(-n --lines)'{-n,--lines}'[lines]:n' ;;
         console)  _arguments '--headless[emit a turn report instead of prompting]' ;;
+        repl)     _arguments '--ticks[max ticks before pausing]:n' '--as[act as member]:member:(mike claude gemini codex pi aider)' '--topic[focus a backlog id]:topic' ;;
       esac
       ;;
   esac
