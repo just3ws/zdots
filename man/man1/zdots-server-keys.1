@@ -1,0 +1,245 @@
+.Dd June 10, 2026
+.Dt ZDOTS-SERVER-KEYS 1
+.Os zdots
+.Sh NAME
+.Nm zdots-server-keys
+.Nd environment-scoped SSH key management for server access
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar environment
+.Op Ar options
+.Sh DESCRIPTION
+.Nm
+generates and manages
+.Xr ssh-keygen 1
+ed25519 key pairs scoped to deployment environments
+.Pq staging, production ,
+installs them on remote hosts via
+.Xr ssh-copy-id 1 ,
+and maintains the corresponding
+.Xr ssh_config 5
+stanzas in
+.Pa ~/.ssh/config .
+.Pp
+It is the server-access counterpart to
+.Xr zdots-github-keys 1 ,
+which manages GitHub identity keys.
+Both tools share the same command vocabulary
+.Pq plan / apply / status / rotate-stage / rotate-promote / public-key
+and the same
+.Pa id_{slug}@{org}
+key-naming convention, so key families behave consistently across GitHub
+and server contexts.
+.Pp
+.Nm
+is a
+.Em zdots
+tool, not an adots tool.
+adots is a configuration-facilitating layer; it may export the
+.Ev ZDOTS_SERVER_ORG
+and
+.Ev ZDOTS_SERVER_USER
+environment variables to customise defaults, but no key logic lives
+inside adots itself.
+.Sh COMMANDS
+.Bl -tag -width rotate-promote
+.It Ic plan
+Display key paths, public-key comments, and SSH config stanzas for all
+environments without writing anything.
+Pass
+.Fl -host
+to preview stanzas with specific hostnames.
+.It Ic apply Fl -yes
+Generate ed25519 key pairs for both environments and append their Host blocks
+to
+.Pa ~/.ssh/config .
+Idempotent: a stanza is never written twice.
+Requires
+.Fl -yes
+because it mutates
+.Pa ~/.ssh/config .
+.It Ic status
+Report the on-disk presence of every active and staged key file and the
+SSH config file.
+Read-only.
+.It Ic copy-id Ar env
+Run
+.Xr ssh-copy-id 1
+to install the public key for
+.Ar env
+on each host named with
+.Fl -host .
+The host must already be reachable (password or existing key).
+.It Ic rotate-stage Ar env
+Generate a staged candidate key at
+.Pa ~/.ssh/id_{slug}@{org}.next
+without touching the active key or the SSH config stanza.
+Install the staged public key on target hosts before promoting.
+.It Ic rotate-promote Ar env Fl -yes
+Replace the active key with the staged
+.Pa .next
+key by renaming both the private and public key files.
+The SSH config stanza is unchanged; it already references the stable
+.Pa id_{slug}@{org}
+path.
+Requires
+.Fl -yes .
+Test connectivity before revoking the old key on each host.
+.It Ic public-key Ar selector
+Print the public key for
+.Ar selector
+to stdout.
+.Ar selector
+is an environment name
+.Pq Ic staging , Ic production
+or a staged variant
+.Pq Ic staging_next , Ic production_next .
+Useful for piping to
+.Xr pbcopy 1
+or pasting into
+.Pa authorized_keys .
+.El
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -org Ar org
+Organisation slug embedded in key names
+.Pq default: Li work No or Ev ZDOTS_SERVER_ORG .
+.It Fl -user Ar user
+Remote username written into the SSH config stanza and passed to
+.Xr ssh-copy-id 1
+.Pq default: current OS user or Ev ZDOTS_SERVER_USER .
+.It Fl -host Ar host
+Hostname to include in the SSH config
+.Ic Host
+line and to target with
+.Ic copy-id .
+Repeatable.
+.It Fl -key-type Ar type
+Key algorithm passed to
+.Xr ssh-keygen 1
+.Pq default: Li ed25519 No or Ev ZDOTS_SERVER_KEY_TYPE .
+.It Fl -yes
+Required guard for commands that write to
+.Pa ~/.ssh/config
+or rename key files
+.Pq Ic apply , Ic rotate-promote .
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh KEY NAMING CONVENTION
+Keys follow the pattern
+.Pa id_{slug}@{org}
+stored in
+.Pa ~/.ssh :
+.Pp
+.Bl -tag -width production -compact
+.It staging
+.Pa ~/.ssh/id_staging@work
+.It production
+.Pa ~/.ssh/id_prod@work
+.It staged
+.Pa ~/.ssh/id_{slug}@work.next
+.El
+.Pp
+The
+.Pa .next
+suffix keeps staged keys adjacent to their active counterparts and mirrors
+the
+.Xr github-keygen 1
+rotation convention.
+.Sh ROTATION WORKFLOW
+Key rotation replaces the active key without a window of lost access:
+.Bl -enum
+.It
+.Dl zdots-server-keys rotate-stage staging
+Generate
+.Pa ~/.ssh/id_staging@work.next .
+.It
+.Dl zdots-server-keys copy-id staging --host staging
+Install the staged public key on each host alongside the existing key.
+.It
+Verify the staged key works:
+.Dl ssh -i ~/.ssh/id_staging@work.next user@staging
+.It
+.Dl zdots-server-keys rotate-promote staging --yes
+Rename
+.Pa .next
+to the active path.
+.It
+Revoke the old public key from
+.Pa authorized_keys
+on each host.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_SERVER_KEY_TYPE
+.It Ev ZDOTS_SERVER_ORG
+Organisation slug used in key names
+.Pq default: Li work .
+.It Ev ZDOTS_SERVER_USER
+Remote username for SSH config and
+.Xr ssh-copy-id 1
+.Pq default: current OS user .
+.It Ev ZDOTS_SERVER_KEY_TYPE
+Key algorithm for
+.Xr ssh-keygen 1
+.Pq default: Li ed25519 .
+.El
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa ~/.ssh/id_staging@work
+Active private key for staging hosts.
+.It Pa ~/.ssh/id_staging@work.pub
+Active public key for staging hosts.
+.It Pa ~/.ssh/id_prod@work
+Active private key for production hosts.
+.It Pa ~/.ssh/id_prod@work.pub
+Active public key for production hosts.
+.It Pa ~/.ssh/id_{slug}@work.next
+Staged rotation candidate
+.Pq present only during an in-progress rotation .
+.It Pa ~/.ssh/config
+Receives
+.Ic Host
+blocks appended by
+.Ic apply .
+Each block is guarded by a comment marker for idempotency.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Preview what
+.Ic apply
+would create, including the SSH config stanzas for staging:
+.Pp
+.Dl zdots-server-keys plan --host staging
+.Pp
+Generate both environment keys and wire up
+.Pa ~/.ssh/config
+with staging as the staging host:
+.Pp
+.Dl zdots-server-keys apply --yes --host staging
+.Pp
+Push the staging key to staging:
+.Pp
+.Dl zdots-server-keys copy-id staging --host staging
+.Pp
+Push the production key to two hosts under a different login:
+.Pp
+.Dl zdots-server-keys copy-id production --host web1 --host web2 --user deploy
+.Pp
+Print the staging public key to the clipboard:
+.Pp
+.Dl zdots-server-keys public-key staging | pbcopy
+.Pp
+Stage a new staging key for rotation, install it, then promote:
+.Pp
+.Dl zdots-server-keys rotate-stage staging
+.Dl ssh-copy-id -i ~/.ssh/id_staging@work.next user@staging
+.Dl zdots-server-keys rotate-promote staging --yes
+.Sh SEE ALSO
+.Xr zdots-github-keys 1 ,
+.Xr ssh-keygen 1 ,
+.Xr ssh-copy-id 1 ,
+.Xr ssh_config 5 ,
+.Xr zdots 7
