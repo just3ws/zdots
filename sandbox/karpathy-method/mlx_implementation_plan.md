@@ -1,27 +1,17 @@
-# MLX Implementation Plan: Zdots Orchestrator (`zpi`, `zaider`, `zopencode`)
+# MLX Implementation Plan: Zdots Orchestrator (Updated)
 
-## Objective
-Refactor the Zdots `zpi` (Zdots Platform Interface), `zaider`, and `zopencode` to route inference requests through `mlx-lm` instead of the legacy `llama-server`.
+## 1. Identified Gap: Model Format
+- **Finding:** `mlx-lm` does not natively support GGUF files (the current standard for `llama.cpp`).
+- **Required Action:**
+    - Download native MLX-format models from HuggingFace (e.g., `mlx-community/Qwen2.5-7B-Instruct-4bit`) 
+    - OR use `mlx_lm.convert` to convert the existing GGUF models.
 
-## 1. Technical Requirements
-- **Dependency:** Install `mlx-lm` in the local Python environment.
-- **Interface Seam:** Refactor `zpi`, `zaider`, and `zopencode` to provide an abstraction over inference providers (`provider: 'llama-cpp' | 'mlx'`).
-- **Configuration:** Update `etc/ai-models.yaml` to include MLX-specific paths.
-
-## 2. Implementation Steps
-### Phase 1: The MLX Wrapper
-- [ ] Create `lib/inference/mlx_engine.py`: A thin wrapper around `mlx_lm.load` and `generate`.
-- [ ] Implement a standardized `generate_completion()` method that mimics the existing API.
-
-### Phase 2: Interface Integration
-- [ ] Modify `zpi`, `zaider`, and `zopencode` to detect the `ZDOTS_INFERENCE_ENGINE` environment variable.
-- [ ] Route requests based on engine selection.
-- [ ] Implement graceful fallback (if MLX fails, alert and potentially fall back to `llama-server`).
-
-### Phase 3: Validation
-- [ ] Run the existing integration tests against the new MLX engine.
-- [ ] Measure latency improvement vs baseline (`inference_report.md`).
-
-## 3. Risks
-- **Model Compatibility:** Ensuring all GGUF models are compatible with MLX converter.
-- **Resource Contention:** Ensuring MLX does not collide with existing `llama-server` processes if they are left running.
+## 2. Updated Implementation Roadmap
+1. **Model Preparation:**
+   - [ ] Implement `bin/zdots-mlx-convert` to convert GGUF to MLX (or fetch MLX-native).
+2. **MLX Engine Wrapper:**
+   - [ ] Update `lib/inference/mlx_engine.py` to handle MLX-native directory paths.
+3. **Gateway Integration:**
+   - [ ] Finalize `ai-query` routing logic to handle path resolution for MLX models.
+4. **Validation:**
+   - [ ] Validate throughput improvement.
