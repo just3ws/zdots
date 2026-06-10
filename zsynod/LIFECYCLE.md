@@ -130,3 +130,4 @@ In a physical ratchet, the **pawl** is the lever that prevents the gear from mov
 - **Minutes:** `zsynod/minutes.md` provides a human-readable real-time mirror of the ledger.
 - **Console:** `zsynod console` provides a headless or interactive cockpit for the principal.
 - **Resume:** `zsynod resume` generates a "facilitator brief" that any AI agent can use to pick up the loop from the last known state in the ledger.
+- **Strategy:** The [zsynod/STRATEGY.md](STRATEGY.md) outlines the roadmap for integration and roster expansion.

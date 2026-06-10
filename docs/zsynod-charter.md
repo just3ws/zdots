@@ -127,6 +127,7 @@ to dissolve.
   history cannot be silently rewritten — verify with `zsynod verify`).
 - `zsynod/minutes.md` is a generated human-readable mirror. The JSONL is canon.
 - The **Lifecycle** (`zsynod/LIFECYCLE.md`) defines the stages from proposal to execution.
+- The **Strategy** (`zsynod/STRATEGY.md`) outlines the roadmap for integration and expansion.
 
 ## 3. Membership & lanes
 
