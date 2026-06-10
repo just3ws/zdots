@@ -108,13 +108,21 @@ if ! command -v backlog >/dev/null 2>&1; then
   exit 0
 fi
 
-backlog task create \
+TASK_OUT=$(backlog task create \
   --priority "$PRIORITY" \
   --labels "agent-reported,${ISSUE_TYPE}" \
   --description "$BODY" \
   --no-dod-defaults \
   --plain \
-  "$TASK_TITLE"
+  "$TASK_TITLE")
 
-printf '\nzdots-issue: filed. The operator will review and resolve.\n'
+# Extract task ID (e.g. Z-142)
+TASK_ID=$(printf '%s' "$TASK_OUT" | grep -Ei 'Task Z-[0-9]+' | head -1 | sed -E 's/.*Task (Z-[0-9]+).*/\1/i')
+
+if [[ -n "$TASK_ID" && -x "${ZDOTDIR:-$HOME/.config/zsh}/bin/zsynod" ]]; then
+  # Notify the synod of the agent-reported issue
+  "${ZDOTDIR:-$HOME/.config/zsh}/bin/zsynod" tick --topic "$TASK_ID" >/dev/null 2>&1 &
+fi
+
+printf '\nzdots-issue: filed (%s). The operator will review and resolve.\n' "${TASK_ID:-unknown ID}"
 printf 'Your job is done here. Do not attempt to fix zdots yourself.\n'
