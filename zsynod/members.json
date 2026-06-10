@@ -49,6 +49,13 @@
       "note": "Seated per committed P18 (principal override of P12). Experimental: voting deferred until proven, so quorum is unchanged. Principal-evaluated hands-on. Pi retained as the lightweight first-responder. Reversible."
     },
     {
+      "id": "red-team",
+      "tier": "frontier",
+      "voting": true,
+      "lane": "red-team review, dissent, and safety assessment",
+      "note": "Seated per ratified P20. Mandated to challenge design assumptions."
+    },
+    {
       "id": "mike",
       "tier": "principal",
       "voting": false,
