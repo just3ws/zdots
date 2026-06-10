@@ -82,17 +82,18 @@ Ratified decisions are broken down into actionable tasks.
 - **Tracking:** Handoffs are listed in `zsynod status` and `minutes.md` until marked complete.
 
 ### 6. Execution (`zsynod exec-tick` / `queue`)
-The assigned member (usually `aider` or a frontier seat) executes the task.
-- **Action:** `zsynod exec-tick --seat <member>`
-- **Ledger Entry:** `type: "exec"` and `type: "queued"`
-- **Queue:** The result (often a git diff/patch) is added to the `zsynod queue`.
+The assigned member (usually `aider` or a frontier seat) executes the task, optionally specifying a test reference to validate the change.
+- **Action:** `zsynod exec-tick --seat <member>` (automatically picks up handoffs) or `zsynod handoff --to <member> --task "..." --test <test_ref>`
+- **Ledger Entry:** `type: "exec"` and `type: "queued"` (with `test` reference)
+- **Queue:** The result is added to the `zsynod queue`.
 - **Ratchet:** This is where the autonomous "ratchet" loop triggers — `experiment -> test -> queue`.
 
-### 7. Integration (`zsynod queue apply`)
-The principal or an authorized member reviews and applies the queued change.
-- **Action:** `zsynod queue show Q#` -> `zsynod queue apply Q#`
-- **Ledger Entry:** `type: "applied"`
-- **Risk Gate:** `zsynod queue auto` can apply low-risk, peer-approved changes automatically.
+### 7. Integration (`zsynod queue verify` / `apply`)
+Before applying, the principal or an authorized member validates the change against the test suite.
+- **Action:** `zsynod queue verify Q#` -> `zsynod queue apply Q#`
+- **Verification:** Automatically applies the patch, runs the test, and reverts the patch (leaving the tree clean). Failures are logged back to the forum for re-deliberation.
+- **Integration:** If verified and approved, `zsynod queue apply Q#` commits the change to the working tree.
+- **Risk Gate:** `zsynod queue auto` can apply low-risk, peer-approved, **verified** changes automatically.
 
 ### 8. Verification (`zsynod verify`)
 The integrity of the entire chain is validated.
