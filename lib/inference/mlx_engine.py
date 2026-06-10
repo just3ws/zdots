@@ -6,7 +6,8 @@ class MLXEngine:
     def __init__(self, model_path_or_id):
         self.model, self.tokenizer = mlx_lm.load(model_path_or_id)
         
-    def generate_completion(self, prompt, max_tokens=100, temperature=0.7):
+    def generate_completion(self, system_prompt, user_prompt, max_tokens=100, temperature=0.7):
+        prompt = f"System: {system_prompt}\nUser: {user_prompt}\nAssistant:"
         response = mlx_lm.generate(
             self.model,
             self.tokenizer,

@@ -45,9 +45,23 @@
 #
 # See docs/ai-query.md for full documentation, threat model, and limitations.
 
+# ... (existing guardrails)
+# EXIT CODES... (as before)
+
 set -euo pipefail
 trap '' PIPE
 
+# 1. Routing Logic (MLX or Llama-cpp)
+INFERENCE_ENGINE="${ZDOTS_INFERENCE_ENGINE:-llama-cpp}"
+
+if [[ "$INFERENCE_ENGINE" == "mlx" ]]; then
+  # Call MLX wrapper
+  python3 -c "from lib.inference.mlx_engine import get_engine; engine = get_engine('local', 'mlx'); print(engine.generate_completion('''$PROMPT'''))"
+  exit 0
+fi
+
+# 2. Existing Guardrail Layers (Llama-cpp)
+# ... (existing curl/llama-server logic)
 # ---------------------------------------------------------------------------
 # Bootstrap: locate and source the guardrail library
 # ---------------------------------------------------------------------------
@@ -411,8 +425,17 @@ fi
 # Submit and sanitize output
 # ---------------------------------------------------------------------------
 set +e
-RAW_RESPONSE=$(aiq_submit "$SYS_TMP" "$USER_TMP" "$ENDPOINT" "$MODEL" "$TIMEOUT")
-SUBMIT_EXIT=$?
+
+if [[ "${ZDOTS_INFERENCE_ENGINE:-llama-cpp}" == "mlx" ]]; then
+  # MLX call
+  RAW_RESPONSE=$(python3 -c "import sys; sys.path.append('/Users/mike/.config/zsh/lib'); from inference.mlx_engine import get_engine; engine = get_engine('local', 'mlx'); print(engine.generate_completion(open('$SYS_TMP').read(), open('$USER_TMP').read()))")
+  SUBMIT_EXIT=$?
+else
+  # Original call
+  RAW_RESPONSE=$(aiq_submit "$SYS_TMP" "$USER_TMP" "$ENDPOINT" "$MODEL" "$TIMEOUT")
+  SUBMIT_EXIT=$?
+fi
+
 set -e
 
 if [[ "${SUBMIT_EXIT}" -ne 0 ]]; then
