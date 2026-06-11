@@ -292,6 +292,14 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
       errors=$((errors + 1))
     fi
   done
+
+  # Check zsynod
+  if [ -x "${ZDOTDIR}/bin/zsynod" ]; then
+    printf "  %-15s : %bonline%b\n" "zsynod" "$GREEN" "$RESET"
+  else
+    printf "  %-15s : %bmissing/not executable%b\n" "zsynod" "$RED" "$RESET"
+    errors=$((errors + 1))
+  fi
 fi
 
 # 6. Tool Verification (The "Reality")
