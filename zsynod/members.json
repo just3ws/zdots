@@ -80,9 +80,9 @@
       "base_url": "https://router.huggingface.co/v1",
       "model": "Qwen/Qwen3-235B-A22B-Instruct-2507",
       "key_env": "HF_TOKEN",
-      "key_cmd": "tail -n 1 ~/.config/zsh/tmp/huggingface.txt",
-      "key_hint": "put the token (from huggingface.co/settings/tokens) on the LAST line of ~/.config/zsh/tmp/huggingface.txt, or export HF_TOKEN",
-      "note": "Seated experimentally by principal 2026-06-11 (huggingface-cli already logged in; token file is two-line label+token, hence tail -n 1 — move to Keychain when convenient). CLOUD seat: remarks leave the box; PHI doctrine applies. Voting deferred until proven, quorum unchanged. Reversible."
+      "key_cmd": "security find-generic-password -s zdots -a HF_TOKEN -w",
+      "key_hint": "store token in Keychain: security add-generic-password -s zdots -a HF_TOKEN -w <token> -U",
+      "note": "Seated experimentally by principal 2026-06-11. Token migrated to Keychain (zdots/HF_TOKEN) 2026-06-11. CLOUD seat: remarks leave the box; PHI doctrine applies. Voting deferred until proven, quorum unchanged. Reversible."
     },
     {
       "id": "openrouter",
@@ -93,9 +93,9 @@
       "base_url": "https://openrouter.ai/api/v1",
       "model": "openai/gpt-oss-120b:free",
       "key_env": "OPENROUTER_API_KEY",
-      "key_cmd": "tail -n 1 ~/.config/zsh/tmp/open-router.txt",
-      "key_hint": "put the key (from openrouter.ai/settings/keys) on the LAST line of ~/.config/zsh/tmp/open-router.txt, or export OPENROUTER_API_KEY",
-      "note": "Seated experimentally by principal 2026-06-11 (verified live; :free models 429 under congestion — breaker absorbs; llama-3.3-70b:free was saturated at seating, gpt-oss-120b:free answered). CLOUD seat: remarks leave the box; PHI doctrine applies. Principal still researching OpenRouter — seat is the experiment. Voting deferred, quorum unchanged. Reversible."
+      "key_cmd": "security find-generic-password -s zdots -a OPENROUTER_API_KEY -w",
+      "key_hint": "store key in Keychain: security add-generic-password -s zdots -a OPENROUTER_API_KEY -w <key> -U",
+      "note": "Seated experimentally by principal 2026-06-11. Key migrated to Keychain (zdots/OPENROUTER_API_KEY) 2026-06-11. :free models 429 under congestion — breaker absorbs. CLOUD seat: remarks leave the box; PHI doctrine applies. Voting deferred, quorum unchanged. Reversible."
     },
     {
       "id": "red-team",
