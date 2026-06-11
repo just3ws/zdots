@@ -283,11 +283,18 @@ class ZsynodApp(App):
                 def token_cb(token, a=actor):
                     self.call_from_thread(self.update_thinking, token, a)
 
+                def suggestion_cb(s, a=actor):
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[dim]nudge ({a}): {s}[/dim]",
+                    )
+
                 try:
                     remark = agent.deliberate(
                         topic, discussion,
                         progress_callback=self.log_message,
                         token_callback=token_cb,
+                        suggestion_callback=suggestion_cb,
                     )
                     self.ledger.append(actor, "speak", {"remark": remark})
                     discussion = self.ledger.get_discussion(limit=200)
