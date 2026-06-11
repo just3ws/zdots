@@ -1352,12 +1352,15 @@ cmd_console() {  # interactive principal cockpit — prompts for input
 declare -gA _REPL_SKIP   # session-scoped "don't re-prompt me about this" set
 
 _repl_next_blocking() {  # first non-skipped blocking item (KIND<TAB>ID<TAB>LABEL), or nonzero
-  local kind id label
+  local kind id label found=0
   while IFS=$'\t' read -r kind id label; do
     [[ -z "$kind" ]] && continue
-    [[ -n "${_REPL_SKIP[$kind:$id]:-}" ]] && continue
-    printf '%s\t%s\t%s\n' "$kind" "$id" "$label"; return 0
+    if [[ "$found" == "0" && -z "${_REPL_SKIP[$kind:$id]:-}" ]]; then
+      printf '%s\t%s\t%s\n' "$kind" "$id" "$label"
+      found=1
+    fi
   done < <(_blocking_items)
+  [[ "$found" == "1" ]] && return 0
   return 1
 }
 

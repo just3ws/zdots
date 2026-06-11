@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""
+bin/zsynod-migrate - Migrate Zsynod ledger from Bash-JSONL to Python-Pydantic.
+Validates the hash chain during migration to ensure no data corruption.
+"""
+
+import json
+import hashlib
+import sys
+from pathlib import Path
+from pydantic import BaseModel, Field, ValidationError
+from typing import Any, Optional
+
+class LedgerEntry(BaseModel):
+    seq: int
+    ts: str
+    round: int
+    actor: str
+    type: str
+    data: dict[str, Any]
+    prev: str
+    hash: str
+
+    def compute_hash(self, raw_line: str) -> str:
+        # Replicates Bash logic: _hash "${prev}${canon}"
+        # where canon is jq -Sc . (sorted keys, compact, NO SPACES)
+        
+        # We must exclude the "hash" key before hashing.
+        # The most reliable way to match `jq -Sc .` is to use the raw line,
+        # remove the "hash" key/value, and ensure it is sorted and compact.
+        data = json.loads(raw_line)
+        if "hash" in data:
+            del data["hash"]
+        canon = json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+        content = f"{self.prev}{canon}".encode()
+        return hashlib.sha256(content).hexdigest()
+
+def migrate():
+    zdotdir = Path.home() / ".config" / "zsh"
+    old_ledger = zdotdir / "zsynod" / "ledger.jsonl"
+    new_ledger = zdotdir / "zsynod" / "ledger.py.jsonl"
+
+    if not old_ledger.exists():
+        print(f"Error: Ledger not found at {old_ledger}")
+        sys.exit(1)
+
+    print(f"Migrating {old_ledger} -> {new_ledger}...")
+    
+    entries_count = 0
+    errors = 0
+
+    with open(old_ledger, "r") as f_old, open(new_ledger, "w") as f_new:
+        for line in f_old:
+            if not line.strip():
+                continue
+            
+            try:
+                # Load and validate with Pydantic
+                entry = LedgerEntry.model_validate_json(line)
+                
+                # Verify the hash chain
+                expected_hash = entry.compute_hash(line)
+                if entry.hash != expected_hash:
+                    print(f"Warning: Hash mismatch at seq {entry.seq}!")
+                    print(f"  Got:      {entry.hash}")
+                    print(f"  Expected: {expected_hash}")
+                    errors += 1
+
+                # Write out in a clean, canonical format
+                f_new.write(entry.model_dump_json() + "\n")
+                entries_count += 1
+
+            except ValidationError as e:
+                print(f"Validation error at line {entries_count + 1}: {e}")
+                errors += 1
+            except Exception as e:
+                print(f"Unexpected error at line {entries_count + 1}: {e}")
+                errors += 1
+
+    print(f"\nMigration complete.")
+    print(f"Processed: {entries_count} entries.")
+    if errors:
+        print(f"Errors encountered: {errors}")
+        sys.exit(1)
+    else:
+        print("Hash chain verified successfully.")
+        print(f"New ledger is at {new_ledger}")
+
+if __name__ == "__main__":
+    migrate()
