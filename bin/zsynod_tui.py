@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import re
 import shutil
 import sys
 import argparse
@@ -18,10 +19,16 @@ sys.path.append(str(Path(__file__).parent.parent / "lib"))
 from zsynod_core import (
     LedgerManager, ZsynodAgent, AgentCircuitBreaker,
     TICK_TIMEOUT, LOCAL_TICK_TIMEOUT, tick_seed, parse_directives,
+    DIALS, load_dials, save_dials,
 )
 from zsynod_otel import setup_otel
 
 _MEMBERS_PATH = Path(__file__).parent.parent / "zsynod" / "members.json"
+
+_STATE_COLORS = {
+    "NEW": "cyan", "ACTIVE": "white", "PASSING": "yellow",
+    "STUCK": "red", "RATIFIED": "green", "CLOSED": "bright_black",
+}
 
 
 # ── Hashtag / Topic Stats Screen ──────────────────────────────────────────────
@@ -144,10 +151,6 @@ class HashtagStatsScreen(Screen):
         titles = self._analytics["titles"]
         tally = self._ledger.get_tally(pid)
         disc = self._ledger.get_proposal_discussion(pid)
-        all_disc = [e for e in self._ledger.entries
-                    if e.type in ("speak", "discuss")
-                    and self._ledger.get_hashtag_analytics  # analytics already built
-                    ]
         sc = "green" if tally["state"] == "committed" else "yellow"
 
         log.write(f"[b][{sc}]{pid}[/{sc}][/b]  {titles.get(pid, pid)}")
@@ -191,6 +194,163 @@ class HashtagStatsScreen(Screen):
             log.write(f"[b]Latest state:[/b] [dim]{summary}[/dim]")
 
 
+# ── Control Plane Screen ──────────────────────────────────────────────────────
+
+class ControlPlaneScreen(Screen):
+    """Page 3 — dials, mute toggles, and per-member insight.
+
+    Dials tab: ←/→ adjusts the highlighted knob by its step; m (or space)
+    toggles mute on a member row. Every change writes zsynod/dials.json
+    immediately, so the next tick — TUI or headless pulse — picks it up.
+    Members tab: activity profile derived from the chain, including the
+    repetition gauge that drives the 💭 loop-breaker.
+    """
+
+    BINDINGS = [
+        Binding("escape", "app.pop_screen", "Back",  show=True),
+        Binding("q",      "app.pop_screen", "Back",  show=False),
+        Binding("left",   "adjust(-1)",     "−step", show=True),
+        Binding("right",  "adjust(1)",      "+step", show=True),
+        Binding("m",      "toggle_mute",    "Mute",  show=True),
+        Binding("space",  "toggle_mute",    "Mute",  show=False),
+    ]
+
+    CSS = """
+    ControlPlaneScreen #dial-list { width: 36; border-right: solid $primary; }
+    ControlPlaneScreen RichLog    { height: 1fr; }
+    ControlPlaneScreen .pane-row  { height: 1fr; }
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with TabbedContent():
+            with TabPane("Dials", id="tab-dials"):
+                with Horizontal(classes="pane-row"):
+                    yield ListView(id="dial-list")
+                    yield RichLog(id="dial-detail", highlight=True, markup=True)
+            with TabPane("Members", id="tab-members"):
+                yield RichLog(id="member-stats", highlight=True, markup=True)
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self._members = [m for m in self.app._all_members() if m != "mike"]
+        self._rows = [("dial", name) for name in DIALS] \
+                   + [("mute", m) for m in self._members]
+        self._refresh_rows(keep=0)
+        self._render_member_stats()
+
+    # ── dials tab ─────────────────────────────────────────────────────────────
+
+    def _refresh_rows(self, keep: int = None) -> None:
+        lv = self.query_one("#dial-list", ListView)
+        old = keep if keep is not None else (lv.index or 0)
+        lv.clear()
+        dials = self.app.dials
+        for kind, name in self._rows:
+            if kind == "dial":
+                spec = DIALS[name]
+                v = dials[name]
+                val = f"{v:.2f}" if isinstance(spec["default"], float) else f"{int(v)}"
+                lv.append(ListItem(Label(f"🎛 [b]{name:<15}[/b] [cyan]{val}[/cyan]")))
+            else:
+                muted = name in dials["muted"]
+                icon = "[red]🔇 muted[/red]" if muted else "[green]🔊 live[/green]"
+                lv.append(ListItem(Label(f"  [b]@{name:<14}[/b] {icon}")))
+        lv.index = min(old, len(self._rows) - 1)
+
+    def _row_at_cursor(self):
+        lv = self.query_one("#dial-list", ListView)
+        idx = lv.index if lv.index is not None else 0
+        return self._rows[idx] if idx < len(self._rows) else (None, None)
+
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        if event.list_view.id != "dial-list":
+            return
+        kind, name = self._row_at_cursor()
+        log = self.query_one("#dial-detail", RichLog)
+        log.clear()
+        if kind == "dial":
+            spec = DIALS[name]
+            log.write(f"[b][cyan]{name}[/cyan][/b] = {self.app.dials[name]}")
+            log.write(f"[dim]range {spec['min']}–{spec['max']}, step {spec['step']}[/dim]")
+            log.write("")
+            log.write(spec["help"])
+        elif kind == "mute":
+            muted = name in self.app.dials["muted"]
+            log.write(f"[b]@{name}[/b] — {'[red]muted[/red]' if muted else '[green]live[/green]'}")
+            log.write("[dim]m toggles. Muted members are skipped in every tick "
+                      "until unmuted; the ledger records nothing for them.[/dim]")
+            rep = self.app.ledger.get_repetition(name, int(self.app.dials["loop_window"]))
+            warn = " [red]⚠ looping[/red]" if rep >= self.app.dials["loop_threshold"] else ""
+            log.write(f"repetition: {rep:.0%}{warn}")
+
+    def action_adjust(self, direction: int) -> None:
+        kind, name = self._row_at_cursor()
+        if kind != "dial":
+            return
+        spec = DIALS[name]
+        v = self.app.dials[name] + direction * spec["step"]
+        v = min(max(v, spec["min"]), spec["max"])
+        self.app.dials[name] = int(v) if isinstance(spec["default"], int) else round(v, 4)
+        save_dials(self.app.dials_path, self.app.dials)
+        self._refresh_rows()
+        self._show_detail_for_cursor()
+
+    def action_toggle_mute(self) -> None:
+        kind, name = self._row_at_cursor()
+        if kind != "mute":
+            return
+        muted = self.app.dials["muted"]
+        if name in muted:
+            muted.remove(name)
+        else:
+            muted.append(name)
+        save_dials(self.app.dials_path, self.app.dials)
+        self._refresh_rows()
+        self._show_detail_for_cursor()
+
+    def _show_detail_for_cursor(self) -> None:
+        class _Ev:  # minimal stand-in to reuse the highlight renderer
+            pass
+        ev = _Ev()
+        ev.list_view = self.query_one("#dial-list", ListView)
+        self.on_list_view_highlighted(ev)
+
+    # ── members tab ───────────────────────────────────────────────────────────
+
+    def _render_member_stats(self) -> None:
+        ledger: LedgerManager = self.app.ledger
+        ledger.load()
+        dials = self.app.dials
+        stats = ledger.get_member_stats(loop_window=int(dials["loop_window"]))
+        top_seq = ledger.entries[-1].seq if ledger.entries else 0
+        q = self.app._quorum()
+        open_n = len(ledger.get_proposals())
+
+        log = self.query_one("#member-stats", RichLog)
+        log.clear()
+        log.write(f"[dim]ledger {top_seq + 1} entries · {open_n} open topics · quorum {q}[/dim]")
+        log.write("")
+        log.write("[b]member      spk  aye nay abs 2nd | prop ✓rat pass | @out @in | idle  rep[/b]")
+
+        ranked = sorted(stats.items(), key=lambda kv: -kv[1]["speaks"])
+        for name, m in ranked:
+            idle = top_seq - m["last_seq"]
+            rep = m["repetition"]
+            looping = rep >= dials["loop_threshold"]
+            rep_s = f"[red]⚠{rep:.0%}[/red]" if looping else f"[dim]{rep:.0%}[/dim]"
+            mute_s = " [red]🔇[/red]" if name in dials["muted"] else ""
+            log.write(
+                f"@{name:<10} {m['speaks']:>4} {m['aye']:>4} {m['nay']:>3} "
+                f"{m['abstain']:>3} {m['seconds']:>3} | {m['proposed']:>4} "
+                f"{m['ratified']:>4} {m['passes']:>4} | {m['mentions_out']:>4} "
+                f"{m['mentions_in']:>3} | {idle:>4}  {rep_s}{mute_s}"
+            )
+        log.write("")
+        log.write("[dim]rep = max overlap of recent remarks (hashtags/@handles "
+                  "excluded). ⚠ rows get a forced 💭 loop-breaker next turn.[/dim]")
+
+
 # ── Main App ──────────────────────────────────────────────────────────────────
 
 class ZsynodApp(App):
@@ -232,6 +392,7 @@ class ZsynodApp(App):
         Binding("r",     "ratify",        "Ratify",  show=True),
         Binding("slash", "toggle_view",   "All/Prop",show=True),
         Binding("p",     "hashtag_stats", "Stats",   show=True),
+        Binding("c",     "control_plane", "Dials",   show=True),
     ]
 
     show_all = reactive(False)
@@ -247,7 +408,7 @@ class ZsynodApp(App):
                     yield RichLog(id="discussion-log", highlight=True, markup=True)
                     yield Static(id="thinking-box")
         yield Input(
-            placeholder="speak <remark> | propose <title> | aye/nay/ratify [PID]",
+            placeholder="speak | propose | aye/nay/ratify/close [PID] | dial <name> <val> | mute @m",
             id="command-input",
         )
         yield Footer()
@@ -255,6 +416,8 @@ class ZsynodApp(App):
     def on_mount(self) -> None:
         self.tracer = setup_otel("zsynod-py-tui")
         self.ledger = LedgerManager(self.args.ledger)
+        self.dials_path = self.args.ledger.parent / "dials.json"
+        self.dials = load_dials(self.dials_path)
         self.selected_pid = None
         self.last_seen_seq = -1
         self.current_thought = ""
@@ -328,7 +491,6 @@ class ZsynodApp(App):
     @staticmethod
     def _style_remark(text: str) -> str:
         """Dim hashtags, highlight @mentions, append token estimate."""
-        import re
         words = text.split()
         styled = []
         for w in words:
@@ -366,6 +528,12 @@ class ZsynodApp(App):
                 f"{actor} [magenta]→[/magenta] "
                 f"{e.data.get('to','?')}: {e.data.get('task','')}"
             )
+        elif e.type == "pass":
+            note = f" — {e.data['note']}" if e.data.get("note") else ""
+            log.write(f"{actor}: [dim]⏸ pass{note}[/dim]")
+        elif e.type == "close":
+            reason = f" — {e.data.get('reason', '')}" if e.data.get("reason") else ""
+            log.write(f"{actor}: [bright_black]✂ CLOSED {e.data.get('proposal', '?')}{reason}[/bright_black]")
 
     def _update_tally(self) -> None:
         box = self.query_one("#tally-box", Static)
@@ -376,9 +544,10 @@ class ZsynodApp(App):
         t = self.ledger.get_tally(pid)
         q = self._quorum()
         n = len(self._voting_members())
-        sc = "green" if t["state"] == "committed" else ("yellow" if t["aye"] >= q else "red")
+        state = self.ledger.get_lifecycle_state(pid, q)
+        sc = _STATE_COLORS.get(state, "white")
         lines = [
-            f"[b]{pid}[/b]  [{sc}]{t['state']}[/{sc}]",
+            f"[b]{pid}[/b]  [{sc}]{state}[/{sc}]",
             f"aye [b]{t['aye']}[/b]/{q}  nay {t['nay']}  abs {t['abstain']}  ({n} voting)",
         ]
         if t["votes"]:
@@ -395,9 +564,12 @@ class ZsynodApp(App):
         q = self._quorum()
         for p in proposals:
             pid = p.data["id"]
-            t = self.ledger.get_tally(pid)
-            c = "green" if t["state"] == "committed" else ("yellow" if t["aye"] >= q else "white")
-            item = ListItem(Label(f"[{c}][b]{pid}[/b][/{c}] {p.data['title'][:24]}"))
+            state = self.ledger.get_lifecycle_state(pid, q)
+            c = _STATE_COLORS.get(state, "white")
+            item = ListItem(Label(
+                f"[{c}][b]{pid}[/b][/{c}] {p.data['title'][:18]} "
+                f"[dim]{state.lower()}[/dim]"
+            ))
             item.pid = pid
             lv.append(item)
         if not proposals:
@@ -432,10 +604,23 @@ class ZsynodApp(App):
     def action_vote_nay(self) -> None:
         self._cast_vote("nay")
 
+    def _commit_passing(self) -> list:
+        """Recognize quorum: write commit entries for any open proposal at/over
+        quorum. Main-thread variant logs directly; perform_tick has its own
+        call_from_thread loop. Returns newly committed pids."""
+        newly = self.ledger.commit_on_quorum(self._quorum())
+        for pid in newly:
+            t = self.ledger.get_tally(pid)
+            self.log_message(
+                f"[b][green]★ {pid} COMMITTED by quorum[/green][/b] [dim](aye={t['aye']})[/dim]"
+            )
+        return newly
+
     def action_second(self) -> None:
         if self.selected_pid:
             self.ledger.append("mike", "second", {"proposal": self.selected_pid})
             self.log_message(f"[green]mike:[/green] seconded {self.selected_pid}")
+            self._commit_passing()
             self.refresh_data()
 
     def action_ratify(self) -> None:
@@ -463,6 +648,9 @@ class ZsynodApp(App):
     def action_hashtag_stats(self) -> None:
         self.push_screen(HashtagStatsScreen())
 
+    def action_control_plane(self) -> None:
+        self.push_screen(ControlPlaneScreen())
+
     def _cast_vote(self, vote: str) -> None:
         pid = self.selected_pid
         if not pid:
@@ -471,23 +659,44 @@ class ZsynodApp(App):
         self.ledger.append("mike", "vote", {"proposal": pid, "vote": vote, "note": "via cockpit"})
         vc = "green" if vote == "aye" else "red"
         self.log_message(f"[green]mike:[/green] [{vc}]{vote}[/{vc}] on {pid}")
+        self._commit_passing()
         self.refresh_data()
 
     # ── tick ──────────────────────────────────────────────────────────────────
 
     def _apply_directives(self, actor: str, directives: list,
-                          open_pids: set, members: list) -> None:
+                          open_pids: set, members: list,
+                          topic_pid: str = None) -> None:
         """Semantic gate for parsed agent directives: a vote/second must target
         an open proposal, a handoff must name a seated member. Accepted
         directives become real ledger entries; rejected ones are logged so the
         bad reference is visible to the operator (and to the agent next tick,
         via its stripped remark having vanished)."""
         for dtype, data in directives:
+            if dtype == "pass":
+                if topic_pid:
+                    data = {**data, "proposal": topic_pid}
+                self.ledger.append(actor, "pass", data)
+                continue
             err = None
             if dtype in ("vote", "second") and data["proposal"] not in open_pids:
                 err = f"no open proposal {data['proposal']}"
             elif dtype == "handoff" and data["to"] not in members:
                 err = f"no member @{data['to']}"
+            if dtype == "propose":
+                # Dedup gate against ALL history: the ledger grew 50+
+                # near-identical proposals because agents can't see that a
+                # twin already exists (or was just closed). Identical title =
+                # identical proposal; a true revision needs a new title.
+                norm = re.sub(r"\W+", "", data["title"]).lower()
+                dup = next(
+                    (e.data["id"] for e in self.ledger.entries
+                     if e.type == "propose"
+                     and re.sub(r"\W+", "", e.data.get("title", "")).lower() == norm),
+                    None,
+                )
+                if dup:
+                    err = f"duplicate of {dup} — vote on it or retitle the revision"
             if err:
                 self.call_from_thread(
                     self.log_message,
@@ -501,18 +710,12 @@ class ZsynodApp(App):
 
     def perform_tick(self) -> None:
         with self.tracer.start_as_current_span("deliberation_tick") as span:
-            discussion = self.ledger.get_discussion(limit=200)
             proposals = self.ledger.get_proposals()
             open_pids = {p.data["id"] for p in proposals}
-            # Tick on the selected proposal if one is focused, else the first open one
-            if self.selected_pid:
-                topic = next(
-                    (p.data["title"] for p in proposals if p.data["id"] == self.selected_pid),
-                    self.selected_pid,
-                )
-            else:
-                topic = proposals[0].data["title"] if proposals else "General status"
-            span.set_attribute("zsynod.topic", topic)
+            # Operator focus pins every member to one topic; otherwise each
+            # member gets its own event-driven topic from the scheduler.
+            forced_pid = self.selected_pid if self.selected_pid in open_pids else None
+            span.set_attribute("zsynod.topic", forced_pid or "scheduled")
 
             glyph = tick_seed()
             trend = self.ledger.get_trend_preamble()
@@ -521,10 +724,13 @@ class ZsynodApp(App):
                 f"[dim]── {glyph}  {trend} ──[/dim]" if trend else f"[dim]── {glyph} ──[/dim]",
             )
 
-            # Fetch the pinned state summary for context (written at end of last tick)
-            pid = self.selected_pid
             members = self._all_members()
-            summary = self.ledger.get_latest_summary(pid) if pid else ""
+            q = self._quorum()
+            touched: list = []
+            # Re-read every tick so dial turns (TUI screen or hand-edit of
+            # dials.json) land without a restart.
+            dials = load_dials(self.dials_path)
+            self.dials = dials
 
             import subprocess
             active = 0
@@ -532,12 +738,43 @@ class ZsynodApp(App):
                 actor = agent.actor_id
                 breaker = self.breakers[actor]
 
+                if actor in dials["muted"]:
+                    self.call_from_thread(
+                        self.log_message, f"[dim]🔇 {actor}: muted[/dim]",
+                    )
+                    continue
+
                 if not breaker.is_ready():
                     self.call_from_thread(
                         self.log_message,
                         f"[dim]⏭ {actor}: {breaker.skip_label()}[/dim]",
                     )
                     continue
+
+                if forced_pid:
+                    a_pid = forced_pid
+                    event = self.ledger.topic_event(actor, a_pid, q)
+                else:
+                    event, a_pid = self.ledger.next_event(
+                        actor, q,
+                        spontaneity=dials["spontaneity"],
+                        loop_threshold=dials["loop_threshold"],
+                        loop_window=int(dials["loop_window"]),
+                    )
+                # 💭 turns get a light context anchor — a heavy quote of the
+                # recent thread would just re-seed the rut they're escaping.
+                free_thought = event.startswith("💭")
+                topic = ("Open floor" if free_thought
+                         else self.ledger.get_title(a_pid) if a_pid
+                         else "General status")
+                summary = self.ledger.get_latest_summary(a_pid) if a_pid else ""
+                context = (self.ledger.get_proposal_discussion(a_pid) if a_pid
+                           else self.ledger.get_discussion(
+                               limit=12 if free_thought else 200))
+                if event:
+                    self.call_from_thread(
+                        self.log_message, f"[dim]{actor} ⚡ {event}[/dim]",
+                    )
 
                 active += 1
                 self.current_thought = ""
@@ -553,7 +790,7 @@ class ZsynodApp(App):
 
                 try:
                     remark = agent.deliberate(
-                        topic, discussion,
+                        topic, context,
                         progress_callback=self.log_message,
                         token_callback=token_cb,
                         suggestion_callback=suggestion_cb,
@@ -562,13 +799,21 @@ class ZsynodApp(App):
                         members=members,
                         summary=summary,
                         trend=trend,
+                        event=event,
+                        temperature=dials["temperature"],
+                        max_tokens=int(dials["max_tokens"]),
+                        context_depth=int(dials["context_depth"]),
                     )
                     breaker.record_success()
                     speech, directives = parse_directives(remark)
                     if speech:
-                        self.ledger.append(actor, "speak", {"remark": speech})
-                    self._apply_directives(actor, directives, open_pids, members)
-                    discussion = self.ledger.get_discussion(limit=200)
+                        data = {"remark": speech}
+                        if a_pid:
+                            data["proposal"] = a_pid
+                        self.ledger.append(actor, "speak", data)
+                    self._apply_directives(actor, directives, open_pids, members, a_pid)
+                    if a_pid and a_pid not in touched:
+                        touched.append(a_pid)
                 except (TimeoutError, subprocess.TimeoutExpired):
                     breaker.record_timeout()
                     self.call_from_thread(
@@ -591,36 +836,49 @@ class ZsynodApp(App):
                     "[dim]── all agents backed off; wheel rolls on ──[/dim]",
                 )
 
+            # ── quorum recognition ────────────────────────────────────────────
+            # Votes cast this tick may have pushed a proposal to quorum.
+            # Recognize it now or the topic gets re-litigated forever.
+            for cpid in self.ledger.commit_on_quorum(self._quorum()):
+                t = self.ledger.get_tally(cpid)
+                self.call_from_thread(
+                    self.log_message,
+                    f"[b][green]★ {cpid} COMMITTED by quorum[/green][/b] [dim](aye={t['aye']})[/dim]",
+                )
+
             # ── summarizer pass ───────────────────────────────────────────────
             # After all voices have spoken, write a compact state summary for
-            # the focused proposal. Next tick reads it as pinned [STATE] context.
-            if pid and active > 0:
+            # each topic touched this tick (capped — local model, sequential).
+            # Next tick reads them as pinned [STATE] context.
+            for s_pid in touched[:3]:
                 try:
                     self.ledger.load()
-                    prop_discussion = self.ledger.get_proposal_discussion(pid)
-                    tally = self.ledger.get_tally(pid)
-                    prop_entry = next(
-                        (e for e in self.ledger.entries
-                         if e.type == "propose" and e.data.get("id") == pid), None
-                    )
-                    title = prop_entry.data.get("title", pid) if prop_entry else pid
+                    prop_discussion = self.ledger.get_proposal_discussion(s_pid)
+                    tally = self.ledger.get_tally(s_pid)
+                    title = self.ledger.get_title(s_pid)
                     summarizer = ZsynodAgent("summarizer", endpoint=self.agents[0].endpoint)
-                    text = summarizer.summarize(pid, title, prop_discussion, tally)
-                    self.ledger.append("summarizer", "summary", {"proposal": pid, "text": text})
+                    text = summarizer.summarize(s_pid, title, prop_discussion, tally)
+                    self.ledger.append("summarizer", "summary", {"proposal": s_pid, "text": text})
                     self.call_from_thread(
                         self.log_message,
-                        f"[dim]📋 {pid} state: {text[:80]}{'…' if len(text) > 80 else ''}[/dim]",
+                        f"[dim]📋 {s_pid} state: {text[:80]}{'…' if len(text) > 80 else ''}[/dim]",
                     )
                 except Exception as e:
                     self.call_from_thread(
                         self.log_message,
-                        f"[dim]summarizer skipped: {e}[/dim]",
+                        f"[dim]summarizer skipped ({s_pid}): {e}[/dim]",
                     )
 
     # ── polling refresh ────────────────────────────────────────────────────────
 
     def refresh_data(self) -> None:
         self.ledger.load()
+        # No new entries → nothing to redraw. Without this gate the 3s poll
+        # clears and rewrites the sidebar and thread view every cycle (flicker).
+        top_seq = self.ledger.entries[-1].seq if self.ledger.entries else -1
+        if top_seq == getattr(self, "_last_refresh_seq", None):
+            return
+        self._last_refresh_seq = top_seq
         self._rebuild_proposal_list()
         self._update_tally()
 
@@ -664,6 +922,7 @@ class ZsynodApp(App):
                     self.ledger.append("mike", "vote", {"proposal": pid, "vote": action, "note": "via cockpit"})
                     vc = "green" if action == "aye" else "red" if action == "nay" else "yellow"
                     self.log_message(f"[green]mike:[/green] [{vc}]{action}[/{vc}] on {pid}")
+                    self._commit_passing()
                 elif action == "ratify":
                     pid = rest.upper() if rest else self.selected_pid
                     if not pid:
@@ -671,6 +930,51 @@ class ZsynodApp(App):
                         return
                     self.ledger.append("mike", "commit", {"proposal": pid, "by": "principal", "note": "ratified via cockpit"})
                     self.log_message(f"[green]mike:[/green] [green]★ RATIFIED[/green] {pid}")
+                elif action == "close":
+                    bits = rest.split(maxsplit=1)
+                    pid = bits[0].upper() if bits else self.selected_pid
+                    if not pid:
+                        self.log_message("[yellow]no proposal selected[/yellow]")
+                        return
+                    reason = bits[1] if len(bits) > 1 else "closed via cockpit"
+                    self.ledger.append("mike", "close", {"proposal": pid, "reason": reason, "by": "principal"})
+                    self.log_message(f"[green]mike:[/green] [bright_black]✂ CLOSED {pid}[/bright_black] — {reason}")
+                elif action == "dial":
+                    bits = rest.split()
+                    if not bits:
+                        knobs = "  ".join(f"{k}={self.dials[k]}" for k in DIALS)
+                        muted = " ".join(self.dials["muted"]) or "(none)"
+                        self.log_message(f"[dim]🎛 {knobs}  muted: {muted}[/dim]")
+                        return
+                    if len(bits) != 2 or bits[0] not in DIALS:
+                        self.log_message(
+                            f"[yellow]usage: dial <{('|'.join(DIALS))}> <value>[/yellow]")
+                        return
+                    spec = DIALS[bits[0]]
+                    try:
+                        v = float(bits[1])
+                    except ValueError:
+                        self.log_message(f"[red]not a number: {bits[1]}[/red]")
+                        return
+                    v = min(max(v, spec["min"]), spec["max"])
+                    self.dials[bits[0]] = int(v) if isinstance(spec["default"], int) else v
+                    save_dials(self.dials_path, self.dials)
+                    self.log_message(f"🎛 [cyan]{bits[0]}[/cyan] = {self.dials[bits[0]]}")
+                    return
+                elif action in ("mute", "unmute"):
+                    m = rest.strip().lstrip("@")
+                    if not m or m not in self._all_members():
+                        self.log_message(f"[yellow]no member @{m or '?'}[/yellow]")
+                        return
+                    muted = self.dials["muted"]
+                    if action == "mute" and m not in muted:
+                        muted.append(m)
+                    elif action == "unmute" and m in muted:
+                        muted.remove(m)
+                    save_dials(self.dials_path, self.dials)
+                    icon = "🔇" if m in muted else "🔊"
+                    self.log_message(f"{icon} @{m} {'muted' if m in muted else 'live'}")
+                    return
                 elif action == "tick":
                     self.action_tick()
                     return

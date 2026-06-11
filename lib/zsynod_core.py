@@ -19,6 +19,65 @@ TICK_TIMEOUT = 45        # external CLIs (claude, gemini, codex)
 LOCAL_TICK_TIMEOUT = 90  # llama.cpp HTTP/SSE — local inference can be slower
 _MIN_TIMEOUT = 8.0       # floor — never shorter than this regardless of backoff
 
+# A topic with no vote/second movement in this many ledger entries is STUCK.
+# ~3 ticks at current roster size (6 speaks + summary per tick).
+STALE_AFTER = 25
+
+# ── Dials: the operator's control plane ──────────────────────────────────────
+# Persisted to zsynod/dials.json so the TUI and headless pulse share one set.
+# Every numeric dial is clamped to [min, max] on load — a hand-edited file
+# can't push the forum into an undefined regime.
+
+DIALS: dict[str, dict] = {
+    "spontaneity":    {"default": 0.15, "min": 0.0, "max": 1.0, "step": 0.05,
+                       "help": "chance a member's turn becomes a 💭 free thought "
+                               "instead of the scheduler chain"},
+    "temperature":    {"default": 0.7,  "min": 0.1, "max": 1.5, "step": 0.1,
+                       "help": "llama.cpp sampling temperature for local voices"},
+    "max_tokens":     {"default": 220,  "min": 60,  "max": 600, "step": 20,
+                       "help": "hard token cap per local remark"},
+    "loop_threshold": {"default": 0.55, "min": 0.2, "max": 1.0, "step": 0.05,
+                       "help": "remark-overlap ratio above which a member is "
+                               "looping and gets a forced 💭 loop-breaker"},
+    "loop_window":    {"default": 3,    "min": 2,   "max": 8,   "step": 1,
+                       "help": "how many recent remarks the loop detector compares"},
+    "context_depth":  {"default": 5,    "min": 2,   "max": 20,  "step": 1,
+                       "help": "ledger entries quoted in each member's prompt"},
+}
+
+
+def load_dials(path) -> dict:
+    """Defaults merged with whatever is on disk; numerics clamped, unknown keys
+    dropped. Missing or corrupt file → pure defaults (the forum always runs)."""
+    dials: dict[str, Any] = {k: v["default"] for k, v in DIALS.items()}
+    dials["muted"] = []
+    try:
+        on_disk = json.loads(Path(path).read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return dials
+    for k, v in on_disk.items():
+        if k in DIALS and isinstance(v, (int, float)) and not isinstance(v, bool):
+            spec = DIALS[k]
+            v = min(max(v, spec["min"]), spec["max"])
+            dials[k] = int(v) if isinstance(spec["default"], int) else float(v)
+        elif k == "muted" and isinstance(v, list):
+            dials["muted"] = [str(m) for m in v]
+    return dials
+
+
+def save_dials(path, dials: dict) -> None:
+    Path(path).write_text(json.dumps(dials, indent=2, sort_keys=True) + "\n")
+
+
+_LOOP_WORD_RE = re.compile(r"[a-z']{3,}")
+
+
+def _remark_tokens(text: str) -> set:
+    """Token set for loop detection. Hashtags and @handles repeat by design
+    (3-hashtag rule, mention habit) — strip them so only substance is compared."""
+    text = re.sub(r"[#@]\w[\w-]*", " ", text.lower())
+    return set(_LOOP_WORD_RE.findall(text))
+
 
 class AgentCircuitBreaker:
     """Per-agent exponential backoff with a shrinking timeout budget.
@@ -73,7 +132,7 @@ class AgentCircuitBreaker:
 # validation (does the proposal exist? is the member seated?) belongs to the
 # caller, which holds ledger state.
 
-_DIRECTIVE_RE = re.compile(r"^\s*>\s*(vote|second|propose|handoff)\b\s*(.*)$",
+_DIRECTIVE_RE = re.compile(r"^\s*>\s*(vote|second|propose|handoff|pass)\b\s*(.*)$",
                            re.IGNORECASE)
 
 
@@ -93,6 +152,8 @@ def _parse_one_directive(verb: str, rest: str) -> Optional[tuple]:
         m = re.match(r"^@?(\w[\w-]*)\s+(.+)$", rest)
         if m:
             return ("handoff", {"to": m.group(1), "task": m.group(2).strip()})
+    elif verb == "pass":
+        return ("pass", {"note": rest} if rest else {})
     return None
 
 
@@ -104,6 +165,7 @@ def parse_directives(remark: str) -> tuple[str, list[tuple[str, dict]]]:
         >second P#
         >propose <title>
         >handoff @member <task>
+        >pass [reason]
 
     Returns (speech_without_directive_lines, [(entry_type, data), ...]).
     A malformed directive line stays in the speech — visible feedback to the
@@ -171,10 +233,10 @@ class ZsynodAgent:
         self.endpoint = (endpoint or os.environ.get("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")).rstrip("/")
         self.model = model  # None = per-actor default; override to force a specific model
 
-    def _build_context(self, recent_discussion: List[LedgerEntry]) -> str:
-        # Last 5 entries only — forces compression, keeps the prompt tight.
+    def _build_context(self, recent_discussion: List[LedgerEntry], depth: int = 5) -> str:
+        # Last few entries only — forces compression, keeps the prompt tight.
         lines = []
-        for e in recent_discussion[-5:]:
+        for e in recent_discussion[-depth:]:
             if "remark" in e.data:
                 lines.append(f"@{e.actor}: {e.data['remark']}")
             elif e.type == "propose":
@@ -186,7 +248,8 @@ class ZsynodAgent:
         return "\n".join(lines)
 
     def _deliberate_local(self, system_prompt: str, user_prompt: str,
-                          token_callback=None, timeout: float = None) -> str:
+                          token_callback=None, timeout: float = None,
+                          temperature: float = None, max_tokens: int = None) -> str:
         t = timeout or LOCAL_TICK_TIMEOUT
         payload = json.dumps({
             "messages": [
@@ -194,8 +257,8 @@ class ZsynodAgent:
                 {"role": "user", "content": user_prompt},
             ],
             "stream": token_callback is not None,
-            "max_tokens": 220,
-            "temperature": 0.7,
+            "max_tokens": int(max_tokens or 220),
+            "temperature": temperature if temperature is not None else 0.7,
         }).encode()
 
         req = urllib.request.Request(
@@ -351,24 +414,28 @@ class ZsynodAgent:
                    progress_callback=None, token_callback=None, suggestion_callback=None,
                    glyph: str = "", timeout: float = None,
                    members: List[str] = None, summary: str = "",
-                   trend: str = "") -> str:
-        context_str = self._build_context(recent_discussion)
+                   trend: str = "", event: str = "",
+                   temperature: float = None, max_tokens: int = None,
+                   context_depth: int = 5) -> str:
+        context_str = self._build_context(recent_discussion, depth=context_depth)
         handles = " ".join(f"@{m}" for m in (members or [])) or "@mike @pi @aider @opencode @claude @gemini @codex"
         system_prompt = (
             f"You are @{self.actor_id} in the zsynod deliberation forum. "
             f"Members: {handles}. "
             f"Reply in ≤160 tokens. End every response with exactly 3 hashtags. "
             f"You may @mention members by handle. "
-            f"To act, add directive lines, each on its own line starting with '>': "
+            f"A line starting with ⚡ is the event you are responding to — address it first. "
+            f"End with exactly one directive line starting with '>': "
             f"'>vote P# aye|nay|abstain'  '>second P#'  '>propose <title>'  "
-            f"'>handoff @member <task>'. "
-            f"Vote when you hold a position — speech alone moves no tally. "
-            f"Few word do trick."
+            f"'>handoff @member <task>'  '>pass'. "
+            f"Vote when you hold a position — speech alone moves no tally; "
+            f"'>pass' only if you truly have nothing. Few word do trick."
         )
         seed = f"{glyph} " if glyph else ""
         trend_line = f"{trend}\n" if trend else ""
+        event_line = f"⚡ {event}\n" if event else ""
         pinned = f"[STATE] {summary}\n" if summary else ""
-        user_prompt = f"{seed}{trend_line}Topic: {topic}\n{pinned}{context_str}\n@{self.actor_id}:"
+        user_prompt = f"{seed}{trend_line}{event_line}Topic: {topic}\n{pinned}{context_str}\n@{self.actor_id}:"
 
         labels = {"claude": "Claude CLI", "gemini": "Gemini CLI", "codex": "Codex CLI"}
         if progress_callback:
@@ -381,8 +448,13 @@ class ZsynodAgent:
             "gemini": self._deliberate_gemini,
             "codex":  self._deliberate_codex,
         }
-        fn = dispatch.get(self.actor_id, self._deliberate_local)
-        return fn(system_prompt, user_prompt, token_callback, timeout)
+        fn = dispatch.get(self.actor_id)
+        if fn:
+            return fn(system_prompt, user_prompt, token_callback, timeout)
+        # Local llama.cpp path is the only backend with sampling dials.
+        return self._deliberate_local(system_prompt, user_prompt, token_callback,
+                                      timeout, temperature=temperature,
+                                      max_tokens=max_tokens)
 
 
 class LedgerManager:
@@ -404,8 +476,8 @@ class LedgerManager:
 
     def get_proposals(self) -> List[LedgerEntry]:
         proposals = {e.data["id"]: e for e in self.entries if e.type == "propose"}
-        committed = {e.data["proposal"] for e in self.entries if e.type == "commit"}
-        return [p for pid, p in proposals.items() if pid not in committed]
+        done = {e.data["proposal"] for e in self.entries if e.type in ("commit", "close")}
+        return [p for pid, p in proposals.items() if pid not in done]
 
     def get_proposal_discussion(self, pid: str) -> List[LedgerEntry]:
         return [
@@ -422,13 +494,227 @@ class LedgerManager:
             elif e.type == "second" and e.data.get("proposal") == pid:
                 votes[e.actor] = "aye"
         committed = any(e.type == "commit" and e.data.get("proposal") == pid for e in self.entries)
+        closed = any(e.type == "close" and e.data.get("proposal") == pid for e in self.entries)
         return {
             "aye": sum(1 for v in votes.values() if v == "aye"),
             "nay": sum(1 for v in votes.values() if v == "nay"),
             "abstain": sum(1 for v in votes.values() if v == "abstain"),
-            "state": "committed" if committed else "open",
+            "state": "committed" if committed else ("closed" if closed else "open"),
             "votes": votes,
         }
+
+    def get_lifecycle_state(self, pid: str, quorum: int) -> str:
+        """Derived lifecycle state — never stored, always recomputed from the chain.
+
+        RATIFIED  commit entry exists (quorum or principal)
+        CLOSED    close entry exists (principal or sweep) — out of rotation
+        PASSING   one aye short of quorum or better — needs a decisive vote
+        NEW       fewer than 2 discussion entries in the thread
+        STUCK     no vote/second movement in the last STALE_AFTER ledger entries
+        ACTIVE    everything else
+        """
+        tally = self.get_tally(pid)
+        if tally["state"] == "committed":
+            return "RATIFIED"
+        if tally["state"] == "closed":
+            return "CLOSED"
+        if tally["aye"] >= max(quorum - 1, 1):
+            return "PASSING"
+        thread = self.get_proposal_discussion(pid)
+        if sum(1 for e in thread if e.type in ("speak", "discuss")) < 2:
+            return "NEW"
+        moves = [e.seq for e in self.entries
+                 if e.type in ("vote", "second") and e.data.get("proposal") == pid]
+        if not moves:
+            moves = [e.seq for e in self.entries
+                     if e.type == "propose" and e.data.get("id") == pid]
+        if self.entries and self.entries[-1].seq - max(moves, default=0) > STALE_AFTER:
+            return "STUCK"
+        return "ACTIVE"
+
+    def commit_on_quorum(self, quorum: int) -> List[str]:
+        """Append a commit (by: quorum, actor: synod) for every open proposal
+        at or over quorum. Idempotent — committed proposals leave get_proposals().
+        Returns the newly committed proposal IDs."""
+        newly = []
+        for p in self.get_proposals():
+            pid = p.data["id"]
+            t = self.get_tally(pid)
+            if t["aye"] >= quorum:
+                self.append("synod", "commit", {
+                    "proposal": pid, "by": "quorum",
+                    "note": f"aye={t['aye']} >= quorum={quorum}",
+                })
+                newly.append(pid)
+        return newly
+
+    def get_title(self, pid: str) -> str:
+        for e in self.entries:
+            if e.type == "propose" and e.data.get("id") == pid:
+                return e.data.get("title", pid)
+        return pid
+
+    def get_subscriptions(self, member: str) -> set:
+        """Topics a member is invested in: proposed, voted, seconded, or spoke
+        in (when the speak entry carries a proposal ref). Derived, never stored."""
+        subs = set()
+        for e in self.entries:
+            if e.actor != member:
+                continue
+            if e.type == "propose":
+                subs.add(e.data.get("id"))
+            elif e.data.get("proposal"):
+                subs.add(e.data["proposal"])
+        subs.discard(None)
+        return subs
+
+    def get_repetition(self, member: str, window: int = 3) -> float:
+        """Max pairwise Jaccard similarity over the member's last `window`
+        remarks (hashtags/@handles excluded). 1.0 = saying the same thing
+        verbatim; 0.0 = fresh every time or not enough history to judge."""
+        remarks = [e.data.get("remark", "") for e in self.entries
+                   if e.actor == member and e.type in ("speak", "discuss")][-window:]
+        sets = [s for s in (_remark_tokens(r) for r in remarks) if s]
+        if len(sets) < 2:
+            return 0.0
+        best = 0.0
+        for i in range(len(sets)):
+            for j in range(i + 1, len(sets)):
+                union = len(sets[i] | sets[j])
+                if union:
+                    best = max(best, len(sets[i] & sets[j]) / union)
+        return best
+
+    def get_member_stats(self, loop_window: int = 3) -> dict:
+        """Per-member activity profile derived from the chain — speaks, vote
+        split, proposals and their ratification count, passes, mention graph
+        (out/in), handoffs, last activity, repetition score."""
+        stats: dict[str, dict] = {}
+
+        def s(m: str) -> dict:
+            return stats.setdefault(m, {
+                "speaks": 0, "aye": 0, "nay": 0, "abstain": 0, "seconds": 0,
+                "proposed": 0, "ratified": 0, "passes": 0,
+                "mentions_out": 0, "mentions_in": 0,
+                "handoffs_out": 0, "handoffs_in": 0, "last_seq": -1,
+            })
+
+        proposer: dict[str, str] = {}
+        for e in self.entries:
+            m = s(e.actor)
+            m["last_seq"] = e.seq
+            if e.type in ("speak", "discuss"):
+                m["speaks"] += 1
+                for h in re.findall(r"@(\w[\w-]*)", e.data.get("remark", "")):
+                    if h != e.actor:
+                        m["mentions_out"] += 1
+                        s(h)["mentions_in"] += 1
+            elif e.type == "vote":
+                v = e.data.get("vote", "abstain")
+                m[v if v in ("aye", "nay", "abstain") else "abstain"] += 1
+            elif e.type == "second":
+                m["seconds"] += 1
+            elif e.type == "propose":
+                m["proposed"] += 1
+                proposer[e.data.get("id")] = e.actor
+            elif e.type == "commit":
+                author = proposer.get(e.data.get("proposal"))
+                if author:
+                    s(author)["ratified"] += 1
+            elif e.type == "pass":
+                m["passes"] += 1
+            elif e.type == "handoff":
+                m["handoffs_out"] += 1
+                s(e.data.get("to", "?"))["handoffs_in"] += 1
+
+        for name, m in stats.items():
+            m["repetition"] = self.get_repetition(name, loop_window)
+        return stats
+
+    def topic_event(self, member: str, pid: str, quorum: int) -> str:
+        """Event line for a member on a FIXED topic (operator-focused tick)."""
+        t = self.get_tally(pid)
+        if t["state"] == "open" and t["aye"] == quorum - 1 and member not in t["votes"]:
+            return f"🗳 {pid} is one aye from quorum ({t['aye']}/{quorum}) — your vote decides"
+        if self.get_lifecycle_state(pid, quorum) == "STUCK":
+            return f"🧊 {pid} is stuck — move it forward or vote it down"
+        return ""
+
+    def next_event(self, member: str, quorum: int,
+                   spontaneity: float = 0.0,
+                   loop_threshold: float = 2.0,
+                   loop_window: int = 3,
+                   rng=random) -> tuple[str, Optional[str]]:
+        """Highest-priority event for a member's turn: (event_line, pid).
+
+        Priority: 💭 loop-breaker (forced when the member's recent remarks
+        overlap past loop_threshold — health intervention, beats everything)
+        → 💭 spontaneous free thought (probability = spontaneity dial)
+        → 📥 mention since the member's last entry (oldest first — patience)
+        → 🗳 decisive vote (subscribed topics first) → 🆕 newest untouched
+        proposal → 🧊 least-recently-touched stuck topic → 🎲 random open
+        floor. The member's own ledger activity is the cursor; acting (even
+        '>pass') acknowledges everything before it. Defaults (loop_threshold
+        2.0, spontaneity 0.0) disable both 💭 paths — callers opt in via dials.
+        """
+        rep = self.get_repetition(member, loop_window)
+        if rep >= loop_threshold:
+            return (f"💭 loop detected — your last {loop_window} remarks are "
+                    f"{int(rep * 100)}% the same. Drop the script: one NEW "
+                    f"observation, question, or proposal", None)
+
+        if spontaneity > 0 and rng.random() < spontaneity:
+            return ("💭 free thought — surface one fresh observation, question, "
+                    "or proposal; no obligation to any open topic", None)
+
+        open_pids = [p.data["id"] for p in self.get_proposals()]
+
+        last_seq = max((e.seq for e in self.entries if e.actor == member), default=-1)
+        pat = re.compile(rf"@{re.escape(member)}\b")
+        for e in self.entries:
+            if e.seq <= last_seq or e.actor == member:
+                continue
+            if e.type in ("speak", "discuss") and pat.search(e.data.get("remark", "")):
+                pid = e.data.get("proposal")
+                if pid is None or pid in open_pids:
+                    quote = e.data["remark"][:80]
+                    return (f'📥 @{e.actor} mentioned you: "{quote}"', pid)
+
+        subs = self.get_subscriptions(member)
+        decisive = []
+        for pid in open_pids:
+            t = self.get_tally(pid)
+            if t["aye"] == quorum - 1 and member not in t["votes"]:
+                decisive.append((pid not in subs, pid))
+        if decisive:
+            pid = min(decisive)[1]
+            return (f"🗳 {pid} is one aye from quorum ({quorum-1}/{quorum}) — your vote decides", pid)
+
+        fresh = []
+        for pid in open_pids:
+            thread = self.get_proposal_discussion(pid)
+            if not any(e.actor == member for e in thread):
+                first = next(e for e in self.entries
+                             if e.type == "propose" and e.data.get("id") == pid)
+                fresh.append((first.seq, pid, first.actor))
+        if fresh:
+            _, pid, author = max(fresh)
+            return (f'🆕 {pid} "{self.get_title(pid)[:40]}" by @{author} — take a position', pid)
+
+        stuck = []
+        for pid in open_pids:
+            if self.get_lifecycle_state(pid, quorum) == "STUCK":
+                last = max((e.seq for e in self.get_proposal_discussion(pid)), default=0)
+                stuck.append((last, pid))
+        if stuck:
+            last, pid = min(stuck)
+            idle = (self.entries[-1].seq - last) if self.entries else 0
+            return (f"🧊 {pid} idle for {idle} entries — revive it or vote it down", pid)
+
+        if open_pids:
+            pid = random.choice(open_pids)
+            return (f'🎲 open floor: {pid} "{self.get_title(pid)[:40]}"', pid)
+        return ("", None)
 
     def get_hashtag_analytics(self) -> dict:
         """Bi-directional hashtag index.
@@ -457,7 +743,9 @@ class LedgerManager:
             if e.type not in ("speak", "discuss"):
                 continue
             remark = e.data.get("remark", "")
-            pid = seq_to_pid.get(e.seq)
+            # Explicit topic ref (written by the tick loop) beats the
+            # last-propose-wins heuristic kept for pre-scheduler entries.
+            pid = e.data.get("proposal") or seq_to_pid.get(e.seq)
             for raw in re.findall(r"#\w+", remark):
                 key = raw.lower()
                 if key not in tags:
