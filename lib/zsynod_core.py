@@ -296,7 +296,8 @@ class ZsynodAgent:
     def deliberate(self, topic: str, recent_discussion: List[LedgerEntry],
                    progress_callback=None, token_callback=None, suggestion_callback=None,
                    glyph: str = "", timeout: float = None,
-                   members: List[str] = None, summary: str = "") -> str:
+                   members: List[str] = None, summary: str = "",
+                   trend: str = "") -> str:
         context_str = self._build_context(recent_discussion)
         handles = " ".join(f"@{m}" for m in (members or [])) or "@mike @pi @aider @opencode @claude @gemini @codex"
         system_prompt = (
@@ -306,8 +307,9 @@ class ZsynodAgent:
             f"You may @mention members by handle. Few word do trick."
         )
         seed = f"{glyph} " if glyph else ""
+        trend_line = f"{trend}\n" if trend else ""
         pinned = f"[STATE] {summary}\n" if summary else ""
-        user_prompt = f"{seed}Topic: {topic}\n{pinned}{context_str}\n@{self.actor_id}:"
+        user_prompt = f"{seed}{trend_line}Topic: {topic}\n{pinned}{context_str}\n@{self.actor_id}:"
 
         labels = {"claude": "Claude CLI", "gemini": "Gemini CLI", "codex": "Codex CLI"}
         if progress_callback:
@@ -438,6 +440,65 @@ class LedgerManager:
             "topic_tags": topic_tags,
             "titles": titles,
         }
+
+    def get_trend_preamble(self) -> str:
+        """Build a trend-temperature line for the tick preamble.
+
+        Scores each hashtag by recency-weighted use count:
+            score = Σ (seq_i / max_seq)  for each use i
+        Then selects percentile representatives at p97, p50, p05 from the
+        score distribution and formats them as a single prompt line:
+            Trend: 🔥#hot(9.4) — #mid(3.1) — ❄#cold(0.2)
+        """
+        import math, re
+
+        speak_entries = [e for e in self.entries if e.type in ("speak", "discuss")]
+        if not speak_entries:
+            return ""
+
+        max_seq = max(e.seq for e in self.entries) or 1
+        scores: dict[str, float] = {}
+
+        for e in speak_entries:
+            weight = e.seq / max_seq
+            for raw in re.findall(r"#\w+", e.data.get("remark", "")):
+                key = raw.lower()
+                scores[key] = scores.get(key, 0.0) + weight
+
+        if not scores:
+            return ""
+
+        # Build (tag_str, score) sorted ascending by score
+        ranked = sorted(scores.items(), key=lambda x: x[1])
+        n = len(ranked)
+
+        def pick(pct: float) -> tuple[str, float]:
+            idx = max(0, min(int(pct * n), n - 1))
+            return ranked[idx]
+
+        hot_key, hot_s  = pick(0.97)
+        mid_key, mid_s  = pick(0.50)
+        cold_key, cold_s = pick(0.05)
+
+        # Compute mean and stddev for display
+        vals = [s for _, s in ranked]
+        mean = sum(vals) / n
+        stddev = math.sqrt(sum((v - mean) ** 2 for v in vals) / n)
+
+        def fmt_tag(key: str, score: float) -> str:
+            # Recover original capitalisation from entries
+            for e in reversed(speak_entries):
+                for raw in re.findall(r"#\w+", e.data.get("remark", "")):
+                    if raw.lower() == key:
+                        return f"{raw}({score:.1f})"
+            return f"{key}({score:.1f})"
+
+        return (
+            f"Trend [σ={stddev:.1f} μ={mean:.1f}]: "
+            f"🔥{fmt_tag(hot_key, hot_s)} "
+            f"— {fmt_tag(mid_key, mid_s)} "
+            f"— ❄{fmt_tag(cold_key, cold_s)}"
+        )
 
     def get_latest_summary(self, pid: str) -> str:
         """Return the text of the most recent summary entry for a proposal, or ''."""

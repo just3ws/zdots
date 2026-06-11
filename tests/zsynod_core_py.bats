@@ -150,6 +150,72 @@ print('ok')
   [[ "$output" == *"ok"* ]]
 }
 
+# ── get_trend_preamble ────────────────────────────────────────────────────────
+
+@test "get_trend_preamble returns empty string with no speak entries" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+assert lm.get_trend_preamble() == '', 'expected empty string'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "get_trend_preamble includes hot/mid/cold hashtags and stats" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+# Seed entries: one hot hashtag (many uses), one cold (one use)
+for i in range(10):
+    lm.append('pi', 'speak', {'remark': f'msg {i} #HotTag'})
+lm.append('pi', 'speak', {'remark': 'rare thought #ColdTag'})
+
+p = lm.get_trend_preamble()
+assert '🔥' in p, 'missing hot emoji'
+assert '❄' in p, 'missing cold emoji'
+assert 'HotTag' in p, 'missing hot tag'
+assert 'ColdTag' in p, 'missing cold tag'
+assert 'σ=' in p and 'μ=' in p, 'missing stats'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "deliberate includes trend line in user prompt" {
+  run run_py "
+import sys
+from unittest.mock import patch
+sys.path.append('$REPO_ROOT/lib')
+from zsynod_core import ZsynodAgent
+
+agent = ZsynodAgent('pi')
+captured = {}
+
+def fake_local(sp, up, tc=None, t=None):
+    captured['user'] = up
+    return 'ok'
+
+with patch.object(agent, '_deliberate_local', fake_local):
+    agent.deliberate('Topic', [], trend='Trend [σ=1.0 μ=2.0]: 🔥#Hot(9.0) — #Mid(2.0) — ❄#Cold(0.1)')
+
+assert 'Trend' in captured['user'], 'trend line missing from user prompt'
+assert '🔥' in captured['user']
+assert '❄' in captured['user']
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
 # ── deliberate() prompt construction ─────────────────────────────────────────
 
 @test "deliberate builds system prompt with actor handle and members" {
