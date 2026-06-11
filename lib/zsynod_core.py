@@ -34,31 +34,29 @@ class LedgerEntry(BaseModel):
         return hashlib.sha256(content).hexdigest()
 
 class ZsynodAgent:
-    def __init__(self, actor_id: str, endpoint: str = None):
+    def __init__(self, actor_id: str, endpoint: str = None, model: str = "claude-opus-4-8"):
         self.actor_id = actor_id
         self.endpoint = (endpoint or os.environ.get("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")).rstrip("/")
+        self.model = model  # only used for claude actor; pass "claude-haiku-4-5" for pulse
 
-    def deliberate(self, topic: str, recent_discussion: List[LedgerEntry], progress_callback=None, token_callback=None) -> str:
-        context_lines = []
+    def _build_context(self, recent_discussion: List[LedgerEntry]) -> str:
+        lines = []
         for e in recent_discussion:
             if "remark" in e.data:
-                context_lines.append(f"{e.actor}: {e.data['remark']}")
+                lines.append(f"{e.actor}: {e.data['remark']}")
             elif e.type == "propose":
-                context_lines.append(f"{e.actor} PROPOSED: {e.data.get('title', 'Untitled')}")
+                lines.append(f"{e.actor} PROPOSED: {e.data.get('title', 'Untitled')}")
             elif e.type == "vote":
-                context_lines.append(f"{e.actor} VOTED: {e.data.get('vote', 'unknown')} on {e.data.get('proposal', '?')}")
+                lines.append(f"{e.actor} VOTED: {e.data.get('vote', 'unknown')} on {e.data.get('proposal', '?')}")
             elif e.type == "commit":
-                context_lines.append(f"PRINCIPAL RATIFIED: {e.data.get('proposal', '?')}")
+                lines.append(f"PRINCIPAL RATIFIED: {e.data.get('proposal', '?')}")
+        return "\n".join(lines)
 
-        context_str = "\n".join(context_lines)
-
-        if progress_callback:
-            progress_callback(f"[dim]Connecting to {self.endpoint}...[/dim]")
-
+    def _deliberate_local(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
         payload = json.dumps({
             "messages": [
-                {"role": "system", "content": f"You are {self.actor_id}, an AI member of the Zsynod deliberation forum."},
-                {"role": "user", "content": f"Topic: {topic}\nRecent History:\n{context_str}\nYour Remark (be brief and professional):"},
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
             ],
             "stream": token_callback is not None,
             "max_tokens": 200,
@@ -95,6 +93,43 @@ class ZsynodAgent:
                 full_remark = body["choices"][0]["message"]["content"]
 
         return full_remark.strip()
+
+    def _deliberate_claude(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
+        try:
+            import anthropic
+        except ImportError:
+            raise RuntimeError("anthropic package required: pip install anthropic")
+
+        client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
+        full_remark = ""
+
+        with client.messages.stream(
+            model=self.model,
+            max_tokens=200,
+            thinking={"type": "adaptive"},
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        ) as stream:
+            for text in stream.text_stream:
+                if text:
+                    full_remark += text
+                    if token_callback:
+                        token_callback(text)
+
+        return full_remark.strip()
+
+    def deliberate(self, topic: str, recent_discussion: List[LedgerEntry], progress_callback=None, token_callback=None) -> str:
+        context_str = self._build_context(recent_discussion)
+        system_prompt = f"You are {self.actor_id}, an AI member of the Zsynod deliberation forum."
+        user_prompt = f"Topic: {topic}\nRecent History:\n{context_str}\nYour Remark (be brief and professional):"
+
+        dest = "Anthropic API" if self.actor_id == "claude" else self.endpoint
+        if progress_callback:
+            progress_callback(f"[dim]Connecting to {dest}...[/dim]")
+
+        if self.actor_id == "claude":
+            return self._deliberate_claude(system_prompt, user_prompt, token_callback)
+        return self._deliberate_local(system_prompt, user_prompt, token_callback)
 
 class LedgerManager:
     def __init__(self, path: Path):
