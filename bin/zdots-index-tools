@@ -1,0 +1,480 @@
+#!/usr/bin/env bash
+# bin/zdots-index-tools — Index all bin/ commands and usage scenarios into
+# the context engine so AI agents can always find the right zdots tool.
+#
+# CHANGE DETECTION:
+#   Uses the git tree hash of bin/ as the manifest key. If the hash and the
+#   stored state are unchanged AND the last index is within TTL, the run is
+#   a cheap no-op. Re-indexes when bin/ changes (new/modified command) or
+#   when TTL expires (default 7 days), whichever comes first.
+#
+# WHAT GETS INDEXED:
+#   tooling:<name>     — full --help output for every executable in bin/
+#   tooling:catalog    — compact one-liner listing of all commands
+#   tooling:scenarios  — task-to-tool recipes for common agent workflows
+#
+# QUERY PATTERNS (for agents and humans):
+#   zdots-ctx hydrate tooling-catalog        # catalog + scenarios
+#   zdots-ctx query tooling:<name>           # full --help for one command
+#   zdots-ctx query --semantic "start svc"  # natural-language lookup
+#
+# Usage:
+#   zdots-index-tools              # normal run (hash + TTL guard)
+#   zdots-index-tools --force      # re-index regardless of state
+#   zdots-index-tools --dry-run    # show plan without writing
+#   zdots-index-tools --install    # write + load launchd plist (daily 04:00)
+
+set -eo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+STATE_FILE="$STATE_DIR/zdots-index-tools.state"
+LOG_FILE="$STATE_DIR/zdots-index-tools.log"
+TTL_SECONDS=$(( 7 * 24 * 3600 ))
+CMD_TIMEOUT=8
+
+DRY_RUN=0
+FORCE=0
+INSTALL=0
+
+# Non-user-facing files in bin/ — skip entirely
+SKIP_CMDS=(commit-msg zsynod_tui bootstrap __pycache__)
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+mkdir -p "$STATE_DIR"
+_ts()   { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
+_log()  { printf '[%s] %s\n'   "$(_ts)" "$*" | tee -a "$LOG_FILE"; }
+_ok()   { printf '  [ok] %s\n' "$*"         | tee -a "$LOG_FILE"; }
+_skip() { printf '[skip] %s\n' "$*"         | tee -a "$LOG_FILE"; }
+_warn() { printf '[warn] %s\n' "$*"         | tee -a "$LOG_FILE" >&2; }
+_die()  { printf '[fail] %s\n' "$*"         | tee -a "$LOG_FILE" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Arg parsing
+# ---------------------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force)    FORCE=1 ;;
+    --dry-run)  DRY_RUN=1 ;;
+    --install)  INSTALL=1 ;;
+    -h|--help)
+      sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *) _die "unknown option: $1" ;;
+  esac
+  shift
+done
+
+# ---------------------------------------------------------------------------
+# Change detection
+# ---------------------------------------------------------------------------
+_bin_hash() {
+  # Git tree object hash of bin/ — changes on any commit touching bin/.
+  # Falls back to content hash if outside a git repo.
+  git -C "$ZDOTDIR" rev-parse HEAD:bin 2>/dev/null || \
+    find "$ZDOTDIR/bin" -maxdepth 1 -type f -executable -print0 \
+      | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}'
+}
+
+_needs_index() {
+  [[ "$FORCE" -eq 1 ]]  && return 0
+  [[ ! -f "$STATE_FILE" ]] && return 0
+  local stored_hash stored_ts current_hash now age
+  read -r stored_hash stored_ts < "$STATE_FILE" 2>/dev/null || return 0
+  current_hash=$(_bin_hash)
+  now=$(date +%s)
+  age=$(( now - ${stored_ts:-0} ))
+  [[ "$current_hash" != "$stored_hash" ]] && return 0
+  [[ "$age" -gt "$TTL_SECONDS" ]] && return 0
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# DB write helper — writes a temp markdown file and injects via zdots-ctx ingest
+# ---------------------------------------------------------------------------
+_store() {
+  local slug="$1" title="$2" tags="$3" content="$4"
+  [[ "$DRY_RUN" -eq 1 ]] && { _skip "dry-run: would store $slug"; return 0; }
+  local tmp
+  tmp=$(mktemp /tmp/zdots-idx-XXXXXX.md)
+  # shellcheck disable=SC2064
+  trap "rm -f '$tmp'" RETURN
+  printf '---\ntype: methodology\nslug: %s\ntitle: %s\ntags: [%s]\n---\n%s\n' \
+    "$slug" "$title" "$tags" "$content" > "$tmp"
+  zdots-ctx ingest "$tmp" 2>&1 | grep -v '^$' || true
+}
+
+# ---------------------------------------------------------------------------
+# Per-command indexing
+# ---------------------------------------------------------------------------
+_help_for() {
+  local cmd="$1"
+  timeout "$CMD_TIMEOUT" "$ZDOTDIR/bin/$cmd" --help 2>&1 \
+    || timeout "$CMD_TIMEOUT" "$ZDOTDIR/bin/$cmd" -h 2>&1 \
+    || printf '(no --help available for %s)\n' "$cmd"
+}
+
+_summary_line() {
+  # First non-blank, non-"Usage:" line — capped at 90 chars
+  sed 's/^[[:space:]]*//' \
+    | grep -v '^[[:space:]]*$\|^[Uu]sage:\|^NAME$\|^---' \
+    | head -1 \
+    | cut -c1-90
+}
+
+_index_commands() {
+  local -a cmds=()
+  local -a catalog_lines=()
+
+  while IFS= read -r -d '' f; do
+    local name
+    name=$(basename "$f")
+    # Skip non-user-facing entries
+    local skip=0
+    for s in "${SKIP_CMDS[@]}"; do [[ "$name" == "$s"* ]] && skip=1 && break; done
+    [[ "$skip" -eq 1 ]] && continue
+    [[ "$name" == *.py || "$name" == *.rb ]] && continue
+    cmds+=("$name")
+  done < <(find "$ZDOTDIR/bin" -maxdepth 1 -type f -executable -print0 | sort -z)
+
+  _log "commands found: ${#cmds[@]}"
+
+  for cmd in "${cmds[@]}"; do
+    local help_text summary
+    help_text=$(_help_for "$cmd")
+    summary=$(printf '%s' "$help_text" | _summary_line)
+    [[ -z "$summary" ]] && summary="$cmd"
+
+    _store "tooling:$cmd" \
+      "zdots command: $cmd" \
+      "tooling,platform" \
+      "$help_text"
+    _ok "$cmd — $summary"
+
+    catalog_lines+=("**\`$cmd\`** — $summary")
+  done
+
+  # Compact catalog — the agent's "at a glance" entry
+  local catalog
+  catalog=$(printf '%s\n' \
+    "# zdots Platform Commands" \
+    "" \
+    "All commands live in \`~/.config/zsh/bin/\` and are always on PATH" \
+    "regardless of working directory." \
+    "" \
+    "Deep lookup: \`zdots-ctx query tooling:<name>\`" \
+    "Scenarios:   \`zdots-ctx hydrate tooling-catalog\` (includes this file)" \
+    "" \
+    "## Commands" \
+    "" \
+    "${catalog_lines[@]}")
+
+  _store "tooling:catalog" \
+    "zdots: platform command catalog" \
+    "tooling-catalog,tooling,platform" \
+    "$catalog"
+  _ok "catalog (${#cmds[@]} commands)"
+}
+
+# ---------------------------------------------------------------------------
+# Scenario index — task-to-tool recipes for common agent workflows.
+# These make the safe, correct tool the top search result for natural-language
+# queries. Add new scenarios here as new capabilities land.
+# ---------------------------------------------------------------------------
+_index_scenarios() {
+  local content
+  content=$(cat << 'SCENARIOS'
+# zdots Platform Scenarios
+
+Use these recipes when deciding which tool to reach for.
+The wrong-tool antipatterns are listed so semantic search surfaces the
+right answer even when an agent is already thinking about the wrong tool.
+
+---
+
+## Service lifecycle
+
+**Start, stop, or restart any service**
+```
+zsvc start  <svc>    # never: brew services start / launchctl load directly
+zsvc stop   <svc>
+zsvc restart <svc>
+zsvc reload <svc>    # SIGHUP (config reload without full restart)
+```
+Services: `llama`, `embed`, `otel`, `o2`, `colima`
+Aliases: `ai`=llama, `telemetry`=otel, `vm`=colima
+
+**Check which services are running**
+```
+zsvc list            # table of state + pid + endpoint — never: ps aux | grep
+zsvc status <svc>    # detailed status from the service's own ctl script
+zsvc diag   <svc>    # status + health + launchd state + last 50 log lines
+```
+
+**Tail a service log**
+```
+zsvc logs <svc>      # never: tail ~/.local/state/zsh/<svc>.log directly
+```
+
+**Full platform health check (run this first when anything is wrong)**
+```
+zdots-doctor         # env, repo, XDG, AI tools, services, runtime
+zdots-ctl check      # deep: FileVault/SIP, AI mode, capture, schema, model provenance
+```
+
+**Bring everything up / tear everything down**
+```
+zdots-ctl up
+zdots-ctl down
+zdots-ctl reset      # full restart in dependency order
+```
+
+---
+
+## AI & local LLM inference
+
+**Send a one-shot prompt to the local model**
+```
+ai-query "prompt"
+cmd | ai-query "summarize this"   # never: curl the llama.cpp HTTP API directly
+```
+
+**Interactive AI with zdots domain context**
+```
+zdots-ask "prompt"                # routes through zdots_ai_gate, adds context
+zdots-ask --domain ruby "..."     # domain-aware routing
+```
+
+**Check what the local model can actually do**
+```
+zdots-quiz --quick    # 3-case capability probe
+zdots-quiz            # full 14-case probe
+capabilities --json   # structured environment contract
+agent-guide           # full service usage guide for agents
+```
+
+**Use a specific AI tool for a specific task**
+```
+cl / cc / claude      # Claude Code — architecture, review, planning
+zaider / aider        # Aider wired to local llama.cpp — file edits, commits
+laid                  # Low-priority Aider (nice +19) — background edits
+zdots-ask             # Domain-aware local LLM prompt router
+```
+
+---
+
+## Knowledge base & context
+
+**Search the knowledge base before asking the operator**
+```
+zdots-ctx query <term>
+zdots-ctx query --semantic "how do I ..."   # embedding-based search
+```
+
+**Load context at the start of a task**
+```
+zdots-ctx hydrate              # recent methodologies + lessons
+zdots-ctx hydrate tooling-catalog  # platform command catalog + scenarios
+zdots-ctx hydrate <tag>        # tag-scoped context
+```
+
+**Store a new lesson or methodology**
+```
+zdots-ctx add-lesson "<what you learned>" "<context>" tag1 tag2
+zdots-ctx add-methodology <slug> "<title>" "<content>" tag1 tag2
+```
+
+**Ingest a markdown document**
+```
+zdots-ctx ingest /path/to/file.md     # must have ---frontmatter---
+zdots-ctx ingest /path/to/dir/        # all *.md files in dir
+zdots-ctx ingest --all                # full Knowledge Vault
+```
+
+---
+
+## Secrets & credentials
+
+**Store or retrieve a secret (never write to files or .zdots.local)**
+```
+zdots-keychain add <VARNAME> <value>   # stores in macOS Keychain under service=zdots
+zdots-keychain get <VARNAME>           # retrieves it
+```
+
+**Rotate database credentials**
+```
+zdots-ctx rotate-creds                 # rotates zdots_rw + zdots_ro, stores in Keychain
+```
+
+**Scan for exposed secrets before committing**
+```
+secret-scan                            # wraps gitleaks for this repo
+bin/secret-scan                        # explicit path if PATH is narrow
+```
+
+---
+
+## Development & code quality
+
+**File an infrastructure issue (never patch bin/ or lib/ yourself)**
+```
+zdots-issue "Short description"
+zdots-issue --type request "I need zdots to support X for task Y"
+zdots-issue --high "This is blocking me"
+```
+
+**Run static analysis on a Ruby / Rails codebase**
+```
+ruby-audit /path/to/app               # bundler-audit, brakeman, rubocop, reek, flog, flay
+ruby-audit /path/to/app --interrogate # report + Pi session with context loaded
+```
+
+**Run the test suite**
+```
+bats tests/                            # run once
+watchexec -e zsh,bash,bats -- bats tests/   # watch mode
+make check-fast                        # fast subset
+```
+
+**Update everything after a pull**
+```
+zdots-update-local                     # deps, plists, tool index, health check
+```
+
+---
+
+## Analytics & observability
+
+**Query command history**
+```
+litecli ~/.local/state/zdots/history.sqlite3
+sqlite-utils query ~/.local/state/zdots/history.sqlite3 "SELECT ..."
+visidata ~/.local/state/zdots/history.sqlite3    # pivot / analyze
+```
+
+**Check runtime errors**
+```
+zdots-o2-query                         # query OpenObserve logs
+zsvc logs o2                           # tail OpenObserve directly
+```
+
+**Inspect the AI analytics buffer**
+```
+redis-cli KEYS 'zdots:cmds:*'
+```
+
+**Export context metrics to OTel**
+```
+zdots-ctx metrics-loop
+```
+
+---
+
+## Context reduction for token-heavy workflows
+
+**Pipe any high-output command through rtk to truncate safely**
+```
+rtk git diff
+rtk git log
+rtk docker logs <container>
+rtk tokei
+rtk summary <cmd>
+```
+
+**Build a full codebase context blob for large analysis**
+```
+repomix --output context.xml
+```
+
+SCENARIOS
+)
+
+  _store "tooling:scenarios" \
+    "zdots: common scenarios and task-to-tool recipes" \
+    "tooling-catalog,tooling,platform,scenarios" \
+    "$content"
+  _ok "scenarios"
+}
+
+# ---------------------------------------------------------------------------
+# Launchd install — daily at 04:00
+# ---------------------------------------------------------------------------
+_install_plist() {
+  local plist="$HOME/Library/LaunchAgents/com.zdots.index-tools.plist"
+  local log="$LOG_FILE"
+  local path_val="$PATH"
+
+  cat > "$plist" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.zdots.index-tools</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$ZDOTDIR/bin/zdots-index-tools</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>$log</string>
+    <key>StandardErrorPath</key>
+    <string>$log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>PATH</key>
+        <string>$path_val</string>
+        <key>ZDOTDIR</key>
+        <string>$ZDOTDIR</string>
+    </dict>
+</dict>
+</plist>
+PLIST
+
+  launchctl unload "$plist" 2>/dev/null || true
+  launchctl load -w "$plist"
+  _ok "launchd agent installed: com.zdots.index-tools (daily 04:00)"
+  _ok "plist: $plist"
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+main() {
+  if [[ "$INSTALL" -eq 1 ]]; then
+    _install_plist
+  fi
+
+  if ! _needs_index; then
+    _log "bin/ unchanged and within TTL — nothing to do (--force to override)"
+    exit 0
+  fi
+
+  if ! zdots-ctx status > /dev/null 2>&1; then
+    _warn "context engine unavailable — skipping (run 'zsvc start o2' or check zdots-doctor)"
+    exit 0
+  fi
+
+  _log "indexing zdots platform commands and scenarios"
+  _index_commands
+  _index_scenarios
+
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    printf '%s %s\n' "$(_bin_hash)" "$(date +%s)" > "$STATE_FILE"
+    _log "done — state recorded in $STATE_FILE"
+  fi
+}
+
+main "$@"

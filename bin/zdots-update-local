@@ -24,7 +24,8 @@ SKIP_GEMS=0
 SKIP_GEMINI=0
 SKIP_CHECK=0
 SKIP_PYTHON=0
-PHASE_TOTAL=13
+SKIP_INDEX_TOOLS=0
+PHASE_TOTAL=14
 PHASE_INDEX=0
 PHASE_DONE=0
 PHASE_NAMES=()
@@ -63,6 +64,7 @@ Options:
   --skip-aider      Skip Aider model metadata reconciliation
   --skip-gemini     Skip Gemini MCP registration
   --skip-python     Skip Python deps (uv pip install -r requirements.txt)
+  --skip-index-tools Skip platform command catalog indexing
   --skip-otel       Skip otel-collector validation
   --skip-check      Skip make check-fast
   -h, --help        Show this help
@@ -89,6 +91,7 @@ while [[ $# -gt 0 ]]; do
     --skip-aider) SKIP_AIDER=1 ;;
     --skip-gemini) SKIP_GEMINI=1 ;;
     --skip-python) SKIP_PYTHON=1 ;;
+    --skip-index-tools) SKIP_INDEX_TOOLS=1 ;;
     --skip-otel)  SKIP_OTEL=1 ;;
     --skip-check) SKIP_CHECK=1 ;;
     -h|--help)    usage; exit 0 ;;
@@ -562,6 +565,18 @@ if [[ "$SKIP_OTEL" -eq 0 ]]; then
   fi
 else
   warn "skipping otel phase (--skip-otel)"
+fi
+
+phase "index-tools: refresh platform command catalog in context engine"
+if [[ "$SKIP_INDEX_TOOLS" -eq 0 ]]; then
+  step "zdots-index-tools"
+  if command -v zdots-index-tools >/dev/null 2>&1; then
+    run zdots-index-tools
+  else
+    warn "zdots-index-tools not found in PATH; skipping"
+  fi
+else
+  warn "skipping index-tools phase (--skip-index-tools)"
 fi
 
 phase "checks: make check-fast"
