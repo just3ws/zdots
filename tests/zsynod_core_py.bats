@@ -216,6 +216,95 @@ print('ok')
   [[ "$output" == *"ok"* ]]
 }
 
+# ── parse_directives ──────────────────────────────────────────────────────────
+
+@test "parse_directives: vote line becomes entry, stripped from speech" {
+  run run_py "
+from zsynod_core import parse_directives
+speech, d = parse_directives('P25 deepens before it broadens.\n>vote P25 aye\n#One #Two #Three')
+assert d == [('vote', {'proposal': 'P25', 'vote': 'aye'})], d
+assert '>vote' not in speech, speech
+assert 'deepens' in speech and '#Three' in speech
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "parse_directives: verb, pid, and choice are case-insensitive" {
+  run run_py "
+from zsynod_core import parse_directives
+_, d = parse_directives('  > VOTE p7 NAY')
+assert d == [('vote', {'proposal': 'P7', 'vote': 'nay'})], d
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "parse_directives: second, propose, handoff all parse" {
+  run run_py "
+from zsynod_core import parse_directives
+speech, d = parse_directives('>second P24\n>propose Recency window for trend\n>handoff @aider wire pulse to tick loop')
+assert d[0] == ('second', {'proposal': 'P24'}), d[0]
+assert d[1] == ('propose', {'title': 'Recency window for trend'}), d[1]
+assert d[2] == ('handoff', {'to': 'aider', 'task': 'wire pulse to tick loop'}), d[2]
+assert speech == '', speech
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "parse_directives: malformed directive stays in speech" {
+  run run_py "
+from zsynod_core import parse_directives
+speech, d = parse_directives('>vote aye P25\n>handoff @aider\n>vote P25 maybe')
+assert d == [], d
+assert speech.count('>') == 3, speech
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "parse_directives: mid-line '>' is speech, not a directive" {
+  run run_py "
+from zsynod_core import parse_directives
+speech, d = parse_directives('I think x > y here, so >vote P25 aye inline does not count')
+assert d == [], d
+assert 'x > y' in speech
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "deliberate system prompt teaches the directive contract" {
+  run run_py "
+import sys
+from unittest.mock import patch
+sys.path.append('$REPO_ROOT/lib')
+from zsynod_core import ZsynodAgent
+
+agent = ZsynodAgent('pi')
+captured = {}
+
+def fake_local(sp, up, tc=None, t=None):
+    captured['system'] = sp
+    return 'ok'
+
+with patch.object(agent, '_deliberate_local', fake_local):
+    agent.deliberate('Topic', [])
+
+assert '>vote P# aye|nay|abstain' in captured['system'], captured['system']
+assert '>handoff @member' in captured['system']
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
 # ── deliberate() prompt construction ─────────────────────────────────────────
 
 @test "deliberate builds system prompt with actor handle and members" {

@@ -2,6 +2,7 @@ import json
 import os
 import hashlib
 import datetime
+import re
 import subprocess
 import tempfile
 import uuid
@@ -66,6 +67,59 @@ class AgentCircuitBreaker:
     def record_success(self) -> None:
         self._consecutive = 0
         self._skip_remaining = 0
+
+# ── Directive lines: voice → ballot ──────────────────────────────────────────
+# Agents act by ending lines with '>'. The parser is pure syntax — semantic
+# validation (does the proposal exist? is the member seated?) belongs to the
+# caller, which holds ledger state.
+
+_DIRECTIVE_RE = re.compile(r"^\s*>\s*(vote|second|propose|handoff)\b\s*(.*)$",
+                           re.IGNORECASE)
+
+
+def _parse_one_directive(verb: str, rest: str) -> Optional[tuple]:
+    if verb == "vote":
+        m = re.match(r"(?i)^(p\d+)\s+(aye|nay|abstain)\b", rest)
+        if m:
+            return ("vote", {"proposal": m.group(1).upper(), "vote": m.group(2).lower()})
+    elif verb == "second":
+        m = re.match(r"(?i)^(p\d+)\b", rest)
+        if m:
+            return ("second", {"proposal": m.group(1).upper()})
+    elif verb == "propose":
+        if rest:
+            return ("propose", {"title": rest})
+    elif verb == "handoff":
+        m = re.match(r"^@?(\w[\w-]*)\s+(.+)$", rest)
+        if m:
+            return ("handoff", {"to": m.group(1), "task": m.group(2).strip()})
+    return None
+
+
+def parse_directives(remark: str) -> tuple[str, list[tuple[str, dict]]]:
+    """Split agent output into clean speech and structured ledger intents.
+
+    Grammar — one directive per line, line must start with '>':
+        >vote P# aye|nay|abstain
+        >second P#
+        >propose <title>
+        >handoff @member <task>
+
+    Returns (speech_without_directive_lines, [(entry_type, data), ...]).
+    A malformed directive line stays in the speech — visible feedback to the
+    forum beats silently losing it.
+    """
+    kept: list[str] = []
+    directives: list[tuple[str, dict]] = []
+    for line in remark.splitlines():
+        m = _DIRECTIVE_RE.match(line)
+        parsed = _parse_one_directive(m.group(1).lower(), m.group(2).strip()) if m else None
+        if parsed is None:
+            kept.append(line)
+        else:
+            directives.append(parsed)
+    return "\n".join(kept).strip(), directives
+
 
 # 8 trigrams + yin-yang + 64 I Ching hexagrams (U+4DC0–U+4DFF).
 # One glyph is rolled per tick and prepended to every agent's prompt —
@@ -304,7 +358,12 @@ class ZsynodAgent:
             f"You are @{self.actor_id} in the zsynod deliberation forum. "
             f"Members: {handles}. "
             f"Reply in ≤160 tokens. End every response with exactly 3 hashtags. "
-            f"You may @mention members by handle. Few word do trick."
+            f"You may @mention members by handle. "
+            f"To act, add directive lines, each on its own line starting with '>': "
+            f"'>vote P# aye|nay|abstain'  '>second P#'  '>propose <title>'  "
+            f"'>handoff @member <task>'. "
+            f"Vote when you hold a position — speech alone moves no tally. "
+            f"Few word do trick."
         )
         seed = f"{glyph} " if glyph else ""
         trend_line = f"{trend}\n" if trend else ""
@@ -380,7 +439,6 @@ class LedgerManager:
             topic_tags: {pid: [{tag, first_actor, first_ts, seq}...]}  intro order
             titles: {pid: title}
         """
-        import re
         # Build pid->title and a seq->pid map using last-propose-wins heuristic
         titles: dict[str, str] = {}
         seq_to_pid: dict[int, str] = {}
@@ -450,7 +508,7 @@ class LedgerManager:
         score distribution and formats them as a single prompt line:
             Trend: 🔥#hot(9.4) — #mid(3.1) — ❄#cold(0.2)
         """
-        import math, re
+        import math
 
         speak_entries = [e for e in self.entries if e.type in ("speak", "discuss")]
         if not speak_entries:
