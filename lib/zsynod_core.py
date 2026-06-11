@@ -34,10 +34,10 @@ class LedgerEntry(BaseModel):
         return hashlib.sha256(content).hexdigest()
 
 class ZsynodAgent:
-    def __init__(self, actor_id: str, endpoint: str = None, model: str = "claude-opus-4-8"):
+    def __init__(self, actor_id: str, endpoint: str = None, model: str = "claude-haiku-4-5"):
         self.actor_id = actor_id
         self.endpoint = (endpoint or os.environ.get("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")).rstrip("/")
-        self.model = model  # only used for claude actor; pass "claude-haiku-4-5" for pulse
+        self.model = model  # only used for claude actor; override to claude-opus-4-8 for interactive use
 
     def _build_context(self, recent_discussion: List[LedgerEntry]) -> str:
         lines = []
@@ -106,7 +106,6 @@ class ZsynodAgent:
         with client.messages.stream(
             model=self.model,
             max_tokens=200,
-            thinking={"type": "adaptive"},
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         ) as stream:
