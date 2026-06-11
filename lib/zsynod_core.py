@@ -14,8 +14,7 @@ from typing import Any, List, Optional
 # llama.cpp keeps its own 120s stream budget for the SSE path.
 TICK_TIMEOUT = 45
 
-# Stable session identities — derived once, same UUID every tick.
-_SESSIONS_DIR = Path(__file__).parent.parent / "zsynod" / "sessions"
+# Stable session identity for Gemini — UUID5 derived from name, same value every tick.
 _GEMINI_SESSION_ID = str(uuid.uuid5(uuid.NAMESPACE_DNS, "zsynod-gemini"))
 
 
@@ -107,43 +106,46 @@ class ZsynodAgent:
 
         return full_remark.strip()
 
-    def _deliberate_claude(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
-        _SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-        session_file = _SESSIONS_DIR / "claude"
+    def _deliberate_claude(self, system_prompt: str, user_prompt: str,
+                           token_callback=None, suggestion_callback=None) -> str:
         model = self.model or "claude-haiku-4-5"
         prompt = f"{system_prompt}\n\n{user_prompt}"
-
-        def _cmd(resume_id=None):
-            c = [
-                "claude", "-p",
-                "--output-format", "json",
-                "--model", model,
-                "--disallowedTools", "Bash,Edit,Write,NotebookEdit",
-                "--append-system-prompt", "You are a member of the zsynod deliberation forum. Be concise.",
-            ]
-            if resume_id:
-                c += ["--resume", resume_id]
-            return c
-
-        resume_id = session_file.read_text().strip() if session_file.exists() else None
-        result = subprocess.run(_cmd(resume_id), input=prompt, capture_output=True, text=True, timeout=TICK_TIMEOUT)
-
-        # Resume may fail if the session expired — retry fresh
-        if result.returncode != 0 and resume_id:
-            session_file.unlink(missing_ok=True)
-            result = subprocess.run(_cmd(), input=prompt, capture_output=True, text=True, timeout=TICK_TIMEOUT)
-
+        cmd = [
+            "claude", "-p",
+            "--output-format", "stream-json",
+            "--verbose",
+            "--model", model,
+            "--safe-mode",
+            "--prompt-suggestions",
+            "--no-session-persistence",
+            "--disallowedTools", "Bash,Edit,Write,NotebookEdit",
+            "--append-system-prompt",
+            "You are a member of the zsynod deliberation forum. Be concise.",
+        ]
+        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=TICK_TIMEOUT)
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or f"claude exited {result.returncode}")
 
-        data = json.loads(result.stdout)
-        new_id = data.get("session_id", "")
-        if new_id:
-            session_file.write_text(new_id)
+        remark = ""
+        suggestion = ""
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                t = obj.get("type", "")
+                if t == "result":
+                    remark = obj.get("result", "").strip()
+                elif t == "prompt_suggestion":
+                    suggestion = obj.get("suggestion", "").strip()
+            except json.JSONDecodeError:
+                continue
 
-        remark = data.get("result", "").strip()
         if token_callback and remark:
             token_callback(remark)
+        if suggestion_callback and suggestion:
+            suggestion_callback(suggestion)
         return remark
 
     def _deliberate_gemini(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
@@ -197,7 +199,8 @@ class ZsynodAgent:
             token_callback(remark)
         return remark
 
-    def deliberate(self, topic: str, recent_discussion: List[LedgerEntry], progress_callback=None, token_callback=None) -> str:
+    def deliberate(self, topic: str, recent_discussion: List[LedgerEntry],
+                   progress_callback=None, token_callback=None, suggestion_callback=None) -> str:
         context_str = self._build_context(recent_discussion)
         system_prompt = f"You are {self.actor_id}, an AI member of the Zsynod deliberation forum."
         user_prompt = f"Topic: {topic}\nRecent History:\n{context_str}\nYour Remark (be brief and professional):"
@@ -206,10 +209,12 @@ class ZsynodAgent:
         if progress_callback:
             progress_callback(f"[dim]Connecting to {labels.get(self.actor_id, self.endpoint)}...[/dim]")
 
+        if self.actor_id == "claude":
+            return self._deliberate_claude(system_prompt, user_prompt, token_callback, suggestion_callback)
+
         dispatch = {
-            "claude": self._deliberate_claude,
             "gemini": self._deliberate_gemini,
-            "codex": self._deliberate_codex,
+            "codex":  self._deliberate_codex,
         }
         return dispatch.get(self.actor_id, self._deliberate_local)(system_prompt, user_prompt, token_callback)
 
