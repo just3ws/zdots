@@ -365,6 +365,23 @@ if [[ "${ZDOTS_CONTEXT:-home}" == "work" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Deliberation (zsynod)
+# ---------------------------------------------------------------------------
+_section "Deliberation (zsynod)"
+
+if [[ -x "${BIN}/zsynod" ]]; then
+  if "${BIN}/zsynod" verify >/dev/null 2>&1; then
+    _pass "zsynod ledger  intact"
+  else
+    _fail "zsynod ledger  BROKEN or uninitialized"
+    _fix  "zsynod verify  (check for hash-chain errors)"
+    _fix  "zsynod init    (if first-time setup)"
+  fi
+else
+  _warn "zsynod  not present (optional but recommended)"
+fi
+
+# ---------------------------------------------------------------------------
 # Services snapshot
 # ---------------------------------------------------------------------------
 _section "Services"

@@ -8,7 +8,7 @@ fi
 
 # 2. Zsh-specific Refinements (Arrays & Deduplication)
 # Re-normalize path from POSIX string into Zsh array for manipulation
-typeset -gU path fpath
+typeset -gU path fpath manpath
 path=(
   ${path[@]}
 )
@@ -17,6 +17,14 @@ fpath=(
   $ZDOTDIR/bin
   $ZDOTDIR/functions/enabled
   $fpath
+)
+
+# Zdots man pages (share/man/man1, maintained by /command-qc). The trailing
+# empty element keeps the system's default man search path intact.
+manpath=(
+  $ZDOTDIR/share/man
+  ${manpath[@]}
+  ''
 )
 
 # 3. Zsh-specific overrides

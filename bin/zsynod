@@ -22,6 +22,7 @@
 #   zsynod ratify <id>                   principal authority commit (--as mike)
 #   zsynod handoff --to M --task "T" [--state T] [--ref <id>]
 #   zsynod committee <id> --purpose T    form a named special committee
+#   zsynod committees                    list named special committees
 #   zsynod log [--round N] [--json]      show ledger entries
 #   zsynod minutes                       regenerate minutes.md
 #   zsynod view                          regenerate + display the minutes

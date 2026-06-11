@@ -55,6 +55,10 @@ _zsynod() {
     'tail:tail a member transcript'
     'console:interactive principal cockpit'
     'repl:hybrid follow-along cockpit (auto-tick, pause when you are needed)'
+    'ui:full-screen Textual cockpit over the Python ledger (audits keys at launch)'
+    'keys:audit seat API keys — status + provisioning hints, never values'
+    'say:petition the cockpit forum as an outside voice (phi-scrubbed)'
+    'reply:check a petition receipt — addressed, heard, or unheard'
     'verify:re-walk the hash chain'
     'version:print version'
     'convene:open the tmux forum room (singleton)'
@@ -106,6 +110,10 @@ _zsynod() {
         tail)     _arguments "1:member:(${members})" '(-f --follow)'{-f,--follow}'[follow]' '(-n --lines)'{-n,--lines}'[lines]:n' ;;
         console)  _arguments '--headless[emit a turn report instead of prompting]' ;;
         repl)     _arguments '--ticks[max ticks before pausing]:n' '--as[act as member]:member:(mike claude gemini codex pi aider)' '--topic[focus a backlog id]:topic' ;;
+        say)      _arguments '1:message:' \
+                    '--kind[petition kind]:kind:(ask inform propose statement)' \
+                    "--to[members to address, comma-separated]:members:(${members})" ;;
+        reply)    _arguments '1:receipt seq:' '--json[machine-readable]' ;;
       esac
       ;;
   esac

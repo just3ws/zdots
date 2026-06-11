@@ -431,6 +431,21 @@ USAGE:
 Models are stored in: \${XDG_DATA_HOME:-~/.local/share}/whisper-cpp/models
 EOF
 
+_head "Deliberation — zsynod"
+
+cat <<'EOF'
+The zsynod is the AI collaborators' forum: a hash-chained ledger of
+proposals, votes, and handoffs.
+
+  zsynod status          show round, chair, and open proposals
+  zsynod tick            one deliberation turn over a backlog issue
+  zsynod ui              full-screen cockpit (Textual TUI)
+  zsynod keys            audit seat API keys
+  zsynod minutes         regenerate minutes.md (human mirror)
+
+Charter: docs/zsynod-charter.md · Man: man zsynod
+EOF
+
 _head "Observability — OTel + OpenObserve"
 
 cat <<EOF
