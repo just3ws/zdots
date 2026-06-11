@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import random
@@ -20,7 +21,8 @@ sys.path.append(str(Path(__file__).parent.parent / "lib"))
 from zsynod_core import (
     LedgerManager, ZsynodAgent, AgentCircuitBreaker, KnowledgeBase,
     TICK_TIMEOUT, LOCAL_TICK_TIMEOUT, tick_seed, parse_directives,
-    DIALS, load_dials, save_dials,
+    DIALS, load_dials, save_dials, format_decision_lesson, devils_advocate,
+    LedgerIntegrityError,
 )
 from zsynod_otel import setup_otel
 
@@ -332,7 +334,7 @@ class ControlPlaneScreen(Screen):
         log.clear()
         log.write(f"[dim]ledger {top_seq + 1} entries · {open_n} open topics · quorum {q}[/dim]")
         log.write("")
-        log.write("[b]member      spk  aye nay abs 2nd | prop ✓rat pass | @out @in | idle  rep[/b]")
+        log.write("[b]member      spk  aye nay abs 2nd | prop ✓rat pass | @out @in | idle  rep  aye%[/b]")
 
         ranked = sorted(stats.items(), key=lambda kv: -kv[1]["speaks"])
         for name, m in ranked:
@@ -341,15 +343,25 @@ class ControlPlaneScreen(Screen):
             looping = rep >= dials["loop_threshold"]
             rep_s = f"[red]⚠{rep:.0%}[/red]" if looping else f"[dim]{rep:.0%}[/dim]"
             mute_s = " [red]🔇[/red]" if name in dials["muted"] else ""
+            # aye-rate: the sycophancy gauge. ⚠ at ≥90% over 5+ votes —
+            # a measured yes-machine, visible to the chair and the operator.
+            cast = m["aye"] + m["nay"] + m["abstain"]
+            if cast:
+                rate = m["aye"] / cast
+                aye_s = (f"[red]⚠{rate:.0%}[/red]" if cast >= 5 and rate >= 0.9
+                         else f"[dim]{rate:.0%}[/dim]")
+            else:
+                aye_s = "[dim]  –[/dim]"
             log.write(
                 f"@{name:<10} {m['speaks']:>4} {m['aye']:>4} {m['nay']:>3} "
                 f"{m['abstain']:>3} {m['seconds']:>3} | {m['proposed']:>4} "
                 f"{m['ratified']:>4} {m['passes']:>4} | {m['mentions_out']:>4} "
-                f"{m['mentions_in']:>3} | {idle:>4}  {rep_s}{mute_s}"
+                f"{m['mentions_in']:>3} | {idle:>4}  {rep_s}  {aye_s}{mute_s}"
             )
         log.write("")
         log.write("[dim]rep = max overlap of recent remarks (hashtags/@handles "
-                  "excluded). ⚠ rows get a forced 💭 loop-breaker next turn.[/dim]")
+                  "excluded). ⚠ rows get a forced 💭 loop-breaker next turn. "
+                  "aye% ⚠ at ≥90% over 5+ votes — the sycophancy gauge.[/dim]")
 
 
 # ── Main App ──────────────────────────────────────────────────────────────────
@@ -416,7 +428,7 @@ class ZsynodApp(App):
                     yield Static(id="thinking-box")
         yield Static(id="timer-bar")
         yield Input(
-            placeholder="speak | propose | aye/nay/ratify/close [PID] | dial | auto [s] | kb <term> | mute @m",
+            placeholder="speak | propose | aye/nay/ratify/close [PID] | dial | auto [s] | kb <term> | digest | mute @m",
             id="command-input",
         )
         yield Footer()
@@ -442,31 +454,29 @@ class ZsynodApp(App):
         self._agent_started = 0.0
         self._agent_budget = 0.0
 
-        # Triumvirate (pi/aider/opencode) share local llama.cpp but carry
-        # distinct lane identities in the system prompt — same model, different voice.
-        self.agents = [
-            ZsynodAgent("pi",       endpoint=self.args.endpoint),
-            ZsynodAgent("aider",    endpoint=self.args.endpoint),
-            ZsynodAgent("opencode", endpoint=self.args.endpoint),
-            ZsynodAgent("claude"),
-            ZsynodAgent("gemini"),
-            ZsynodAgent("codex"),
-        ]
-        _cli_ids = {"claude", "gemini", "codex"}
+        # Seats come from members.json via the member contract — recruiting
+        # is a data row, not a code change. Clerks (summarizer, recorder,
+        # herald) always run on the local endpoint regardless of seat order.
+        self._dormant_members = []
+        self._ticks_total = 0
+        self.agents = self._seat_members()
         self.breakers = {
             a.actor_id: AgentCircuitBreaker(
-                TICK_TIMEOUT if a.actor_id in _cli_ids else LOCAL_TICK_TIMEOUT
+                LOCAL_TICK_TIMEOUT if a.backend == "local" else TICK_TIMEOUT
             )
             for a in self.agents
         }
 
         def _cli(name): return "[green]✓[/green]" if shutil.which(name) else "[dim]–[/dim]"
         log = self.query_one("#discussion-log", RichLog)
-        log.write(f"[b][cyan]Zsynod-Py[/cyan][/b]  local:{self.agents[0].endpoint}")
+        log.write(f"[b][cyan]Zsynod-Py[/cyan][/b]  local:{self.args.endpoint}")
         log.write(
             f"[dim]claude:{_cli('claude')} "
             f"gemini:{_cli('gemini')} "
-            f"codex:{_cli('codex')}[/dim]"
+            f"codex:{_cli('codex')}"
+            + (f"  dormant: {' '.join('@' + d for d in self._dormant_members)}"
+               if self._dormant_members else "")
+            + "[/dim]"
         )
         self.refresh_data()
         self.set_interval(3.0, self.refresh_data)
@@ -474,6 +484,49 @@ class ZsynodApp(App):
         self._update_timer_bar()
 
     # ── members / quorum ──────────────────────────────────────────────────────
+
+    def _seat_members(self) -> list:
+        """Seat every member from members.json that has a reachable backend.
+
+        Resolution per member: an explicit `"backend": "openai"` block
+        (base_url/model/key_env — key read from the environment, never a
+        file) → OpenAI-compat seat; tier `local` → llama.cpp at --endpoint;
+        a known vendor CLI (id or `command` ∈ claude/gemini/codex) → CLI
+        seat. Principal and represented seats are skipped; anything else is
+        dormant and announced. Broken members.json → the classic six, because
+        the forum always runs."""
+        fallback = [
+            ZsynodAgent("pi",       endpoint=self.args.endpoint),
+            ZsynodAgent("aider",    endpoint=self.args.endpoint),
+            ZsynodAgent("opencode", endpoint=self.args.endpoint),
+            ZsynodAgent("claude"),
+            ZsynodAgent("gemini"),
+            ZsynodAgent("codex"),
+        ]
+        try:
+            members = json.loads(_MEMBERS_PATH.read_text())["members"]
+        except Exception:
+            return fallback
+        _CLIS = ("claude", "gemini", "codex")
+        seats = []
+        for m in members:
+            mid = m["id"]
+            if m.get("tier") == "principal" or m.get("represented_by"):
+                continue
+            if m.get("backend") == "openai":
+                seats.append(ZsynodAgent(mid, backend="openai",
+                                         base_url=m.get("base_url", ""),
+                                         model=m.get("model"),
+                                         key_env=m.get("key_env"),
+                                         key_cmd=m.get("key_cmd")))
+            elif m.get("tier") == "local":
+                seats.append(ZsynodAgent(mid, endpoint=self.args.endpoint))
+            elif mid in _CLIS or m.get("command") in _CLIS:
+                cmd = m["command"] if m.get("command") in _CLIS else mid
+                seats.append(ZsynodAgent(mid, backend="cli", command=cmd))
+            else:
+                self._dormant_members.append(mid)
+        return seats or fallback
 
     def _all_members(self) -> list:
         try:
@@ -633,11 +686,16 @@ class ZsynodApp(App):
         """Recognize quorum: write commit entries for any open proposal at/over
         quorum. Main-thread variant logs directly; perform_tick has its own
         call_from_thread loop. Returns newly committed pids."""
-        newly = self.ledger.commit_on_quorum(self._quorum())
+        newly, held = self.ledger.commit_on_quorum(
+            self._quorum(), unanimity_action=int(self.dials.get("unanimity_action", 1)))
         for pid in newly:
             t = self.ledger.get_tally(pid)
             self.log_message(
                 f"[b][green]★ {pid} COMMITTED by quorum[/green][/b] [dim](aye={t['aye']})[/dim]"
+            )
+        for pid in held:
+            self.log_message(
+                f"[yellow]⚖ {pid} unanimous at quorum — held one round for a second reading[/yellow]"
             )
         self._scribe_async(newly)
         return newly
@@ -647,21 +705,34 @@ class ZsynodApp(App):
     def _scribe_capture_sync(self, pids: list) -> None:
         """Secretary duty: each ratified decision becomes a knowledge-base
         lesson via zdots-ctx add-lesson — the forum's minutes, durable beyond
-        the ledger. Blocking; call from a worker thread only."""
+        the ledger. ADR-shaped: the question, the alternatives that lost, and
+        the dissent travel with the verdict, because a future hydrate that
+        returns only the answer returns a 42. Blocking; worker thread only."""
         if not pids or not int(self.dials.get("scribe", 1)) or not self.kb.available():
             return
         for pid in pids:
-            t = self.ledger.get_tally(pid)
-            title = self.ledger.get_title(pid)
+            rec = self.ledger.get_decision_record(pid)
+            # QUESTION/ALTERNATIVES extracted by the local model; the
+            # deterministic record below still lands if it's unreachable.
+            minute = ""
+            try:
+                recorder = ZsynodAgent("recorder", endpoint=self.args.endpoint)
+                minute = recorder.minute(
+                    pid, rec["title"],
+                    self.ledger.get_proposal_discussion(pid),
+                    rec["question"],
+                )
+            except Exception:
+                pass
+            content = format_decision_lesson(rec, minute)
             summary = self.ledger.get_latest_summary(pid) or ""
-            content = (f"zsynod ratified {pid} \"{title}\" "
-                       f"(aye={t['aye']} nay={t['nay']} abs={t['abstain']}). "
-                       f"{summary}").strip()
+            if summary:
+                content += f"\nSTATE: {summary}"
             ok = self.kb.record(content, context="zsynod decision",
                                 tags=["zsynod", pid.lower()])
             self.call_from_thread(
                 self.log_message,
-                f"[dim]🖋 scribe → KB: {pid} recorded as lesson[/dim]" if ok
+                f"[dim]🖋 scribe → KB: {pid} recorded with question + dissent[/dim]" if ok
                 else f"[yellow]🖋 scribe: KB write failed for {pid}[/yellow]",
             )
 
@@ -670,6 +741,32 @@ class ZsynodApp(App):
         if pids:
             self.run_worker(lambda p=list(pids): self._scribe_capture_sync(p),
                             thread=True)
+
+    def _herald_sync(self) -> None:
+        """Herald duty (blocking; worker thread only): the deterministic fact
+        sheet from the chain, narrated by the local model into a plain-English
+        briefing — to the log and appended to zsynod/minutes.md so the
+        principal can follow along without reading the ledger."""
+        try:
+            self.ledger.load()
+            facts = self.ledger.get_herald_facts(self._quorum())
+            if not facts:
+                return
+            herald = ZsynodAgent("herald", endpoint=self.args.endpoint)
+            text = herald.herald(facts).strip()
+            if not text:
+                return
+            stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            self.call_from_thread(
+                self.log_message,
+                f"[b]📜 herald[/b] [dim]{stamp}[/dim]\n{text}",
+            )
+            minutes = self.args.ledger.parent / "minutes.md"
+            with open(minutes, "a") as f:
+                f.write(f"\n## {stamp}\n\n{text}\n")
+        except Exception as e:
+            self.call_from_thread(
+                self.log_message, f"[dim]herald skipped: {e}[/dim]")
 
     def _kb_lookup(self, term: str) -> None:
         """Operator's reading desk: top knowledge-base hits for a term, inline
@@ -939,6 +1036,23 @@ class ZsynodApp(App):
                 # pinned as a [KB] line so positions cite the platform's own
                 # accumulated knowledge, not just each other.
                 kb_note = (self.kb.ground(topic) or "") if (a_pid and not free_thought) else ""
+                # Honest votes: members who haven't voted yet argue blind
+                # (no tally, no others' votes — the [STATE] pin carries the
+                # scoreboard, so it is withheld too), and one rotating seat
+                # per proposal owes the forum the case against.
+                blind = advocate = False
+                if a_pid and not free_thought:
+                    t_now = self.ledger.get_tally(a_pid)
+                    blind = bool(int(dials.get("blind_votes", 1))) and actor not in t_now["votes"]
+                    advocate = (bool(int(dials.get("advocate", 1)))
+                                and devils_advocate(a_pid, [ag.actor_id for ag in self.agents]) == actor)
+                if blind:
+                    summary = ""
+                if advocate:
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[dim]😈 {actor} holds the advocate seat for {a_pid}[/dim]",
+                    )
                 context = (self.ledger.get_proposal_discussion(a_pid) if a_pid
                            else self.ledger.get_discussion(
                                limit=12 if free_thought else 200))
@@ -978,6 +1092,8 @@ class ZsynodApp(App):
                         max_tokens=int(dials["max_tokens"]),
                         context_depth=int(dials["context_depth"]),
                         kb_note=kb_note,
+                        blind=blind,
+                        advocate=advocate,
                     )
                     breaker.record_success()
                     speech, directives = parse_directives(remark)
@@ -1015,12 +1131,20 @@ class ZsynodApp(App):
             # ── quorum recognition ────────────────────────────────────────────
             # Votes cast this tick may have pushed a proposal to quorum.
             # Recognize it now or the topic gets re-litigated forever.
-            committed = self.ledger.commit_on_quorum(self._quorum())
+            committed, held = self.ledger.commit_on_quorum(
+                self._quorum(),
+                unanimity_action=int(dials.get("unanimity_action", 1)))
             for cpid in committed:
                 t = self.ledger.get_tally(cpid)
                 self.call_from_thread(
                     self.log_message,
                     f"[b][green]★ {cpid} COMMITTED by quorum[/green][/b] [dim](aye={t['aye']})[/dim]",
+                )
+            for hpid in held:
+                self.call_from_thread(
+                    self.log_message,
+                    f"[yellow]⚖ {hpid} unanimous at quorum — held one round "
+                    f"for a second reading[/yellow]",
                 )
             # Already on a worker thread — the scribe writes minutes inline.
             self._scribe_capture_sync(committed)
@@ -1035,7 +1159,7 @@ class ZsynodApp(App):
                     prop_discussion = self.ledger.get_proposal_discussion(s_pid)
                     tally = self.ledger.get_tally(s_pid)
                     title = self.ledger.get_title(s_pid)
-                    summarizer = ZsynodAgent("summarizer", endpoint=self.agents[0].endpoint)
+                    summarizer = ZsynodAgent("summarizer", endpoint=self.args.endpoint)
                     text = summarizer.summarize(s_pid, title, prop_discussion, tally)
                     self.ledger.append("summarizer", "summary", {"proposal": s_pid, "text": text})
                     self.call_from_thread(
@@ -1047,6 +1171,14 @@ class ZsynodApp(App):
                         self.log_message,
                         f"[dim]summarizer skipped ({s_pid}): {e}[/dim]",
                     )
+
+            # ── herald pass ───────────────────────────────────────────────────
+            # Every digest_every ticks the local model briefs the principal in
+            # plain English — the humane view of who is pushing what.
+            self._ticks_total += 1
+            d_every = int(dials.get("digest_every", 0))
+            if d_every and self._ticks_total % d_every == 0:
+                self._herald_sync()
 
     # ── polling refresh ────────────────────────────────────────────────────────
 
@@ -1186,6 +1318,10 @@ class ZsynodApp(App):
                         return
                     self.run_worker(lambda term=rest: self._kb_lookup(term), thread=True)
                     return
+                elif action == "digest":
+                    self.log_message("[dim]📜 herald summoned…[/dim]")
+                    self.run_worker(self._herald_sync, thread=True)
+                    return
                 elif action == "tick":
                     self.action_tick()
                     return
@@ -1213,6 +1349,15 @@ if __name__ == "__main__":
     args = parse_args()
     if not args.ledger.exists():
         print(f"Error: Ledger not found at {args.ledger}. Run 'zsynod-migrate' first.")
+        sys.exit(1)
+    # The pawl: walk the chain before the cockpit opens. A forum must not
+    # deliberate on a ledger it cannot trust — die at the door, by name.
+    try:
+        LedgerManager(args.ledger)
+    except LedgerIntegrityError as e:
+        print(f"Error: ledger integrity check failed — {e}")
+        print("The chain is append-only; restore the ledger from backup or "
+              "investigate the altered entry before reconvening.")
         sys.exit(1)
     app = ZsynodApp()
     app.args = args

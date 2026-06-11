@@ -49,6 +49,55 @@
       "note": "Seated per committed P18 (principal override of P12). Experimental: voting deferred until proven, so quorum is unchanged. Principal-evaluated hands-on. Pi retained as the lightweight first-responder. Reversible."
     },
     {
+      "id": "apfel",
+      "tier": "local",
+      "voting": false,
+      "lane": "on-device Apple Intelligence — fast second opinions, plain-language summaries, light reasoning",
+      "backend": "openai",
+      "base_url": "http://127.0.0.1:11434/v1",
+      "model": "apple-foundationmodel",
+      "note": "Seated experimentally by principal 2026-06-11 (zapfel / apfel --serve, keyless loopback :11434). On-device — PHI locality by construction. Voting deferred until proven (opencode/P18 precedent), so quorum is unchanged. Reversible."
+    },
+    {
+      "id": "gh",
+      "tier": "frontier",
+      "voting": false,
+      "lane": "GitHub Models — multi-vendor frontier sampling (gpt-4o-mini default; catalog spans openai/deepseek/llama/mistral/cohere)",
+      "backend": "openai",
+      "base_url": "https://models.github.ai/inference",
+      "model": "openai/gpt-4o-mini",
+      "key_env": "GH_MODELS_TOKEN",
+      "key_cmd": "gh auth token",
+      "key_hint": "run `gh auth login` (the gh OAuth token authorizes models.github.ai — no PAT needed)",
+      "note": "Seated experimentally by principal 2026-06-11 (zgh wrapper; gh OAuth token authorizes models.github.ai — verified live, streaming included). CLOUD seat: remarks leave the box; PHI doctrine applies. Voting deferred until proven, quorum unchanged. Reversible."
+    },
+    {
+      "id": "hf",
+      "tier": "frontier",
+      "voting": false,
+      "lane": "Hugging Face router — open-weights frontier (Qwen3-235B default; 120-model catalog: DeepSeek, Llama, Qwen, Mistral)",
+      "backend": "openai",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+      "key_env": "HF_TOKEN",
+      "key_cmd": "tail -n 1 ~/.config/zsh/tmp/huggingface.txt",
+      "key_hint": "put the token (from huggingface.co/settings/tokens) on the LAST line of ~/.config/zsh/tmp/huggingface.txt, or export HF_TOKEN",
+      "note": "Seated experimentally by principal 2026-06-11 (huggingface-cli already logged in; token file is two-line label+token, hence tail -n 1 — move to Keychain when convenient). CLOUD seat: remarks leave the box; PHI doctrine applies. Voting deferred until proven, quorum unchanged. Reversible."
+    },
+    {
+      "id": "openrouter",
+      "tier": "frontier",
+      "voting": false,
+      "lane": "OpenRouter — meta-router over every major lab; :free tier for forum-scale remarks (gpt-oss-120b default)",
+      "backend": "openai",
+      "base_url": "https://openrouter.ai/api/v1",
+      "model": "openai/gpt-oss-120b:free",
+      "key_env": "OPENROUTER_API_KEY",
+      "key_cmd": "tail -n 1 ~/.config/zsh/tmp/open-router.txt",
+      "key_hint": "put the key (from openrouter.ai/settings/keys) on the LAST line of ~/.config/zsh/tmp/open-router.txt, or export OPENROUTER_API_KEY",
+      "note": "Seated experimentally by principal 2026-06-11 (verified live; :free models 429 under congestion — breaker absorbs; llama-3.3-70b:free was saturated at seating, gpt-oss-120b:free answered). CLOUD seat: remarks leave the box; PHI doctrine applies. Principal still researching OpenRouter — seat is the experiment. Voting deferred, quorum unchanged. Reversible."
+    },
+    {
       "id": "red-team",
       "tier": "frontier",
       "voting": true,

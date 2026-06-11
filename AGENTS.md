@@ -80,7 +80,7 @@ Full tool reference with usage examples: [docs/tooling.md](docs/tooling.md)
 ## 4. Project Protocols
 
 - **Tasks:** Use the `backlog` CLI. See [docs/backlog.md](docs/backlog.md).
-- **Deliberation:** Use the `zsynod` forum for multi-agent consensus, durable handoffs, and AI-governed "ratchet" loops. See [zsynod/LIFECYCLE.md](zsynod/LIFECYCLE.md), [zsynod/STRATEGY.md](zsynod/STRATEGY.md), [docs/TUTORIAL_ZSYNOD.md](docs/TUTORIAL_ZSYNOD.md), and [docs/zsynod-charter.md](docs/zsynod-charter.md).
+- **Deliberation:** Use the `zsynod` forum for multi-agent consensus, durable handoffs, and AI-governed "ratchet" loops. See [zsynod/LIFECYCLE.md](zsynod/LIFECYCLE.md), [zsynod/STRATEGY.md](zsynod/STRATEGY.md), [zsynod/ZEN.md](zsynod/ZEN.md), [zsynod/DECISIONS.md](zsynod/DECISIONS.md), [docs/TUTORIAL_ZSYNOD.md](docs/TUTORIAL_ZSYNOD.md), and [docs/zsynod-charter.md](docs/zsynod-charter.md).
 - **Environment:** Use `ztask start <id>` when starting work to hydrate context.
 - **Knowledge Base:** Use `zdots-ctx query`, `zdots-ctx query --semantic`, and `zdots-ctx hydrate` before claiming missing context. See [docs/wiki/AI-and-Knowledge-Layer.md](docs/wiki/AI-and-Knowledge-Layer.md).
 - **Observability:** This is an observable session linked to the shell via `gemini-invoke`. Every tool call you make is tracked.
