@@ -490,7 +490,11 @@ class ZsynodApp(App):
             span.set_attribute("zsynod.topic", topic)
 
             glyph = tick_seed()
-            self.call_from_thread(self.log_message, f"[dim]── {glyph} ──[/dim]")
+            trend = self.ledger.get_trend_preamble()
+            self.call_from_thread(
+                self.log_message,
+                f"[dim]── {glyph}  {trend} ──[/dim]" if trend else f"[dim]── {glyph} ──[/dim]",
+            )
 
             # Fetch the pinned state summary for context (written at end of last tick)
             pid = self.selected_pid
@@ -532,6 +536,7 @@ class ZsynodApp(App):
                         timeout=breaker.current_timeout(),
                         members=members,
                         summary=summary,
+                        trend=trend,
                     )
                     breaker.record_success()
                     self.ledger.append(actor, "speak", {"remark": remark})
