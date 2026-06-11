@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""
+bin/zdots-pulse - A high-signal, one-line-per-system status overview.
+Designed for quick discovery and orientation in a complex environment.
+"""
+
+import sys
+from pathlib import Path
+
+# Colors for TTY
+def color(text, code):
+    if sys.stdout.isatty():
+        return f"\033[{code}m{text}\033[0m"
+    return text
+
+def get_status():
+    zdotdir = Path.home() / ".config" / "zsh"
+    
+    print(color("--- Zdots Platform Pulse ---", "1;36"))
+    
+    # 1. Zsynod Status
+    ledger_path = zdotdir / "zsynod" / "ledger.py.jsonl"
+    if ledger_path.exists():
+        with open(ledger_path, "r") as f:
+            lines = f.readlines()
+            last_actor = "unknown"
+            if lines:
+                import json
+                last = json.loads(lines[-1])
+                last_actor = last.get("actor", "unknown")
+            print(f"{color('Zsynod:', '1')} {len(lines)} entries · last activity by {color(last_actor, '32')}")
+    else:
+        print(f"{color('Zsynod:', '1')} {color('Not initialized', '31')}")
+
+    # 2. Service Pulse
+    import subprocess
+    try:
+        # Check llama-ctl health (silent)
+        res = subprocess.run([str(zdotdir / "bin" / "llama-ctl"), "health"], capture_output=True)
+        status = color("UP", "32") if res.returncode == 0 else color("DOWN", "31")
+        print(f"{color('AI (Local):', '1')} {status}")
+    except:
+        print(f"{color('AI (Local):', '1')} {color('Unknown', '33')}")
+
+    # 3. Context Engine
+    ctx_path = Path.home() / "my" / "context"
+    if ctx_path.exists():
+        notes = list(ctx_path.glob("*.md"))
+        print(f"{color('Knowledge:', '1')} {len(notes)} context notes in ~/my/context/")
+
+    # 4. Next Step Guidance
+    print(f"\n{color('Discovery:', '1')} Run {color('agent-guide', '33')} for full connection details and man pages.")
+
+if __name__ == "__main__":
+    get_status()
