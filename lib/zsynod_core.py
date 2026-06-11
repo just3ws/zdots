@@ -16,6 +16,56 @@ from typing import Any, List, Optional
 # this long between tokens the request is aborted, same as a hung external CLI.
 TICK_TIMEOUT = 45        # external CLIs (claude, gemini, codex)
 LOCAL_TICK_TIMEOUT = 90  # llama.cpp HTTP/SSE — local inference can be slower
+_MIN_TIMEOUT = 8.0       # floor — never shorter than this regardless of backoff
+
+
+class AgentCircuitBreaker:
+    """Per-agent exponential backoff with a shrinking timeout budget.
+
+    Each consecutive timeout doubles the skip gap and halves the allowed time
+    on the next attempt. A single success resets everything. The wheel keeps
+    rolling — other agents are never blocked.
+    """
+
+    MAX_SKIP_TICKS = 8  # caps the skip window (2^3 = 8)
+
+    def __init__(self, base_timeout: float):
+        self.base_timeout = base_timeout
+        self._consecutive = 0       # consecutive timeout count
+        self._skip_remaining = 0    # ticks left to skip
+
+    # ── called once per agent slot per tick ───────────────────────────────────
+
+    def is_ready(self) -> bool:
+        """Return True if this agent should run this tick; False to skip."""
+        if self._skip_remaining > 0:
+            self._skip_remaining -= 1
+            return False
+        return True
+
+    def current_timeout(self) -> float:
+        """Timeout budget for this attempt: halves each consecutive failure."""
+        shrunk = self.base_timeout / (2 ** self._consecutive)
+        return max(shrunk, _MIN_TIMEOUT)
+
+    def skip_label(self) -> str:
+        """Human-readable skip reason for the TUI log."""
+        return (
+            f"backing off ({self._consecutive} timeouts, "
+            f"{self._skip_remaining + 1} ticks remaining, "
+            f"next budget {self.current_timeout():.0f}s)"
+        )
+
+    # ── called after each attempt ─────────────────────────────────────────────
+
+    def record_timeout(self) -> None:
+        self._consecutive += 1
+        skip = min(2 ** (self._consecutive - 1), self.MAX_SKIP_TICKS)
+        self._skip_remaining = skip
+
+    def record_success(self) -> None:
+        self._consecutive = 0
+        self._skip_remaining = 0
 
 # 8 trigrams + yin-yang + 64 I Ching hexagrams (U+4DC0–U+4DFF).
 # One glyph is rolled per tick and prepended to every agent's prompt —
@@ -80,7 +130,9 @@ class ZsynodAgent:
                 lines.append(f"PRINCIPAL RATIFIED: {e.data.get('proposal', '?')}")
         return "\n".join(lines)
 
-    def _deliberate_local(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
+    def _deliberate_local(self, system_prompt: str, user_prompt: str,
+                          token_callback=None, timeout: float = None) -> str:
+        t = timeout or LOCAL_TICK_TIMEOUT
         payload = json.dumps({
             "messages": [
                 {"role": "system", "content": system_prompt},
@@ -99,7 +151,7 @@ class ZsynodAgent:
         )
 
         full_remark = ""
-        with urllib.request.urlopen(req, timeout=LOCAL_TICK_TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=t) as resp:
             if token_callback:
                 for raw_line in resp:
                     line = raw_line.decode().strip()
@@ -123,7 +175,9 @@ class ZsynodAgent:
         return full_remark.strip()
 
     def _deliberate_claude(self, system_prompt: str, user_prompt: str,
-                           token_callback=None, suggestion_callback=None) -> str:
+                           token_callback=None, suggestion_callback=None,
+                           timeout: float = None) -> str:
+        t = timeout or TICK_TIMEOUT
         model = self.model or "claude-haiku-4-5"
         prompt = f"{system_prompt}\n\n{user_prompt}"
         cmd = [
@@ -138,7 +192,7 @@ class ZsynodAgent:
             "--append-system-prompt",
             "You are a member of the zsynod deliberation forum. Be concise.",
         ]
-        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=TICK_TIMEOUT)
+        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=t)
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or f"claude exited {result.returncode}")
 
@@ -164,7 +218,9 @@ class ZsynodAgent:
             suggestion_callback(suggestion)
         return remark
 
-    def _deliberate_gemini(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
+    def _deliberate_gemini(self, system_prompt: str, user_prompt: str,
+                           token_callback=None, timeout: float = None) -> str:
+        t = timeout or TICK_TIMEOUT
         prompt = f"{system_prompt}\n\n{user_prompt}"
 
         def _cmd(resume=False):
@@ -175,10 +231,10 @@ class ZsynodAgent:
                 c += ["-m", self.model]
             return c
 
-        result = subprocess.run(_cmd(), capture_output=True, text=True, timeout=TICK_TIMEOUT)
+        result = subprocess.run(_cmd(), capture_output=True, text=True, timeout=t)
         # Session already exists from a prior tick — switch to --resume
         if result.returncode != 0 and "already exists" in result.stderr:
-            result = subprocess.run(_cmd(resume=True), capture_output=True, text=True, timeout=TICK_TIMEOUT)
+            result = subprocess.run(_cmd(resume=True), capture_output=True, text=True, timeout=t)
 
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or f"gemini exited {result.returncode}")
@@ -193,7 +249,9 @@ class ZsynodAgent:
             token_callback(remark)
         return remark
 
-    def _deliberate_codex(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
+    def _deliberate_codex(self, system_prompt: str, user_prompt: str,
+                          token_callback=None, timeout: float = None) -> str:
+        t = timeout or TICK_TIMEOUT
         prompt = f"{system_prompt}\n\n{user_prompt}"
         fd, output_path = tempfile.mkstemp(suffix=".txt", prefix="zsynod-codex-")
         os.close(fd)
@@ -203,7 +261,7 @@ class ZsynodAgent:
                 cmd += ["-m", self.model]
             cmd.append(prompt)
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=TICK_TIMEOUT)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=t)
             if result.returncode != 0:
                 raise RuntimeError(result.stderr.strip() or f"codex exited {result.returncode}")
 
@@ -217,7 +275,7 @@ class ZsynodAgent:
 
     def deliberate(self, topic: str, recent_discussion: List[LedgerEntry],
                    progress_callback=None, token_callback=None, suggestion_callback=None,
-                   glyph: str = "") -> str:
+                   glyph: str = "", timeout: float = None) -> str:
         context_str = self._build_context(recent_discussion)
         system_prompt = f"You are {self.actor_id}, an AI member of the Zsynod deliberation forum."
         seed = f"{glyph} " if glyph else ""
@@ -228,13 +286,14 @@ class ZsynodAgent:
             progress_callback(f"[dim]Connecting to {labels.get(self.actor_id, self.endpoint)}...[/dim]")
 
         if self.actor_id == "claude":
-            return self._deliberate_claude(system_prompt, user_prompt, token_callback, suggestion_callback)
+            return self._deliberate_claude(system_prompt, user_prompt, token_callback, suggestion_callback, timeout)
 
         dispatch = {
             "gemini": self._deliberate_gemini,
             "codex":  self._deliberate_codex,
         }
-        return dispatch.get(self.actor_id, self._deliberate_local)(system_prompt, user_prompt, token_callback)
+        fn = dispatch.get(self.actor_id, self._deliberate_local)
+        return fn(system_prompt, user_prompt, token_callback, timeout)
 
 
 class LedgerManager:

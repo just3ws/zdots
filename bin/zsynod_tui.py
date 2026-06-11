@@ -12,7 +12,10 @@ from textual.binding import Binding
 from textual.reactive import reactive
 
 sys.path.append(str(Path(__file__).parent.parent / "lib"))
-from zsynod_core import LedgerManager, ZsynodAgent, tick_seed
+from zsynod_core import (
+    LedgerManager, ZsynodAgent, AgentCircuitBreaker,
+    TICK_TIMEOUT, LOCAL_TICK_TIMEOUT, tick_seed,
+)
 from zsynod_otel import setup_otel
 
 _MEMBERS_PATH = Path(__file__).parent.parent / "zsynod" / "members.json"
@@ -91,6 +94,13 @@ class ZsynodApp(App):
             ZsynodAgent("gemini"),
             ZsynodAgent("codex"),
         ]
+        _cli_ids = {"claude", "gemini", "codex"}
+        self.breakers = {
+            a.actor_id: AgentCircuitBreaker(
+                TICK_TIMEOUT if a.actor_id in _cli_ids else LOCAL_TICK_TIMEOUT
+            )
+            for a in self.agents
+        }
 
         def _cli(name): return "[green]✓[/green]" if shutil.which(name) else "[dim]–[/dim]"
         log = self.query_one("#discussion-log", RichLog)
@@ -280,9 +290,21 @@ class ZsynodApp(App):
             glyph = tick_seed()
             self.call_from_thread(self.log_message, f"[dim]── {glyph} ──[/dim]")
 
+            import subprocess
+            active = 0
             for agent in self.agents:
-                self.current_thought = ""
                 actor = agent.actor_id
+                breaker = self.breakers[actor]
+
+                if not breaker.is_ready():
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[dim]⏭ {actor}: {breaker.skip_label()}[/dim]",
+                    )
+                    continue
+
+                active += 1
+                self.current_thought = ""
 
                 def token_cb(token, a=actor):
                     self.call_from_thread(self.update_thinking, token, a)
@@ -300,9 +322,19 @@ class ZsynodApp(App):
                         token_callback=token_cb,
                         suggestion_callback=suggestion_cb,
                         glyph=glyph,
+                        timeout=breaker.current_timeout(),
                     )
+                    breaker.record_success()
                     self.ledger.append(actor, "speak", {"remark": remark})
                     discussion = self.ledger.get_discussion(limit=200)
+                except (TimeoutError, subprocess.TimeoutExpired) as e:
+                    breaker.record_timeout()
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[yellow]⏱ {actor} timed out[/yellow] [dim]→ backing off "
+                        f"({breaker._consecutive}×, next budget {breaker.current_timeout():.0f}s, "
+                        f"skip {breaker._skip_remaining} ticks)[/dim]",
+                    )
                 except Exception as e:
                     self.call_from_thread(
                         self.log_message,
@@ -310,6 +342,12 @@ class ZsynodApp(App):
                     )
                 finally:
                     self.call_from_thread(self._clear_thinking)
+
+            if active == 0:
+                self.call_from_thread(
+                    self.log_message,
+                    "[dim]── all agents backed off; wheel rolls on ──[/dim]",
+                )
 
     # ── polling refresh ────────────────────────────────────────────────────────
 
