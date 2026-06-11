@@ -49,6 +49,14 @@
 #   zsynod ui                            the cockpit: full-screen Textual TUI over the
 #       Python ledger — auto-ticks, dials, herald briefings, OTel-instrumented.
 #       Audits seat keys at launch; keyless seats go dormant, the forum proceeds.
+#   zsynod say --as <agent> [--kind ask|inform|propose|statement] [--to @m,@m] "text"
+#       the door: an outside voice (agent, cron job, any zdots dependency)
+#       petitions the cockpit forum (Python ledger). Content passes phi_scrub
+#       (petitions reach cloud seats). Prints a receipt seq for `reply`.
+#       Petitioners hold no seat: no vote weight, quorum untouched.
+#   zsynod reply <seq> [--json]          check back on a petition: addressed
+#       (responses listed), heard (forum convened, not yet addressed), or
+#       unheard (no session convened since). Silence is data.
 #   zsynod keys                          audit seat API keys from the roster — status
 #       and provisioning hints only, never values. Exit 1 if any seat lacks a key.
 #   zsynod verify                        re-walk the hash chain (integrity check)
@@ -1754,6 +1762,66 @@ raise SystemExit(1 if missing else 0)
 PY
 }
 
+cmd_say() {  # the door: an outside voice petitions the cockpit forum
+  local text="${1:-}"
+  [[ -n "$text" ]] || _die 'say needs text: zsynod say --as <agent> "message"'
+  [[ -n "$MEMBER" ]] || _die "say needs an identity: --as <agent> (or ZSYNOD_MEMBER)"
+  command -v python3 >/dev/null 2>&1 || _die "python3 is required"
+  [[ -f "$DIR/ledger.py.jsonl" ]] || _die "no Python ledger at $DIR/ledger.py.jsonl — run: zsynod-migrate"
+  # PHI gate: petitions are deliberated by cloud seats — scrub at the door,
+  # because cron jobs and agents won't think to. Refuse without the scrubber.
+  if ! declare -F phi_scrub >/dev/null 2>&1; then
+    # shellcheck source=lib/phi_scrubber.bash
+    [[ -r "$ZDOTDIR/lib/phi_scrubber.bash" ]] && source "$ZDOTDIR/lib/phi_scrubber.bash"
+  fi
+  declare -F phi_scrub >/dev/null 2>&1 || _die "phi_scrub unavailable — refusing: petitions reach cloud seats"
+  text="$(printf '%s' "$text" | phi_scrub)"
+  PETITIONER="$MEMBER" TEXT="$text" P_KIND="${KIND:-inform}" P_TO="$TO" \
+    python3 - "$DIR/ledger.py.jsonl" "$ZDOTDIR/lib" <<'PY'
+import os, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[2])
+from zsynod_core import LedgerManager
+lm = LedgerManager(Path(sys.argv[1]))
+to = [t for t in os.environ.get("P_TO", "").replace(",", " ").split() if t]
+e = lm.petition(os.environ["PETITIONER"], os.environ["TEXT"],
+                kind=os.environ.get("P_KIND") or "inform", to=to)
+print(f"petition received: seq={e.seq} hash={e.hash[:12]}…")
+print(f"check back: zsynod reply {e.seq}")
+PY
+}
+
+cmd_reply() {  # check back: response or honest non-response for a receipt
+  local seq="${1:-}"
+  [[ "$seq" =~ ^[0-9]+$ ]] || _die "reply needs a receipt: zsynod reply <seq>"
+  command -v python3 >/dev/null 2>&1 || _die "python3 is required"
+  [[ -f "$DIR/ledger.py.jsonl" ]] || _die "no Python ledger at $DIR/ledger.py.jsonl — run: zsynod-migrate"
+  REPLY_SEQ="$seq" FMT="$FORMAT" python3 - "$DIR/ledger.py.jsonl" "$ZDOTDIR/lib" <<'PY'
+import json, os, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[2])
+from zsynod_core import LedgerManager
+st = LedgerManager(Path(sys.argv[1])).petition_status(int(os.environ["REPLY_SEQ"]))
+if os.environ.get("FMT") == "json":
+    print(json.dumps(st, ensure_ascii=False))
+    raise SystemExit(0 if st["found"] else 1)
+if not st["found"]:
+    print(f"no entry at seq {st['receipt']}")
+    raise SystemExit(1)
+print(f"petition seq={st['receipt']} from @{st['petitioner']} ({st['ts']})")
+print(f"  “{st['remark'][:120]}”")
+if st["state"] == "unheard":
+    print(f"  ✉ no session convened since the petition — ledger quiet since {st['last_activity']}")
+elif st["state"] == "heard":
+    print(f"  👂 the forum has convened ({st['entries_since']} entries since) "
+          f"but has not yet addressed the petitioner")
+else:
+    print(f"  ✓ addressed — {len(st['addressed'])} response(s):")
+    for a in st["addressed"]:
+        print(f"    @{a['actor']} (seq {a['seq']}): {a['remark'][:160]}")
+PY
+}
+
 cmd_ui() {  # the zdots command for the zsynod system: the Textual cockpit
   command -v python3 >/dev/null 2>&1 || _die "python3 is required for the cockpit"
   python3 -c 'import textual' 2>/dev/null || _die "textual not installed — pip install textual"
@@ -1825,7 +1893,7 @@ cmd_convene() {
 }
 
 # ── arg parse (flags anywhere; first non-flag is the subcommand) ─────────────
-POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; TEST_REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""; AFTER=""; PRIORITY=""; SUMMARY=""; PATCHSRC=""; EXEC_SEAT=""; FACILITATOR=""; TICKS=""; DRY_RUN="0"
+POS=(); BODY=""; ROUND=""; NOTE=""; TO=""; TASK=""; STATE=""; REF=""; TEST_REF=""; PURPOSE=""; FOLLOW=""; LINES=""; SINCE="0"; SINCE_SET="0"; MAX_TOKENS=""; FORMAT="markdown"; HEADLESS="0"; TURN_SESSION=""; FRONTIER="0"; PARTICIPANTS=""; PARTICIPANTS_SET="0"; MEETING_TYPE="regular"; MEETING_SET="0"; TOPIC=""; AFTER=""; PRIORITY=""; SUMMARY=""; PATCHSRC=""; EXEC_SEAT=""; FACILITATOR=""; TICKS=""; DRY_RUN="0"; KIND=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --as) MEMBER="$2"; shift 2 ;;
@@ -1842,6 +1910,7 @@ while [[ $# -gt 0 ]]; do
     --max-tokens) MAX_TOKENS="$2"; shift 2 ;;
     --session) TURN_SESSION="$2"; shift 2 ;;
     --topic) TOPIC="$2"; shift 2 ;;
+    --kind) KIND="$2"; shift 2 ;;
     --after) AFTER="$2"; shift 2 ;;
     --priority) PRIORITY="$2"; shift 2 ;;
     --summary) SUMMARY="$2"; shift 2 ;;
@@ -1912,6 +1981,8 @@ case "$SUB" in
   repl)     cmd_repl ;;
   ui)       cmd_ui ;;
   keys)     cmd_keys ;;
+  say)      cmd_say "${POS[1]:-}" ;;
+  reply)    cmd_reply "${POS[1]:-}" ;;
   verify)   cmd_verify ;;
   convene)  cmd_convene ;;
   attach)   cmd_attach ;;
