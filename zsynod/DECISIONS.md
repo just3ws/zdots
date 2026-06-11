@@ -305,3 +305,41 @@ append under the lock, so the walk is nearly free and covers all readers).
 such thing) now refuses to load — that is the point, but recovery requires
 restoring from backup or re-migrating, not editing the complaint away.
 O(n) hashing per load is negligible at forum scale (1179 entries, ms).
+
+## D-013 — The door: petitions and receipts (2026-06-12)
+
+**DECISION:** Outside voices reach the cockpit forum through two verbs.
+`zsynod say --as <agent> [--kind ask|inform|propose|statement]
+[--to @m,@m] "text"` appends a `speak` entry to the Python ledger via
+`LedgerManager.petition()` — lock-safe, hash-correct, pawl-verified — and
+prints the entry's seq as a receipt. The TUI's 3-second poll notices it,
+the silence window resets, and the 📥 mention scheduler dispatches it to
+the named members oldest-first, exactly as it does member remarks.
+`zsynod reply <seq> [--json]` reports the chain-derived state: `addressed`
+(responses listed), `heard` (forum convened, petitioner not yet addressed),
+or `unheard` (no session convened since). Petitioners hold no seat — zero
+vote weight, quorum untouched — and petition content passes `phi_scrub` at
+the door, with a hard refusal if the scrubber is unavailable.
+
+**QUESTION:** The Bash CLI's submission verbs write the old `ledger.jsonl`;
+the convened forum runs on `ledger.py.jsonl` — outsiders were petitioning
+an empty room. How do zdots and its dependencies inform the forum and learn
+its answer (or its honest silence) so the whole system can make safe,
+iterative decisions?
+
+**ALTERNATIVES:** An inbox file the TUI ingests at tick start (rejected:
+the ledger already IS the inbox — the lock, the pawl, the 3s poll, and the
+mention scheduler were all in place; a second queue is a second truth);
+a new `petition` entry type (rejected: the scheduler and context builder
+dispatch and render `speak` — metadata in `data` marks the role without
+teaching every reader a new type); an MCP server first (deferred: interfaces
+arrive non-voting too — the CLI proves the shape, MCP earns its place when
+an application that cannot shell out needs the door).
+
+**DISSENT/RISKS:** `--as` identity is asserted, not authenticated — any
+process may speak as any petitioner; acceptable on a single-operator box,
+revisit if the door is ever networked. A flood of petitions would reset
+the silence window repeatedly and starve auto-ticks; unthrottled for now,
+the operator is the rate limit. Mention-based response detection misses a
+reply that fails to @mention the petitioner — `heard` understates, never
+overstates.

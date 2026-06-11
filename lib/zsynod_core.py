@@ -1274,6 +1274,51 @@ class LedgerManager:
                 return e.data.get("text", "")
         return ""
 
+    # ── the door: outside voices speak to the forum ──────────────────────────
+
+    def petition(self, actor: str, text: str, kind: str = "inform",
+                 to: Optional[List[str]] = None) -> LedgerEntry:
+        """An outside voice — agent, cron job, any zdots dependency — speaks
+        to the forum. Appended as a `speak` entry so the mention scheduler
+        dispatches it like any member remark (📥, oldest first); petitioner
+        metadata rides the data. The actor holds no seat: petitions carry no
+        vote weight and never touch quorum. `to` handles are prepended to the
+        remark when absent so the scheduler has mentions to dispatch. The
+        entry's seq is the receipt for petition_status()."""
+        handles = [h if h.startswith("@") else f"@{h}" for h in (to or [])]
+        missing = [h for h in handles if not re.search(rf"{re.escape(h)}\b", text)]
+        remark = f"{' '.join(missing)}: {text}" if missing else text
+        return self.append(actor, "speak", {
+            "remark": remark,
+            "petition": {"kind": kind, "role": "petitioner"},
+        })
+
+    def petition_status(self, seq: int) -> dict:
+        """Response or honest non-response for a petition receipt. States:
+        `unheard` — nothing appended since (no session convened);
+        `heard` — the forum has convened but no one has addressed the
+        petitioner; `addressed` — entries since the receipt @mention the
+        petitioner, listed. Silence is data the chain already holds."""
+        entry = next((e for e in self.entries if e.seq == seq), None)
+        if entry is None:
+            return {"found": False, "receipt": seq}
+        pat = re.compile(rf"@{re.escape(entry.actor)}\b")
+        since = [e for e in self.entries if e.seq > seq]
+        addressed = [
+            {"seq": e.seq, "ts": e.ts, "actor": e.actor, "type": e.type,
+             "remark": e.data.get("remark", "")}
+            for e in since
+            if e.actor != entry.actor and pat.search(str(e.data.get("remark", "")))
+        ]
+        state = "addressed" if addressed else ("heard" if since else "unheard")
+        return {
+            "found": True, "receipt": seq, "petitioner": entry.actor,
+            "ts": entry.ts, "remark": entry.data.get("remark", ""),
+            "state": state, "entries_since": len(since),
+            "last_activity": since[-1].ts if since else entry.ts,
+            "addressed": addressed,
+        }
+
     def get_herald_facts(self, quorum: int, recent: int = 6) -> str:
         """Deterministic fact sheet the herald narrates from. Plain text —
         everything derived from the chain, nothing the model must invent."""
