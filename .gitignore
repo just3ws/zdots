@@ -37,6 +37,8 @@ etc/otel-collector.generated.yaml
 zsynod/.lock
 zsynod/ledger.jsonl
 zsynod/ledger.py.jsonl
+zsynod/ledger.py.jsonl.pre-sweep-*
+zsynod/dials.json
 zsynod/sessions/
 zsynod/minutes.md
 zsynod/transcripts/

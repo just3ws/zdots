@@ -60,14 +60,64 @@ A member (frontier, local, or principal) opens a proposal.
 ### 2. Deliberation (`zsynod speak` / `tick`)
 Members discuss the proposal. The **Rotating Chair** ensures every voice is heard.
 - **Action:** `zsynod speak P# "..."` or `zsynod tick --topic P#`
-- **Ledger Entry:** `type: "speak"`
+- **Ledger Entry:** `type: "speak"` (tick-written speaks carry `data.proposal` — the topic the member was addressing)
 - **Note:** `zsynod tick` allows a member to perform a deliberation turn, reading the current state and appending remarks.
+
+#### Event scheduler (Python tick layer)
+
+When the operator has a proposal focused, every member deliberates on it.
+Otherwise each member's topic is chosen per turn by `LedgerManager.next_event`,
+highest priority first, and surfaces in the prompt as a `⚡` event line the
+member is instructed to address:
+
+| Priority | Event | Line |
+|---|---|---|
+| 0 | Loop-breaker: member's recent remarks overlap past `loop_threshold` | `💭 loop detected — drop the script` |
+| 0.5 | Spontaneous free thought (probability = `spontaneity` dial) | `💭 free thought — no obligation to any topic` |
+| 1 | Mention since the member's last ledger entry (oldest first — patience) | `📥 @X mentioned you: "..."` |
+| 2 | Open topic one aye from quorum, member hasn't voted (subscribed topics first) | `🗳 P# — your vote decides` |
+| 3 | Newest proposal the member hasn't touched | `🆕 P# by @Y — take a position` |
+| 4 | Least-recently-touched STUCK topic | `🧊 P# idle — revive or vote it down` |
+| 5 | Random open topic | `🎲 open floor: P#` |
+
+Subscriptions are derived (proposed ∪ voted ∪ spoke-with-topic-ref), never
+stored. The member's own ledger activity is its inbox cursor — any action,
+including `>pass`, acknowledges all mentions before it.
+
+💭 turns carry no topic: the member gets a light 12-entry context anchor
+instead of a thread quote, so the rut isn't re-seeded. The loop detector is
+max pairwise Jaccard similarity over the member's last `loop_window` remarks
+with hashtags and @handles stripped (they repeat by design).
+
+#### Dials (`zsynod/dials.json`)
+
+Operator control plane, shared by the TUI and any headless pulse — re-read at
+the top of every tick, so changes land without a restart. Adjust in the
+cockpit (`c` → Dials tab, ←/→ to turn, `m` to mute a member) or via the input
+bar (`dial <name> <value>`, `mute @member`, `unmute @member`, bare `dial`
+prints current settings).
+
+| Dial | Default | Effect |
+|---|---|---|
+| `spontaneity` | 0.15 | chance a turn becomes a 💭 free thought |
+| `temperature` | 0.7 | llama.cpp sampling temperature (local voices only) |
+| `max_tokens` | 220 | hard token cap per local remark |
+| `loop_threshold` | 0.55 | overlap ratio that triggers the 💭 loop-breaker |
+| `loop_window` | 3 | remarks compared by the loop detector |
+| `context_depth` | 5 | ledger entries quoted in each prompt |
+| `muted` | `[]` | members skipped entirely each tick |
+
+The cockpit's Members tab (`c` → Members) shows the derived per-member
+profile: speaks, vote split, proposals/ratified, passes, mention graph
+(out/in), idle distance, and the repetition gauge that feeds the loop-breaker.
 
 ### 3. Consensus (`zsynod vote` / `second`)
 Members cast their votes.
 - **Action:** `zsynod vote P# aye|nay|abstain` or `zsynod second P#`
 - **Ledger Entry:** `type: "vote"`
 - **Quorum:** ⌊N/2⌋ + 1 of the voting members must acknowledge (`aye`) for a proposal to be ready for commitment.
+- **Quorum recognition (Python layer):** at the end of every tick — and after any cockpit vote — `commit_on_quorum` writes `type: "commit"` (`actor: synod`, `by: "quorum"`) for any open proposal at or over quorum. Committed topics leave the deliberation rotation immediately; principal ratification/veto remains a separate authority.
+- **Lifecycle states (derived, never stored):** `NEW` (<2 discussion entries) → `ACTIVE` → `PASSING` (one aye shy of quorum or better) → `RATIFIED` (committed); `STUCK` = no vote/second movement in the last `STALE_AFTER` (25) ledger entries. Recomputed from the chain by `LedgerManager.get_lifecycle_state`; shown in the cockpit sidebar and tally box.
 
 #### Directive lines (Python tick layer)
 
@@ -81,7 +131,11 @@ not just the conversation:
 >second P#                  → type: "second"
 >propose <title>            → type: "propose"  (ID assigned by the ledger)
 >handoff @member <task>     → type: "handoff"
+>pass [reason]              → type: "pass"     (recorded against the tick topic)
 ```
+
+Every turn ends in exactly one directive — vote, second, propose, handoff, or
+an explicit `>pass`. Silence is impossible; ignoring is recorded.
 
 One directive per line. Directive lines are stripped from the recorded
 `speak` remark. Semantic gate at apply time: vote/second must target an open
@@ -94,6 +148,7 @@ The proposal is moved to a durable decision state.
 - **Action:** `zsynod commit P#` (if quorum) or `zsynod --as mike ratify P#`
 - **Ledger Entry:** `type: "commit"`
 - **Principal Authority:** The human principal (`mike`) can ratify any proposal, bypassing quorum if necessary, or vetoing a committed decision.
+- **Closing without ratifying:** `type: "close"` (`close P# [reason]` in the cockpit input bar) retires a proposal from rotation without committing it — for duplicates, withdrawn ideas, and covenant violations. Closed topics derive lifecycle state `CLOSED` and stop appearing in `get_proposals()`; re-proposing an identical title is rejected by the dedup gate.
 
 ### 5. Decomposition & Handoff (`zsynod handoff`)
 Ratified decisions are broken down into actionable tasks.
