@@ -11,9 +11,11 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Any, List, Optional
 
-# External CLI ticks get the same budget as the local LLM's typical response window.
-# llama.cpp keeps its own 120s stream budget for the SSE path.
-TICK_TIMEOUT = 45
+# Hard wall-clock budgets for all tick paths.
+# LOCAL_TICK_TIMEOUT is per-read on the SSE stream — if the model stalls for
+# this long between tokens the request is aborted, same as a hung external CLI.
+TICK_TIMEOUT = 45        # external CLIs (claude, gemini, codex)
+LOCAL_TICK_TIMEOUT = 90  # llama.cpp HTTP/SSE — local inference can be slower
 
 # 8 trigrams + yin-yang + 64 I Ching hexagrams (U+4DC0–U+4DFF).
 # One glyph is rolled per tick and prepended to every agent's prompt —
@@ -97,7 +99,7 @@ class ZsynodAgent:
         )
 
         full_remark = ""
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=LOCAL_TICK_TIMEOUT) as resp:
             if token_callback:
                 for raw_line in resp:
                     line = raw_line.decode().strip()
