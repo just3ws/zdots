@@ -69,6 +69,26 @@ Members cast their votes.
 - **Ledger Entry:** `type: "vote"`
 - **Quorum:** ⌊N/2⌋ + 1 of the voting members must acknowledge (`aye`) for a proposal to be ready for commitment.
 
+#### Directive lines (Python tick layer)
+
+In the Python TUI/pulse tick loop, agents do not get CLI access — they act by
+ending output lines with `>`. The tick loop parses these into real ledger
+entries (`lib/zsynod_core.py:parse_directives`), so a tick can move a tally,
+not just the conversation:
+
+```
+>vote P# aye|nay|abstain    → type: "vote"
+>second P#                  → type: "second"
+>propose <title>            → type: "propose"  (ID assigned by the ledger)
+>handoff @member <task>     → type: "handoff"
+```
+
+One directive per line. Directive lines are stripped from the recorded
+`speak` remark. Semantic gate at apply time: vote/second must target an open
+proposal, handoff must name a seated member; rejects are logged to the
+cockpit, not written to the ledger. Malformed directives remain in the speech
+verbatim so the forum can see (and correct) the attempt.
+
 ### 4. Ratification (`zsynod commit` / `ratify`)
 The proposal is moved to a durable decision state.
 - **Action:** `zsynod commit P#` (if quorum) or `zsynod --as mike ratify P#`

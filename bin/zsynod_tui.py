@@ -17,7 +17,7 @@ from textual.reactive import reactive
 sys.path.append(str(Path(__file__).parent.parent / "lib"))
 from zsynod_core import (
     LedgerManager, ZsynodAgent, AgentCircuitBreaker,
-    TICK_TIMEOUT, LOCAL_TICK_TIMEOUT, tick_seed,
+    TICK_TIMEOUT, LOCAL_TICK_TIMEOUT, tick_seed, parse_directives,
 )
 from zsynod_otel import setup_otel
 
@@ -475,10 +475,35 @@ class ZsynodApp(App):
 
     # ── tick ──────────────────────────────────────────────────────────────────
 
+    def _apply_directives(self, actor: str, directives: list,
+                          open_pids: set, members: list) -> None:
+        """Semantic gate for parsed agent directives: a vote/second must target
+        an open proposal, a handoff must name a seated member. Accepted
+        directives become real ledger entries; rejected ones are logged so the
+        bad reference is visible to the operator (and to the agent next tick,
+        via its stripped remark having vanished)."""
+        for dtype, data in directives:
+            err = None
+            if dtype in ("vote", "second") and data["proposal"] not in open_pids:
+                err = f"no open proposal {data['proposal']}"
+            elif dtype == "handoff" and data["to"] not in members:
+                err = f"no member @{data['to']}"
+            if err:
+                self.call_from_thread(
+                    self.log_message,
+                    f"[yellow]⚠ {actor} directive dropped:[/yellow] [dim]{dtype} — {err}[/dim]",
+                )
+                continue
+            if dtype == "propose":
+                data = {"id": self.ledger.next_proposal_id(), "title": data["title"]}
+                open_pids.add(data["id"])
+            self.ledger.append(actor, dtype, data)
+
     def perform_tick(self) -> None:
         with self.tracer.start_as_current_span("deliberation_tick") as span:
             discussion = self.ledger.get_discussion(limit=200)
             proposals = self.ledger.get_proposals()
+            open_pids = {p.data["id"] for p in proposals}
             # Tick on the selected proposal if one is focused, else the first open one
             if self.selected_pid:
                 topic = next(
@@ -539,7 +564,10 @@ class ZsynodApp(App):
                         trend=trend,
                     )
                     breaker.record_success()
-                    self.ledger.append(actor, "speak", {"remark": remark})
+                    speech, directives = parse_directives(remark)
+                    if speech:
+                        self.ledger.append(actor, "speak", {"remark": speech})
+                    self._apply_directives(actor, directives, open_pids, members)
                     discussion = self.ledger.get_discussion(limit=200)
                 except (TimeoutError, subprocess.TimeoutExpired):
                     breaker.record_timeout()
