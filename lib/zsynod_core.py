@@ -274,10 +274,29 @@ class ZsynodAgent:
             token_callback(remark)
         return remark
 
+    def summarize(self, pid: str, title: str,
+                  discussion: List[LedgerEntry], tally: dict) -> str:
+        """Neutral state summary written to the ledger after each tick round.
+        Not a deliberation voice — no hashtags, no opinion, no 160-token rule."""
+        votes_str = " ".join(f"@{a}:{v[0]}" for a, v in sorted(tally["votes"].items()))
+        tally_line = f"aye={tally['aye']} nay={tally['nay']} abs={tally['abstain']} ({tally['state']})"
+        context_str = self._build_context(discussion)
+        system_prompt = (
+            "Neutral summarizer. Output compact proposal state only. "
+            "No opinion. No hashtags. ≤80 tokens."
+        )
+        user_prompt = (
+            f"{pid}: {title}\n"
+            f"Tally: {tally_line}  Votes: {votes_str}\n"
+            f"Recent:\n{context_str}\n"
+            "Summarize: tally, each actor 1-word position, key blocker, next action."
+        )
+        return self._deliberate_local(system_prompt, user_prompt)
+
     def deliberate(self, topic: str, recent_discussion: List[LedgerEntry],
                    progress_callback=None, token_callback=None, suggestion_callback=None,
                    glyph: str = "", timeout: float = None,
-                   members: List[str] = None) -> str:
+                   members: List[str] = None, summary: str = "") -> str:
         context_str = self._build_context(recent_discussion)
         handles = " ".join(f"@{m}" for m in (members or [])) or "@mike @pi @aider @opencode @claude @gemini @codex"
         system_prompt = (
@@ -287,7 +306,8 @@ class ZsynodAgent:
             f"You may @mention members by handle. Few word do trick."
         )
         seed = f"{glyph} " if glyph else ""
-        user_prompt = f"{seed}Topic: {topic}\n{context_str}\n@{self.actor_id}:"
+        pinned = f"[STATE] {summary}\n" if summary else ""
+        user_prompt = f"{seed}Topic: {topic}\n{pinned}{context_str}\n@{self.actor_id}:"
 
         labels = {"claude": "Claude CLI", "gemini": "Gemini CLI", "codex": "Codex CLI"}
         if progress_callback:
@@ -348,6 +368,13 @@ class LedgerManager:
             "state": "committed" if committed else "open",
             "votes": votes,
         }
+
+    def get_latest_summary(self, pid: str) -> str:
+        """Return the text of the most recent summary entry for a proposal, or ''."""
+        for e in reversed(self.entries):
+            if e.type == "summary" and e.data.get("proposal") == pid:
+                return e.data.get("text", "")
+        return ""
 
     def next_proposal_id(self) -> str:
         n = sum(1 for e in self.entries if e.type == "propose")
