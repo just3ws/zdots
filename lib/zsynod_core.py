@@ -43,6 +43,23 @@ DIALS: dict[str, dict] = {
                        "help": "how many recent remarks the loop detector compares"},
     "context_depth":  {"default": 5,    "min": 2,   "max": 20,  "step": 1,
                        "help": "ledger entries quoted in each member's prompt"},
+    "auto_interval":  {"default": 60,   "min": 15,  "max": 600, "step": 15,
+                       "help": "auto-pilot: seconds of forum silence before the "
+                               "next tick fires; any new ledger entry resets the "
+                               "countdown"},
+    "auto_max_ticks": {"default": 12,   "min": 1,   "max": 99,  "step": 1,
+                       "help": "auto-pilot run cap — pauses after this many "
+                               "consecutive unattended ticks so cloud seats "
+                               "can't burn tokens forever; re-engage deliberately"},
+    "kb_dispatch":    {"default": 0.3,  "min": 0.0, "max": 1.0, "step": 0.05,
+                       "help": "chance a 💭 free thought is seeded from the zdots "
+                               "knowledge base (📚) — a lesson or methodology the "
+                               "member must weigh against the platform as it is"},
+    "scribe":         {"default": 1,    "min": 0,   "max": 1,   "step": 1,
+                       "help": "secretary duty: 1 = every ratified decision is "
+                               "written back to the knowledge base as a lesson "
+                               "via zdots-ctx add-lesson; 0 = forum keeps no "
+                               "external minutes"},
 }
 
 
@@ -225,6 +242,85 @@ class LedgerEntry(BaseModel):
         canon = json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
         content = f"{self.prev}{canon}".encode()
         return hashlib.sha256(content).hexdigest()
+
+
+class KnowledgeBase:
+    """Read/write bridge between the forum and the zdots knowledge layer.
+
+    All traffic goes through the sanctioned `zdots-ctx` interface — reads via
+    `hydrate --json`, writes via `add-lesson` (the zdots_rw path; never raw
+    SQL). The forum exists to deliberate the platform's accumulated knowledge,
+    so this is its only window and its only pen:
+
+      seed()    one random lesson/methodology — fuel for a 📚 dispatch
+      ground()  the most relevant snippet for a topic title — pinned [KB] line
+      record()  scribe duty — a ratified decision written back as a lesson
+
+    Failure-tolerant by doctrine: KB down, command missing, slow response →
+    None/empty and the forum keeps deliberating. It never blocks on its
+    library. Hydrate results are cached per tag for the session — the KB
+    changes on human timescales, ticks don't."""
+
+    def __init__(self, cmd: str = "zdots-ctx", timeout: float = 12.0):
+        self.cmd = cmd
+        self.timeout = timeout
+        self._cache: dict = {}
+
+    def available(self) -> bool:
+        import shutil
+        return shutil.which(self.cmd) is not None
+
+    def hydrate(self, tag: str = "") -> dict:
+        key = tag or "_general"
+        if key in self._cache:
+            return self._cache[key]
+        out = {"methodologies": [], "lessons": []}
+        try:
+            argv = [self.cmd, "hydrate"] + ([tag] if tag else []) + ["--json"]
+            r = subprocess.run(argv, capture_output=True, text=True,
+                               timeout=self.timeout)
+            if r.returncode == 0 and r.stdout.strip():
+                data = json.loads(r.stdout)
+                if isinstance(data, dict):
+                    out["methodologies"] = data.get("methodologies") or []
+                    out["lessons"] = data.get("lessons") or []
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            pass
+        self._cache[key] = out
+        return out
+
+    @staticmethod
+    def _snippet(item: dict, width: int = 240) -> str:
+        body = " ".join((item.get("content") or "").split())
+        if item.get("title"):
+            return f"{item['title']}: {body}"[:width]
+        return body[:width]
+
+    def seed(self, rng=random) -> Optional[str]:
+        pool = self.hydrate("")
+        items = list(pool["methodologies"]) + list(pool["lessons"])
+        if not items:
+            return None
+        return self._snippet(rng.choice(items))
+
+    def ground(self, title: str) -> Optional[str]:
+        """Best KB snippet for a topic title. Hydrates on the longest word of
+        the title — crude but cached, and the semantic layer does the rest."""
+        words = sorted(_LOOP_WORD_RE.findall(title.lower()), key=len, reverse=True)
+        if not words:
+            return None
+        pool = self.hydrate(words[0])
+        items = list(pool["methodologies"]) + list(pool["lessons"])
+        return self._snippet(items[0]) if items else None
+
+    def record(self, content: str, context: str = "", tags: List[str] = None) -> bool:
+        try:
+            argv = [self.cmd, "add-lesson", content, context] + list(tags or [])
+            r = subprocess.run(argv, capture_output=True, text=True,
+                               timeout=self.timeout * 2)
+            return r.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            return False
 
 
 class ZsynodAgent:
@@ -416,7 +512,7 @@ class ZsynodAgent:
                    members: List[str] = None, summary: str = "",
                    trend: str = "", event: str = "",
                    temperature: float = None, max_tokens: int = None,
-                   context_depth: int = 5) -> str:
+                   context_depth: int = 5, kb_note: str = "") -> str:
         context_str = self._build_context(recent_discussion, depth=context_depth)
         handles = " ".join(f"@{m}" for m in (members or [])) or "@mike @pi @aider @opencode @claude @gemini @codex"
         system_prompt = (
@@ -435,7 +531,8 @@ class ZsynodAgent:
         trend_line = f"{trend}\n" if trend else ""
         event_line = f"⚡ {event}\n" if event else ""
         pinned = f"[STATE] {summary}\n" if summary else ""
-        user_prompt = f"{seed}{trend_line}{event_line}Topic: {topic}\n{pinned}{context_str}\n@{self.actor_id}:"
+        kb_line = f"[KB] {kb_note}\n" if kb_note else ""
+        user_prompt = f"{seed}{trend_line}{event_line}Topic: {topic}\n{pinned}{kb_line}{context_str}\n@{self.actor_id}:"
 
         labels = {"claude": "Claude CLI", "gemini": "Gemini CLI", "codex": "Codex CLI"}
         if progress_callback:

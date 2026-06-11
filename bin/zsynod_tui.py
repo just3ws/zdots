@@ -4,6 +4,7 @@ import random
 import re
 import shutil
 import sys
+import time
 import argparse
 from pathlib import Path
 from textual.app import App, ComposeResult, Screen
@@ -17,7 +18,7 @@ from textual.reactive import reactive
 
 sys.path.append(str(Path(__file__).parent.parent / "lib"))
 from zsynod_core import (
-    LedgerManager, ZsynodAgent, AgentCircuitBreaker,
+    LedgerManager, ZsynodAgent, AgentCircuitBreaker, KnowledgeBase,
     TICK_TIMEOUT, LOCAL_TICK_TIMEOUT, tick_seed, parse_directives,
     DIALS, load_dials, save_dials,
 )
@@ -381,6 +382,11 @@ class ZsynodApp(App):
         border-top: tall $accent;
         display: none;
     }
+    #timer-bar {
+        height: 1;
+        background: $panel;
+        padding: 0 1;
+    }
     """
 
     BINDINGS = [
@@ -393,6 +399,7 @@ class ZsynodApp(App):
         Binding("slash", "toggle_view",   "All/Prop",show=True),
         Binding("p",     "hashtag_stats", "Stats",   show=True),
         Binding("c",     "control_plane", "Dials",   show=True),
+        Binding("o",     "toggle_auto",   "Auto",    show=True),
     ]
 
     show_all = reactive(False)
@@ -407,8 +414,9 @@ class ZsynodApp(App):
                 with Vertical(id="content-area"):
                     yield RichLog(id="discussion-log", highlight=True, markup=True)
                     yield Static(id="thinking-box")
+        yield Static(id="timer-bar")
         yield Input(
-            placeholder="speak | propose | aye/nay/ratify/close [PID] | dial <name> <val> | mute @m",
+            placeholder="speak | propose | aye/nay/ratify/close [PID] | dial | auto [s] | kb <term> | mute @m",
             id="command-input",
         )
         yield Footer()
@@ -421,6 +429,18 @@ class ZsynodApp(App):
         self.selected_pid = None
         self.last_seen_seq = -1
         self.current_thought = ""
+        self.kb = KnowledgeBase()
+
+        # Auto-pilot: multi-tick runs gated on forum silence. Any new ledger
+        # entry re-arms the countdown; expiry fires the next tick. The cap
+        # forces a deliberate re-engage — unattended cloud seats cost tokens.
+        self.auto_on = False
+        self.auto_deadline = None
+        self.auto_ticks_done = 0
+        self._tick_running = False
+        self._agent_name = None
+        self._agent_started = 0.0
+        self._agent_budget = 0.0
 
         # Triumvirate (pi/aider/opencode) share local llama.cpp but carry
         # distinct lane identities in the system prompt — same model, different voice.
@@ -450,6 +470,8 @@ class ZsynodApp(App):
         )
         self.refresh_data()
         self.set_interval(3.0, self.refresh_data)
+        self.set_interval(1.0, self._update_timer_bar)
+        self._update_timer_bar()
 
     # ── members / quorum ──────────────────────────────────────────────────────
 
@@ -596,6 +618,9 @@ class ZsynodApp(App):
     # ── actions ───────────────────────────────────────────────────────────────
 
     def action_tick(self) -> None:
+        if self._tick_running:
+            self.log_message("[dim]tick already in flight[/dim]")
+            return
         self.run_worker(self.perform_tick, thread=True)
 
     def action_vote_aye(self) -> None:
@@ -614,7 +639,52 @@ class ZsynodApp(App):
             self.log_message(
                 f"[b][green]★ {pid} COMMITTED by quorum[/green][/b] [dim](aye={t['aye']})[/dim]"
             )
+        self._scribe_async(newly)
         return newly
+
+    # ── scribe (secretary duty) ───────────────────────────────────────────────
+
+    def _scribe_capture_sync(self, pids: list) -> None:
+        """Secretary duty: each ratified decision becomes a knowledge-base
+        lesson via zdots-ctx add-lesson — the forum's minutes, durable beyond
+        the ledger. Blocking; call from a worker thread only."""
+        if not pids or not int(self.dials.get("scribe", 1)) or not self.kb.available():
+            return
+        for pid in pids:
+            t = self.ledger.get_tally(pid)
+            title = self.ledger.get_title(pid)
+            summary = self.ledger.get_latest_summary(pid) or ""
+            content = (f"zsynod ratified {pid} \"{title}\" "
+                       f"(aye={t['aye']} nay={t['nay']} abs={t['abstain']}). "
+                       f"{summary}").strip()
+            ok = self.kb.record(content, context="zsynod decision",
+                                tags=["zsynod", pid.lower()])
+            self.call_from_thread(
+                self.log_message,
+                f"[dim]🖋 scribe → KB: {pid} recorded as lesson[/dim]" if ok
+                else f"[yellow]🖋 scribe: KB write failed for {pid}[/yellow]",
+            )
+
+    def _scribe_async(self, pids: list) -> None:
+        """Main-thread entry: hand the (subprocess-blocking) capture to a worker."""
+        if pids:
+            self.run_worker(lambda p=list(pids): self._scribe_capture_sync(p),
+                            thread=True)
+
+    def _kb_lookup(self, term: str) -> None:
+        """Operator's reading desk: top knowledge-base hits for a term, inline
+        in the log. Blocking; runs on a worker."""
+        pool = self.kb.hydrate(term)
+        items = (pool["methodologies"] + pool["lessons"])[:5]
+        if not items:
+            self.call_from_thread(
+                self.log_message, f"[dim]📚 KB: nothing for “{term}”[/dim]")
+            return
+        self.call_from_thread(self.log_message, f"[b]📚 KB × “{term}”[/b]")
+        for it in items:
+            self.call_from_thread(
+                self.log_message,
+                f"  [dim]{KnowledgeBase._snippet(it, 160)}[/dim]")
 
     def action_second(self) -> None:
         if self.selected_pid:
@@ -630,6 +700,7 @@ class ZsynodApp(App):
                 "note": "ratified via cockpit",
             })
             self.log_message(f"[green]mike:[/green] [green]★ RATIFIED[/green] {self.selected_pid}")
+            self._scribe_async([self.selected_pid])
             self.refresh_data()
 
     def action_toggle_view(self) -> None:
@@ -650,6 +721,81 @@ class ZsynodApp(App):
 
     def action_control_plane(self) -> None:
         self.push_screen(ControlPlaneScreen())
+
+    # ── auto-pilot ────────────────────────────────────────────────────────────
+
+    def action_toggle_auto(self) -> None:
+        self.auto_on = not self.auto_on
+        if self.auto_on:
+            self.auto_ticks_done = 0
+            self._arm_auto_timer()
+            self.log_message(
+                f"[cyan]▶ auto-pilot engaged[/cyan] [dim]— tick after "
+                f"{int(self.dials['auto_interval'])}s of silence, cap "
+                f"{int(self.dials['auto_max_ticks'])} ticks; o to disengage[/dim]"
+            )
+        else:
+            self.auto_deadline = None
+            self.log_message("[cyan]⏸ auto-pilot off[/cyan]")
+        self._update_timer_bar()
+
+    def _arm_auto_timer(self) -> None:
+        self.auto_deadline = time.monotonic() + float(self.dials["auto_interval"])
+
+    @staticmethod
+    def _countdown_bar(frac: float, cells: int = 16) -> str:
+        filled = max(0, min(cells, round(frac * cells)))
+        return "▰" * filled + "▱" * (cells - filled)
+
+    def _update_timer_bar(self) -> None:
+        """1 Hz heartbeat: every timer in the cockpit renders a countdown here —
+        the agent's deliberation budget while a tick runs, the silence window
+        while auto-pilot waits. Expiry of the silence window fires the tick."""
+        bar = self.query_one("#timer-bar", Static)
+        if self._tick_running:
+            name, budget = self._agent_name, self._agent_budget
+            if name and budget:
+                remaining = max(0.0, budget - (time.monotonic() - self._agent_started))
+                bar.update(
+                    f"[yellow]⚙ tick[/yellow] @{name} deliberating "
+                    f"{self._countdown_bar(remaining / budget)} "
+                    f"[dim]{remaining:>3.0f}s budget[/dim]"
+                )
+            else:
+                bar.update("[yellow]⚙ tick running…[/yellow]")
+            return
+        if not self.auto_on:
+            bar.update("[dim]auto-pilot off — o engages multi-tick runs[/dim]")
+            return
+        if self.auto_deadline is None:
+            self._arm_auto_timer()
+        remaining = max(0.0, self.auto_deadline - time.monotonic())
+        total = float(self.dials["auto_interval"]) or 1.0
+        cap = int(self.dials["auto_max_ticks"])
+        bar.update(
+            f"[cyan]▶ auto[/cyan] next tick {self._countdown_bar(remaining / total)} "
+            f"[b]{remaining:>3.0f}s[/b] [dim]silence · {self.auto_ticks_done}/{cap} ticks[/dim]"
+        )
+        if remaining <= 0:
+            self._fire_auto_tick()
+
+    def _fire_auto_tick(self) -> None:
+        cap = int(self.dials["auto_max_ticks"])
+        if self.auto_ticks_done >= cap:
+            self.auto_on = False
+            self.auto_deadline = None
+            self.log_message(
+                f"[cyan]⏸ auto-pilot paused[/cyan] [dim]— {cap}-tick cap "
+                f"reached; o to re-engage[/dim]"
+            )
+            return
+        self.auto_ticks_done += 1
+        self.auto_deadline = None  # re-armed once the tick's entries land
+        self.log_message(
+            f"[cyan]▶ auto-tick {self.auto_ticks_done}/{cap}[/cyan] "
+            f"[dim]— {int(self.dials['auto_interval'])}s of silence[/dim]"
+        )
+        self.action_tick()
 
     def _cast_vote(self, vote: str) -> None:
         pid = self.selected_pid
@@ -709,6 +855,18 @@ class ZsynodApp(App):
             self.ledger.append(actor, dtype, data)
 
     def perform_tick(self) -> None:
+        self._tick_running = True
+        try:
+            self._tick_inner()
+        finally:
+            self._tick_running = False
+            self._agent_name = None
+            # Quiet tick (all muted/backed off) appends nothing, so
+            # refresh_data won't re-arm — do it here or auto-pilot stalls.
+            if self.auto_on and self.auto_deadline is None:
+                self.call_from_thread(self._arm_auto_timer)
+
+    def _tick_inner(self) -> None:
         with self.tracer.start_as_current_span("deliberation_tick") as span:
             proposals = self.ledger.get_proposals()
             open_pids = {p.data["id"] for p in proposals}
@@ -761,13 +919,26 @@ class ZsynodApp(App):
                         loop_threshold=dials["loop_threshold"],
                         loop_window=int(dials["loop_window"]),
                     )
-                # 💭 turns get a light context anchor — a heavy quote of the
+                # 📚 KB dispatch: some free thoughts arrive carrying a morsel
+                # from the zdots knowledge base — the forum's outside world.
+                # The member must weigh it against the platform, not the chat.
+                if "free thought" in event and random.random() < dials["kb_dispatch"]:
+                    morsel = self.kb.seed()
+                    if morsel:
+                        event = (f"📚 from the zdots knowledge base: “{morsel}” "
+                                 f"— weigh it against zdots as it runs today; "
+                                 f"surface one concrete improvement")
+                # 💭/📚 turns get a light context anchor — a heavy quote of the
                 # recent thread would just re-seed the rut they're escaping.
-                free_thought = event.startswith("💭")
+                free_thought = event.startswith(("💭", "📚"))
                 topic = ("Open floor" if free_thought
                          else self.ledger.get_title(a_pid) if a_pid
                          else "General status")
                 summary = self.ledger.get_latest_summary(a_pid) if a_pid else ""
+                # Topic turns get grounded: the most relevant KB snippet is
+                # pinned as a [KB] line so positions cite the platform's own
+                # accumulated knowledge, not just each other.
+                kb_note = (self.kb.ground(topic) or "") if (a_pid and not free_thought) else ""
                 context = (self.ledger.get_proposal_discussion(a_pid) if a_pid
                            else self.ledger.get_discussion(
                                limit=12 if free_thought else 200))
@@ -778,6 +949,9 @@ class ZsynodApp(App):
 
                 active += 1
                 self.current_thought = ""
+                self._agent_name = actor
+                self._agent_budget = breaker.current_timeout()
+                self._agent_started = time.monotonic()
 
                 def token_cb(token, a=actor):
                     self.call_from_thread(self.update_thinking, token, a)
@@ -803,6 +977,7 @@ class ZsynodApp(App):
                         temperature=dials["temperature"],
                         max_tokens=int(dials["max_tokens"]),
                         context_depth=int(dials["context_depth"]),
+                        kb_note=kb_note,
                     )
                     breaker.record_success()
                     speech, directives = parse_directives(remark)
@@ -828,6 +1003,7 @@ class ZsynodApp(App):
                         f"[yellow]⚠ {actor} skipped:[/yellow] [dim]{e}[/dim]",
                     )
                 finally:
+                    self._agent_name = None
                     self.call_from_thread(self._clear_thinking)
 
             if active == 0:
@@ -839,12 +1015,15 @@ class ZsynodApp(App):
             # ── quorum recognition ────────────────────────────────────────────
             # Votes cast this tick may have pushed a proposal to quorum.
             # Recognize it now or the topic gets re-litigated forever.
-            for cpid in self.ledger.commit_on_quorum(self._quorum()):
+            committed = self.ledger.commit_on_quorum(self._quorum())
+            for cpid in committed:
                 t = self.ledger.get_tally(cpid)
                 self.call_from_thread(
                     self.log_message,
                     f"[b][green]★ {cpid} COMMITTED by quorum[/green][/b] [dim](aye={t['aye']})[/dim]",
                 )
+            # Already on a worker thread — the scribe writes minutes inline.
+            self._scribe_capture_sync(committed)
 
             # ── summarizer pass ───────────────────────────────────────────────
             # After all voices have spoken, write a compact state summary for
@@ -879,6 +1058,10 @@ class ZsynodApp(App):
         if top_seq == getattr(self, "_last_refresh_seq", None):
             return
         self._last_refresh_seq = top_seq
+        # Every message resets the silence window — the forum only auto-ticks
+        # once the conversation has genuinely gone quiet.
+        if getattr(self, "auto_on", False) and not self._tick_running:
+            self._arm_auto_timer()
         self._rebuild_proposal_list()
         self._update_tally()
 
@@ -930,6 +1113,7 @@ class ZsynodApp(App):
                         return
                     self.ledger.append("mike", "commit", {"proposal": pid, "by": "principal", "note": "ratified via cockpit"})
                     self.log_message(f"[green]mike:[/green] [green]★ RATIFIED[/green] {pid}")
+                    self._scribe_async([pid])
                 elif action == "close":
                     bits = rest.split(maxsplit=1)
                     pid = bits[0].upper() if bits else self.selected_pid
@@ -974,6 +1158,33 @@ class ZsynodApp(App):
                     save_dials(self.dials_path, self.dials)
                     icon = "🔇" if m in muted else "🔊"
                     self.log_message(f"{icon} @{m} {'muted' if m in muted else 'live'}")
+                    return
+                elif action == "auto":
+                    arg = rest.strip().lower()
+                    if arg in ("off", "stop"):
+                        if self.auto_on:
+                            self.action_toggle_auto()
+                        return
+                    if arg and arg not in ("on", "start"):
+                        try:
+                            v = float(arg)
+                        except ValueError:
+                            self.log_message("[yellow]usage: auto [on|off|<seconds>][/yellow]")
+                            return
+                        spec = DIALS["auto_interval"]
+                        self.dials["auto_interval"] = int(min(max(v, spec["min"]), spec["max"]))
+                        save_dials(self.dials_path, self.dials)
+                        self.log_message(f"🎛 [cyan]auto_interval[/cyan] = {self.dials['auto_interval']}s")
+                    if not self.auto_on:
+                        self.action_toggle_auto()
+                    else:
+                        self._arm_auto_timer()
+                    return
+                elif action == "kb":
+                    if not rest:
+                        self.log_message("[yellow]usage: kb <term>[/yellow]")
+                        return
+                    self.run_worker(lambda term=rest: self._kb_lookup(term), thread=True)
                     return
                 elif action == "tick":
                     self.action_tick()
