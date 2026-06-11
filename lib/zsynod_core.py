@@ -95,27 +95,21 @@ class ZsynodAgent:
         return full_remark.strip()
 
     def _deliberate_claude(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
-        try:
-            import anthropic
-        except ImportError:
-            raise RuntimeError("anthropic package required: pip install anthropic")
-
-        client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
-        full_remark = ""
-
-        with client.messages.stream(
-            model=self.model,
-            max_tokens=200,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        ) as stream:
-            for text in stream.text_stream:
-                if text:
-                    full_remark += text
-                    if token_callback:
-                        token_callback(text)
-
-        return full_remark.strip()
+        import subprocess
+        prompt = f"{system_prompt}\n\n{user_prompt}"
+        result = subprocess.run(
+            ["claude", "-p", "--model", self.model],
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or f"claude exited {result.returncode}")
+        remark = result.stdout.strip()
+        if token_callback:
+            token_callback(remark)
+        return remark
 
     def deliberate(self, topic: str, recent_discussion: List[LedgerEntry], progress_callback=None, token_callback=None) -> str:
         context_str = self._build_context(recent_discussion)
