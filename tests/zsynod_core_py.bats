@@ -200,7 +200,7 @@ from zsynod_core import ZsynodAgent
 agent = ZsynodAgent('pi')
 captured = {}
 
-def fake_local(sp, up, tc=None, t=None):
+def fake_local(sp, up, tc=None, t=None, **kw):
     captured['user'] = up
     return 'ok'
 
@@ -280,6 +280,219 @@ print('ok')
   [[ "$output" == *"ok"* ]]
 }
 
+@test "parse_directives: pass with and without note" {
+  run run_py "
+from zsynod_core import parse_directives
+_, d = parse_directives('>pass')
+assert d == [('pass', {})], d
+_, d = parse_directives('>pass nothing to add this round')
+assert d == [('pass', {'note': 'nothing to add this round'})], d
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── quorum recognition + lifecycle states ─────────────────────────────────────
+
+@test "commit_on_quorum: commits at quorum, idempotent, skips short tallies" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'Reaches quorum'})
+lm.append('mike', 'propose', {'id': 'P2', 'title': 'Falls short'})
+lm.append('pi', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+lm.append('claude', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+lm.append('pi', 'vote', {'proposal': 'P2', 'vote': 'aye'})
+
+newly = lm.commit_on_quorum(2)
+assert newly == ['P1'], newly
+assert lm.get_tally('P1')['state'] == 'committed'
+assert lm.get_tally('P2')['state'] == 'open'
+assert lm.entries[-1].actor == 'synod' and lm.entries[-1].data['by'] == 'quorum'
+assert lm.commit_on_quorum(2) == [], 'second call must be a no-op'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "lifecycle: NEW -> ACTIVE -> PASSING -> RATIFIED" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'T'})
+assert lm.get_lifecycle_state('P1', 3) == 'NEW'
+
+lm.append('pi', 'speak', {'remark': 'a', 'proposal': 'P1'})
+lm.append('aider', 'speak', {'remark': 'b', 'proposal': 'P1'})
+assert lm.get_lifecycle_state('P1', 3) == 'ACTIVE'
+
+lm.append('pi', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+lm.append('claude', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+assert lm.get_lifecycle_state('P1', 3) == 'PASSING', 'one shy of quorum'
+
+lm.append('codex', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+lm.commit_on_quorum(3)
+assert lm.get_lifecycle_state('P1', 3) == 'RATIFIED'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "lifecycle: STUCK after STALE_AFTER entries without tally movement" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager, STALE_AFTER
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'T'})
+lm.append('pi', 'speak', {'remark': 'a', 'proposal': 'P1'})
+lm.append('aider', 'speak', {'remark': 'b', 'proposal': 'P1'})
+for i in range(STALE_AFTER + 1):
+    lm.append('pi', 'speak', {'remark': f'unrelated {i}'})
+assert lm.get_lifecycle_state('P1', 3) == 'STUCK'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "close: removes proposal from rotation, lifecycle CLOSED" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'T'})
+lm.append('mike', 'close', {'proposal': 'P1', 'reason': 'sweep'})
+assert lm.get_proposals() == [], 'closed proposal must leave rotation'
+assert lm.get_tally('P1')['state'] == 'closed'
+assert lm.get_lifecycle_state('P1', 3) == 'CLOSED'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── event scheduler ───────────────────────────────────────────────────────────
+
+@test "get_subscriptions: proposed, voted, and topic-refs all subscribe" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('pi', 'propose', {'id': 'P1', 'title': 'A'})
+lm.append('pi', 'vote', {'proposal': 'P2', 'vote': 'aye'})
+lm.append('pi', 'speak', {'remark': 'x', 'proposal': 'P3'})
+lm.append('pi', 'speak', {'remark': 'no ref'})
+lm.append('claude', 'vote', {'proposal': 'P4', 'vote': 'aye'})
+assert lm.get_subscriptions('pi') == {'P1', 'P2', 'P3'}, lm.get_subscriptions('pi')
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "next_event: mention since last turn outranks everything" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'T'})
+lm.append('pi', 'speak', {'remark': 'old ping @claude', 'proposal': 'P1'})
+lm.append('claude', 'speak', {'remark': 'acked', 'proposal': 'P1'})  # cursor moves
+lm.append('pi', 'speak', {'remark': 'hey @claude what say you', 'proposal': 'P1'})
+line, pid = lm.next_event('claude', 3)
+assert line.startswith('📥'), line
+assert 'what say you' in line and 'old ping' not in line
+assert pid == 'P1'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "next_event: decisive vote when one aye shy and member has not voted" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'T'})
+lm.append('pi', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+lm.append('codex', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+line, pid = lm.next_event('claude', 3)
+assert line.startswith('🗳'), line
+assert pid == 'P1'
+# pi already voted — falls through to a different event class
+line2, _ = lm.next_event('pi', 3)
+assert not line2.startswith('🗳'), line2
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "next_event: untouched proposal surfaces as 🆕, fallback always lands" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'Fresh idea'})
+line, pid = lm.next_event('claude', 3)
+assert line.startswith('🆕'), line
+assert pid == 'P1' and 'Fresh idea' in line
+# member touches it -> next event degrades to floor/stuck, never empty
+lm.append('claude', 'speak', {'remark': 'seen', 'proposal': 'P1'})
+line2, pid2 = lm.next_event('claude', 3)
+assert pid2 == 'P1' and line2 != '', (line2, pid2)
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "deliberate includes ⚡ event line in user prompt" {
+  run run_py "
+import sys
+from unittest.mock import patch
+sys.path.append('$REPO_ROOT/lib')
+from zsynod_core import ZsynodAgent
+
+agent = ZsynodAgent('pi')
+captured = {}
+
+def fake_local(sp, up, tc=None, t=None, **kw):
+    captured['user'] = up
+    return 'ok'
+
+with patch.object(agent, '_deliberate_local', fake_local):
+    agent.deliberate('Topic', [], event='🗳 P1 is one aye from quorum — your vote decides')
+
+assert '⚡ 🗳 P1' in captured['user'], captured['user']
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
 @test "deliberate system prompt teaches the directive contract" {
   run run_py "
 import sys
@@ -290,7 +503,7 @@ from zsynod_core import ZsynodAgent
 agent = ZsynodAgent('pi')
 captured = {}
 
-def fake_local(sp, up, tc=None, t=None):
+def fake_local(sp, up, tc=None, t=None, **kw):
     captured['system'] = sp
     return 'ok'
 
@@ -318,7 +531,7 @@ import datetime
 agent = ZsynodAgent('pi')
 captured = {}
 
-def fake_local(sp, up, tc=None, t=None):
+def fake_local(sp, up, tc=None, t=None, **kw):
     captured['system'] = sp
     captured['user'] = up
     return 'ok'
@@ -346,7 +559,7 @@ from zsynod_core import ZsynodAgent
 agent = ZsynodAgent('aider')
 captured = {}
 
-def fake_local(sp, up, tc=None, t=None):
+def fake_local(sp, up, tc=None, t=None, **kw):
     captured['user'] = up
     return 'ok'
 
@@ -372,7 +585,7 @@ import datetime
 agent = ZsynodAgent('opencode')
 captured = {}
 
-def fake_local(sp, up, tc=None, t=None):
+def fake_local(sp, up, tc=None, t=None, **kw):
     captured['user'] = up
     return 'ok'
 
@@ -391,6 +604,226 @@ for i in range(3):
     assert f'msg{i}' not in captured['user'], f'msg{i} should be pruned'
 for i in range(3, 8):
     assert f'msg{i}' in captured['user'], f'msg{i} should be present'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── Dials: load / save / clamp ────────────────────────────────────────────────
+
+@test "load_dials: missing file yields pure defaults" {
+  run run_py "
+from zsynod_core import load_dials, DIALS
+d = load_dials('/nonexistent/dials.json')
+for k, spec in DIALS.items():
+    assert d[k] == spec['default'], (k, d[k])
+assert d['muted'] == []
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "load_dials: clamps out-of-range values, keeps muted, drops unknown keys" {
+  run run_py "
+import tempfile, json
+from pathlib import Path
+from zsynod_core import load_dials, save_dials, DIALS
+p = Path(tempfile.mkstemp(suffix='.json')[1])
+p.write_text(json.dumps({
+    'spontaneity': 9.0,          # over max -> clamp to 1.0
+    'loop_window': 1,            # under min -> clamp to 2
+    'muted': ['pi', 'codex'],
+    'mystery_knob': 42,          # unknown -> dropped
+}))
+d = load_dials(p)
+assert d['spontaneity'] == 1.0, d['spontaneity']
+assert d['loop_window'] == 2 and isinstance(d['loop_window'], int)
+assert d['muted'] == ['pi', 'codex']
+assert 'mystery_knob' not in d
+# roundtrip through save_dials
+d['temperature'] = 1.1
+save_dials(p, d)
+d2 = load_dials(p)
+assert abs(d2['temperature'] - 1.1) < 1e-9
+assert d2['muted'] == ['pi', 'codex']
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── get_repetition: the loop detector ─────────────────────────────────────────
+
+@test "get_repetition: identical remarks score 1.0, hashtags/handles ignored" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('pi', 'speak', {'remark': 'loopback only covenant first #TagA @claude'})
+lm.append('pi', 'speak', {'remark': 'loopback only covenant first #TagB @gemini'})
+rep = lm.get_repetition('pi')
+assert rep == 1.0, rep
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "get_repetition: fresh remarks score low, sparse history scores zero" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+assert lm.get_repetition('pi') == 0.0
+lm.append('pi', 'speak', {'remark': 'only one remark here'})
+assert lm.get_repetition('pi') == 0.0
+lm.append('pi', 'speak', {'remark': 'completely different subject entirely'})
+lm.append('pi', 'speak', {'remark': 'novel angle about scheduling latency'})
+rep = lm.get_repetition('pi')
+assert rep < 0.3, rep
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── next_event: 💭 loop-breaker and spontaneity ───────────────────────────────
+
+@test "next_event: loop-breaker outranks mentions when member is looping" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'T'})
+lm.append('pi', 'speak', {'remark': 'security covenant loopback always', 'proposal': 'P1'})
+lm.append('pi', 'speak', {'remark': 'security covenant loopback always', 'proposal': 'P1'})
+lm.append('claude', 'speak', {'remark': 'hey @pi thoughts?', 'proposal': 'P1'})
+line, pid = lm.next_event('pi', 3, loop_threshold=0.55)
+assert line.startswith('💭') and 'loop' in line, line
+assert pid is None
+# default threshold (2.0) disables the breaker -> mention wins as before
+line2, _ = lm.next_event('pi', 3)
+assert line2.startswith('📥'), line2
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "next_event: spontaneity dial triggers 💭 free thought, 0.0 never does" {
+  run run_py "
+import tempfile, random
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'T'})
+
+class AlwaysLow:
+    def random(self):
+        return 0.0
+class AlwaysHigh:
+    def random(self):
+        return 0.999
+
+line, pid = lm.next_event('pi', 3, spontaneity=0.15, rng=AlwaysLow())
+assert line.startswith('💭') and 'free thought' in line, line
+assert pid is None
+line2, pid2 = lm.next_event('pi', 3, spontaneity=0.15, rng=AlwaysHigh())
+assert not line2.startswith('💭'), line2
+line3, _ = lm.next_event('pi', 3, spontaneity=0.0, rng=AlwaysLow())
+assert not line3.startswith('💭'), line3
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── get_member_stats ──────────────────────────────────────────────────────────
+
+@test "get_member_stats: counts speaks, votes, mentions, and ratified attribution" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('pi', 'propose', {'id': 'P1', 'title': 'T'})
+lm.append('pi', 'speak', {'remark': 'ping @claude and @gemini', 'proposal': 'P1'})
+lm.append('claude', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+lm.append('gemini', 'vote', {'proposal': 'P1', 'vote': 'nay'})
+lm.append('codex', 'pass', {})
+lm.append('synod', 'commit', {'proposal': 'P1', 'by': 'quorum'})
+s = lm.get_member_stats()
+assert s['pi']['proposed'] == 1 and s['pi']['ratified'] == 1
+assert s['pi']['speaks'] == 1 and s['pi']['mentions_out'] == 2
+assert s['claude']['mentions_in'] == 1 and s['gemini']['mentions_in'] == 1
+assert s['claude']['aye'] == 1 and s['gemini']['nay'] == 1
+assert s['codex']['passes'] == 1
+assert s['gemini']['last_seq'] == 3
+assert 'repetition' in s['pi']
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── deliberate sampling dials ─────────────────────────────────────────────────
+
+@test "deliberate passes temperature and max_tokens to the local backend" {
+  run run_py "
+from unittest.mock import patch
+from zsynod_core import ZsynodAgent
+
+agent = ZsynodAgent('pi')
+captured = {}
+
+def fake_local(sp, up, tc=None, t=None, temperature=None, max_tokens=None):
+    captured['temperature'] = temperature
+    captured['max_tokens'] = max_tokens
+    return 'ok'
+
+with patch.object(agent, '_deliberate_local', fake_local):
+    agent.deliberate('Topic', [], temperature=1.2, max_tokens=300)
+
+assert captured['temperature'] == 1.2, captured
+assert captured['max_tokens'] == 300, captured
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "deliberate context_depth dial widens the quoted window" {
+  run run_py "
+import datetime
+from unittest.mock import patch
+from zsynod_core import ZsynodAgent, LedgerEntry
+
+agent = ZsynodAgent('pi')
+captured = {}
+
+def fake_local(sp, up, tc=None, t=None, **kw):
+    captured['user'] = up
+    return 'ok'
+
+entries = [LedgerEntry(seq=i, round=1, actor=f'a{i}', type='speak',
+                       data={'remark': f'msg{i}'}, prev='x', hash='x',
+                       ts=datetime.datetime.utcnow().isoformat()+'Z')
+           for i in range(8)]
+
+with patch.object(agent, '_deliberate_local', fake_local):
+    agent.deliberate('Topic', entries, context_depth=8)
+for i in range(8):
+    assert f'msg{i}' in captured['user'], f'msg{i} missing at depth 8'
 print('ok')
 "
   [ "$status" -eq 0 ]
