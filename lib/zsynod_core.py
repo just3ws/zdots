@@ -236,6 +236,33 @@ class LedgerManager:
         committed = {e.data["proposal"] for e in self.entries if e.type == "commit"}
         return [p for pid, p in proposals.items() if pid not in committed]
 
+    def get_proposal_discussion(self, pid: str) -> List[LedgerEntry]:
+        return [
+            e for e in self.entries
+            if (e.type == "propose" and e.data.get("id") == pid)
+            or e.data.get("proposal") == pid
+        ]
+
+    def get_tally(self, pid: str) -> dict:
+        votes: dict[str, str] = {}
+        for e in self.entries:
+            if e.type == "vote" and e.data.get("proposal") == pid:
+                votes[e.actor] = e.data.get("vote", "abstain")
+            elif e.type == "second" and e.data.get("proposal") == pid:
+                votes[e.actor] = "aye"
+        committed = any(e.type == "commit" and e.data.get("proposal") == pid for e in self.entries)
+        return {
+            "aye": sum(1 for v in votes.values() if v == "aye"),
+            "nay": sum(1 for v in votes.values() if v == "nay"),
+            "abstain": sum(1 for v in votes.values() if v == "abstain"),
+            "state": "committed" if committed else "open",
+            "votes": votes,
+        }
+
+    def next_proposal_id(self) -> str:
+        n = sum(1 for e in self.entries if e.type == "propose")
+        return f"P{n + 1}"
+
     def get_blocking_items(self) -> List[dict]:
         items = []
         for p in self.get_proposals():
