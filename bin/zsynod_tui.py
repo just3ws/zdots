@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import shutil
 import sys
 import argparse
@@ -11,7 +12,7 @@ from textual.binding import Binding
 from textual.reactive import reactive
 
 sys.path.append(str(Path(__file__).parent.parent / "lib"))
-from zsynod_core import LedgerManager, ZsynodAgent
+from zsynod_core import LedgerManager, ZsynodAgent, tick_seed
 from zsynod_otel import setup_otel
 
 _MEMBERS_PATH = Path(__file__).parent.parent / "zsynod" / "members.json"
@@ -276,6 +277,9 @@ class ZsynodApp(App):
                 topic = proposals[0].data["title"] if proposals else "General status"
             span.set_attribute("zsynod.topic", topic)
 
+            glyph = tick_seed()
+            self.call_from_thread(self.log_message, f"[dim]── {glyph} ──[/dim]")
+
             for agent in self.agents:
                 self.current_thought = ""
                 actor = agent.actor_id
@@ -295,6 +299,7 @@ class ZsynodApp(App):
                         progress_callback=self.log_message,
                         token_callback=token_cb,
                         suggestion_callback=suggestion_cb,
+                        glyph=glyph,
                     )
                     self.ledger.append(actor, "speak", {"remark": remark})
                     discussion = self.ledger.get_discussion(limit=200)

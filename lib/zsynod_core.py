@@ -5,6 +5,7 @@ import datetime
 import subprocess
 import tempfile
 import uuid
+import random
 import urllib.request
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -13,6 +14,19 @@ from typing import Any, List, Optional
 # External CLI ticks get the same budget as the local LLM's typical response window.
 # llama.cpp keeps its own 120s stream budget for the SSE path.
 TICK_TIMEOUT = 45
+
+# 8 trigrams + yin-yang + 64 I Ching hexagrams (U+4DC0–U+4DFF).
+# One glyph is rolled per tick and prepended to every agent's prompt —
+# same symbol across all voices, nudging probability without coordination.
+TAOIST_GLYPHS: list[str] = (
+    ["☯", "☰", "☱", "☲", "☳", "☴", "☵", "☶", "☷"]
+    + [chr(0x4DC0 + i) for i in range(64)]
+)
+
+
+def tick_seed() -> str:
+    """Return a random Taoist glyph to seed a tick round."""
+    return random.choice(TAOIST_GLYPHS)
 
 # Stable session identity for Gemini — UUID5 derived from name, same value every tick.
 _GEMINI_SESSION_ID = str(uuid.uuid5(uuid.NAMESPACE_DNS, "zsynod-gemini"))
@@ -200,10 +214,12 @@ class ZsynodAgent:
         return remark
 
     def deliberate(self, topic: str, recent_discussion: List[LedgerEntry],
-                   progress_callback=None, token_callback=None, suggestion_callback=None) -> str:
+                   progress_callback=None, token_callback=None, suggestion_callback=None,
+                   glyph: str = "") -> str:
         context_str = self._build_context(recent_discussion)
         system_prompt = f"You are {self.actor_id}, an AI member of the Zsynod deliberation forum."
-        user_prompt = f"Topic: {topic}\nRecent History:\n{context_str}\nYour Remark (be brief and professional):"
+        seed = f"{glyph} " if glyph else ""
+        user_prompt = f"{seed}Topic: {topic}\nRecent History:\n{context_str}\nYour Remark (be brief and professional):"
 
         labels = {"claude": "Claude CLI", "gemini": "Gemini CLI", "codex": "Codex CLI"}
         if progress_callback:
