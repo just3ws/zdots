@@ -369,6 +369,76 @@ class LedgerManager:
             "votes": votes,
         }
 
+    def get_hashtag_analytics(self) -> dict:
+        """Bi-directional hashtag index.
+
+        Returns:
+            tags:   {tag_lower: {tag, first_actor, first_ts, first_seq,
+                                  actor_order, topics, total_uses, lifespan}}
+            topic_tags: {pid: [{tag, first_actor, first_ts, seq}...]}  intro order
+            titles: {pid: title}
+        """
+        import re
+        # Build pid->title and a seq->pid map using last-propose-wins heuristic
+        titles: dict[str, str] = {}
+        seq_to_pid: dict[int, str] = {}
+        current_pid = None
+        for e in self.entries:
+            if e.type == "propose":
+                current_pid = e.data.get("id")
+                titles[current_pid] = e.data.get("title", current_pid)
+            if current_pid:
+                seq_to_pid[e.seq] = current_pid
+
+        tags: dict[str, dict] = {}
+        topic_tags: dict[str, list] = {}
+
+        for e in self.entries:
+            if e.type not in ("speak", "discuss"):
+                continue
+            remark = e.data.get("remark", "")
+            pid = seq_to_pid.get(e.seq)
+            for raw in re.findall(r"#\w+", remark):
+                key = raw.lower()
+                if key not in tags:
+                    tags[key] = {
+                        "tag": raw,
+                        "first_seq": e.seq,
+                        "first_actor": e.actor,
+                        "first_ts": e.ts,
+                        "actor_order": [],
+                        "topics": [],
+                        "uses": [],
+                    }
+                t = tags[key]
+                t["uses"].append({"actor": e.actor, "ts": e.ts, "seq": e.seq, "pid": pid})
+                if e.actor not in t["actor_order"]:
+                    t["actor_order"].append(e.actor)
+                if pid and pid not in t["topics"]:
+                    t["topics"].append(pid)
+                if pid:
+                    if pid not in topic_tags:
+                        topic_tags[pid] = []
+                    if key not in {x["key"] for x in topic_tags[pid]}:
+                        topic_tags[pid].append({
+                            "tag": raw,
+                            "key": key,
+                            "first_actor": e.actor,
+                            "first_ts": e.ts,
+                            "seq": e.seq,
+                        })
+
+        for t in tags.values():
+            seqs = [u["seq"] for u in t["uses"]]
+            t["lifespan"] = max(seqs) - min(seqs) if len(seqs) > 1 else 0
+            t["total_uses"] = len(t["uses"])
+
+        return {
+            "tags": dict(sorted(tags.items(), key=lambda x: x[1]["first_seq"])),
+            "topic_tags": topic_tags,
+            "titles": titles,
+        }
+
     def get_latest_summary(self, pid: str) -> str:
         """Return the text of the most recent summary entry for a proposal, or ''."""
         for e in reversed(self.entries):
