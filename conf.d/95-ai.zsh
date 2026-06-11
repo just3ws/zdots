@@ -58,6 +58,20 @@ if [[ -r "$ZDOTDIR/providers/tools/opencode.zsh" ]] && ! typeset -f zopencode >/
   }
 fi
 
+if [[ -r "$ZDOTDIR/providers/tools/apfel.zsh" ]] && ! typeset -f zapfel >/dev/null 2>&1; then
+  zapfel() {
+    unfunction zapfel 2>/dev/null || true
+    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/apfel.zsh" zapfel "$@"
+  }
+fi
+
+if [[ -r "$ZDOTDIR/providers/tools/gh-models.zsh" ]] && ! typeset -f zgh >/dev/null 2>&1; then
+  zgh() {
+    unfunction zgh 2>/dev/null || true
+    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/gh-models.zsh" zgh "$@"
+  }
+fi
+
 if [[ -r "$ZDOTDIR/providers/tools/router.zsh" ]] && ! typeset -f zai >/dev/null 2>&1; then
   zai() {
     unfunction zai 2>/dev/null || true

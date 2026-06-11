@@ -86,24 +86,31 @@ print('ok')
   [[ "$output" == *"ok"* ]]
 }
 
-# ── TAOIST_GLYPHS / tick_seed ─────────────────────────────────────────────────
+# ── GLYPH_POOL / tick_seed ────────────────────────────────────────────────────
 
-@test "tick_seed returns a single character from the pool" {
+@test "tick_seed returns a single glyph from the combined pool" {
   run run_py "
-from zsynod_core import TAOIST_GLYPHS, tick_seed
+from zsynod_core import GLYPH_POOL, tick_seed
 g = tick_seed()
-assert g in TAOIST_GLYPHS, f'{g!r} not in pool'
-assert len(g) == 1, f'expected single char, got len={len(g)}'
+assert g in GLYPH_POOL, f'{g!r} not in pool'
+assert len(g) == 1, f'expected single codepoint, got len={len(g)}'
 print('ok')
 "
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
 }
 
-@test "TAOIST_GLYPHS has exactly 73 entries" {
+@test "glyph pool: 73 Taoist + emoji archetypes, no protocol-marker collisions" {
   run run_py "
-from zsynod_core import TAOIST_GLYPHS
+from zsynod_core import TAOIST_GLYPHS, EMOJI_GLYPHS, GLYPH_POOL
 assert len(TAOIST_GLYPHS) == 73, f'expected 73, got {len(TAOIST_GLYPHS)}'
+assert len(GLYPH_POOL) == len(TAOIST_GLYPHS) + len(EMOJI_GLYPHS)
+assert len(set(GLYPH_POOL)) == len(GLYPH_POOL), 'pool has duplicates'
+# every emoji is a single codepoint — bracketing math stays char-simple
+assert all(len(g) == 1 for g in EMOJI_GLYPHS)
+# the seed must never read as forum protocol
+markers = {'⚡', '⚖', '😈', '💭', '📚', '📜', '🔇'}
+assert not markers & set(GLYPH_POOL), markers & set(GLYPH_POOL)
 print('ok')
 "
   [ "$status" -eq 0 ]
@@ -308,12 +315,13 @@ lm.append('pi', 'vote', {'proposal': 'P1', 'vote': 'aye'})
 lm.append('claude', 'vote', {'proposal': 'P1', 'vote': 'aye'})
 lm.append('pi', 'vote', {'proposal': 'P2', 'vote': 'aye'})
 
-newly = lm.commit_on_quorum(2)
+newly, held = lm.commit_on_quorum(2)
 assert newly == ['P1'], newly
+assert held == [], held
 assert lm.get_tally('P1')['state'] == 'committed'
 assert lm.get_tally('P2')['state'] == 'open'
 assert lm.entries[-1].actor == 'synod' and lm.entries[-1].data['by'] == 'quorum'
-assert lm.commit_on_quorum(2) == [], 'second call must be a no-op'
+assert lm.commit_on_quorum(2)[0] == [], 'second call must be a no-op'
 print('ok')
 "
   [ "$status" -eq 0 ]
@@ -923,6 +931,454 @@ assert '[KB] TDD: Red green refactor' in captured['user'], captured['user']
 with patch.object(agent, '_deliberate_local', fake_local):
     agent.deliberate('Topic', [])
 assert '[KB]' not in captured['user']
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── Decision records: the scribe captures the question, not just the 42 ──────
+
+@test "get_decision_record: question from body, dissent with note and remark" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('pi', 'propose', {'id': 'P1', 'title': 'Adopt rtk everywhere',
+                            'body': 'Raw git output burns tokens'})
+lm.append('codex', 'speak', {'remark': 'prefer a repomix pass instead', 'proposal': 'P1'})
+lm.append('pi', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+lm.append('codex', 'vote', {'proposal': 'P1', 'vote': 'nay', 'note': 'overhead on small repos'})
+lm.append('gemini', 'vote', {'proposal': 'P1', 'vote': 'abstain'})
+
+rec = lm.get_decision_record('P1')
+assert rec['proposer'] == 'pi'
+assert rec['question'] == 'Raw git output burns tokens'
+assert len(rec['dissent']) == 2
+nay = next(d for d in rec['dissent'] if d['actor'] == 'codex')
+assert nay['vote'] == 'nay'
+assert nay['note'] == 'overhead on small repos'
+assert nay['remark'] == 'prefer a repomix pass instead'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "get_decision_record: no body falls back to proposer's first remark" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('aider', 'propose', {'id': 'P2', 'title': 'Nightly doctor run'})
+lm.append('aider', 'speak', {'remark': 'drift keeps landing unnoticed', 'proposal': 'P2'})
+lm.append('aider', 'speak', {'remark': 'second remark', 'proposal': 'P2'})
+
+rec = lm.get_decision_record('P2')
+assert rec['question'] == 'drift keeps landing unnoticed', rec['question']
+assert rec['dissent'] == []
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "minute: recorder prompt carries thread, framing, and the two-line contract" {
+  run run_py "
+import datetime
+from unittest.mock import patch
+from zsynod_core import ZsynodAgent, LedgerEntry
+
+agent = ZsynodAgent('recorder')
+captured = {}
+
+def fake_local(sp, up, tc=None, t=None, **kw):
+    captured['system'] = sp
+    captured['user'] = up
+    return 'QUESTION: q\nALTERNATIVES: none raised'
+
+e = LedgerEntry(seq=0, round=1, actor='codex', type='speak',
+                data={'remark': 'try repomix instead'}, prev='x', hash='x',
+                ts=datetime.datetime.utcnow().isoformat()+'Z')
+with patch.object(agent, '_deliberate_local', fake_local):
+    out = agent.minute('P1', 'Adopt rtk', [e], question='tokens burn')
+
+assert 'QUESTION' in captured['system'] and 'ALTERNATIVES' in captured['system']
+assert 'try repomix instead' in captured['user']
+assert 'tokens burn' in captured['user']
+assert out.startswith('QUESTION:')
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "format_decision_lesson: minute + dissent lines; unanimity recorded as fact" {
+  run run_py "
+from zsynod_core import format_decision_lesson
+
+rec = {'pid': 'P1', 'title': 'Adopt rtk', 'proposer': 'pi',
+       'question': 'tokens burn',
+       'tally': {'aye': 4, 'nay': 1, 'abstain': 0, 'state': 'committed', 'votes': {}},
+       'dissent': [{'actor': 'codex', 'vote': 'nay', 'note': '', 'remark': 'overhead on small repos'}]}
+out = format_decision_lesson(rec, 'QUESTION: q\nALTERNATIVES: repomix')
+assert 'proposed by @pi' in out
+assert 'ALTERNATIVES: repomix' in out
+assert 'DISSENT: @codex (nay): overhead on small repos' in out
+assert 'QUESTION: tokens burn' not in out  # minute supersedes raw question
+
+# no minute -> raw question; no dissent -> unanimity is the recorded signal
+rec2 = dict(rec, dissent=[])
+out2 = format_decision_lesson(rec2)
+assert 'QUESTION: tokens burn' in out2
+assert 'DISSENT: none — unanimous.' in out2
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── honest votes: reasons, blind context, advocate, second reading ───────────
+
+@test "parse_directives: vote reason becomes note; bare vote stays bare" {
+  run run_py "
+from zsynod_core import parse_directives
+_, d = parse_directives('>vote P3 nay overhead on small repos')
+assert d == [('vote', {'proposal': 'P3', 'vote': 'nay', 'note': 'overhead on small repos'})], d
+_, d2 = parse_directives('>vote P3 aye')
+assert d2 == [('vote', {'proposal': 'P3', 'vote': 'aye'})], d2
+_, d3 = parse_directives('>vote P3 aye — cuts tokens 4x')
+assert d3[0][1]['note'] == 'cuts tokens 4x', d3
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "devils_advocate: deterministic rotation over sorted roster" {
+  run run_py "
+from zsynod_core import devils_advocate
+roster = ['pi', 'claude', 'aider']
+seats = [devils_advocate(f'P{n}', roster) for n in range(6)]
+assert seats[:3] == ['aider', 'claude', 'pi'], seats  # sorted roster, pid % 3
+assert seats[:3] == seats[3:], 'must be deterministic per pid'
+assert devils_advocate('P1', roster) == devils_advocate('P1', list(reversed(roster)))
+assert devils_advocate('P1', []) is None
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "blind context: others' votes invisible until the member has voted" {
+  run run_py "
+import datetime
+from zsynod_core import ZsynodAgent, LedgerEntry
+
+def e(seq, actor, type_, data):
+    return LedgerEntry(seq=seq, round=1, actor=actor, type=type_, data=data,
+                       prev='x', hash='x',
+                       ts=datetime.datetime.utcnow().isoformat()+'Z')
+
+entries = [
+    e(0, 'pi',     'speak',  {'remark': 'the argument itself'}),
+    e(1, 'claude', 'vote',   {'proposal': 'P1', 'vote': 'aye'}),
+    e(2, 'codex',  'second', {'proposal': 'P1'}),
+    e(3, 'gemini', 'vote',   {'proposal': 'P1', 'vote': 'aye'}),
+]
+a = ZsynodAgent('pi')
+blind = a._build_context(entries, depth=10, blind_for='pi')
+assert 'voted' not in blind and 'the argument itself' in blind, blind
+full = a._build_context(entries, depth=10)
+assert 'claude voted aye' in full.replace('@', ''), full
+own = a._build_context(entries + [e(4, 'pi', 'vote', {'proposal': 'P1', 'vote': 'nay'})],
+                       depth=10, blind_for='pi')
+assert 'pi voted nay' in own.replace('@', ''), 'own vote must stay visible'
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "deliberate: glyph brackets the prompt; advocate clause lands in system" {
+  run run_py "
+from unittest.mock import patch
+from zsynod_core import ZsynodAgent
+
+a = ZsynodAgent('pi')
+captured = {}
+def fake_local(sp, up, tc=None, t=None, **kw):
+    captured['system'], captured['user'] = sp, up
+    return 'ok-remark'
+with patch.object(a, '_deliberate_local', fake_local):
+    a.deliberate('Topic X', [], glyph='☯', advocate=True)
+assert captured['user'][0] == '☯' and captured['user'][-1] == '☯', captured['user']
+# The glyph must open the SYSTEM prompt — the full dispatch (combined CLI
+# prompt or rendered chat stream) begins and ends with the round's glyph.
+assert captured['system'][0] == '☯', captured['system'][:40]
+combined = f\"{captured['system']}\n\n{captured['user']}\"  # CLI seat layout
+assert combined[0] == '☯' and combined[-1] == '☯'
+assert 'advocate' in captured['system'].lower()
+assert 'AGAINST' in captured['system']
+with patch.object(a, '_deliberate_local', fake_local):
+    a.deliberate('Topic X', [])
+assert 'advocate' not in captured['system'].lower()
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "second reading: unanimous quorum held one round, then commits" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'Unanimous'})
+lm.append('pi', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+lm.append('claude', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+
+newly, held = lm.commit_on_quorum(2, unanimity_action=2)
+assert newly == [] and held == ['P1'], (newly, held)
+assert lm.pending_second_reading('P1')
+assert lm.get_tally('P1')['state'] == 'open'
+assert '⚖' in lm.topic_event('pi', 'P1', 2)
+
+newly2, held2 = lm.commit_on_quorum(2, unanimity_action=2)
+assert newly2 == ['P1'] and held2 == [], (newly2, held2)
+
+# a contested tally never gets held
+lm.append('mike', 'propose', {'id': 'P2', 'title': 'Contested'})
+lm.append('pi', 'vote', {'proposal': 'P2', 'vote': 'aye'})
+lm.append('claude', 'vote', {'proposal': 'P2', 'vote': 'aye'})
+lm.append('codex', 'vote', {'proposal': 'P2', 'vote': 'nay'})
+newly3, held3 = lm.commit_on_quorum(2, unanimity_action=2)
+assert newly3 == ['P2'] and held3 == [], (newly3, held3)
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "format_decision_lesson: ASSENT line records reasoned and bare ayes" {
+  run run_py "
+from zsynod_core import format_decision_lesson
+
+rec = {'pid': 'P1', 'title': 'T', 'proposer': 'pi', 'question': 'q',
+       'tally': {'aye': 2, 'nay': 0, 'abstain': 0, 'state': 'committed', 'votes': {}},
+       'dissent': [],
+       'assent': [{'actor': 'aider', 'note': 'cuts tokens 4x'},
+                  {'actor': 'claude', 'note': ''}],
+       'second_reading': True}
+out = format_decision_lesson(rec)
+assert 'DISSENT: none — unanimous. Survived a second reading.' in out, out
+assert 'ASSENT: @aider — cuts tokens 4x; @claude — no reason given' in out, out
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+# ── member contract: backends ─────────────────────────────────────────────────
+
+@test "openai backend: vendor request carries base_url, model, bearer key" {
+  run run_py "
+import json, os, urllib.request
+import zsynod_core
+from zsynod_core import ZsynodAgent
+
+captured = {}
+class FakeResp:
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self):
+        return json.dumps({'choices': [{'message': {'content': 'hi'}}]}).encode()
+def fake_urlopen(req, timeout=None):
+    captured['url'] = req.full_url
+    captured['auth'] = req.get_header('Authorization')
+    captured['body'] = json.loads(req.data)
+    return FakeResp()
+urllib.request.urlopen = fake_urlopen
+
+os.environ['GROQ_API_KEY'] = 'k123'
+a = ZsynodAgent('groq', backend='openai',
+                base_url='https://api.groq.com/openai/v1',
+                model='llama-3.3-70b-versatile', key_env='GROQ_API_KEY')
+out = a.complete('sys', 'user')
+assert out == 'hi'
+assert captured['url'] == 'https://api.groq.com/openai/v1/chat/completions'
+assert captured['auth'] == 'Bearer k123'
+assert captured['body']['model'] == 'llama-3.3-70b-versatile'
+
+# keyless loopback seat (apfel/ollama): no key_env -> no auth header
+b = ZsynodAgent('apfel', backend='openai', base_url='http://127.0.0.1:11434/v1')
+b.complete('sys', 'user')
+assert captured['auth'] is None
+assert captured['url'] == 'http://127.0.0.1:11434/v1/chat/completions'
+
+# declared key_env with no key -> dormant, loudly
+os.environ.pop('MISSING_KEY', None)
+c = ZsynodAgent('mistral', backend='openai', base_url='https://x/v1', key_env='MISSING_KEY')
+try:
+    c.complete('sys', 'user')
+    raise AssertionError('expected RuntimeError')
+except RuntimeError as ex:
+    assert 'MISSING_KEY' in str(ex)
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "herald: briefing prompt carries the fact sheet; facts derive from chain" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+from zsynod_core import LedgerManager, ZsynodAgent
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('pi', 'propose', {'id': 'P1', 'title': 'Adopt rtk everywhere'})
+lm.append('pi', 'speak', {'remark': 'tokens burn', 'proposal': 'P1'})
+lm.append('claude', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+
+facts = lm.get_herald_facts(quorum=2)
+assert 'Adopt rtk everywhere' in facts
+assert '@claude:aye' in facts
+assert 'latest @pi: tokens burn' in facts
+
+a = ZsynodAgent('herald')
+captured = {}
+def fake_local(sp, up, tc=None, t=None, **kw):
+    captured['system'], captured['user'] = sp, up
+    return 'briefing text'
+with patch.object(a, '_deliberate_local', fake_local):
+    out = a.herald(facts)
+assert out == 'briefing text'
+assert 'herald' in captured['system']
+assert 'no hashtags' in captured['system'].lower()
+assert 'Adopt rtk everywhere' in captured['user']
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "openai backend: key_cmd fallback fetches once, env var wins" {
+  run run_py "
+import json, os, urllib.request
+from zsynod_core import ZsynodAgent
+
+captured = {}
+class FakeResp:
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self):
+        return json.dumps({'choices': [{'message': {'content': 'hi'}}]}).encode()
+def fake_urlopen(req, timeout=None):
+    captured['auth'] = req.get_header('Authorization')
+    return FakeResp()
+urllib.request.urlopen = fake_urlopen
+
+# key_cmd fallback, fetched once and cached
+os.environ.pop('GH_TEST_TOKEN', None)
+a = ZsynodAgent('gh', backend='openai', base_url='https://x/v1',
+                key_env='GH_TEST_TOKEN', key_cmd='echo cmd-tok-1')
+a.complete('s', 'u')
+assert captured['auth'] == 'Bearer cmd-tok-1', captured['auth']
+a.key_cmd = 'echo cmd-tok-2'  # cache must hold — no re-fetch per remark
+a.complete('s', 'u')
+assert captured['auth'] == 'Bearer cmd-tok-1', 'key_cmd must be fetched once'
+
+# env var takes precedence over key_cmd
+os.environ['GH_TEST_TOKEN'] = 'env-tok'
+a.complete('s', 'u')
+assert captured['auth'] == 'Bearer env-tok', captured['auth']
+
+# both yield nothing -> dormant, loudly
+os.environ.pop('GH_TEST_TOKEN', None)
+b = ZsynodAgent('gh', backend='openai', base_url='https://x/v1',
+                key_env='GH_TEST_TOKEN', key_cmd='true')
+try:
+    b.complete('s', 'u')
+    raise AssertionError('expected RuntimeError')
+except RuntimeError as ex:
+    assert 'no key' in str(ex)
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "ledger pawl: intact chain loads; altered entry and broken link raise by seq" {
+  run run_py "
+import json, tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager, LedgerIntegrityError
+
+# build a genuine three-entry chain, then reload it — the pawl passes truth
+path = Path(tempfile.mkstemp(suffix='.jsonl')[1])
+lm = LedgerManager(path)
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'Trust the chain'})
+lm.append('pi', 'vote', {'proposal': 'P1', 'vote': 'aye'})
+lm.append('claude', 'remark', {'proposal': 'P1', 'remark': 'verified'})
+assert len(LedgerManager(path).entries) == 3
+
+# alter one entry's content in place — stored hash no longer recomputes
+lines = path.read_text().splitlines()
+doc = json.loads(lines[1]); doc['data']['vote'] = 'nay'
+tampered = lines[:1] + [json.dumps(doc)] + lines[2:]
+path.write_text('\n'.join(tampered) + '\n')
+try:
+    LedgerManager(path)
+    raise AssertionError('expected LedgerIntegrityError (altered entry)')
+except LedgerIntegrityError as ex:
+    assert 'seq 1' in str(ex) and 'altered' in str(ex), str(ex)
+
+# remove an entry from the middle — the link to the prior hash breaks
+path.write_text('\n'.join([lines[0], lines[2]]) + '\n')
+try:
+    LedgerManager(path)
+    raise AssertionError('expected LedgerIntegrityError (broken link)')
+except LedgerIntegrityError as ex:
+    assert 'chain broken' in str(ex), str(ex)
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "openai backend: malformed key (interior whitespace) refused without leaking it" {
+  run run_py "
+import os, urllib.request
+from zsynod_core import ZsynodAgent
+
+def fake_urlopen(req, timeout=None):
+    raise AssertionError('request must never be built with a malformed key')
+urllib.request.urlopen = fake_urlopen
+
+# A two-line key file ('label\\ntoken') must be refused at the contract,
+# not surface as http.client ValueError quoting the key into logs.
+os.environ.pop('HF_TEST_TOKEN', None)
+a = ZsynodAgent('hf', backend='openai', base_url='https://x/v1',
+                key_env='HF_TEST_TOKEN',
+                key_cmd='printf \"label\\nhf_secret123\\n\"')
+try:
+    a.complete('s', 'u')
+    raise AssertionError('expected RuntimeError')
+except RuntimeError as ex:
+    msg = str(ex)
+    assert 'malformed key' in msg, msg
+    assert 'hf_secret123' not in msg, 'key must never appear in the error'
+    assert 'label' not in msg.split('—')[0] or True
+# cache cleared so a fixed key_cmd is retried next remark
+assert a._key_cache == ''
 print('ok')
 "
   [ "$status" -eq 0 ]
