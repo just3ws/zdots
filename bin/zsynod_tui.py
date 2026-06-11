@@ -63,12 +63,12 @@ class ZsynodApp(App):
     def on_mount(self) -> None:
         self.tracer = setup_otel("zsynod-py-tui")
         self.ledger = LedgerManager(self.args.ledger)
-        self.agent = ZsynodAgent("pi", model_path=self.args.model)
+        self.agent = ZsynodAgent("pi", endpoint=self.args.endpoint)
         self.last_seen_seq = -1
         self.current_thought = ""
-        
+
         self.log_message(f"Welcome to [b][cyan]Zsynod-Py[/cyan][/b] Cockpit.")
-        self.log_message(f"[dim]Model: {self.args.model}[/dim]")
+        self.log_message(f"[dim]Endpoint: {self.agent.endpoint}[/dim]")
         self.refresh_data()
         self.set_interval(3.0, self.refresh_data) # Faster polling for live feel
 
@@ -206,10 +206,10 @@ def parse_args():
         help="Path to the Pydantic-native ledger file"
     )
     parser.add_argument(
-        "--model",
+        "--endpoint",
         type=str,
-        default="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
-        help="HuggingFace path for the local MLX deliberation model"
+        default=None,
+        help="llama.cpp endpoint base URL (default: $ZDOTS_AI_ENDPOINT or http://127.0.0.1:11500)"
     )
     return parser.parse_args()
 
