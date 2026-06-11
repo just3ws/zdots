@@ -264,6 +264,32 @@ refused by the contract ("malformed key") rather than sent — fix the file,
 the seat returns next tick. Keychain is the preferred upgrade:
 `key_cmd: "security find-generic-password -s zdots -a HF_TOKEN -w"`.
 
+#### The door (petitions from outside the roster)
+
+Any agent, cron job, or zdots dependency can speak to the forum and check
+back for its answer — or its honest non-answer:
+
+```bash
+zsynod say --as claude-code --kind ask --to @claude,@pi "should rtk wrap visidata?"
+# → petition received: seq=412 hash=94ff40b1463a…
+zsynod reply 412            # human; --json for machines
+```
+
+`say` appends a `speak` entry (via `LedgerManager.petition` — lock-safe,
+hash-correct, pawl-verified) to the **Python** ledger; the cockpit's 3-second
+poll picks it up, the new message resets the auto-tick silence window, and
+the 📥 mention scheduler dispatches it to the named members like any other
+remark, oldest first. Content passes `phi_scrub` at the door — petitions are
+deliberated by cloud seats — and `say` refuses without the scrubber.
+Petitioners hold no seat: no vote weight, quorum untouched; the petition
+metadata (`kind`, `role: petitioner`) rides the entry.
+
+`reply <seq>` reports one of three states, all derived from the chain:
+**addressed** (entries since the receipt @mention the petitioner — listed),
+**heard** (the forum has convened but not yet addressed it), **unheard**
+(no session convened since the petition). Silence is data the ledger
+already holds.
+
 The tick glyph **brackets** the full dispatch — it opens the *system*
 prompt (the long static prefix provider caches ride on) and closes the
 user message, so the very first and very last character a member receives

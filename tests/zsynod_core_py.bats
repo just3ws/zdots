@@ -1354,6 +1354,75 @@ print('ok')
   [[ "$output" == *"ok"* ]]
 }
 
+@test "petition: outside voice lands as speak, dispatches via mention scan, no vote weight" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+lm.append('mike', 'propose', {'id': 'P1', 'title': 'Standing business'})
+
+# --to handles are prepended only when absent from the text
+e = lm.petition('claude-code', 'should rtk wrap visidata too?',
+                kind='ask', to=['claude', '@pi'])
+assert e.type == 'speak'
+assert e.data['petition'] == {'kind': 'ask', 'role': 'petitioner'}
+assert e.data['remark'].startswith('@claude @pi: '), e.data['remark']
+e2 = lm.petition('cron', '@pi nightly report ready', to=['pi'])
+assert e2.data['remark'] == '@pi nightly report ready', 'no duplicate handle'
+
+# the scheduler dispatches petitions like any member mention — and both
+# petitions mention @pi, so the OLDER one arrives first (patience)
+event, pid = lm.next_event('pi', quorum=2)
+assert event.startswith('📥 @claude-code mentioned you'), event
+
+# petitioner carries no vote weight: tally untouched by petitions
+assert lm.get_tally('P1')['votes'] == {}
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "petition_status: unheard → heard → addressed; silence is data" {
+  run run_py "
+import tempfile
+from pathlib import Path
+from zsynod_core import LedgerManager
+
+lm = LedgerManager(Path(tempfile.mkstemp(suffix='.jsonl')[1]))
+e = lm.petition('claude-code', 'requesting guidance', to=['claude'])
+
+st = lm.petition_status(e.seq)
+assert st['state'] == 'unheard' and st['entries_since'] == 0
+assert st['petitioner'] == 'claude-code'
+
+# forum convenes but talks about something else
+lm.append('pi', 'speak', {'remark': 'unrelated business'})
+st = lm.petition_status(e.seq)
+assert st['state'] == 'heard' and st['entries_since'] == 1
+assert st['addressed'] == []
+
+# a member addresses the petitioner by handle
+lm.append('claude', 'speak', {'remark': '@claude-code yes — propose it as P-next'})
+st = lm.petition_status(e.seq)
+assert st['state'] == 'addressed'
+assert st['addressed'][0]['actor'] == 'claude'
+assert 'propose it' in st['addressed'][0]['remark']
+
+# petitioner's own follow-up never counts as a response
+lm.append('claude-code', 'speak', {'remark': '@claude-code noting my own update'})
+assert len(lm.petition_status(e.seq)['addressed']) == 1
+
+# unknown receipt is honest
+assert lm.petition_status(999) == {'found': False, 'receipt': 999}
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
 @test "openai backend: malformed key (interior whitespace) refused without leaking it" {
   run run_py "
 import os, urllib.request
