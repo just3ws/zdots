@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import argparse
 from pathlib import Path
@@ -66,14 +67,19 @@ class ZsynodApp(App):
         self.ledger = LedgerManager(self.args.ledger)
         self.agents = [
             ZsynodAgent("pi", endpoint=self.args.endpoint),
-            ZsynodAgent("claude"),  # haiku default; skipped gracefully if ANTHROPIC_API_KEY unset
+            ZsynodAgent("claude"),
+            ZsynodAgent("gemini"),
+            ZsynodAgent("codex"),
         ]
         self.last_seen_seq = -1
         self.current_thought = ""
 
-        claude_status = "[green]✓[/green]" if os.environ.get("ANTHROPIC_API_KEY") else "[red]✗ no key[/red]"
+        def _cli(name): return "[green]✓[/green]" if shutil.which(name) else "[red]✗[/red]"
         self.log_message(f"Welcome to [b][cyan]Zsynod-Py[/cyan][/b] Cockpit.")
-        self.log_message(f"[dim]Local: {self.agents[0].endpoint} · Claude: {claude_status}[/dim]")
+        self.log_message(
+            f"[dim]Local: {self.agents[0].endpoint} · "
+            f"claude:{_cli('claude')} gemini:{_cli('gemini')} codex:{_cli('codex')}[/dim]"
+        )
         self.refresh_data()
         self.set_interval(3.0, self.refresh_data)
 
