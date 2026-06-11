@@ -148,17 +148,20 @@ class ZsynodAgent:
 
     def _deliberate_gemini(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
         prompt = f"{system_prompt}\n\n{user_prompt}"
-        cmd = [
-            "gemini",
-            "--session-id", _GEMINI_SESSION_ID,
-            "--approval-mode", "plan",
-            "-o", "json",
-            "-p", prompt,
-        ]
-        if self.model:
-            cmd += ["-m", self.model]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TICK_TIMEOUT)
+        def _cmd(resume=False):
+            c = ["gemini",
+                 "--resume" if resume else "--session-id", _GEMINI_SESSION_ID,
+                 "--approval-mode", "plan", "-o", "json", "-p", prompt]
+            if self.model:
+                c += ["-m", self.model]
+            return c
+
+        result = subprocess.run(_cmd(), capture_output=True, text=True, timeout=TICK_TIMEOUT)
+        # Session already exists from a prior tick — switch to --resume
+        if result.returncode != 0 and "already exists" in result.stderr:
+            result = subprocess.run(_cmd(resume=True), capture_output=True, text=True, timeout=TICK_TIMEOUT)
+
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or f"gemini exited {result.returncode}")
 
