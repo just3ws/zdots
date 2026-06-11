@@ -829,3 +829,102 @@ print('ok')
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
 }
+
+# ── KnowledgeBase: the forum's window and pen ─────────────────────────────────
+
+@test "KnowledgeBase: hydrate parses stub JSON, seed and ground return snippets" {
+  run run_py "
+import json, os, stat, tempfile
+from pathlib import Path
+from zsynod_core import KnowledgeBase
+
+# Stub zdots-ctx: hydrate prints a fixed pool regardless of tag
+stub = Path(tempfile.mkdtemp()) / 'zdots-ctx'
+stub.write_text('''#!/bin/sh
+echo '{\"methodologies\": [{\"slug\": \"tdd\", \"title\": \"TDD\", \"content\": \"Red green refactor\", \"tags\": [\"tdd\"]}], \"lessons\": [{\"context\": \"c\", \"content\": \"Always clamp dials on load\", \"created_at\": \"2026-01-01\"}]}'
+''')
+stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
+
+kb = KnowledgeBase(cmd=str(stub))
+pool = kb.hydrate('anything')
+assert len(pool['methodologies']) == 1 and len(pool['lessons']) == 1
+
+class FixedRng:
+    def choice(self, items): return items[0]
+seed = kb.seed(rng=FixedRng())
+assert seed == 'TDD: Red green refactor', seed
+
+g = kb.ground('Adopt strict TDD everywhere')
+assert g == 'TDD: Red green refactor', g
+# cache: second hydrate must not re-run the subprocess (same object back)
+assert kb.hydrate('anything') is pool
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "KnowledgeBase: record invokes add-lesson with content, context, tags" {
+  run run_py "
+import stat, tempfile
+from pathlib import Path
+from zsynod_core import KnowledgeBase
+
+d = Path(tempfile.mkdtemp())
+log = d / 'argv.log'
+stub = d / 'zdots-ctx'
+stub.write_text(f'''#!/bin/sh
+printf '%s\\n' \"\$@\" > {log}
+''')
+stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
+
+kb = KnowledgeBase(cmd=str(stub))
+ok = kb.record('zsynod ratified P9 \"Title\"', context='zsynod decision', tags=['zsynod', 'p9'])
+assert ok
+argv = log.read_text().splitlines()
+assert argv == ['add-lesson', 'zsynod ratified P9 \"Title\"', 'zsynod decision', 'zsynod', 'p9'], argv
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "KnowledgeBase: missing command degrades to empty pool and failed record" {
+  run run_py "
+from zsynod_core import KnowledgeBase
+kb = KnowledgeBase(cmd='/nonexistent/zdots-ctx')
+assert not kb.available()
+pool = kb.hydrate('x')
+assert pool == {'methodologies': [], 'lessons': []}
+assert kb.seed() is None
+assert kb.ground('Some topic title') is None
+assert kb.record('content') is False
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "deliberate pins kb_note as a [KB] line in the user prompt" {
+  run run_py "
+from unittest.mock import patch
+from zsynod_core import ZsynodAgent
+
+agent = ZsynodAgent('pi')
+captured = {}
+
+def fake_local(sp, up, tc=None, t=None, **kw):
+    captured['user'] = up
+    return 'ok'
+
+with patch.object(agent, '_deliberate_local', fake_local):
+    agent.deliberate('Topic', [], kb_note='TDD: Red green refactor')
+assert '[KB] TDD: Red green refactor' in captured['user'], captured['user']
+with patch.object(agent, '_deliberate_local', fake_local):
+    agent.deliberate('Topic', [])
+assert '[KB]' not in captured['user']
+print('ok')
+"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
