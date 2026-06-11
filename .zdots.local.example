@@ -17,6 +17,12 @@
 # ---------------------------------------------------------------------------
 ZDOTS_CONTEXT=home
 
+# compinit: silence the group-writable prompt for /opt/homebrew/share.
+# Homebrew sets g+w intentionally; compaudit flags it on every compdump rebuild
+# (post-brew-update, post new completion file). bin/check already treats this
+# path as a known system-managed path. The -i flag silently ignores it.
+# ZDOTS_COMPLETION_PERMISSIVE=1
+
 # ---------------------------------------------------------------------------
 # Database
 # Default ZDOTS_MIGRATION_URL uses peer auth as the OS user (postgresql:///my).
@@ -56,11 +62,14 @@ ZDOTS_AI_MODE=local
 # ---------------------------------------------------------------------------
 
 # Database encryption key — required before enabling session capture.
-# Generate a key and store it in macOS Keychain (never commit it):
+# Store the key in macOS Keychain (never hardcode it here):
 #   security add-generic-password \
 #     -a "$USER" -s "ZDOTS_DB_ENCRYPTION_KEY" \
 #     -w "$(openssl rand -hex 32)" -T "" ~/Library/Keychains/login.keychain-db
-# env.sh loads ZDOTS_DB_ENCRYPTION_KEY from Keychain at runtime.
+# Then uncomment the block below to load it at shell startup:
+# export ZDOTS_DB_ENCRYPTION_KEY=$(
+#   security find-generic-password -a "$USER" -s "ZDOTS_DB_ENCRYPTION_KEY" -w 2>/dev/null
+# )
 
 # Session capture — disabled by default. Requires:
 #   1. ZDOTS_DB_ENCRYPTION_KEY set above (Keychain-backed)
