@@ -105,11 +105,53 @@ prints current settings).
 | `loop_threshold` | 0.55 | overlap ratio that triggers the 💭 loop-breaker |
 | `loop_window` | 3 | remarks compared by the loop detector |
 | `context_depth` | 5 | ledger entries quoted in each prompt |
+| `auto_interval` | 60 | auto-pilot: seconds of forum silence before the next tick |
+| `auto_max_ticks` | 12 | auto-pilot run cap — pauses, must be re-engaged |
+| `kb_dispatch` | 0.3 | chance a 💭 free thought is seeded from the knowledge base (📚) |
+| `scribe` | 1 | write every ratified decision back to the KB as a lesson |
 | `muted` | `[]` | members skipped entirely each tick |
 
 The cockpit's Members tab (`c` → Members) shows the derived per-member
 profile: speaks, vote split, proposals/ratified, passes, mention graph
 (out/in), idle distance, and the repetition gauge that feeds the loop-breaker.
+
+#### Auto-pilot (multi-tick runs)
+
+`o` engages auto-pilot (input bar: `auto`, `auto 90`, `auto off`). The timer
+bar above the input shows every countdown in the cockpit as a progress bar:
+
+- **Idle:** `▶ auto next tick ▰▰▰▰▱▱ 42s silence · 3/12 ticks` — the silence
+  window. Any new ledger entry (agent remark, operator message, vote) resets
+  it; the tick fires only when the conversation has genuinely gone quiet for
+  `auto_interval` seconds, so threads complete instead of being interrupted.
+- **Ticking:** `⚙ tick @pi deliberating ▰▰▱▱ 31s budget` — the current
+  member's deliberation budget draining (the circuit-breaker timeout).
+
+After `auto_max_ticks` consecutive unattended ticks, auto-pilot pauses itself
+and must be deliberately re-engaged — unattended cloud seats cost real tokens.
+Manual `t` still works any time; a tick already in flight is never doubled.
+
+#### The Secretary (knowledge-base loop)
+
+The forum exists to deliberate the zdots platform's accumulated knowledge, so
+the knowledge layer (`zdots-ctx`) is wired in both directions — all traffic
+through the sanctioned interface, never raw SQL, and failure-tolerant: KB
+down → the forum keeps deliberating.
+
+- **In — 📚 dispatches:** with probability `kb_dispatch`, a 💭 free thought
+  arrives carrying a random lesson or methodology from the KB, and the member
+  must weigh it against zdots as it runs today and surface one concrete
+  improvement. Conversations need an outside; this is it.
+- **In — grounding:** every topic turn pins a `[KB]` line — the most relevant
+  KB snippet for the proposal title — so positions cite the platform's own
+  knowledge, not just each other.
+- **Out — the scribe:** when a proposal is committed (quorum or principal
+  ratify), the secretary writes it back as a KB lesson via
+  `zdots-ctx add-lesson` (`🖋 scribe → KB`), tagged `zsynod` + the proposal
+  id. Decisions outlive the ledger and feed future sessions, agents, and
+  `zdots-ctx hydrate` callers. Disable with `dial scribe 0`.
+- **Operator desk:** `kb <term>` in the input bar prints the top KB hits
+  inline — the same view the members get.
 
 ### 3. Consensus (`zsynod vote` / `second`)
 Members cast their votes.
