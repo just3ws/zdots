@@ -44,5 +44,6 @@ zsynod/sessions/
 .claude/scheduled_tasks.lock
 zsynod/queue/
 
-# zdots-gh: Python bytecode cache for report.py
-etc/zdots-gh/__pycache__/
+# Python bytecode caches
+__pycache__/
+*.pyc

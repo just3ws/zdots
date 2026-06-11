@@ -52,6 +52,12 @@ The single database is `my` (PostgreSQL). All access uses role-based users — n
 
 ## Philosophical Values & Frameworks
 
+### Discoverability & System Safety
+- **High-Signal Discovery:** All custom tools MUST provide robust `--help` and `-?` documentation.
+- **On-Demand Briefing:** The environment acts as an active knowledge partner. Commands like `agent-guide` and `zdots-pulse` are preferred entry points for orientation.
+- **Sensible Defaults:** Priority is given to safe, non-destructive actions. Critical or destructive operations MUST require explicit `--yes` or `--force` flags.
+- **Context Awareness:** Tools should guide the user toward the "right choice" by providing relevant context in help text and error messages.
+
 ### Manifestos & Laws (Delivery & Excellence)
 *   **Agile:** Individuals and interactions, working software, customer collaboration, and responding to change.
 *   **Software Craftsmanship:** Well-crafted software, steadily adding value, a community of professionals, and productive partnerships.
