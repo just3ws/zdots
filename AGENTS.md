@@ -54,6 +54,19 @@ agent-guide          # detailed usage guide for all services
 
 ## 3. Tool Selection
 
+### Query the platform catalog first
+
+**Before reaching for any external or generic tool, check whether zdots already provides it.**
+`~/.config/zsh/bin` is always on `PATH` regardless of working directory.
+
+```bash
+zdots-ctx hydrate tooling-catalog   # compact command index + task-to-tool scenarios
+zdots-ctx query tooling:<name>      # full --help for a specific command
+zdots-ctx query --semantic "start a service"  # natural-language lookup
+```
+
+The catalog and scenario index are rebuilt whenever `bin/` changes and refreshed every 7 days by a launchd agent. If a command appears in the catalog, it works as-is — no path prefix, no install step.
+
 Full tool reference with usage examples: [docs/tooling.md](docs/tooling.md)
 
 **By task:**
