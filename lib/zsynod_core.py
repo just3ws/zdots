@@ -118,16 +118,17 @@ class ZsynodAgent:
         self.model = model  # None = per-actor default; override to force a specific model
 
     def _build_context(self, recent_discussion: List[LedgerEntry]) -> str:
+        # Last 5 entries only — forces compression, keeps the prompt tight.
         lines = []
-        for e in recent_discussion:
+        for e in recent_discussion[-5:]:
             if "remark" in e.data:
-                lines.append(f"{e.actor}: {e.data['remark']}")
+                lines.append(f"@{e.actor}: {e.data['remark']}")
             elif e.type == "propose":
-                lines.append(f"{e.actor} PROPOSED: {e.data.get('title', 'Untitled')}")
+                lines.append(f"@{e.actor} proposed {e.data['id']}: {e.data.get('title', '?')}")
             elif e.type == "vote":
-                lines.append(f"{e.actor} VOTED: {e.data.get('vote', 'unknown')} on {e.data.get('proposal', '?')}")
+                lines.append(f"@{e.actor} voted {e.data.get('vote', '?')} on {e.data.get('proposal', '?')}")
             elif e.type == "commit":
-                lines.append(f"PRINCIPAL RATIFIED: {e.data.get('proposal', '?')}")
+                lines.append(f"✓ {e.data.get('proposal', '?')} ratified")
         return "\n".join(lines)
 
     def _deliberate_local(self, system_prompt: str, user_prompt: str,
@@ -139,7 +140,7 @@ class ZsynodAgent:
                 {"role": "user", "content": user_prompt},
             ],
             "stream": token_callback is not None,
-            "max_tokens": 200,
+            "max_tokens": 220,
             "temperature": 0.7,
         }).encode()
 
@@ -275,11 +276,18 @@ class ZsynodAgent:
 
     def deliberate(self, topic: str, recent_discussion: List[LedgerEntry],
                    progress_callback=None, token_callback=None, suggestion_callback=None,
-                   glyph: str = "", timeout: float = None) -> str:
+                   glyph: str = "", timeout: float = None,
+                   members: List[str] = None) -> str:
         context_str = self._build_context(recent_discussion)
-        system_prompt = f"You are {self.actor_id}, an AI member of the Zsynod deliberation forum."
+        handles = " ".join(f"@{m}" for m in (members or [])) or "@mike @pi @aider @opencode @claude @gemini @codex"
+        system_prompt = (
+            f"You are @{self.actor_id} in the zsynod deliberation forum. "
+            f"Members: {handles}. "
+            f"Reply in ≤160 tokens. End every response with exactly 3 hashtags. "
+            f"You may @mention members by handle. Few word do trick."
+        )
         seed = f"{glyph} " if glyph else ""
-        user_prompt = f"{seed}Topic: {topic}\nRecent History:\n{context_str}\nYour Remark (be brief and professional):"
+        user_prompt = f"{seed}Topic: {topic}\n{context_str}\n@{self.actor_id}:"
 
         labels = {"claude": "Claude CLI", "gemini": "Gemini CLI", "codex": "Codex CLI"}
         if progress_callback:

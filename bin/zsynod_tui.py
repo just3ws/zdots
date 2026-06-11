@@ -115,6 +115,13 @@ class ZsynodApp(App):
 
     # ── members / quorum ──────────────────────────────────────────────────────
 
+    def _all_members(self) -> list:
+        try:
+            data = json.loads(_MEMBERS_PATH.read_text())
+            return [m["id"] for m in data["members"]]
+        except Exception:
+            return [a.actor_id for a in self.agents] + ["mike"]
+
     def _voting_members(self) -> list:
         try:
             data = json.loads(_MEMBERS_PATH.read_text())
@@ -143,11 +150,28 @@ class ZsynodApp(App):
         box.display = False
         box.update("")
 
+    @staticmethod
+    def _style_remark(text: str) -> str:
+        """Dim hashtags, highlight @mentions, append token estimate."""
+        import re
+        words = text.split()
+        styled = []
+        for w in words:
+            if w.startswith("#"):
+                styled.append(f"[dim]{w}[/dim]")
+            elif w.startswith("@"):
+                styled.append(f"[bold]{w}[/bold]")
+            else:
+                styled.append(w)
+        # rough token estimate: words ≈ tokens at ~1.3 ratio
+        est = max(1, int(len(words) / 1.3))
+        return " ".join(styled) + f" [dim][{est}t][/dim]"
+
     def _render_entry(self, log: RichLog, e) -> None:
         ac = "green" if e.actor == "mike" else "cyan"
-        actor = f"[{ac}]{e.actor}[/{ac}]"
+        actor = f"[{ac}]@{e.actor}[/{ac}]"
         if e.type in ["speak", "discuss"]:
-            log.write(f"{actor}: {e.data.get('remark', '')}")
+            log.write(f"{actor}: {self._style_remark(e.data.get('remark', ''))}")
         elif e.type == "propose":
             log.write(f"[b][yellow]── {e.data['id']}: {e.data['title']} ──[/yellow][/b]")
             if "body" in e.data:
@@ -323,6 +347,7 @@ class ZsynodApp(App):
                         suggestion_callback=suggestion_cb,
                         glyph=glyph,
                         timeout=breaker.current_timeout(),
+                        members=self._all_members(),
                     )
                     breaker.record_success()
                     self.ledger.append(actor, "speak", {"remark": remark})
