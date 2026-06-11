@@ -23,7 +23,8 @@ SKIP_AIDER=0
 SKIP_GEMS=0
 SKIP_GEMINI=0
 SKIP_CHECK=0
-PHASE_TOTAL=12
+SKIP_PYTHON=0
+PHASE_TOTAL=13
 PHASE_INDEX=0
 PHASE_DONE=0
 PHASE_NAMES=()
@@ -61,6 +62,7 @@ Options:
   --skip-fabric     Skip fabric-ai pattern update
   --skip-aider      Skip Aider model metadata reconciliation
   --skip-gemini     Skip Gemini MCP registration
+  --skip-python     Skip Python deps (uv pip install -r requirements.txt)
   --skip-otel       Skip otel-collector validation
   --skip-check      Skip make check-fast
   -h, --help        Show this help
@@ -86,6 +88,7 @@ while [[ $# -gt 0 ]]; do
     --skip-fabric) SKIP_FABRIC=1 ;;
     --skip-aider) SKIP_AIDER=1 ;;
     --skip-gemini) SKIP_GEMINI=1 ;;
+    --skip-python) SKIP_PYTHON=1 ;;
     --skip-otel)  SKIP_OTEL=1 ;;
     --skip-check) SKIP_CHECK=1 ;;
     -h|--help)    usage; exit 0 ;;
@@ -353,6 +356,22 @@ if [[ "$SKIP_GEMS" -eq 0 ]]; then
   unset _gems_file
 else
   warn "skipping ruby-gems phase (--skip-gems)"
+fi
+
+phase "python: install deps from requirements.txt"
+if [[ "$SKIP_PYTHON" -eq 0 ]]; then
+  _req_file="$ZDOTDIR/requirements.txt"
+  if [[ ! -f "$_req_file" ]]; then
+    warn "requirements.txt not found at $_req_file; skipping"
+  elif ! command -v uv >/dev/null 2>&1; then
+    warn "uv not found; skipping Python deps (install uv via brew)"
+  else
+    step "uv pip install -r requirements.txt"
+    run uv pip install --python "$(command -v python3)" -r "$_req_file"
+  fi
+  unset _req_file
+else
+  warn "skipping python phase (--skip-python)"
 fi
 
 phase "llama: regenerate launchd plists"
