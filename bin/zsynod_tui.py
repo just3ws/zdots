@@ -22,6 +22,8 @@ _MEMBERS_PATH = Path(__file__).parent.parent / "zsynod" / "members.json"
 
 
 class ZsynodApp(App):
+    THEME = "dracula"
+
     CSS = """
     Screen { layers: base; }
     #main-container { height: 1fr; }
@@ -314,6 +316,11 @@ class ZsynodApp(App):
             glyph = tick_seed()
             self.call_from_thread(self.log_message, f"[dim]── {glyph} ──[/dim]")
 
+            # Fetch the pinned state summary for context (written at end of last tick)
+            pid = self.selected_pid
+            members = self._all_members()
+            summary = self.ledger.get_latest_summary(pid) if pid else ""
+
             import subprocess
             active = 0
             for agent in self.agents:
@@ -347,12 +354,13 @@ class ZsynodApp(App):
                         suggestion_callback=suggestion_cb,
                         glyph=glyph,
                         timeout=breaker.current_timeout(),
-                        members=self._all_members(),
+                        members=members,
+                        summary=summary,
                     )
                     breaker.record_success()
                     self.ledger.append(actor, "speak", {"remark": remark})
                     discussion = self.ledger.get_discussion(limit=200)
-                except (TimeoutError, subprocess.TimeoutExpired) as e:
+                except (TimeoutError, subprocess.TimeoutExpired):
                     breaker.record_timeout()
                     self.call_from_thread(
                         self.log_message,
@@ -373,6 +381,32 @@ class ZsynodApp(App):
                     self.log_message,
                     "[dim]── all agents backed off; wheel rolls on ──[/dim]",
                 )
+
+            # ── summarizer pass ───────────────────────────────────────────────
+            # After all voices have spoken, write a compact state summary for
+            # the focused proposal. Next tick reads it as pinned [STATE] context.
+            if pid and active > 0:
+                try:
+                    self.ledger.load()
+                    prop_discussion = self.ledger.get_proposal_discussion(pid)
+                    tally = self.ledger.get_tally(pid)
+                    prop_entry = next(
+                        (e for e in self.ledger.entries
+                         if e.type == "propose" and e.data.get("id") == pid), None
+                    )
+                    title = prop_entry.data.get("title", pid) if prop_entry else pid
+                    summarizer = ZsynodAgent("summarizer", endpoint=self.agents[0].endpoint)
+                    text = summarizer.summarize(pid, title, prop_discussion, tally)
+                    self.ledger.append("summarizer", "summary", {"proposal": pid, "text": text})
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[dim]📋 {pid} state: {text[:80]}{'…' if len(text) > 80 else ''}[/dim]",
+                    )
+                except Exception as e:
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[dim]summarizer skipped: {e}[/dim]",
+                    )
 
     # ── polling refresh ────────────────────────────────────────────────────────
 
