@@ -62,6 +62,8 @@ The zdots-specific stack. Every agent session should orient here first.
 | Context MCP server | `ctx-mcp` | MCP stdio server: query/capture knowledge base from AI agents |
 | Aider (local) | `zaider` | Aider wired to local llama.cpp — file editing + git |
 | Pi coding agent | `zpi "prompt"` | Interactive session agent (earendil pi) |
+| Apple Intelligence | `zapfel` | On-device Apple foundation model CLI (apfel, port 11434) |
+| GitHub Models | `zgh "prompt"` | One-shot cloud inference, phi-scrubbed; `zgh --models` lists the catalog |
 | Gemini CLI | `gemini` | Google Gemini from the shell |
 | Kimi CLI | `kimi` | MoonshotAI from the shell |
 | Fabric | `fabric-ai` | Expert prompt pipelines (local or cloud) |
@@ -72,6 +74,20 @@ The zdots-specific stack. Every agent session should orient here first.
 `lib/ai_boundary.bash`. Use them in preference to calling `llama-server` or cloud CLIs directly
 from scripts — they apply the PHI scrubber and locality check automatically. `zdots-ask` now supports
 Expert Patterns via `--pattern <name>`.
+
+---
+
+## Deliberation (zsynod)
+
+| Tool | Command | Purpose |
+|------|---------|---------|
+| Cockpit | `zsynod ui` | Full-screen forum TUI: auto-ticks, dials, herald briefings (audits seat keys at launch) |
+| Key audit | `zsynod keys` | Per-seat API key status + provisioning hints — never values |
+| Petition | `zsynod say --as <agent> [--to @m,@m] "text"` | Outside voice speaks to the forum (phi-scrubbed); prints a receipt seq |
+| Check back | `zsynod reply <seq> [--json]` | Petition state: addressed / heard / unheard |
+| Forum CLI | `zsynod status/propose/vote/…` | Bash-ledger forum verbs — `man zsynod` or `zsynod --help` |
+
+Docs: `zsynod/LIFECYCLE.md` (mechanics) · `zsynod/ZEN.md` (philosophy) · `zsynod/DECISIONS.md` (ADRs).
 
 ---
 
