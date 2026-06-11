@@ -2,10 +2,22 @@ import json
 import os
 import hashlib
 import datetime
+import subprocess
+import tempfile
+import uuid
 import urllib.request
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Any, List, Optional
+
+# External CLI ticks get the same budget as the local LLM's typical response window.
+# llama.cpp keeps its own 120s stream budget for the SSE path.
+TICK_TIMEOUT = 45
+
+# Stable session identities — derived once, same UUID every tick.
+_SESSIONS_DIR = Path(__file__).parent.parent / "zsynod" / "sessions"
+_GEMINI_SESSION_ID = str(uuid.uuid5(uuid.NAMESPACE_DNS, "zsynod-gemini"))
+
 
 class LedgerEntry(BaseModel):
     seq: int
@@ -28,16 +40,17 @@ class LedgerEntry(BaseModel):
                 del data["hash"]
         else:
             data = self.model_dump(exclude={'hash'})
-        
+
         canon = json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
         content = f"{self.prev}{canon}".encode()
         return hashlib.sha256(content).hexdigest()
 
+
 class ZsynodAgent:
-    def __init__(self, actor_id: str, endpoint: str = None, model: str = "claude-haiku-4-5"):
+    def __init__(self, actor_id: str, endpoint: str = None, model: str = None):
         self.actor_id = actor_id
         self.endpoint = (endpoint or os.environ.get("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")).rstrip("/")
-        self.model = model  # only used for claude actor; override to claude-opus-4-8 for interactive use
+        self.model = model  # None = per-actor default; override to force a specific model
 
     def _build_context(self, recent_discussion: List[LedgerEntry]) -> str:
         lines = []
@@ -95,19 +108,89 @@ class ZsynodAgent:
         return full_remark.strip()
 
     def _deliberate_claude(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
-        import subprocess
+        _SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        session_file = _SESSIONS_DIR / "claude"
+        model = self.model or "claude-haiku-4-5"
         prompt = f"{system_prompt}\n\n{user_prompt}"
-        result = subprocess.run(
-            ["claude", "-p", "--model", self.model],
-            input=prompt,
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
+
+        def _cmd(resume_id=None):
+            c = [
+                "claude", "-p",
+                "--output-format", "json",
+                "--model", model,
+                "--disallowedTools", "Bash,Edit,Write,NotebookEdit",
+                "--append-system-prompt", "You are a member of the zsynod deliberation forum. Be concise.",
+            ]
+            if resume_id:
+                c += ["--resume", resume_id]
+            return c
+
+        resume_id = session_file.read_text().strip() if session_file.exists() else None
+        result = subprocess.run(_cmd(resume_id), input=prompt, capture_output=True, text=True, timeout=TICK_TIMEOUT)
+
+        # Resume may fail if the session expired — retry fresh
+        if result.returncode != 0 and resume_id:
+            session_file.unlink(missing_ok=True)
+            result = subprocess.run(_cmd(), input=prompt, capture_output=True, text=True, timeout=TICK_TIMEOUT)
+
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or f"claude exited {result.returncode}")
-        remark = result.stdout.strip()
-        if token_callback:
+
+        data = json.loads(result.stdout)
+        new_id = data.get("session_id", "")
+        if new_id:
+            session_file.write_text(new_id)
+
+        remark = data.get("result", "").strip()
+        if token_callback and remark:
+            token_callback(remark)
+        return remark
+
+    def _deliberate_gemini(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
+        prompt = f"{system_prompt}\n\n{user_prompt}"
+        cmd = [
+            "gemini",
+            "--session-id", _GEMINI_SESSION_ID,
+            "--approval-mode", "plan",
+            "-o", "json",
+            "-p", prompt,
+        ]
+        if self.model:
+            cmd += ["-m", self.model]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TICK_TIMEOUT)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or f"gemini exited {result.returncode}")
+
+        try:
+            data = json.loads(result.stdout)
+            remark = (data.get("response") or data.get("text") or data.get("content") or result.stdout).strip()
+        except (json.JSONDecodeError, KeyError):
+            remark = result.stdout.strip()
+
+        if token_callback and remark:
+            token_callback(remark)
+        return remark
+
+    def _deliberate_codex(self, system_prompt: str, user_prompt: str, token_callback=None) -> str:
+        prompt = f"{system_prompt}\n\n{user_prompt}"
+        fd, output_path = tempfile.mkstemp(suffix=".txt", prefix="zsynod-codex-")
+        os.close(fd)
+        try:
+            cmd = ["codex", "exec", "--ephemeral", "-o", output_path]
+            if self.model:
+                cmd += ["-m", self.model]
+            cmd.append(prompt)
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=TICK_TIMEOUT)
+            if result.returncode != 0:
+                raise RuntimeError(result.stderr.strip() or f"codex exited {result.returncode}")
+
+            remark = Path(output_path).read_text().strip()
+        finally:
+            Path(output_path).unlink(missing_ok=True)
+
+        if token_callback and remark:
             token_callback(remark)
         return remark
 
@@ -116,13 +199,17 @@ class ZsynodAgent:
         system_prompt = f"You are {self.actor_id}, an AI member of the Zsynod deliberation forum."
         user_prompt = f"Topic: {topic}\nRecent History:\n{context_str}\nYour Remark (be brief and professional):"
 
-        dest = "Anthropic API" if self.actor_id == "claude" else self.endpoint
+        labels = {"claude": "Claude CLI", "gemini": "Gemini CLI", "codex": "Codex CLI"}
         if progress_callback:
-            progress_callback(f"[dim]Connecting to {dest}...[/dim]")
+            progress_callback(f"[dim]Connecting to {labels.get(self.actor_id, self.endpoint)}...[/dim]")
 
-        if self.actor_id == "claude":
-            return self._deliberate_claude(system_prompt, user_prompt, token_callback)
-        return self._deliberate_local(system_prompt, user_prompt, token_callback)
+        dispatch = {
+            "claude": self._deliberate_claude,
+            "gemini": self._deliberate_gemini,
+            "codex": self._deliberate_codex,
+        }
+        return dispatch.get(self.actor_id, self._deliberate_local)(system_prompt, user_prompt, token_callback)
+
 
 class LedgerManager:
     def __init__(self, path: Path):
@@ -139,29 +226,22 @@ class LedgerManager:
                         self.entries.append(LedgerEntry.model_validate_json(line))
 
     def get_discussion(self, limit: int = 100) -> List[LedgerEntry]:
-        # Return most recent entries of all types for a full timeline
         return self.entries[-limit:]
 
     def get_proposals(self) -> List[LedgerEntry]:
-        # Track active proposals (not yet committed)
         proposals = {e.data["id"]: e for e in self.entries if e.type == "propose"}
         committed = {e.data["proposal"] for e in self.entries if e.type == "commit"}
         return [p for pid, p in proposals.items() if pid not in committed]
 
     def get_blocking_items(self) -> List[dict]:
-        # Simple logic for now: proposals that are open
         items = []
         for p in self.get_proposals():
             items.append({"id": p.data["id"], "type": "proposal", "label": p.data["title"]})
         return items
 
     def append(self, actor: str, entry_type: str, data: dict, round_num: Optional[int] = None) -> LedgerEntry:
-        """
-        Safely append a new entry to the ledger with locking and hash-chaining.
-        """
         lock_path = self.path.parent / ".lock"
-        
-        # 1. Acquire Lock (Simple spin-lock matching Bash logic)
+
         import time
         retries = 0
         while True:
@@ -175,12 +255,10 @@ class LedgerManager:
                     raise TimeoutError("Ledger is locked by another process.")
 
         try:
-            # 2. Prepare Entry
-            self.load() # Refresh to get latest state
+            self.load()
             prev_hash = self.entries[-1].hash if self.entries else "GENESIS"
             seq = len(self.entries)
-            
-            # Use current round if not specified
+
             if round_num is None:
                 round_num = self.entries[-1].round if self.entries else 0
 
@@ -194,15 +272,13 @@ class LedgerManager:
             )
             entry.hash = entry.compute_hash()
 
-            # 3. Write to File
             with open(self.path, "a") as f:
                 f.write(entry.model_dump_json() + "\n")
-            
+
             self.entries.append(entry)
             return entry
 
         finally:
-            # 4. Release Lock
             try:
                 lock_path.rmdir()
             except FileNotFoundError:
