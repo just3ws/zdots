@@ -1,6 +1,8 @@
 import json
+import os
 import hashlib
 import datetime
+import urllib.request
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Any, List, Optional
@@ -32,28 +34,11 @@ class LedgerEntry(BaseModel):
         return hashlib.sha256(content).hexdigest()
 
 class ZsynodAgent:
-    def __init__(self, actor_id: str, model_path: str = "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"):
+    def __init__(self, actor_id: str, endpoint: str = None):
         self.actor_id = actor_id
-        self.model_path = model_path
-        self._model = None
-        self._tokenizer = None
-
-    def _ensure_model(self, progress_callback=None):
-        if not self._model:
-            from mlx_lm import load
-            
-            if progress_callback:
-                progress_callback(f"[dim]Loading {self.model_path} (one-time download if not cached)...[/dim]")
-            
-            self._model, self._tokenizer = load(self.model_path)
-            if progress_callback:
-                progress_callback("[dim]Model loaded into GPU memory.[/dim]")
+        self.endpoint = (endpoint or os.environ.get("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")).rstrip("/")
 
     def deliberate(self, topic: str, recent_discussion: List[LedgerEntry], progress_callback=None, token_callback=None) -> str:
-        self._ensure_model(progress_callback=progress_callback)
-        from mlx_lm import stream_generate
-        
-        # Build prompt from context safely
         context_lines = []
         for e in recent_discussion:
             if "remark" in e.data:
@@ -66,19 +51,49 @@ class ZsynodAgent:
                 context_lines.append(f"PRINCIPAL RATIFIED: {e.data.get('proposal', '?')}")
 
         context_str = "\n".join(context_lines)
-        prompt = (
-            f"You are {self.actor_id}, an AI member of the Zsynod deliberation forum.\n"
-            f"Topic: {topic}\n"
-            f"Recent History:\n{context_str}\n"
-            f"Your Remark (be brief and professional):"
+
+        if progress_callback:
+            progress_callback(f"[dim]Connecting to {self.endpoint}...[/dim]")
+
+        payload = json.dumps({
+            "messages": [
+                {"role": "system", "content": f"You are {self.actor_id}, an AI member of the Zsynod deliberation forum."},
+                {"role": "user", "content": f"Topic: {topic}\nRecent History:\n{context_str}\nYour Remark (be brief and professional):"},
+            ],
+            "stream": token_callback is not None,
+            "max_tokens": 200,
+            "temperature": 0.7,
+        }).encode()
+
+        req = urllib.request.Request(
+            f"{self.endpoint}/v1/chat/completions",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
         )
-        
+
         full_remark = ""
-        for response in stream_generate(self._model, self._tokenizer, prompt=prompt, max_tokens=200):
-            full_remark += response.text
+        with urllib.request.urlopen(req, timeout=120) as resp:
             if token_callback:
-                token_callback(response.text)
-        
+                for raw_line in resp:
+                    line = raw_line.decode().strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                        token = chunk["choices"][0]["delta"].get("content", "")
+                        if token:
+                            full_remark += token
+                            token_callback(token)
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue
+            else:
+                body = json.loads(resp.read())
+                full_remark = body["choices"][0]["message"]["content"]
+
         return full_remark.strip()
 
 class LedgerManager:
