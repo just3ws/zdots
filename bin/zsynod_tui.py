@@ -5,8 +5,11 @@ import shutil
 import sys
 import argparse
 from pathlib import Path
-from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Static, RichLog, Input, ListView, ListItem, Label
+from textual.app import App, ComposeResult, Screen
+from textual.widgets import (
+    Header, Footer, Static, RichLog, Input,
+    ListView, ListItem, Label, TabbedContent, TabPane,
+)
 from textual.containers import Container, Horizontal, Vertical
 from textual.binding import Binding
 from textual.reactive import reactive
@@ -20,6 +23,175 @@ from zsynod_otel import setup_otel
 
 _MEMBERS_PATH = Path(__file__).parent.parent / "zsynod" / "members.json"
 
+
+# ── Hashtag / Topic Stats Screen ──────────────────────────────────────────────
+
+class HashtagStatsScreen(Screen):
+    """Page 2 — bi-directional hashtag ↔ topic analytics."""
+
+    BINDINGS = [
+        Binding("escape", "app.pop_screen", "Back", show=True),
+        Binding("q",      "app.pop_screen", "Back", show=False),
+    ]
+
+    CSS = """
+    HashtagStatsScreen #ht-list  { width: 32; border-right: solid $primary; }
+    HashtagStatsScreen #top-list { width: 32; border-right: solid $primary; }
+    HashtagStatsScreen RichLog   { height: 1fr; }
+    HashtagStatsScreen .pane-row { height: 1fr; }
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with TabbedContent():
+            with TabPane("Hashtags", id="tab-ht"):
+                with Horizontal(classes="pane-row"):
+                    yield ListView(id="ht-list")
+                    yield RichLog(id="ht-detail", highlight=True, markup=True)
+            with TabPane("Topics", id="tab-topics"):
+                with Horizontal(classes="pane-row"):
+                    yield ListView(id="top-list")
+                    yield RichLog(id="top-detail", highlight=True, markup=True)
+        yield Footer()
+
+    def on_mount(self) -> None:
+        ledger: LedgerManager = self.app.ledger
+        ledger.load()
+        self._analytics = ledger.get_hashtag_analytics()
+        self._ledger = ledger
+        self._ht_keys: list[str] = list(self._analytics["tags"].keys())
+        self._top_pids: list[str] = self._all_proposal_ids()
+        self._populate_ht_list()
+        self._populate_top_list()
+
+    def _all_proposal_ids(self) -> list[str]:
+        # All proposals — open AND committed — sorted by first seq
+        seen = {}
+        for e in self._ledger.entries:
+            if e.type == "propose":
+                pid = e.data.get("id")
+                if pid and pid not in seen:
+                    seen[pid] = e.seq
+        return sorted(seen, key=lambda p: seen[p])
+
+    def _populate_ht_list(self) -> None:
+        lv = self.query_one("#ht-list", ListView)
+        lv.clear()
+        for key in self._ht_keys:
+            t = self._analytics["tags"][key]
+            lv.append(ListItem(Label(
+                f"[cyan]{t['tag']}[/cyan] "
+                f"[dim]{t['total_uses']}× "
+                f"{len(t['actor_order'])}mbr[/dim]"
+            )))
+
+    def _populate_top_list(self) -> None:
+        lv = self.query_one("#top-list", ListView)
+        lv.clear()
+        titles = self._analytics["titles"]
+        for pid in self._top_pids:
+            tally = self._ledger.get_tally(pid)
+            sc = "green" if tally["state"] == "committed" else "yellow"
+            tag_count = len(self._analytics["topic_tags"].get(pid, []))
+            lv.append(ListItem(Label(
+                f"[{sc}][b]{pid}[/b][/{sc}] "
+                f"{titles.get(pid, pid)[:20]} "
+                f"[dim]{tag_count}#[/dim]"
+            )))
+
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        if event.item is None:
+            return
+        lv = event.list_view
+        idx = lv._index if hasattr(lv, "_index") else None
+        try:
+            idx = list(lv._nodes).index(event.item)
+        except (ValueError, AttributeError):
+            return
+
+        if lv.id == "ht-list" and idx < len(self._ht_keys):
+            self._show_ht_detail(self._ht_keys[idx])
+        elif lv.id == "top-list" and idx < len(self._top_pids):
+            self._show_top_detail(self._top_pids[idx])
+
+    def _show_ht_detail(self, key: str) -> None:
+        t = self._analytics["tags"][key]
+        log = self.query_one("#ht-detail", RichLog)
+        log.clear()
+        log.write(f"[b][cyan]{t['tag']}[/cyan][/b]  {t['total_uses']} uses  lifespan {t['lifespan']} entries")
+        log.write(f"coined by [green]@{t['first_actor']}[/green] at {t['first_ts'][:19]}")
+        log.write("")
+        log.write("[b]Members (adoption order):[/b]")
+        for i, actor in enumerate(t["actor_order"], 1):
+            uses_by = sum(1 for u in t["uses"] if u["actor"] == actor)
+            log.write(f"  {i}. [green]@{actor}[/green]  {uses_by}×")
+        log.write("")
+        log.write("[b]Topics:[/b]")
+        titles = self._analytics["titles"]
+        for pid in t["topics"]:
+            tally = self._ledger.get_tally(pid)
+            sc = "green" if tally["state"] == "committed" else "yellow"
+            log.write(f"  [{sc}]{pid}[/{sc}] {titles.get(pid, pid)}")
+        log.write("")
+        log.write("[b]All uses (chronological):[/b]")
+        for u in t["uses"]:
+            pid_label = f" [{u['pid']}]" if u["pid"] else ""
+            log.write(f"  seq {u['seq']:>4}  [green]@{u['actor']}[/green]{pid_label}  {u['ts'][:19]}")
+
+    def _show_top_detail(self, pid: str) -> None:
+        log = self.query_one("#top-detail", RichLog)
+        log.clear()
+        titles = self._analytics["titles"]
+        tally = self._ledger.get_tally(pid)
+        disc = self._ledger.get_proposal_discussion(pid)
+        all_disc = [e for e in self._ledger.entries
+                    if e.type in ("speak", "discuss")
+                    and self._ledger.get_hashtag_analytics  # analytics already built
+                    ]
+        sc = "green" if tally["state"] == "committed" else "yellow"
+
+        log.write(f"[b][{sc}]{pid}[/{sc}][/b]  {titles.get(pid, pid)}")
+        log.write(
+            f"[green]aye {tally['aye']}[/green]  "
+            f"[red]nay {tally['nay']}[/red]  "
+            f"abs {tally['abstain']}  "
+            f"state: [{sc}]{tally['state']}[/{sc}]"
+        )
+
+        if tally["votes"]:
+            vote_line = "  ".join(
+                f"[{'green' if v=='aye' else 'red' if v=='nay' else 'dim'}]@{a}:{v[0]}[/]"
+                for a, v in sorted(tally["votes"].items())
+            )
+            log.write(f"Votes: {vote_line}")
+
+        # Participants from discussion entries
+        participants = list(dict.fromkeys(e.actor for e in disc))
+        log.write(f"Participants: {' '.join(f'[cyan]@{a}[/cyan]' for a in participants)}")
+        log.write(f"Entries in thread: {len(disc)}")
+
+        # Hashtag timeline
+        topic_ht = self._analytics["topic_tags"].get(pid, [])
+        log.write("")
+        if topic_ht:
+            log.write("[b]Hashtags (introduction order):[/b]")
+            for i, h in enumerate(topic_ht, 1):
+                log.write(
+                    f"  {i}. [cyan]{h['tag']}[/cyan]  "
+                    f"coined by [green]@{h['first_actor']}[/green]  "
+                    f"seq {h['seq']}  {h['first_ts'][:19]}"
+                )
+        else:
+            log.write("[dim](no hashtags recorded in this thread)[/dim]")
+
+        # Summary if available
+        summary = self._ledger.get_latest_summary(pid)
+        if summary:
+            log.write("")
+            log.write(f"[b]Latest state:[/b] [dim]{summary}[/dim]")
+
+
+# ── Main App ──────────────────────────────────────────────────────────────────
 
 class ZsynodApp(App):
     THEME = "dracula"
@@ -52,13 +224,14 @@ class ZsynodApp(App):
     """
 
     BINDINGS = [
-        Binding("q",     "quit",        "Quit",    show=True),
-        Binding("t",     "tick",        "Tick",    show=True),
-        Binding("a",     "vote_aye",    "Aye",     show=True),
-        Binding("n",     "vote_nay",    "Nay",     show=True),
-        Binding("s",     "second",      "Second",  show=True),
-        Binding("r",     "ratify",      "Ratify",  show=True),
-        Binding("slash", "toggle_view", "All/Prop",show=True),
+        Binding("q",     "quit",          "Quit",    show=True),
+        Binding("t",     "tick",          "Tick",    show=True),
+        Binding("a",     "vote_aye",      "Aye",     show=True),
+        Binding("n",     "vote_nay",      "Nay",     show=True),
+        Binding("s",     "second",        "Second",  show=True),
+        Binding("r",     "ratify",        "Ratify",  show=True),
+        Binding("slash", "toggle_view",   "All/Prop",show=True),
+        Binding("p",     "hashtag_stats", "Stats",   show=True),
     ]
 
     show_all = reactive(False)
@@ -286,6 +459,9 @@ class ZsynodApp(App):
                 self.last_seen_seq = e.seq
         else:
             self._show_proposal_thread(self.selected_pid)
+
+    def action_hashtag_stats(self) -> None:
+        self.push_screen(HashtagStatsScreen())
 
     def _cast_vote(self, vote: str) -> None:
         pid = self.selected_pid
