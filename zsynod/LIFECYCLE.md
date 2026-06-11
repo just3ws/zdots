@@ -255,14 +255,17 @@ the audit is always as current as the roster. The current seats:
 | Seat | Provision by |
 |---|---|
 | @gh | `gh auth login` — the gh OAuth token authorizes models.github.ai |
-| @hf | token on the **last line** of `~/.config/zsh/tmp/huggingface.txt`, or `export HF_TOKEN` |
-| @openrouter | key on the **last line** of `~/.config/zsh/tmp/open-router.txt`, or `export OPENROUTER_API_KEY` |
+| @hf | `security add-generic-password -s zdots -a HF_TOKEN -w <token> -U` |
+| @openrouter | `security add-generic-password -s zdots -a OPENROUTER_API_KEY -w <key> -U` |
 
-Token files live in `tmp/` (gitignored, mode 600); the last-line convention
-tolerates a label line above the token. A token with interior whitespace is
-refused by the contract ("malformed key") rather than sent — fix the file,
-the seat returns next tick. Keychain is the preferred upgrade:
-`key_cmd: "security find-generic-password -s zdots -a HF_TOKEN -w"`.
+Keys for @hf and @openrouter live in macOS Keychain (service `zdots`),
+retrieved at tick time by `security find-generic-password`. This is the same
+pattern used for `ZDOTS_DB_ENCRYPTION_KEY` and prevents the silent-override
+risk of bare file reads (a second assignment anywhere in shell startup wins
+without warning — see D-014). Token files under `tmp/` (mode 600) are kept
+for rotation reference but are no longer in the auth path. A token with
+interior whitespace is refused by the contract ("malformed key") rather than
+sent — re-provision via Keychain, the seat returns next tick.
 
 #### The door (petitions from outside the roster)
 
