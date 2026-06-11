@@ -1,3 +1,4 @@
+import os
 import sys
 import argparse
 from pathlib import Path
@@ -63,14 +64,18 @@ class ZsynodApp(App):
     def on_mount(self) -> None:
         self.tracer = setup_otel("zsynod-py-tui")
         self.ledger = LedgerManager(self.args.ledger)
-        self.agent = ZsynodAgent("pi", endpoint=self.args.endpoint)
+        self.agents = [
+            ZsynodAgent("pi", endpoint=self.args.endpoint),
+            ZsynodAgent("claude"),  # haiku default; skipped gracefully if ANTHROPIC_API_KEY unset
+        ]
         self.last_seen_seq = -1
         self.current_thought = ""
 
+        claude_status = "[green]✓[/green]" if os.environ.get("ANTHROPIC_API_KEY") else "[red]✗ no key[/red]"
         self.log_message(f"Welcome to [b][cyan]Zsynod-Py[/cyan][/b] Cockpit.")
-        self.log_message(f"[dim]Endpoint: {self.agent.endpoint}[/dim]")
+        self.log_message(f"[dim]Local: {self.agents[0].endpoint} · Claude: {claude_status}[/dim]")
         self.refresh_data()
-        self.set_interval(3.0, self.refresh_data) # Faster polling for live feel
+        self.set_interval(3.0, self.refresh_data)
 
     def log_message(self, message: str) -> None:
         self.query_one("#discussion-log", RichLog).write(message)
@@ -78,40 +83,48 @@ class ZsynodApp(App):
     def action_tick(self) -> None:
         self.run_worker(self.perform_tick, thread=True)
 
-    def update_thinking(self, token: str) -> None:
+    def update_thinking(self, token: str, actor: str = "pi") -> None:
         self.current_thought += token
         box = self.query_one("#thinking-box", Static)
         box.display = True
-        box.update(f"[i]pi thinking:[/i] {self.current_thought}█")
+        box.update(f"[i]{actor} thinking:[/i] {self.current_thought}█")
+
+    def _clear_thinking(self) -> None:
+        self.current_thought = ""
+        box = self.query_one("#thinking-box", Static)
+        box.display = False
+        box.update("")
 
     def perform_tick(self) -> None:
         with self.tracer.start_as_current_span("deliberation_tick") as span:
-            self.current_thought = ""
             discussion = self.ledger.get_discussion(limit=200)
             proposals = self.ledger.get_proposals()
             topic = proposals[0].data["title"] if proposals else "General status"
-            
             span.set_attribute("zsynod.topic", topic)
-            
-            # Use call_from_thread to safely update the UI from the background worker
-            def token_cb(token):
-                self.call_from_thread(self.update_thinking, token)
 
-            remark = self.agent.deliberate(
-                topic, 
-                discussion, 
-                progress_callback=self.log_message,
-                token_callback=token_cb
-            )
-            
-            # Clear thinking box
-            def finalize():
-                box = self.query_one("#thinking-box", Static)
-                box.display = False
-                box.update("")
-            
-            self.call_from_thread(finalize)
-            self.ledger.append("pi", "speak", {"remark": remark})
+            for agent in self.agents:
+                self.current_thought = ""
+                actor = agent.actor_id
+
+                def token_cb(token, a=actor):
+                    self.call_from_thread(self.update_thinking, token, a)
+
+                try:
+                    remark = agent.deliberate(
+                        topic,
+                        discussion,
+                        progress_callback=self.log_message,
+                        token_callback=token_cb,
+                    )
+                    self.ledger.append(actor, "speak", {"remark": remark})
+                    discussion = self.ledger.get_discussion(limit=200)
+                except Exception as e:
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[yellow]⚠ {actor} skipped:[/yellow] [dim]{e}[/dim]"
+                    )
+                finally:
+                    self.call_from_thread(self._clear_thinking)
 
     def refresh_data(self) -> None:
         self.ledger.load()
