@@ -46,6 +46,11 @@
 #   zsynod repl [--ticks N]              hybrid follow-along: auto-ticks (local pi),
 #       renders the delta, pauses when something needs you (vote/answer/apply or a
 #       pi-suggested proposal); bounded by --ticks (default 10). No tmux.
+#   zsynod ui                            the cockpit: full-screen Textual TUI over the
+#       Python ledger — auto-ticks, dials, herald briefings, OTel-instrumented.
+#       Audits seat keys at launch; keyless seats go dormant, the forum proceeds.
+#   zsynod keys                          audit seat API keys from the roster — status
+#       and provisioning hints only, never values. Exit 1 if any seat lacks a key.
 #   zsynod verify                        re-walk the hash chain (integrity check)
 #   zsynod convene                       open the tmux forum room (one at a time)
 #   zsynod attach                        attach to the convened room
@@ -1703,6 +1708,62 @@ cmd_watch() {  # live status loop for the floor window
   done
 }
 
+# ── the cockpit (Python TUI) and seat-key audit ──────────────────────────────
+cmd_keys() {  # derived from the roster, never hardcoded: new keyed seats
+  # appear here automatically. Prints status + provisioning hints; key
+  # values never touch stdout (or anything else).
+  command -v python3 >/dev/null 2>&1 || _die "python3 is required"
+  [[ -f "$DIR/members.json" ]] || _die "no roster at $DIR/members.json"
+  python3 - "$DIR/members.json" <<'PY'
+import json, os, subprocess, sys
+
+members = json.load(open(sys.argv[1]))["members"]
+keyed = [m for m in members if m.get("key_env") or m.get("key_cmd")]
+if not keyed:
+    print("no keyed seats in the roster")
+    raise SystemExit(0)
+
+missing = 0
+for m in keyed:
+    env, cmd = m.get("key_env"), m.get("key_cmd")
+    key, src = "", ""
+    if env and os.environ.get(env):
+        key, src = os.environ[env], f"${env}"
+    elif cmd:
+        try:
+            key = subprocess.run(cmd, shell=True, capture_output=True,
+                                 text=True, timeout=10).stdout.strip()
+            src = f"`{cmd}`"
+        except Exception:
+            key = ""
+    if key and not any(c.isspace() for c in key):
+        print(f"  ✓ @{m['id']:<11} key resolves via {src}")
+    elif key:
+        missing += 1
+        print(f"  ✗ @{m['id']:<11} MALFORMED key via {src} — token must be "
+              f"a single whitespace-free line (seat will go dormant)")
+    else:
+        missing += 1
+        hint = m.get("key_hint") or (f"export {env}" if env else f"make `{cmd}` print a token")
+        print(f"  ✗ @{m['id']:<11} no key — {hint}")
+
+print()
+print(f"{len(keyed) - missing}/{len(keyed)} keyed seats ready — "
+      "keyless seats sit dormant; the forum proceeds without them")
+raise SystemExit(1 if missing else 0)
+PY
+}
+
+cmd_ui() {  # the zdots command for the zsynod system: the Textual cockpit
+  command -v python3 >/dev/null 2>&1 || _die "python3 is required for the cockpit"
+  python3 -c 'import textual' 2>/dev/null || _die "textual not installed — pip install textual"
+  [[ -f "$DIR/ledger.py.jsonl" ]] || _die "no Python ledger at $DIR/ledger.py.jsonl — run: zsynod-migrate"
+  printf '%sseat keys:%s\n' "$B" "$RST"
+  cmd_keys || true
+  printf '\n'
+  exec python3 "$ZDOTDIR/bin/zsynod_tui.py"
+}
+
 # ── tmux interface suite (the api; never type raw tmux) ───────────────────────
 _has_room() { tmux has-session -t "$SESSION" 2>/dev/null; }
 cmd_attach() {
@@ -1849,6 +1910,8 @@ case "$SUB" in
   answer)   cmd_answer "${POS[1]:-}" "${POS[2]:-}" ;;
   console)  cmd_console ;;
   repl)     cmd_repl ;;
+  ui)       cmd_ui ;;
+  keys)     cmd_keys ;;
   verify)   cmd_verify ;;
   convene)  cmd_convene ;;
   attach)   cmd_attach ;;

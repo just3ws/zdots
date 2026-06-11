@@ -60,6 +60,24 @@ DIALS: dict[str, dict] = {
                                "written back to the knowledge base as a lesson "
                                "via zdots-ctx add-lesson; 0 = forum keeps no "
                                "external minutes"},
+    "blind_votes":    {"default": 1,    "min": 0,   "max": 1,   "step": 1,
+                       "help": "anti-cascade: members who haven't voted on a "
+                               "topic see the discussion but not others' votes "
+                               "or the tally — argue with the thread, not the "
+                               "scoreboard"},
+    "advocate":       {"default": 1,    "min": 0,   "max": 1,   "step": 1,
+                       "help": "advocatus diaboli: one seat per proposal "
+                               "(deterministic rotation) must state the "
+                               "strongest case against before voting"},
+    "unanimity_action": {"default": 1,  "min": 0,   "max": 2,   "step": 1,
+                       "help": "when a proposal reaches quorum with zero nays: "
+                               "0 = commit silently, 1 = commit + flag in the "
+                               "minutes, 2 = hold one round for a second "
+                               "reading before committing (Sanhedrin rule)"},
+    "digest_every":   {"default": 3,    "min": 0,   "max": 20,  "step": 1,
+                       "help": "herald duty: every N ticks the local model "
+                               "writes a plain-English briefing of forum state "
+                               "to the log and zsynod/minutes.md; 0 = off"},
 }
 
 
@@ -155,9 +173,15 @@ _DIRECTIVE_RE = re.compile(r"^\s*>\s*(vote|second|propose|handoff|pass)\b\s*(.*)
 
 def _parse_one_directive(verb: str, rest: str) -> Optional[tuple]:
     if verb == "vote":
-        m = re.match(r"(?i)^(p\d+)\s+(aye|nay|abstain)\b", rest)
+        m = re.match(r"(?i)^(p\d+)\s+(aye|nay|abstain)\b[\s:—–-]*(.*)$", rest)
         if m:
-            return ("vote", {"proposal": m.group(1).upper(), "vote": m.group(2).lower()})
+            data = {"proposal": m.group(1).upper(), "vote": m.group(2).lower()}
+            # An aye should cost a sentence, same as a nay. The reason rides
+            # the vote entry as `note`; bare votes are recorded as such in the
+            # decision lesson — visibility is the enforcement.
+            if m.group(3).strip():
+                data["note"] = m.group(3).strip()
+            return ("vote", data)
     elif verb == "second":
         m = re.match(r"(?i)^(p\d+)\b", rest)
         if m:
@@ -178,7 +202,7 @@ def parse_directives(remark: str) -> tuple[str, list[tuple[str, dict]]]:
     """Split agent output into clean speech and structured ledger intents.
 
     Grammar — one directive per line, line must start with '>':
-        >vote P# aye|nay|abstain
+        >vote P# aye|nay|abstain [reason]
         >second P#
         >propose <title>
         >handoff @member <task>
@@ -201,20 +225,52 @@ def parse_directives(remark: str) -> tuple[str, list[tuple[str, dict]]]:
 
 
 # 8 trigrams + yin-yang + 64 I Ching hexagrams (U+4DC0–U+4DFF).
-# One glyph is rolled per tick and prepended to every agent's prompt —
+# One glyph is rolled per tick and brackets every agent's prompt —
 # same symbol across all voices, nudging probability without coordination.
 TAOIST_GLYPHS: list[str] = (
     ["☯", "☰", "☱", "☲", "☳", "☴", "☵", "☶", "☷"]
     + [chr(0x4DC0 + i) for i in range(64)]
 )
 
+# Emoji carry the same property the hexagrams do: a single low-cost token
+# dense with meaning a model already knows. Archetypes only — the eight
+# moon phases mirror the eight trigrams, the rest are Taoist staples
+# (water that yields, the butterfly of Zhuangzi's dream). Glyphs the forum
+# already uses as markers (⚡ event, ⚖ second reading, 😈 advocate,
+# 💭/📚 free thought, 📜 herald) are excluded — the seed must never read
+# as protocol.
+EMOJI_GLYPHS: list[str] = [
+    "🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘",   # the moon's eight phases
+    "🌊", "🔥", "🌱", "🍃", "🌀", "🐉", "🦋", "🪞",   # flow, change, growth, dream
+    "🔑", "⏳", "🧭", "🪨", "🦉", "🪶",                # way-finding, stillness, wisdom
+]
+
+GLYPH_POOL: list[str] = TAOIST_GLYPHS + EMOJI_GLYPHS
+
 
 def tick_seed() -> str:
-    """Return a random Taoist glyph to seed a tick round."""
-    return random.choice(TAOIST_GLYPHS)
+    """Return a random glyph — Taoist or archetypal emoji — to seed a tick."""
+    return random.choice(GLYPH_POOL)
+
+
+def devils_advocate(pid: str, roster: List[str]) -> Optional[str]:
+    """The advocatus diaboli seat for a proposal — deterministic rotation so
+    every member knows who holds the duty without coordination. The Church
+    abolished the office in 1983 and canonizations went up twentyfold; this
+    forum went 142–1. One seat per proposal must argue against."""
+    if not roster:
+        return None
+    num = int(re.sub(r"\D", "", pid) or 0)
+    return sorted(roster)[num % len(roster)]
 
 # Stable session identity for Gemini — UUID5 derived from name, same value every tick.
 _GEMINI_SESSION_ID = str(uuid.uuid5(uuid.NAMESPACE_DNS, "zsynod-gemini"))
+
+
+class LedgerIntegrityError(RuntimeError):
+    """The hash chain failed verification on load. A ratchet that cannot
+    detect slipping backward is a wheel — this is the pawl. Raised loud:
+    a forum must not deliberate on a ledger it cannot trust."""
 
 
 class LedgerEntry(BaseModel):
@@ -323,16 +379,81 @@ class KnowledgeBase:
             return False
 
 
+def format_decision_lesson(rec: dict, minute: str = "") -> str:
+    """The scribe's lesson body — Deep Thought's lesson applied: a decision
+    without its question is a 42. The deterministic record (verdict, proposer,
+    dissent with stated reasons) always lands; the model-extracted
+    QUESTION/ALTERNATIVES lines ride along when the local model was reachable.
+    Unanimity is recorded as a fact — in a forum with a sycophancy history,
+    no dissent is itself a signal."""
+    t = rec["tally"]
+    lines = [
+        f"zsynod ratified {rec['pid']} \"{rec['title']}\" "
+        f"(aye={t['aye']} nay={t['nay']} abs={t['abstain']}), "
+        f"proposed by @{rec['proposer']}.",
+    ]
+    if minute:
+        lines.append(minute.strip())
+    elif rec["question"]:
+        lines.append(f"QUESTION: {rec['question']}")
+    if rec["dissent"]:
+        for d in rec["dissent"]:
+            reason = d["note"] or d["remark"] or "no reason recorded"
+            lines.append(f"DISSENT: @{d['actor']} ({d['vote']}): {reason[:160]}")
+    else:
+        unanimous = "DISSENT: none — unanimous."
+        if rec.get("second_reading"):
+            unanimous += " Survived a second reading."
+        lines.append(unanimous)
+    if rec.get("assent"):
+        parts = [f"@{a['actor']} — {a['note'][:80]}" if a["note"]
+                 else f"@{a['actor']} — no reason given"
+                 for a in rec["assent"]]
+        lines.append("ASSENT: " + "; ".join(parts))
+    return "\n".join(lines)
+
+
 class ZsynodAgent:
-    def __init__(self, actor_id: str, endpoint: str = None, model: str = None):
+    """One seat in the forum. The member contract: callers see `deliberate()`
+    (and the clerk duties `summarize`/`minute`/`herald`); which system answers
+    — local llama.cpp, a vendor CLI, or any OpenAI-compatible HTTP endpoint —
+    is resolved once at seating time and never leaks into the calling code.
+    Recruiting a new member is a members.json row, not a code change.
+
+    Backends:
+        local   llama.cpp at `endpoint` (sampling dials apply)
+        cli     subprocess adapter — `command` ∈ {claude, gemini, codex}
+        openai  any /chat/completions endpoint: groq, mistral, GitHub Models,
+                HuggingFace router, OpenRouter, … (`base_url`, `model`,
+                API key read from the environment via `key_env` — never from
+                a file, and never logged)
+    """
+
+    def __init__(self, actor_id: str, endpoint: str = None, model: str = None,
+                 backend: str = None, base_url: str = None,
+                 key_env: str = None, key_cmd: str = None, command: str = None):
         self.actor_id = actor_id
         self.endpoint = (endpoint or os.environ.get("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")).rstrip("/")
         self.model = model  # None = per-actor default; override to force a specific model
+        self.base_url = (base_url or "").rstrip("/")
+        self.key_env = key_env
+        self.key_cmd = key_cmd      # fallback: shell command that prints the key
+        self._key_cache = ""        # key_cmd result, fetched once per seat
+        self.command = command or actor_id
+        # Legacy seats keep identity-based dispatch when no backend declared.
+        if backend is None:
+            backend = "cli" if actor_id in ("claude", "gemini", "codex") else "local"
+        self.backend = backend
 
-    def _build_context(self, recent_discussion: List[LedgerEntry], depth: int = 5) -> str:
+    def _build_context(self, recent_discussion: List[LedgerEntry], depth: int = 5,
+                       blind_for: str = None) -> str:
         # Last few entries only — forces compression, keeps the prompt tight.
+        # blind_for: anti-cascade — that member sees no one else's votes
+        # (their own are kept so they remember where they stand).
         lines = []
         for e in recent_discussion[-depth:]:
+            if e.type in ("vote", "second") and blind_for and e.actor != blind_for:
+                continue
             if "remark" in e.data:
                 lines.append(f"@{e.actor}: {e.data['remark']}")
             elif e.type == "propose":
@@ -346,8 +467,12 @@ class ZsynodAgent:
     def _deliberate_local(self, system_prompt: str, user_prompt: str,
                           token_callback=None, timeout: float = None,
                           temperature: float = None, max_tokens: int = None) -> str:
+        """OpenAI-compatible /chat/completions transport. Serves two backends:
+        `local` (llama.cpp at self.endpoint, no auth) and `openai` (any compat
+        vendor at self.base_url, bearer key from the env var named by
+        self.key_env — the key never touches a file read or a log line)."""
         t = timeout or LOCAL_TICK_TIMEOUT
-        payload = json.dumps({
+        body: dict[str, Any] = {
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -355,12 +480,49 @@ class ZsynodAgent:
             "stream": token_callback is not None,
             "max_tokens": int(max_tokens or 220),
             "temperature": temperature if temperature is not None else 0.7,
-        }).encode()
+        }
+        if self.model:
+            body["model"] = self.model
+        headers = {"Content-Type": "application/json"}
+        if self.backend == "openai":
+            url = f"{self.base_url}/chat/completions"
+            # Key resolution: env var first (operator override / rotation),
+            # then key_cmd — a shell command that prints the key (gh auth
+            # token, security find-generic-password …), fetched once per
+            # seat and held in memory only; never logged, never written.
+            # Neither declared → keyless loopback server (apfel, ollama).
+            if self.key_env or self.key_cmd:
+                key = os.environ.get(self.key_env, "") if self.key_env else ""
+                if not key and self.key_cmd:
+                    if not self._key_cache:
+                        try:
+                            self._key_cache = subprocess.run(
+                                self.key_cmd, shell=True, capture_output=True,
+                                text=True, timeout=10,
+                            ).stdout.strip()
+                        except (subprocess.TimeoutExpired, OSError):
+                            self._key_cache = ""
+                    key = self._key_cache
+                src = self.key_env or f"`{self.key_cmd}`"
+                if not key:
+                    raise RuntimeError(f"{src} yielded no key — seat dormant")
+                # A key with interior whitespace (multi-line file, label
+                # prefix) would be embedded verbatim in http.client's
+                # "Invalid header value" ValueError — and the TUI logs
+                # str(e). Refuse it here, without quoting the key.
+                if any(c.isspace() for c in key):
+                    self._key_cache = ""
+                    raise RuntimeError(
+                        f"{src} yielded a malformed key (contains whitespace"
+                        " — multi-line file?) — seat dormant")
+                headers["Authorization"] = f"Bearer {key}"
+        else:
+            url = f"{self.endpoint}/v1/chat/completions"
 
         req = urllib.request.Request(
-            f"{self.endpoint}/v1/chat/completions",
-            data=payload,
-            headers={"Content-Type": "application/json"},
+            url,
+            data=json.dumps(body).encode(),
+            headers=headers,
             method="POST",
         )
 
@@ -506,14 +668,72 @@ class ZsynodAgent:
         )
         return self._deliberate_local(system_prompt, user_prompt)
 
+    def minute(self, pid: str, title: str,
+               discussion: List[LedgerEntry], question: str = "") -> str:
+        """ADR extraction for the scribe: the question behind the decision
+        and the alternatives that lost. Neutral recorder voice, local model
+        only — callers degrade to the deterministic record when this raises."""
+        context_str = self._build_context(discussion, depth=12)
+        system_prompt = (
+            "Neutral recorder. From the thread, output exactly two lines:\n"
+            "QUESTION: the problem this proposal answered, one sentence.\n"
+            "ALTERNATIVES: competing approaches raised and not adopted, "
+            "comma-separated; 'none raised' if the thread offered none.\n"
+            "No opinion. No hashtags. ≤90 tokens."
+        )
+        hint = f"Proposer's framing: {question}\n" if question else ""
+        user_prompt = (f"{pid}: {title}\n{hint}Thread:\n{context_str}\n"
+                       "Write the two lines.")
+        return self._deliberate_local(system_prompt, user_prompt)
+
+    def herald(self, facts: str) -> str:
+        """The principal's briefing: forum state in plain, humane English so a
+        person can follow along without reading the ledger. Local model only —
+        a clerk duty, not a deliberation voice."""
+        system_prompt = (
+            "You are the forum herald. From the fact sheet, write a short "
+            "plain-English briefing for the principal: what is being debated, "
+            "who is pushing what, where the votes stand, and any warning "
+            "signs (unanimity streaks, stuck topics, members looping). "
+            "Conversational, readable, no jargon, no hashtags, no directives. "
+            "≤180 tokens."
+        )
+        return self._deliberate_local(system_prompt, f"Fact sheet:\n{facts}\nBriefing:")
+
+    def complete(self, system_prompt: str, user_prompt: str,
+                 token_callback=None, suggestion_callback=None,
+                 timeout: float = None, temperature: float = None,
+                 max_tokens: int = None) -> str:
+        """The member contract: prompts in, remark out. The backend was bound
+        at seating time; callers never branch on who is behind the seat."""
+        if self.backend == "cli":
+            if self.command == "claude":
+                return self._deliberate_claude(system_prompt, user_prompt,
+                                               token_callback, suggestion_callback, timeout)
+            cli = {"gemini": self._deliberate_gemini, "codex": self._deliberate_codex}
+            fn = cli.get(self.command)
+            if fn is None:
+                raise RuntimeError(f"no CLI adapter for '{self.command}'")
+            return fn(system_prompt, user_prompt, token_callback, timeout)
+        # local llama.cpp and openai-compat share one transport; only the
+        # local path honors the sampling dials (vendors get their defaults).
+        return self._deliberate_local(system_prompt, user_prompt, token_callback,
+                                      timeout, temperature=temperature,
+                                      max_tokens=max_tokens)
+
     def deliberate(self, topic: str, recent_discussion: List[LedgerEntry],
                    progress_callback=None, token_callback=None, suggestion_callback=None,
                    glyph: str = "", timeout: float = None,
                    members: List[str] = None, summary: str = "",
                    trend: str = "", event: str = "",
                    temperature: float = None, max_tokens: int = None,
-                   context_depth: int = 5, kb_note: str = "") -> str:
-        context_str = self._build_context(recent_discussion, depth=context_depth)
+                   context_depth: int = 5, kb_note: str = "",
+                   blind: bool = False, advocate: bool = False) -> str:
+        # blind: the member hasn't voted on this topic yet — strip everyone
+        # else's votes from the context so the position comes from the
+        # arguments, not the running tally (information-cascade prevention).
+        context_str = self._build_context(recent_discussion, depth=context_depth,
+                                          blind_for=self.actor_id if blind else None)
         handles = " ".join(f"@{m}" for m in (members or [])) or "@mike @pi @aider @opencode @claude @gemini @codex"
         system_prompt = (
             f"You are @{self.actor_id} in the zsynod deliberation forum. "
@@ -522,36 +742,46 @@ class ZsynodAgent:
             f"You may @mention members by handle. "
             f"A line starting with ⚡ is the event you are responding to — address it first. "
             f"End with exactly one directive line starting with '>': "
-            f"'>vote P# aye|nay|abstain'  '>second P#'  '>propose <title>'  "
-            f"'>handoff @member <task>'  '>pass'. "
+            f"'>vote P# aye|nay|abstain <one-line reason>'  '>second P#'  "
+            f"'>propose <title>'  '>handoff @member <task>'  '>pass'. "
+            f"Every vote carries its reason — an unreasoned aye is recorded as such. "
             f"Vote when you hold a position — speech alone moves no tally; "
             f"'>pass' only if you truly have nothing. Few word do trick."
         )
-        seed = f"{glyph} " if glyph else ""
+        if advocate:
+            system_prompt += (
+                " For THIS topic you hold the devil's advocate seat "
+                "(advocatus diaboli): before any vote you must state the "
+                "strongest case AGAINST the proposal. You may still vote aye "
+                "— but only after your objection is on the record."
+            )
         trend_line = f"{trend}\n" if trend else ""
         event_line = f"⚡ {event}\n" if event else ""
         pinned = f"[STATE] {summary}\n" if summary else ""
         kb_line = f"[KB] {kb_note}\n" if kb_note else ""
-        user_prompt = f"{seed}{trend_line}{event_line}Topic: {topic}\n{pinned}{kb_line}{context_str}\n@{self.actor_id}:"
+        body = f"{trend_line}{event_line}Topic: {topic}\n{pinned}{kb_line}{context_str}\n@{self.actor_id}:"
+        # The tick glyph BRACKETS the full dispatch — the very first and
+        # very last character the member receives. The system prompt is the
+        # long static prefix that provider caches ride on, so the glyph must
+        # lead IT, not the user message; the user message carries the close.
+        # CLI seats join system+user into one prompt, chat seats send them
+        # as a messages array — either way the payload opens and closes with
+        # the round's glyph.
+        if glyph:
+            system_prompt = f"{glyph} {system_prompt}"
+            user_prompt = f"{glyph} {body}\n{glyph}"
+        else:
+            user_prompt = body
 
         labels = {"claude": "Claude CLI", "gemini": "Gemini CLI", "codex": "Codex CLI"}
         if progress_callback:
-            progress_callback(f"[dim]Connecting to {labels.get(self.actor_id, self.endpoint)}...[/dim]")
+            progress_callback(f"[dim]Connecting to {labels.get(self.command, self.base_url or self.endpoint)}...[/dim]")
 
-        if self.actor_id == "claude":
-            return self._deliberate_claude(system_prompt, user_prompt, token_callback, suggestion_callback, timeout)
-
-        dispatch = {
-            "gemini": self._deliberate_gemini,
-            "codex":  self._deliberate_codex,
-        }
-        fn = dispatch.get(self.actor_id)
-        if fn:
-            return fn(system_prompt, user_prompt, token_callback, timeout)
-        # Local llama.cpp path is the only backend with sampling dials.
-        return self._deliberate_local(system_prompt, user_prompt, token_callback,
-                                      timeout, temperature=temperature,
-                                      max_tokens=max_tokens)
+        return self.complete(system_prompt, user_prompt,
+                             token_callback=token_callback,
+                             suggestion_callback=suggestion_callback,
+                             timeout=timeout, temperature=temperature,
+                             max_tokens=max_tokens)
 
 
 class LedgerManager:
@@ -561,12 +791,31 @@ class LedgerManager:
         self.load()
 
     def load(self):
+        """Load the ledger, verifying the hash chain as it is walked — every
+        entry's `prev` must equal the previous entry's hash, and every stored
+        hash must recompute from its own raw line. Any break raises
+        LedgerIntegrityError naming the seq: append-only is a promise the
+        pawl checks, not one it assumes."""
         self.entries = []
-        if self.path.exists():
-            with open(self.path, "r") as f:
-                for line in f:
-                    if line.strip():
-                        self.entries.append(LedgerEntry.model_validate_json(line))
+        if not self.path.exists():
+            return
+        prev = "GENESIS"
+        with open(self.path, "r") as f:
+            for lineno, line in enumerate(f, 1):
+                if not line.strip():
+                    continue
+                entry = LedgerEntry.model_validate_json(line)
+                if entry.prev != prev:
+                    raise LedgerIntegrityError(
+                        f"chain broken at seq {entry.seq} (line {lineno}): "
+                        f"prev {entry.prev[:12]}… does not match the prior "
+                        f"entry's hash {prev[:12]}…")
+                if entry.hash != entry.compute_hash(raw_line=line):
+                    raise LedgerIntegrityError(
+                        f"entry altered at seq {entry.seq} (line {lineno}): "
+                        f"stored hash does not recompute from its content")
+                prev = entry.hash
+                self.entries.append(entry)
 
     def get_discussion(self, limit: int = 100) -> List[LedgerEntry]:
         return self.entries[-limit:]
@@ -629,27 +878,91 @@ class LedgerManager:
             return "STUCK"
         return "ACTIVE"
 
-    def commit_on_quorum(self, quorum: int) -> List[str]:
-        """Append a commit (by: quorum, actor: synod) for every open proposal
-        at or over quorum. Idempotent — committed proposals leave get_proposals().
-        Returns the newly committed proposal IDs."""
-        newly = []
+    def pending_second_reading(self, pid: str) -> bool:
+        """A second_reading entry exists and the proposal is still open —
+        the forum owes it one adversarial re-read before commit."""
+        return any(e.type == "second_reading" and e.data.get("proposal") == pid
+                   for e in self.entries)
+
+    def commit_on_quorum(self, quorum: int,
+                         unanimity_action: int = 0) -> tuple[List[str], List[str]]:
+        """Recognize quorum for every open proposal. Returns (committed, held).
+
+        unanimity_action 2 is the Sanhedrin rule: a proposal that reaches
+        quorum with ZERO nays is held one round — a second_reading entry is
+        appended instead of the commit, the schedulers surface an adversarial
+        re-read event, and only on the next recognition pass does it commit
+        (whatever the re-read did to the tally, quorum permitting)."""
+        newly, held = [], []
         for p in self.get_proposals():
             pid = p.data["id"]
             t = self.get_tally(pid)
-            if t["aye"] >= quorum:
-                self.append("synod", "commit", {
-                    "proposal": pid, "by": "quorum",
-                    "note": f"aye={t['aye']} >= quorum={quorum}",
+            if t["aye"] < quorum:
+                continue
+            if (unanimity_action >= 2 and t["nay"] == 0
+                    and not self.pending_second_reading(pid)):
+                self.append("synod", "second_reading", {
+                    "proposal": pid,
+                    "note": f"unanimous at quorum (aye={t['aye']}) — held for "
+                            f"second reading before commit",
                 })
-                newly.append(pid)
-        return newly
+                held.append(pid)
+                continue
+            self.append("synod", "commit", {
+                "proposal": pid, "by": "quorum",
+                "note": f"aye={t['aye']} >= quorum={quorum}",
+            })
+            newly.append(pid)
+        return newly, held
 
     def get_title(self, pid: str) -> str:
         for e in self.entries:
             if e.type == "propose" and e.data.get("id") == pid:
                 return e.data.get("title", pid)
         return pid
+
+    def get_decision_record(self, pid: str) -> dict:
+        """ADR material for the scribe, derived from the chain: the question
+        the proposal answered, who asked it, and who dissented with what
+        stated reason. A decision recorded without these is just a 42."""
+        title, body, proposer = pid, "", "?"
+        for e in self.entries:
+            if e.type == "propose" and e.data.get("id") == pid:
+                title = e.data.get("title", pid)
+                body = e.data.get("body", "")
+                proposer = e.actor
+                break
+        tally = self.get_tally(pid)
+        thread = self.get_proposal_discussion(pid)
+        # The question: the explicit body if one was given, else the
+        # proposer's first remark in the thread — the closest thing the
+        # chain holds to a why.
+        question = body
+        if not question:
+            for e in thread:
+                if e.actor == proposer and e.data.get("remark"):
+                    question = e.data["remark"]
+                    break
+        # Dissent: every non-aye voter, their vote note, and their last
+        # remark in the thread — the reasons, not just the count.
+        # Assent: aye voters with whatever reason they gave; a bare aye is
+        # recorded as bare — the cost of a free aye is being seen giving one.
+        dissent, assent = [], []
+        for actor, vote in sorted(tally["votes"].items()):
+            note = next((e.data.get("note", "") for e in reversed(self.entries)
+                         if e.type == "vote" and e.actor == actor
+                         and e.data.get("proposal") == pid), "")
+            if vote == "aye":
+                assent.append({"actor": actor, "note": note})
+                continue
+            remark = next((e.data["remark"] for e in reversed(thread)
+                           if e.actor == actor and e.data.get("remark")), "")
+            dissent.append({"actor": actor, "vote": vote,
+                            "note": note, "remark": remark})
+        return {"pid": pid, "title": title, "proposer": proposer,
+                "question": question, "tally": tally, "dissent": dissent,
+                "assent": assent,
+                "second_reading": self.pending_second_reading(pid)}
 
     def get_subscriptions(self, member: str) -> set:
         """Topics a member is invested in: proposed, voted, seconded, or spoke
@@ -731,6 +1044,9 @@ class LedgerManager:
     def topic_event(self, member: str, pid: str, quorum: int) -> str:
         """Event line for a member on a FIXED topic (operator-focused tick)."""
         t = self.get_tally(pid)
+        if t["state"] == "open" and self.pending_second_reading(pid):
+            return (f"⚖ second reading: {pid} passed without a single nay — "
+                    f"find what everyone missed, or confirm your vote with a reason")
         if t["state"] == "open" and t["aye"] == quorum - 1 and member not in t["votes"]:
             return f"🗳 {pid} is one aye from quorum ({t['aye']}/{quorum}) — your vote decides"
         if self.get_lifecycle_state(pid, quorum) == "STUCK":
@@ -776,6 +1092,14 @@ class LedgerManager:
                 if pid is None or pid in open_pids:
                     quote = e.data["remark"][:80]
                     return (f'📥 @{e.actor} mentioned you: "{quote}"', pid)
+
+        # ⚖ second reading outranks everything topic-driven: the forum owes
+        # an adversarial re-read before an unanimous proposal may commit.
+        for pid in open_pids:
+            if self.pending_second_reading(pid):
+                return (f"⚖ second reading: {pid} passed without a single nay "
+                        f"— find what everyone missed, or confirm your vote "
+                        f"with a reason", pid)
 
         subs = self.get_subscriptions(member)
         decisive = []
@@ -949,6 +1273,40 @@ class LedgerManager:
             if e.type == "summary" and e.data.get("proposal") == pid:
                 return e.data.get("text", "")
         return ""
+
+    def get_herald_facts(self, quorum: int, recent: int = 6) -> str:
+        """Deterministic fact sheet the herald narrates from. Plain text —
+        everything derived from the chain, nothing the model must invent."""
+        lines: list[str] = []
+        for p in self.get_proposals():
+            pid = p.data["id"]
+            t = self.get_tally(pid)
+            votes = " ".join(f"@{a}:{v}" for a, v in sorted(t["votes"].items()))
+            lines.append(
+                f"{pid} \"{self.get_title(pid)[:60]}\" by @{p.actor} — "
+                f"{self.get_lifecycle_state(pid, quorum)}, "
+                f"aye={t['aye']} nay={t['nay']} abs={t['abstain']} "
+                f"(quorum {quorum}){' — ' + votes if votes else ''}"
+            )
+        ratified = [e for e in self.entries if e.type == "commit"][-3:]
+        for e in ratified:
+            rp = e.data.get("proposal", "?")
+            lines.append(f"RATIFIED {rp} \"{self.get_title(rp)[:60]}\" by {e.data.get('by', '?')}")
+        stats = self.get_member_stats()
+        for name, m in sorted(stats.items(), key=lambda kv: -kv[1]["speaks"]):
+            if name in ("synod", "summarizer", "recorder", "herald"):
+                continue
+            cast = m["aye"] + m["nay"] + m["abstain"]
+            rate = f"{m['aye'] / cast:.0%} aye" if cast else "no votes"
+            lines.append(
+                f"@{name}: {m['speaks']} remarks, {cast} votes ({rate}), "
+                f"{m['proposed']} proposed, {m['passes']} passes"
+            )
+        remarks = [e for e in self.entries
+                   if e.type in ("speak", "discuss") and e.data.get("remark")][-recent:]
+        for e in remarks:
+            lines.append(f"latest @{e.actor}: {e.data['remark'][:100]}")
+        return "\n".join(lines)
 
     def next_proposal_id(self) -> str:
         n = sum(1 for e in self.entries if e.type == "propose")
