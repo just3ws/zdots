@@ -343,3 +343,42 @@ the silence window repeatedly and starve auto-ticks; unthrottled for now,
 the operator is the rate limit. Mention-based response detection misses a
 reply that fails to @mention the petitioner — `heard` understates, never
 overstates.
+
+## D-014 — Key resolution: tmp files superseded by Keychain (2026-06-11)
+
+**DECISION:** API keys for @hf and @openrouter are stored in macOS Keychain
+under service `zdots` (accounts `HF_TOKEN` and `OPENROUTER_API_KEY`) and
+retrieved at tick time via `security find-generic-password`. The `key_cmd`
+fields in `members.json` now call Keychain directly; the tmp files
+(`~/.config/zsh/tmp/huggingface.txt`, `tmp/open-router.txt`) are retained
+for manual rotation reference but are no longer in the auth path.
+
+**QUESTION:** During a post-pull reconciliation, `.zdots.local` was found to
+have a hardcoded plaintext `ZDOTS_DB_ENCRYPTION_KEY` that silently overrode
+the Keychain lookup on the line above it. The same risk applies to any secret
+held in a bare file: a second assignment anywhere in the shell startup chain
+wins without warning. How should keyed zsynod seats store and retrieve their
+credentials to avoid this class of silent override and comply with the PHI
+posture already enforced for the DB encryption key?
+
+**ALTERNATIVES:** Keep tmp files, add a `gitleaks`/`secret-scan` pre-commit
+hook to catch literals (rejected as a detect-not-prevent approach — the
+plaintext override in `.zdots.local` would never appear in a commit since the
+file is gitignored); export keys into `.zdots.secrets` under `HF_TOKEN=` /
+`OPENROUTER_API_KEY=` (rejected: `.zdots.secrets` is the right home for
+cloud API keys on work machines, but the `key_cmd` mechanism already provides
+a per-seat resolution path that doesn't require sourcing a shared secrets
+file into every shell); leave `key_cmd` as `tail -n 1 <file>` and accept the
+file as the durable store (rejected: `security add-generic-password` is
+already the zdots-established pattern for the DB key, and file reads from
+a path in `ZDOTDIR` are one shell variable substitution away from leaking
+if `ZDOTDIR` is overridden or the file is world-readable in error).
+
+**DISSENT/RISKS:** Keychain entries survive machine wipes only if the login
+keychain is backed up; the tmp files remain as the recovery path.
+`security find-generic-password` requires Keychain access approval on the
+first call per app in strict macOS policy — on this machine the terminal
+has approved access; a headless agent context (launchd, cron) would need
+the `-T ""` flag set at add time (already applied). Key rotation requires
+re-running `security add-generic-password … -U`; the `key_hint` field in
+`members.json` carries the exact command.
