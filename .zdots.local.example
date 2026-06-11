@@ -66,10 +66,8 @@ ZDOTS_AI_MODE=local
 #   security add-generic-password \
 #     -a "$USER" -s "ZDOTS_DB_ENCRYPTION_KEY" \
 #     -w "$(openssl rand -hex 32)" -T "" ~/Library/Keychains/login.keychain-db
-# Then uncomment the block below to load it at shell startup:
-# export ZDOTS_DB_ENCRYPTION_KEY=$(
-#   security find-generic-password -a "$USER" -s "ZDOTS_DB_ENCRYPTION_KEY" -w 2>/dev/null
-# )
+# Then uncomment the line below to load it at shell startup:
+# export ZDOTS_DB_ENCRYPTION_KEY=$(zdots-keychain get ZDOTS_DB_ENCRYPTION_KEY 2>/dev/null)
 
 # Session capture — disabled by default. Requires:
 #   1. ZDOTS_DB_ENCRYPTION_KEY set above (Keychain-backed)
