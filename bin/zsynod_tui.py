@@ -1101,7 +1101,7 @@ class ZsynodApp(App):
 
     def _apply_directives(self, actor: str, directives: list,
                           open_pids: set, members: list,
-                          topic_pid: str = None) -> None:
+                          topic_pid: str = None, quorum: int = 1) -> None:
         """Semantic gate for parsed agent directives: a vote/second must target
         an open proposal, a handoff must name a seated member. Accepted
         directives become real ledger entries; rejected ones are logged so the
@@ -1113,6 +1113,61 @@ class ZsynodApp(App):
                     data = {**data, "proposal": topic_pid}
                 self.ledger.append(actor, "pass", data)
                 continue
+
+            # ── close: proposer closes their own topic; others cast a close vote ──
+            if dtype == "close":
+                pid = data.get("proposal", topic_pid)
+                if not pid or pid not in open_pids:
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[yellow]⚠ {actor} directive dropped:[/yellow] [dim]close — no open proposal {pid}[/dim]",
+                    )
+                    continue
+                proposer = next((e.actor for e in self.ledger.entries
+                                 if e.type == "propose" and e.data.get("id") == pid), None)
+                if actor == proposer:
+                    reason = data.get("reason", f"closed by proposer @{actor}")
+                    self.ledger.append("system", "close", {"proposal": pid, "reason": reason, "by": actor})
+                    open_pids.discard(pid)
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[bright_black]✂ {pid} closed by proposer @{_esc(actor)}[/bright_black]",
+                    )
+                else:
+                    self.ledger.append(actor, "close_vote", {"proposal": pid})
+                    close_votes = sum(1 for e in self.ledger.entries
+                                      if e.type == "close_vote" and e.data.get("proposal") == pid)
+                    if close_votes >= quorum:
+                        reason = data.get("reason", f"closed by consensus ({close_votes}/{quorum})")
+                        self.ledger.append("system", "close", {"proposal": pid, "reason": reason, "by": "consensus"})
+                        open_pids.discard(pid)
+                        self.call_from_thread(
+                            self.log_message,
+                            f"[bright_black]✂ {pid} closed by consensus ({close_votes}/{quorum} votes)[/bright_black]",
+                        )
+                    else:
+                        self.call_from_thread(
+                            self.log_message,
+                            f"[dim]↕ @{actor} voted to close {pid} ({close_votes}/{quorum})[/dim]",
+                        )
+                continue
+
+            # ── body: member records a decision into the proposal body ──
+            if dtype == "body":
+                pid = data.get("proposal", topic_pid)
+                if not pid or pid not in open_pids:
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[yellow]⚠ {actor} directive dropped:[/yellow] [dim]body — no open proposal {pid}[/dim]",
+                    )
+                    continue
+                self.ledger.append(actor, "body", {"proposal": pid, "body": data["body"]})
+                self.call_from_thread(
+                    self.log_message,
+                    f"[dim]📝 @{actor} recorded decision on {pid}[/dim]",
+                )
+                continue
+
             err = None
             if dtype in ("vote", "second") and data["proposal"] not in open_pids:
                 err = f"no open proposal {data['proposal']}"
@@ -1320,7 +1375,7 @@ class ZsynodApp(App):
                         if a_pid:
                             data["proposal"] = a_pid
                         self.ledger.append(actor, "speak", data)
-                    self._apply_directives(actor, directives, open_pids, members, a_pid)
+                    self._apply_directives(actor, directives, open_pids, members, a_pid, quorum=q)
                     if a_pid and a_pid not in touched:
                         touched.append(a_pid)
                 except (TimeoutError, subprocess.TimeoutExpired):
@@ -1366,6 +1421,31 @@ class ZsynodApp(App):
                 )
             # Already on a worker thread — the scribe writes minutes inline.
             self._scribe_capture_sync(committed)
+
+            # ── stuck auto-close ──────────────────────────────────────────────
+            # Proposals silent past stuck_close_after entries close themselves
+            # so the WIP slot opens and conversation can move forward.
+            stuck_threshold = int(dials.get("stuck_close_after", 50))
+            if self.ledger.entries:
+                last_seq = self.ledger.entries[-1].seq
+                for spid in list(open_pids):
+                    moves = [e.seq for e in self.ledger.entries
+                             if e.type in ("vote", "second") and e.data.get("proposal") == spid]
+                    if not moves:
+                        moves = [e.seq for e in self.ledger.entries
+                                 if e.type == "propose" and e.data.get("id") == spid]
+                    staleness = last_seq - max(moves, default=0)
+                    if staleness > stuck_threshold:
+                        self.ledger.append("system", "close", {
+                            "proposal": spid,
+                            "reason": f"auto-closed: no consensus after {staleness} entries",
+                            "by": "system",
+                        })
+                        open_pids.discard(spid)
+                        self.call_from_thread(
+                            self.log_message,
+                            f"[bright_black]✂ {spid} auto-closed — stuck {staleness} entries[/bright_black]",
+                        )
 
             # ── summarizer pass ───────────────────────────────────────────────
             # After all voices have spoken, write a compact state summary for

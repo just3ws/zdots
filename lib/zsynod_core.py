@@ -88,6 +88,11 @@ DIALS: dict[str, dict] = {
                                "remark; local seats use max_tokens; higher budget "
                                "allows more context and coaching depth from "
                                "frontier models"},
+    "stuck_close_after": {"default": 50, "min": 10, "max": 200, "step": 5,
+                       "help": "entries of silence after which a STUCK proposal "
+                               "is auto-closed; STALE_AFTER (25) marks it STUCK, "
+                               "this threshold closes it — set higher to let "
+                               "slow-moving proposals breathe"},
 }
 
 
@@ -177,7 +182,7 @@ class AgentCircuitBreaker:
 # validation (does the proposal exist? is the member seated?) belongs to the
 # caller, which holds ledger state.
 
-_DIRECTIVE_RE = re.compile(r"^\s*>\s*(vote|second|propose|handoff|pass)\b\s*(.*)$",
+_DIRECTIVE_RE = re.compile(r"^\s*>\s*(vote|second|propose|handoff|pass|close|body)\b\s*(.*)$",
                            re.IGNORECASE)
 
 
@@ -205,6 +210,17 @@ def _parse_one_directive(verb: str, rest: str) -> Optional[tuple]:
             return ("handoff", {"to": m.group(1), "task": m.group(2).strip()})
     elif verb == "pass":
         return ("pass", {"note": rest} if rest else {})
+    elif verb == "close":
+        m = re.match(r"(?i)^(p\d+)\b[\s:—–-]*(.*)$", rest)
+        if m:
+            data: dict = {"proposal": m.group(1).upper()}
+            if m.group(2).strip():
+                data["reason"] = m.group(2).strip()
+            return ("close", data)
+    elif verb == "body":
+        m = re.match(r"(?i)^(p\d+)\s+(.+)$", rest)
+        if m:
+            return ("body", {"proposal": m.group(1).upper(), "body": m.group(2).strip()})
     return None
 
 
@@ -216,6 +232,8 @@ def parse_directives(remark: str) -> tuple[str, list[tuple[str, dict]]]:
         >second P#
         >propose <title>
         >handoff @member <task>
+        >close P# [reason]        — proposer closes own topic; others cast a close vote
+        >body P# <decision text>  — record a decision into the proposal body
         >pass [reason]
 
     Returns (speech_without_directive_lines, [(entry_type, data), ...]).
