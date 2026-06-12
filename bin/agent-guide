@@ -272,6 +272,11 @@ Use zsvc for per-service diagnostics and consolidated logs.
   zsvc diag <service>       status + health + launchd state + recent logs
 
 Registered services: llama, embed, otel, colima, nginx, postgres, redis.
+
+Log rotation (when a service log grows large):
+  log-rotate <service>          compress + truncate in-place (safe with open FDs)
+  log-rotate <service> --dry-run  preview size and path without rotating
+  Archives land next to the log: <log>.YYYYMMDD-HHMMSS.gz
 EOF
 
 _head "Deploy Logs — Non-OTel Diagnostics"
