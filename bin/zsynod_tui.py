@@ -366,6 +366,156 @@ class ControlPlaneScreen(Screen):
                   "aye% ⚠ at ≥90% over 5+ votes — the sycophancy gauge.[/dim]")
 
 
+# ── Mentorship / Quality Graph Screen ─────────────────────────────────────────
+
+_SPARK_ENGAGED = "[green]█[/green]"
+_SPARK_NEUTRAL  = "[dim]▄[/dim]"
+_SPARK_LOOP     = "[red]▁[/red]"
+_SPARK_PENDING  = "[dim]·[/dim]"
+
+
+def _format_brief(brief: dict) -> list[str]:
+    """Render brief dict as Rich-markup lines for the cockpit log."""
+    lines = []
+    if brief["attention"]:
+        lines.append("[b][yellow]NEEDS YOUR ATTENTION[/b][/yellow]")
+        for item in brief["attention"]:
+            icon = "★" if item["type"] == "ratify" else "🧊"
+            lines.append(f"  {icon} [b]{item['pid']}[/b] — {_esc(item['detail'])}")
+    if brief["agent_ready"]:
+        lines.append("[b][cyan]AGENT-READY[/b][/cyan]")
+        for item in brief["agent_ready"]:
+            lines.append(f"  → {_esc(item['detail'])}")
+    if brief["coaching"]:
+        lines.append("[b][magenta]COACHING[/b][/magenta]")
+        for c in brief["coaching"]:
+            pct = c["engaged_pct"]
+            pc = "green" if pct >= 50 else "yellow" if pct >= 25 else "red"
+            lines.append(
+                f"  [@{_esc(c['member'])}] [{pc}]{pct}% engaged[/{pc}] "
+                f"({c['engaged_n']}/{c['total']} ticks)"
+            )
+            for ins in c["insights"]:
+                lines.append(f"    • {_esc(ins)}")
+    if not any([brief["attention"], brief["agent_ready"], brief["coaching"]]):
+        lines.append("[dim]Forum is healthy — no action needed.[/dim]")
+    return lines
+
+
+class MentorshipScreen(Screen):
+    """Quality graph, what-changed analysis, and prescriptive brief.
+
+    Press g (or escape) to close. The graph shows each member's last 30
+    ticks as colored blocks: green=engaged, dim=neutral, red=loop.
+    The right panel shows which operating conditions differ most between
+    high and low quality ticks. The bottom panel is the actionable brief."""
+
+    BINDINGS = [
+        Binding("escape", "app.pop_screen", "Back", show=True),
+        Binding("g",      "app.pop_screen", "Back", show=False),
+        Binding("r",      "refresh",        "Refresh", show=True),
+    ]
+
+    CSS = """
+    MentorshipScreen #top-row   { height: 1fr; }
+    MentorshipScreen #spark-log { width: 1fr; border-right: solid $primary; }
+    MentorshipScreen #delta-log { width: 1fr; }
+    MentorshipScreen #brief-log { height: 12; border-top: solid $primary; }
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Vertical():
+            with Horizontal(id="top-row"):
+                yield RichLog(id="spark-log", highlight=True, markup=True)
+                yield RichLog(id="delta-log", highlight=True, markup=True)
+            yield RichLog(id="brief-log", highlight=True, markup=True)
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self._render()
+
+    def action_refresh(self) -> None:
+        self.query_one("#spark-log", RichLog).clear()
+        self.query_one("#delta-log", RichLog).clear()
+        self.query_one("#brief-log", RichLog).clear()
+        self._render()
+
+    def _render(self) -> None:
+        ledger = self.app.ledger
+        ledger.load()
+        q = self.app._quorum()
+
+        spark_log = self.query_one("#spark-log", RichLog)
+        delta_log = self.query_one("#delta-log", RichLog)
+        brief_log = self.query_one("#brief-log", RichLog)
+
+        spark_log.write("[b]Quality Graph[/b]  [green]█[/green]=engaged  [dim]▄[/dim]=neutral  [red]▁[/red]=loop  [dim]·[/dim]=pending")
+        spark_log.write("")
+
+        actors = list({
+            e.actor for e in ledger.entries
+            if e.type in ("speak", "discuss") and e.actor != "system"
+        })
+
+        for actor in sorted(actors):
+            records = ledger.get_quality_records(actor, n=30)
+            if not records:
+                continue
+            blocks = []
+            for r in records:
+                if r["engaged"] is None:
+                    blocks.append(_SPARK_PENDING)
+                elif r["engaged"]:
+                    blocks.append(_SPARK_ENGAGED)
+                elif r["looped"]:
+                    blocks.append(_SPARK_LOOP)
+                else:
+                    blocks.append(_SPARK_NEUTRAL)
+            closed = [r for r in records if r["engaged"] is not None]
+            eng_n = sum(1 for r in closed if r["engaged"])
+            pct = int(100 * eng_n / len(closed)) if closed else 0
+            pc = "green" if pct >= 50 else "yellow" if pct >= 25 else "red"
+            spark_log.write(
+                f"[cyan]@{actor:<10}[/cyan] {''.join(blocks)}  "
+                f"[{pc}]{pct}%[/{pc}] ({eng_n}/{len(closed)})"
+            )
+
+        delta_log.write("[b]What Changed[/b]  (engaged vs other ticks)")
+        delta_log.write("[dim]Only ticks with condition snapshots (_c) appear.[/dim]")
+        delta_log.write("")
+
+        for actor in sorted(actors):
+            delta = ledger.get_condition_delta(actor)
+            records = ledger.get_quality_records(actor, n=60)
+            closed = [r for r in records if r["engaged"] is not None and r["conditions"]]
+            if not closed:
+                continue
+            delta_log.write(f"[cyan]@{actor}[/cyan]")
+            if not delta:
+                delta_log.write("  [dim]not enough condition data yet[/dim]")
+                continue
+            for label, g_mean, b_mean, d in delta[:4]:
+                arrow = "↑" if g_mean > b_mean else "↓"
+                if label in ("kb_grounded", "frontier"):
+                    g_s = f"{g_mean:.0%}"
+                    b_s = f"{b_mean:.0%}"
+                else:
+                    g_s = f"{g_mean:.1f}"
+                    b_s = f"{b_mean:.1f}"
+                delta_log.write(
+                    f"  [green]{label}[/green]: "
+                    f"good=[cyan]{g_s}[/cyan]  bad=[red]{b_s}[/red]  "
+                    f"[yellow]{arrow}{d:.1f}[/yellow]"
+                )
+            delta_log.write("")
+
+        brief = ledger.get_brief(q)
+        brief_log.write("[b]Brief[/b]")
+        for line in _format_brief(brief):
+            brief_log.write(line)
+
+
 # ── Main App ──────────────────────────────────────────────────────────────────
 
 class ZsynodApp(App):
@@ -413,6 +563,7 @@ class ZsynodApp(App):
         Binding("slash", "toggle_view",   "All/Prop",show=True),
         Binding("p",     "hashtag_stats", "Stats",   show=True),
         Binding("c",     "control_plane", "Dials",   show=True),
+        Binding("g",     "mentorship",    "Graph",   show=True),
         Binding("o",     "toggle_auto",   "Auto",    show=True),
     ]
 
@@ -857,6 +1008,9 @@ class ZsynodApp(App):
     def action_control_plane(self) -> None:
         self.push_screen(ControlPlaneScreen())
 
+    def action_mentorship(self) -> None:
+        self.push_screen(MentorshipScreen())
+
     # ── auto-pilot ────────────────────────────────────────────────────────────
 
     def action_toggle_auto(self) -> None:
@@ -1135,7 +1289,21 @@ class ZsynodApp(App):
                     breaker.record_success()
                     speech, directives = parse_directives(remark)
                     if speech:
-                        data = {"remark": speech}
+                        # Record operating conditions alongside the remark so
+                        # the mentorship layer can correlate them with quality
+                        # signals retrospectively. Short keys keep entries compact.
+                        cond = {
+                            "t":   dials["temperature"],
+                            "mt":  tick_max_tokens,
+                            "cd":  int(dials["context_depth"]),
+                            "tbl": len(self.ledger.get_proposal_body(a_pid) or "") if a_pid else 0,
+                            "kb":  bool(kb_note),
+                            "rep": round(self.ledger.get_repetition(
+                                       actor, int(dials["loop_window"])), 2),
+                            "loop_threshold": dials["loop_threshold"],
+                            "frontier": is_frontier,
+                        }
+                        data = {"remark": speech, "_c": cond}
                         if a_pid:
                             data["proposal"] = a_pid
                         self.ledger.append(actor, "speak", data)
@@ -1386,6 +1554,11 @@ class ZsynodApp(App):
                 elif action == "digest":
                     self.log_message("[dim]📜 herald summoned…[/dim]")
                     self.run_worker(self._herald_sync, thread=True)
+                    return
+                elif action == "brief":
+                    brief = self.ledger.get_brief(self._quorum())
+                    for line in _format_brief(brief):
+                        self.log_message(line)
                     return
                 elif action == "tick":
                     self.action_tick()

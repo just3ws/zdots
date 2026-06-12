@@ -1300,6 +1300,244 @@ class LedgerManager:
                 return e.data.get("text", "")
         return ""
 
+    def get_proposal_body(self, pid: str) -> str:
+        for e in self.entries:
+            if e.type == "propose" and e.data.get("id") == pid:
+                return e.data.get("body", "")
+        return ""
+
+    # ── quality analytics ─────────────────────────────────────────────────────
+
+    def get_engagement_signal(self, actor: str, seq: int, window: int = 10) -> bool:
+        """True if any entry within `window` positions after `seq` @mentions
+        `actor`. This is the proxy for "another member found this remark worth
+        responding to" — the lightest possible quality signal from the chain,
+        requiring no new voting mechanism."""
+        pat = re.compile(rf"@{re.escape(actor)}\b")
+        count = 0
+        for e in self.entries:
+            if e.seq <= seq:
+                continue
+            count += 1
+            if count > window:
+                break
+            if e.type in ("speak", "discuss") and pat.search(e.data.get("remark", "")):
+                return True
+        return False
+
+    def get_quality_records(self, member: str, n: int = 60,
+                            engagement_window: int = 10) -> list:
+        """For each of `member`'s last `n` speak/discuss entries, return a
+        quality record: engagement signal, loop state, token estimate, and the
+        operating conditions snapshot (_c) if the tick recorded one.
+
+        This is the raw material for the graph and the condition delta. Records
+        for ticks within the last `engagement_window` entries are marked
+        pending — the window hasn't closed yet, so engaged=None."""
+        speaks = [
+            e for e in self.entries
+            if e.actor == member and e.type in ("speak", "discuss")
+        ][-n:]
+        last_seq = self.entries[-1].seq if self.entries else 0
+        records = []
+        for e in speaks:
+            words = e.data.get("remark", "").split()
+            cond = e.data.get("_c", {})
+            looped = (cond.get("rep", 0) >= cond.get("loop_threshold",
+                      cond.get("rep", 0) + 1)) if cond else False
+            pending = (last_seq - e.seq) < engagement_window
+            records.append({
+                "seq": e.seq,
+                "ts": e.ts,
+                "topic": e.data.get("proposal") or e.data.get("topic", ""),
+                "tokens": max(1, int(len(words) / 1.3)),
+                "engaged": None if pending else self.get_engagement_signal(
+                    member, e.seq, engagement_window),
+                "looped": looped,
+                "conditions": cond,
+            })
+        return records
+
+    def get_condition_delta(self, member: str, n: int = 60,
+                            engagement_window: int = 10) -> list:
+        """Compare operating conditions between engaged and non-engaged ticks
+        for `member`. Returns a list of (label, good_mean, bad_mean, delta)
+        sorted by absolute delta descending — the conditions that differ most
+        between high and low quality turns.
+
+        Only ticks with a `_c` conditions snapshot are included. Ticks where
+        engaged=None (window not closed) are excluded."""
+        records = [
+            r for r in self.get_quality_records(member, n, engagement_window)
+            if r["conditions"] and r["engaged"] is not None
+        ]
+        if len(records) < 4:
+            return []
+
+        good = [r["conditions"] for r in records if r["engaged"]]
+        bad  = [r["conditions"] for r in records if not r["engaged"]]
+        if not good or not bad:
+            return []
+
+        keys = {
+            "t":   "temperature",
+            "mt":  "max_tokens",
+            "cd":  "context_depth",
+            "tbl": "topic_body_len",
+            "kb":  "kb_grounded",
+            "rep": "rep_at_entry",
+        }
+        results = []
+        for k, label in keys.items():
+            gv = [c.get(k, 0) for c in good]
+            bv = [c.get(k, 0) for c in bad]
+            g_mean = sum(gv) / len(gv)
+            b_mean = sum(bv) / len(bv)
+            delta = abs(g_mean - b_mean)
+            if delta > 0.01:
+                results.append((label, g_mean, b_mean, delta))
+        return sorted(results, key=lambda x: -x[3])
+
+    def get_brief(self, quorum: int) -> dict:
+        """Generate the prescriptive operator brief: what needs human action,
+        what is agent-ready, and what the session's quality data reveals as
+        coaching for the human. The brief is the surface where forum signal
+        becomes actionable intelligence."""
+        attention, agent_ready, coaching = [], [], []
+
+        for p in self.get_proposals():
+            pid = p.data["id"]
+            state = self.get_lifecycle_state(pid, quorum)
+            t = self.get_tally(pid)
+            if t["aye"] >= quorum:
+                attention.append({
+                    "type": "ratify",
+                    "pid": pid,
+                    "detail": f"aye={t['aye']}/{quorum} — quorum reached, awaiting ratification",
+                })
+            elif state == "STUCK":
+                last_move = max(
+                    (e.seq for e in self.entries
+                     if e.type in ("vote", "second")
+                     and e.data.get("proposal") == pid),
+                    default=0,
+                )
+                staleness = (self.entries[-1].seq - last_move) if self.entries else 0
+                last_actor = next(
+                    (e.actor for e in reversed(self.entries)
+                     if e.type in ("vote", "second")
+                     and e.data.get("proposal") == pid),
+                    "nobody",
+                )
+                attention.append({
+                    "type": "stuck",
+                    "pid": pid,
+                    "detail": f"STUCK {staleness} entries — last move by @{last_actor}",
+                })
+
+        # Ratified proposals without a subsequent handoff entry
+        ratified_pids = {
+            e.data["proposal"] for e in self.entries if e.type == "commit"
+        }
+        handed_pids = {
+            e.data.get("ref") or e.data.get("proposal", "")
+            for e in self.entries if e.type == "handoff"
+        }
+        for pid in ratified_pids - handed_pids:
+            title = self.get_title(pid)
+            agent_ready.append({
+                "type": "handoff_needed",
+                "pid": pid,
+                "detail": f"ratified, no executor assigned — handoff to aider or claude-code",
+                "title": title,
+            })
+
+        # Pending handoffs with no exec entry
+        for e in self.entries:
+            if e.type == "handoff":
+                task_ref = e.data.get("ref") or e.data.get("proposal", e.seq)
+                executed = any(
+                    x.type == "exec" and x.data.get("handoff") == e.seq
+                    for x in self.entries
+                )
+                if not executed:
+                    agent_ready.append({
+                        "type": "pending_handoff",
+                        "pid": str(task_ref),
+                        "detail": (f"→ @{e.data.get('to','?')}: "
+                                   f"{e.data.get('task','')[:60]}"),
+                    })
+
+        # Coaching: per-member quality insights
+        all_actors = list({
+            e.actor for e in self.entries
+            if e.type in ("speak", "discuss") and e.actor != "system"
+        })
+        for actor in sorted(all_actors):
+            records = self.get_quality_records(actor, n=60)
+            closed_records = [r for r in records if r["engaged"] is not None]
+            if len(closed_records) < 3:
+                continue
+
+            engaged_n = sum(1 for r in closed_records if r["engaged"])
+            loop_n    = sum(1 for r in closed_records if r["looped"])
+            total = len(closed_records)
+            pct = int(100 * engaged_n / total) if total else 0
+
+            lines = []
+            if loop_n > 0:
+                empty_loops = sum(
+                    1 for r in closed_records
+                    if r["looped"] and r["conditions"].get("tbl", 1) == 0
+                )
+                if empty_loops:
+                    lines.append(
+                        f"{loop_n} loop(s) — {empty_loops} on empty topics "
+                        f"(add proposal body before ticking)"
+                    )
+                else:
+                    lines.append(f"{loop_n} loop(s) detected")
+
+            delta = self.get_condition_delta(actor)
+            if delta:
+                label, g_mean, b_mean, _ = delta[0]
+                if label == "topic_body_len":
+                    lines.append(
+                        f"engaged ticks had avg body {g_mean:.0f} chars, "
+                        f"low-quality had {b_mean:.0f} — write the proposal body"
+                    )
+                elif label == "kb_grounded":
+                    lines.append(
+                        f"KB grounding present in {g_mean:.0%} of engaged ticks "
+                        f"vs {b_mean:.0%} of others"
+                    )
+                elif label == "context_depth":
+                    lines.append(
+                        f"best context_depth for {actor}: ~{g_mean:.0f} "
+                        f"(engaged avg) vs {b_mean:.0f} (others)"
+                    )
+                elif label == "rep_at_entry":
+                    lines.append(
+                        f"repetition score was {b_mean:.2f} before bad ticks "
+                        f"vs {g_mean:.2f} before good — loop was building"
+                    )
+
+            if lines or pct < 30:
+                coaching.append({
+                    "member": actor,
+                    "engaged_pct": pct,
+                    "engaged_n": engaged_n,
+                    "total": total,
+                    "insights": lines or [f"engagement at {pct}% — insufficient condition data yet"],
+                    "delta": delta[:3],
+                })
+
+        return {
+            "attention": attention,
+            "agent_ready": agent_ready,
+            "coaching": coaching,
+        }
+
     # ── the door: outside voices speak to the forum ──────────────────────────
 
     def petition(self, actor: str, text: str, kind: str = "inform",
