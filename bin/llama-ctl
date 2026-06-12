@@ -86,12 +86,6 @@ _yq_get() {
   yq "$1" "$CONFIG_FILE" 2>/dev/null
 }
 
-# _yq_field <path> <default> — like _meta_get but reads yq paths directly.
-_yq_field() {
-  local val; val=$(_yq_get "$1" 2>/dev/null)
-  [[ "$val" == "null" || -z "$val" ]] && printf '%s' "${2:-}" || printf '%s' "$val"
-}
-
 usage() {
   cat <<EOF
 Usage: llama-ctl <subcommand> [args] [--json]
@@ -697,9 +691,8 @@ EMBED_ENDPOINT="http://127.0.0.1:11501"
 
 _register_embed_plist() {
   local bin; bin=$(_require_binary)
-  _require_yq
 
-  local model_file; model_file=$(_yq_field ".profiles.${EMBED_PROFILE}.model_file" "")
+  local model_file; model_file=$(_meta_get "profiles.${EMBED_PROFILE}.model_file" "")
   if [[ -z "$model_file" ]]; then
     printf 'llama-ctl: error: embed profile missing in %s\n' "$CONFIG_FILE" >&2; exit 1
   fi
@@ -710,17 +703,17 @@ _register_embed_plist() {
     model_path="${MODELS_DIR}/embed.gguf"
   fi
 
-  local ctx_size;    ctx_size=$(   _yq_field ".profiles.${EMBED_PROFILE}.ctx_size"    "512")
-  local n_gpu;       n_gpu=$(      _yq_field ".profiles.${EMBED_PROFILE}.n_gpu_layers" "99")
-  local host;        host=$(       _yq_field ".embed_server.host"        "127.0.0.1")
-  local port;        port=$(       _yq_field ".embed_server.port"        "11501")
+  local ctx_size;    ctx_size=$(   _meta_get "profiles.${EMBED_PROFILE}.ctx_size"    "512")
+  local n_gpu;       n_gpu=$(      _meta_get "profiles.${EMBED_PROFILE}.n_gpu_layers" "99")
+  local host;        host=$(       _meta_get "embed_server.host"        "127.0.0.1")
+  local port;        port=$(       _meta_get "embed_server.port"        "11501")
   _reject_reserved_llama_port "embedding" "$port"
-  local parallel;    parallel=$(   _yq_field ".embed_server.parallel"    "1")
-  local batch;       batch=$(      _yq_field ".embed_server.batch_size"  "2048")
-  local ubatch;      ubatch=$(     _yq_field ".embed_server.ubatch_size" "2048")
-  local ck;          ck=$(         _yq_field ".embed_server.cache_type_k" "f16")
-  local cv;          cv=$(         _yq_field ".embed_server.cache_type_v" "f16")
-  local alias_name;  alias_name=$( _yq_field ".embed_server.alias"       "embed")
+  local parallel;    parallel=$(   _meta_get "embed_server.parallel"    "1")
+  local batch;       batch=$(      _meta_get "embed_server.batch_size"  "2048")
+  local ubatch;      ubatch=$(     _meta_get "embed_server.ubatch_size" "2048")
+  local ck;          ck=$(         _meta_get "embed_server.cache_type_k" "f16")
+  local cv;          cv=$(         _meta_get "embed_server.cache_type_v" "f16")
+  local alias_name;  alias_name=$( _meta_get "embed_server.alias"       "embed")
 
   local -a args=(
     "--host"         "${host}"
@@ -748,14 +741,14 @@ _register_embed_plist() {
 
 install_embed() {
   # Download model if needed.
-  local model_file; model_file=$(_yq_field ".profiles.${EMBED_PROFILE}.model_file" "")
+  local model_file; model_file=$(_meta_get "profiles.${EMBED_PROFILE}.model_file" "")
   if [[ -z "$model_file" ]]; then
     printf 'llama-ctl: error: embed profile not found in %s\n' "$CONFIG_FILE" >&2; exit 1
   fi
   local model_path="${MODELS_DIR}/${model_file}"
   if [[ ! -f "$model_path" ]]; then
     printf 'llama-ctl: embed model not found — downloading...\n' >&2
-    local hf_repo; hf_repo=$(_yq_field ".profiles.${EMBED_PROFILE}.hf_repo" "")
+    local hf_repo; hf_repo=$(_meta_get "profiles.${EMBED_PROFILE}.hf_repo" "")
     if [[ -z "$hf_repo" || "$hf_repo" == "null" ]]; then
       printf 'llama-ctl: error: no hf_repo for embed profile in %s\n' "$CONFIG_FILE" >&2; exit 1
     fi
