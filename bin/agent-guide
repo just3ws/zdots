@@ -307,7 +307,9 @@ else
 fi
 
 if $COLIMA_UP; then
-  printf '%s\n' "$(_ok "Colima (container runtime)")"
+  _colima_sock=$(colima-status socket 2>/dev/null || true)
+  printf '%s  socket=%s\n' "$(_ok "Colima (container runtime)")" "${_colima_sock:-(run colima-status socket)}"
+  unset _colima_sock
 else
   printf '%s\n' "$(_down "Colima (container runtime)")"
 fi
@@ -546,6 +548,52 @@ WHY THIS MATTERS HERE
   command that escapes the guardrails has no undo. The work lost in the
   2026-05-25 incident — including weeks of Work company research — is
   gone permanently. Do not add to that list.
+EOF
+
+_head "Container Runtime — Colima + Docker"
+
+cat <<'EOF'
+STOP. Do not call `colima status` directly or search for the docker socket path.
+Use colima-status — it is the authoritative interface and resolves the socket
+correctly across colima versions (the socket moved from ~/.colima/ to
+~/.config/colima/ in recent versions; hardcoded paths silently miss it).
+
+STATUS AND HEALTH — always start here:
+  colima-status              human-readable status
+  colima-status --json       machine-readable JSON (use this in scripts/agents)
+  colima-status health       exit 0 = healthy; exit 1 = down/missing socket
+  colima-status socket       print the live socket path; exit 1 if missing
+
+DOCKER_HOST — set it once from the authoritative source:
+  export DOCKER_HOST="unix://$(colima-status socket)"
+  # or inline:
+  DOCKER_HOST=$(colima-status socket) docker ps
+
+LOGS:
+  colima-status logs         tail the colima autostart log
+
+LIFECYCLE — use zsvc, not colima directly:
+  zsvc start colima
+  zsvc stop colima
+  zsvc status colima
+
+DISK RECLAIM (read dry-run first):
+  docker-reclaim             dry run — shows what would be freed
+  docker-reclaim -f          DESTRUCTIVE: prunes + fstrim
+
+COLIMA STATUS JSON FIELDS (for scripts/agents):
+  .healthy         true/false  — running AND socket present
+  .socket          string      — canonical socket path
+  .socket_exists   true/false  — socket file is live
+  .docker_host     string      — ready-to-use DOCKER_HOST value
+  .docker_reachable true/false — docker info succeeded
+  .runtime         string      — "docker" or "containerd"
+  .arch            string      — "aarch64" (Apple Silicon)
+  .vm_type         string      — "macOS Virtualization.Framework"
+
+GUARD: colima-status warns loudly to stderr if the socket is found at the
+legacy ~/.colima/ path instead of the canonical XDG location. This guard
+fires in colima-autostart as well. If you see it, a script has a stale path.
 EOF
 
 _head "Destructive Commands — Confirm Before Running"

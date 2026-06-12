@@ -28,19 +28,31 @@ else
   log "Colima started"
 fi
 
-# 2. Wait for Docker socket to be ready (up to 30s)
-socket="${HOME}/.colima/default/docker.sock"
+# 2. Wait for Docker socket to be ready (up to 30s).
+# Canonical path (colima ≥0.5 uses XDG_CONFIG_HOME, not ~/.colima).
+# If found at legacy path, warn loudly — a script somewhere is using the old dir.
+_xdg_sock="${XDG_CONFIG_HOME:-$HOME/.config}/colima/default/docker.sock"
+_legacy_sock="${HOME}/.colima/default/docker.sock"
+socket=""
 i=0
 while [ "$i" -lt 30 ]; do
-  [ -S "$socket" ] && break
+  if [ -S "$_xdg_sock" ]; then
+    socket="$_xdg_sock"
+    break
+  elif [ -S "$_legacy_sock" ]; then
+    log "WARNING: socket found at LEGACY path ${_legacy_sock} — update scripts to use ${_xdg_sock}"
+    socket="$_legacy_sock"
+    break
+  fi
   sleep 1
   i=$((i + 1))
 done
-if [ ! -S "$socket" ]; then
-  log "ERROR: Docker socket not available after 30s"
+unset _xdg_sock _legacy_sock
+if [ -z "$socket" ]; then
+  log "ERROR: Docker socket not available after 30s at either XDG or legacy path"
   exit 1
 fi
-log "Docker socket ready"
+log "Docker socket ready: ${socket}"
 
 # Observability is no longer a container workload — OpenObserve runs as a native
 # launchd service (com.zdots.openobserve). Colima is started here only for other

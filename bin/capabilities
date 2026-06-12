@@ -71,6 +71,37 @@ fi
 
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo ""
+  echo "${BOLD}Container Runtime (Colima / Docker):${RESET}"
+fi
+_colima_bin="${ZDOTDIR:-$HOME/.config/zsh}/bin/colima-status"
+if [ -x "$_colima_bin" ]; then
+  _colima_json=$("$_colima_bin" --json 2>/dev/null || echo '{}')
+  _colima_healthy=$(printf '%s' "$_colima_json" | grep -o '"healthy": *[a-z]*' | awk '{print $2}')
+  _colima_socket=$(printf '%s' "$_colima_json" | sed -n 's/.*"socket": "\([^"]*\)".*/\1/p' | head -1)
+  _colima_sock_exists=$(printf '%s' "$_colima_json" | grep -o '"socket_exists": *[a-z]*' | awk '{print $2}')
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    if [ "$_colima_healthy" = "true" ]; then
+      printf "  %-15s : %b%s%b\n" "state" "$GREEN" "running/healthy" "$RESET"
+    else
+      printf "  %-15s : %b%s%b\n" "state" "$YELLOW" "stopped/unhealthy" "$RESET"
+    fi
+    printf "  %-15s : %s\n" "socket" "${_colima_socket:-(unknown)}"
+    if [ "$_colima_sock_exists" = "true" ]; then
+      printf "  %-15s : %b%s%b\n" "socket status" "$GREEN" "present" "$RESET"
+    else
+      printf "  %-15s : %b%s%b\n" "socket status" "$YELLOW" "missing" "$RESET"
+    fi
+    printf "  %-15s : %s\n" "interface" "colima-status --json  |  colima-status socket  |  colima-status health"
+  fi
+else
+  if [ "$OUTPUT_FORMAT" = "text" ]; then
+    printf "  %-15s : %bmissing%b\n" "colima-status" "$YELLOW" "$RESET"
+  fi
+fi
+unset _colima_bin _colima_json _colima_healthy _colima_socket _colima_sock_exists
+
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  echo ""
   echo "${BOLD}Service Composition:${RESET}"
 fi
 _z_services="PKG_MANAGER NODE_RUNTIME PYTHON_RUNTIME TRACE AI WHISPER"
