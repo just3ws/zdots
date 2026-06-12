@@ -337,7 +337,7 @@ class ControlPlaneScreen(Screen):
         log.clear()
         log.write(f"[dim]ledger {top_seq + 1} entries · {open_n} open topics · quorum {q}[/dim]")
         log.write("")
-        log.write("[b]member      spk  aye nay abs 2nd | prop ✓rat pass | @out @in | idle  rep  aye%[/b]")
+        log.write("[b]member      spk  aye nay abs 2nd | prop ✓rat ✂cls pass | @out @in | idle  rep  aye%[/b]")
 
         ranked = sorted(stats.items(), key=lambda kv: -kv[1]["speaks"])
         for name, m in ranked:
@@ -346,8 +346,6 @@ class ControlPlaneScreen(Screen):
             looping = rep >= dials["loop_threshold"]
             rep_s = f"[red]⚠{rep:.0%}[/red]" if looping else f"[dim]{rep:.0%}[/dim]"
             mute_s = " [red]🔇[/red]" if name in dials["muted"] else ""
-            # aye-rate: the sycophancy gauge. ⚠ at ≥90% over 5+ votes —
-            # a measured yes-machine, visible to the chair and the operator.
             cast = m["aye"] + m["nay"] + m["abstain"]
             if cast:
                 rate = m["aye"] / cast
@@ -358,8 +356,9 @@ class ControlPlaneScreen(Screen):
             log.write(
                 f"@{name:<10} {m['speaks']:>4} {m['aye']:>4} {m['nay']:>3} "
                 f"{m['abstain']:>3} {m['seconds']:>3} | {m['proposed']:>4} "
-                f"{m['ratified']:>4} {m['passes']:>4} | {m['mentions_out']:>4} "
-                f"{m['mentions_in']:>3} | {idle:>4}  {rep_s}  {aye_s}{mute_s}"
+                f"{m['ratified']:>4} {m['closed']:>4} {m['passes']:>4} | "
+                f"{m['mentions_out']:>4} {m['mentions_in']:>3} | "
+                f"{idle:>4}  {rep_s}  {aye_s}{mute_s}"
             )
         log.write("")
         log.write("[dim]rep = max overlap of recent remarks (hashtags/@handles "
@@ -966,19 +965,13 @@ class ZsynodApp(App):
             elif dtype == "handoff" and data["to"] not in members:
                 err = f"no member @{data['to']}"
             if dtype == "propose":
-                # Dedup gate against ALL history: the ledger grew 50+
-                # near-identical proposals because agents can't see that a
-                # twin already exists (or was just closed). Identical title =
-                # identical proposal; a true revision needs a new title.
-                norm = re.sub(r"\W+", "", data["title"]).lower()
-                dup = next(
-                    (e.data["id"] for e in self.ledger.entries
-                     if e.type == "propose"
-                     and re.sub(r"\W+", "", e.data.get("title", "")).lower() == norm),
-                    None,
-                )
-                if dup:
-                    err = f"duplicate of {dup} — vote on it or retitle the revision"
+                wip = int(self.dials.get("wip_limit", 3))
+                if len(self.ledger.get_proposals()) >= wip:
+                    err = f"WIP limit {wip} reached — vote on or close an open proposal first"
+                else:
+                    dup = self.ledger.find_duplicate_title(data["title"])
+                    if dup:
+                        err = f"duplicate of {dup} — vote on it or retitle the revision"
             if err:
                 self.call_from_thread(
                     self.log_message,
@@ -1116,6 +1109,11 @@ class ZsynodApp(App):
                     )
 
                 try:
+                    is_frontier = agent.backend in ("cli", "openai")
+                    tick_max_tokens = int(
+                        dials.get("max_tokens_frontier", 400) if is_frontier
+                        else dials["max_tokens"]
+                    )
                     remark = agent.deliberate(
                         topic, context,
                         progress_callback=self.log_message,
@@ -1128,7 +1126,7 @@ class ZsynodApp(App):
                         trend=trend,
                         event=event,
                         temperature=dials["temperature"],
-                        max_tokens=int(dials["max_tokens"]),
+                        max_tokens=tick_max_tokens,
                         context_depth=int(dials["context_depth"]),
                         kb_note=kb_note,
                         blind=blind,
@@ -1265,9 +1263,24 @@ class ZsynodApp(App):
                     if not rest:
                         self.log_message("[red]propose needs a title[/red]")
                         return
+                    wip = int(self.dials.get("wip_limit", 3))
+                    open_count = len(self.ledger.get_proposals())
+                    if open_count >= wip:
+                        self.log_message(
+                            f"[yellow]WIP limit reached ({open_count}/{wip}) — "
+                            f"ratify or close an open proposal first.[/yellow]"
+                        )
+                        return
+                    dup = self.ledger.find_duplicate_title(rest)
+                    if dup:
+                        self.log_message(
+                            f"[yellow]Duplicate title — {dup} already covers this. "
+                            f"Reopen {dup} or propose a meaningfully different framing.[/yellow]"
+                        )
+                        return
                     pid = self.ledger.next_proposal_id()
                     self.ledger.append("mike", "propose", {"id": pid, "title": rest})
-                    self.log_message(f"[green]mike:[/green] proposed [b]{pid}[/b]: {rest}")
+                    self.log_message(f"[green]mike:[/green] proposed [b]{pid}[/b]: {_esc(rest)}")
                 elif action in ["aye", "nay", "abstain"]:
                     pid = rest.upper() if rest else self.selected_pid
                     if not pid:
