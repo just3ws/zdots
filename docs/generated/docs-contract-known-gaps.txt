@@ -23,3 +23,4 @@ cc-hook-guard: Claude Code PreToolUse hook; reads JSON on stdin, no --help contr
 cc-hook-lint: Claude Code hook; stdin-driven, no --help contract by design z-119
 cc-hook-session: Claude Code SessionStart hook; emits a brief, no --help contract by design z-119
 cc-statusline: Claude Code statusline generator; reads stdin/env, no --help contract by design z-119
+__pycache__: Python bytecode directory created by zsynod_tui.py compilation; not a command z-119
