@@ -1302,6 +1302,7 @@ class ZsynodApp(App):
                                        actor, int(dials["loop_window"])), 2),
                             "loop_threshold": dials["loop_threshold"],
                             "frontier": is_frontier,
+                            "st": self._ticks_total,
                         }
                         data = {"remark": speech, "_c": cond}
                         if a_pid:
