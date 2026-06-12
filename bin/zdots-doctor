@@ -456,6 +456,28 @@ fi
 unset _o2_ep _otel_cfg
 
 # ---------------------------------------------------------------------------
+# Log sizes (zdots-logs check)
+# ---------------------------------------------------------------------------
+_section "Log sizes"
+
+if command -v zdots-logs >/dev/null 2>&1; then
+  _log_check_rc=0
+  _log_check_out=$(zdots-logs check 2>&1) || _log_check_rc=$?
+  printf '%s\n' "$_log_check_out"
+  if [[ "$_log_check_rc" -ne 0 ]]; then
+    _fail "log files exceed 500M threshold — consider log rotation (logrotate or truncation)"
+    _fix  "zdots-logs list  (see sizes and growth estimates)"
+    _fix  "zdots-logs check --json  (machine-readable with projections)"
+  elif printf '%s\n' "$_log_check_out" | grep -q '\*\* WARNING'; then
+    _warn "log files approaching size threshold — monitor for growth"
+  else
+    _pass "all log files within size thresholds"
+  fi
+else
+  _warn "zdots-logs not in PATH — skipping log size check"
+fi
+
+# ---------------------------------------------------------------------------
 # Runtime health (zdots-ctl check)
 # ---------------------------------------------------------------------------
 _section "Runtime health  (zdots-ctl check)"
