@@ -1,0 +1,250 @@
+#!/usr/bin/env bash
+# bin/zdots-logs — Centralized log operations for all zdots-managed services.
+#
+# Every log source registered in svc-registry.bash is available by its service
+# name. Use "all" (or no service argument) to operate across all sources.
+#
+# Commands:
+#   list   [--json]              Table of all log sources: path, size, modified
+#   tail   [<svc>] [-n N]       Follow logs (default: all, -n 50)
+#   show   [<svc>] [-n N]       Last N lines, no follow (default: all, -n 100)
+#   head   [<svc>] [-n N]       First N lines (default: all, -n 50)
+#   grep   <pattern> [<svc>]    Search across log files
+#
+# Service names match zsvc identifiers: llama embed otel o2 colima nginx
+#   postgres redis worker — or any registered alias.
+# Use "all" or omit the service to target every registered log source.
+#
+# Options:
+#   -n, --lines N    Number of lines (default varies by command)
+#   --json           Machine-readable output (list command)
+#   -h, --help       Show this help
+#
+# Examples:
+#   zdots-logs list
+#   zdots-logs tail
+#   zdots-logs tail llama -n 200
+#   zdots-logs show otel -n 30
+#   zdots-logs head worker
+#   zdots-logs grep ERROR
+#   zdots-logs grep "connection refused" postgres
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+# shellcheck source=lib/svc-registry.bash
+source "$ZDOTDIR/lib/svc-registry.bash"
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+_die()  { printf 'zdots-logs: %s\n' "$*" >&2; exit 1; }
+_info() { printf '==> %s\n' "$*" >&2; }
+
+_file_size() {
+  local f="$1"
+  [[ -f "$f" ]] || { printf -- '-'; return; }
+  local b
+  b=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null || printf 0)
+  if   (( b >= 1048576 )); then printf '%dM' $(( b / 1048576 ))
+  elif (( b >= 1024 ));    then printf '%dK' $(( b / 1024 ))
+  else                          printf '%dB' "$b"
+  fi
+}
+
+_file_mtime() {
+  local f="$1"
+  [[ -f "$f" ]] || { printf -- '-'; return; }
+  stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$f" 2>/dev/null \
+    || stat -c '%y' "$f" 2>/dev/null | cut -c1-16 \
+    || printf '?'
+}
+
+_json_str() { printf '%s' "$1" | sed 's/\\/\\\\/g;s/"/\\"/g'; }
+
+# ── Log source collection ─────────────────────────────────────────────────────
+# Populates LOG_NAMES and LOG_PATHS parallel arrays from the service registry.
+# If SVC is "all" or empty, all registered sources are included.
+# Otherwise, the single named service is resolved.
+declare -a LOG_NAMES=()
+declare -a LOG_PATHS=()
+declare -a ALL_SVCS=()
+mapfile -t ALL_SVCS < <(zdots_svc_managed)
+
+_collect_all() {
+  local svc log
+  for svc in "${ALL_SVCS[@]}"; do
+    log="${ZDOTS_SVC_LOG[$svc]:-}"
+    [[ -n "$log" ]] || continue
+    LOG_NAMES+=("${ZDOTS_SVC_DISPLAY[$svc]:-$svc}")
+    LOG_PATHS+=("$log")
+  done
+  (( ${#LOG_PATHS[@]} )) || _die "no log sources registered"
+}
+
+_collect_one() {
+  local svc display log
+  svc="$(zdots_svc_resolve "$1" 2>/dev/null)" || _die "unknown service: $1"
+  display="${ZDOTS_SVC_DISPLAY[$svc]:-$svc}"
+  log="${ZDOTS_SVC_LOG[$svc]:-}"
+  [[ -n "$log" ]] || _die "${display} has no registered log path"
+  LOG_NAMES=("$display")
+  LOG_PATHS=("$log")
+}
+
+_collect() {
+  local target="${1:-all}"
+  if [[ "$target" == "all" ]]; then
+    _collect_all
+  else
+    _collect_one "$target"
+  fi
+}
+
+# ── Commands ──────────────────────────────────────────────────────────────────
+cmd_list() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && { json=true; shift; }
+
+  _collect_all
+
+  if $json; then
+    local i first=true
+    printf '{"sources":['
+    for i in "${!LOG_PATHS[@]}"; do
+      $first || printf ','
+      first=false
+      local p="${LOG_PATHS[$i]}" n="${LOG_NAMES[$i]}"
+      local exists=false sz=0 mtime="-"
+      [[ -f "$p" ]] && exists=true
+      if [[ -f "$p" ]]; then
+        sz=$(stat -f%z "$p" 2>/dev/null || stat -c%s "$p" 2>/dev/null || printf 0)
+        mtime=$(stat -f '%Sm' -t '%Y-%m-%dT%H:%M:%S' "$p" 2>/dev/null \
+                  || stat -c '%y' "$p" 2>/dev/null | cut -c1-19 | tr ' ' T \
+                  || printf '?')
+      fi
+      printf '{"name":"%s","path":"%s","exists":%s,"bytes":%s,"modified":"%s"}' \
+        "$(_json_str "$n")" "$(_json_str "$p")" "$exists" "$sz" "$mtime"
+    done
+    printf ']}\n'
+    return
+  fi
+
+  printf '%-16s  %-6s  %-16s  %s\n' NAME SIZE MODIFIED PATH
+  printf '%s\n' "$(printf '%0.s-' {1..80})"
+  local i
+  for i in "${!LOG_PATHS[@]}"; do
+    local p="${LOG_PATHS[$i]}" n="${LOG_NAMES[$i]}"
+    local exists_mark=""
+    [[ -f "$p" ]] || exists_mark=" [missing]"
+    printf '%-16s  %-6s  %-16s  %s%s\n' \
+      "$n" "$(_file_size "$p")" "$(_file_mtime "$p")" "$p" "$exists_mark"
+  done
+}
+
+cmd_tail() {
+  local target="all" lines=50
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -n|--lines) lines="${2:?--lines requires N}"; shift ;;
+      --lines=*)  lines="${1#*=}" ;;
+      *)          target="$1" ;;
+    esac
+    shift
+  done
+
+  _collect "$target"
+  local -a existing=()
+  local p
+  for p in "${LOG_PATHS[@]}"; do
+    mkdir -p "$(dirname "$p")" 2>/dev/null || true
+    existing+=("$p")
+  done
+
+  (( ${#existing[@]} )) || _die "no log files found"
+  if [[ "${#existing[@]}" -eq 1 ]]; then
+    _info "tailing ${existing[0]} — Ctrl+C to stop"
+  else
+    _info "tailing ${#existing[@]} log sources — Ctrl+C to stop"
+  fi
+  trap 'exit 0' INT TERM
+  tail -n "$lines" -F "${existing[@]}"
+}
+
+cmd_show() {
+  local target="all" lines=100
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -n|--lines) lines="${2:?--lines requires N}"; shift ;;
+      --lines=*)  lines="${1#*=}" ;;
+      *)          target="$1" ;;
+    esac
+    shift
+  done
+
+  _collect "$target"
+  local p
+  for p in "${LOG_PATHS[@]}"; do
+    if [[ -f "$p" ]]; then
+      printf '\n==> %s <==\n' "$p"
+      tail -n "$lines" "$p"
+    else
+      printf '\n==> %s [not found] <==\n' "$p" >&2
+    fi
+  done
+}
+
+cmd_head() {
+  local target="all" lines=50
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -n|--lines) lines="${2:?--lines requires N}"; shift ;;
+      --lines=*)  lines="${1#*=}" ;;
+      *)          target="$1" ;;
+    esac
+    shift
+  done
+
+  _collect "$target"
+  local p
+  for p in "${LOG_PATHS[@]}"; do
+    if [[ -f "$p" ]]; then
+      printf '\n==> %s <==\n' "$p"
+      head -n "$lines" "$p"
+    else
+      printf '\n==> %s [not found] <==\n' "$p" >&2
+    fi
+  done
+}
+
+cmd_grep() {
+  [[ $# -ge 1 ]] || _die "grep requires a pattern"
+  local pattern="$1"; shift
+  local target="all"
+  [[ $# -gt 0 ]] && { target="$1"; shift; }
+
+  _collect "$target"
+  local -a existing=()
+  local p
+  for p in "${LOG_PATHS[@]}"; do
+    [[ -f "$p" ]] && existing+=("$p")
+  done
+
+  (( ${#existing[@]} )) || _die "no log files exist to search"
+  grep -i --color=auto -H "$pattern" "${existing[@]}" || true
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+CMD="${1:-}"
+[[ -n "$CMD" ]] || { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+shift
+
+case "$CMD" in
+  list)              cmd_list  "$@" ;;
+  tail)              cmd_tail  "$@" ;;
+  show)              cmd_show  "$@" ;;
+  head)              cmd_head  "$@" ;;
+  grep)              cmd_grep  "$@" ;;
+  -h|--help|help)    sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  *)                 _die "unknown command: $CMD  (try --help)" ;;
+esac
