@@ -107,6 +107,76 @@ sequenceDiagram
 | `postgresql@18` | `zsvc postgres` | user LaunchAgent `homebrew.mxcl.postgresql@18` | `pg_isready` and `zdots-ctx status` | Homebrew Postgres log |
 | `redis` | `zsvc redis` | user LaunchAgent `homebrew.mxcl.redis` | `redis-cli PING` | Homebrew Redis log |
 
+## Control Script Patterns
+
+Service control scripts (`bin/*-ctl`) follow two patterns for registering with launchd.
+Both delegate to `lib/svc-launchd.bash` primitives; the difference is whether the
+binary runs directly or via a wrapper command.
+
+### Pattern 1: Binary-based (llama-ctl)
+
+Service is a compiled binary that runs directly with command-line arguments.
+
+```bash
+# lib/svc-launchd.bash provides the seam:
+zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$BIN_PATH" "$LOG_FILE" "${ARGS[@]}"
+```
+
+Usage: `bin/llama-ctl`
+- Resolves config (from metadata.bash or YAML)
+- Builds args array: `--host`, `--port`, `--model`, etc.
+- Passes binary + args to register
+- launchd runs: `$BIN_PATH ${ARGS[@]}`
+
+Environment variables (optional via `ZDOTS_SVC_ENV_KEYS`):
+- `HOME ZDOTDIR ZDOTS_AI_PROFILE ZDOTS_AI_MODELS_DIR`
+
+### Pattern 2: Script-based (openobserve-ctl, otel-collector)
+
+Service is a wrapper script that performs setup (credentials, config compilation) 
+before exec'ing the binary.
+
+```bash
+# lib/svc-launchd.bash provides the seam:
+ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR" \
+  zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$SELF" "$LOG_FILE" "serve"
+```
+
+Usage: `bin/openobserve-ctl`, `bin/otel-collector`
+- Downloads/verifies binary (with sha256 pinning or version checks)
+- Registers the *script itself* with the `serve` verb as the launchd target
+- The `cmd_serve()` function:
+  - Loads credentials from Keychain (never in the plist)
+  - Compiles or validates config
+  - Sets environment variables
+  - `exec`s the binary with the prepared config
+- launchd runs: `$SELF serve`
+
+Environment variables (optional via `ZDOTS_SVC_ENV_KEYS`):
+- `HOME ZDOTDIR` (script needs to source lib/*.bash and read config files)
+
+### When to use each pattern
+
+| Aspect | Binary-based | Script-based |
+|---|---|---|
+| **Complexity** | Config is in YAML or metadata; simple args | Needs setup: creds, compilation, env setup |
+| **Example** | llama-server (reads config flags) | openobserve-ctl (Keychain + telemetry config) |
+| **Binary source** | Homebrew formula | Custom download + sha256 verify |
+| **Credentials** | In config file or metadata | In Keychain, loaded by wrapper at boot |
+| **New service?** | Start here | Graduate here if setup is needed |
+
+### Adding a new service
+
+1. Create `bin/my-service-ctl`
+2. Source `lib/svc-launchd.bash` and any needed helpers
+3. Implement `cmd_install()`:
+   - Verify/download the binary
+   - Resolve config (from file, metadata, or build defaults)
+   - Call `zdots_svc_launchd_register()` with one of the two patterns above
+4. Implement service verbs: `start`, `stop`, `restart`, `status`, `health`, `logs`
+   - Delegate to `zdots_svc_launchd_*()` primitives from the library
+5. Update `lib/svc-registry.bash` to register the service in the platform service map
+
 ## Lifecycle State Machine
 
 ```mermaid
