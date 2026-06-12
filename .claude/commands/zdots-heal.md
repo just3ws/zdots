@@ -121,6 +121,59 @@ worker is behind or stuck).
 
 ---
 
+## Gate 6 — Skill Audit
+
+Audit every installed skill in `.claude/commands/` for correctness, coverage,
+and staleness against the current platform state.
+
+```bash
+ls .claude/commands/
+```
+
+**For each skill file, check:**
+
+1. **Correctness** — do the commands it references still exist?
+   ```bash
+   # For each command cited: grep bin/ for it
+   zdots-ctx query tooling:catalog | grep <name>
+   ```
+
+2. **Integration coverage** — does each `bin/` command have:
+   - A CC allowlist entry in `.claude/settings.json`?
+   - An entry in `agent-guide` or `capabilities` if user-facing?
+   - A knowledge-base entry (`zdots-ctx query tooling:<name>`)?
+   ```bash
+   grep -c 'Bash(' .claude/settings.json
+   zdots-ctx query tooling:catalog | wc -l
+   ```
+
+3. **Skill self-consistency** — for the zdots skills specifically:
+   - `/zdots-heal` (this skill): does it reference all current services?
+     Compare Gate 3 service list against `zsvc list`.
+   - `/zdots-integrate`: does its layer matrix match the current registration
+     points (new layers added to platform but not reflected in the checklist)?
+   - `/command-qc`: does it cover the current set of QC checkpoints?
+
+4. **Orphaned references** — skills that mention removed commands or services:
+   ```bash
+   # Quick scan: extract all command names from skills, check bin/
+   grep -h 'zsvc\|zdots-\|colima-status\|capabilities\|agent-guide' \
+     .claude/commands/*.md | grep -oE '[a-z][a-z0-9-]+' | sort -u \
+     | while read -r cmd; do
+         command -v "$cmd" >/dev/null 2>&1 || printf 'MISSING: %s\n' "$cmd"
+       done
+   ```
+
+**Heal:**
+- Command referenced in skill no longer exists → update skill to use current
+  equivalent; file `zdots-issue` if the removal was unintended
+- New service/command not reflected in `/zdots-heal` gates → update this file
+- New registration layer not in `/zdots-integrate` → update that skill
+- Allowlist entry missing for an active `bin/` command → add it to
+  `.claude/settings.json` permissions.allow
+
+---
+
 ## Reporting format
 
 After all gates, produce a structured report:
@@ -133,6 +186,7 @@ GATE 2 Colima:        PASS | FAIL | PARTIAL
 GATE 3 Services:      PASS | FAIL | PARTIAL (list downs)
 GATE 4 Deep check:    PASS | FAIL | PARTIAL
 GATE 5 Knowledge:     PASS | FAIL | PARTIAL
+GATE 6 Skills:        PASS | FAIL | PARTIAL
 
 ── HEALED (automated) ──────────────────────
 - <what was fixed>

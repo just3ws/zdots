@@ -25,6 +25,7 @@
       "Bash(zdots-ask:*)",
       "Bash(zdots-update-local:*)",
       "Bash(zdots-log-analyze:*)",
+      "Bash(zdots-logs:*)",
       "Bash(zdots-worker:*)",
       "Bash(colima-status:*)",
       "Bash(capabilities:*)",
