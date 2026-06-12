@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# bin/log-rotate — Safely rotate launchd service logs with compression.
+#
+# Rotates a service's log file by compressing the current content and
+# truncating the active log. Safe for services with open file descriptors:
+# truncates in-place so the service continues writing without restart.
+#
+# Usage: log-rotate <service-name> [--dry-run] [--help]
+#   service-name    Name of the launchd service (e.g., otel-collector, llama-server)
+#   --dry-run       Show what would happen without rotating
+#   --help          Show this help
+#
+# Exit: 0 on success, 1 on error or dry-run preview.
+
+set -uo pipefail
+trap '' PIPE
+
+# Get service name from first arg
+SERVICE="${1:-}"
+DRY_RUN=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    -h|--help) sed -n '2,16p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    -*) printf 'log-rotate: unknown option: %s\n' "$1" >&2; exit 1 ;;
+    *) SERVICE="$1" ;;
+  esac
+  shift
+done
+
+if [[ -z "$SERVICE" ]]; then
+  printf 'log-rotate: service name required\n' >&2
+  sed -n '2,16p' "$0" | sed 's/^# \?//' >&2
+  exit 1
+fi
+
+# Find the service plist
+PLIST="$HOME/Library/LaunchAgents/com.zdots.${SERVICE}.plist"
+if [[ ! -f "$PLIST" ]]; then
+  printf 'log-rotate: plist not found: %s\n' "$PLIST" >&2
+  exit 1
+fi
+
+# Extract log path from plist
+LOG_PATH=$(defaults read "$PLIST" StandardErrorPath 2>/dev/null || true)
+if [[ -z "$LOG_PATH" ]]; then
+  # Try StandardOutPath if StandardErrorPath not found
+  LOG_PATH=$(defaults read "$PLIST" StandardOutPath 2>/dev/null || true)
+fi
+
+if [[ -z "$LOG_PATH" ]]; then
+  printf 'log-rotate: could not find log path in %s\n' "$PLIST" >&2
+  exit 1
+fi
+
+if [[ ! -f "$LOG_PATH" ]]; then
+  printf 'log-rotate: log file does not exist: %s\n' "$LOG_PATH" >&2
+  exit 1
+fi
+
+# Get current stats
+LOG_SIZE=$(stat -f%z "$LOG_PATH" 2>/dev/null || echo 0)
+LOG_SIZE_MB=$((LOG_SIZE / 1024 / 1024))
+
+printf 'log-rotate: %s\n' "$SERVICE"
+printf '  log:  %s\n' "$LOG_PATH"
+printf '  size: %d MB\n' "$LOG_SIZE_MB"
+
+# Check if service is running
+PID=$(launchctl list "$SERVICE" 2>/dev/null | head -n1 || echo "")
+if [[ -z "$PID" ]] || [[ "$PID" == "No such process" ]]; then
+  printf '  status: NOT RUNNING (warning: service may have failed)\n' >&2
+else
+  printf '  status: running (PID %s)\n' "$PID"
+fi
+
+if [[ $DRY_RUN -eq 1 ]]; then
+  printf '\nDry run: would create archive and truncate log\n'
+  exit 1
+fi
+
+# Rotate: compress current log, truncate active log
+TS=$(date +%Y%m%d-%H%M%S)
+ARCHIVE="${LOG_PATH}.${TS}.gz"
+
+printf '\nRotating...\n'
+gzip -c "$LOG_PATH" > "$ARCHIVE" || {
+  printf 'log-rotate: gzip failed\n' >&2
+  exit 1
+}
+printf '  archived: %s\n' "$ARCHIVE"
+
+# Truncate in-place (safe for open FDs)
+true > "$LOG_PATH" || {
+  printf 'log-rotate: truncate failed\n' >&2
+  exit 1
+}
+printf '  truncated: %s\n' "$LOG_PATH"
+
+# Show result
+ARCHIVE_SIZE=$(stat -f%z "$ARCHIVE" 2>/dev/null || echo 0)
+ARCHIVE_SIZE_MB=$((ARCHIVE_SIZE / 1024 / 1024))
+printf '\nResult:\n'
+printf '  %d MB → %d MB (gzip compression)\n' "$LOG_SIZE_MB" "$ARCHIVE_SIZE_MB"
+printf '  active log ready for new writes\n'
+
+exit 0
