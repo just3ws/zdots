@@ -5,7 +5,8 @@
 # name. Use "all" (or no service argument) to operate across all sources.
 #
 # Commands:
-#   list   [--json]              Table of all log sources: path, size, modified
+#   list   [--json]              Table of all log sources: path, size, status
+#   check  [--json]              Size health check; warns ≥100M, fails ≥500M
 #   tail   [<svc>] [-n N]       Follow logs (default: all, -n 50)
 #   show   [<svc>] [-n N]       Last N lines, no follow (default: all, -n 100)
 #   head   [<svc>] [-n N]       First N lines (default: all, -n 50)
@@ -17,11 +18,13 @@
 #
 # Options:
 #   -n, --lines N    Number of lines (default varies by command)
-#   --json           Machine-readable output (list command)
+#   --json           Machine-readable output (list, check commands)
 #   -h, --help       Show this help
 #
 # Examples:
 #   zdots-logs list
+#   zdots-logs check
+#   zdots-logs check --json
 #   zdots-logs tail
 #   zdots-logs tail llama -n 200
 #   zdots-logs show otel -n 30
@@ -41,15 +44,27 @@ source "$ZDOTDIR/lib/svc-registry.bash"
 _die()  { printf 'zdots-logs: %s\n' "$*" >&2; exit 1; }
 _info() { printf '==> %s\n' "$*" >&2; }
 
+_fmt_bytes() {
+  local b="${1:-0}"
+  if   (( b >= 1073741824 )); then printf '%dG' $(( b / 1073741824 ))
+  elif (( b >= 1048576 ));    then printf '%dM' $(( b / 1048576 ))
+  elif (( b >= 1024 ));       then printf '%dK' $(( b / 1024 ))
+  else                             printf '%dB' "$b"
+  fi
+}
+
 _file_size() {
   local f="$1"
   [[ -f "$f" ]] || { printf -- '-'; return; }
   local b
   b=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null || printf 0)
-  if   (( b >= 1048576 )); then printf '%dM' $(( b / 1048576 ))
-  elif (( b >= 1024 ));    then printf '%dK' $(( b / 1024 ))
-  else                          printf '%dB' "$b"
-  fi
+  _fmt_bytes "$b"
+}
+
+_file_bytes() {
+  local f="$1"
+  [[ -f "$f" ]] || { printf 0; return; }
+  stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null || printf 0
 }
 
 _file_mtime() {
@@ -63,9 +78,6 @@ _file_mtime() {
 _json_str() { printf '%s' "$1" | sed 's/\\/\\\\/g;s/"/\\"/g'; }
 
 # ── Log source collection ─────────────────────────────────────────────────────
-# Populates LOG_NAMES and LOG_PATHS parallel arrays from the service registry.
-# If SVC is "all" or empty, all registered sources are included.
-# Otherwise, the single named service is resolved.
 declare -a LOG_NAMES=()
 declare -a LOG_PATHS=()
 declare -a ALL_SVCS=()
@@ -101,6 +113,38 @@ _collect() {
   fi
 }
 
+# ── Size check helpers ────────────────────────────────────────────────────────
+# Thresholds in bytes
+readonly _WARN_BYTES=$(( 100 * 1024 * 1024 ))   # 100 MiB
+readonly _CRIT_BYTES=$(( 500 * 1024 * 1024 ))   # 500 MiB
+
+_size_status() {
+  local sz="$1"
+  if   (( sz >= _CRIT_BYTES )); then printf 'crit'
+  elif (( sz >= _WARN_BYTES )); then printf 'warn'
+  else                               printf 'ok'
+  fi
+}
+
+# Estimate growth rate using file birth time (macOS APFS) or mtime fallback.
+# Outputs: age_days bytes_per_day proj_30d proj_90d
+_growth_estimate() {
+  local f="$1" sz="$2"
+  local now; now=$(date +%s)
+  local btime age_days=0 rate=0 proj_30=0 proj_90=0
+
+  # macOS birth time (stat -f%B); falls back to 0 on Linux/non-APFS
+  btime=$(stat -f%B "$f" 2>/dev/null || printf 0)
+  if (( btime > 0 && now > btime )); then
+    age_days=$(( (now - btime) / 86400 ))
+    (( age_days < 1 )) && age_days=1
+    rate=$(( sz / age_days ))
+    proj_30=$(( sz + rate * 30 ))
+    proj_90=$(( sz + rate * 90 ))
+  fi
+  printf '%s %s %s %s' "$age_days" "$rate" "$proj_30" "$proj_90"
+}
+
 # ── Commands ──────────────────────────────────────────────────────────────────
 cmd_list() {
   local json=false
@@ -115,31 +159,111 @@ cmd_list() {
       $first || printf ','
       first=false
       local p="${LOG_PATHS[$i]}" n="${LOG_NAMES[$i]}"
-      local exists=false sz=0 mtime="-"
+      local exists=false sz=0 mtime="-" status="missing"
       [[ -f "$p" ]] && exists=true
       if [[ -f "$p" ]]; then
-        sz=$(stat -f%z "$p" 2>/dev/null || stat -c%s "$p" 2>/dev/null || printf 0)
+        sz=$(_file_bytes "$p")
         mtime=$(stat -f '%Sm' -t '%Y-%m-%dT%H:%M:%S' "$p" 2>/dev/null \
                   || stat -c '%y' "$p" 2>/dev/null | cut -c1-19 | tr ' ' T \
                   || printf '?')
+        status=$(_size_status "$sz")
       fi
-      printf '{"name":"%s","path":"%s","exists":%s,"bytes":%s,"modified":"%s"}' \
-        "$(_json_str "$n")" "$(_json_str "$p")" "$exists" "$sz" "$mtime"
+      printf '{"name":"%s","path":"%s","exists":%s,"bytes":%s,"modified":"%s","status":"%s"}' \
+        "$(_json_str "$n")" "$(_json_str "$p")" "$exists" "$sz" "$mtime" "$status"
     done
     printf ']}\n'
     return
   fi
 
-  printf '%-16s  %-6s  %-16s  %s\n' NAME SIZE MODIFIED PATH
-  printf '%s\n' "$(printf '%0.s-' {1..80})"
+  printf '%-16s  %-8s  %-6s  %-16s  %s\n' NAME SIZE STATUS MODIFIED PATH
+  printf '%s\n' "$(printf '%0.s-' {1..90})"
   local i
   for i in "${!LOG_PATHS[@]}"; do
     local p="${LOG_PATHS[$i]}" n="${LOG_NAMES[$i]}"
-    local exists_mark=""
-    [[ -f "$p" ]] || exists_mark=" [missing]"
-    printf '%-16s  %-6s  %-16s  %s%s\n' \
-      "$n" "$(_file_size "$p")" "$(_file_mtime "$p")" "$p" "$exists_mark"
+    local sz_h status exists_mark=""
+    [[ -f "$p" ]] || { exists_mark=" [missing]"; sz_h="-"; status="-"; }
+    if [[ -f "$p" ]]; then
+      sz_h=$(_file_size "$p")
+      status=$(_size_status "$(_file_bytes "$p")")
+    fi
+    printf '%-16s  %-8s  %-6s  %-16s  %s%s\n' \
+      "$n" "$sz_h" "$status" "$(_file_mtime "$p")" "$p" "$exists_mark"
   done
+}
+
+cmd_check() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && { json=true; shift; }
+
+  _collect_all
+
+  local -i any_warn=0 any_crit=0
+  local i
+
+  if $json; then
+    local first=true
+    printf '{"warn_threshold_bytes":%s,"crit_threshold_bytes":%s,"files":[' \
+      "$_WARN_BYTES" "$_CRIT_BYTES"
+  else
+    printf 'Log size check  (warn ≥%s, crit ≥%s)\n' \
+      "$(_fmt_bytes "$_WARN_BYTES")" "$(_fmt_bytes "$_CRIT_BYTES")"
+  fi
+
+  for i in "${!LOG_PATHS[@]}"; do
+    local p="${LOG_PATHS[$i]}" n="${LOG_NAMES[$i]}"
+    local sz age_days rate proj_30 proj_90 status
+
+    if [[ ! -f "$p" ]]; then
+      if $json; then
+        $first || printf ','
+        first=false
+        printf '{"name":"%s","path":"%s","exists":false,"status":"missing"}' \
+          "$(_json_str "$n")" "$(_json_str "$p")"
+      else
+        printf '  %-16s  -         missing\n' "$n"
+      fi
+      continue
+    fi
+
+    sz=$(_file_bytes "$p")
+    status=$(_size_status "$sz")
+    read -r age_days rate proj_30 proj_90 <<< "$(_growth_estimate "$p" "$sz")"
+
+    [[ "$status" == "warn" ]] && any_warn=1
+    [[ "$status" == "crit" ]] && any_crit=1
+
+    if $json; then
+      $first || printf ','
+      first=false
+      printf '{"name":"%s","path":"%s","exists":true,"bytes":%s,"age_days":%s,"bytes_per_day":%s,"projected_30d":%s,"projected_90d":%s,"status":"%s"}' \
+        "$(_json_str "$n")" "$(_json_str "$p")" \
+        "$sz" "$age_days" "$rate" "$proj_30" "$proj_90" "$status"
+    else
+      local label=""
+      [[ "$status" == "crit" ]] && label="  *** CRITICAL — at risk"
+      [[ "$status" == "warn" ]] && label="  ** WARNING — at risk"
+      printf '  %-16s  %-8s  %s%s\n' "$n" "$(_fmt_bytes "$sz")" "$status" "$label"
+      if (( rate > 0 )); then
+        printf '  %-16s  growth ~%s/day  →  30d: %s  90d: %s  (est.)\n' \
+          "" "$(_fmt_bytes "$rate")" "$(_fmt_bytes "$proj_30")" "$(_fmt_bytes "$proj_90")"
+      fi
+    fi
+  done
+
+  if $json; then
+    printf '],"any_warn":%s,"any_crit":%s}\n' \
+      "$( [[ $any_warn -eq 1 ]] && printf true || printf false )" \
+      "$( [[ $any_crit -eq 1 ]] && printf true || printf false )"
+  else
+    printf '\n'
+    if   (( any_crit )); then printf '[FAIL] one or more log files exceed %s — rotation needed\n' "$(_fmt_bytes "$_CRIT_BYTES")"
+    elif (( any_warn )); then printf '[warn] one or more log files exceed %s — monitor closely\n' "$(_fmt_bytes "$_WARN_BYTES")"
+    else                       printf '[ok]   all log files within size thresholds\n'
+    fi
+  fi
+
+  # Exit 1 on CRITICAL so zdots-doctor and zdots-heal can detect it
+  [[ $any_crit -eq 0 ]]
 }
 
 cmd_tail() {
@@ -236,15 +360,16 @@ cmd_grep() {
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────
 CMD="${1:-}"
-[[ -n "$CMD" ]] || { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+[[ -n "$CMD" ]] || { sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 shift
 
 case "$CMD" in
   list)              cmd_list  "$@" ;;
+  check)             cmd_check "$@" ;;
   tail)              cmd_tail  "$@" ;;
   show)              cmd_show  "$@" ;;
   head)              cmd_head  "$@" ;;
   grep)              cmd_grep  "$@" ;;
-  -h|--help|help)    sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help|help)    sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   *)                 _die "unknown command: $CMD  (try --help)" ;;
 esac
