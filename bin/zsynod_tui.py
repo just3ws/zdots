@@ -1286,6 +1286,18 @@ class ZsynodApp(App):
                         blind=blind,
                         advocate=advocate,
                     )
+                    _remark_lower = (remark or "").lower()
+                    if any(p in _remark_lower for p in (
+                        "usage limit", "rate limit", "quota exceeded",
+                        "too many requests", "billing", "subscription",
+                    )):
+                        breaker.record_timeout()
+                        self.call_from_thread(
+                            self.log_message,
+                            f"[yellow]🚫 {actor} quota:[/yellow] [dim]{remark.strip()[:120]}[/dim] "
+                            f"[dim]→ backing off ({breaker._consecutive}×)[/dim]",
+                        )
+                        continue
                     breaker.record_success()
                     speech, directives = parse_directives(remark)
                     if speech:
