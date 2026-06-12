@@ -208,6 +208,7 @@ cask "microsoft-teams"
 cask "miro"
 cask "obsidian"
 cask "onyx"
+cask "openvpn-connect"   # corporate VPN client — network access to work infrastructure
 cask "pgadmin4"
 cask "postman"
 cask "rectangle"
@@ -237,6 +238,68 @@ cask "claude-code"
 cask "claude-devtools"
 cask "claudebar"
 vscode "saoudrizwan.claude-dev"
+
+# ---------------------------------------------------------------------------
+# AWS — work infrastructure tooling
+# ---------------------------------------------------------------------------
+# Work-only. Excluded from Brewfile.home: no personal AWS footprint, and
+# mixing org-specific configs (default profiles, account IDs, regions) with
+# a personal machine creates credential-leak and audit-trail risk.
+#
+# Credential discipline is doubled here because PHI in healthcare stacks
+# typically lives in AWS services (S3, RDS, Secrets Manager). The tools
+# below are CLI/local only — no cloud desktop apps.
+
+brew "awscli"
+# Primary AWS CLI v2. Everything else in this section depends on it.
+# Config lives in ~/.aws/config (profiles only, no keys); keys are managed
+# by aws-vault (see below). Region + output format: set per-profile.
+
+brew "aws-vault"
+# Stores AWS credentials in macOS Keychain — never in ~/.aws/credentials
+# plaintext. On a PHI-adjacent machine this is non-negotiable. Usage:
+#   aws-vault add <profile>         # store creds (once)
+#   aws-vault exec <profile> -- aws s3 ls
+# Pairs with `granted` for SSO workflows.
+
+brew "granted"
+# Multi-account credential switching for SSO/IdC workloads. Replaces manual
+# `export AWS_PROFILE=...` juggling across accounts and regions. Integrates
+# with aws-vault backend; pops a browser for SSO login, caches session.
+#   assume <profile>                # switch active profile in current shell
+#   assume --sso                    # trigger SSO login flow
+
+cask "session-manager-plugin"
+# Required for `aws ssm start-session` to reach EC2/ECS tasks without open
+# SSH ports. PHI-safe: encrypted channel, no inbound firewall rules, all
+# sessions logged to CloudTrail automatically. Install this and you never
+# need a bastion host or SSH key distribution for operational access.
+#   aws ssm start-session --target i-0abc123          # shell on EC2
+#   aws ssm start-session --target i-0abc123 \        # port-forward RDS
+#     --document-name AWS-StartPortForwardingSession \
+#     --parameters '{"portNumber":["5432"],"localPortNumber":["5432"]}'
+
+brew "cfn-lint"
+# CloudFormation template linter. Catches syntax errors, deprecated resource
+# properties, and missing fields before deploy. Also flags common PHI-risk
+# misconfigurations: missing S3 encryption, public bucket ACLs, unencrypted
+# RDS. Run as a pre-commit hook or in CI.
+#   cfn-lint template.yaml          # lint a template
+#   cfn-lint **/*.yaml --format json | jq .
+
+brew "checkov"
+# IaC security scanner for Terraform, CloudFormation, and CDK. Runs ~1000
+# built-in policies; particularly useful for flagging PHI-relevant risks:
+# unencrypted S3/RDS/DynamoDB, public-access settings, missing KMS keys,
+# overly permissive IAM. Integrates with pre-commit and CI.
+#   checkov -d infra/               # scan a directory of TF/CFN files
+#   checkov -f template.yaml --framework cloudformation
+
+brew "terraform"
+# Industry-standard IaC tool. Work-only because personal infrastructure uses
+# managed platforms with no Terraform footprint. Use with aws-vault:
+#   aws-vault exec <profile> -- terraform plan
+# State should live in a remote backend (S3 + DynamoDB lock), never locally.
 
 # ---------------------------------------------------------------------------
 # Pending work approval — uncomment as cleared
