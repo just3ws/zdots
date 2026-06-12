@@ -1,4 +1,5 @@
 import datetime
+import fcntl
 import json
 import os
 import random
@@ -8,6 +9,7 @@ import sys
 import time
 import argparse
 from pathlib import Path
+from rich.markup import escape as _esc
 from textual.app import App, ComposeResult, Screen
 from textual.widgets import (
     Header, Footer, Static, RichLog, Input,
@@ -27,6 +29,7 @@ from zsynod_core import (
 from zsynod_otel import setup_otel
 
 _MEMBERS_PATH = Path(__file__).parent.parent / "zsynod" / "members.json"
+_PID_FILE = Path.home() / ".local" / "run" / "zsynod.pid"
 
 _STATE_COLORS = {
     "NEW": "cyan", "ACTIVE": "white", "PASSING": "yellow",
@@ -433,7 +436,35 @@ class ZsynodApp(App):
         )
         yield Footer()
 
+    def _acquire_pid_lock(self) -> None:
+        """Exclusive flock on _PID_FILE — auto-released on process death."""
+        _PID_FILE.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self._pid_fh = open(_PID_FILE, "w")
+            fcntl.flock(self._pid_fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._pid_fh.write(str(os.getpid()))
+            self._pid_fh.flush()
+        except IOError:
+            existing = _PID_FILE.read_text().strip() if _PID_FILE.exists() else "unknown"
+            print(
+                f"\nzsynod is already running (pid {existing}).\n"
+                "Attach with:  zsynod ui\n",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    def on_unmount(self) -> None:
+        fh = getattr(self, "_pid_fh", None)
+        if fh:
+            try:
+                fcntl.flock(fh, fcntl.LOCK_UN)
+                fh.close()
+                _PID_FILE.unlink(missing_ok=True)
+            except Exception:
+                pass
+
     def on_mount(self) -> None:
+        self._acquire_pid_lock()
         self.tracer = setup_otel("zsynod-py-tui")
         self.ledger = LedgerManager(self.args.ledger)
         self.dials_path = self.args.ledger.parent / "dials.json"
@@ -523,6 +554,9 @@ class ZsynodApp(App):
                 seats.append(ZsynodAgent(mid, endpoint=self.args.endpoint))
             elif mid in _CLIS or m.get("command") in _CLIS:
                 cmd = m["command"] if m.get("command") in _CLIS else mid
+                if not shutil.which(cmd):
+                    self._dormant_members.append(mid)
+                    continue
                 seats.append(ZsynodAgent(mid, backend="cli", command=cmd))
             else:
                 self._dormant_members.append(mid)
@@ -569,46 +603,51 @@ class ZsynodApp(App):
         words = text.split()
         styled = []
         for w in words:
+            safe = _esc(w)
             if w.startswith("#"):
-                styled.append(f"[dim]{w}[/dim]")
+                styled.append(f"[dim]{safe}[/dim]")
             elif w.startswith("@"):
-                styled.append(f"[bold]{w}[/bold]")
+                styled.append(f"[bold]{safe}[/bold]")
             else:
-                styled.append(w)
-        # rough token estimate: words ≈ tokens at ~1.3 ratio
+                styled.append(safe)
         est = max(1, int(len(words) / 1.3))
         return " ".join(styled) + f" [dim][{est}t][/dim]"
 
     def _render_entry(self, log: RichLog, e) -> None:
         ac = "green" if e.actor == "mike" else "cyan"
-        actor = f"[{ac}]@{e.actor}[/{ac}]"
+        actor = f"[{ac}]@{_esc(e.actor)}[/{ac}]"
         if e.type in ["speak", "discuss"]:
             log.write(f"{actor}: {self._style_remark(e.data.get('remark', ''))}")
         elif e.type == "propose":
-            log.write(f"[b][yellow]── {e.data['id']}: {e.data['title']} ──[/yellow][/b]")
+            pid = _esc(e.data.get('id', '?'))
+            title = _esc(e.data.get('title', ''))
+            log.write(f"[b][yellow]── {pid}: {title} ──[/yellow][/b]")
             if "body" in e.data:
-                log.write(f"   [dim]{e.data['body']}[/dim]")
+                log.write(f"   [dim]{_esc(e.data['body'])}[/dim]")
         elif e.type == "vote":
-            v = e.data["vote"]
+            v = e.data.get("vote", "?")
             vc = "green" if v == "aye" else "red" if v == "nay" else "yellow"
-            note = f" — {e.data['note']}" if e.data.get("note") else ""
-            log.write(f"{actor}: [{vc}]{v}[/{vc}] on {e.data.get('proposal', '?')}{note}")
+            note = f" — {_esc(e.data['note'])}" if e.data.get("note") else ""
+            log.write(f"{actor}: [{vc}]{v}[/{vc}] on {_esc(e.data.get('proposal', '?'))}{note}")
         elif e.type == "second":
-            log.write(f"{actor}: seconded {e.data.get('proposal', '?')}")
+            log.write(f"{actor}: seconded {_esc(e.data.get('proposal', '?'))}")
         elif e.type == "commit":
-            note = f" — {e.data.get('note', '')}" if e.data.get("note") else ""
-            log.write(f"[b][green]★ RATIFIED {e.data.get('proposal', '?')}[/green][/b]{note}")
+            note = f" — {_esc(e.data.get('note', ''))}" if e.data.get("note") else ""
+            log.write(f"[b][green]★ RATIFIED {_esc(e.data.get('proposal', '?'))}[/green][/b]{note}")
         elif e.type == "handoff":
             log.write(
                 f"{actor} [magenta]→[/magenta] "
-                f"{e.data.get('to','?')}: {e.data.get('task','')}"
+                f"{_esc(e.data.get('to','?'))}: {_esc(e.data.get('task',''))}"
             )
         elif e.type == "pass":
-            note = f" — {e.data['note']}" if e.data.get("note") else ""
+            note = f" — {_esc(e.data['note'])}" if e.data.get("note") else ""
             log.write(f"{actor}: [dim]⏸ pass{note}[/dim]")
         elif e.type == "close":
-            reason = f" — {e.data.get('reason', '')}" if e.data.get("reason") else ""
-            log.write(f"{actor}: [bright_black]✂ CLOSED {e.data.get('proposal', '?')}{reason}[/bright_black]")
+            reason = f" — {_esc(e.data.get('reason', ''))}" if e.data.get("reason") else ""
+            log.write(f"{actor}: [bright_black]✂ CLOSED {_esc(e.data.get('proposal', '?'))}{reason}[/bright_black]")
+        elif e.type == "reset":
+            arc = _esc(e.data.get('archive', ''))
+            log.write(f"[b][red]⚠ FORUM RESET[/red][/b] [dim]archived → {arc}[/dim]")
 
     def _update_tally(self) -> None:
         box = self.query_one("#tally-box", Static)
@@ -1255,6 +1294,19 @@ class ZsynodApp(App):
                     reason = bits[1] if len(bits) > 1 else "closed via cockpit"
                     self.ledger.append("mike", "close", {"proposal": pid, "reason": reason, "by": "principal"})
                     self.log_message(f"[green]mike:[/green] [bright_black]✂ CLOSED {pid}[/bright_black] — {reason}")
+                elif action == "reset":
+                    if rest.strip().lower() != "confirm":
+                        self.log_message(
+                            "[yellow]⚠ This archives the ledger and clears all proposals.[/yellow]\n"
+                            "[yellow]Type [b]reset confirm[/b] to proceed.[/yellow]"
+                        )
+                        return
+                    arc = self.ledger.reset()
+                    self.last_seen_seq = -1
+                    self.selected_pid = None
+                    self.log_message(f"[green]✓ Ledger archived → {_esc(arc.name)}[/green]")
+                    self.log_message("[yellow]Forum reset. Start fresh with 'propose <title>'.[/yellow]")
+                    self.refresh_data()
                 elif action == "dial":
                     bits = rest.split()
                     if not bits:
