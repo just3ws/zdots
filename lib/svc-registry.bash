@@ -15,6 +15,22 @@
 #   zdots_svc_state   <svc>     → echo "state\tpid" (launchd/colima/nginx)
 #   zdots_svc_healthy <svc>     → exit 0 if the service's liveness probe passes
 #
+# Descriptor accessors (all return empty string if service unknown):
+#   zdots_svc_display <svc>     → human-readable name
+#   zdots_svc_label <svc>       → launchd service label
+#   zdots_svc_log <svc>         → log file path
+#   zdots_svc_ctl <svc>         → control script (bin/ basename or command name)
+#   zdots_svc_endpoint <svc>    → health check endpoint URL
+#   zdots_svc_type <svc>        → service type (launchd|plist|nginx|colima|derived)
+#   zdots_svc_install <svc>     → install ctl command
+#   zdots_svc_start <svc>       → start ctl command
+#   zdots_svc_stop <svc>        → stop ctl command
+#   zdots_svc_restart <svc>     → restart ctl command
+#   zdots_svc_status <svc>      → status ctl command
+#   zdots_svc_health <svc>      → liveness probe (function, not string)
+#   zdots_svc_logs <svc>        → logs ctl command
+#   zdots_svc_validate <svc>    → validate ctl command
+#
 # Per-service descriptor (associative arrays keyed by canonical name):
 #   ZDOTS_SVC_DISPLAY / _LABEL / _LOG / _CTL / _ENDPOINT / _TYPE
 #   ZDOTS_SVC_INSTALL / _START / _STOP / _RESTART / _STATUS / _HEALTH / _LOGS / _VALIDATE
@@ -151,4 +167,73 @@ zdots_svc_healthy() {
     ctx)         "${ZDOTS_SVC_BIN}/zdots-ctx" status >/dev/null 2>&1 ;;
     *)           return 2 ;;
   esac
+}
+
+# ── Descriptor accessors (avoid direct array access) ──────────────────────────
+
+# All accessors return empty string if service not found (caller should check).
+
+zdots_svc_display() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_DISPLAY[$name]:-}"
+}
+
+zdots_svc_label() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_LABEL[$name]:-}"
+}
+
+zdots_svc_log() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_LOG[$name]:-}"
+}
+
+zdots_svc_ctl() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_CTL[$name]:-}"
+}
+
+zdots_svc_endpoint() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_ENDPOINT[$name]:-}"
+}
+
+zdots_svc_type() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_TYPE[$name]:-}"
+}
+
+zdots_svc_install() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_INSTALL[$name]:-}"
+}
+
+zdots_svc_start() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_START[$name]:-}"
+}
+
+zdots_svc_stop() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_STOP[$name]:-}"
+}
+
+zdots_svc_restart() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_RESTART[$name]:-}"
+}
+
+zdots_svc_status() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_STATUS[$name]:-}"
+}
+
+zdots_svc_logs() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_LOGS[$name]:-}"
+}
+
+zdots_svc_validate() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_VALIDATE[$name]:-}"
 }
