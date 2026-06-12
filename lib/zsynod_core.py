@@ -182,7 +182,7 @@ class AgentCircuitBreaker:
 # validation (does the proposal exist? is the member seated?) belongs to the
 # caller, which holds ledger state.
 
-_DIRECTIVE_RE = re.compile(r"^\s*>\s*(vote|second|propose|handoff|pass|close|body)\b\s*(.*)$",
+_DIRECTIVE_RE = re.compile(r"^\s*>\s*(vote|second|propose|handoff|pass|close|body|ask)\b\s*(.*)$",
                            re.IGNORECASE)
 
 
@@ -221,6 +221,10 @@ def _parse_one_directive(verb: str, rest: str) -> Optional[tuple]:
         m = re.match(r"(?i)^(p\d+)\s+(.+)$", rest)
         if m:
             return ("body", {"proposal": m.group(1).upper(), "body": m.group(2).strip()})
+    elif verb == "ask":
+        m = re.match(r"^@?(\w[\w-]*)\s+(.+)$", rest)
+        if m:
+            return ("ask", {"to": m.group(1).lower(), "question": m.group(2).strip()})
     return None
 
 
@@ -232,6 +236,7 @@ def parse_directives(remark: str) -> tuple[str, list[tuple[str, dict]]]:
         >second P#
         >propose <title>
         >handoff @member <task>
+        >ask @member <question>   — DM a question; pinned in target's next prompt
         >close P# [reason]        — proposer closes own topic; others cast a close vote
         >body P# <decision text>  — record a decision into the proposal body
         >pass [reason]
@@ -757,7 +762,8 @@ class ZsynodAgent:
                    temperature: float = None, max_tokens: int = None,
                    context_depth: int = 5, kb_note: str = "",
                    blind: bool = False, advocate: bool = False,
-                   prior_decisions: str = "") -> str:
+                   prior_decisions: str = "",
+                   pending_asks: str = "") -> str:
         # Sanitize all prompt ingredients before string assembly. None or
         # whitespace-only values become safe sentinels — an empty topic is the
         # root cause of Pi's z-999 loop (nothing to reason about → hallucinate
@@ -786,10 +792,12 @@ class ZsynodAgent:
             f"Start with @handle to direct a reply at that member (DM-style — free, doesn't eat your budget). "
             f"You have {_hard_cap} tokens. Write until you're done or the wall stops you. "
             f"End every post with exactly 3 hashtags. "
-            f"A line starting with ⚡ is the loudest signal in the feed — address it first. "
+            f"📬 marks questions directed at you — answer them before moving on. "
+            f"⚡ is the loudest signal in the feed — address it first if no 📬. "
             f"End with exactly one directive line starting with '>': "
             f"'>vote P# aye|nay|abstain <one-line reason>'  '>second P#'  "
             f"'>propose <title>'  '>handoff @member <task>'  "
+            f"'>ask @member <question>'  "
             f"'>close P# [reason]'  '>body P# <decision text>'  '>pass'. "
             f"Every vote carries its reason — a bare aye is noise. "
             f"Vote when you hold a position; '>pass' only if you truly have nothing. "
@@ -806,7 +814,8 @@ class ZsynodAgent:
         pinned = f"[STATE] {summary}\n" if summary else ""
         kb_line = f"[KB] {kb_note}\n" if kb_note else ""
         ratified_line = f"[RATIFIED]\n{prior_decisions}\n" if prior_decisions else ""
-        body = f"{trend_line}{event_line}{pinned}{kb_line}{ratified_line}--- feed ---\n{context_str}\n---\n@{self.actor_id}:"
+        asks_block = f"[📬 QUESTIONS FOR YOU]\n{pending_asks}\n" if pending_asks else ""
+        body = f"{asks_block}{trend_line}{event_line}{pinned}{kb_line}{ratified_line}--- feed ---\n{context_str}\n---\n@{self.actor_id}:"
         # The tick glyph BRACKETS the full dispatch — the very first and
         # very last character the member receives. The system prompt is the
         # long static prefix that provider caches ride on, so the glyph must
@@ -1324,6 +1333,24 @@ class LedgerManager:
             if e.type == "summary" and e.data.get("proposal") == pid:
                 return e.data.get("text", "")
         return ""
+
+    def get_pending_asks(self, actor: str) -> list[tuple[int, str, str]]:
+        """Return (seq, from_actor, question) for every ask directed at `actor`
+        that has not yet been answered. An ask is answered when the target posts
+        any speak or discuss entry after the ask's seq."""
+        pending = []
+        for e in self.entries:
+            if e.type != "ask" or e.data.get("to") != actor:
+                continue
+            ask_seq = e.seq
+            # answered if target has spoken since the ask
+            answered = any(
+                r.actor == actor and r.type in ("speak", "discuss") and r.seq > ask_seq
+                for r in self.entries
+            )
+            if not answered:
+                pending.append((ask_seq, e.actor, e.data.get("question", "")))
+        return pending
 
     def get_ratified_decisions(self, limit: int = 6) -> list[tuple[str, str, str]]:
         """Return (pid, title, body) for the most recently ratified proposals,
