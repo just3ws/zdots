@@ -1301,10 +1301,15 @@ class LedgerManager:
         return ""
 
     def get_proposal_body(self, pid: str) -> str:
+        """Return the most recent body for a proposal — either from the propose
+        entry or from a subsequent `body` entry (cockpit `body P# <text>`)."""
+        body = ""
         for e in self.entries:
             if e.type == "propose" and e.data.get("id") == pid:
-                return e.data.get("body", "")
-        return ""
+                body = e.data.get("body", "")
+            elif e.type == "body" and e.data.get("proposal") == pid:
+                body = e.data.get("body", body)
+        return body
 
     # ── quality analytics ─────────────────────────────────────────────────────
 
