@@ -761,56 +761,124 @@ class ZsynodApp(App):
         box.update("")
 
     @staticmethod
+    @staticmethod
     def _style_remark(text: str) -> str:
-        """Dim hashtags, highlight @mentions, append token estimate."""
+        """Color #hashtags cyan, bold @mentions, leave prose unstyled."""
         words = text.split()
         styled = []
         for w in words:
             safe = _esc(w)
             if w.startswith("#"):
-                styled.append(f"[dim]{safe}[/dim]")
+                styled.append(f"[cyan]{safe}[/cyan]")
             elif w.startswith("@"):
                 styled.append(f"[bold]{safe}[/bold]")
             else:
                 styled.append(safe)
-        est = max(1, int(len(words) / 1.3))
-        return " ".join(styled) + f" [dim][{est}t][/dim]"
+        return " ".join(styled)
+
+    @staticmethod
+    def _split_hashtags(text: str) -> tuple[str, str]:
+        """Separate trailing hashtag cluster from body prose.
+        Returns (prose, hashtag_line) — prose is the readable content,
+        hashtag_line is the thread markers for the footer row."""
+        words = text.split()
+        # walk from the end; stop at first non-hashtag word
+        split = len(words)
+        for i in range(len(words) - 1, -1, -1):
+            if words[i].startswith("#"):
+                split = i
+            else:
+                break
+        prose = " ".join(words[:split]).strip()
+        tags  = " ".join(words[split:]).strip()
+        return prose, tags
 
     def _render_entry(self, log: RichLog, e) -> None:
         ac = "green" if e.actor == "mike" else "cyan"
-        actor = f"[{ac}]@{_esc(e.actor)}[/{ac}]"
-        if e.type in ["speak", "discuss"]:
-            log.write(f"{actor}: {self._style_remark(e.data.get('remark', ''))}")
+        actor_tag = f"[{ac}]@{_esc(e.actor)}[/{ac}]"
+        seq_tag   = f"[dim]#{e.seq}[/dim]"
+        ts_tag    = f"[dim]{e.ts[11:16]}[/dim]" if getattr(e, "ts", "") else ""
+
+        if e.type in ("speak", "discuss"):
+            # ── content post: header + body + hashtag footer ──────────────────
+            remark = e.data.get("remark", "")
+            prose, tags = self._split_hashtags(remark)
+            log.write(f"{actor_tag}  {seq_tag}  {ts_tag}")
+            for line in prose.splitlines():
+                stripped = line.strip()
+                if stripped:
+                    log.write(f"  {self._style_remark(stripped)}")
+            if tags:
+                log.write(f"  [cyan dim]{_esc(tags)}[/cyan dim]")
+            log.write("")
+
+        elif e.type == "ask":
+            to  = _esc(e.data.get("to", "?"))
+            q   = _esc(e.data.get("question", ""))
+            log.write(f"[cyan]📬[/cyan] {actor_tag} → [bold]@{to}[/bold]  {seq_tag}  {ts_tag}")
+            log.write(f"  [italic]{q}[/italic]")
+            log.write("")
+
         elif e.type == "propose":
-            pid = _esc(e.data.get('id', '?'))
-            title = _esc(e.data.get('title', ''))
-            log.write(f"[b][yellow]── {pid}: {title} ──[/yellow][/b]")
-            if "body" in e.data:
-                log.write(f"   [dim]{_esc(e.data['body'])}[/dim]")
+            pid   = _esc(e.data.get("id", "?"))
+            title = _esc(e.data.get("title", ""))
+            log.write(f"[b][yellow]◆ {pid}[/yellow][/b]  {actor_tag}  {seq_tag}  {ts_tag}")
+            log.write(f"  [b]{title}[/b]")
+            if e.data.get("body"):
+                log.write(f"  [dim]{_esc(e.data['body'][:200])}[/dim]")
+            log.write("")
+
         elif e.type == "vote":
-            v = e.data.get("vote", "?")
-            vc = "green" if v == "aye" else "red" if v == "nay" else "yellow"
-            note = f" — {_esc(e.data['note'])}" if e.data.get("note") else ""
-            log.write(f"{actor}: [{vc}]{v}[/{vc}] on {_esc(e.data.get('proposal', '?'))}{note}")
+            v   = e.data.get("vote", "?")
+            vc  = "green" if v == "aye" else "red" if v == "nay" else "yellow"
+            pid = _esc(e.data.get("proposal", "?"))
+            note = f"  [dim]{_esc(e.data['note'][:80])}[/dim]" if e.data.get("note") else ""
+            log.write(f"  {actor_tag}  [{vc}]{v}[/{vc}] {pid}{note}  {seq_tag}")
+
         elif e.type == "second":
-            log.write(f"{actor}: seconded {_esc(e.data.get('proposal', '?'))}")
-        elif e.type == "commit":
-            note = f" — {_esc(e.data.get('note', ''))}" if e.data.get("note") else ""
-            log.write(f"[b][green]★ RATIFIED {_esc(e.data.get('proposal', '?'))}[/green][/b]{note}")
-        elif e.type == "handoff":
-            log.write(
-                f"{actor} [magenta]→[/magenta] "
-                f"{_esc(e.data.get('to','?'))}: {_esc(e.data.get('task',''))}"
-            )
+            pid = _esc(e.data.get("proposal", "?"))
+            log.write(f"  {actor_tag}  ⬆ seconded {pid}  {seq_tag}")
+
         elif e.type == "pass":
-            note = f" — {_esc(e.data['note'])}" if e.data.get("note") else ""
-            log.write(f"{actor}: [dim]⏸ pass{note}[/dim]")
+            note = f"  [dim]{_esc(e.data['note'][:60])}[/dim]" if e.data.get("note") else ""
+            log.write(f"  {actor_tag}  [dim]⏸ pass{note}[/dim]  {seq_tag}")
+
+        elif e.type == "handoff":
+            to   = _esc(e.data.get("to", "?"))
+            task = _esc(e.data.get("task", ""))
+            log.write(f"  {actor_tag} [magenta]→[/magenta] [bold]@{to}[/bold]: {task}  {seq_tag}")
+
+        elif e.type == "commit":
+            pid  = _esc(e.data.get("proposal", "?"))
+            note = f"  [dim]{_esc(e.data.get('note','')[:60])}[/dim]" if e.data.get("note") else ""
+            log.write(f"[b][green]★ RATIFIED {pid}[/green][/b]{note}  {seq_tag}")
+            log.write("")
+
         elif e.type == "close":
-            reason = f" — {_esc(e.data.get('reason', ''))}" if e.data.get("reason") else ""
-            log.write(f"{actor}: [bright_black]✂ CLOSED {_esc(e.data.get('proposal', '?'))}{reason}[/bright_black]")
+            pid    = _esc(e.data.get("proposal", "?"))
+            reason = f"  [dim]{_esc(e.data.get('reason','')[:80])}[/dim]" if e.data.get("reason") else ""
+            log.write(f"[bright_black]✂ CLOSED {pid}[/bright_black]  {actor_tag}{reason}  {seq_tag}")
+            log.write("")
+
+        elif e.type == "close_vote":
+            pid = _esc(e.data.get("proposal", "?"))
+            log.write(f"  {actor_tag}  [dim]↕ close vote {pid}[/dim]  {seq_tag}")
+
+        elif e.type == "body":
+            pid  = _esc(e.data.get("proposal", "?"))
+            body = _esc(e.data.get("body", "")[:120])
+            log.write(f"  [dim]📝 {actor_tag} → {pid}[/dim]  {seq_tag}")
+            log.write(f"  [dim]{body}[/dim]")
+
+        elif e.type in ("summary", "second_reading"):
+            text = _esc(e.data.get("text", e.data.get("note", ""))[:100])
+            pid  = e.data.get("proposal", "")
+            log.write(f"  [dim]📋 {e.type}{' ' + pid if pid else ''} — {text}[/dim]")
+
         elif e.type == "reset":
-            arc = _esc(e.data.get('archive', ''))
-            log.write(f"[b][red]⚠ FORUM RESET[/red][/b] [dim]archived → {arc}[/dim]")
+            arc = _esc(e.data.get("archive", ""))
+            log.write(f"[b][red]⚠ FORUM RESET[/red][/b]  [dim]{arc}[/dim]")
+            log.write("")
 
     def _update_tally(self) -> None:
         box = self.query_one("#tally-box", Static)
