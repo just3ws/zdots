@@ -756,7 +756,8 @@ class ZsynodAgent:
                    trend: str = "", event: str = "",
                    temperature: float = None, max_tokens: int = None,
                    context_depth: int = 5, kb_note: str = "",
-                   blind: bool = False, advocate: bool = False) -> str:
+                   blind: bool = False, advocate: bool = False,
+                   prior_decisions: str = "") -> str:
         # Sanitize all prompt ingredients before string assembly. None or
         # whitespace-only values become safe sentinels — an empty topic is the
         # root cause of Pi's z-999 loop (nothing to reason about → hallucinate
@@ -799,7 +800,8 @@ class ZsynodAgent:
         event_line = f"⚡ {event}\n" if event else ""
         pinned = f"[STATE] {summary}\n" if summary else ""
         kb_line = f"[KB] {kb_note}\n" if kb_note else ""
-        body = f"{trend_line}{event_line}Topic: {topic}\n{pinned}{kb_line}{context_str}\n@{self.actor_id}:"
+        ratified_line = f"[RATIFIED]\n{prior_decisions}\n" if prior_decisions else ""
+        body = f"{trend_line}{event_line}Topic: {topic}\n{pinned}{kb_line}{ratified_line}{context_str}\n@{self.actor_id}:"
         # The tick glyph BRACKETS the full dispatch — the very first and
         # very last character the member receives. The system prompt is the
         # long static prefix that provider caches ride on, so the glyph must
@@ -1317,6 +1319,27 @@ class LedgerManager:
             if e.type == "summary" and e.data.get("proposal") == pid:
                 return e.data.get("text", "")
         return ""
+
+    def get_ratified_decisions(self, limit: int = 6) -> list[tuple[str, str, str]]:
+        """Return (pid, title, body) for the most recently ratified proposals,
+        newest first. Used to pin settled decisions into the deliberation prompt
+        so members argue forward, not in circles."""
+        committed_pids = [
+            e.data["proposal"] for e in self.entries
+            if e.type == "commit"
+        ]
+        seen: set[str] = set()
+        results = []
+        for pid in reversed(committed_pids):
+            if pid in seen:
+                continue
+            seen.add(pid)
+            title = self.get_title(pid)
+            body = self.get_proposal_body(pid)
+            results.append((pid, title, body))
+            if len(results) >= limit:
+                break
+        return results
 
     def get_proposal_body(self, pid: str) -> str:
         """Return the most recent body for a proposal — either from the propose

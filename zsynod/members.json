@@ -4,12 +4,14 @@
       "id": "claude",
       "tier": "frontier",
       "voting": true,
+      "can_propose": true,
       "lane": "architecture, security/PHI review, facilitation, charter stewardship"
     },
     {
       "id": "gemini",
       "tier": "frontier",
       "voting": true,
+      "can_propose": true,
       "lane": "large-context synthesis, breadth research, red-team/dissent",
       "command": "gemini"
     },
@@ -17,6 +19,7 @@
       "id": "codex",
       "tier": "frontier",
       "voting": true,
+      "can_propose": true,
       "lane": "high-volume code generation, refactors, test authoring",
       "command": "codex"
     },
@@ -24,6 +27,7 @@
       "id": "antigravity",
       "tier": "frontier",
       "voting": false,
+      "can_propose": false,
       "lane": "agentic multi-file execution / IDE orchestration",
       "represented_by": "gemini",
       "note": "Represented by gemini per committed P2 (Alphabet bootstrap); voting carried by gemini. Reversible."
@@ -32,18 +36,21 @@
       "id": "pi",
       "tier": "local",
       "voting": true,
+      "can_propose": true,
       "lane": "first responder & triage; read/explain/plan"
     },
     {
       "id": "aider",
       "tier": "local",
       "voting": true,
+      "can_propose": true,
       "lane": "file edits + git execution of ratified decisions"
     },
     {
       "id": "opencode",
       "tier": "local",
       "voting": false,
+      "can_propose": false,
       "lane": "agentic multi-file execution (local) — fills antigravity's lane on-machine",
       "command": "zopencode",
       "note": "Seated per committed P18 (principal override of P12). Experimental: voting deferred until proven, so quorum is unchanged. Principal-evaluated hands-on. Pi retained as the lightweight first-responder. Reversible."
@@ -52,6 +59,7 @@
       "id": "apfel",
       "tier": "local",
       "voting": false,
+      "can_propose": false,
       "lane": "on-device Apple Intelligence — fast second opinions, plain-language summaries, light reasoning",
       "backend": "openai",
       "base_url": "http://127.0.0.1:11434/v1",
@@ -62,6 +70,7 @@
       "id": "gh",
       "tier": "frontier",
       "voting": false,
+      "can_propose": false,
       "lane": "GitHub Models — multi-vendor frontier sampling (gpt-4o-mini default; catalog spans openai/deepseek/llama/mistral/cohere)",
       "backend": "openai",
       "base_url": "https://models.github.ai/inference",
@@ -75,6 +84,7 @@
       "id": "hf",
       "tier": "frontier",
       "voting": false,
+      "can_propose": false,
       "lane": "Hugging Face router — open-weights frontier (Qwen3-235B default; 120-model catalog: DeepSeek, Llama, Qwen, Mistral)",
       "backend": "openai",
       "base_url": "https://router.huggingface.co/v1",
@@ -88,6 +98,7 @@
       "id": "openrouter",
       "tier": "frontier",
       "voting": false,
+      "can_propose": false,
       "lane": "OpenRouter — meta-router over every major lab; :free tier for forum-scale remarks (gpt-oss-120b default)",
       "backend": "openai",
       "base_url": "https://openrouter.ai/api/v1",
@@ -101,6 +112,7 @@
       "id": "red-team",
       "tier": "frontier",
       "voting": true,
+      "can_propose": true,
       "lane": "red-team review, dissent, and safety assessment",
       "note": "Seated per ratified P20. Mandated to challenge design assumptions."
     },
@@ -108,6 +120,7 @@
       "id": "mike",
       "tier": "principal",
       "voting": false,
+      "can_propose": true,
       "lane": "ratify, veto, tiebreak, ultimate arbiter"
     }
   ]

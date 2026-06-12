@@ -726,6 +726,17 @@ class ZsynodApp(App):
         except Exception:
             return []
 
+    def _can_propose(self, actor: str) -> bool:
+        try:
+            data = json.loads(_MEMBERS_PATH.read_text())
+            for m in data["members"]:
+                if m["id"] == actor:
+                    # explicit field wins; fall back to voting status
+                    return bool(m.get("can_propose", m.get("voting", False)))
+        except Exception:
+            pass
+        return False
+
     def _quorum(self) -> int:
         muted = set(self.dials.get("muted", []))
         active_voters = [m for m in self._voting_members() if m not in muted]
@@ -1176,6 +1187,13 @@ class ZsynodApp(App):
             elif dtype == "handoff" and data["to"] not in members:
                 err = f"no member @{data['to']}"
             if dtype == "propose":
+                if not self._can_propose(actor):
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[yellow]⚠ {actor} directive dropped:[/yellow] [dim]propose — "
+                        f"lane is execution/synthesis; only deliberative seats may propose[/dim]",
+                    )
+                    continue
                 wip = int(self.dials.get("wip_limit", 3))
                 if len(self.ledger.get_proposals()) >= wip:
                     err = f"WIP limit {wip} reached — vote on or close an open proposal first"
@@ -1325,6 +1343,11 @@ class ZsynodApp(App):
                         dials.get("max_tokens_frontier", 400) if is_frontier
                         else dials["max_tokens"]
                     )
+                    ratified = self.ledger.get_ratified_decisions(limit=5)
+                    prior_decisions = "\n".join(
+                        f"• {pid}: {title}" + (f" — {body[:80]}" if body else "")
+                        for pid, title, body in ratified
+                    )
                     remark = agent.deliberate(
                         topic, context,
                         progress_callback=self.log_message,
@@ -1342,6 +1365,7 @@ class ZsynodApp(App):
                         kb_note=kb_note,
                         blind=blind,
                         advocate=advocate,
+                        prior_decisions=prior_decisions,
                     )
                     _remark_lower = (remark or "").lower()
                     if any(p in _remark_lower for p in (
