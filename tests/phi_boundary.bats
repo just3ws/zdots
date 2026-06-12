@@ -292,6 +292,25 @@ _wait_for_unified_log_marker() {
   [[ "$output" == *"skipped"* ]]
 }
 
+@test "phi_history: startup check enforces initialization — missing patterns file fails shell startup" {
+  run zsh -c '
+    ZDOTDIR="$BATS_TEST_TMPDIR"
+    mkdir -p "$BATS_TEST_TMPDIR/lib" "$BATS_TEST_TMPDIR/conf.d"
+    # Copy lib but omit etc/phi-patterns.yaml (will cause init failure)
+    cp '"$ZDOTDIR"'/lib/phi_scrubber.bash "$BATS_TEST_TMPDIR/lib/"
+    cp '"$ZDOTDIR"'/lib/audit_log.bash "$BATS_TEST_TMPDIR/lib/" 2>/dev/null || true
+    cp '"$ZDOTDIR"'/lib/shell_hook_metrics.bash "$BATS_TEST_TMPDIR/lib/" 2>/dev/null || true
+    cp '"$ZDOTDIR"'/conf.d/55-phi-history.zsh "$BATS_TEST_TMPDIR/conf.d/"
+
+    # Try to source the history config (will fail because patterns file is missing)
+    source "$BATS_TEST_TMPDIR/conf.d/55-phi-history.zsh" 2>&1
+  '
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"FATAL"* ]]
+  [[ "$output" == *"PHI pattern compilation failed"* ]]
+  [[ "$output" == *"History redaction unavailable"* ]]
+}
+
 @test "phi_history: suppressed command emits audit event" {
   run zsh -c '
     ZDOTDIR="'"$ZDOTDIR"'"
@@ -354,6 +373,17 @@ _wait_for_unified_log_marker() {
   "
   [ "$status" -ne 0 ]
   [[ "$output" == *"yq"* ]]
+}
+
+@test "phi_scrubber_init: sets _PHI_INITIALIZED flag on success" {
+  run bash -c "
+    ZDOTDIR='$ZDOTDIR'
+    source $ZDOTDIR/lib/phi_scrubber.bash
+    phi_scrubber_init
+    printf '%d\n' \"\$_PHI_INITIALIZED\"
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"1"* ]]
 }
 
 @test "phi_registry: patterns file missing — fails hard" {
