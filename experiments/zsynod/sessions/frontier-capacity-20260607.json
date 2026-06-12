@@ -1,0 +1,24 @@
+{
+  "id": "frontier-capacity-20260607",
+  "meeting_type": "frontier",
+  "participants": [
+    "claude",
+    "gemini",
+    "codex",
+    "antigravity"
+  ],
+  "created_at": "2026-06-07T21:08:33Z",
+  "last_turn_at": "2026-06-07T21:09:01Z",
+  "last_seq": 32,
+  "last_since": 31,
+  "turn_count": 4,
+  "transcript": "/Users/mike/.config/zsh/zsynod/sessions/frontier-capacity-20260607.turns.jsonl",
+  "resource": {
+    "max_tokens": 1000,
+    "entry_budget": 12,
+    "entries_available": 1,
+    "entries_emitted": 1,
+    "truncated": false,
+    "status": "ok"
+  }
+}

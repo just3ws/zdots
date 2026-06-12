@@ -1,0 +1,36 @@
+{
+  "id": "facilitation-20260610-195933-codex",
+  "kind": "session",
+  "meeting_type": "facilitation",
+  "participants": [
+    "claude",
+    "gemini",
+    "codex",
+    "antigravity",
+    "red-team"
+  ],
+  "created_at": "2026-06-10T19:59:37Z",
+  "last_turn_at": "2026-06-10T19:59:37Z",
+  "last_seq": 164,
+  "last_since": 0,
+  "turn_count": 1,
+  "transcript": "/Users/mike/.config/zsh/zsynod/sessions/facilitation-20260610-195933-codex.turns.jsonl",
+  "resource": {
+    "max_tokens": null,
+    "entry_budget": 1000000,
+    "entries_available": 164,
+    "entries_emitted": 164,
+    "truncated": false,
+    "status": "ok"
+  },
+  "harness": {
+    "codex": {
+      "cli": "codex",
+      "mode": "unsupported-create-name",
+      "key": "zsynod-facilitation-20260610-195933-codex-codex",
+      "launch_args": [],
+      "resume_supported": false,
+      "note": "codex resume accepts a session name, but this CLI help exposes no create-with-name launch flag"
+    }
+  }
+}
