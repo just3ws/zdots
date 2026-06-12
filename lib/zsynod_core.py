@@ -774,42 +774,39 @@ class ZsynodAgent:
         # arguments, not the running tally (information-cascade prevention).
         context_str = self._build_context(recent_discussion, depth=context_depth,
                                           blind_for=self.actor_id if blind else None)
-        context_str = context_str.strip() or "(no prior discussion on this topic)"
+        context_str = context_str.strip() or "(feed is empty — you go first)"
         handles = " ".join(f"@{m}" for m in (members or [])) or "@mike @pi @aider @opencode @claude @gemini @codex"
-        # Content budget: hard cap minus ~30 overhead tokens (3 hashtags +
-        # directive line). A leading @handle (DM/reply) and the closing
-        # directive line are free — like Twitter: overhead doesn't eat content.
         _hard_cap = max_tokens or 220
-        _content_budget = max(_hard_cap - 30, 80)
         system_prompt = (
-            f"You are @{self.actor_id} in the zsynod deliberation forum. "
+            f"You are @{self.actor_id} in the zsynod — a deliberation feed, "
+            f"like a public timeline everyone reads and anyone can post to. "
             f"Members: {handles}. "
-            f"Reply in ≤{_content_budget} tokens of substantive content. "
-            f"A leading @handle (DM/reply to that member) and the closing "
-            f"directive line are overhead — they do not count toward your budget. "
-            f"End every response with exactly 3 hashtags. "
-            f"A line starting with ⚡ is the event you are responding to — address it first. "
+            f"Read the feed. Reply to what matters. "
+            f"Use #HashTag to tie your remark to a thread. "
+            f"Start with @handle to direct a reply at that member (DM-style — free, doesn't eat your budget). "
+            f"You have {_hard_cap} tokens. Write until you're done or the wall stops you. "
+            f"End every post with exactly 3 hashtags. "
+            f"A line starting with ⚡ is the loudest signal in the feed — address it first. "
             f"End with exactly one directive line starting with '>': "
             f"'>vote P# aye|nay|abstain <one-line reason>'  '>second P#'  "
             f"'>propose <title>'  '>handoff @member <task>'  "
             f"'>close P# [reason]'  '>body P# <decision text>'  '>pass'. "
-            f"Every vote carries its reason — an unreasoned aye is recorded as such. "
-            f"Vote when you hold a position — speech alone moves no tally; "
-            f"'>pass' only if you truly have nothing. Few word do trick."
+            f"Every vote carries its reason — a bare aye is noise. "
+            f"Vote when you hold a position; '>pass' only if you truly have nothing. "
+            f"Few word do trick."
         )
         if advocate:
             system_prompt += (
-                " For THIS topic you hold the devil's advocate seat "
-                "(advocatus diaboli): before any vote you must state the "
-                "strongest case AGAINST the proposal. You may still vote aye "
-                "— but only after your objection is on the record."
+                " You hold the devil's advocate seat for this proposal: "
+                "state the strongest case AGAINST it before you vote. "
+                "You may still vote aye — but the objection posts first."
             )
         trend_line = f"{trend}\n" if trend else ""
         event_line = f"⚡ {event}\n" if event else ""
         pinned = f"[STATE] {summary}\n" if summary else ""
         kb_line = f"[KB] {kb_note}\n" if kb_note else ""
         ratified_line = f"[RATIFIED]\n{prior_decisions}\n" if prior_decisions else ""
-        body = f"{trend_line}{event_line}Topic: {topic}\n{pinned}{kb_line}{ratified_line}{context_str}\n@{self.actor_id}:"
+        body = f"{trend_line}{event_line}{pinned}{kb_line}{ratified_line}--- feed ---\n{context_str}\n---\n@{self.actor_id}:"
         # The tick glyph BRACKETS the full dispatch — the very first and
         # very last character the member receives. The system prompt is the
         # long static prefix that provider caches ride on, so the glyph must
