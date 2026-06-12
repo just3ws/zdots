@@ -624,6 +624,12 @@ class ZsynodApp(App):
             sys.exit(1)
 
     def on_unmount(self) -> None:
+        self._shutdown = True
+        for agent in getattr(self, "agents", []):
+            try:
+                agent.abort()
+            except Exception:
+                pass
         fh = getattr(self, "_pid_fh", None)
         if fh:
             try:
@@ -655,6 +661,7 @@ class ZsynodApp(App):
         self._agent_started = 0.0
         self._agent_budget = 0.0
         self._entry_parity = 0
+        self._shutdown = False
 
         # Seats come from members.json via the member contract — recruiting
         # is a data row, not a code change. Clerks (summarizer, recorder,
@@ -1335,6 +1342,8 @@ class ZsynodApp(App):
             self.ledger.append(actor, dtype, data)
 
     def perform_tick(self) -> None:
+        if self._shutdown:
+            return
         self._tick_running = True
         try:
             self._tick_inner()
@@ -1381,6 +1390,9 @@ class ZsynodApp(App):
                         self.log_message, f"[dim]🔇 {actor}: muted[/dim]",
                     )
                     continue
+
+                if self._shutdown:
+                    return
 
                 if not breaker.is_ready():
                     self.call_from_thread(
