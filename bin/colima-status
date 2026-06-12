@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+# bin/colima-status — Authoritative Colima + Docker status interface for zdots.
+#
+# STOP — do not call `colima status` or search for the docker socket yourself.
+# Use this command. Colima moved its socket from ~/.colima/ to ~/.config/colima/
+# in recent versions, and existing scripts that hardcode the old path will wait
+# forever or report incorrect state. This command tries both locations in order
+# and returns the live socket path so callers never have to guess.
+#
+# Commands:
+#   socket           Print the live docker socket path; exit 1 if not present
+#   health           Exit 0 = running + socket present; exit 1 otherwise
+#   status           Human-readable status (default)
+#   logs             Tail the colima autostart log
+#
+# Flags:
+#   --json           Machine-readable JSON (with any command or alone)
+#   --profile <p>    Colima profile name (default: $COLIMA_PROFILE or "default")
+#   -h, --help       Show this help
+#
+# Agent pattern:
+#   colima-status --json            single authoritative JSON blob
+#   DOCKER_HOST=$(colima-status socket) docker ps
+#   colima-status health && docker ps
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+AUTOSTART_LOG="$LOG_DIR/colima-autostart.log"
+
+# ── Defaults ─────────────────────────────────────────────────────────────────
+PROFILE="${COLIMA_PROFILE:-default}"
+CMD="status"
+JSON=0
+
+# ── Arg parse ────────────────────────────────────────────────────────────────
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    socket|health|status|logs) CMD="$1" ;;
+    --json)                    JSON=1 ;;
+    --profile)                 PROFILE="${2:?--profile requires a value}"; shift ;;
+    -h|--help)
+      sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0 ;;
+    *) printf 'colima-status: unknown option: %s\n' "$1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+# ── Socket resolution ─────────────────────────────────────────────────────────
+# Colima ≥0.5 writes to XDG_CONFIG_HOME/colima/<profile>/docker.sock.
+# Older installs used ~/.colima/<profile>/docker.sock.
+_socket_candidates=(
+  "${XDG_CONFIG_HOME:-$HOME/.config}/colima/${PROFILE}/docker.sock"
+  "$HOME/.colima/${PROFILE}/docker.sock"
+)
+
+# Canonical (XDG) path — used for display even if the socket doesn't exist yet
+CANONICAL_SOCKET="${XDG_CONFIG_HOME:-$HOME/.config}/colima/${PROFILE}/docker.sock"
+LIVE_SOCKET=""
+SOCKET_EXISTS=0
+LEGACY_SOCKET="${HOME}/.colima/${PROFILE}/docker.sock"
+
+for _s in "${_socket_candidates[@]}"; do
+  if [[ -S "$_s" ]]; then
+    LIVE_SOCKET="$_s"
+    SOCKET_EXISTS=1
+    # Guard: if socket is at the legacy path and NOT at the canonical XDG path,
+    # yell. Something is using an old colima install or stale config dir.
+    if [[ "$_s" == "$LEGACY_SOCKET" && "$JSON" -eq 0 ]]; then
+      printf 'colima-status: GUARD: socket found at LEGACY path %s\n' "$_s" >&2
+      printf 'colima-status: GUARD: expected canonical path:    %s\n' "$CANONICAL_SOCKET" >&2
+      printf 'colima-status: GUARD: run `colima stop && colima start` to reset, or check COLIMA_HOME\n' >&2
+    fi
+    break
+  fi
+done
+[[ -z "$LIVE_SOCKET" ]] && LIVE_SOCKET="$CANONICAL_SOCKET"
+
+# ── State probes ──────────────────────────────────────────────────────────────
+COLIMA_RUNNING=0
+colima status >/dev/null 2>&1 && COLIMA_RUNNING=1
+
+DOCKER_REACHABLE=0
+if [[ "$SOCKET_EXISTS" -eq 1 ]]; then
+  DOCKER_HOST="unix://$LIVE_SOCKET" docker info >/dev/null 2>&1 && DOCKER_REACHABLE=1
+fi
+
+HEALTHY=0
+[[ "$COLIMA_RUNNING" -eq 1 && "$SOCKET_EXISTS" -eq 1 ]] && HEALTHY=1
+
+# ── Commands ─────────────────────────────────────────────────────────────────
+_do_socket() {
+  if [[ "$SOCKET_EXISTS" -eq 1 ]]; then
+    printf '%s\n' "$LIVE_SOCKET"
+    return 0
+  fi
+  printf 'colima-status: no live docker socket found (colima not running?)\n' >&2
+  printf 'colima-status: canonical path would be: %s\n' "$CANONICAL_SOCKET" >&2
+  return 1
+}
+
+_do_health() {
+  if [[ "$JSON" -eq 1 ]]; then
+    printf '{"healthy":%s,"colima_running":%s,"socket_exists":%s,"socket":"%s","docker_reachable":%s}\n' \
+      "$( [[ "$HEALTHY" -eq 1 ]] && echo true || echo false )" \
+      "$( [[ "$COLIMA_RUNNING" -eq 1 ]] && echo true || echo false )" \
+      "$( [[ "$SOCKET_EXISTS" -eq 1 ]] && echo true || echo false )" \
+      "$LIVE_SOCKET" \
+      "$( [[ "$DOCKER_REACHABLE" -eq 1 ]] && echo true || echo false )"
+    [[ "$HEALTHY" -eq 1 ]]
+    return
+  fi
+  if [[ "$HEALTHY" -eq 1 ]]; then
+    printf 'colima: healthy (running, socket present)\n'
+    printf 'socket: %s\n' "$LIVE_SOCKET"
+    return 0
+  fi
+  printf 'colima: unhealthy\n'
+  [[ "$COLIMA_RUNNING" -eq 0 ]] && printf '  colima not running (zsvc start colima)\n'
+  [[ "$SOCKET_EXISTS" -eq 0 ]] && printf '  docker socket missing: %s\n' "$CANONICAL_SOCKET"
+  return 1
+}
+
+_do_status() {
+  if [[ "$JSON" -eq 1 ]]; then
+    local runtime="" arch="" vm_type=""
+    if [[ "$COLIMA_RUNNING" -eq 1 ]]; then
+      local _raw
+      _raw=$(colima status 2>&1 || true)
+      runtime=$(printf '%s' "$_raw" | grep 'msg="runtime:' | sed 's/.*msg="runtime: \([^"]*\)".*/\1/' || true)
+      arch=$(printf '%s' "$_raw" | grep 'msg="arch:' | sed 's/.*msg="arch: \([^"]*\)".*/\1/' || true)
+      vm_type=$(printf '%s' "$_raw" | grep 'msg="colima is running' | sed 's/.*msg="colima is running using \([^"]*\)".*/\1/' || true)
+    fi
+    printf '{
+  "profile": "%s",
+  "running": %s,
+  "healthy": %s,
+  "socket": "%s",
+  "socket_exists": %s,
+  "docker_reachable": %s,
+  "docker_host": "unix://%s",
+  "runtime": "%s",
+  "arch": "%s",
+  "vm_type": "%s",
+  "autostart_log": "%s",
+  "manage": {
+    "start":   "zsvc start colima",
+    "stop":    "zsvc stop colima",
+    "status":  "colima-status --json",
+    "logs":    "colima-status logs",
+    "reclaim": "docker-reclaim"
+  }
+}\n' \
+      "$PROFILE" \
+      "$( [[ "$COLIMA_RUNNING" -eq 1 ]] && echo true || echo false )" \
+      "$( [[ "$HEALTHY" -eq 1 ]] && echo true || echo false )" \
+      "$LIVE_SOCKET" \
+      "$( [[ "$SOCKET_EXISTS" -eq 1 ]] && echo true || echo false )" \
+      "$( [[ "$DOCKER_REACHABLE" -eq 1 ]] && echo true || echo false )" \
+      "$LIVE_SOCKET" \
+      "${runtime:-unknown}" \
+      "${arch:-unknown}" \
+      "${vm_type:-unknown}" \
+      "$AUTOSTART_LOG"
+    return
+  fi
+
+  printf 'Colima profile: %s\n' "$PROFILE"
+  if [[ "$COLIMA_RUNNING" -eq 1 ]]; then
+    printf 'State:          running\n'
+    colima status 2>/dev/null | grep -E 'runtime|arch|mount|disk|cpu|memory|socket' \
+      | sed 's/^.*msg="/  /' | sed 's/".*//' || true
+  else
+    printf 'State:          stopped\n'
+  fi
+  printf 'Socket:         %s' "$LIVE_SOCKET"
+  [[ "$SOCKET_EXISTS" -eq 1 ]] && printf ' [present]\n' || printf ' [MISSING]\n'
+  printf 'DOCKER_HOST:    unix://%s\n' "$LIVE_SOCKET"
+  printf 'Docker:         %s\n' "$( [[ "$DOCKER_REACHABLE" -eq 1 ]] && echo reachable || echo "not reachable" )"
+  printf 'Autostart log:  %s\n' "$AUTOSTART_LOG"
+  printf '\nManage:\n'
+  printf '  zsvc start colima   # start\n'
+  printf '  zsvc stop colima    # stop\n'
+  printf '  colima-status logs  # tail log\n'
+  printf '  docker-reclaim      # show disk usage\n'
+}
+
+_do_logs() {
+  if [[ ! -f "$AUTOSTART_LOG" ]]; then
+    printf 'colima-status: no log at %s\n' "$AUTOSTART_LOG" >&2
+    exit 1
+  fi
+  tail -f "$AUTOSTART_LOG"
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+case "$CMD" in
+  socket) _do_socket ;;
+  health) _do_health ;;
+  status) _do_status ;;
+  logs)   _do_logs ;;
+esac

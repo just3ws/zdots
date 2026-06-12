@@ -54,10 +54,11 @@ agent-guide          # detailed usage guide for all services
 
 ## 3. Tool Selection
 
-### Query the platform catalog first
+### Rule zero: zdots first, always
 
 **Before reaching for any external or generic tool, check whether zdots already provides it.**
 `~/.config/zsh/bin` is always on `PATH` regardless of working directory.
+In a project directory, `./bin` is also on `PATH` — commands run without the `./bin/` prefix.
 
 ```bash
 zdots-ctx hydrate tooling-catalog   # compact command index + task-to-tool scenarios
@@ -65,9 +66,21 @@ zdots-ctx query tooling:<name>      # full --help for a specific command
 zdots-ctx query --semantic "start a service"  # natural-language lookup
 ```
 
-The catalog and scenario index are rebuilt whenever `bin/` changes and refreshed every 7 days by a launchd agent. If a command appears in the catalog, it works as-is — no path prefix, no install step.
+The catalog is rebuilt whenever `bin/` changes and refreshed every 7 days. If a command appears in the catalog, it works as-is — no path prefix, no install step.
+
+**If zdots doesn't have it:** file a request with `zdots-issue --type request "I need X for task Y"` and work around it at the task level. Do not reach for an external tool and do not patch zdots infrastructure yourself.
 
 Full tool reference with usage examples: [docs/tooling.md](docs/tooling.md)
+
+### Colima / Docker — always use the interface, never probe directly
+
+```bash
+colima-status --json       # authoritative JSON: healthy, socket path, docker_host
+colima-status socket       # just the socket path — DOCKER_HOST=$(colima-status socket)
+colima-status health       # exit 0 = up; exit 1 = down
+```
+
+**Never hardcode the socket path.** The socket moved from `~/.colima/` to `~/.config/colima/` in recent colima versions. Scripts that hardcode the old path silently miss the socket and burn tokens looping on false negatives. `colima-status` tries both locations and warns loudly when it finds the legacy one.
 
 **By task:**
 
@@ -84,6 +97,8 @@ Full tool reference with usage examples: [docs/tooling.md](docs/tooling.md)
 | Pivot/analyze command_runs | `visidata ~/.local/state/zdots/history.sqlite3` |
 | Script SQLite queries | `sqlite-utils query <db> "SELECT ..."` |
 | Inspect Redis analytics buffer | `redis-cli KEYS 'zdots:cmds:*'` |
+| Colima/Docker status (always) | `colima-status --json` |
+| Docker socket path | `colima-status socket` |
 | Verify AI stays on loopback | `sudo bandwhich` |
 | Run tests once | `bats tests/` |
 | Run tests on save | `watchexec -e zsh,bash,bats -- bats tests/` |
