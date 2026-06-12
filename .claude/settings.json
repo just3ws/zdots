@@ -61,6 +61,7 @@
       "Bash(mise:*)",
       "Bash(launchctl list:*)",
       "Bash(launchctl print:*)",
+      "Bash(log-rotate:*)",
       "Bash(colima status:*)",
       "Bash(limactl list:*)",
       "Bash(nginx -t)",

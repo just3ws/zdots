@@ -97,6 +97,7 @@ colima-status health       # exit 0 = up; exit 1 = down
 | Pivot/analyze command_runs | `visidata ~/.local/state/zdots/history.sqlite3` |
 | Script SQLite queries | `sqlite-utils query <db> "SELECT ..."` |
 | Inspect Redis analytics buffer | `redis-cli KEYS 'zdots:cmds:*'` |
+| Rotate a service log (compress + truncate in-place) | `log-rotate <service>` |
 | Colima/Docker status (always) | `colima-status --json` |
 | Docker socket path | `colima-status socket` |
 | Verify AI stays on loopback | `sudo bandwhich` |

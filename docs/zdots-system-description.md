@@ -98,6 +98,8 @@ zsvc health                # liveness probe for all services + nginx .local URLs
 zsvc health --json         # same, machine-readable
 zsvc logs   <svc>          # tail the service log
 zsvc diag   <svc>          # status + health + launchd state + last 50 log lines
+log-rotate  <svc>          # compress + truncate service log in-place (safe with open FDs)
+log-rotate  <svc> --dry-run  # preview size/path without rotating
 
 zdots-ctl up               # start all in dependency order
 zdots-ctl down             # stop all cleanly
