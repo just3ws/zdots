@@ -78,6 +78,16 @@ DIALS: dict[str, dict] = {
                        "help": "herald duty: every N ticks the local model "
                                "writes a plain-English briefing of forum state "
                                "to the log and zsynod/minutes.md; 0 = off"},
+    "wip_limit":      {"default": 3,    "min": 1,   "max": 10,  "step": 1,
+                       "help": "max open proposals at one time; new proposals "
+                               "are rejected until existing ones are ratified or "
+                               "closed — prevents the forum from accumulating "
+                               "an ever-growing open list nobody votes on"},
+    "max_tokens_frontier": {"default": 400, "min": 60, "max": 1200, "step": 40,
+                       "help": "hard token cap per frontier (CLI / OpenAI-compat) "
+                               "remark; local seats use max_tokens; higher budget "
+                               "allows more context and coaching depth from "
+                               "frontier models"},
 }
 
 
@@ -1016,7 +1026,7 @@ class LedgerManager:
         def s(m: str) -> dict:
             return stats.setdefault(m, {
                 "speaks": 0, "aye": 0, "nay": 0, "abstain": 0, "seconds": 0,
-                "proposed": 0, "ratified": 0, "passes": 0,
+                "proposed": 0, "ratified": 0, "closed": 0, "passes": 0,
                 "mentions_out": 0, "mentions_in": 0,
                 "handoffs_out": 0, "handoffs_in": 0, "last_seq": -1,
             })
@@ -1043,6 +1053,10 @@ class LedgerManager:
                 author = proposer.get(e.data.get("proposal"))
                 if author:
                     s(author)["ratified"] += 1
+            elif e.type == "close":
+                author = proposer.get(e.data.get("proposal"))
+                if author:
+                    s(author)["closed"] += 1
             elif e.type == "pass":
                 m["passes"] += 1
             elif e.type == "handoff":
@@ -1368,6 +1382,22 @@ class LedgerManager:
     def next_proposal_id(self) -> str:
         n = sum(1 for e in self.entries if e.type == "propose")
         return f"P{n + 1}"
+
+    @staticmethod
+    def normalize_title(title: str) -> str:
+        """Canonical form for dedup comparison: lowercase, strip punctuation,
+        collapse whitespace. 'Seat the Librarian!' == 'seat the librarian'."""
+        return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", "", title.lower())).strip()
+
+    def find_duplicate_title(self, title: str) -> Optional[str]:
+        """Return the ID of a prior proposal with the same normalized title,
+        or None if no duplicate exists. Checks open AND closed proposals."""
+        norm = self.normalize_title(title)
+        for e in self.entries:
+            if e.type == "propose":
+                if self.normalize_title(e.data.get("title", "")) == norm:
+                    return e.data.get("id")
+        return None
 
     def get_blocking_items(self) -> List[dict]:
         items = []
