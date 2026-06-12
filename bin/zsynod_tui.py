@@ -10,6 +10,9 @@ import time
 import argparse
 from pathlib import Path
 from rich.markup import escape as _esc
+from rich.panel import Panel as _RichPanel
+from rich.text import Text as _RichText
+import rich.box as _rich_box
 from textual.app import App, ComposeResult, Screen
 from textual.widgets import (
     Header, Footer, Static, RichLog, Input,
@@ -34,6 +37,23 @@ _PID_FILE = Path.home() / ".local" / "run" / "zsynod.pid"
 _STATE_COLORS = {
     "NEW": "cyan", "ACTIVE": "white", "PASSING": "yellow",
     "STUCK": "red", "RATIFIED": "green", "CLOSED": "bright_black",
+}
+
+# Per-member accent color and 2-char badge.  Order matches members.json seats.
+_MEMBER_COLORS: dict[str, tuple[str, str]] = {
+    "mike":        ("green",           "mk"),
+    "pi":          ("dodger_blue2",    "π "),
+    "aider":       ("gold1",           "⚙ "),
+    "opencode":    ("grey82",          "oc"),
+    "apfel":       ("indian_red1",     "ap"),
+    "claude":      ("orchid",          "cl"),
+    "gemini":      ("turquoise2",      "gm"),
+    "codex":       ("cornflower_blue", "cx"),
+    "gh":          ("grey50",          "gh"),
+    "hf":          ("sandy_brown",     "hf"),
+    "openrouter":  ("medium_orchid",   "or"),
+    "red-team":    ("bright_red",      "rt"),
+    "antigravity": ("spring_green2",   "ag"),
 }
 
 
@@ -577,7 +597,7 @@ class ZsynodApp(App):
                     yield ListView(id="proposal-list")
                     yield Static(id="tally-box")
                 with Vertical(id="content-area"):
-                    yield RichLog(id="discussion-log", highlight=True, markup=True)
+                    yield RichLog(id="discussion-log", highlight=True, markup=True, wrap=True)
                     yield Static(id="thinking-box")
         yield Static(id="timer-bar")
         yield Input(
@@ -634,6 +654,7 @@ class ZsynodApp(App):
         self._agent_name = None
         self._agent_started = 0.0
         self._agent_budget = 0.0
+        self._entry_parity = 0
 
         # Seats come from members.json via the member contract — recruiting
         # is a data row, not a code change. Clerks (summarizer, recorder,
@@ -761,7 +782,6 @@ class ZsynodApp(App):
         box.update("")
 
     @staticmethod
-    @staticmethod
     def _style_remark(text: str) -> str:
         """Color #hashtags cyan, bold @mentions, leave prose unstyled."""
         words = text.split()
@@ -794,23 +814,41 @@ class ZsynodApp(App):
         return prose, tags
 
     def _render_entry(self, log: RichLog, e) -> None:
-        ac = "green" if e.actor == "mike" else "cyan"
-        actor_tag = f"[{ac}]@{_esc(e.actor)}[/{ac}]"
+        color, badge = _MEMBER_COLORS.get(e.actor, ("white", e.actor[:2]))
+        actor_tag = f"[{color}]@{_esc(e.actor)}[/{color}]"
         seq_tag   = f"[dim]#{e.seq}[/dim]"
         ts_tag    = f"[dim]{e.ts[11:16]}[/dim]" if getattr(e, "ts", "") else ""
 
         if e.type in ("speak", "discuss"):
-            # ── content post: header + body + hashtag footer ──────────────────
+            # ── content post: avatar panel with alternating background ─────────
             remark = e.data.get("remark", "")
             prose, tags = self._split_hashtags(remark)
-            log.write(f"{actor_tag}  {seq_tag}  {ts_tag}")
-            for line in prose.splitlines():
-                stripped = line.strip()
-                if stripped:
-                    log.write(f"  {self._style_remark(stripped)}")
+
+            # Avatar badge in panel title
+            title = (
+                f"[bold {color} on default] {badge} [/bold {color} on default] "
+                f"[{color}]@{_esc(e.actor)}[/{color}]  {seq_tag}  {ts_tag}"
+            )
+
+            # Build Rich Text for content (preserves markup styling)
+            styled = self._style_remark(prose) if prose else ""
+            content = _RichText.from_markup(styled) if styled else _RichText("")
             if tags:
-                log.write(f"  [cyan dim]{_esc(tags)}[/cyan dim]")
-            log.write("")
+                content.append(f"\n{tags}", style="cyan dim")
+
+            # Even/odd entries alternate a very subtle dark background
+            bg = "on grey7" if self._entry_parity % 2 else ""
+            panel = _RichPanel(
+                content,
+                title=title,
+                title_align="left",
+                border_style=color,
+                box=_rich_box.ROUNDED,
+                style=bg,
+                padding=(0, 1),
+            )
+            log.write(panel)
+            self._entry_parity += 1
 
         elif e.type == "ask":
             to  = _esc(e.data.get("to", "?"))
