@@ -94,18 +94,14 @@ _needs_index() {
 }
 
 # ---------------------------------------------------------------------------
-# DB write helper — writes a temp markdown file and injects via zdots-ctx ingest
+# DB write helper — upserts a methodology via zdots-ctx add-methodology
 # ---------------------------------------------------------------------------
 _store() {
-  local slug="$1" title="$2" tags="$3" content="$4"
+  local slug="$1" title="$2" tags_str="$3" content="$4"
   [[ "$DRY_RUN" -eq 1 ]] && { _skip "dry-run: would store $slug"; return 0; }
-  local tmp
-  tmp=$(mktemp /tmp/zdots-idx-XXXXXX.md)
-  # shellcheck disable=SC2064
-  trap "rm -f '$tmp'" RETURN
-  printf '---\ntype: methodology\nslug: %s\ntitle: %s\ntags: [%s]\n---\n%s\n' \
-    "$slug" "$title" "$tags" "$content" > "$tmp"
-  zdots-ctx ingest "$tmp" 2>&1 | grep -v '^$' || true
+  local -a tag_args
+  IFS=',' read -r -a tag_args <<< "$tags_str"
+  zdots-ctx add-methodology "$slug" "$title" "$content" "${tag_args[@]}" 2>&1 | grep -v '^$' || true
 }
 
 # ---------------------------------------------------------------------------
@@ -119,9 +115,10 @@ _help_for() {
 }
 
 _summary_line() {
-  # First non-blank, non-"Usage:" line — capped at 90 chars
+  # First non-blank, non-"Usage:" line — capped at 90 chars.
+  # The grep || true prevents pipefail from killing the caller on empty input.
   sed 's/^[[:space:]]*//' \
-    | grep -v '^[[:space:]]*$\|^[Uu]sage:\|^NAME$\|^---' \
+    | { grep -v '^[[:space:]]*$\|^[Uu]sage:\|^NAME$\|^---' || true; } \
     | head -1 \
     | cut -c1-90
 }
@@ -130,16 +127,16 @@ _index_commands() {
   local -a cmds=()
   local -a catalog_lines=()
 
-  while IFS= read -r -d '' f; do
-    local name
-    name=$(basename "$f")
-    # Skip non-user-facing entries
-    local skip=0
-    for s in "${SKIP_CMDS[@]}"; do [[ "$name" == "$s"* ]] && skip=1 && break; done
-    [[ "$skip" -eq 1 ]] && continue
-    [[ "$name" == *.py || "$name" == *.rb ]] && continue
-    cmds+=("$name")
-  done < <(find "$ZDOTDIR/bin" -maxdepth 1 -type f -executable -print0 | sort -z)
+  local _f _name _skip
+  for _f in "$ZDOTDIR/bin"/*; do
+    [[ -f "$_f" && -x "$_f" ]] || continue
+    _name=$(basename "$_f")
+    _skip=0
+    for s in "${SKIP_CMDS[@]}"; do [[ "$_name" == "$s"* ]] && _skip=1 && break; done
+    [[ "$_skip" -eq 1 ]] && continue
+    [[ "$_name" == *.py || "$_name" == *.rb ]] && continue
+    cmds+=("$_name")
+  done
 
   _log "commands found: ${#cmds[@]}"
 
