@@ -67,12 +67,13 @@ printf 'log-rotate: %s\n' "$SERVICE"
 printf '  log:  %s\n' "$LOG_PATH"
 printf '  size: %d MB\n' "$LOG_SIZE_MB"
 
-# Check if service is running
-PID=$(launchctl list "$SERVICE" 2>/dev/null | head -n1 || echo "")
-if [[ -z "$PID" ]] || [[ "$PID" == "No such process" ]]; then
+# Check if service is running (launchd label is com.zdots.<service>)
+_pid=$(launchctl list "com.zdots.${SERVICE}" 2>/dev/null \
+        | awk -F'[ =;]+' '/"PID"/{print $2}')
+if [[ -z "$_pid" ]]; then
   printf '  status: NOT RUNNING (warning: service may have failed)\n' >&2
 else
-  printf '  status: running (PID %s)\n' "$PID"
+  printf '  status: running (PID %s)\n' "$_pid"
 fi
 
 if [[ $DRY_RUN -eq 1 ]]; then
