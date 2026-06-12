@@ -1,0 +1,60 @@
+diff --git a/bin/zsynod b/bin/zsynod
+index 4ad76c2..6c7e2c9 100755
+--- a/bin/zsynod
++++ b/bin/zsynod
+@@ -1271,17 +1271,20 @@ while [[ $# -gt 0 ]]; do
+   esac
+ done
+ 
+-TURN_PARTICIPANTS="$(_participants_csv "$PARTICIPANTS" "$FRONTIER")"
+-if [[ -n "$TURN_SESSION" && "$PARTICIPANTS_SET" == "0" ]]; then
+-  TURN_PARTICIPANTS="$(_session_resume_participants "$TURN_SESSION")"
+-fi
+-if [[ -n "$TURN_SESSION" && "$MEETING_SET" == "0" ]]; then
+-  MEETING_TYPE="$(_session_resume_meeting_type "$TURN_SESSION" "$MEETING_TYPE")"
+-fi
+-if [[ -n "$TURN_SESSION" && "$SINCE_SET" == "0" ]]; then
+-  SINCE="$(_session_resume_since "$TURN_SESSION" "$SINCE")"
++SUB="${POS[0]:-}"
++if [[ "$SUB" == "init" ]]; then
++  TURN_PARTICIPANTS="$PARTICIPANTS"
++else
++  TURN_PARTICIPANTS="$(_participants_csv "$PARTICIPANTS" "$FRONTIER")"
++  if [[ -n "$TURN_SESSION" && "$PARTICIPANTS_SET" == "0" ]]; then
++    TURN_PARTICIPANTS="$(_session_resume_participants "$TURN_SESSION")"
++  fi
++  if [[ -n "$TURN_SESSION" && "$MEETING_SET" == "0" ]]; then
++    MEETING_TYPE="$(_session_resume_meeting_type "$TURN_SESSION" "$MEETING_TYPE")"
++  fi
++  if [[ -n "$TURN_SESSION" && "$SINCE_SET" == "0" ]]; then
++    SINCE="$(_session_resume_since "$TURN_SESSION" "$SINCE")"
++  fi
+ fi
+ 
+-SUB="${POS[0]:-}"
+ case "$SUB" in
+   init)     cmd_init ;;
+   members)  cmd_members ;;
+diff --git a/tests/zsynod_init.bats b/tests/zsynod_init.bats
+new file mode 100644
+index 0000000..41ef649
+--- /dev/null
++++ b/tests/zsynod_init.bats
+@@ -0,0 +1,16 @@
++#!/usr/bin/env bats
++
++setup() {
++  export REPO_ROOT="${BATS_TEST_DIRNAME}/.."
++  TMP="$(mktemp -d)"
++  export ZSYNOD_DIR="$TMP/zsynod"
++  export ZDOTDIR="$REPO_ROOT"
++}
++
++teardown() { rm -rf "$TMP"; }
++
++@test "zsynod init is quiet on a fresh ZSYNOD_DIR" {
++  run --separate-stderr "$REPO_ROOT/bin/zsynod" init
++  [ "$status" -eq 0 ]
++  [ -z "$stderr" ]
++  [ -f "$ZSYNOD_DIR/members.json" ]
++}

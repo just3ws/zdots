@@ -478,4 +478,4 @@ Flow for a work-machine fix:
 
 This is a perimeter/entanglement constraint, not a leak control (sessions inside the
 zdots dir are trusted). It is enforced in-repo and account-agnostic; see
-`bin/cc-hook-guard`, `lib/cc-context.bash`, and the zsynod charter §0.1.
+`bin/cc-hook-guard` and `lib/cc-context.bash`.
