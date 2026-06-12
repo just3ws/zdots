@@ -1,0 +1,26 @@
+{
+  "advocate": 1,
+  "auto_interval": 30,
+  "auto_max_ticks": 99,
+  "blind_votes": 1,
+  "context_depth": 8,
+  "digest_every": 3,
+  "kb_dispatch": 0.3,
+  "loop_threshold": 0.55,
+  "loop_window": 3,
+  "max_tokens": 220,
+  "max_tokens_frontier": 400,
+  "muted": [
+    "claude",
+    "gemini",
+    "codex",
+    "antigravity",
+    "red-team"
+  ],
+  "scribe": 1,
+  "spontaneity": 0.15,
+  "stuck_close_after": 30,
+  "temperature": 0.7,
+  "unanimity_action": 1,
+  "wip_limit": 3
+}

@@ -1,0 +1,35 @@
+{
+  "id": "p15-live",
+  "kind": "session",
+  "meeting_type": "facilitation",
+  "participants": [
+    "claude",
+    "gemini",
+    "codex",
+    "antigravity"
+  ],
+  "created_at": "2026-06-08T06:16:52Z",
+  "last_turn_at": "2026-06-08T06:16:52Z",
+  "last_seq": 136,
+  "last_since": 0,
+  "turn_count": 1,
+  "transcript": "/Users/mike/.config/zsh/zsynod/sessions/p15-live.turns.jsonl",
+  "resource": {
+    "max_tokens": null,
+    "entry_budget": 1000000,
+    "entries_available": 136,
+    "entries_emitted": 136,
+    "truncated": false,
+    "status": "ok"
+  },
+  "harness": {
+    "codex": {
+      "cli": "codex",
+      "mode": "unsupported-create-name",
+      "key": "zsynod-p15-live-codex",
+      "launch_args": [],
+      "resume_supported": false,
+      "note": "codex resume accepts a session name, but this CLI help exposes no create-with-name launch flag"
+    }
+  }
+}
