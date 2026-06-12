@@ -776,15 +776,23 @@ class ZsynodAgent:
                                           blind_for=self.actor_id if blind else None)
         context_str = context_str.strip() or "(no prior discussion on this topic)"
         handles = " ".join(f"@{m}" for m in (members or [])) or "@mike @pi @aider @opencode @claude @gemini @codex"
+        # Content budget: hard cap minus ~30 overhead tokens (3 hashtags +
+        # directive line). A leading @handle (DM/reply) and the closing
+        # directive line are free — like Twitter: overhead doesn't eat content.
+        _hard_cap = max_tokens or 220
+        _content_budget = max(_hard_cap - 30, 80)
         system_prompt = (
             f"You are @{self.actor_id} in the zsynod deliberation forum. "
             f"Members: {handles}. "
-            f"Reply in ≤160 tokens. End every response with exactly 3 hashtags. "
-            f"You may @mention members by handle. "
+            f"Reply in ≤{_content_budget} tokens of substantive content. "
+            f"A leading @handle (DM/reply to that member) and the closing "
+            f"directive line are overhead — they do not count toward your budget. "
+            f"End every response with exactly 3 hashtags. "
             f"A line starting with ⚡ is the event you are responding to — address it first. "
             f"End with exactly one directive line starting with '>': "
             f"'>vote P# aye|nay|abstain <one-line reason>'  '>second P#'  "
-            f"'>propose <title>'  '>handoff @member <task>'  '>pass'. "
+            f"'>propose <title>'  '>handoff @member <task>'  "
+            f"'>close P# [reason]'  '>body P# <decision text>'  '>pass'. "
             f"Every vote carries its reason — an unreasoned aye is recorded as such. "
             f"Vote when you hold a position — speech alone moves no tally; "
             f"'>pass' only if you truly have nothing. Few word do trick."
