@@ -18,10 +18,15 @@
 [[ -r "${ZDOTDIR}/lib/shell_hook_metrics.bash" ]] && source "${ZDOTDIR}/lib/shell_hook_metrics.bash"
 
 # Eagerly compile patterns at shell startup — not inside the hook.
+# This is a fatal startup check: if patterns fail to compile, the shell cannot
+# continue safely. All PHI protection depends on this initialization.
 if [[ -r "${ZDOTDIR}/lib/phi_scrubber.bash" ]]; then
   source "${ZDOTDIR}/lib/phi_scrubber.bash"
   if ! phi_scrubber_init; then
-    printf 'zdots: phi-history: PHI protection unavailable — all history suppressed until fixed\n' >&2
+    printf 'zdots: FATAL — PHI pattern compilation failed at startup.\n' >&2
+    printf 'zdots: History redaction unavailable. Shell startup aborted.\n' >&2
+    printf 'zdots: Fix: ensure yq is installed and %s/etc/phi-patterns.yaml is readable.\n' "${ZDOTDIR}" >&2
+    exit 1
   fi
 fi
 

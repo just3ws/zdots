@@ -36,17 +36,21 @@ readonly _PHI_SCRUBBER_LOADED=1
 _PHI_PATTERNS_FILE="${ZDOTDIR:-$HOME/.config/zsh}/etc/phi-patterns.yaml"
 declare -a _PHI_SED_ARGS=()
 _PHI_SUPPRESS_PATTERN=""
+_PHI_INITIALIZED=0
 
 # _phi_load_patterns — compile YAML registry into _PHI_SED_ARGS and _PHI_SUPPRESS_PATTERN.
 # Fails hard on missing yq, missing registry, or parse error.
+# Sets _PHI_INITIALIZED=1 on success; caller must check this flag.
 _phi_load_patterns() {
   if ! command -v yq >/dev/null 2>&1; then
-    printf 'phi_scrubber: yq is required but not installed (brew install yq)\n' >&2
+    printf 'phi_scrubber: FATAL — yq is required but not installed (brew install yq)\n' >&2
+    _PHI_INITIALIZED=0
     return 1
   fi
 
   if [[ ! -f "$_PHI_PATTERNS_FILE" ]]; then
-    printf 'phi_scrubber: pattern registry not found: %s\n' "$_PHI_PATTERNS_FILE" >&2
+    printf 'phi_scrubber: FATAL — pattern registry not found: %s\n' "$_PHI_PATTERNS_FILE" >&2
+    _PHI_INITIALIZED=0
     return 1
   fi
 
@@ -65,23 +69,27 @@ _phi_load_patterns() {
   done < <(yq -o tsv '.patterns[] | [.regex, .replace, (.suppress // "false")]' "$_PHI_PATTERNS_FILE" 2>/dev/null)
 
   if [[ ${#_PHI_SED_ARGS[@]} -eq 0 && -z "$_PHI_SUPPRESS_PATTERN" ]]; then
-    printf 'phi_scrubber: failed to parse %s (no patterns loaded)\n' "$_PHI_PATTERNS_FILE" >&2
+    printf 'phi_scrubber: FATAL — failed to parse %s (no patterns loaded)\n' "$_PHI_PATTERNS_FILE" >&2
+    _PHI_INITIALIZED=0
     return 1
   fi
+
+  _PHI_INITIALIZED=1
 }
 
 # phi_scrubber_init — eagerly compile patterns at shell startup.
-# Idempotent: returns immediately if patterns are already compiled.
+# Idempotent: returns immediately if patterns are already initialized.
+# Returns 0 on success, 1 on failure. MUST check the return code.
 phi_scrubber_init() {
-  if [[ ${#_PHI_SED_ARGS[@]} -eq 0 && -z "$_PHI_SUPPRESS_PATTERN" ]]; then
-    _phi_load_patterns
-  fi
+  [[ $_PHI_INITIALIZED -eq 1 ]] && return 0
+  _phi_load_patterns
 }
 
 # phi_should_suppress — returns 0 if $1 matches any suppress-flagged pattern.
 # No forks; uses bash/zsh [[ =~ ]] on the pre-compiled pattern string.
+# Lazy-initializes if needed (fallback for dynamic loading).
 phi_should_suppress() {
-  if [[ ${#_PHI_SED_ARGS[@]} -eq 0 && -z "$_PHI_SUPPRESS_PATTERN" ]]; then
+  if [[ $_PHI_INITIALIZED -ne 1 ]]; then
     _phi_load_patterns || return 1
   fi
   [[ -n "$_PHI_SUPPRESS_PATTERN" ]] || return 1
@@ -92,8 +100,9 @@ phi_should_suppress() {
 # Fails hard (non-zero, no stdout) if:
 #   - patterns are unavailable (yq missing or registry absent)
 #   - input matches a suppress-flagged pattern
+# Lazy-initializes if needed (fallback for dynamic loading).
 phi_scrub() {
-  if [[ ${#_PHI_SED_ARGS[@]} -eq 0 && -z "$_PHI_SUPPRESS_PATTERN" ]]; then
+  if [[ $_PHI_INITIALIZED -ne 1 ]]; then
     if ! _phi_load_patterns; then
       return 1
     fi
