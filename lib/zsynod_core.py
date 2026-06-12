@@ -477,6 +477,18 @@ class ZsynodAgent:
         if backend is None:
             backend = "cli" if actor_id in ("claude", "gemini", "codex") else "local"
         self.backend = backend
+        self._current_proc: "Optional[subprocess.Popen]" = None
+
+    def abort(self) -> None:
+        """Kill any in-flight CLI subprocess. Safe to call from any thread."""
+        p = self._current_proc
+        if p and p.poll() is None:
+            try:
+                p.kill()
+                p.wait(timeout=2)
+            except Exception:
+                pass
+        self._current_proc = None
 
     def _build_context(self, recent_discussion: List[LedgerEntry], depth: int = 5,
                        blind_for: str = None) -> str:
@@ -601,13 +613,26 @@ class ZsynodAgent:
             "--append-system-prompt",
             "You are a member of the zsynod deliberation forum. Be concise.",
         ]
-        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=t)
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr.strip() or f"claude exited {result.returncode}")
+        self._current_proc = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        try:
+            stdout_b, stderr_b = self._current_proc.communicate(
+                input=prompt.encode(), timeout=t
+            )
+        except subprocess.TimeoutExpired:
+            self._current_proc.kill()
+            self._current_proc.communicate()
+            self._current_proc = None
+            raise TimeoutError(f"claude timed out after {t}s")
+        rc = self._current_proc.returncode
+        self._current_proc = None
+        if rc != 0:
+            raise RuntimeError(stderr_b.decode().strip() or f"claude exited {rc}")
 
         remark = ""
         suggestion = ""
-        for line in result.stdout.splitlines():
+        for line in stdout_b.decode().splitlines():
             line = line.strip()
             if not line:
                 continue
@@ -640,19 +665,34 @@ class ZsynodAgent:
                 c += ["-m", self.model]
             return c
 
-        result = subprocess.run(_cmd(), capture_output=True, text=True, timeout=t)
-        # Session already exists from a prior tick — switch to --resume
-        if result.returncode != 0 and "already exists" in result.stderr:
-            result = subprocess.run(_cmd(resume=True), capture_output=True, text=True, timeout=t)
+        def _run(cmd_args):
+            self._current_proc = subprocess.Popen(
+                cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+            try:
+                stdout_b, stderr_b = self._current_proc.communicate(timeout=t)
+            except subprocess.TimeoutExpired:
+                self._current_proc.kill()
+                self._current_proc.communicate()
+                self._current_proc = None
+                raise TimeoutError(f"gemini timed out after {t}s")
+            rc = self._current_proc.returncode
+            self._current_proc = None
+            return rc, stdout_b.decode(), stderr_b.decode()
 
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr.strip() or f"gemini exited {result.returncode}")
+        rc, stdout, stderr = _run(_cmd())
+        # Session already exists from a prior tick — switch to --resume
+        if rc != 0 and "already exists" in stderr:
+            rc, stdout, stderr = _run(_cmd(resume=True))
+
+        if rc != 0:
+            raise RuntimeError(stderr.strip() or f"gemini exited {rc}")
 
         try:
-            data = json.loads(result.stdout)
-            remark = (data.get("response") or data.get("text") or data.get("content") or result.stdout).strip()
+            data = json.loads(stdout)
+            remark = (data.get("response") or data.get("text") or data.get("content") or stdout).strip()
         except (json.JSONDecodeError, KeyError):
-            remark = result.stdout.strip()
+            remark = stdout.strip()
 
         if token_callback and remark:
             token_callback(remark)
@@ -670,10 +710,20 @@ class ZsynodAgent:
                 cmd += ["-m", self.model]
             cmd.append(prompt)
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=t)
-            if result.returncode != 0:
-                raise RuntimeError(result.stderr.strip() or f"codex exited {result.returncode}")
-
+            self._current_proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+            try:
+                _, stderr_b = self._current_proc.communicate(timeout=t)
+            except subprocess.TimeoutExpired:
+                self._current_proc.kill()
+                self._current_proc.communicate()
+                self._current_proc = None
+                raise TimeoutError(f"codex timed out after {t}s")
+            rc = self._current_proc.returncode
+            self._current_proc = None
+            if rc != 0:
+                raise RuntimeError(stderr_b.decode().strip() or f"codex exited {rc}")
             remark = Path(output_path).read_text().strip()
         finally:
             Path(output_path).unlink(missing_ok=True)
