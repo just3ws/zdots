@@ -38,7 +38,9 @@ zsynod/.lock
 zsynod/ledger.jsonl
 zsynod/ledger.py.jsonl
 zsynod/ledger.py.jsonl.pre-sweep-*
+zsynod/ledger.py.jsonl.dump-*
 zsynod/dials.json
+*.bak
 zsynod/sessions/
 zsynod/minutes.md
 zsynod/transcripts/
