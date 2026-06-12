@@ -1165,6 +1165,22 @@ class ZsynodApp(App):
                         )
                 continue
 
+            # ── ask: DM a question — pinned in target's next prompt ──────────
+            if dtype == "ask":
+                to = data.get("to", "")
+                if not to or to not in members:
+                    self.call_from_thread(
+                        self.log_message,
+                        f"[yellow]⚠ {actor} directive dropped:[/yellow] [dim]ask — no member @{to}[/dim]",
+                    )
+                    continue
+                self.ledger.append(actor, "ask", data)
+                self.call_from_thread(
+                    self.log_message,
+                    f"[cyan]📬 @{actor} → @{_esc(to)}:[/cyan] [dim]{_esc(data.get('question','')[:80])}[/dim]",
+                )
+                continue
+
             # ── body: member records a decision into the proposal body ──
             if dtype == "body":
                 pid = data.get("proposal", topic_pid)
@@ -1349,6 +1365,11 @@ class ZsynodApp(App):
                         f"• {pid}: {title}" + (f" — {body[:80]}" if body else "")
                         for pid, title, body in ratified
                     )
+                    asks = self.ledger.get_pending_asks(actor)
+                    pending_asks = "\n".join(
+                        f"• @{frm} (#{seq}): {q}"
+                        for seq, frm, q in asks
+                    )
                     remark = agent.deliberate(
                         topic, context,
                         progress_callback=self.log_message,
@@ -1367,6 +1388,7 @@ class ZsynodApp(App):
                         blind=blind,
                         advocate=advocate,
                         prior_decisions=prior_decisions,
+                        pending_asks=pending_asks,
                     )
                     _remark_lower = (remark or "").lower()
                     if any(p in _remark_lower for p in (
