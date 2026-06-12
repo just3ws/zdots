@@ -727,8 +727,10 @@ class ZsynodApp(App):
             return []
 
     def _quorum(self) -> int:
-        n = len(self._voting_members())
-        return n // 2 + 1
+        muted = set(self.dials.get("muted", []))
+        active_voters = [m for m in self._voting_members() if m not in muted]
+        n = len(active_voters)
+        return max(n // 2 + 1, 1)
 
     # ── rendering ────────────────────────────────────────────────────────────
 
