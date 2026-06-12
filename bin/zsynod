@@ -1707,6 +1707,61 @@ cmd_seat() {  # banner for a member's seat, then drop into an interactive shell
   exec "${SHELL:-/bin/zsh}" -i
 }
 
+cmd_brief() {
+  command -v python3 >/dev/null 2>&1 || _die "python3 is required"
+  local ledger="${ZSYNOD_LEDGER:-$DIR/ledger.py.jsonl}"
+  [[ -f "$ledger" ]] || _die "no ledger at $ledger"
+  python3 - "$ledger" <<'PY'
+import sys, json
+from pathlib import Path
+sys.path.insert(0, str(Path(sys.argv[1]).parent.parent / "lib"))
+from zsynod_core import LedgerManager
+import json as _json
+
+try:
+    members_path = Path(sys.argv[1]).parent / "members.json"
+    members = _json.loads(members_path.read_text())["members"]
+    voting_n = sum(1 for m in members if m.get("voting"))
+    quorum = voting_n // 2 + 1
+except Exception:
+    quorum = 3
+
+l = LedgerManager(Path(sys.argv[1]))
+b = l.get_brief(quorum)
+
+RED = "\033[31m"; YEL = "\033[33m"; CYN = "\033[36m"
+MAG = "\033[35m"; GRN = "\033[32m"; DIM = "\033[2m"; RST = "\033[0m"; B = "\033[1m"
+
+if b["attention"]:
+    print(f"\n{B}{YEL}NEEDS YOUR ATTENTION{RST}")
+    for item in b["attention"]:
+        icon = "★" if item["type"] == "ratify" else "🧊"
+        print(f"  {icon} {B}{item['pid']}{RST} — {item['detail']}")
+
+if b["agent_ready"]:
+    print(f"\n{B}{CYN}AGENT-READY{RST}")
+    for item in b["agent_ready"]:
+        pid = item.get('pid','')
+        print(f"  → {B}{pid}{RST} {item['detail']}")
+
+if b["coaching"]:
+    print(f"\n{B}{MAG}COACHING{RST}")
+    for c in b["coaching"]:
+        pct = c["engaged_pct"]
+        col = GRN if pct >= 50 else YEL if pct >= 25 else RED
+        print(f"  {B}@{c['member']}{RST} {col}{pct}% engaged{RST} ({c['engaged_n']}/{c['total']})")
+        for ins in c["insights"]:
+            print(f"    • {ins}")
+        if c["delta"]:
+            print(f"    {DIM}biggest factor: {c['delta'][0][0]} "
+                  f"(good={c['delta'][0][1]:.1f} bad={c['delta'][0][2]:.1f}){RST}")
+
+if not any([b["attention"], b["agent_ready"], b["coaching"]]):
+    print(f"\n{GRN}Forum is healthy — no action needed.{RST}")
+print()
+PY
+}
+
 cmd_watch() {  # live status loop for the floor window
   local secs="${ZSYNOD_WATCH_SECS:-5}"
   while :; do
@@ -1992,6 +2047,7 @@ case "$SUB" in
   room)     cmd_room ;;
   seat)     cmd_seat "${POS[1]:-}" ;;
   watch)    cmd_watch ;;
+  brief)    cmd_brief ;;
   version)  _version ;;
   ""|-h|--help) _usage ;;
   *) _die "unknown subcommand: $SUB (try -h)" ;;
