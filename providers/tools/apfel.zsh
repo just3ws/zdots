@@ -4,14 +4,13 @@
 # exposes an OpenAI-compatible server (`apfel --serve`, default 127.0.0.1:11434).
 # On-device means PHI locality by construction — the prompt never leaves the
 # machine, satisfying the same boundary zdots_ai_gated_endpoint enforces for
-# llama.cpp. It is seated in the zsynod as @apfel via the keyless-loopback
-# `openai` backend (zsynod/members.json).
+# llama.cpp.
 #
 # Usage:
 #   zapfel "prompt"            # one-shot, on-device
 #   cmd | zapfel "task"        # piped context, same contract as ai-query
 #   zapfel --chat              # interactive conversation
-#   zapfel --serve             # OpenAI-compat server for the zsynod seat
+#   zapfel --serve             # OpenAI-compatible server on loopback
 #
 # The server is managed by `brew services start apfel` (operator action);
 # this wrapper is the interactive/scripted entry point.
