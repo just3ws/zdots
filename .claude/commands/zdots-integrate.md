@@ -5,179 +5,183 @@ description: Integration checklist for new zdots capabilities. Walks every regis
 
 # /zdots-integrate — New Capability Integration Checklist
 
-Run this skill after building any new zdots command, service, library, or
-configuration module. It walks every layer that must know about the new thing
-and verifies each one is wired correctly.
+Run after building any new `bin/` command, service, `lib/` module, or
+`conf.d/` module. Work every layer in order. Mark each N/A with a one-line
+reason; never silently skip.
 
-Provide the capability name and type when invoking:
+**Invocation:**
 ```
-/zdots-integrate bin/zdots-logs command
-/zdots-integrate llama service
-/zdots-integrate conf.d/08-local-bin.zsh module
+/zdots-integrate <name> <type>
+# type: command | service | lib | module
+# Example: /zdots-integrate zdots-logs command
 ```
-
-If type is omitted, the skill will inspect the path and infer it.
 
 ---
 
-## Layer Matrix
+## Instructions for the model
 
-Work through every layer. Skip only if the layer is genuinely not applicable
-(mark it N/A with a one-line reason — never silently skip).
-
-### Layer 1 — Executable / File
-
-| Item | Check |
-|------|-------|
-| File exists at correct path (`bin/`, `lib/`, `conf.d/`) | `[[ -f path ]]` |
-| Correct permissions (`+x` for executables, not for libs) | `ls -l path` |
-| Passes `shellcheck --severity=warning` | `shellcheck path` |
-| Follows zdots naming convention (`zdots-*`, `zsvc`, etc.) | visual |
-
-**Heal:** `chmod +x bin/<name>` for missing execute bit. File `zdots-issue` for
-shellcheck failures in infrastructure; fix directly for new code.
+Each layer shows the exact command to run, the pass condition, and the exact
+fix if it fails. Run the command. Compare output to the pass condition. If it
+fails, apply the fix. Then re-run to confirm. Do not guess — run it.
 
 ---
 
-### Layer 2 — Help Text
+## Layer 1 — Executable / File
 
-| Item | Check |
-|------|-------|
-| `--help / -h` exits 0 and prints usage | `<cmd> --help` |
-| Help text includes: purpose, commands/flags, examples | read output |
-| Help is embedded at top of file (lines 2–N, extracted via `sed`) | `head -30 path` |
-
-**Standard pattern:**
 ```bash
-# bin/my-cmd — One-line description.
-#
-# Commands:
-#   ...
+# L1-A: file exists
+[[ -f bin/<name> ]] && echo PASS || echo FAIL
+
+# L1-B: executable bit set (commands only; skip for lib/ and conf.d/)
+[[ -x bin/<name> ]] && echo PASS || echo FAIL
+# FIX: chmod +x bin/<name>
+
+# L1-C: shellcheck clean at warning level
+shellcheck --severity=warning bin/<name> && echo PASS || echo FAIL
+# FIX: fix warnings in the file. File zdots-issue if in infrastructure code.
+```
+
+---
+
+## Layer 2 — Help Text
+
+```bash
+# L2-A: --help exits 0
+bin/<name> --help >/dev/null 2>&1 && echo PASS || echo FAIL
+
+# L2-B: help text is non-empty (> 10 lines)
+bin/<name> --help 2>/dev/null | wc -l | awk '{print ($1 > 10) ? "PASS" : "FAIL"}'
+```
+
+Standard embedded-help pattern (lines 2–N, `sed` extraction):
+```bash
+# bin/<name> — one-line description.
+# Commands:  ...
 # -h, --help  Show this help
 ```
 
 ---
 
-### Layer 3 — Knowledge Base (tooling catalog)
+## Layer 3 — Knowledge Base
 
-| Item | Check |
-|------|-------|
-| `zdots-index-tools` knows about it | `zdots-ctx query tooling:<name>` |
-| Catalog entry has full help text | check output length |
-| Scenarios entry covers common use case | `zdots-ctx query tooling:scenarios` + grep |
-
-**Heal:**
 ```bash
-zdots-index-tools --force       # rebuild the full catalog
-zdots-ctx query tooling:<name>  # verify entry exists
+# L3-A: rebuild catalog (always run when adding a new command)
+zdots-index-tools --force 2>&1 | grep -E 'done|error'
+
+# L3-B: catalog entry exists
+zdots-ctx query "tooling:<name>" 2>/dev/null | grep -q '<name>' && echo PASS || echo FAIL
+# FIX if FAIL: check that bin/<name> is executable and --help exits 0, then re-run L3-A
 ```
 
-If the catalog entry is missing after `--force`, check that the file is
-executable and that `--help` exits 0.
-
 ---
 
-### Layer 4 — Claude Code Allowlist
+## Layer 4 — CC Allowlist
 
-| Item | Check |
-|------|-------|
-| Command is in `.claude/settings.json` allow array | `grep <name> .claude/settings.json` |
-| Rule uses prefix wildcard: `"Bash(<name>:*)"` | visual |
-
-**Heal:** Add to the `permissions.allow` array in `.claude/settings.json`:
-```json
-"Bash(zdots-logs:*)"
+```bash
+# L4-A: allowlist entry exists
+grep -q '"Bash(<name>:\*)' .claude/settings.json && echo PASS || echo FAIL
+# FIX: add "Bash(<name>:*)" to permissions.allow in .claude/settings.json
+#      Place it alphabetically within the zdots group.
 ```
 
-Group it with related zdots tools (alphabetical within the group).
+---
+
+## Layer 5 — Agent Guide + Capabilities
+
+Apply for any `bin/` command that agents or users invoke directly.
+Skip for `lib/` modules.
+
+```bash
+# L5-A: agent-guide mentions the command
+agent-guide 2>/dev/null | grep -q '<name>' && echo PASS || echo "MISSING (add to bin/agent-guide)"
+
+# L5-B: AGENTS.md workflow table mentions it (only if it covers a primary workflow)
+grep -q '<name>' AGENTS.md && echo PASS || echo "MISSING — add to tool table if primary workflow"
+```
+
+FIX: Edit `bin/agent-guide` to include the command in the relevant section.
+Edit `AGENTS.md` tool table if it covers a workflow currently undocumented.
+File `zdots-issue` if the guide/capabilities are infrastructure you didn't write.
 
 ---
 
-### Layer 5 — Agent Guide + Capabilities (for user-facing tools)
+## Layer 6 — Service Registry
 
-Skip for internal library functions. Apply for any `bin/` command agents or
-users might reach for.
+Apply for new managed services only. Skip for commands, libs, and modules.
 
-| Item | Check |
-|------|-------|
-| `agent-guide` mentions the command in the relevant section | `agent-guide | grep <name>` |
-| `capabilities --json` reports it (if it has a health endpoint) | `capabilities --json | grep <name>` |
-| `AGENTS.md` task table updated if it serves a common workflow | `grep <name> AGENTS.md` |
+```bash
+# L6-A: svc-registry entry exists
+grep -q '"<name>"' lib/svc-registry.bash && echo PASS || echo FAIL
 
-**Heal:** Add entries to `bin/agent-guide` and `bin/capabilities` as appropriate.
-Update `AGENTS.md` tool table if the command covers a workflow currently missing.
+# L6-B: zsvc sees it
+zsvc list 2>/dev/null | grep -q '<name>' && echo PASS || echo FAIL
 
----
-
-### Layer 6 — Service Registry (for services only)
-
-Skip for commands and modules. Apply for any new managed service.
-
-| Item | Check |
-|------|-------|
-| `_svc_reg` entry in `lib/svc-registry.bash` | `grep <name> lib/svc-registry.bash` |
-| Log path, label, ctl, endpoint all set correctly | read the entry |
-| `zsvc list` shows the service | `zsvc list` |
-| `zsvc start/stop/health <svc>` work | test each |
-| `colima: no log path` handled if it delegates to ctl | verify `ZDOTS_SVC_LOGS` field |
-
-**Heal:** Edit `lib/svc-registry.bash` — but only if you were asked to add the
-service. File `zdots-issue` if the service exists but is mis-registered.
+# L6-C: zsvc health probe exits 0
+zsvc health <name> >/dev/null 2>&1 && echo PASS || echo "FAIL — check health endpoint"
+```
 
 ---
 
-### Layer 7 — Shell Integration (for conf.d modules)
+## Layer 7 — Shell Module (conf.d)
 
-Skip unless the capability adds a conf.d module.
+Apply for new `conf.d/` modules only. Skip for commands and services.
 
-| Item | Check |
-|------|-------|
-| Module numbered correctly (load order) | `ls conf.d/` |
-| `source conf.d/<module>` in `.zshrc` or auto-loaded | `grep <module> .zshrc` |
-| No global side effects at parse time (only function defs + hooks) | read module |
-| Passes `zsh -n conf.d/<module>` syntax check | `zsh -n path` |
+```bash
+# L7-A: syntax check
+zsh -n conf.d/<module> && echo PASS || echo FAIL
 
----
+# L7-B: module loads without error
+zsh -c "source conf.d/<module>" && echo PASS || echo FAIL
 
-### Layer 8 — Tests
-
-| Item | Check |
-|------|-------|
-| Test file exists in `tests/` | `ls tests/*<name>*` |
-| `bats tests/` exits 0 | `bats tests/` |
-| Tests cover: happy path, error path, flag parsing | read test file |
-
-**Heal:** Add `tests/<name>.bats` for new commands. File `zdots-issue` for
-failing tests in unrelated areas.
+# L7-C: no duplicate load-order prefix
+ls conf.d/ | grep -E '^[0-9]{2}-' | cut -d- -f1 | sort | uniq -d \
+  | grep -q '' && echo "WARN: duplicate number prefix" || echo PASS
+```
 
 ---
 
-### Layer 9 — Documentation
+## Layer 8 — Tests
 
-| Item | Check |
-|------|-------|
-| Man page exists in `share/man/man1/` (for user-facing commands) | `ls share/man/man1/<name>*` |
-| `zdots-system-description.md` is still accurate | `grep <name> docs/zdots-system-description.md` |
-| Any relevant `docs/wiki/` page updated | assess manually |
+```bash
+# L8-A: test file exists
+ls tests/*<name>* 2>/dev/null | grep -q . && echo PASS || echo "MISSING — add tests/<name>.bats"
 
-Man pages are required only for primary user-facing commands. Internal tools
-and library scripts do not need man pages.
+# L8-B: full suite green
+bats tests/ && echo PASS || echo FAIL
+# FIX: investigate failures; file zdots-issue for unrelated failures.
+```
 
 ---
 
-### Layer 10 — zdots-heal Awareness
+## Layer 9 — Documentation
 
-| Item | Check |
-|------|-------|
-| Does the new capability affect any `/zdots-heal` gate? | assess |
-| If yes: is the gate's check command updated? | read `.claude/commands/zdots-heal.md` |
-| Does `/zdots-integrate` itself need updating? | meta-check |
+```bash
+# L9-A: man page exists (required for primary user-facing commands)
+ls share/man/man1/<name>* 2>/dev/null | grep -q . && echo PASS \
+  || echo "MISSING — add share/man/man1/<name>.1 if primary user-facing command"
+
+# L9-B: system description doc mentions it
+grep -q '<name>' docs/zdots-system-description.md && echo PASS \
+  || echo "MISSING — add entry to docs/zdots-system-description.md"
+```
+
+---
+
+## Layer 10 — Heal + Integrate Awareness
+
+```bash
+# L10-A: zdots-heal references this command if it's part of the health surface
+grep -q '<name>' .claude/commands/zdots-heal.md && echo PRESENT || echo "NOT IN HEAL — add gate check if it's health-relevant"
+
+# L10-B: zdots-integrate layer matrix still accurate (run this meta-check)
+# Count layers in this file; count checks per layer; verify nothing drifted.
+grep -c '^## Layer' .claude/commands/zdots-integrate.md
+# Expected: 10. If different, the file has drifted.
+```
 
 ---
 
 ## Reporting Format
-
-After all layers, produce a table:
 
 ```
 === zdots-integrate: <name> (<type>) — <timestamp> ===
@@ -187,27 +191,27 @@ Layer 2  Help text:       PASS | FAIL | N/A
 Layer 3  Knowledge base:  PASS | FAIL | N/A
 Layer 4  CC Allowlist:    PASS | FAIL | N/A
 Layer 5  Agent guide:     PASS | FAIL | N/A
-Layer 6  Svc registry:    PASS | FAIL | N/A  (or N/A — not a service)
-Layer 7  Shell module:    PASS | FAIL | N/A  (or N/A — not a conf.d module)
+Layer 6  Svc registry:    PASS | FAIL | N/A
+Layer 7  Shell module:    PASS | FAIL | N/A
 Layer 8  Tests:           PASS | FAIL | N/A
 Layer 9  Docs:            PASS | FAIL | N/A
 Layer 10 Heal awareness:  PASS | FAIL | N/A
 
 ── FIXED ───────────────────────────────
-- <what was healed automatically>
+- <command applied + what it fixed>
 
 ── OPERATOR NEEDED ─────────────────────
-- <what requires manual action + zdots-issue ID>
+- <item> → zdots-issue filed: <ID>
 
 ── SKIPPED (N/A) ───────────────────────
-- <layer: reason>
+- Layer N: <reason>
 ```
 
 ---
 
-## Hard limits
+## Hard Limits
 
-- Never modify `lib/`, `conf.d/`, or `bin/` infrastructure scripts unless the
-  new capability is your own code. File `zdots-issue` for gaps in existing tools.
-- Never add untested allowlist rules to `.claude/settings.json`.
-- Never regenerate `AGENTS.md` from scratch — patch only the affected section.
+- Never edit `lib/`, `conf.d/`, or `bin/` infrastructure unless this is your code.
+  File `zdots-issue` for gaps. Wait for operator.
+- Never add allowlist rules you did not verify with L4-A first.
+- Never amend commits; always create new ones.
