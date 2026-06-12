@@ -729,11 +729,23 @@ class ZsynodAgent:
                    temperature: float = None, max_tokens: int = None,
                    context_depth: int = 5, kb_note: str = "",
                    blind: bool = False, advocate: bool = False) -> str:
+        # Sanitize all prompt ingredients before string assembly. None or
+        # whitespace-only values become safe sentinels — an empty topic is the
+        # root cause of Pi's z-999 loop (nothing to reason about → hallucinate
+        # a plan to plan). The glyph and actor_id are internal; only the
+        # operator-supplied fields need guarding.
+        topic = (topic or "").strip() or "(untitled topic — add a body before ticking)"
+        summary = (summary or "").strip()
+        kb_note = (kb_note or "").strip()
+        trend = (trend or "").strip()
+        event = (event or "").strip()
+
         # blind: the member hasn't voted on this topic yet — strip everyone
         # else's votes from the context so the position comes from the
         # arguments, not the running tally (information-cascade prevention).
         context_str = self._build_context(recent_discussion, depth=context_depth,
                                           blind_for=self.actor_id if blind else None)
+        context_str = context_str.strip() or "(no prior discussion on this topic)"
         handles = " ".join(f"@{m}" for m in (members or [])) or "@mike @pi @aider @opencode @claude @gemini @codex"
         system_prompt = (
             f"You are @{self.actor_id} in the zsynod deliberation forum. "
@@ -1407,3 +1419,24 @@ class LedgerManager:
                 lock_path.rmdir()
             except FileNotFoundError:
                 pass
+
+    def reset(self) -> Path:
+        """Archive the current ledger and start a fresh chain.
+
+        Copies the live file to a timestamped .dump-* sibling, truncates,
+        and writes a single genesis reset entry so the new chain is auditable.
+        Returns the archive path. Safe to call while the TUI is running —
+        the ledger lock protects the append."""
+        import shutil as _shutil
+        ts = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        arc = self.path.with_name(f"{self.path.name}.dump-{ts}")
+        prior_count = len(self.entries)
+        _shutil.copy2(self.path, arc)
+        self.entries = []
+        self.path.write_text("")
+        self.append("system", "reset", {
+            "reason": "operator core dump",
+            "archive": str(arc),
+            "prior_entries": prior_count,
+        })
+        return arc
