@@ -581,7 +581,7 @@ class ZsynodApp(App):
                     yield Static(id="thinking-box")
         yield Static(id="timer-bar")
         yield Input(
-            placeholder="speak | propose | aye/nay/ratify/close [PID] | dial | auto [s] | kb <term> | digest | mute @m",
+            placeholder="propose <title> | <body>  ·  say <text>  ·  body P# <text>  ·  aye/nay/ratify/close [P#]  ·  dial  ·  auto",
             id="command-input",
         )
         yield Footer()
@@ -1442,6 +1442,17 @@ class ZsynodApp(App):
                     self.ledger.append("mike", "speak", {"remark": rest or cmd_text})
                 elif action == "propose":
                     if not rest:
+                        self.log_message("[red]propose needs a title (use: propose <title> | <body>)[/red]")
+                        return
+                    # pipe separator: "propose Title text | Body text here"
+                    if "|" in rest:
+                        p_title, p_body = rest.split("|", 1)
+                        p_title = p_title.strip()
+                        p_body = p_body.strip()
+                    else:
+                        p_title = rest.strip()
+                        p_body = ""
+                    if not p_title:
                         self.log_message("[red]propose needs a title[/red]")
                         return
                     wip = int(self.dials.get("wip_limit", 3))
@@ -1452,7 +1463,7 @@ class ZsynodApp(App):
                             f"ratify or close an open proposal first.[/yellow]"
                         )
                         return
-                    dup = self.ledger.find_duplicate_title(rest)
+                    dup = self.ledger.find_duplicate_title(p_title)
                     if dup:
                         self.log_message(
                             f"[yellow]Duplicate title — {dup} already covers this. "
@@ -1460,8 +1471,12 @@ class ZsynodApp(App):
                         )
                         return
                     pid = self.ledger.next_proposal_id()
-                    self.ledger.append("mike", "propose", {"id": pid, "title": rest})
-                    self.log_message(f"[green]mike:[/green] proposed [b]{pid}[/b]: {_esc(rest)}")
+                    p_data: dict = {"id": pid, "title": p_title}
+                    if p_body:
+                        p_data["body"] = p_body
+                    self.ledger.append("mike", "propose", p_data)
+                    body_note = f" [dim]({len(p_body)} chars body)[/dim]" if p_body else " [yellow](no body — add one with: body {pid} <text>)[/yellow]"
+                    self.log_message(f"[green]mike:[/green] proposed [b]{pid}[/b]: {_esc(p_title)}{body_note}")
                 elif action in ["aye", "nay", "abstain"]:
                     pid = rest.upper() if rest else self.selected_pid
                     if not pid:
@@ -1499,8 +1514,26 @@ class ZsynodApp(App):
                     self.last_seen_seq = -1
                     self.selected_pid = None
                     self.log_message(f"[green]✓ Ledger archived → {_esc(arc.name)}[/green]")
-                    self.log_message("[yellow]Forum reset. Start fresh with 'propose <title>'.[/yellow]")
+                    self.log_message("[yellow]Forum reset. Seed with: propose <title> | <body>[/yellow]")
                     self.refresh_data()
+                elif action == "body":
+                    bits = rest.split(maxsplit=1)
+                    if len(bits) < 2:
+                        self.log_message("[yellow]usage: body <P#> <text>[/yellow]")
+                        return
+                    b_pid = bits[0].upper()
+                    b_text = bits[1].strip()
+                    if not b_text:
+                        self.log_message("[yellow]body text is empty[/yellow]")
+                        return
+                    self.ledger.append("mike", "body", {"proposal": b_pid, "body": b_text})
+                    self.log_message(f"[green]mike:[/green] body added to [b]{b_pid}[/b] [dim]({len(b_text)} chars)[/dim]")
+                elif action in ("say", "discuss"):
+                    if not rest:
+                        self.log_message("[yellow]usage: say <text>[/yellow]")
+                        return
+                    self.ledger.append("mike", "discuss", {"remark": rest})
+                    self.log_message(f"[green]mike:[/green] {_esc(rest)}")
                 elif action == "dial":
                     bits = rest.split()
                     if not bits:
