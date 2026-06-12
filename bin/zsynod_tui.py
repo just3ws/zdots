@@ -1314,9 +1314,10 @@ class ZsynodApp(App):
                         self.log_message,
                         f"[dim]😈 {actor} holds the advocate seat for {a_pid}[/dim]",
                     )
-                context = (self.ledger.get_proposal_discussion(a_pid) if a_pid
-                           else self.ledger.get_discussion(
-                               limit=12 if free_thought else 200))
+                # Feed model: every member reads the same central timeline.
+                # The [STATE] pin already anchors active proposals; filtering
+                # context per-topic killed cross-thread awareness.
+                context = self.ledger.get_discussion(limit=int(dials["context_depth"]))
                 if event:
                     self.call_from_thread(
                         self.log_message, f"[dim]{actor} ⚡ {event}[/dim]",
