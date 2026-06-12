@@ -9,11 +9,13 @@ if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-autosuggestion
 fi
 
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/opt/zsh-vi-mode/share/zsh-vi-mode/zsh-vi-mode.plugin.zsh" ]]; then
-  # zsh-vi-mode default is normal mode on each new line — that causes the
-  # first keypress to be interpreted as a vi command (e.g. 'a' appends before
-  # inserting, producing 'aack' for 'ack'). Force insert mode at line start.
-  function zvm_config() { ZVM_LINE_INIT_MODE=$ZVM_MODE_INSERT }
-  zdefer source "$HOMEBREW_PREFIX/opt/zsh-vi-mode/share/zsh-vi-mode/zsh-vi-mode.plugin.zsh"
+  # Source eagerly — deferred loading fires after the first line is already
+  # active, so ZVM_LINE_INIT_MODE cannot take effect on it. zsh-vi-mode is
+  # pure-zsh and fast; the defer was premature optimisation.
+  # ZVM_MODE_INSERT='i' but the constant isn't defined when zvm_config runs,
+  # so hardcode the literal. zvm_config is the official pre-source hook.
+  function zvm_config() { ZVM_LINE_INIT_MODE='i' }
+  source "$HOMEBREW_PREFIX/opt/zsh-vi-mode/share/zsh-vi-mode/zsh-vi-mode.plugin.zsh"
 fi
 
 if [[ -n "${HOMEBREW_PREFIX:-}" && -r "$HOMEBREW_PREFIX/share/zsh-autopair/autopair.zsh" ]]; then
