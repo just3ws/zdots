@@ -242,7 +242,8 @@ declare -ga ZDOTS_CAPABILITIES_SECURITY=(
   "security:github-keys:zdots-github-keys                  — SSH key management for GitHub"
 
   # Secret scanning
-  "security:secret-scan:bin/secret-scan                    — Pre-commit secret scanner (gitleaks)"
+  "security:secret-scan:bin/secret-scan                    — At-rest secret scanner (prefers Go zdots-secret-scan, bash fallback)"
+  "security:secret-scan-go:zdots-secret-scan              — Go secret scanner: RE2 registry from etc/secret-patterns.yaml"
 )
 
 # ────────────────────────────────────────────────────────────────────────────
