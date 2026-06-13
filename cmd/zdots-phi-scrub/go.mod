@@ -8,7 +8,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0
 	go.opentelemetry.io/otel/trace v1.43.0
 	gopkg.in/yaml.v3 v3.0.1
+	zdots/pkg/re2registry v0.0.0
 )
+
+// Shared RE2 engine lives in-repo; resolved by relative path (no published module).
+replace zdots/pkg/re2registry => ../../pkg/re2registry
 
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
