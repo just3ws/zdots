@@ -3,11 +3,12 @@ package phi
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"zdots/pkg/re2registry"
 )
 
 // Pattern represents a single PHI/credential pattern from etc/phi-patterns.yaml
@@ -57,24 +58,28 @@ func Load() (*Compiled, error) {
 		return nil, fmt.Errorf("no patterns in %s", path)
 	}
 
+	// Compile via the shared RE2 engine; order is preserved so we can zip the
+	// compiled regexps back to each pattern's suppress/replace metadata.
+	raws := make([]re2registry.RawPattern, len(raw.Patterns))
+	for i, p := range raw.Patterns {
+		raws[i] = re2registry.RawPattern{Name: p.Name, Regex: p.Regex}
+	}
+	compiled, err := re2registry.CompileAll(raws)
+	if err != nil {
+		return nil, err
+	}
+
 	c := &Compiled{}
-
-	// Compile all patterns
-	for _, p := range raw.Patterns {
-		re, err := regexp.Compile(p.Regex)
-		if err != nil {
-			return nil, fmt.Errorf("pattern %q failed to compile in RE2: %w", p.Name, err)
-		}
-
+	for i, p := range raw.Patterns {
+		re := compiled[i].RE
 		if p.Suppress {
 			c.suppress = append(c.suppress, re)
 		} else {
 			// Translate sed-style replacement (\1) to Go RE2 style ($1)
-			rep := translateReplacement(p.Replace)
 			c.redact = append(c.redact, compiledPattern{
 				name: p.Name,
 				re:   re,
-				rep:  rep,
+				rep:  translateReplacement(p.Replace),
 			})
 		}
 	}
@@ -160,8 +165,5 @@ func loadRaw() (*rawRegistry, error) {
 // patternsPath returns the absolute path to etc/phi-patterns.yaml.
 // Respects ZDOTDIR environment variable if set; otherwise defaults to ~/.config/zsh.
 func patternsPath() string {
-	if z := os.Getenv("ZDOTDIR"); z != "" {
-		return filepath.Join(z, "etc", "phi-patterns.yaml")
-	}
-	return filepath.Join(os.Getenv("HOME"), ".config", "zsh", "etc", "phi-patterns.yaml")
+	return re2registry.ResolvePath("phi-patterns.yaml")
 }
