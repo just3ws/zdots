@@ -9,10 +9,9 @@
 #
 # Usage:
 #   zdots-issue "Short description of the problem or question"
-#   zdots-issue --type bug       "Tool X does not behave as documented"
-#   zdots-issue --type question  "Does zdots support capability Y?"
-#   zdots-issue --type request   "I need zdots to do Z to complete my task"
-#   zdots-issue --high           "Critical blocker"
+#   zdots-issue --type error|request|friction "description"
+#   zdots-issue --severity high|medium|low
+#   zdots-issue --from-trace TRACE_ID
 #
 # What to include in the description:
 #   - What you were trying to do
@@ -24,9 +23,13 @@
 
 set -uo pipefail
 
-ISSUE_TYPE="bug"
-PRIORITY="medium"
+ISSUE_TYPE="error"
+SEVERITY="medium"
+PRIORITY="medium"  # For backlog compatibility
+TITLE=""
 DESCRIPTION=""
+TRACE_ID="${ZDOTS_TRACE_ID:-}"
+FROM_TRACE=""
 
 _usage() {
   cat >&2 <<'EOF'
@@ -37,27 +40,29 @@ RULE: When zdots behaves unexpectedly, file an issue here. Do not modify
       The operator maintains zdots. Your job is to use it.
 
 Usage:
-  zdots-issue [--type bug|question|request] [--high|--low] "description"
+  zdots-issue [options] "description"
+  zdots-issue --type error|request|friction [--severity high|medium|low] "description"
 
 Types:
-  bug       Tool or service does not behave as documented (default)
-  question  You are unsure whether zdots supports something
+  error     Tool or service does not behave as documented (default)
   request   You need a new zdots capability to complete your task
+  friction  Confusing, hard to use, or unclear documentation
 
 Options:
-  --high    Blocking your current task
-  --low     Not urgent, noting for later
+  --severity LEVEL       Priority: critical, high, medium, low (default: medium)
+  --from-trace ID        Link to existing OTEL trace ID
+  --title TITLE          Explicit title (otherwise uses first 50 chars of description)
 
 What to put in the description:
   - What you were trying to do
   - What command you ran
   - What happened vs. what you expected
-  - Your trace ID if available: $ZDOTS_TRACE_ID
 
 Examples:
   zdots-issue "zdots-ask exits 1 even with llama.cpp healthy"
-  zdots-issue --type question "Does zdots-ctx support batch hydration?"
-  zdots-issue --type request --high "Need zdots-ask --domain sql for context-engine work"
+  zdots-issue --type request --severity high "Need zdots-ask --domain sql"
+  zdots-issue --type friction "Alert system confusing, hard to silence"
+  zdots-issue --from-trace abc123 "PHI scrubber timeout on large inputs"
 EOF
   exit 2
 }
@@ -65,29 +70,60 @@ EOF
 # Parse arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --type)    ISSUE_TYPE="${2:?--type requires a value}"; shift 2 ;;
-    --bug)     ISSUE_TYPE="bug"; shift ;;
-    --question) ISSUE_TYPE="question"; shift ;;
-    --request) ISSUE_TYPE="request"; shift ;;
-    --high)    PRIORITY="high"; shift ;;
-    --low)     PRIORITY="low"; shift ;;
-    --help|-h) _usage ;;
-    --)        shift; DESCRIPTION="$*"; break ;;
-    -*)        printf 'zdots-issue: unknown option: %s\n' "$1" >&2; exit 2 ;;
-    *)         DESCRIPTION="$1"; shift ;;
+    --type)      ISSUE_TYPE="${2:?--type requires a value}"; shift 2 ;;
+    --severity)  SEVERITY="${2:?--severity requires a value}"; shift 2 ;;
+    --from-trace) FROM_TRACE="${2:?--from-trace requires a value}"; TRACE_ID="$FROM_TRACE"; shift 2 ;;
+    --title)     TITLE="${2:?--title requires a value}"; shift 2 ;;
+    --help|-h)   _usage ;;
+    --)          shift; DESCRIPTION="$*"; break ;;
+    -*)          printf 'zdots-issue: unknown option: %s\n' "$1" >&2; exit 2 ;;
+    *)           DESCRIPTION="$1"; shift ;;
   esac
 done
 
 [[ -z "$DESCRIPTION" ]] && _usage
 
-TRACE_ID="${ZDOTS_TRACE_ID:-}"
+# Set title from description if not provided
+[[ -z "$TITLE" ]] && TITLE=$(printf '%s' "$DESCRIPTION" | cut -c1-100)
+
+# Map severity to priority for backlog (if used)
+case "$SEVERITY" in
+  critical|high) PRIORITY="high" ;;
+  medium) PRIORITY="medium" ;;
+  low) PRIORITY="low" ;;
+  *) PRIORITY="medium" ;;
+esac
+
+# Try to store in database via Ruby helper, fall back to backlog and JSONL
+RUBY_REPORTER="${ZDOTDIR:-$HOME/.config/zsh}/lib/zdots/commands/issue_reporter.rb"
+
+if [[ -x "$RUBY_REPORTER" ]]; then
+  # Call Ruby reporter for database storage
+  ruby -I"${ZDOTDIR:-$HOME/.config/zsh}/lib" -r bundler/setup -r zdots -r zdots/commands/issue_reporter \
+    -e "
+    opts = {
+      type: '$ISSUE_TYPE',
+      severity: '$SEVERITY',
+      title: '$TITLE',
+      description: '$DESCRIPTION',
+      reporter: '\${USER:-unknown}',
+      trace_id: '${TRACE_ID:-}',
+      tags: []
+    }
+    reporter = Zdots::Commands::IssueReporter.new(opts)
+    result = reporter.report
+    puts \"Issue stored: \#{result[:status]}\"
+  " 2>/dev/null || true
+fi
+
+# Also file in backlog if available (for backwards compatibility)
 TRACE_LINE=""
 [[ -n "$TRACE_ID" ]] && TRACE_LINE="**Trace ID:** \`${TRACE_ID}\`"
 
-TASK_TITLE="[agent-issue] ${DESCRIPTION}"
+TASK_TITLE="[agent-issue] ${TITLE}"
 
 BODY="**Type:** ${ISSUE_TYPE}
-**Priority:** ${PRIORITY}
+**Severity:** ${SEVERITY}
 ${TRACE_LINE}
 
 ${DESCRIPTION}
@@ -96,33 +132,32 @@ ${DESCRIPTION}
 *Filed via \`zdots-issue\`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*"
 
-if ! command -v backlog >/dev/null 2>&1; then
-  printf 'zdots-issue: backlog CLI not found — writing to var/agent-issues.jsonl\n' >&2
+if command -v backlog >/dev/null 2>&1; then
+  TASK_OUT=$(backlog task create \
+    --priority "$PRIORITY" \
+    --labels "agent-reported,${ISSUE_TYPE}" \
+    --description "$BODY" \
+    --no-dod-defaults \
+    --plain \
+    "$TASK_TITLE")
+
+  # Extract task ID (e.g. Z-142)
+  TASK_ID=$(printf '%s' "$TASK_OUT" | grep -Ei 'Task Z-[0-9]+' | head -1 | sed -E 's/.*Task (Z-[0-9]+).*/\1/i')
+
+  if [[ -n "$TASK_ID" && -x "${ZDOTDIR:-$HOME/.config/zsh}/bin/zsynod" ]]; then
+    # Notify the synod of the agent-reported issue
+    "${ZDOTDIR:-$HOME/.config/zsh}/bin/zsynod" tick --topic "$TASK_ID" >/dev/null 2>&1 &
+  fi
+
+  printf '\nzdots-issue: filed (%s). The operator will review and resolve.\n' "${TASK_ID:-unknown ID}"
+else
+  # Fallback: store in JSONL only
   ISSUES_DIR="${ZDOTDIR:-$HOME/.config/zsh}/var"
   mkdir -p "$ISSUES_DIR"
-  printf '{"ts":"%s","type":"%s","priority":"%s","trace":"%s","description":"%s"}\n' \
+  printf '{"ts":"%s","type":"%s","severity":"%s","title":"%s","trace":"%s"}\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    "$ISSUE_TYPE" "$PRIORITY" "${TRACE_ID:-}" \
-    "$DESCRIPTION" >> "${ISSUES_DIR}/agent-issues.jsonl"
-  printf 'zdots-issue: logged to %s/agent-issues.jsonl\n' "$ISSUES_DIR"
-  exit 0
+    "$ISSUE_TYPE" "$SEVERITY" "$TITLE" "${TRACE_ID:-}" >> "${ISSUES_DIR}/agent-issues.jsonl"
+  printf '\nzdots-issue: logged to %s/agent-issues.jsonl\n' "$ISSUES_DIR"
 fi
 
-TASK_OUT=$(backlog task create \
-  --priority "$PRIORITY" \
-  --labels "agent-reported,${ISSUE_TYPE}" \
-  --description "$BODY" \
-  --no-dod-defaults \
-  --plain \
-  "$TASK_TITLE")
-
-# Extract task ID (e.g. Z-142)
-TASK_ID=$(printf '%s' "$TASK_OUT" | grep -Ei 'Task Z-[0-9]+' | head -1 | sed -E 's/.*Task (Z-[0-9]+).*/\1/i')
-
-if [[ -n "$TASK_ID" && -x "${ZDOTDIR:-$HOME/.config/zsh}/bin/zsynod" ]]; then
-  # Notify the synod of the agent-reported issue
-  "${ZDOTDIR:-$HOME/.config/zsh}/bin/zsynod" tick --topic "$TASK_ID" >/dev/null 2>&1 &
-fi
-
-printf '\nzdots-issue: filed (%s). The operator will review and resolve.\n' "${TASK_ID:-unknown ID}"
 printf 'Your job is done here. Do not attempt to fix zdots yourself.\n'

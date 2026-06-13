@@ -13,10 +13,10 @@
 
 [[ "${ZDOTS_CMD_ANALYTICS:-0}" == "1" ]] || return 0
 
-# Eagerly compile PHI patterns — no patterns defined here, all from registry.
-if [[ -r "${ZDOTDIR}/lib/phi_scrubber.bash" ]]; then
-  source "${ZDOTDIR}/lib/phi_scrubber.bash"
-  phi_scrubber_init 2>/dev/null || true
+# Validate the binary is available (do not fail hard here; cmd-analytics is non-critical).
+# The precmd hook will gracefully handle unavailable scrubbing.
+if ! command -v zdots-phi-scrub >/dev/null 2>&1; then
+  printf 'zdots: warning — zdots-phi-scrub binary not found; cmd-analytics will not redact PHI.\n' >&2
 fi
 
 typeset -g _ZCA_DB="${XDG_STATE_HOME:-$HOME/.local/state}/zdots/history.sqlite3"
@@ -55,13 +55,20 @@ SQL
 fi
 
 _zca_redact() {
-  # Redact via PHI Pattern Registry. Suppress-flagged patterns (conn strings)
-  # return non-zero — caller should skip the analytics insert entirely.
+  # Redact via the Go binary (zdots-phi-scrub). Suppress-flagged patterns (conn strings)
+  # cause the binary to exit non-zero — caller should skip the analytics insert entirely.
   # Pattern source: etc/phi-patterns.yaml. No patterns defined here.
-  if phi_should_suppress "$1"; then
-    return 1
+  # Binary: cmd/zdots-phi-scrub/ (canonical, RE2 engine, single source of truth)
+
+  if ! command -v zdots-phi-scrub >/dev/null 2>&1; then
+    # Binary unavailable — pass through unchanged (non-critical subsystem).
+    printf '%s\n' "$1"
+    return 0
   fi
-  phi_scrub <<< "$1"
+
+  echo "$1" | zdots-phi-scrub
+  # exit 0 = redaction succeeded (output written to stdout)
+  # exit 1 = suppress-flagged pattern matched (no output, signal failure)
 }
 
 _zca_sql_esc() {
