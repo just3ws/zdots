@@ -2,7 +2,6 @@ package phi
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 )
 
