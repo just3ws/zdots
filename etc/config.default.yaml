@@ -1,0 +1,103 @@
+# ~/.zdots/config.yaml — Default Zdots Configuration
+# Single source of truth for all settings
+# Machine-specific overrides go in ~/.zdots/config.local.yaml (gitignored)
+
+version: "2026-06-12"
+schema_version: "1.0"
+
+# AI Configuration
+ai:
+  mode: local                    # local | cloud | none
+  endpoint: http://127.0.0.1:11500
+  embed_endpoint: http://127.0.0.1:11501
+  model: qwen3-14b
+  timeout_seconds: 30
+  max_retries: 3
+
+# Analytics & Capture
+analytics:
+  enabled: false                 # disabled by default; enable in config.local.yaml
+  buffer:
+    primary: redis              # redis | sqlite
+    fallback: sqlite
+    redis_host: 127.0.0.1
+    redis_port: 6379
+  command_history: true
+  history_retention_days: 90
+
+# Database & Persistence
+database:
+  primary: postgresql
+  url: postgresql://zdots_rw@localhost/my
+  encryption_key: "${ZDOTS_DB_ENCRYPTION_KEY}"  # from Keychain
+  migrations_path: db/migrations
+
+# Services
+services:
+  llama:
+    enabled: true
+    port: 11500
+    model: qwen3-14b
+  whisper:
+    enabled: false
+    port: 8000
+  otel_collector:
+    enabled: true
+    endpoint: http://127.0.0.1:4317
+  openobserve:
+    enabled: false
+    endpoint: http://127.0.0.1:5080
+
+# Knowledge Layer
+knowledge:
+  vault_path: ~/my/knowledge
+  auto_sync: true
+  auto_capture: true
+  vectorstore: pgvector
+  embedding_model: bge-base
+  sync_interval_hours: 24
+
+# Observability
+observability:
+  enabled: false                # disabled by default on home machines
+  exporter: otlp_http
+  endpoint: http://127.0.0.1:4317
+  batch_size: 512
+  flush_interval_ms: 5000
+  log_level: info
+
+# Security & PHI
+security:
+  phi_patterns_file: etc/phi-patterns.yaml
+  enable_phi_scrubbing: true
+  fail_on_uninitialized: true
+  audit_enabled: false
+  history_redact: true
+
+# Profiles (machine-specific overrides)
+profiles:
+  work:
+    ai:
+      mode: local
+    analytics:
+      enabled: false           # no analytics on work machine
+    observability:
+      enabled: false           # no observability on work machine
+    security:
+      audit_enabled: true
+      fail_on_uninitialized: true
+  home:
+    ai:
+      mode: local
+    analytics:
+      enabled: false           # set to true in config.local.yaml to enable
+    observability:
+      enabled: false           # set to true in config.local.yaml to enable
+    security:
+      audit_enabled: false
+
+# Runtime state (read-only; managed by system)
+runtime:
+  initialized: false
+  last_check: null
+  last_migration: null

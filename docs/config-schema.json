@@ -1,0 +1,218 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Zdots Configuration Schema",
+  "type": "object",
+  "required": ["version", "ai", "database", "security"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Configuration version (YYYY-MM-DD format)"
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Configuration schema version"
+    },
+    "ai": {
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["local", "cloud", "none"],
+          "description": "AI inference mode: local (llama.cpp), cloud (API), or none (disabled)"
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "AI inference endpoint URL"
+        },
+        "embed_endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "Embedding service endpoint URL"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model name or identifier"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "description": "Request timeout in seconds"
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Maximum number of retries on failure"
+        }
+      }
+    },
+    "analytics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable command analytics collection"
+        },
+        "buffer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "primary": {
+              "type": "string",
+              "enum": ["redis", "sqlite"],
+              "description": "Primary buffer backend"
+            },
+            "fallback": {
+              "type": "string",
+              "enum": ["sqlite"],
+              "description": "Fallback buffer backend"
+            },
+            "redis_host": {
+              "type": "string",
+              "description": "Redis host"
+            },
+            "redis_port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535,
+              "description": "Redis port"
+            }
+          }
+        },
+        "command_history": {
+          "type": "boolean",
+          "description": "Track command history"
+        },
+        "history_retention_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Retention period in days"
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "required": ["primary", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "type": "string",
+          "enum": ["postgresql"],
+          "description": "Primary database type"
+        },
+        "url": {
+          "type": "string",
+          "description": "Database connection URL"
+        },
+        "encryption_key": {
+          "type": "string",
+          "description": "Encryption key (can be ${VAR_NAME} placeholder)"
+        },
+        "migrations_path": {
+          "type": "string",
+          "description": "Path to migration files"
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "llama": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "model": { "type": "string" }
+          }
+        },
+        "whisper": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+          }
+        },
+        "otel_collector": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "endpoint": { "type": "string", "format": "uri" }
+          }
+        },
+        "openobserve": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "endpoint": { "type": "string", "format": "uri" }
+          }
+        }
+      }
+    },
+    "knowledge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vault_path": { "type": "string" },
+        "auto_sync": { "type": "boolean" },
+        "auto_capture": { "type": "boolean" },
+        "vectorstore": { "type": "string" },
+        "embedding_model": { "type": "string" },
+        "sync_interval_hours": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "exporter": { "type": "string" },
+        "endpoint": { "type": "string", "format": "uri" },
+        "batch_size": { "type": "integer", "minimum": 1 },
+        "flush_interval_ms": { "type": "integer", "minimum": 100 },
+        "log_level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"]
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "phi_patterns_file": { "type": "string" },
+        "enable_phi_scrubbing": { "type": "boolean" },
+        "fail_on_uninitialized": { "type": "boolean" },
+        "audit_enabled": { "type": "boolean" },
+        "history_redact": { "type": "boolean" }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object"
+      },
+      "description": "Profile-specific overrides (work, home, etc)"
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "initialized": { "type": "boolean" },
+        "last_check": { "type": ["string", "null"] },
+        "last_migration": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

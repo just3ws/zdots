@@ -179,3 +179,153 @@ The positive feedback cycle that makes AI-assisted work improve over time:
 The loop is only valuable if curation happens. Uncurated session residue (`processed_into_docs_at` is null) is raw material, not signal.
 
 **Trust property:** the Virtuous Loop is what makes `zdots-*` commands safe to auto-permit in local AI agents. Because all agent actions are captured, curated, and fed back as lessons, unexpected or wrong behavior becomes a learning event rather than an invisible failure. The loop is the governance mechanism — not just policy.
+
+---
+
+## Workflow
+
+A declarative, composable sequence of commands executed in order with error handling and dependencies. Lives in `.zdots/workflows/*.yaml`.
+
+**Properties:**
+- **Name** — unique identifier (e.g., `daily_sync`)
+- **Trigger** — when it runs: `cron`, `webhook`, `manual` (e.g., `cron "0 9 * * *"`)
+- **Steps** — ordered sequence of commands, each with name, command, timeout, error handling, and optional dependencies
+- **Observability** — each workflow run is a trace; status queryable via `zdots workflow status <name>`
+
+**Interface:** `zdots workflow <verb> <name>` — run, list, status, delete, validate.
+
+**Example:**
+```yaml
+name: daily_sync
+trigger: cron "0 9 * * *"
+steps:
+  - name: health_check
+    command: zdots-ctx status
+  - name: sync_history
+    command: zdots-ctx sync-history
+    depends_on: health_check
+  - name: reindex
+    command: zdots-brain reindex-embeddings
+    depends_on: sync_history
+    on_failure: notify
+```
+
+---
+
+## Configuration
+
+The set of all zdots settings, environment variables, service descriptors, and schema versions. Currently scattered across multiple file formats (bash `.zdots.local`, JSON `.claude/settings.json`, YAML `etc/phi-patterns.yaml`, SQL migrations, plist files).
+
+**Properties:**
+- **Source of truth** — single config DSL (not yet implemented; see Speculative DSL)
+- **Validation** — schema-based (JSON Schema or similar)
+- **Versioning** — explicit version markers for migrations
+- **Scope** — machine-local (work vs. home profiles) or global
+
+**Current state:** Scattered. `ZDOTDIR/.zdots.local` for shell, `ZDOTDIR/.claude/settings.json` for Claude Code, etc.
+
+**Ideal interface (speculative):**
+```
+zdots config get AI_MODE
+zdots config set AI_MODE local
+zdots config validate
+zdots config apply --from template.yaml
+```
+
+---
+
+## Job
+
+A unit of work enqueued in the Knowledge Layer job queue (PostgreSQL `jobs` table). Processed asynchronously by the Worker.
+
+**Properties:**
+- **Type** — kind of job: `embed`, `distill`, `docs_sync`, `transcription`
+- **Payload** — input data (text, metadata, configuration)
+- **State** — `pending` → `running` → `complete` | `failed`
+- **Claim semantics** — Worker claims one job at a time via `claim_next_job` PL/pgSQL
+
+**Interface (current):** Jobs are only enqueued as side effects (e.g., `zdots-ctx capture` enqueues `distill` jobs). No explicit CLI submission yet.
+
+**Interface (speculative):**
+```
+zdots job enqueue embed --payload "..."
+zdots job list --status pending
+zdots job watch <id>
+```
+
+---
+
+## Alert
+
+A condition-based notification and remediation rule. Currently not implemented; speculative.
+
+**Properties:**
+- **Name** — identifier (e.g., `llama_unhealthy`)
+- **Condition** — predicate on service state (e.g., `service.health != healthy`)
+- **Threshold** — duration before alert fires (e.g., `1m`)
+- **Severity** — critical, high, medium, low
+- **Actions** — notify, auto-remediate, escalate (e.g., restart service, ask council)
+
+**Interface (speculative):**
+```
+zdots alert list
+zdots alert silence <alert> --for 1h
+zdots alert status <alert>
+```
+
+---
+
+## Actor
+
+A named principal (human, agent, or service) with a role and permissions. Currently all-or-nothing (full access or none); speculative for multi-agent safety.
+
+**Properties:**
+- **Name** — identifier (e.g., `pi-agent`, `deploy-bot`)
+- **Role** — classification (researcher, deployer, auditor)
+- **Permissions** — allow/deny list of commands (e.g., `zdots-ctx query`, `deny: zdots-ctx migrate`)
+
+**Interface (speculative):**
+```
+zdots actor add <name> --role <role>
+zdots actor check permission <actor> "<command>"
+zdots audit --actor <actor> --last 1h
+```
+
+---
+
+## Environment
+
+An isolated, copyable zdots state for testing or multi-workstation setup. Currently single-machine only; speculative.
+
+**Properties:**
+- **Name** — identifier (e.g., `production`, `staging`, `test`)
+- **State** — complete copy of config, services, and schema (copyable/reproducible)
+- **Isolation** — services in one environment don't interfere with another
+
+**Interface (speculative):**
+```
+zdots env new <name>
+zdots env activate <name>
+zdots env copy <src> <dst>
+zdots env delete <name>
+ZDOTS_ENV=test-env zsvc start llama  # Run in specific env
+```
+
+---
+
+## Capability
+
+An advertised operation or facility that zdots provides. Currently implicit; speculative for programmatic discovery.
+
+**Properties:**
+- **Name** — identifier (e.g., `does-ai-inference`, `has-embeddings`)
+- **Type** — operation (verb), check (predicate), or resource
+- **Requires** — dependencies (e.g., `llama-service`)
+- **Attestation** — proof that the capability is available (health check, feature flag)
+
+**Interface (speculative):**
+```
+zdots capability list
+zdots capability check "does-ai-inference"
+zdots capability query "service:llama"
+```

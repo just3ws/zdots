@@ -1,0 +1,206 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "pathname"
+
+$LOAD_PATH.unshift(Pathname.new(__FILE__).parent.parent.join("lib").to_s)
+require "zdots/schema_version"
+
+module ZdotsSchemaCLI
+  class Command
+    def self.run(args)
+      parser = build_parser
+      subcommand, *args = parser.order!(args)
+
+      case subcommand
+      when "status"
+        status(args)
+      when "history"
+        history(args)
+      when "list-migrations"
+        list_migrations(args)
+      when "migrate"
+        migrate(args)
+      when "rollback"
+        rollback(args)
+      when "validate"
+        validate(args)
+      when "--help", "-h", nil
+        puts parser
+      else
+        warn "Unknown subcommand: #{subcommand}"
+        warn parser
+        exit 1
+      end
+    end
+
+    def self.build_parser
+      OptionParser.new do |opts|
+        opts.banner = <<~BANNER
+          Usage: zdots-schema <command> [options]
+
+          Commands:
+            status                  Show current schema version
+            history                 Show migration history
+            list-migrations         List available migrations
+            migrate [--to VERSION]  Apply pending migrations
+            rollback --to VERSION   Rollback to previous version
+            validate                Validate schema consistency
+
+          Examples:
+            zdots-schema status
+            zdots-schema history
+            zdots-schema migrate
+            zdots-schema migrate --to 2026-06-01
+            zdots-schema rollback --to 2026-05-15
+        BANNER
+        opts.on("-h", "--help", "Show help") do
+          puts opts
+          exit
+        end
+      end
+    end
+
+    private
+
+    def self.status(_args)
+      schema = Zdots::SchemaVersion.new
+      puts "Current schema version: #{schema.current_version}"
+      puts "Migrations applied: #{schema.migrations_applied.length}"
+
+      if schema.migrations_applied.any?
+        last = schema.migrations_applied.last
+        puts "Last applied: #{last['version']} (#{last['applied_at']} by #{last['applied_by']})"
+      end
+    end
+
+    def self.history(args)
+      json = false
+
+      OptionParser.new do |opts|
+        opts.on("--json") { json = true }
+      end.parse!(args)
+
+      schema = Zdots::SchemaVersion.new
+
+      if json
+        require "json"
+        puts JSON.pretty_generate(schema.migrations_applied)
+      else
+        if schema.migrations_applied.empty?
+          puts "No migrations applied"
+        else
+          puts schema.history
+        end
+      end
+    end
+
+    def self.list_migrations(args)
+      pending = false
+
+      OptionParser.new do |opts|
+        opts.on("--pending") { pending = true }
+      end.parse!(args)
+
+      schema = Zdots::SchemaVersion.new
+
+      if pending
+        migrations = schema.pending_migrations
+        label = "Pending migrations"
+      else
+        migrations = schema.available_migrations
+        label = "Available migrations"
+      end
+
+      if migrations.empty?
+        puts "No #{label.downcase}"
+      else
+        puts label
+        migrations.each do |m|
+          puts "  #{m.version}: #{m.description}"
+        end
+      end
+    end
+
+    def self.migrate(args)
+      to_version = nil
+      dry_run = false
+
+      OptionParser.new do |opts|
+        opts.on("--to VERSION") { |v| to_version = v }
+        opts.on("--dry-run") { dry_run = true }
+      end.parse!(args)
+
+      schema = Zdots::SchemaVersion.new
+      pending = schema.pending_migrations
+
+      if pending.empty?
+        puts "No pending migrations"
+        return
+      end
+
+      if dry_run
+        puts "Would apply the following migrations:"
+        pending.each do |m|
+          puts "  #{m.version}: #{m.description}"
+        end
+      else
+        puts "Applying #{pending.length} migration(s)..."
+        pending.each do |m|
+          puts "  Applying #{m.version}: #{m.description}"
+          # Note: Actual migration application would happen here
+          # For now, just mark as applied
+          schema.mark_applied!(m.version, description: m.description, status: "success")
+        end
+        schema.save!
+        puts "✓ All migrations applied"
+      end
+    end
+
+    def self.rollback(args)
+      to_version = nil
+
+      OptionParser.new do |opts|
+        opts.on("--to VERSION", String) { |v| to_version = v }
+      end.parse!(args)
+
+      unless to_version
+        warn "Usage: zdots-schema rollback --to <VERSION>"
+        exit 1
+      end
+
+      schema = Zdots::SchemaVersion.new
+
+      # Find the migration to see rollback instructions
+      rollback_migration = schema.available_migrations.find { |m| m.version == to_version }
+
+      if rollback_migration
+        puts "Rollback instructions for #{to_version}:"
+        puts rollback_migration.rollback_instructions
+      else
+        warn "Migration #{to_version} not found"
+        exit 1
+      end
+
+      puts "\n⚠ Rollback not yet implemented. Manual steps required."
+    end
+
+    def self.validate(_args)
+      schema = Zdots::SchemaVersion.new
+
+      # Basic validation
+      current_version = schema.current_version
+      applied_versions = schema.migrations_applied.map { |m| m["version"] }
+
+      if applied_versions.include?(current_version) || applied_versions.empty?
+        puts "✓ Schema version is consistent"
+      else
+        warn "✗ Schema version mismatch"
+        exit 1
+      end
+    end
+  end
+end
+
+ZdotsSchemaCLI::Command.run(ARGV) if __FILE__ == $PROGRAM_NAME

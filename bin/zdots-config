@@ -1,0 +1,195 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "pathname"
+
+$LOAD_PATH.unshift(Pathname.new(__FILE__).parent.parent.join("lib").to_s)
+require "zdots/config"
+
+module ZdotsConfigCLI
+  class Command
+    def self.run(args)
+      parser = build_parser
+      subcommand, *args = parser.order!(args)
+
+      case subcommand
+      when "get"
+        get(args)
+      when "set"
+        set(args)
+      when "list"
+        list(args)
+      when "validate"
+        validate(args)
+      when "export"
+        export(args)
+      when "reset"
+        reset(args)
+      when "apply"
+        apply(args)
+      when "--help", "-h", nil
+        puts parser
+      else
+        warn "Unknown subcommand: #{subcommand}"
+        warn parser
+        exit 1
+      end
+    end
+
+    def self.build_parser
+      OptionParser.new do |opts|
+        opts.banner = <<~BANNER
+          Usage: zdots-config <command> [options]
+
+          Commands:
+            get <key>               Get a setting value
+            set <key> <value>       Set a setting value
+            list                    List all settings
+            validate                Validate configuration
+            export                  Export configuration as YAML
+            reset [key]             Reset to defaults
+            apply --from <file>     Apply configuration from file
+
+          Examples:
+            zdots-config get ai.mode
+            zdots-config set ai.mode local
+            zdots-config list --profile work
+            zdots-config validate
+            zdots-config export > backup.yaml
+        BANNER
+        opts.on("-h", "--help", "Show help") do
+          puts opts
+          exit
+        end
+      end
+    end
+
+    private
+
+    def self.get(args)
+      key = args.first
+      unless key
+        warn "Usage: zdots-config get <key>"
+        exit 1
+      end
+
+      config = Zdots::Config.new
+      value = config.get(key)
+
+      if value.nil?
+        puts "undefined"
+        exit 1
+      else
+        puts value
+      end
+    end
+
+    def self.set(args)
+      key, value = args[0..1]
+      unless key && value
+        warn "Usage: zdots-config set <key> <value>"
+        exit 1
+      end
+
+      config = Zdots::Config.new
+      config.set(key, parse_value(value))
+      config.save!
+
+      puts "Set #{key}=#{value}"
+    end
+
+    def self.list(args)
+      profile = nil
+      as_json = false
+
+      OptionParser.new do |opts|
+        opts.on("--profile PROFILE") { |p| profile = p }
+        opts.on("--json") { as_json = true }
+      end.parse!(args)
+
+      config = Zdots::Config.new(profile: profile)
+      puts config.list(as_json: as_json)
+    end
+
+    def self.validate(args)
+      strict = false
+
+      OptionParser.new do |opts|
+        opts.on("--strict") { strict = true }
+      end.parse!(args)
+
+      config = Zdots::Config.new
+      config.validate!
+
+      puts "✓ Configuration is valid"
+    rescue StandardError => e
+      warn "✗ Configuration validation failed: #{e.message}"
+      exit 1
+    end
+
+    def self.export(args)
+      config = Zdots::Config.new
+      puts config.export
+    end
+
+    def self.reset(args)
+      key = args.first
+
+      config = Zdots::Config.new
+
+      if key
+        config.reset!(key)
+        puts "Reset #{key} to default"
+      else
+        config.reset!
+        puts "Reset all settings to defaults"
+      end
+
+      config.save!
+    end
+
+    def self.apply(args)
+      from_file = nil
+
+      OptionParser.new do |opts|
+        opts.on("--from FILE") { |f| from_file = f }
+      end.parse!(args)
+
+      unless from_file
+        warn "Usage: zdots-config apply --from <file>"
+        exit 1
+      end
+
+      unless File.exist?(from_file)
+        warn "File not found: #{from_file}"
+        exit 1
+      end
+
+      config = Zdots::Config.new
+      template = Zdots::Config.new(config_path: from_file)
+
+      # Merge template into current config
+      merged = config.send(:deep_merge, config.instance_variable_get(:@config), template.instance_variable_get(:@config))
+      config.instance_variable_set(:@config, merged)
+      config.save!
+
+      puts "Applied configuration from #{from_file}"
+    end
+
+    def self.parse_value(str)
+      case str
+      when /^(true|false)$/i
+        str.downcase == "true"
+      when /^\d+$/
+        str.to_i
+      when /^\d+\.\d+$/
+        str.to_f
+      else
+        str
+      end
+    end
+  end
+end
+
+ZdotsConfigCLI::Command.run(ARGV) if __FILE__ == $PROGRAM_NAME
