@@ -103,6 +103,8 @@ brew "mysql-client"
 brew "ncdu"
 brew "tree-sitter"
 brew "neovim"
+brew "ghostscript"    # nvim (vdots) doc rendering — provides `gs` for PDF preview (snacks/image.nvim)
+brew "tectonic"       # nvim (vdots) LaTeX math rendering in markdown preview
 brew "nginx"          # local reverse proxy — TLS via mkcert
                       # NOTE: start with launchctl, NOT brew services (brew services takes root ownership):
                       #   sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
