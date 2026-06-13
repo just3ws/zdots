@@ -2,12 +2,13 @@
 # bin/zdots-doctor — System health check ("brew doctor" for zdots)
 #
 # Runs environment, repo, XDG compliance, AI tool, and runtime checks,
-# then delegates the deep runtime probe to `zdots-ctl check`. Exits 0
-# when no failures are found; exits 1 on any [FAIL].
+# then delegates the deep runtime probe to `zdots-ctl check`. Checks adots
+# as a peer dependency. Exits 0 when no failures are found; exits 1 on any [FAIL].
 #
-# Usage: zdots-doctor [--no-runtime] [-q|--quiet]
+# Usage: zdots-doctor [--no-runtime] [-q|--quiet] [--json]
 #   --no-runtime   Skip the zdots-ctl check section (fast mode)
 #   -q, --quiet    Only print warnings and failures
+#   --json         Output results as JSON (exit code reflects zdots-only status)
 
 set -euo pipefail
 trap '' PIPE
@@ -28,12 +29,14 @@ fi
 # ---------------------------------------------------------------------------
 SKIP_RUNTIME=0
 QUIET=0
+JSON_MODE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-runtime) SKIP_RUNTIME=1 ;;
     -q|--quiet)   QUIET=1 ;;
+    --json)       JSON_MODE=1 ;;
     -h|--help)
-      sed -n '2,10p' "$0" | sed 's/^# \?//'; exit 0 ;;
+      sed -n '2,12p' "$0" | sed 's/^# \?//'; exit 0 ;;
     *) printf 'zdots-doctor: unknown option: %s\n' "$1" >&2; exit 1 ;;
   esac
   shift
@@ -497,6 +500,54 @@ else
     | grep -oE '[0-9]+ failure' | grep -oE '^[0-9]+' | tail -1 || true)
   _WARN=$((_WARN + ${_rt_warns:-0}))
   _FAIL=$((_FAIL + ${_rt_fails:-0}))
+fi
+
+# ---------------------------------------------------------------------------
+# Peer check: adots (home blanket layout manager)
+# ---------------------------------------------------------------------------
+_section "Peer dependencies (adots)"
+
+_adots_rc=0
+_adots_check_output=""
+if command -v adots-doctor >/dev/null 2>&1; then
+  _adots_check_output=$(adots-doctor 2>&1) || _adots_rc=$?
+  if [[ $_adots_rc -eq 0 ]]; then
+    _pass "adots-doctor  healthy"
+  else
+    # adots is a peer, not a blocker; warn but don't fail zdots
+    _warn "adots-doctor  returned exit code ${_adots_rc} — check with: adots-doctor --fix"
+    if [[ "$QUIET" -eq 0 ]]; then
+      printf '%s\n' "$_adots_check_output" | sed 's/^/             /'
+    fi
+  fi
+else
+  _skip "adots-doctor  not found (optional peer; home blanket tracking disabled)"
+fi
+
+# ---------------------------------------------------------------------------
+# JSON output (if requested)
+# ---------------------------------------------------------------------------
+if [[ $JSON_MODE -eq 1 ]]; then
+  printf '\n'
+  jq -n \
+    --arg status "$([ $_FAIL -eq 0 ] && echo 'pass' || echo 'fail')" \
+    --argjson passed "$_PASS" \
+    --argjson warnings "$_WARN" \
+    --argjson failures "$_FAIL" \
+    --argjson adots_rc "$_adots_rc" \
+    '{
+      status: $status,
+      checks: {
+        passed: $passed,
+        warnings: $warnings,
+        failures: $failures
+      },
+      peer_adots: {
+        rc: $adots_rc,
+        healthy: ($adots_rc == 0)
+      }
+    }'
+  exit $_FAIL
 fi
 
 # ---------------------------------------------------------------------------
