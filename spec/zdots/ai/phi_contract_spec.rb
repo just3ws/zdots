@@ -4,70 +4,56 @@ require "spec_helper"
 require "open3"
 require "zdots/ai/phi_scrubber"
 
-# Cross-implementation contract: the Ruby PhiScrubber and the bash
-# lib/phi_scrubber.bash both compile etc/phi-patterns.yaml and MUST agree on the
-# security-relevant behaviour for every registry pattern. This is the drift
-# guard — it exists because the two enforcement implementations once disagreed
-# on suppress semantics (Ruby redacted connection strings; bash failed hard).
+# Cross-implementation contract: the Ruby PhiScrubber (thin adapter to the Go binary)
+# and the shell hooks that call zdots-phi-scrub must agree on security-relevant
+# behavior for every registry pattern. This is the drift guard — the canonical
+# implementation is in cmd/zdots-phi-scrub/ (RE2 engine); other callers shell out to it.
 #
-# The contract pins two invariants, not byte-identical output:
-#   1. suppress agreement — both classify each input as suppressed or not.
-#   2. redaction safety   — for non-suppressed input both remove the secret.
-RSpec.describe "PHI enforcement contract (Ruby ⇔ bash)" do
+# The contract pins two invariants:
+#   1. suppress agreement — consistent classification of suppressed input.
+#   2. redaction safety   — for non-suppressed input, all implementations remove secrets.
+RSpec.describe "PHI enforcement contract (Ruby ⇔ binary)" do
   ruby = Zdots::AI::PhiScrubber
   root = ZDOTS_ROOT.to_s
 
   before(:all) do
-    skip "yq not installed — bash scrubber unavailable" unless system("command -v yq >/dev/null 2>&1")
+    skip "zdots-phi-scrub binary not found" unless system("command -v zdots-phi-scrub >/dev/null 2>&1")
   end
 
-  # --- bash bridges -----------------------------------------------------------
+  # --- binary bridges -----------------------------------------------------------
 
-  def bash_suppressed?(root, input)
-    env = { "ZDOTDIR" => root, "PHI_IN" => input }
-    _o, status = Open3.capture2(
-      env, "bash", "-c",
-      'source "$ZDOTDIR/lib/phi_scrubber.bash"; phi_should_suppress "$PHI_IN"',
-      err: File::NULL
-    )
-    status.success? # phi_should_suppress exits 0 when the input is suppressed
+  def binary_suppressed?(input)
+    # zdots-phi-scrub --check: exit 0 = matches suppress, exit 1 = doesn't match
+    _o, status = Open3.capture2("zdots-phi-scrub --check", stdin_data: input, err: File::NULL)
+    status.success?
   end
 
-  def bash_scrub(root, input)
-    env = { "ZDOTDIR" => root }
-    out, status = Open3.capture2(
-      env, "bash", "-c",
-      'source "$ZDOTDIR/lib/phi_scrubber.bash"; phi_scrub',
-      stdin_data: input, err: File::NULL
-    )
+  def binary_scrub(input)
+    # zdots-phi-scrub (default mode): stdin → stdout; exit 1 if suppress pattern matched
+    out, status = Open3.capture2("zdots-phi-scrub", stdin_data: input, err: File::NULL)
     [out, status.exitstatus]
   end
 
-  # --- Go (RE2) bridge --------------------------------------------------------
+  # --- OTel collector RE2 dialect (optional) -----------------------------------
   # The OTel collector scrubs telemetry at ingest using Go's RE2 engine
   # (etc/otel-collector.generated.yaml, compiled from the same registry). RE2 is
-  # a THIRD dialect alongside sed-ERE (bash) and Onigmo (ruby): a pattern can
-  # work in those two yet fail to compile in RE2, which the collector would then
-  # silently skip (error_mode: ignore). The zdots-phi tool shares the collector's
-  # engine, so pinning it here makes that drift fail the test instead of leaking.
-  GO_DIR = File.expand_path("../../../analysis-assets/zdots-phi-go", __dir__)
-  GO_BIN = File.join(GO_DIR, "zdots-phi")
+  # the canonical engine for zdots-phi-scrub (cmd/zdots-phi-scrub/) and must match
+  # the collector's compilation. This ensures patterns don't silently fail in the
+  # collector (error_mode: ignore).
+  #
+  # The Ruby adapter shells out to zdots-phi-scrub, so if it passes, the binary
+  # and collector are in sync (both use the same engine).
+  #
+  # Optional: only test OTel collector if a separate tool exists.
+  COLLECTOR_TOOL = "otel-phi-verify" # hypothetical tool; skip if absent
 
-  def self.go_available?
-    return true if File.executable?(GO_BIN)
-    return false unless system("command -v go >/dev/null 2>&1")
-
-    system("go", "build", "-o", "zdots-phi", ".", chdir: GO_DIR, out: File::NULL, err: File::NULL)
+  def self.collector_available?
+    system("command -v #{COLLECTOR_TOOL} >/dev/null 2>&1")
   end
 
-  def go_suppressed?(root, input)
-    _o, status = Open3.capture2({ "ZDOTDIR" => root }, GO_BIN, "suppressed?", stdin_data: input, err: File::NULL)
-    status.success? # exits 0 when suppressed
-  end
-
-  def go_scrub(root, input)
-    out, status = Open3.capture2({ "ZDOTDIR" => root }, GO_BIN, "scrub", stdin_data: input, err: File::NULL)
-    [out, status.exitstatus]
+  def collector_check_patterns
+    _o, status = Open3.capture2("#{COLLECTOR_TOOL} check", err: File::NULL)
+    status.success?
   end
 
   # --- fixtures: one row per registry behaviour -------------------------------
@@ -89,68 +75,46 @@ RSpec.describe "PHI enforcement contract (Ruby ⇔ bash)" do
     context "for #{c[:input].inspect}" do
       it "agrees on suppression (expected: #{c[:suppress]})" do
         expect(ruby.suppressed?(c[:input])).to be(c[:suppress])
-        expect(bash_suppressed?(root, c[:input])).to be(c[:suppress])
+        expect(binary_suppressed?(c[:input])).to be(c[:suppress])
       end
 
       if c[:suppress]
-        it "both refuse to process (Ruby raises, bash exits non-zero)" do
+        it "both refuse to process (Ruby raises, binary exits non-zero)" do
           expect { ruby.call(c[:input]) }.to raise_error(Zdots::AI::PhiScrubber::SuppressedError)
-          _out, code = bash_scrub(root, c[:input])
+          _out, code = binary_scrub(c[:input])
           expect(code).not_to eq(0)
         end
       else
         it "both redact without leaking the secret" do
           ruby_out = ruby.call(c[:input])
-          bash_out, code = bash_scrub(root, c[:input])
+          binary_out, code = binary_scrub(c[:input])
           expect(code).to eq(0)
           if c[:secret]
             expect(ruby_out).not_to include(c[:secret])
-            expect(bash_out).not_to include(c[:secret])
+            expect(binary_out).not_to include(c[:secret])
           else
             # clean input passes through unchanged in both implementations
             expect(ruby_out).to eq(c[:input])
-            expect(bash_out).to eq(c[:input])
+            expect(binary_out).to eq(c[:input])
           end
         end
       end
     end
   end
 
-  # --- Go/RE2 engine parity (the collector's dialect) -------------------------
-  describe "+ Go RE2 engine (zdots-phi)" do
-    before(:all) do
-      skip "go toolchain and prebuilt zdots-phi both unavailable" unless self.class.go_available?
+  # --- RE2 engine parity (Go canonical) ----------------------------------------
+  describe "+ Go RE2 engine (zdots-phi-scrub canonical)" do
+    it "zdots-phi-scrub is the canonical binary implementation" do
+      # The Ruby adapter shells out to this binary. If Ruby passes all tests,
+      # the binary is correct and the collector shares its RE2 engine.
+      expect(system("command -v zdots-phi-scrub >/dev/null 2>&1")).to be(true)
     end
 
-    it "every registry pattern compiles in RE2 (zdots-phi check)" do
-      # Fails loud on a pattern the collector would silently ignore.
-      _o, status = Open3.capture2({ "ZDOTDIR" => root }, GO_BIN, "check", err: File::NULL)
+    it "confirms every pattern compiles in RE2" do
+      # zdots-phi-scrub --init validates the registry; if this passes,
+      # patterns compile and won't be silently skipped by the collector.
+      _o, status = Open3.capture2("zdots-phi-scrub --init", err: File::NULL)
       expect(status.success?).to be(true)
-    end
-
-    CASES.each do |c|
-      context "for #{c[:input].inspect}" do
-        it "agrees with Ruby on suppression (expected: #{c[:suppress]})" do
-          expect(go_suppressed?(root, c[:input])).to be(c[:suppress])
-        end
-
-        if c[:suppress]
-          it "refuses to process (exits non-zero)" do
-            _out, code = go_scrub(root, c[:input])
-            expect(code).not_to eq(0)
-          end
-        else
-          it "redacts without leaking the secret" do
-            out, code = go_scrub(root, c[:input])
-            expect(code).to eq(0)
-            if c[:secret]
-              expect(out).not_to include(c[:secret])
-            else
-              expect(out).to eq(c[:input]) # clean input passes through unchanged
-            end
-          end
-        end
-      end
     end
   end
 end

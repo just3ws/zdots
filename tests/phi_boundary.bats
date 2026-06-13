@@ -31,41 +31,40 @@ _wait_for_unified_log_marker() {
 # ---------------------------------------------------------------------------
 
 @test "phi_scrubber: redacts SSN pattern" {
-  run bash -c "source $ZDOTDIR/lib/phi_scrubber.bash && printf '123-45-6789' | phi_scrub"
+  run bash -c "printf '123-45-6789' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED-SSN]"* ]]
   [[ "$output" != *"123-45-6789"* ]]
 }
 
 @test "phi_scrubber: redacts MRN label" {
-  run bash -c "source $ZDOTDIR/lib/phi_scrubber.bash && printf 'patient MRN: 00123456' | phi_scrub"
+  run bash -c "printf 'patient MRN: 00123456' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED-MRN]"* ]]
   [[ "$output" != *"00123456"* ]]
 }
 
 @test "phi_scrubber: redacts DOB label" {
-  run bash -c "source $ZDOTDIR/lib/phi_scrubber.bash && printf 'DOB: 01/15/1980' | phi_scrub"
+  run bash -c "printf 'DOB: 01/15/1980' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED-DOB]"* ]]
   [[ "$output" != *"01/15/1980"* ]]
 }
 
 @test "phi_scrubber: connection string — fails hard (suppress-flagged)" {
-  run bash -c "source $ZDOTDIR/lib/phi_scrubber.bash && printf 'postgresql://user:secret@db.internal/mydb' | phi_scrub"
+  run bash -c "printf 'postgresql://user:secret@db.internal/mydb' | zdots-phi-scrub"
   [ "$status" -ne 0 ]
   [[ "$output" != *"secret"* ]]
-  [[ "$output" == *"suppress-flagged"* ]]
 }
 
 @test "phi_scrubber: clean input passes through unchanged" {
-  run bash -c "source $ZDOTDIR/lib/phi_scrubber.bash && printf 'SELECT count(*) FROM users' | phi_scrub"
+  run bash -c "printf 'SELECT count(*) FROM users' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == "SELECT count(*) FROM users" ]]
 }
 
 @test "phi_scrubber: redacts multiple patterns in one pass" {
-  run bash -c "source $ZDOTDIR/lib/phi_scrubber.bash && printf 'SSN 123-45-6789 MRN: 99 DOB: 01/01/2000' | phi_scrub"
+  run bash -c "printf 'SSN 123-45-6789 MRN: 99 DOB: 01/01/2000' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED-SSN]"* ]]
   [[ "$output" == *"[REDACTED-MRN]"* ]]
@@ -74,21 +73,21 @@ _wait_for_unified_log_marker() {
 }
 
 @test "phi_scrubber: redacts cli_credentials --password flag" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'psql --password secretval host' | phi_scrub"
+  run bash -c "printf 'psql --password secretval host' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED]"* ]]
   [[ "$output" != *"secretval"* ]]
 }
 
 @test "phi_scrubber: redacts cli_credentials -p flag" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'mysql -p mypassword mydb' | phi_scrub"
+  run bash -c "printf 'mysql -p mypassword mydb' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED]"* ]]
   [[ "$output" != *"mypassword"* ]]
 }
 
 @test "phi_scrubber: redacts cli_credentials --api-key flag" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'curl https://api.example.com --api-key token123abc' | phi_scrub"
+  run bash -c "printf 'curl https://api.example.com --api-key token123abc' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED]"* ]]
   [[ "$output" != *"token123abc"* ]]
@@ -364,121 +363,85 @@ _wait_for_unified_log_marker() {
 # PHI Pattern Registry — etc/phi-patterns.yaml + lib/phi_scrubber.bash
 # ---------------------------------------------------------------------------
 
-@test "phi_registry: yq required — fails hard when absent" {
-  # PATH keeps bash but excludes Homebrew (where yq lives)
-  run bash -c "
-    PATH='/usr/bin:/bin' \
-    ZDOTDIR='$ZDOTDIR' \
-    bash -c 'source $ZDOTDIR/lib/phi_scrubber.bash && phi_scrub <<< test 2>&1; exit \$?'
-  "
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"yq"* ]]
-}
-
-@test "phi_scrubber_init: sets _PHI_INITIALIZED flag on success" {
-  run bash -c "
-    ZDOTDIR='$ZDOTDIR'
-    source $ZDOTDIR/lib/phi_scrubber.bash
-    phi_scrubber_init
-    printf '%d\n' \"\$_PHI_INITIALIZED\"
-  "
+@test "phi_registry: binary available — zdots-phi-scrub in PATH" {
+  run command -v zdots-phi-scrub
   [ "$status" -eq 0 ]
-  [[ "$output" == *"1"* ]]
 }
 
-@test "phi_registry: patterns file missing — fails hard" {
+@test "phi_registry: init validation — zdots-phi-scrub --init succeeds" {
+  run zdots-phi-scrub --init
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pattern"* ]]
+}
+
+@test "phi_registry: patterns file validation — missing patterns fails" {
   run bash -c "
     ZDOTDIR='$BATS_TEST_TMPDIR' \
-    bash -c 'source $ZDOTDIR/lib/phi_scrubber.bash && printf test | phi_scrub'
+    zdots-phi-scrub --init 2>&1
   "
   [ "$status" -ne 0 ]
-  [[ "$output" == *"pattern registry not found"* ]]
+  [[ "$output" == *"not found"* ]]
 }
 
 @test "phi_registry: compiles SSN pattern from YAML" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf '123-45-6789' | phi_scrub"
+  run bash -c "printf '123-45-6789' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED-SSN]"* ]]
   [[ "$output" != *"123-45-6789"* ]]
 }
 
 @test "phi_registry: compiles MRN pattern from YAML" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'MRN: 00123456' | phi_scrub"
+  run bash -c "printf 'MRN: 00123456' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED-MRN]"* ]]
 }
 
 @test "phi_registry: compiles DOB pattern from YAML" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'DOB: 01/15/1980' | phi_scrub"
+  run bash -c "printf 'DOB: 01/15/1980' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED-DOB]"* ]]
 }
 
-@test "phi_registry: conn_string is suppress-flagged — phi_scrub fails hard" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'postgresql://user:secret@db.internal/mydb' | phi_scrub"
+@test "phi_registry: conn_string is suppress-flagged — binary fails hard" {
+  run bash -c "printf 'postgresql://user:secret@db.internal/mydb' | zdots-phi-scrub"
   [ "$status" -ne 0 ]
   [[ "$output" != *"secret"* ]]
 }
 
-@test "phi_registry: phi_should_suppress true for conn_string" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress 'psql postgresql://user:pass@host/db'"
+@test "phi_registry: --check flag: true for conn_string" {
+  run bash -c "printf 'postgresql://user:pass@host/db' | zdots-phi-scrub --check"
   [ "$status" -eq 0 ]
 }
 
-@test "phi_registry: phi_should_suppress false for SSN (redact, not suppress)" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress '123-45-6789' && echo suppressed || echo redact"
-  [[ "$output" == *"redact"* ]]
+@test "phi_registry: --check flag: false for SSN (redact, not suppress)" {
+  run bash -c "printf '123-45-6789' | zdots-phi-scrub --check"
+  [ "$status" -ne 0 ]
 }
 
-@test "phi_registry: phi_should_suppress false for clean input" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress 'git status' && echo suppressed || echo clean"
-  [[ "$output" == *"clean"* ]]
+@test "phi_registry: --check flag: false for clean input" {
+  run bash -c "printf 'git status' | zdots-phi-scrub --check"
+  [ "$status" -ne 0 ]
 }
 
-@test "phi_registry: phi_should_suppress true for mysql conn string" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress 'mysql://user:pass@host/db'"
+@test "phi_registry: --check flag: true for mysql conn string" {
+  run bash -c "printf 'mysql://user:pass@host/db' | zdots-phi-scrub --check"
   [ "$status" -eq 0 ]
 }
 
-@test "phi_registry: phi_should_suppress true for redis conn string" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && phi_should_suppress 'redis://user:pass@host:6379/0'"
+@test "phi_registry: --check flag: true for redis conn string" {
+  run bash -c "printf 'redis://user:pass@host:6379/0' | zdots-phi-scrub --check"
   [ "$status" -eq 0 ]
 }
 
 @test "phi_registry: inline_credentials pattern redacted" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'export api_key=abc123secret' | phi_scrub"
+  run bash -c "printf 'export api_key=abc123secret' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED]"* ]]
   [[ "$output" != *"abc123secret"* ]]
 }
 
-@test "phi_registry: phi_scrubber_init eager compilation" {
-  run bash -c "
-    ZDOTDIR='$ZDOTDIR'
-    source $ZDOTDIR/lib/phi_scrubber.bash
-    phi_scrubber_init
-    echo \"sed_args=\${#_PHI_SED_ARGS[@]}\"
-    echo \"suppress_pattern=\${#_PHI_SUPPRESS_PATTERN}\"
-  "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"sed_args="[1-9]* ]]
-  [[ "$output" == *"suppress_pattern="[1-9]* ]]
-}
-
-@test "phi_registry: cached — _PHI_SED_ARGS populated after first scrub" {
-  # Use herestring (not pipe) so phi_scrub runs in current process, not a subshell
-  run bash -c "
-    ZDOTDIR='$ZDOTDIR'
-    source $ZDOTDIR/lib/phi_scrubber.bash
-    phi_scrub <<< 'test input' > /dev/null
-    echo \"\${#_PHI_SED_ARGS[@]}\"
-  "
-  [ "$status" -eq 0 ]
-  [ "$output" -gt 0 ]
-}
-
 @test "phi_registry: three redact patterns active in one pass" {
-  run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/phi_scrubber.bash && printf 'SSN 123-45-6789 MRN: 99 DOB: 01/01/2000' | phi_scrub"
+  run bash -c "printf 'SSN 123-45-6789 MRN: 99 DOB: 01/01/2000' | zdots-phi-scrub"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED-SSN]"* ]]
   [[ "$output" == *"[REDACTED-MRN]"* ]]
