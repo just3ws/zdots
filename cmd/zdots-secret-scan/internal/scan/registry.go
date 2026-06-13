@@ -10,10 +10,11 @@ package scan
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 
 	"gopkg.in/yaml.v3"
+
+	"zdots/pkg/re2registry"
 )
 
 // Pattern is one entry from etc/secret-patterns.yaml.
@@ -54,13 +55,19 @@ func Load() (*Registry, error) {
 		return nil, fmt.Errorf("no patterns in %s", path)
 	}
 
+	// Compile via the shared RE2 engine (same loader the PHI Scrubber uses).
+	raws := make([]re2registry.RawPattern, len(raw.Patterns))
+	for i, p := range raw.Patterns {
+		raws[i] = re2registry.RawPattern{Name: p.Name, Regex: p.Regex}
+	}
+	compiled, err := re2registry.CompileAll(raws)
+	if err != nil {
+		return nil, err
+	}
+
 	r := &Registry{}
-	for _, p := range raw.Patterns {
-		re, err := regexp.Compile(p.Regex)
-		if err != nil {
-			return nil, fmt.Errorf("pattern %q failed to compile in RE2: %w", p.Name, err)
-		}
-		r.patterns = append(r.patterns, compiledPattern{name: p.Name, re: re})
+	for _, c := range compiled {
+		r.patterns = append(r.patterns, compiledPattern{name: c.Name, re: c.RE})
 	}
 	return r, nil
 }
@@ -79,11 +86,8 @@ func (r *Registry) Match(line []byte) (name, match string) {
 // Count returns the number of compiled patterns.
 func (r *Registry) Count() int { return len(r.patterns) }
 
-// patternsPath resolves etc/secret-patterns.yaml, honoring ZDOTDIR (mirrors the
-// PHI registry's resolution so both tools agree on where zdots config lives).
+// patternsPath resolves etc/secret-patterns.yaml via the shared engine, so this
+// tool and the PHI Scrubber agree on where zdots registries live.
 func patternsPath() string {
-	if z := os.Getenv("ZDOTDIR"); z != "" {
-		return filepath.Join(z, "etc", "secret-patterns.yaml")
-	}
-	return filepath.Join(os.Getenv("HOME"), ".config", "zsh", "etc", "secret-patterns.yaml")
+	return re2registry.ResolvePath("secret-patterns.yaml")
 }
