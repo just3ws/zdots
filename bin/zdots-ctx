@@ -419,60 +419,28 @@ cmd_ingest() {
 # sync-history (which reads SQLite) sees a complete record.
 #
 # 56-cmd-analytics.zsh writes to Redis first (fast, synchronous) and falls
-# back to SQLite only when Redis is unavailable.  This drain step bridges the
-# two stores before every PostgreSQL sync.  Safe to call when Redis is down —
-# redis-cli absence or connection failure returns silently.
+# back to SQLite only when Redis is unavailable. This drain step bridges the
+# two stores before every PostgreSQL sync. Implemented as a Go binary to avoid
+# shell-level SQL building complexity, jq/redis-cli dependencies, and quote-escaping bugs.
+# Safe to call when Redis is down — the binary gracefully returns no-op.
 _drain_redis_to_sqlite() {
-  local db="${XDG_STATE_HOME:-$HOME/.local/state}/zdots/history.sqlite3"
-  local rhost="${ZDOTS_REDIS_HOST:-127.0.0.1}"
-  local rport="${ZDOTS_REDIS_PORT:-6379}"
+  command -v zdots-buffer-drain >/dev/null 2>&1 || return 0
 
-  [[ -f "$db" ]]              || return 0
-  command -v redis-cli >/dev/null 2>&1 || return 0
-  command -v jq        >/dev/null 2>&1 || return 0
+  local db_path="${XDG_STATE_HOME:-$HOME/.local/state}/zdots/history.sqlite3"
+  local result
+  result=$(zdots-buffer-drain \
+    --db-path "$db_path" \
+    --redis-host "${ZDOTS_REDIS_HOST:-127.0.0.1}" \
+    --redis-port "${ZDOTS_REDIS_PORT:-6379}" 2>/dev/null) || return 0
 
-  # jq filter: read all newline-delimited JSON entries piped from redis-cli,
-  # emit one SQL INSERT per valid entry with single-quote escaping for SQLite.
-  local jq_filter
-  jq_filter=$(cat << 'JQEOF'
-[
-  split("\n")[] | select(length > 0) |
-  try (fromjson | select(.cmd != null and .cmd != "")) catch empty |
-  {
-    s: (.session_id // "" | gsub("'"; "''")),
-    t: (.ts          // 0  | tostring),
-    c: (.cwd         // "" | gsub("'"; "''")),
-    m: (.cmd         // "" | gsub("'"; "''")),
-    a: (.args        // "" | gsub("'"; "''")),
-    e: (.exit_code   // 0  | tostring),
-    d: (.duration_ms // 0  | tostring),
-    p: (.profile     // "" | gsub("'"; "''"))
-  } |
-  "INSERT INTO command_runs(session_id,ts,cwd,cmd,args,exit_code,duration_ms,profile) VALUES('" +
-  .s + "'," + .t + ",'" + .c + "','" + .m + "','" + .a + "'," + .e + "," + .d + ",'" + .p + "');"
-] | join("\n")
-JQEOF
-  )
-
-  local key drained_total=0
-  while IFS= read -r key; do
-    [[ -z "$key" ]] && continue
-
-    local sql_batch
-    sql_batch=$(redis-cli -h "$rhost" -p "$rport" LRANGE "$key" 0 -1 2>/dev/null \
-                | jq -Rrs "$jq_filter" 2>/dev/null)
-    [[ -z "$sql_batch" ]] && continue
-
-    local count
-    count=$(printf '%s' "$sql_batch" | grep -c "^INSERT" 2>/dev/null || echo 0)
-
-    if printf 'BEGIN;\n%s\nCOMMIT;\n' "$sql_batch" | sqlite3 "$db" 2>/dev/null; then
-      redis-cli -h "$rhost" -p "$rport" DEL "$key" >/dev/null 2>&1 || true
-      drained_total=$(( drained_total + count ))
+  # Parse JSON result and log if rows were drained
+  if command -v jq >/dev/null 2>&1; then
+    local drained
+    drained=$(printf '%s' "$result" | jq -r '.drained // 0' 2>/dev/null || echo 0)
+    if (( drained > 0 )); then
+      _svc_log "drained ${drained} Redis command(s) to SQLite"
     fi
-  done < <(redis-cli -h "$rhost" -p "$rport" KEYS "zdots:cmds:*" 2>/dev/null | grep -v '^$')
-
-  (( drained_total > 0 )) && _svc_log "drained ${drained_total} Redis command(s) to SQLite"
+  fi
   return 0
 }
 
