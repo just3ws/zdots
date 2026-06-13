@@ -26,11 +26,12 @@ typeset -g _ZCA_START=0
 typeset -g _ZCA_CMD=""
 typeset -g _ZCA_CWD=""
 
-# Create SQLite fallback table once per session in a background process.
+# Create SQLite fallback table once per session, synchronously.
+# DDL is idempotent (IF NOT EXISTS) and runs once per session guard.
+# Synchronous ensures table exists before first _zca_precmd call.
 if [[ -z "${_ZCA_INIT:-}" ]]; then
-  (
-    mkdir -p "${_ZCA_DB:h}" 2>/dev/null
-    sqlite3 "$_ZCA_DB" >/dev/null 2>&1 <<'SQL'
+  mkdir -p "${_ZCA_DB:h}" 2>/dev/null
+  timeout 2 sqlite3 "$_ZCA_DB" >/dev/null 2>&1 <<'SQL'
 PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS command_runs (
   id          INTEGER PRIMARY KEY,
@@ -44,13 +45,14 @@ CREATE TABLE IF NOT EXISTS command_runs (
   profile     TEXT,
   imported_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cruns_dedup
+  ON command_runs (session_id, ts, cmd, coalesce(args, ''));
 CREATE INDEX IF NOT EXISTS idx_cruns_session  ON command_runs (session_id);
 CREATE INDEX IF NOT EXISTS idx_cruns_cmd      ON command_runs (cmd);
 CREATE INDEX IF NOT EXISTS idx_cruns_exit     ON command_runs (exit_code);
 CREATE INDEX IF NOT EXISTS idx_cruns_ts       ON command_runs (ts);
 CREATE INDEX IF NOT EXISTS idx_cruns_cwd      ON command_runs (cwd);
 SQL
-  ) &!
   typeset -g _ZCA_INIT=1
 fi
 
@@ -104,7 +106,7 @@ _zca_redis_write() {
     | redis-cli -h "$_ZCA_REDIS_HOST" -p "$_ZCA_REDIS_PORT" -x \
         RPUSH "$key" >/dev/null 2>&1 || return 1
 
-  # Set TTL only on first write — EXPIRE is a no-op if key already has one.
+  # Refresh TTL on every write (sliding window): 24h from last write, not first.
   redis-cli -h "$_ZCA_REDIS_HOST" -p "$_ZCA_REDIS_PORT" -q \
     EXPIRE "$key" 86400 >/dev/null 2>&1 || true
 }
@@ -134,7 +136,7 @@ _zca_precmd() {
   local args="${raw#$cmd}"; args="${args## }"
 
   # Primary: Redis (synchronous — zdots-ctx capture sees a complete list).
-  # Fallback: async SQLite (race condition possible if capture runs immediately).
+  # Fallback: async SQLite. INSERT OR IGNORE handles duplicate inserts gracefully.
   if ! _zca_redis_write \
        "$session_id" "$ts" "$_ZCA_CWD" "$cmd" "$args" \
        "$exit_code" "$duration_ms" "$profile"; then
@@ -149,7 +151,7 @@ _zca_precmd() {
 
     (
       sqlite3 "$db" 2>/dev/null \
-        "INSERT INTO command_runs(session_id,ts,cwd,cmd,args,exit_code,duration_ms,profile) \
+        "INSERT OR IGNORE INTO command_runs(session_id,ts,cwd,cmd,args,exit_code,duration_ms,profile) \
          VALUES('${session_esc}',${ts},'${cwd_esc}','${cmd_esc}','${args_esc}',${exit_code},${duration_ms},'${profile_esc}');"
     ) &!
   fi
