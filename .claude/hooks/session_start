@@ -1,0 +1,96 @@
+#!/bin/bash
+# Claude Code session_start hook
+# Exports critical environment variables and capabilities at session start.
+# Called by: Claude Code harness when SessionStart event fires.
+# Purpose: Make PHI safety constraints and capabilities visible to agents.
+
+set -euo pipefail
+
+# Resolve $HOME to handle symlinks/edge cases
+HOME="${HOME:-$(cd ~; pwd)}"
+export HOME
+
+# ============================================================================
+# 1. Export PHI Operating Mode Environment Variables
+# ============================================================================
+# These control AI behavior and data capture. See AGENTS.md Section 10.
+
+export ZDOTS_AI_MODE="${ZDOTS_AI_MODE:-local}"
+export ZDOTS_CAPTURE_ENABLED="${ZDOTS_CAPTURE_ENABLED:-0}"
+export ZDOTS_CMD_ANALYTICS="${ZDOTS_CMD_ANALYTICS:-0}"
+export ZDOTS_CONTEXT="${ZDOTS_CONTEXT:-home}"
+
+# ============================================================================
+# 2. Load and Export Capabilities
+# ============================================================================
+# Capabilities array documents what services/features are available.
+# Agents query this to make decisions about tool availability.
+
+if command -v capabilities &>/dev/null; then
+  # Parse capabilities JSON and export as array variables
+  # Format: CAPABILITY_<NAME>=<status> for each top-level key
+
+  cap_json="$(capabilities --json 2>/dev/null)" || cap_json="{}"
+
+  # Extract top-level capability keys and export as CAPABILITY_<KEY>=<value>
+  export CAPABILITIES_JSON="$cap_json"
+
+  # For backward compat and easier access, extract key capabilities
+  if command -v jq &>/dev/null; then
+    capability_ai="$(echo "$cap_json" | jq -r '.ai.status // 0')"
+    export CAPABILITY_AI="$capability_ai"
+
+    capability_brain="$(echo "$cap_json" | jq -r '.brain.intelligence_live // 0')"
+    export CAPABILITY_BRAIN="$capability_brain"
+
+    capability_observability="$(echo "$cap_json" | jq -r '.observability.trace_file // "missing"' | grep -q missing && echo 0 || echo 1)"
+    export CAPABILITY_OBSERVABILITY="$capability_observability"
+
+    capability_diagnostics="$(echo "$cap_json" | jq -r '.diagnostics.log_analyzer // 0')"
+    export CAPABILITY_DIAGNOSTICS="$capability_diagnostics"
+  fi
+fi
+
+# ============================================================================
+# 3. Verify PHI Safety Posture (soft check, log only)
+# ============================================================================
+# Do not block session; only warn if constraints are violated.
+# Hard enforcement happens at ai_boundary.bash runtime.
+
+phi_violations=0
+
+# Check: AI mode must be 'local' unless explicitly changed
+if [[ "$ZDOTS_AI_MODE" != "local" ]]; then
+  echo "⚠️  WARNING: ZDOTS_AI_MODE=$ZDOTS_AI_MODE (not 'local'). Ensure this was intentional." >&2
+  ((phi_violations++))
+fi
+
+# Check: Capture must be disabled unless DB encryption is verified
+if [[ "${ZDOTS_CAPTURE_ENABLED:-0}" == "1" ]]; then
+  if ! security find-generic-password -s zdots -a ZDOTS_DB_ENCRYPTION_KEY -w &>/dev/null; then
+    echo "⚠️  WARNING: ZDOTS_CAPTURE_ENABLED=1 but ZDOTS_DB_ENCRYPTION_KEY not in Keychain." >&2
+    ((phi_violations++))
+  fi
+fi
+
+# Check: CMD_ANALYTICS should be disabled on work machines
+if [[ "${ZDOTS_CMD_ANALYTICS:-0}" == "1" && "${ZDOTS_CONTEXT}" == "work" ]]; then
+  echo "⚠️  WARNING: ZDOTS_CMD_ANALYTICS=1 on work machine (ZDOTS_CONTEXT=work)." >&2
+  ((phi_violations++))
+fi
+
+if [[ $phi_violations -gt 0 ]]; then
+  echo "⚠️  PHI safety check found $phi_violations violation(s). Review AGENTS.md Section 10." >&2
+fi
+
+# ============================================================================
+# 4. Export Hook Metadata
+# ============================================================================
+# Helps agents understand session context
+
+claude_session_start_time="$(date -u +%s)"
+export CLAUDE_SESSION_START_TIME="$claude_session_start_time"
+export CLAUDE_SESSION_CONTEXT="${ZDOTS_CONTEXT}"
+export CLAUDE_AI_MODE="${ZDOTS_AI_MODE}"
+
+exit 0
