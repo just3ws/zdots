@@ -24,38 +24,30 @@ cd "$HOME" || exit 1
 ZDOTS_DIR="${ZDOTS_DIR:-$HOME/.config/zsh}"
 ADOTS_DIR="${ADOTS_DIR:-$HOME/.config/adots}"
 
-# Source session_start if it exists
+# Source session_start: it sets ZDOTS_HEALTHY / ADOTS_HEALTHY / PERSONAL_OS_READY
+# and populates ZDOTS_CAPABILITIES + ADOTS_ALL_CAPABILITIES when sourced. Toggle
+# set -e off across the source so hook internals can't abort the launcher.
 if [[ -f "$ZDOTS_DIR/.claude/hooks/session_start" ]]; then
+  set +e
+  # shellcheck source=/dev/null
   source "$ZDOTS_DIR/.claude/hooks/session_start" 2>/dev/null || true
+  set -e
 fi
 
-# Build context banner
-zdots_status="❌"
-adots_status="❌"
-zdots_count="0"
-adots_count="0"
+# Peer status from the hook's probes — do not re-run the doctors here.
+glyph() { [[ "${1:-0}" == "1" ]] && printf '✓' || printf '❌'; }
+zdots_status="$(glyph "${ZDOTS_HEALTHY:-0}")"
+adots_status="$(glyph "${ADOTS_HEALTHY:-0}")"
+if [[ -n "${ZDOTS_CAPABILITIES[*]:-}" ]]; then zdots_count="${#ZDOTS_CAPABILITIES[@]}"; else zdots_count=0; fi
+if [[ -n "${ADOTS_ALL_CAPABILITIES[*]:-}" ]]; then adots_count="${#ADOTS_ALL_CAPABILITIES[@]}"; else adots_count=0; fi
 
-# Check zdots health
-if command -v zdots-doctor >/dev/null 2>&1; then
-  if zdots-doctor --no-runtime >/dev/null 2>&1; then
-    zdots_status="✓"
-  fi
-fi
-
-# Check adots health
-if command -v adots-doctor >/dev/null 2>&1; then
-  if adots-doctor >/dev/null 2>&1; then
-    adots_status="✓"
-  fi
-fi
-
-# Count capabilities
-if [[ -n "${ZDOTS_ALL_CAPABILITIES[*]:-}" ]]; then
-  zdots_count="${#ZDOTS_ALL_CAPABILITIES[@]}"
-fi
-if [[ -n "${ADOTS_ALL_CAPABILITIES[*]:-}" ]]; then
-  adots_count="${#ADOTS_ALL_CAPABILITIES[@]}"
-fi
+# Attest each advertised command: ✓ if on PATH, ✗ if it would 404. A banner that
+# promises commands the agent can't run is worse than one that admits the gap.
+attest() {
+  local cmd="$1" desc="$2" mark
+  if command -v "$cmd" >/dev/null 2>&1; then mark="✓"; else mark="✗"; fi
+  printf '  %s  %-26s %s\n' "$mark" "$cmd" "$desc"
+}
 
 # Print context banner
 cat <<EOF
@@ -74,21 +66,24 @@ Architecture:
   • zdots manages: services, observability, knowledge layer, CLI tools
   • adots manages: home directory structure, profiles, dotfiles
   • Both peers are monitored together; both healthy = PERSONAL_OS_READY
+EOF
 
-Available Commands:
-  zdots-ctx query <term>      # query knowledge base
-  zdots-ctx export-wiki       # export knowledge to markdown
-  zsvc list|start|stop <svc>  # service control (llama, postgres, etc.)
-  adots sync                  # pull home dotfile changes
-  adots-profile get|set|list  # manage machine profiles
-  adots-doctor                # check home layout health
-  zdots-doctor                # check infrastructure health
+echo ""
+echo "Available Commands (✓ = on PATH, ✗ = declared but not installed):"
+attest "zdots-ctx"    "# query/export knowledge base"
+attest "zsvc"         "# service control (llama, postgres, ...)"
+attest "zdots-doctor" "# check infrastructure health"
+attest "adots-doctor" "# check home layout health"
+attest "adots"        "# pull/push home dotfile changes"
+attest "adots-profile" "# manage machine profiles"
+
+cat <<EOF
 
 Documentation:
   Read: docs/agents/personal-os-abstraction.md (agent decision guide)
 
 Session Context:
-  • PERSONAL_OS_READY=$PERSONAL_OS_READY (1=both healthy, 0=degraded)
+  • PERSONAL_OS_READY=${PERSONAL_OS_READY:-0} (1=both healthy, 0=degraded)
   • ZDOTS_DIR=$ZDOTS_DIR
   • ADOTS_DIR=$ADOTS_DIR
 
