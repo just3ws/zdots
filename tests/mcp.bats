@@ -33,6 +33,7 @@ case "$1" in
   add-lesson)      exit 0 ;;
   capture)         printf '{"captured":true}\n'; exit 0 ;;
   living-docs)     printf 'synced\n'; exit 0 ;;
+  jobs)            printf '{"jobs":[]}\n'; exit 0 ;;
   *)               printf 'unknown: %s\n' "$1" >&2; exit 1 ;;
 esac
 MOCK
@@ -173,6 +174,33 @@ _call_tool_fail() {
   [[ "$text" == *"✅"* ]] || [[ "$text" == *"sync"* ]]
 }
 
+@test "C6: ctx_add_methodology returns success indicator" {
+  response=$(_call_tool "ctx_add_methodology" '{"slug":"test","title":"Test","content":"body"}')
+  text=$(printf '%s\n' "$response" | jq -r '.result.content[0].text')
+  [[ "$text" == *"✅"* ]] || [[ "$text" == *"saved"* ]] || [[ "$text" == *"test"* ]]
+}
+
+@test "C7: ctx_add_lesson returns success indicator" {
+  response=$(_call_tool "ctx_add_lesson" '{"content":"lesson body","context":"testing"}')
+  text=$(printf '%s\n' "$response" | jq -r '.result.content[0].text')
+  [[ "$text" == *"✅"* ]] || [[ "$text" == *"saved"* ]]
+}
+
+@test "C8: ctx_capture returns content" {
+  response=$(_call_tool "ctx_capture")
+  printf '%s\n' "$response" | jq -e '.result.content[0].text | length > 0' >/dev/null
+}
+
+@test "C9: ctx_semantic_search returns result text for given term" {
+  response=$(_call_tool "ctx_semantic_search" '{"term":"phi scrubber"}')
+  printf '%s\n' "$response" | jq -e '.result.content[0].text | length > 0' >/dev/null
+}
+
+@test "C10: ctx_jobs returns content" {
+  response=$(_call_tool "ctx_jobs")
+  printf '%s\n' "$response" | jq -e '.result.content[0].text | length > 0' >/dev/null
+}
+
 # ===========================================================================
 # D. Error paths
 # ===========================================================================
@@ -230,14 +258,23 @@ _call_tool_fail() {
   ' >/dev/null
 }
 
-@test "E3: tools/list advertises exactly 5 tools" {
+@test "E3: tools/list advertises exactly 10 tools" {
   response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
   count=$(printf '%s\n' "$response" | jq '.result.tools | length')
-  [ "$count" -eq 5 ]
+  [ "$count" -eq 10 ]
 }
 
 @test "E4: advertised tool names match expected set" {
   response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
   names=$(printf '%s\n' "$response" | jq -r '.result.tools[].name' | sort | tr '\n' ',')
-  [ "$names" = "ctx_enqueue,ctx_hydrate,ctx_query,ctx_status,living_docs," ]
+  [ "$names" = "ctx_add_lesson,ctx_add_methodology,ctx_capture,ctx_enqueue,ctx_hydrate,ctx_jobs,ctx_query,ctx_semantic_search,ctx_status,living_docs," ]
+}
+
+@test "E5: every dispatched tool is advertised (no silent dispatch)" {
+  response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
+  advertised=$(printf '%s\n' "$response" | jq -r '.result.tools[].name' | sort)
+  dispatched="ctx_add_lesson ctx_add_methodology ctx_capture ctx_enqueue ctx_hydrate ctx_jobs ctx_query ctx_semantic_search ctx_status living_docs"
+  for tool in $dispatched; do
+    printf '%s\n' "$advertised" | grep -qx "$tool" || { echo "DISPATCH GAP: $tool not in tools/list"; false; }
+  done
 }

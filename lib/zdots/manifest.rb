@@ -56,6 +56,34 @@ module Zdots
         name: "living_docs",
         description: "Manually trigger the Living Docs synchronization pipeline.",
         mcp: true
+      },
+      {
+        name: "ctx_add_methodology",
+        description: "Save a new methodology to the Knowledge Layer.",
+        params: { slug: "string", title: "string", content: "string" },
+        mcp: true
+      },
+      {
+        name: "ctx_add_lesson",
+        description: "Save a new lesson to the Knowledge Layer.",
+        params: { content: "string", context: "string" },
+        mcp: true
+      },
+      {
+        name: "ctx_capture",
+        description: "Capture the current session residue into the Knowledge Layer. Requires ZDOTS_SESSION_ID.",
+        mcp: true
+      },
+      {
+        name: "ctx_semantic_search",
+        description: "Semantic vector search across lessons and methodologies.",
+        params: { term: "string" },
+        mcp: true
+      },
+      {
+        name: "ctx_jobs",
+        description: "List pending and in-flight background jobs in the Knowledge Layer.",
+        mcp: true
       }
     ].freeze
 
