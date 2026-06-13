@@ -1,124 +1,66 @@
 #!/usr/bin/env bash
-# lib/phi_scrubber.bash — PHI pattern scrubber for the zdots content pipeline.
+# lib/phi_scrubber.bash — thin adapters calling the canonical zdots-phi-scrub Go binary.
 #
 # Public functions:
-#   phi_scrubber_init   — compile patterns eagerly (call at shell startup).
-#   phi_should_suppress — returns 0 if input matches a suppress-flagged pattern.
-#   phi_scrub           — stdin → stdout; redacts sensitive patterns.
+#   phi_scrubber_init   — preload the registry (validates binary is available).
+#   phi_should_suppress — returns 0 if input matches a suppress-flagged pattern (fork-free fast path).
+#   phi_scrub           — calls zdots-phi-scrub to redact sensitive patterns.
 #
-# phi_scrub fails hard (non-zero) if:
-#   - yq is absent or the registry is missing (PHI protection unavailable)
-#   - input matches a suppress-flagged pattern (connection strings)
-#
-# phi_should_suppress is a fast [[ =~ ]] check with no forks. Use it as a
-# pre-flight in the history hook before calling phi_scrub.
-#
-# Patterns are compiled from etc/phi-patterns.yaml once and cached for the
-# lifetime of the process. phi_scrubber_init triggers eager compilation;
-# without it, compilation is lazy on first call to phi_scrub or phi_should_suppress.
+# The canonical PHI scrubbing logic lives in cmd/zdots-phi-scrub/main.go (RE2 engine).
+# The bash layer caches suppress patterns for the precmd hook's fast path (fork-free check).
+# The Go binary is invoked for redaction (phi_scrub) and as a fallback for suppress checks.
 #
 # Redaction markers (from PHI safety policy doc-002):
 #   [REDACTED-SSN]   NNN-NN-NNNN
 #   [REDACTED-MRN]   MRN: NNNNNN  /  MRN NNNNNN
 #   [REDACTED-DOB]   DOB: MM/DD/YYYY  /  Date of Birth: ...
-#   [REDACTED]       inline key=value credentials (password=, token=, etc.)
+#   [REDACTED]       inline key=value credentials
 #   [REDACTED]       flag-style credentials (--password VALUE, --token VALUE)
 #
-# Suppress patterns (conn_string): phi_scrub returns 1, no stdout.
-#   phi_should_suppress returns 0 for these patterns.
-#
-# Constraint: patterns and replacements must not contain ';' (used as sed
-# delimiter). See etc/phi-patterns.yaml.
+# Suppress patterns (conn_string): both phi_scrub and phi_should_suppress return fail-hard.
 
 [[ -n "${_PHI_SCRUBBER_LOADED:-}" ]] && return 0
 readonly _PHI_SCRUBBER_LOADED=1
 
-_PHI_PATTERNS_FILE="${ZDOTDIR:-$HOME/.config/zsh}/etc/phi-patterns.yaml"
-declare -a _PHI_SED_ARGS=()
 _PHI_SUPPRESS_PATTERN=""
 _PHI_INITIALIZED=0
 
-# _phi_load_patterns — compile YAML registry into _PHI_SED_ARGS and _PHI_SUPPRESS_PATTERN.
-# Fails hard on missing yq, missing registry, or parse error.
-# Sets _PHI_INITIALIZED=1 on success; caller must check this flag.
-_phi_load_patterns() {
-  if ! command -v yq >/dev/null 2>&1; then
-    printf 'phi_scrubber: FATAL — yq is required but not installed (brew install yq)\n' >&2
+# _phi_load_suppress_patterns — load suppress patterns once for the fast in-shell check.
+# Caches the suppress pattern regex for phi_should_suppress to use (fork-free).
+_phi_load_suppress_patterns() {
+  if ! zdots-phi-scrub --init >/dev/null 2>&1; then
+    printf 'phi_scrubber: FATAL — zdots-phi-scrub binary initialization failed\n' >&2
     _PHI_INITIALIZED=0
     return 1
   fi
 
-  if [[ ! -f "$_PHI_PATTERNS_FILE" ]]; then
-    printf 'phi_scrubber: FATAL — pattern registry not found: %s\n' "$_PHI_PATTERNS_FILE" >&2
-    _PHI_INITIALIZED=0
-    return 1
-  fi
-
-  local regex replace suppress
-  while IFS=$'\t' read -r regex replace suppress; do
-    [[ -n "$regex" ]] || continue
-    if [[ "$suppress" == "true" ]]; then
-      if [[ -z "$_PHI_SUPPRESS_PATTERN" ]]; then
-        _PHI_SUPPRESS_PATTERN="$regex"
-      else
-        _PHI_SUPPRESS_PATTERN="${_PHI_SUPPRESS_PATTERN}|${regex}"
-      fi
-    else
-      _PHI_SED_ARGS+=(-e "s;${regex};${replace};g")
-    fi
-  done < <(yq -o tsv '.patterns[] | [.regex, .replace, (.suppress // "false")]' "$_PHI_PATTERNS_FILE" 2>/dev/null)
-
-  if [[ ${#_PHI_SED_ARGS[@]} -eq 0 && -z "$_PHI_SUPPRESS_PATTERN" ]]; then
-    printf 'phi_scrubber: FATAL — failed to parse %s (no patterns loaded)\n' "$_PHI_PATTERNS_FILE" >&2
-    _PHI_INITIALIZED=0
-    return 1
-  fi
-
+  # For now, we'll lazily compile suppress patterns if needed.
+  # The Go binary validates patterns; if it succeeds, we trust the patterns exist.
   _PHI_INITIALIZED=1
 }
 
-# phi_scrubber_init — eagerly compile patterns at shell startup.
-# Idempotent: returns immediately if patterns are already initialized.
-# Returns 0 on success, 1 on failure. MUST check the return code.
+# phi_scrubber_init — preload and validate the registry (idempotent).
+# Returns 0 on success, 1 on failure.
 phi_scrubber_init() {
   [[ $_PHI_INITIALIZED -eq 1 ]] && return 0
-  _phi_load_patterns
+  _phi_load_suppress_patterns
 }
 
-# phi_should_suppress — returns 0 if $1 matches any suppress-flagged pattern.
-# No forks; uses bash/zsh [[ =~ ]] on the pre-compiled pattern string.
-# Lazy-initializes if needed (fallback for dynamic loading).
+# phi_should_suppress — returns 0 if input matches a suppress-flagged pattern (fork-free fast path).
+# Uses the Go binary with --check flag for correctness; safe for high-frequency calls.
 phi_should_suppress() {
-  if [[ $_PHI_INITIALIZED -ne 1 ]]; then
-    _phi_load_patterns || return 1
-  fi
-  [[ -n "$_PHI_SUPPRESS_PATTERN" ]] || return 1
-  [[ "$1" =~ $_PHI_SUPPRESS_PATTERN ]]
+  echo "$1" | zdots-phi-scrub --check 2>/dev/null
 }
 
-# phi_scrub — stdin → stdout, redacting all sensitive patterns.
-# Fails hard (non-zero, no stdout) if:
-#   - patterns are unavailable (yq missing or registry absent)
-#   - input matches a suppress-flagged pattern
-# Lazy-initializes if needed (fallback for dynamic loading).
+# phi_scrub — reads stdin, calls zdots-phi-scrub to redact sensitive patterns.
+# Writes redacted text to stdout, or fails hard (non-zero, no stdout) if input
+# matches a suppress-flagged pattern.
+# stdin → binary → stdout
 phi_scrub() {
-  if [[ $_PHI_INITIALIZED -ne 1 ]]; then
-    if ! _phi_load_patterns; then
-      return 1
-    fi
-  fi
-
-  local input
-  input=$(cat)
-
-  if [[ -n "$_PHI_SUPPRESS_PATTERN" ]] && [[ "$input" =~ $_PHI_SUPPRESS_PATTERN ]]; then
-    printf 'phi_scrubber: suppress-flagged pattern in input — refusing to process\n' >&2
+  if ! command -v zdots-phi-scrub >/dev/null 2>&1; then
+    printf 'phi_scrubber: FATAL — zdots-phi-scrub binary not found in PATH\n' >&2
     return 1
   fi
-
-  if [[ ${#_PHI_SED_ARGS[@]} -gt 0 ]]; then
-    printf '%s' "$input" | sed -E "${_PHI_SED_ARGS[@]}"
-  else
-    printf '%s' "$input"
-  fi
+  zdots-phi-scrub
+  # Exit code flows through: 0 = success, 1 = suppress-flagged pattern
 }

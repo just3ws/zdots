@@ -1,0 +1,184 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# sbin/zdots-recommend — View and act on operational recommendations
+#
+# Usage:
+#   zdots-recommend              # Show all recommendations, sorted by score
+#   zdots-recommend --severity high
+#   zdots-recommend --category ai
+#   zdots-recommend --last 7d    # Generated in last 7 days
+#   zdots-recommend analyze      # Run pattern analysis job manually
+#   zdots-recommend act <id>     # Mark recommendation as acted on
+#   zdots-recommend dismiss <id> # Dismiss recommendation (mark acted on)
+#
+# The recommendation score is calculated as:
+#   (frequency × severity_weight × affected_count) / days_since_first
+#   Higher score = more urgent
+
+require "bundler/setup"
+require_relative "../lib/zdots"
+
+Zdots.init!
+
+def print_usage
+  puts <<~USAGE
+    zdots-recommend — View operational feedback patterns and recommendations
+
+    Usage:
+      zdots-recommend [--severity high|medium|low]
+      zdots-recommend [--category error|feature|friction|performance|cascade]
+      zdots-recommend [--last 7d|30d]
+      zdots-recommend [--unacted]
+      zdots-recommend analyze
+      zdots-recommend act <id|pattern>
+      zdots-recommend dismiss <id|pattern>
+
+    Options:
+      --severity LEVEL     Filter by severity: critical, high, medium, low
+      --category CAT       Filter by category: error_cluster, feature_request, friction, cascade, performance
+      --last DAYS          Show recommendations generated in last N days
+      --unacted            Show only recommendations not yet acted on
+
+    Actions:
+      analyze              Manually trigger pattern analysis job
+      act <id>             Mark recommendation as acted on (file bug, implement feature, etc)
+      dismiss <id>         Acknowledge but defer recommendation
+
+    Examples:
+      zdots-recommend --severity high
+      zdots-recommend --category error_cluster --unacted
+      zdots-recommend analyze
+      zdots-recommend act 5
+  USAGE
+  exit 2
+end
+
+def show_recommendations(filters = {})
+  filters[:unacted] = true if filters[:unacted]
+
+  recommendations = Zdots::Models::Recommendation.top_recommendations(100, filters)
+
+  if recommendations.empty?
+    puts "No recommendations found."
+    return
+  end
+
+  puts "\n=== Operational Recommendations (sorted by urgency) ===\n"
+
+  recommendations.each do |rec|
+    severity_color = case rec.severity
+                     when "critical" then "\e[31m#{rec.severity}\e[0m"
+                     when "high" then "\e[33m#{rec.severity}\e[0m"
+                     when "medium" then "\e[36m#{rec.severity}\e[0m"
+                     else "\e[32m#{rec.severity}\e[0m"
+                     end
+
+    puts "ID ##{rec.id} | #{rec.category} | Severity: #{severity_color} | Score: #{rec.score.round(2)}"
+    puts "Pattern: #{rec.pattern}"
+    puts "Frequency: #{rec.frequency} occurrences | Affected: #{rec.affected_actors&.join(', ') || 'unknown'}"
+    puts "Recommendation: #{rec.recommendation}"
+    puts "Action: #{rec.action.upcase}"
+    puts "Generated: #{rec.generated_at.strftime('%Y-%m-%d %H:%M UTC')}"
+    puts "Status: #{rec.acted_on ? 'ACTED ON' : 'PENDING'}"
+    puts "-" * 80
+  end
+end
+
+def run_analysis
+  puts "Triggering pattern analysis job..."
+
+  job = Zdots::Models::Job.create(
+    type: "pattern_analysis",
+    payload: { patterns_count: 0 },
+    priority: 20
+  )
+
+  puts "Pattern analysis job created: #{job.id}"
+  puts "Check results with: zdots-recommend"
+end
+
+def mark_acted_on(identifier)
+  rec = find_recommendation(identifier)
+  return unless rec
+
+  rec.mark_acted_on!
+  puts "Recommendation ##{rec.id} marked as acted on."
+end
+
+def dismiss_recommendation(identifier)
+  rec = find_recommendation(identifier)
+  return unless rec
+
+  rec.update(acted_on: true)
+  puts "Recommendation ##{rec.id} dismissed."
+end
+
+def find_recommendation(identifier)
+  # Try as numeric ID first
+  if identifier.match?(/^\d+$/)
+    rec = Zdots::Models::Recommendation.where(id: identifier.to_i).first
+    return rec if rec
+  end
+
+  # Try by pattern (substring match)
+  rec = Zdots::Models::Recommendation.where(Sequel.ilike(:pattern, "%#{identifier}%")).first
+  if rec
+    return rec
+  end
+
+  puts "Recommendation not found: #{identifier}"
+  nil
+end
+
+# Parse arguments
+action = nil
+filters = {}
+arg_queue = ARGV.dup
+
+while arg_queue.any?
+  arg = arg_queue.shift
+
+  case arg
+  when "--severity"
+    filters[:severity] = arg_queue.shift or print_usage
+  when "--category"
+    filters[:category] = arg_queue.shift or print_usage
+  when "--last"
+    days_str = arg_queue.shift or print_usage
+    days = days_str.to_i
+    filters[:days] = days
+  when "--unacted"
+    filters[:unacted] = true
+  when "analyze"
+    action = :analyze
+  when "act"
+    action = :act
+    action_arg = arg_queue.shift or print_usage
+  when "dismiss"
+    action = :dismiss
+    action_arg = arg_queue.shift or print_usage
+  when "--help", "-h"
+    print_usage
+  else
+    puts "Unknown argument: #{arg}"
+    print_usage
+  end
+end
+
+begin
+  case action
+  when :analyze
+    run_analysis
+  when :act
+    mark_acted_on(action_arg)
+  when :dismiss
+    dismiss_recommendation(action_arg)
+  else
+    show_recommendations(filters)
+  end
+rescue StandardError => e
+  puts "Error: #{e.message}"
+  puts e.backtrace.first(5)
+  exit 1
+end

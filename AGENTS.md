@@ -203,7 +203,91 @@ All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are co
 - `/clear` — wipe history between tasks
 - `/tokens` — check budget before adding large files
 
-## 9. PHI Operating Mode
+## 9. Vocabulary & Communication Standards
+
+Zdots has formal vocabulary (CONTEXT.md, GLOSSARY.md, ONTOLOGY.md). Use exact terms consistently in code, commits, PRs, and conversations.
+
+**Core Terms (always use exact form):**
+
+| Term | Do NOT Use | Reason |
+|---|---|---|
+| **Platform Service** | service, microservice, daemon | Specific lifecycle model (start/stop/restart with health probes) |
+| **Seam** | boundary, interface, API, facade | Specific meaning: place where behavior changes without editing in place |
+| **Knowledge Layer** | Intelligence Suite, ML layer, AI layer | Exact name; not interchangeable |
+| **Session Residue** | capture, transcript, session log, record | Specific meaning: raw distillation with intent/result/summary |
+| **Lesson** | note, doc, article, knowledge unit | Specific meaning: curated, atomic, tagged |
+| **Methodology** | best practice, pattern, principle | Specific meaning: synthesized from multiple lessons |
+| **Message Hygiene Pipeline** | sanitizer, scrubber pipeline, cleaning | Specific stages: normalize, then PHI scrub (order matters) |
+| **PHI Scrubber** | PHI scrubbing, redactor, scrubber | Noun: the component; not the verb "scrubbing" |
+| **Virtuous Loop** | feedback loop, cycle, learning loop | Specific pattern: Work → Capture → Curate → Infer → Repeat |
+| **Workflow** | pipeline, job, script, task | Declarative, composable, observable (not imperative shell script) |
+| **Alert** | alert rule, notification, trigger | Specific: condition-based, with actions and thresholds |
+| **Actor** | user, agent, principal, client | In access control context; includes humans, agents, services |
+| **Access Control** | permissions, ACL, auth, RBAC | Specific system: roles + actor + allow/deny rules |
+| **Capability** | feature, service, function, operation | Discoverable, attestable facility (does-ai-inference) |
+
+**Why Vocabulary Matters:**
+
+1. **Precision:** "Seam" means a specific pattern; "boundary" is vague. Using exact terms prevents miscommunication.
+2. **Searchability:** When agents search code for "Seam", they find the pattern. Searching "boundary" finds noise.
+3. **Load-bearing decisions:** Terms like "Session Residue" vs. "transcript" encode design choices (why it's not just logs).
+4. **Consistency:** Exact vocabulary across code, docs, and PRs makes the system understandable.
+
+**In Commit Messages:**
+
+Use present-tense verb + domain noun. Example:
+```
+fix(phi-scrubber): consolidate into canonical Go binary (ADR-0002)
+
+PHI Scrubber had dual implementations (bash, Ruby) with contract-test-only
+enforcement. Risk: silent divergence on suppress-flagged patterns.
+
+Solution: Canonical Go binary with thin adapters. Benefits: single source of
+truth, RE2 engine matches collector, eliminates 3-engine drift.
+
+Related: ADR-0002, DSL Matrix (Gap 1)
+```
+
+**In Issues & PRs:**
+
+```
+Title: PHI Scrubber unification — move redaction to Go binary
+
+Body:
+## Problem
+Dual-impl sync burden; silent divergence risk.
+
+## Solution
+Canonical Go binary (cmd/zdots-phi-scrub/), bash/Ruby adapters call it.
+
+## Benefits
+Single source, contract-test clarity, RE2 parity.
+
+## Related
+ADR-0002, Service Registry deepening (blocks on this)
+```
+
+**In Documentation:**
+
+- Reference CONTEXT.md when introducing a concept
+- Use GLOSSARY.md definitions
+- Use ONTOLOGY.md to show relationships
+
+**In Code Comments:**
+
+Only comment WHY, not WHAT. Use vocabulary consistently:
+
+```bash
+# Bad: "This function scrubs PHI from input"
+# (too obvious; uses "scrub" as verb)
+
+# Good: "Apply the PHI Scrubber before inference"
+# (references component by name; reader can look up semantics in GLOSSARY)
+```
+
+---
+
+## 10. PHI Operating Mode
 
 This codebase operates near protected health information. The following rules are **non-negotiable** and enforced at the kernel/OS boundary — not just by convention.
 
