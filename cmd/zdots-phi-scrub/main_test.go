@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func TestBinaryRedactMode(t *testing.T) {
 	// Test normal input (no patterns match)
 	input := "this is a normal message"
 	cmd := exec.Command(binaryPath)
-	cmd.Stdin = byteReader(input)
+	cmd.Stdin = strings.NewReader(input)
 	output, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("binary failed: %v", err)
@@ -44,7 +44,7 @@ func TestBinarySuppressMode(t *testing.T) {
 	// Test input that does NOT match a suppress pattern (should exit 1)
 	input := "normal message"
 	cmd := exec.Command(binaryPath, "--check")
-	cmd.Stdin = byteReader(input)
+	cmd.Stdin = strings.NewReader(input)
 	err := cmd.Run()
 	if err == nil {
 		t.Errorf("--check on non-matching input should exit 1")
@@ -87,30 +87,4 @@ func buildTestBinary(t *testing.T) string {
 	}
 
 	return binaryPath
-}
-
-// byteReader returns a bytes.Reader wrapping the string.
-func byteReader(s string) interface {
-	interface{ Read([]byte) (int, error) }
-} {
-	return stringToReader(s)
-}
-
-// stringToReader is a simple wrapper to satisfy the io.Reader interface.
-type stringReader struct {
-	s string
-	i int
-}
-
-func (sr *stringReader) Read(b []byte) (int, error) {
-	if sr.i >= len(sr.s) {
-		return 0, nil // io.EOF is implicit
-	}
-	n := copy(b, sr.s[sr.i:])
-	sr.i += n
-	return n, nil
-}
-
-func stringToReader(s string) *stringReader {
-	return &stringReader{s: s}
 }
