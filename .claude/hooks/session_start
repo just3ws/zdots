@@ -4,7 +4,11 @@
 # Called by: Claude Code harness when SessionStart event fires.
 # Purpose: Make PHI safety constraints and capabilities visible to agents.
 
-set -euo pipefail
+# Detect sourced (cc-home) vs executed (Claude Code harness). When sourced,
+# `set -e` and `exit` leak into — or kill — the calling shell, so we guard both.
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then _HOOK_SOURCED=1; else _HOOK_SOURCED=0; fi
+
+[[ $_HOOK_SOURCED -eq 0 ]] && set -euo pipefail
 
 # Resolve $HOME to handle symlinks/edge cases
 HOME="${HOME:-$(cd ~; pwd)}"
@@ -93,4 +97,31 @@ export CLAUDE_SESSION_START_TIME="$claude_session_start_time"
 export CLAUDE_SESSION_CONTEXT="${ZDOTS_CONTEXT}"
 export CLAUDE_AI_MODE="${ZDOTS_AI_MODE}"
 
-exit 0
+# ============================================================================
+# 5. Peer Capabilities + Personal OS Readiness  (sourced callers only)
+# ============================================================================
+# Exports here only reach a caller that *sources* this hook (cc-home). When the
+# harness *executes* the hook, child-process exports evaporate — so skip the
+# work (two doctor probes + two source reads) on that path to keep CC startup
+# fast. Both capability files are idempotent and ${VAR:-default}-guarded.
+
+if [[ $_HOOK_SOURCED -eq 1 ]]; then
+  zdots_caps_file="${ZDOTS_DIR:-$HOME/.config/zsh}/etc/capabilities.sh"
+  adots_caps_file="${ADOTS_CONFIG_DIR:-$HOME/.config/adots}/capabilities.sh"
+  # shellcheck source=/dev/null
+  [[ -f "$zdots_caps_file" ]] && source "$zdots_caps_file" 2>/dev/null || true
+  # shellcheck source=/dev/null
+  [[ -f "$adots_caps_file" ]] && source "$adots_caps_file" 2>/dev/null || true
+
+  # Soft health probes. Never block the session; just record posture.
+  zdots_healthy=0
+  { command -v zdots-doctor >/dev/null 2>&1 && zdots-doctor --no-runtime >/dev/null 2>&1 && zdots_healthy=1; } || true
+  adots_healthy=0
+  { command -v adots-doctor >/dev/null 2>&1 && adots-doctor >/dev/null 2>&1 && adots_healthy=1; } || true
+
+  export ZDOTS_HEALTHY="$zdots_healthy"
+  export ADOTS_HEALTHY="$adots_healthy"
+  export PERSONAL_OS_READY=$(( zdots_healthy & adots_healthy ))
+fi
+
+if [[ $_HOOK_SOURCED -eq 1 ]]; then return 0; else exit 0; fi
