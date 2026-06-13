@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# cc-home — launch Claude Code in home directory with personal OS context
+#
+# Usage:
+#   cc-home [prompt]
+#
+# Behavior:
+#   - Changes to $HOME
+#   - Sources session_start hook (loads both zdots + adots capabilities)
+#   - Prints context (peers, capabilities count, ready status)
+#   - Launches Claude Code with optional prompt
+#
+# Examples:
+#   cc-home                                      # launch, no prompt
+#   cc-home "help me understand the architecture"
+#   cc-home "fix the PHI scrubber bug"
+
+set -euo pipefail
+
+# Ensure we're in $HOME
+cd "$HOME" || exit 1
+
+# Source session_start hook to load capabilities and peer status
+ZDOTS_DIR="${ZDOTS_DIR:-$HOME/.config/zsh}"
+ADOTS_DIR="${ADOTS_DIR:-$HOME/.config/adots}"
+
+# Source session_start if it exists
+if [[ -f "$ZDOTS_DIR/.claude/hooks/session_start" ]]; then
+  source "$ZDOTS_DIR/.claude/hooks/session_start" 2>/dev/null || true
+fi
+
+# Build context banner
+zdots_status="❌"
+adots_status="❌"
+zdots_count="0"
+adots_count="0"
+
+# Check zdots health
+if command -v zdots-doctor >/dev/null 2>&1; then
+  if zdots-doctor --no-runtime >/dev/null 2>&1; then
+    zdots_status="✓"
+  fi
+fi
+
+# Check adots health
+if command -v adots-doctor >/dev/null 2>&1; then
+  if adots-doctor >/dev/null 2>&1; then
+    adots_status="✓"
+  fi
+fi
+
+# Count capabilities
+if [[ -n "${ZDOTS_ALL_CAPABILITIES[*]:-}" ]]; then
+  zdots_count="${#ZDOTS_ALL_CAPABILITIES[@]}"
+fi
+if [[ -n "${ADOTS_ALL_CAPABILITIES[*]:-}" ]]; then
+  adots_count="${#ADOTS_ALL_CAPABILITIES[@]}"
+fi
+
+# Print context banner
+cat <<EOF
+
+╔════════════════════════════════════════════════════════════════╗
+║           Personal OS — Claude Code Session Start              ║
+╚════════════════════════════════════════════════════════════════╝
+
+📍 Location: $HOME (personal workspace)
+
+Peer Status:
+  zdots (infrastructure):     $zdots_status   ($zdots_count capabilities)
+  adots (home management):    $adots_status   ($adots_count capabilities)
+
+Architecture:
+  • zdots manages: services, observability, knowledge layer, CLI tools
+  • adots manages: home directory structure, profiles, dotfiles
+  • Both peers are monitored together; both healthy = PERSONAL_OS_READY
+
+Available Commands:
+  zdots-ctx query <term>      # query knowledge base
+  zdots-ctx export-wiki       # export knowledge to markdown
+  zsvc list|start|stop <svc>  # service control (llama, postgres, etc.)
+  adots sync                  # pull home dotfile changes
+  adots-profile get|set|list  # manage machine profiles
+  adots-doctor                # check home layout health
+  zdots-doctor                # check infrastructure health
+
+Documentation:
+  Read: docs/agents/personal-os-abstraction.md (agent decision guide)
+
+Session Context:
+  • PERSONAL_OS_READY=$PERSONAL_OS_READY (1=both healthy, 0=degraded)
+  • ZDOTS_DIR=$ZDOTS_DIR
+  • ADOTS_DIR=$ADOTS_DIR
+
+EOF
+
+# Launch Claude Code
+if [[ $# -gt 0 ]]; then
+  # With prompt
+  claude "$@"
+else
+  # Interactive
+  claude
+fi
