@@ -39,7 +39,8 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 
 # Git Shorthands
-alias gs='git status --short'
+# `gs` intentionally unaliased — ghostscript (Brewfile) owns the `gs` binary.
+# Use `gss` for `git status --short`.
 alias gss='git status --short'
 alias gba='git branch --all'
 alias gco='git checkout'
