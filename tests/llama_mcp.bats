@@ -24,7 +24,8 @@ _mcp() {
 }
 
 _call_tool() {
-  local name="$1" args="${2:-{}}"
+  local name="$1" args="$2"
+  [[ -z "$args" ]] && args='{}'
   _mcp "{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/call\",\"params\":{\"name\":\"${name}\",\"arguments\":${args}}}"
 }
 
