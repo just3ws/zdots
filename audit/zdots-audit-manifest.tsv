@@ -1,0 +1,49 @@
+path	directory	file_type	executable	referenced_by	system_used	human_useful	ai_context_useful	test_coverage	docs_coverage	recommended_action	confidence	risk	notes
+bin/zsynod_tui.py	bin	python	no	none	no	no	no	none	none	relocate_candidate	high	low	Non-executable Python TUI in bin/; belongs in experiments/zsynod/
+bin/__pycache__/	bin	bytecode	no	none	no	no	no	none	none	delete_candidate	high	low	Python cache in bin/ — pollution; remove when zsynod_tui.py is relocated
+bin/zdots-phi-scrub	bin	go-binary	yes	lib/phi_scrubber.bash,startup	yes	yes	no	partial	docs/wiki/PHI-Safety.md	keep	high	high	SACRED: PHI Scrubber binary; do not touch
+bin/ctx-mcp	bin	ruby-script	yes	.mcp.json,~/.claude.json,tests/mcp.bats	yes	no	yes	yes	docs/tooling.md	keep	high	high	Knowledge Layer MCP server; has tests; 5 unadvertised write tools (needs_human_review for that gap)
+bin/ctx-mcp-register	bin	bash-script	yes	manual/docs	no	yes	no	partial	inline --help	keep_with_note	high	low	Claude Desktop only; redundant with .mcp.json for Claude Code; doc gap
+bin/llama-mcp	bin	ruby-script	yes	.mcp.json,gemini-mcp-register	yes	no	yes	none	none	keep_with_note	high	medium	625 lines, 5 tools, ZERO protocol tests; create tests/llama_mcp.bats
+bin/gemini-mcp-register	bin	bash-script	yes	tests/gemini_mcp_register.bats,docs	no	yes	no	yes	docs/tooling.md	keep	high	low	Well-tested, idempotent, scoped correctly
+bin/zdots-secret-scan	bin	go-binary	yes	commit-msg,pre-commit,settings	yes	yes	no	none	none	keep	high	low	New Go binary shim; lacks docs_contract entry
+bin/colima-status	bin	bash-script	yes	AGENTS.md,CLAUDE.md,multiple scripts	yes	yes	yes	none	AGENTS.md	keep	high	low	Authoritative Colima status; missing from docs_contract
+bin/cc-hook-guard	bin	bash-script	yes	.claude/settings.json (PreToolUse)	yes	no	no	none	known-gaps	keep	high	high	PHI/security gate hook; sacred
+bin/cc-hook-lint	bin	bash-script	yes	.claude/settings.json (PostToolUse)	yes	no	no	none	known-gaps	keep	high	medium	CC hook; sacred
+bin/cc-hook-session	bin	bash-script	yes	.claude/settings.json (SessionStart)	yes	no	no	none	known-gaps	keep	high	medium	CC hook; emits session brief; sacred
+bin/cc-statusline	bin	bash-script	yes	.claude/settings.json (statusLine)	yes	no	no	none	known-gaps	keep	high	low	CC statusline; sacred
+bin/zdots-ctx	bin	ruby-script	yes	AGENTS.md,CLAUDE.md,multiple	yes	yes	yes	partial	docs/wiki/AI-and-Knowledge-Layer.md	keep	high	high	Knowledge Layer CLI; sacred
+bin/zdots-ctl	bin	bash-script	yes	AGENTS.md,CLAUDE.md,tests,docs	yes	yes	yes	yes	CLAUDE.md	keep	high	high	Platform orchestrator; sacred
+bin/zdots-ask	bin	bash-script	yes	AGENTS.md,tests,docs	yes	yes	yes	yes	AGENTS.md	keep	high	medium	Domain-aware AI router; sacred
+bin/zdots-issue	bin	bash-script	yes	AGENTS.md,CLAUDE.md	yes	yes	yes	partial	known-gaps	keep_with_note	high	low	Issue filer; --help exits 2 (known-gap Z-119)
+bin/zsynod-migrate	bin	python-script	yes	unknown	unknown	yes	no	none	none	keep_with_note	medium	low	Ledger migration tool; one-time vs recurring unclear
+bin/trace-verify	bin	sh-script	yes	unknown	unknown	yes	no	none	known-gaps	keep	medium	low	Contract testing; known-gap (--help treats arg as session ID)
+bin/zdots-ingest-prepare	bin	bash-script	yes	unknown	unknown	yes	no	none	none	keep	medium	low	Doc ingestion preprocessor; no docs_contract entry
+bin/zdots-mlx-prepare	bin	python-script	yes	unknown	unknown	unknown	no	none	none	keep_with_note	low	low	MLX inference prep; unclear if still active
+bin/pi-ctx-query	bin	bash-script	yes	AGENTS.md (pi-ctx-query tool)	yes	yes	yes	none	AGENTS.md	keep	high	low	Pi context query; missing from docs_contract and docs/
+bin/pi-ctx-hydrate	bin	bash-script	yes	AGENTS.md	yes	yes	yes	none	AGENTS.md	keep	high	low	Pi context hydrate; missing from docs_contract and docs/
+bin/pi-ctx-status	bin	bash-script	yes	AGENTS.md	yes	yes	yes	none	AGENTS.md	keep	high	low	Pi context status; missing from docs_contract
+bin/pi-ctx-brief	bin	bash-script	yes	AGENTS.md	yes	yes	yes	none	AGENTS.md	keep	high	low	Pi context brief; missing from docs_contract
+sbin/zdots-brain	sbin	go-binary	yes	zdots-ctx,migrations	yes	no	no	none	CLAUDE.md/db section	keep	high	high	Knowledge Layer binary; sacred; not on user PATH
+sbin/zdots-recommend	sbin	ruby-script	yes	unknown	unknown	yes	no	none	none	keep	medium	low	Operational recommendations viewer; in sbin (correct)
+inspect_mlx.py	root	python-script	no	none	no	no	no	none	none	relocate_candidate	medium	low	MLX investigation script Jun 9; tracked in git root; belongs in experiments/
+inspect_mlx_stream.py	root	python-script	no	none	no	no	no	none	none	relocate_candidate	medium	low	MLX stream inspection Jun 9; tracked in root
+mlx_benchmark_20260609_195045.json	root	data-file	no	none	no	no	no	none	none	delete_candidate	medium	low	Benchmark data artifact; not source; no references
+mlx_help.txt	root	text-file	no	none	no	no	no	none	none	delete_candidate	medium	low	MLX help snippet; not source
+test_pack.lua	root	lua-script	no	unknown	unknown	unknown	no	none	none	needs_human_review	low	low	Modified Jun 12 (very recent); unknown purpose; do not delete without operator confirmation
+zdots_system_audit.md	root	markdown	no	unknown	no	yes	no	none	none	keep_with_note	medium	low	Previous audit (May 29); historical reference; consider moving to audit/
+AUDIT.md	root	markdown	no	unknown	no	yes	no	none	none	keep_with_note	medium	low	Belief integrity audit (May 29); check if referenced from anywhere
+experiments/zsynod/	experiments	directory	n/a	backlog tasks,tests,lib/	yes	yes	yes	yes (10 bats)	experiments/zsynod/README.md	needs_human_review	high	medium	zsynod has outgrown experiments/ — promotion decision needed
+experiments/enable-zsynod.sh	experiments	bash-script	yes	unknown	unknown	yes	no	none	none	keep_with_note	medium	low	Enable script; verify still current with zsynod architecture
+lib/zsynod_core.py	lib	python-module	no	tests/zsynod_core_py.bats	yes	no	yes	yes	none	needs_human_review	medium	medium	Python module in lib/ (bash convention); tested; operator architecture decision needed
+lib/zsynod_otel.py	lib	python-module	no	unknown	unknown	no	no	unknown	none	needs_human_review	medium	medium	Same issue as lib/zsynod_core.py
+functions/enabled/_zsynod	functions	zsh-function	n/a	shell startup	yes	no	yes	none	none	needs_human_review	medium	high	Shell startup path; sacred area; needs verification of function purpose
+man/man1/zsynod.1	man	man-page	no	unknown	unknown	yes	no	none	none	keep_with_note	medium	low	Verify vs share/man/man1/zsynod.1 (potential duplicate)
+share/man/man1/zsynod.1	share/man	man-page	no	unknown	unknown	yes	no	none	none	keep_with_note	medium	low	Potential duplicate of man/man1/zsynod.1
+.agents/skills/ (all 16)	.agents	skill-dirs	n/a	CLAUDE.md,agents	yes	no	yes	none	CLAUDE.md	keep	high	low	All 16 have SKILL.md + valid YAML; ADR dependencies satisfied
+.agents/.DS_Store	.agents	macos-meta	no	none	no	no	no	none	none	delete_candidate	high	low	macOS metadata; should be in .gitignore
+.agents/skills/.DS_Store	.agents/skills	macos-meta	no	none	no	no	no	none	none	delete_candidate	high	low	macOS metadata
+.mcp.json	root	json-config	no	Claude Code,claude.json	yes	no	yes	none	CLAUDE.md	keep_with_note	high	low	Canonical MCP config; dual-registration with ~/.claude.json (divergence risk)
+docs/adr/ (2 ADRs)	docs	markdown	n/a	skills,CLAUDE.md	yes	yes	yes	none	AGENTS.md	keep	high	low	EXISTS; skills correctly wired
+tests/docs_contract.bats	tests	bats-test	n/a	make test,CI	yes	no	no	n/a	testing.md	keep	high	low	EXISTS; covers ~47 commands; known-gaps file formalizes remaining gaps
+backlog/tasks/ (30 Done)	backlog	markdown	n/a	backlog CLI	no	yes	no	n/a	n/a	close_backlog_task	high	low	30 Done tasks not yet moved to completed/
