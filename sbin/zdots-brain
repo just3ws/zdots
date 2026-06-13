@@ -11,6 +11,7 @@ require_relative "../lib/zdots/jobs/transcription"
 require_relative "../lib/zdots/jobs/distill"
 require_relative "../lib/zdots/jobs/embed"
 require_relative "../lib/zdots/jobs/docs_sync"
+require_relative "../lib/zdots/wiki_exporter"
 
 require "optparse"
 require "json"
@@ -55,6 +56,8 @@ module Zdots
         cmd_sync_history(args)
       when "rekey"
         cmd_rekey(args)
+      when "export-wiki"
+        cmd_export_wiki(args)
       else
         puts "Unknown command: #{command}"
         exit 1
@@ -720,6 +723,15 @@ module Zdots
       puts "  unreadable  : #{errors}"
 
       exit(errors.positive? ? 1 : 0)
+    end
+
+    def cmd_export_wiki(args = [])
+      wiki_dir = args[0] || File.join(File.dirname(__dir__), "docs", "wiki")
+      exporter = Zdots::WikiExporter.new(wiki_dir)
+      exporter.run
+    rescue StandardError => e
+      puts "zdots-brain export-wiki: error: #{e.message}"
+      exit 1
     end
 
     def cmd_status

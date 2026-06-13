@@ -84,6 +84,7 @@ Knowledge Layer Interface:
   add-lesson <content> [context] [tags...]
   ingest [--dry-run] <file.md | dir/> | --all  Ingest Knowledge Vault documents
   sync-history [--dry-run] [db-path]  Sync SQLite analytics → PostgreSQL
+  export-wiki [dir]    Export knowledge base to markdown wiki (default: docs/wiki/)
   enqueue [--force] <type> <payload_json> [priority]
   requeue <job_id>
   jobs      List pending and recent jobs
@@ -767,6 +768,7 @@ case "${1:-}" in
   add-methodology) shift; cmd_add_methodology "${@}" ;;
   add-lesson)      shift; cmd_add_lesson "${@}" ;;
   ingest)          shift; cmd_ingest "${@}" ;;
+  export-wiki)     shift; "${ZDOTDIR}/sbin/zdots-brain" export-wiki "${@}" ;;
   sync-history)    shift; cmd_sync_history "${@}" ;;
   enqueue)         shift; cmd_enqueue "${@}" ;;
   requeue)         shift; cmd_requeue "${@}" ;;
