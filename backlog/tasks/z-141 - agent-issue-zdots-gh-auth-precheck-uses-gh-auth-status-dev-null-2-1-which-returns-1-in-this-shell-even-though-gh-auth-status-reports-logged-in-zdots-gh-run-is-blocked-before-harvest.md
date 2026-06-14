@@ -7,9 +7,11 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-09 18:26'
+updated_date: '2026-06-14 18:37'
 labels:
   - agent-reported
   - bug
+  - wave4
 dependencies: []
 priority: high
 ordinal: 32890
