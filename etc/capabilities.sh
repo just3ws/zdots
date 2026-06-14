@@ -345,7 +345,7 @@ declare -ga ZDOTS_CAPABILITIES_DEVELOPMENT=(
 
   # Schema and migration introspection
   "dev:ingest-prepare:zdots-ingest-prepare                — Prepare data for database ingest"
-  "dev:my-sync:zdots-my-sync                              — Sync ~/my to/from remote"
+  "dev:my-sync:zdots-my-sync                              — Delegate ~/my structure validation to adots-my"
 )
 
 # ────────────────────────────────────────────────────────────────────────────

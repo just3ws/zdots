@@ -524,6 +524,23 @@ else
   _skip "adots-doctor  not found (optional peer; home blanket tracking disabled)"
 fi
 
+_adots_my_rc=0
+_adots_my_output=""
+if command -v adots-my >/dev/null 2>&1; then
+  _adots_my_output=$(adots-my doctor --quiet 2>&1) || _adots_my_rc=$?
+  if [[ $_adots_my_rc -eq 0 ]]; then
+    _pass "adots-my doctor  ~/my structure delegated and ready"
+  else
+    # adots supervises ~/my structure; zdots reports this as peer drift.
+    _warn "adots-my doctor  returned exit code ${_adots_my_rc} — check with: adots-my doctor"
+    if [[ "$QUIET" -eq 0 ]]; then
+      printf '%s\n' "$_adots_my_output" | sed 's/^/             /'
+    fi
+  fi
+else
+  _skip "adots-my doctor  not found (optional peer; ~/my setup validation unavailable)"
+fi
+
 # ---------------------------------------------------------------------------
 # JSON output (if requested)
 # ---------------------------------------------------------------------------
@@ -535,6 +552,7 @@ if [[ $JSON_MODE -eq 1 ]]; then
     --argjson warnings "$_WARN" \
     --argjson failures "$_FAIL" \
     --argjson adots_rc "$_adots_rc" \
+    --argjson adots_my_rc "$_adots_my_rc" \
     '{
       status: $status,
       checks: {
@@ -544,7 +562,9 @@ if [[ $JSON_MODE -eq 1 ]]; then
       },
       peer_adots: {
         rc: $adots_rc,
-        healthy: ($adots_rc == 0)
+        healthy: ($adots_rc == 0),
+        my_doctor_rc: $adots_my_rc,
+        my_ready: ($adots_my_rc == 0)
       }
     }'
   exit $_FAIL
