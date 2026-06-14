@@ -68,6 +68,8 @@ alias zreview='diff-review'                           # review staged diff for i
 alias zhistory='history-analyze'                      # shell history frequency report
 alias zhistory-ai='history-analyze --ai'              # + AI optimization suggestions
 alias zaliases='alias-suggest'                        # suggest aliases from history
+alias zintel='history-intelligence'                   # Seam ⑦ — synthesized interface signals
+alias zdebrief='session-debrief'                       # curate session signals → Knowledge Layer
 
 # Fabric-AI Integration (Pattern-based Intelligence)
 alias fabric='fabric-ai'

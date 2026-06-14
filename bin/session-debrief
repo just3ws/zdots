@@ -1,0 +1,268 @@
+#!/usr/bin/env bash
+# ---
+# id: session-debrief
+# title: "Zdots Session Debrief — Infer → Curate write-back"
+# purpose: Turn synthesized interface signals (history-intelligence) into durable
+#          Lessons in the Knowledge Layer. Closes the Virtuous Loop.
+# rationale: history-intelligence (Seam ⑦) produces the Infer step but its signals
+#            evaporate when the shell closes. This writes them back as curated,
+#            atomic, tagged Lessons — the Curate step — so the next session (human
+#            or agent) inherits what this one learned.
+# ---
+#
+# THE LOOP: Work → Capture → Curate → Infer → Repeat.
+#   history-intelligence  = Infer  (synthesize runtime data into signals)
+#   session-debrief       = Curate (persist actionable signals as Lessons)
+#   zdots-ctx hydrate     = Repeat (next session reads the Lessons back)
+#
+# PHI POSTURE: the signals this consumes are counts (scrub_failure: 21) plus
+# generic templated messages and bare command NAMES (e.g. "zdots-doctor"), never
+# command arguments, cwd, or history text. command_runs names are already
+# PHI-redacted at write time (conf.d/56-cmd-analytics.zsh). The debrief is
+# therefore PHI-safe by construction; it reads local data and writes to the
+# local Knowledge Layer only.
+#
+# Orchestration glue (bash + jq), mirroring zdots-ctx cmd_capture conventions:
+# read JSON, build records with jq, write via the zdots-ctx interface.
+
+set -uo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+# Tool paths are env-overridable so tests can stub the read (history-intelligence)
+# and write (zdots-ctx) sides without a live db or Knowledge Layer.
+HI_BIN="${SESSION_DEBRIEF_HI:-$ZDOTDIR/bin/history-intelligence}"
+CTX_BIN="${SESSION_DEBRIEF_CTX:-$ZDOTDIR/bin/zdots-ctx}"
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zdots"
+SEEN_FILE="$STATE_DIR/session-debrief.seen"
+
+WINDOW=1
+MIN_SEVERITY="medium"
+DB_PATH=""
+INPUT=""
+OPT_DRY_RUN=false
+OPT_YES=false
+OPT_JSON=false
+OPT_NO_DEDUP=false
+
+usage() {
+  cat <<EOF
+Usage: session-debrief [OPTIONS]
+
+Synthesize the session's interface signals (via history-intelligence) into
+durable Lessons in the Knowledge Layer. Closes the Infer → Curate step of the
+Virtuous Loop.
+
+Options:
+  --window DAYS      Analysis window passed to history-intelligence (default: $WINDOW)
+  --min-severity S   Lowest severity to curate: high|medium|info (default: $MIN_SEVERITY)
+  --dry-run          Show proposed Lessons without writing
+  --yes              Write without interactive confirmation
+  --json             Emit proposed Lessons as JSON (implies --dry-run unless --yes)
+  --no-dedup         Curate even signals already debriefed before
+  --input FILE       Read history-intelligence JSON from FILE ('-' for stdin)
+                     instead of invoking history-intelligence
+  --db PATH          history.sqlite3 path (passed through to history-intelligence)
+  -h, --help         Show this message
+
+Behavior:
+  Each actionable signal becomes one atomic Lesson (content = signal message,
+  context = "session-debrief DATE", tags = kind + session-debrief). Signals seen
+  in a previous debrief are skipped unless --no-dedup. High-severity signals are
+  flagged as candidates for 'zdots-issue' but never auto-filed.
+
+Examples:
+  session-debrief --dry-run            # preview today's Lessons
+  session-debrief --yes                # curate today's signals, no prompt
+  session-debrief --window 7           # debrief the week
+  history-intelligence --json | session-debrief --input -
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --window)       WINDOW="${2:-}"; shift ;;
+    --min-severity) MIN_SEVERITY="${2:-}"; shift ;;
+    --db)           DB_PATH="${2:-}"; shift ;;
+    --input)        INPUT="${2:-}"; shift ;;
+    --dry-run)      OPT_DRY_RUN=true ;;
+    --yes)          OPT_YES=true ;;
+    --json)         OPT_JSON=true ;;
+    --no-dedup)     OPT_NO_DEDUP=true ;;
+    -h|--help)      usage; exit 0 ;;
+    *) printf 'session-debrief: unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+  esac
+  shift
+done
+
+command -v jq >/dev/null 2>&1 || { printf 'session-debrief: jq is required\n' >&2; exit 1; }
+
+# Severity floor → numeric for comparison.
+sev_rank() {
+  case "$1" in
+    high) echo 3 ;;
+    medium) echo 2 ;;
+    info|low) echo 1 ;;
+    *) echo 0 ;;
+  esac
+}
+MIN_RANK=$(sev_rank "$MIN_SEVERITY")
+
+# 1. Obtain the history-intelligence report (signals).
+hi_json=""
+if [[ -n "$INPUT" ]]; then
+  if [[ "$INPUT" == "-" ]]; then
+    hi_json="$(cat)"
+  elif [[ -r "$INPUT" ]]; then
+    hi_json="$(cat "$INPUT")"
+  else
+    printf 'session-debrief: cannot read --input %s\n' "$INPUT" >&2
+    exit 1
+  fi
+else
+  if [[ ! -x "$HI_BIN" ]]; then
+    printf 'session-debrief: history-intelligence not found at %s\n' "$HI_BIN" >&2
+    exit 1
+  fi
+  hi_args=(--json --window "$WINDOW" --no-atuin)
+  [[ -n "$DB_PATH" ]] && hi_args+=(--db "$DB_PATH")
+  hi_json="$("$HI_BIN" "${hi_args[@]}" 2>/dev/null)"
+fi
+
+if ! printf '%s' "$hi_json" | jq -e . >/dev/null 2>&1; then
+  printf 'session-debrief: history-intelligence did not return valid JSON\n' >&2
+  exit 1
+fi
+
+window_days=$(printf '%s' "$hi_json" | jq -r '.window_days // empty')
+[[ -z "$window_days" ]] && window_days="$WINDOW"
+debrief_date="$(date '+%Y-%m-%d')"
+context="session-debrief ${debrief_date} (${window_days}d window)"
+
+# 2. Select actionable signals at/above the severity floor.
+#    Emit one TSV row per signal: rank<TAB>severity<TAB>kind<TAB>message
+mapfile -t rows < <(printf '%s' "$hi_json" | jq -r --argjson floor "$MIN_RANK" '
+  def rank: if . == "high" then 3 elif . == "medium" then 2
+            elif . == "info" or . == "low" then 1 else 0 end;
+  .signals[]
+  | select((.severity | rank) >= $floor)
+  | [(.severity | rank), .severity, .kind, .message] | @tsv
+')
+
+# 3. Build the proposed Lessons (dedup against the seen file).
+mkdir -p "$STATE_DIR" 2>/dev/null
+# Assign empty (not bare `declare -a`) so `${#arr[@]}` is "set" under `set -u`
+# even when every signal is deduped and nothing is appended.
+proposed_content=()
+proposed_tags=()
+proposed_sev=()
+proposed_keys=()
+high_count=0
+skipped=0
+
+for row in "${rows[@]}"; do
+  [[ -z "$row" ]] && continue
+  IFS=$'\t' read -r _rank severity kind message <<<"$row"
+  key="$(printf '%s:%s' "$kind" "$message" | md5 2>/dev/null || printf '%s:%s' "$kind" "$message" | md5sum | awk '{print $1}')"
+
+  if [[ "$OPT_NO_DEDUP" != true && -f "$SEEN_FILE" ]] && grep -qxF "$key" "$SEEN_FILE" 2>/dev/null; then
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  case "$kind" in
+    phi)         tags="phi session-debrief accountability" ;;
+    performance) tags="performance session-debrief" ;;
+    reliability) tags="reliability session-debrief" ;;
+    capture)     tags="capture session-debrief" ;;
+    *)           tags="$kind session-debrief" ;;
+  esac
+
+  proposed_content+=("$message")
+  proposed_tags+=("$tags")
+  proposed_sev+=("$severity")
+  proposed_keys+=("$key")
+  [[ "$severity" == "high" ]] && high_count=$((high_count + 1))
+done
+
+n=${#proposed_content[@]}
+
+# 4. JSON surface.
+if [[ "$OPT_JSON" == true ]]; then
+  json_out='[]'
+  for ((i = 0; i < n; i++)); do
+    json_out=$(jq \
+      --arg content "${proposed_content[$i]}" \
+      --arg context "$context" \
+      --arg severity "${proposed_sev[$i]}" \
+      --arg tags "${proposed_tags[$i]}" \
+      '. + [{content: $content, context: $context, severity: $severity,
+             tags: ($tags | split(" "))}]' <<<"$json_out")
+  done
+  jq -n --argjson lessons "$json_out" --arg context "$context" \
+        --argjson skipped "$skipped" --argjson high "$high_count" \
+    '{schema: "zdots.session-debrief.v1", context: $context,
+      proposed: ($lessons | length), skipped_seen: $skipped,
+      high_severity: $high, lessons: $lessons}'
+  # --json is a preview unless --yes also given.
+  [[ "$OPT_YES" != true ]] && exit 0
+fi
+
+# 5. Nothing to do.
+if [[ "$n" -eq 0 ]]; then
+  [[ "$OPT_JSON" != true ]] && printf 'session-debrief: no new signals to curate (%d already debriefed).\n' "$skipped"
+  exit 0
+fi
+
+# 6. Human preview.
+if [[ "$OPT_JSON" != true ]]; then
+  printf '\n── Proposed Session Debrief (%s) ──\n' "$context"
+  for ((i = 0; i < n; i++)); do
+    printf '  [%s] %s\n         tags: %s\n' \
+      "${proposed_sev[$i]}" "${proposed_content[$i]}" "${proposed_tags[$i]}"
+  done
+  [[ "$skipped" -gt 0 ]] && printf '  (%d signal(s) already debriefed, skipped)\n' "$skipped"
+  if [[ "$high_count" -gt 0 ]]; then
+    printf '\n  %d high-severity signal(s) — consider: zdots-issue --high "<signal>"\n' "$high_count"
+  fi
+  printf '\n'
+fi
+
+# 7. Confirm unless --yes.
+if [[ "$OPT_DRY_RUN" == true ]]; then
+  printf 'session-debrief: dry run — nothing written.\n'
+  exit 0
+fi
+if [[ "$OPT_YES" != true ]]; then
+  printf 'Curate these %d Lesson(s) to the Knowledge Layer? [y/N] ' "$n"
+  read -r response
+  [[ "$response" =~ ^[Yy]$ ]] || { printf 'session-debrief: aborted.\n'; exit 0; }
+fi
+
+# 8. Write via the zdots-ctx interface. Record each curated key in the seen file
+#    only on a successful write so failures can be retried.
+if [[ ! -x "$CTX_BIN" ]]; then
+  printf 'session-debrief: zdots-ctx not found at %s — cannot write.\n' "$CTX_BIN" >&2
+  exit 1
+fi
+
+written=0
+failed=0
+for ((i = 0; i < n; i++)); do
+  # shellcheck disable=SC2086 # tags intentionally word-split into positional args
+  if "$CTX_BIN" add-lesson "${proposed_content[$i]}" "$context" ${proposed_tags[$i]} >/dev/null 2>&1; then
+    written=$((written + 1))
+    printf '%s\n' "${proposed_keys[$i]}" >> "$SEEN_FILE"
+  else
+    failed=$((failed + 1))
+    printf 'session-debrief: write failed for: %s\n' "${proposed_content[$i]}" >&2
+  fi
+done
+
+printf 'session-debrief: %d Lesson(s) curated' "$written"
+[[ "$failed" -gt 0 ]] && printf ', %d failed' "$failed"
+printf '.\n'
+[[ "$failed" -gt 0 ]] && exit 1
+exit 0

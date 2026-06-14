@@ -74,8 +74,12 @@ closed.
   agents; `--gate` exits non-zero on a high-severity signal for hooks/CI.
 - **14 bats tests** (`tests/history_intelligence.bats`), docs-contract entry.
 
-**Remaining**: `session-debrief` (write synthesized lessons back to the Knowledge
-Layer) closes the loop back to Capture/Curate — still unbuilt.
+**Loop closed (2026-06-13):** `bin/session-debrief` curates the actionable signals
+into atomic, tagged Lessons via `zdots-ctx add-lesson` (the Curate step); the next
+session reads them back through `zdots-ctx hydrate` (Repeat). Dedups via a seen-file;
+flags high-severity signals as `zdots-issue` candidates without auto-filing. 17 bats
+tests. The full Virtuous Loop (Work → Capture → Infer → Curate → Repeat) now exists
+in code.
 
 ---
 
@@ -198,8 +202,8 @@ Without skills that read and surface that data, the loop is: Work → Capture �
 | **P0** | `zdots-gh` Z-141: inspect `gh auth status` output; fix precheck logic |
 | **DONE** | ~~Build `history-intelligence`~~ — `bin/history-intelligence` ships (Seam ⑦); wired into zmorning; 14 tests |
 | **DONE** | ~~Add atuin + intelligence layer to `platform-dependency-graph.md`~~ — Seam ⑦ documented + realized |
+| **DONE** | ~~Build `session-debrief`~~ — `bin/session-debrief` ships; closes the Virtuous Loop (Infer → Curate → Repeat); 17 tests |
 | **P1** | Fix Z-111 (MCP structured errors) before expanding MCP to other agents |
-| **P1** | Build `session-debrief` skill — write `history-intelligence` signals back to the Knowledge Layer; closes the Virtuous Loop |
 | **P2** | Register MCP for Gemini CLI |
 | **P2** | Investigate D-2 (phi-history 256ms spike) — consider `zdots-phi-scrub` daemon mode |
 | **P3** | Build remaining 5 missing skills (phi-audit, mcp-debug, zdots-diagnose, zsynod-onboard, interface-recommend) |
