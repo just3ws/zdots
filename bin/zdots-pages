@@ -21,6 +21,10 @@
 #
 # Options:
 #   --repo DIR        operate on another repo (default: current git toplevel)
+#   --git-dir DIR     operate on a BARE repo by its git dir (e.g. ~/.homegit);
+#                     requires --wiki-src (no working tree to infer docs from)
+#   --wiki-src DIR    override the docs source dir (default <root>/docs/wiki)
+#   --worktree DIR    override the gh-pages worktree path
 #   --allow-private   permit publishing a private repo (you accept the exposure)
 #   --push            perform the outward push (publish/wiki)
 #   -h, --help        this help
@@ -33,14 +37,17 @@ TEMPLATE_DIR="${ZDOTDIR:-$HOME/.config/zsh}/etc/pages"
 die()  { printf 'zdots-pages: %s\n' "$*" >&2; exit 1; }
 note() { printf 'zdots-pages: %s\n' "$*" >&2; }
 
-usage() { sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # --- repo context ----------------------------------------------------------
-REPO_DIR="" ALLOW_PRIVATE=0 DO_PUSH=0
+REPO_DIR="" GITDIR="" WIKI_SRC_OVERRIDE="" WORKTREE_OVERRIDE="" ALLOW_PRIVATE=0 DO_PUSH=0
 CMD="${1:-}"; shift || true
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo)          REPO_DIR="$2"; shift 2 ;;
+    --git-dir)       GITDIR="$2"; shift 2 ;;
+    --wiki-src)      WIKI_SRC_OVERRIDE="$2"; shift 2 ;;
+    --worktree)      WORKTREE_OVERRIDE="$2"; shift 2 ;;
     --allow-private) ALLOW_PRIVATE=1; shift ;;
     --push)          DO_PUSH=1; shift ;;
     -h|--help)       usage; exit 0 ;;
@@ -48,9 +55,32 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ "$CMD" == "-h" || "$CMD" == "--help" || -z "$CMD" ]] && { usage; exit 0; }
+if [[ "$CMD" == "-h" || "$CMD" == "--help" || -z "$CMD" ]]; then
+  usage; exit 0
+fi
 
 _resolve_repo() {
+  # GIT_BASE is the repo-side git invocation: `git -C <root>` in normal mode, or
+  # `git --git-dir=<dir>` for a BARE repo (no working tree to rev-parse from).
+  if [[ -n "$GITDIR" ]]; then
+    [[ -n "$WIKI_SRC_OVERRIDE" ]] \
+      || die "--git-dir requires --wiki-src DIR (a bare repo has no working tree to infer docs from)"
+    GIT_BASE=(git --git-dir="$GITDIR")
+    REPO_ROOT="$GITDIR"   # display/context label only; not a working tree
+    local url; url="$("${GIT_BASE[@]}" remote get-url origin 2>/dev/null)" \
+      || die "no 'origin' remote on $GITDIR"
+    NWO="$(printf '%s' "$url" | sed -E 's#(git@|https://)github.com[:/]##; s#\.git$##')"
+    OWNER="${NWO%%/*}"; REPO="${NWO##*/}"
+    WIKI_SRC="$WIKI_SRC_OVERRIDE"
+    local state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
+    if [[ -n "$WORKTREE_OVERRIDE" ]]; then
+      WORKTREE="$WORKTREE_OVERRIDE"
+    else
+      WORKTREE="$state_home/zdots-pages/$OWNER-$REPO.gh-pages"
+    fi
+    return 0
+  fi
+
   if [[ -n "$REPO_DIR" ]]; then
     REPO_ROOT="$(git -C "$REPO_DIR" rev-parse --show-toplevel 2>/dev/null)" \
       || die "not a git repo: $REPO_DIR"
@@ -58,13 +88,14 @@ _resolve_repo() {
     REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" \
       || die "not inside a git repo (use --repo DIR)"
   fi
-  local url; url="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null)" \
+  GIT_BASE=(git -C "$REPO_ROOT")
+  local url; url="$("${GIT_BASE[@]}" remote get-url origin 2>/dev/null)" \
     || die "no 'origin' remote on $REPO_ROOT"
   # owner/repo from either SSH or HTTPS form.
   NWO="$(printf '%s' "$url" | sed -E 's#(git@|https://)github.com[:/]##; s#\.git$##')"
   OWNER="${NWO%%/*}"; REPO="${NWO##*/}"
-  WORKTREE="$REPO_ROOT/$PAGES_DIRNAME"
-  WIKI_SRC="$REPO_ROOT/docs/wiki"
+  if [[ -n "$WORKTREE_OVERRIDE" ]]; then WORKTREE="$WORKTREE_OVERRIDE"; else WORKTREE="$REPO_ROOT/$PAGES_DIRNAME"; fi
+  if [[ -n "$WIKI_SRC_OVERRIDE" ]]; then WIKI_SRC="$WIKI_SRC_OVERRIDE"; else WIKI_SRC="$REPO_ROOT/docs/wiki"; fi
 }
 
 _visibility() {
@@ -92,7 +123,7 @@ cmd_status() {
   _resolve_repo
   local vis pages wiki_on
   vis="$(_visibility)"
-  pages=0; [[ -d "$WIKI_SRC" ]] && pages="$(find "$WIKI_SRC" -name '*.md' | wc -l | tr -d ' ')"
+  pages=0; if [[ -d "$WIKI_SRC" ]]; then pages="$(find "$WIKI_SRC" -name '*.md' | wc -l | tr -d ' ')"; fi
   wiki_on="$(gh repo view "$OWNER/$REPO" --json hasWikiEnabled -q '.hasWikiEnabled' 2>/dev/null || echo '?')"
   printf 'repo:        %s/%s\n' "$OWNER" "$REPO"
   printf 'root:        %s\n' "$REPO_ROOT"
@@ -100,27 +131,27 @@ cmd_status() {
   printf 'site URL:    https://%s.github.io/%s\n' "$OWNER" "$REPO"
   printf 'wiki source: %s (%s pages)\n' "$WIKI_SRC" "$pages"
   printf 'wiki on GH:  %s\n' "$wiki_on"
-  if git -C "$REPO_ROOT" show-ref --verify --quiet refs/heads/gh-pages; then
+  if "${GIT_BASE[@]}" show-ref --verify --quiet refs/heads/gh-pages; then
     printf 'gh-pages:    branch exists\n'
   else
     printf 'gh-pages:    not yet created (run: zdots-pages init)\n'
   fi
-  [[ -d "$WORKTREE" ]] && printf 'worktree:    %s\n' "$WORKTREE" || printf 'worktree:    (none)\n'
+  if [[ -d "$WORKTREE" ]]; then printf 'worktree:    %s\n' "$WORKTREE"; else printf 'worktree:    (none)\n'; fi
 }
 
 cmd_init() {
   _resolve_repo
   [[ -d "$WIKI_SRC" ]] || die "no docs/wiki/ in $REPO_ROOT — nothing to publish yet"
-  if git -C "$REPO_ROOT" show-ref --verify --quiet refs/heads/gh-pages; then
+  if "${GIT_BASE[@]}" show-ref --verify --quiet refs/heads/gh-pages; then
     note "gh-pages branch already exists"
   else
-    git -C "$REPO_ROOT" worktree add --detach "$WORKTREE" >/dev/null 2>&1 || true
+    "${GIT_BASE[@]}" worktree add --detach "$WORKTREE" >/dev/null 2>&1 || true
     git -C "$WORKTREE" checkout --orphan gh-pages
     git -C "$WORKTREE" rm -rf . >/dev/null 2>&1 || true
     note "created orphan gh-pages branch + worktree at $WORKTREE"
     return 0
   fi
-  [[ -d "$WORKTREE" ]] || git -C "$REPO_ROOT" worktree add "$WORKTREE" gh-pages >/dev/null
+  if [[ ! -d "$WORKTREE" ]]; then "${GIT_BASE[@]}" worktree add "$WORKTREE" gh-pages >/dev/null; fi
   note "worktree ready at $WORKTREE"
 }
 
@@ -132,7 +163,7 @@ cmd_build() {
 
   # Render the shared _config.yml for this repo.
   local desc; desc="$(gh repo view "$OWNER/$REPO" --json description -q '.description' 2>/dev/null || echo '')"
-  [[ -z "$desc" || "$desc" == "null" ]] && desc="$REPO documentation"
+  if [[ -z "$desc" || "$desc" == "null" ]]; then desc="$REPO documentation"; fi
   sed -e "s/@@TITLE@@/${REPO}/g" \
       -e "s/@@DESCRIPTION@@/${desc//\//\\/}/g" \
       -e "s/@@REPO@@/${REPO}/g" \
@@ -140,16 +171,23 @@ cmd_build() {
       "$TEMPLATE_DIR/_config.yml.template" > "$WORKTREE/_config.yml"
 
   # Copy each wiki page in, injecting front matter when absent. Home → index.
-  local n=0 order=1 f base title dest
+  # nav_order: Home is always 1; every non-Home page gets 2,3,4… in glob order.
+  # `next_order` advances only for non-Home pages so Home never resets it and
+  # the others can't collide. `page_order` holds the value for the current page.
+  local n=0 next_order=2 page_order f base title dest
   rm -f "$WORKTREE"/*.md 2>/dev/null || true
   for f in "$WIKI_SRC"/*.md; do
     [[ -e "$f" ]] || continue
     base="$(basename "$f" .md)"; title="$(_title_of "$f")"
-    if [[ "$base" == "Home" ]]; then dest="$WORKTREE/index.md"; order=1; else dest="$WORKTREE/$base.md"; order=$((order+1)); fi
+    if [[ "$base" == "Home" ]]; then
+      dest="$WORKTREE/index.md"; page_order=1
+    else
+      dest="$WORKTREE/$base.md"; page_order=$next_order; next_order=$((next_order+1))
+    fi
     if head -1 "$f" | grep -q '^---$'; then
       cp "$f" "$dest"                         # already has front matter
     else
-      { printf -- '---\ntitle: %s\nnav_order: %d\n' "$title" "$order"
+      { printf -- '---\ntitle: %s\nnav_order: %d\n' "$title" "$page_order"
         if [[ "$base" == "Home" ]]; then printf 'permalink: /\n'; fi
         printf -- '---\n\n'; cat "$f"; } > "$dest"
     fi

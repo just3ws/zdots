@@ -23,9 +23,12 @@ aux_links:
 aux_links_new_tab: true
 
 # jekyll-remote-theme is on the GitHub Pages plugin allowlist.
+# jekyll-relative-links rewrites [x](Page.md) links so they resolve on the Pages
+# site (the GitHub wiki already resolves them natively).
 plugins:
   - jekyll-remote-theme
   - jekyll-seo-tag
+  - jekyll-relative-links
 
 # Build hygiene — never publish drafts or the project's own tooling.
 exclude:
