@@ -29,3 +29,9 @@ rtk git diff with pathspec fails: 'rtk git diff -- Makefile' reports fatal bad r
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 rtk git diff -- <pathspec> no longer reports 'bad revision' (fixed upstream rtk 0.42.4)
+- [ ] #2 Regression guard added in tests/rtk_pathspec.bats
+<!-- AC:END -->
