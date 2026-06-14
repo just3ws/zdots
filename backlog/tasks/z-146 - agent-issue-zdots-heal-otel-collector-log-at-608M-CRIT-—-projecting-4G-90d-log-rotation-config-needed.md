@@ -6,10 +6,12 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-12 18:06'
+updated_date: '2026-06-14 18:35'
 labels:
   - agent-reported
   - bug
-dependencies: []
+dependencies:
+  - Z-026
 priority: medium
 ordinal: 37890
 ---
