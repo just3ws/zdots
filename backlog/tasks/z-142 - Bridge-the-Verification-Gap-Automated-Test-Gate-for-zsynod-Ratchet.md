@@ -4,10 +4,12 @@ title: 'Bridge the Verification Gap: Automated Test-Gate for zsynod Ratchet'
 status: To Do
 assignee: []
 created_date: '2026-06-10 13:22'
+updated_date: '2026-06-14 18:37'
 labels:
   - zsynod
   - ratchet
   - automation
+  - wave1
 dependencies: []
 priority: high
 ordinal: 33890
