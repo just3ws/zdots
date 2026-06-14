@@ -20,14 +20,16 @@ export PATH="$ZDOTDIR/modules/rails-modernization/bin:$PATH"
 
 ---
 
-## 2. Setup the Knowledge Vault
+## 2. Validate the Knowledge Vault
 Ensure your `~/my` directory structure is aligned. Run this in your home terminal:
 
 ```bash
 zdots-my-sync
 ```
 
-This creates the necessary subdirectories (`backlog/`, `standards/`, `models/`, etc.) for organizing your inventory.
+This is read-only. It delegates to `adots-my doctor`, the Rails-style structural
+status check for the private `~/my` system. Future structure creation should be
+handled by explicit adots generators, not by zdots.
 
 ---
 
