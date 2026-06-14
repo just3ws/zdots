@@ -56,3 +56,12 @@ Architecture diagram audit plan:
 
 Repository evolution and velocity views:
 [../repository-evolution.md](../repository-evolution.md).
+
+## Peer Systems
+
+Zdots is one plane of a four-part personal-OS ecosystem. The editor platform is
+[vdots](https://github.com/just3ws/vdots/wiki) (Neovim — LSP, plugins, editor
+config); home dotfiles and agent coordination live in
+[adots](https://github.com/just3ws/adots/wiki) (bare repo at `~/.homegit`); the
+private "Cerebral Control Plane" is documented in the adots wiki under
+[My-System](https://github.com/just3ws/adots/wiki/My-System).
