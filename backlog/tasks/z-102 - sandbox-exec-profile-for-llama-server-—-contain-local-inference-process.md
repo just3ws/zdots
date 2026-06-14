@@ -4,9 +4,11 @@ title: sandbox-exec profile for llama-server — contain local inference process
 status: To Do
 assignee: []
 created_date: '2026-05-23 21:41'
+updated_date: '2026-06-14 18:37'
 labels:
   - phi-safe
   - security
+  - wave4
 milestone: m-5
 dependencies: []
 modified_files:
