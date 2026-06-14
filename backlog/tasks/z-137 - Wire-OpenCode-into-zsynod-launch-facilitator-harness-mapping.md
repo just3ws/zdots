@@ -4,10 +4,11 @@ title: Wire OpenCode into zsynod launch (facilitator harness mapping)
 status: In Progress
 assignee: []
 created_date: '2026-06-08 13:42'
-updated_date: '2026-06-08 19:58'
+updated_date: '2026-06-14 18:37'
 labels:
   - zsynod
   - agent-ready
+  - wave2
 dependencies: []
 references:
   - bin/zsynod
