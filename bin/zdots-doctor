@@ -182,25 +182,24 @@ for _f in .zshrc .zprofile .zlogin .zlogout; do
   fi
 done
 
-# Colima location
-if [[ -d "$HOME/.colima" ]]; then
-  _ok "Colima  default location (~/.colima) present"
-else
-  _fail "Colima  default location (~/.colima) missing"
-fi
-
-# Colima stale VZ pid — symptom: "vz driver is running but host agent is not"
-_colima_lima="$HOME/.colima/_lima/colima"
-_vz_pid_file="$_colima_lima/vz.pid"
-if [[ -f "$_vz_pid_file" ]]; then
-  _vz_pid=$(cat "$_vz_pid_file" 2>/dev/null || true)
-  if [[ -n "$_vz_pid" ]] && ! ps -p "$_vz_pid" -o comm= 2>/dev/null | grep -qiE "vz|lima|colima"; then
-    _fail "colima stale vz.pid  PID ${_vz_pid} is not a VZ process ($(ps -p "$_vz_pid" -o comm= 2>/dev/null || echo 'gone'))"
-    _fix  "rm $HOME/.colima/_lima/colima/vz.pid $HOME/.colima/default/daemon/daemon.pid"
-    _fix  "colima start"
+# Colima — delegate to colima-status (authoritative; handles legacy ~/.colima
+# and XDG ~/.config/colima socket locations). Never hardcode the socket path.
+if command -v colima-status >/dev/null 2>&1; then
+  if colima-status health >/dev/null 2>&1; then
+    _pass "Colima  healthy ($(colima-status socket 2>/dev/null))"
+  else
+    _colima_socket=$(colima-status socket 2>/dev/null || true)
+    if [[ -n "$_colima_socket" ]]; then
+      _warn "Colima  socket present but not healthy (${_colima_socket})"
+    else
+      _warn "Colima  not running"
+    fi
+    _fix  "zsvc start colima"
   fi
+  unset _colima_socket
+else
+  _warn "Colima  colima-status not found — cannot verify"
 fi
-unset _colima_lima _vz_pid_file _vz_pid
 
 # Aider XDG drift (~/.aider/ should live in ~/.config/aider or not at all)
 if [[ -d "$HOME/.aider" ]]; then
