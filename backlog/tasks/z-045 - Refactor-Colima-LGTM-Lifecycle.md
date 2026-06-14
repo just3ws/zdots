@@ -4,10 +4,11 @@ title: Refactor Colima/LGTM Lifecycle
 status: To Do
 assignee: []
 created_date: '2026-05-06 06:12'
+updated_date: '2026-06-14 18:35'
 labels: []
 milestone: m-3
 dependencies:
-  - Z-044
+  - Z-134
 priority: medium
 ---
 
