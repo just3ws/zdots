@@ -23,6 +23,6 @@ ordinal: 10890
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 bench/zdots-pattern/zdots-issue exit 0 on --help; bad-arg paths still exit nonzero
-- [ ] #2 All three added to docs-contract --help assertions; make docs-contract passes 12/12
+- [x] #1 bench/zdots-pattern/zdots-issue exit 0 on --help; bad-arg paths still exit nonzero
+- [x] #2 All three added to docs-contract --help assertions; make docs-contract passes 12/12
 <!-- AC:END -->
