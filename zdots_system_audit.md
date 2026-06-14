@@ -49,28 +49,33 @@ adds latency. Consider:
 
 ## Confirmed Outstanding Gaps
 
-### 1. Command History Intelligence Layer — NOT BUILT
+### 1. Command History Intelligence Layer — BUILT (Seam ⑦, 2026-06-13)
 
-The history pipeline has two separate stores that aren't unified for intelligence:
+`bin/history-intelligence` (Python, stdlib-only) now reads all three stores and
+synthesizes them into interface signals. The Infer step of the Virtuous Loop is
+closed.
 
-| Store | Contents | Intelligence Tool |
+| Store | Contents | Consumer |
 |---|---|---|
-| atuin | Full command history (all commands) | `history-analyze`, `alias-suggest` |
-| SQLite `command_runs` | zdots-captured subset (exit_code, duration_ms, cwd) | **NOTHING** |
-| SQLite `shell_hook_metrics` | Hook timing + status per command | **NOTHING** |
+| atuin | Full command history (all commands) | `history-analyze`, `alias-suggest`, **`history-intelligence`** |
+| SQLite `command_runs` | opt-in subset (exit_code, duration_ms, cwd) | **`history-intelligence`** |
+| SQLite `shell_hook_metrics` | hook timing + status per command | **`history-intelligence`** |
 
-**What should exist but doesn't:**
+**Delivered:**
+- **PHI accountability surface**: `history-intelligence --phi` reports redacted /
+  clean / suppressed / scrub_failure counts. Confirmed it surfaces the real **21
+  scrub_failure events** (audit D-1) as a high-severity signal.
+- **Hook health + performance**: per-hook status counts, avg/max timing, slow
+  outliers over a configurable floor (`--slow-ms`, default 50ms) — surfaces D-2.
+- **Reliability inference**: recurring command failures (`command_runs`) raised as
+  signals when opt-in capture is on.
+- **zmorning integration**: signals surfaced in the daily briefing (`recipes/morning`).
+- **Agent + CI surfaces**: `--json` (schema `zdots.history-intelligence.v1`) for
+  agents; `--gate` exits non-zero on a high-severity signal for hooks/CI.
+- **14 bats tests** (`tests/history_intelligence.bats`), docs-contract entry.
 
-- **Intelligence report**: "You ran `zdots-doctor` 8x this week; it failed 3x on the
-  same OTel collector check. The collector is your most fragile dependency."
-- **PHI audit report**: "21 commands were suppressed (not redacted) due to scrub failures.
-  Highest-risk window: 2026-06-13 during shell reloads."
-- **Performance report**: "Your phi-history hook averaged 16.8ms — check for binary
-  startup overhead; `zdots-phi-scrub` re-starts on every command."
-- **zmorning integration**: `zmorning` doesn't surface command analytics or hook health
-
-**Impact**: The Virtuous Loop (Work → Capture → Curate → Infer → Repeat) breaks at
-the Infer step. Data exists; no synthesis layer surfaces it.
+**Remaining**: `session-debrief` (write synthesized lessons back to the Knowledge
+Layer) closes the loop back to Capture/Curate — still unbuilt.
 
 ---
 
@@ -191,10 +196,10 @@ Without skills that read and surface that data, the loop is: Work → Capture �
 | **P0** | Close Z-115, Z-116 in backlog (fixes confirmed in `85d4713`) |
 | **P0** | File `zdots-issue` for D-1 (scrub_failure root cause investigation — PATH race) |
 | **P0** | `zdots-gh` Z-141: inspect `gh auth status` output; fix precheck logic |
-| **P1** | Build `history-intelligence` skill — surfaces `command_runs` + `shell_hook_metrics` to agent and operator |
+| **DONE** | ~~Build `history-intelligence`~~ — `bin/history-intelligence` ships (Seam ⑦); wired into zmorning; 14 tests |
+| **DONE** | ~~Add atuin + intelligence layer to `platform-dependency-graph.md`~~ — Seam ⑦ documented + realized |
 | **P1** | Fix Z-111 (MCP structured errors) before expanding MCP to other agents |
-| **P1** | Add atuin + intelligence layer to `platform-dependency-graph.md` |
-| **P2** | Add `session-debrief` skill — closes the Virtuous Loop |
+| **P1** | Build `session-debrief` skill — write `history-intelligence` signals back to the Knowledge Layer; closes the Virtuous Loop |
 | **P2** | Register MCP for Gemini CLI |
 | **P2** | Investigate D-2 (phi-history 256ms spike) — consider `zdots-phi-scrub` daemon mode |
 | **P3** | Build remaining 5 missing skills (phi-audit, mcp-debug, zdots-diagnose, zsynod-onboard, interface-recommend) |

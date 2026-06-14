@@ -1,0 +1,452 @@
+#!/usr/bin/env python3
+# ---
+# id: history-intelligence
+# title: "Zdots History Intelligence — Seam (7) synthesis layer"
+# purpose: Synthesize command_runs + shell_hook_metrics + atuin frequency into a
+#          structured report (human + JSON) for zmorning and AI agents.
+# rationale: The Virtuous Loop captures runtime data but nothing reads it. This
+#            tool closes the Infer step — surfacing command failures, slow hooks,
+#            PHI suppression accountability, and inferred interface needs.
+# ---
+#
+# DATA SOURCES (degrade gracefully — any may be empty or absent):
+#   shell_hook_metrics  Always-on. Written by the phi-history hook whenever
+#                       ZDOTS_HISTORY_REDACT=1 (default). Primary signal for hook
+#                       health and PHI suppression accountability.
+#   command_runs        Opt-in. Written only when ZDOTS_CMD_ANALYTICS=1 (off by
+#                       default; forced off on work/PHI machines). Bonus signal:
+#                       exit codes and durations when available.
+#   atuin               Always-on shell history. Queried via `atuin search` for
+#                       command frequency. The broad-coverage frequency source.
+#
+# PHI POSTURE: command_runs is PHI-redacted at write time (conf.d/56). The hook
+# metrics table holds no command text. This tool reads local data and prints to
+# the terminal only — it never transmits. It is the read side of the loop the
+# audit (zdots_system_audit.md, Seam 7) identified as missing.
+#
+# Stdlib only (sqlite3, json, subprocess, argparse) — no pip deps, so it runs on
+# system python3 or mise python at home/work parity.
+
+import argparse
+import json
+import os
+import sqlite3
+import subprocess
+import sys
+import time
+from collections import Counter
+
+SCHEMA = "zdots.history-intelligence.v1"
+
+
+def state_db_default():
+    base = os.environ.get("XDG_STATE_HOME") or os.path.join(
+        os.path.expanduser("~"), ".local", "state"
+    )
+    return os.path.join(base, "zdots", "history.sqlite3")
+
+
+def open_ro(path):
+    """Open the SQLite db read-only via URI so we never lock or mutate it."""
+    if not os.path.exists(path):
+        return None
+    try:
+        uri = "file:{}?mode=ro".format(path)
+        conn = sqlite3.connect(uri, uri=True, timeout=2.0)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except sqlite3.Error:
+        return None
+
+
+def table_exists(conn, name):
+    if conn is None:
+        return False
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
+    ).fetchone()
+    return row is not None
+
+
+def q(conn, sql, params=()):
+    try:
+        return conn.execute(sql, params).fetchall()
+    except sqlite3.Error:
+        return []
+
+
+# --------------------------------------------------------------------------
+# Collectors
+# --------------------------------------------------------------------------
+
+def collect_hook_health(conn, cutoff_ms, limit, slow_ms):
+    """shell_hook_metrics: per hook+status counts, timing, slow outliers.
+
+    Note: threshold_ms in the table is the *recording* threshold (record overhead
+    if elapsed exceeds it), not a performance budget. Real performance concern is
+    a separate floor (slow_ms) so we don't flag every recorded entry.
+    """
+    out = {"available": False, "by_status": [], "slow": [], "slow_ms": slow_ms}
+    if not table_exists(conn, "shell_hook_metrics"):
+        return out
+    out["available"] = True
+
+    out["by_status"] = [
+        {
+            "hook": r["hook"],
+            "status": r["status"],
+            "count": r["c"],
+            "avg_ms": round(r["av"], 1) if r["av"] is not None else None,
+            "max_ms": round(r["mx"], 1) if r["mx"] is not None else None,
+        }
+        for r in q(
+            conn,
+            "SELECT hook, status, COUNT(*) c, AVG(elapsed_ms) av, MAX(elapsed_ms) mx "
+            "FROM shell_hook_metrics WHERE ts_ms >= ? GROUP BY hook, status "
+            "ORDER BY c DESC",
+            (cutoff_ms,),
+        )
+    ]
+
+    out["slow"] = [
+        {
+            "hook": r["hook"],
+            "count": r["c"],
+            "avg_ms": round(r["av"], 1) if r["av"] is not None else None,
+            "max_ms": round(r["mx"], 1) if r["mx"] is not None else None,
+            "slow_ms": slow_ms,
+        }
+        for r in q(
+            conn,
+            "SELECT hook, COUNT(*) c, AVG(elapsed_ms) av, MAX(elapsed_ms) mx "
+            "FROM shell_hook_metrics WHERE ts_ms >= ? AND elapsed_ms >= ? "
+            "GROUP BY hook ORDER BY mx DESC LIMIT ?",
+            (cutoff_ms, slow_ms, limit),
+        )
+    ]
+    return out
+
+
+def collect_phi_accountability(conn, cutoff_ms):
+    """PHI suppression accountability — the surface the audit (D-1) called for."""
+    out = {"available": False, "suppressed": 0, "scrub_failure": 0, "redacted": 0, "clean": 0}
+    if not table_exists(conn, "shell_hook_metrics"):
+        return out
+    out["available"] = True
+    for r in q(
+        conn,
+        "SELECT status, COUNT(*) c FROM shell_hook_metrics WHERE ts_ms >= ? "
+        "GROUP BY status",
+        (cutoff_ms,),
+    ):
+        if r["status"] in out:
+            out[r["status"]] = r["c"]
+    out["total_dropped"] = out["suppressed"] + out["scrub_failure"]
+    return out
+
+
+def collect_command_runs(conn, cutoff_s, limit):
+    """command_runs: failures and slow commands (only populated when opted in)."""
+    out = {"available": False, "enabled": False, "total": 0, "failures": [], "slowest": []}
+    if not table_exists(conn, "command_runs"):
+        return out
+    out["available"] = True
+    total = q(conn, "SELECT COUNT(*) c FROM command_runs WHERE ts >= ?", (cutoff_s,))
+    out["total"] = total[0]["c"] if total else 0
+    out["enabled"] = out["total"] > 0
+
+    out["failures"] = [
+        {"cmd": r["cmd"], "runs": r["runs"], "fails": r["fails"],
+         "fail_rate": round(r["fails"] / r["runs"], 2) if r["runs"] else 0.0}
+        for r in q(
+            conn,
+            "SELECT cmd, COUNT(*) runs, SUM(CASE WHEN exit_code!=0 THEN 1 ELSE 0 END) fails "
+            "FROM command_runs WHERE ts >= ? GROUP BY cmd HAVING fails > 0 "
+            "ORDER BY fails DESC, runs DESC LIMIT ?",
+            (cutoff_s, limit),
+        )
+    ]
+    out["slowest"] = [
+        {"cmd": r["cmd"], "max_ms": r["mx"], "avg_ms": round(r["av"], 1) if r["av"] else None}
+        for r in q(
+            conn,
+            "SELECT cmd, MAX(duration_ms) mx, AVG(duration_ms) av FROM command_runs "
+            "WHERE ts >= ? AND duration_ms IS NOT NULL GROUP BY cmd "
+            "ORDER BY mx DESC LIMIT ?",
+            (cutoff_s, limit),
+        )
+    ]
+    return out
+
+
+def collect_atuin_frequency(limit, scan):
+    """Top command names from atuin (frequency by first word)."""
+    out = {"available": False, "top": []}
+    try:
+        proc = subprocess.run(
+            ["atuin", "search", "--limit", str(scan), "--cmd-only", "--", ""],
+            capture_output=True, text=True, timeout=8,
+        )
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return out
+    if proc.returncode != 0:
+        return out
+    out["available"] = True
+    counter = Counter()
+    for line in proc.stdout.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        counter[line.split()[0]] += 1
+    out["top"] = [{"cmd": c, "count": n} for c, n in counter.most_common(limit)]
+    return out
+
+
+# --------------------------------------------------------------------------
+# Inference — turn data into interface signals (described + inferred needs)
+# --------------------------------------------------------------------------
+
+def infer_signals(report):
+    signals = []
+    phi = report["phi_accountability"]
+    if phi.get("available") and phi.get("scrub_failure", 0) > 0:
+        signals.append({
+            "severity": "high",
+            "kind": "phi",
+            "message": (
+                "{n} command(s) suppressed via scrub_failure — dropped from history "
+                "rather than redacted. Investigate zdots-phi-scrub PATH availability "
+                "(audit D-1)."
+            ).format(n=phi["scrub_failure"]),
+        })
+
+    hooks = report["hook_health"]
+    for b in hooks.get("slow", []):
+        signals.append({
+            "severity": "medium",
+            "kind": "performance",
+            "message": (
+                "hook '{h}' ran >= {floor}ms on {c} command(s) (max {mx}ms). "
+                "Consider daemonizing the underlying binary (audit D-2)."
+            ).format(h=b["hook"], floor=b["slow_ms"], c=b["count"], mx=b["max_ms"]),
+        })
+
+    runs = report["command_runs"]
+    for f in runs.get("failures", []):
+        if f["runs"] >= 3 and f["fail_rate"] >= 0.5:
+            signals.append({
+                "severity": "medium",
+                "kind": "reliability",
+                "message": (
+                    "'{c}' failed {f}/{r} runs ({rate:.0%}). Recurring failure — "
+                    "needs a fix, wrapper, or zdots-issue."
+                ).format(c=f["cmd"], f=f["fails"], r=f["runs"], rate=f["fail_rate"]),
+            })
+
+    if runs.get("available") and not runs.get("enabled"):
+        signals.append({
+            "severity": "info",
+            "kind": "capture",
+            "message": (
+                "command_runs is sparse — ZDOTS_CMD_ANALYTICS is off (expected on "
+                "PHI machines). Exit-code and duration analysis is limited; hook "
+                "metrics and atuin frequency remain authoritative."
+            ),
+        })
+
+    if not report["atuin_frequency"].get("available"):
+        signals.append({
+            "severity": "info",
+            "kind": "capture",
+            "message": "atuin unavailable — frequency analysis skipped.",
+        })
+
+    return signals
+
+
+def build_report(args):
+    now_s = int(time.time())
+    cutoff_s = now_s - args.window * 86400
+    cutoff_ms = cutoff_s * 1000
+
+    conn = open_ro(args.db)
+    report = {
+        "schema": SCHEMA,
+        "generated_at": now_s,
+        "window_days": args.window,
+        "db": args.db,
+        "db_present": conn is not None,
+        "hook_health": collect_hook_health(conn, cutoff_ms, args.limit, args.slow_ms),
+        "phi_accountability": collect_phi_accountability(conn, cutoff_ms),
+        "command_runs": collect_command_runs(conn, cutoff_s, args.limit),
+        "atuin_frequency": ({"available": False, "top": []}
+                            if args.no_atuin
+                            else collect_atuin_frequency(args.limit, args.scan)),
+    }
+    if conn is not None:
+        conn.close()
+    report["signals"] = infer_signals(report)
+    return report
+
+
+# --------------------------------------------------------------------------
+# Rendering
+# --------------------------------------------------------------------------
+
+def _c(code, s, use_color):
+    return "\033[{}m{}\033[0m".format(code, s) if use_color else s
+
+
+def render_human(report, args):
+    color = sys.stdout.isatty() and not args.no_color
+    bold = lambda s: _c("1", s, color)
+    green = lambda s: _c("32", s, color)
+    yellow = lambda s: _c("33", s, color)
+    red = lambda s: _c("31", s, color)
+
+    lines = []
+
+    def header(t):
+        lines.append("")
+        lines.append(bold("── {} ".format(t)))
+
+    sev_paint = {"high": red, "medium": yellow, "info": green, "low": green}
+
+    # Signals first — the synthesized conclusion leads.
+    signals = report["signals"]
+    if not args.quiet or signals:
+        header("Interface Signals (inferred)")
+        if signals:
+            for s in signals:
+                mark = sev_paint.get(s["severity"], green)("●")
+                lines.append("  {} [{}] {}".format(mark, s["severity"], s["message"]))
+        else:
+            lines.append("  " + green("✓") + " no concerns in window")
+
+    if args.quiet:
+        return "\n".join(lines) + "\n"
+
+    # PHI accountability
+    phi = report["phi_accountability"]
+    header("PHI Accountability ({}d)".format(report["window_days"]))
+    if phi.get("available"):
+        dropped = phi.get("total_dropped", 0)
+        paint = red if dropped else green
+        lines.append("  redacted in place : {}".format(phi.get("redacted", 0)))
+        lines.append("  clean (no PHI)    : {}".format(phi.get("clean", 0)))
+        lines.append("  suppressed        : {}".format(phi.get("suppressed", 0)))
+        lines.append("  scrub_failure     : {}".format(
+            paint(str(phi.get("scrub_failure", 0)))))
+        lines.append("  {} total dropped from history".format(paint(str(dropped))))
+    else:
+        lines.append("  (shell_hook_metrics unavailable)")
+
+    # Hook health
+    hooks = report["hook_health"]
+    header("Hook Health ({}d)".format(report["window_days"]))
+    if hooks.get("available") and hooks["by_status"]:
+        for r in hooks["by_status"]:
+            timing = ""
+            if r["avg_ms"] is not None:
+                timing = "  avg {}ms / max {}ms".format(r["avg_ms"], r["max_ms"])
+            lines.append("  {:<14} {:<14} {:>5}{}".format(
+                r["hook"], r["status"], r["count"], timing))
+        if hooks["slow"]:
+            lines.append("  " + yellow("slow (>= {}ms):".format(hooks["slow_ms"])))
+            for b in hooks["slow"]:
+                lines.append("    {} {}x (max {}ms)".format(
+                    b["hook"], b["count"], b["max_ms"]))
+    else:
+        lines.append("  (no hook metrics in window)")
+
+    # Command runs (opt-in)
+    runs = report["command_runs"]
+    header("Command Reliability ({}d)".format(report["window_days"]))
+    if runs.get("enabled"):
+        lines.append("  {} runs captured".format(runs["total"]))
+        if runs["failures"]:
+            lines.append("  " + yellow("recurring failures:"))
+            for f in runs["failures"]:
+                lines.append("    {:<20} {}/{} failed ({:.0%})".format(
+                    f["cmd"], f["fails"], f["runs"], f["fail_rate"]))
+        if runs["slowest"]:
+            lines.append("  slowest:")
+            for s in runs["slowest"][:5]:
+                lines.append("    {:<20} max {}ms".format(s["cmd"], s["max_ms"]))
+    else:
+        lines.append("  command_runs empty — ZDOTS_CMD_ANALYTICS off (expected on PHI machines)")
+
+    # Atuin frequency
+    freq = report["atuin_frequency"]
+    header("Top Commands ({}d window, atuin)".format(report["window_days"]))
+    if freq.get("available") and freq["top"]:
+        for r in freq["top"]:
+            lines.append("  {:>5}  {}".format(r["count"], r["cmd"]))
+    else:
+        lines.append("  (atuin unavailable or empty)")
+
+    return "\n".join(lines) + "\n"
+
+
+def main(argv):
+    p = argparse.ArgumentParser(
+        prog="history-intelligence",
+        description="Synthesize zdots runtime history (command_runs + "
+                    "shell_hook_metrics + atuin) into an interface report.",
+    )
+    p.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    p.add_argument("--window", type=int, default=7, metavar="DAYS",
+                   help="analysis window in days (default: 7)")
+    p.add_argument("--limit", type=int, default=12, metavar="N",
+                   help="rows per section (default: 12)")
+    p.add_argument("--scan", type=int, default=1000, metavar="N",
+                   help="atuin entries to scan for frequency (default: 1000)")
+    p.add_argument("--slow-ms", type=int, default=50, metavar="MS", dest="slow_ms",
+                   help="hook elapsed floor counted as a performance concern "
+                        "(default: 50)")
+    p.add_argument("--phi", action="store_true",
+                   help="PHI accountability + signals only")
+    p.add_argument("--quiet", action="store_true",
+                   help="signals only (suppress detail sections)")
+    p.add_argument("--gate", action="store_true",
+                   help="exit non-zero if any high-severity signal is present "
+                        "(for hooks/CI)")
+    p.add_argument("--no-atuin", action="store_true", help="skip atuin frequency")
+    p.add_argument("--no-color", action="store_true", help="disable ANSI color")
+    p.add_argument("--db", default=state_db_default(), metavar="PATH",
+                   help="history.sqlite3 path (default: XDG state)")
+    args = p.parse_args(argv)
+
+    if args.phi:
+        args.quiet = True
+
+    report = build_report(args)
+
+    if args.phi and args.json:
+        out = {
+            "schema": SCHEMA,
+            "generated_at": report["generated_at"],
+            "window_days": report["window_days"],
+            "phi_accountability": report["phi_accountability"],
+            "signals": [s for s in report["signals"] if s["kind"] == "phi"],
+        }
+        print(json.dumps(out, indent=2))
+    elif args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        sys.stdout.write(render_human(report, args))
+
+    if args.gate and any(s["severity"] == "high" for s in report["signals"]):
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except BrokenPipeError:
+        try:
+            sys.stdout.close()
+        except Exception:
+            pass
+        sys.exit(0)
