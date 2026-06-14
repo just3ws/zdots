@@ -135,6 +135,45 @@ if [[ -f "$MCP_FILE" ]] && (( _has_jq )) && jq empty "$MCP_FILE" 2>/dev/null; th
   else
     _pass "no stale :8080 endpoint references"
   fi
+
+  # Validate each server's command resolves, and PATH overrides include $ZDOTDIR/bin.
+  while IFS= read -r srv_name; do
+    srv_cmd="$(jq -r --arg s "$srv_name" '.mcpServers[$s].command' "$MCP_FILE" 2>/dev/null)"
+    # Expand ${HOME} literals (MCP JSON uses ${HOME}, not ~)
+    srv_cmd="${srv_cmd//'${HOME}'/$HOME}"
+    if [[ "$srv_cmd" == /* ]]; then
+      # Absolute path — check file exists and is executable.
+      if [[ -x "$srv_cmd" ]]; then
+        _pass "mcp:$srv_name command resolves ($srv_cmd)"
+      elif [[ -f "$srv_cmd" ]]; then
+        _fail "mcp:$srv_name command exists but is not executable: $srv_cmd"
+        _fix "chmod +x $srv_cmd"
+      else
+        _fail "mcp:$srv_name command not found: $srv_cmd"
+        _fix "ensure $srv_cmd is installed"
+      fi
+    else
+      # Bare command name — must be on PATH.
+      if command -v "$srv_cmd" >/dev/null 2>&1; then
+        _pass "mcp:$srv_name command on PATH ($srv_cmd → $(command -v "$srv_cmd"))"
+      else
+        _fail "mcp:$srv_name command not on PATH: $srv_cmd"
+        _fix "install $srv_cmd or add its directory to PATH"
+      fi
+    fi
+    # If the server declares a PATH env override, it must include $ZDOTDIR/bin.
+    srv_path="$(jq -r --arg s "$srv_name" '.mcpServers[$s].env.PATH // empty' "$MCP_FILE" 2>/dev/null)"
+    if [[ -n "$srv_path" ]]; then
+      # Expand ${HOME} so the literal string comparison works.
+      srv_path_exp="${srv_path//'${HOME}'/$HOME}"
+      if printf '%s\n' "$srv_path_exp" | tr ':' '\n' | grep -qxF "${ZDOTDIR}/bin"; then
+        _pass "mcp:$srv_name PATH override includes \$ZDOTDIR/bin"
+      else
+        _fail "mcp:$srv_name PATH override missing \$ZDOTDIR/bin"
+        _fix "prepend \${HOME}/.config/zsh/bin: to the PATH in .mcp.json mcpServers.$srv_name.env"
+      fi
+    fi
+  done < <(jq -r '.mcpServers | keys[]' "$MCP_FILE" 2>/dev/null)
 else
   _warn "no tracked .mcp.json — MCP servers live only in ~/.claude.json (not portable)"
   _fix "create $MCP_FILE mirroring the backlog/ctx/llama servers"
