@@ -32,6 +32,6 @@ cc-doctor: validate .mcp.json server commands resolve and PATH overrides include
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 .mcp.json server commands are validated to resolve (absolute executable or bare name on PATH)
-- [ ] #2 PATH env overrides are checked to include $ZDOTDIR/bin; no secret env values printed
+- [x] #1 .mcp.json server commands are validated to resolve (absolute executable or bare name on PATH)
+- [x] #2 PATH env overrides are checked to include $ZDOTDIR/bin; no secret env values printed
 <!-- AC:END -->
