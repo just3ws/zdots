@@ -24,3 +24,5 @@ cc-hook-lint: Claude Code hook; stdin-driven, no --help contract by design z-119
 cc-hook-session: Claude Code SessionStart hook; emits a brief, no --help contract by design z-119
 cc-statusline: Claude Code statusline generator; reads stdin/env, no --help contract by design z-119
 __pycache__: Python bytecode directory created by zsynod_tui.py compilation; not a command z-119
+zdots-secret-scan: Go binary; runs scan on invocation; no --help contract z-119
+zsynod: planned integration point; moved to experiments/zsynod/ in c250f90; bin/zsynod expected to exist once stabilised — remove this gap when the command lands in bin/ z-119
