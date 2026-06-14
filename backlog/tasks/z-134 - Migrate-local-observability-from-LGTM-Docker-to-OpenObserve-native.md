@@ -1,10 +1,10 @@
 ---
 id: Z-134
 title: Migrate local observability from LGTM (Docker) to OpenObserve (native)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-06 05:49'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-14 21:30'
 labels:
   - observability
   - infra
