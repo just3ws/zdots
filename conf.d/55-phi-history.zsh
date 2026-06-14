@@ -63,7 +63,7 @@ zshaddhistory() {
 
   # Redact remaining patterns via the Go binary (single pass over all patterns).
   local redacted
-  redacted="$(echo "$line" | zdots-phi-scrub)"
+  redacted="$(echo "$line" | zdots-phi-scrub 2>/dev/null)"
   local scrub_status=$?
   elapsed=$(( (EPOCHREALTIME - t0) * 1000 ))
   ts_ms=$(( EPOCHREALTIME * 1000 ))
