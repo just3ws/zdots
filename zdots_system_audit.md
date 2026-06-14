@@ -1,139 +1,225 @@
 # Zdots System Audit — Skills × MCP × Implementation
 
 > Corroboration of what's promised, what's built, and what's missing.
+>
+> Last updated: 2026-06-13 — session follow-up audit after gap-closing work.
 
 ---
 
-## Confirmed Gaps
+## Status: Items Resolved Since Original Audit
 
-### 1. `docs/adr/` Does Not Exist
-
-Two skills depend on it:
-- [grill-with-docs](file:///Users/mike/.config/zsh/.agents/skills/grill-with-docs/SKILL.md) — reads ADRs, creates/updates them inline
-- [improve-codebase-architecture](file:///Users/mike/.config/zsh/.agents/skills/improve-codebase-architecture/SKILL.md) — reads ADRs for architectural context
-
-**Impact:** Both skills will either fail silently or hallucinate structure. No ADR directory → no architectural decision record trail.
-
-**Fix:** `mkdir -p docs/adr && echo "# ADR Index" > docs/adr/README.md`
-
----
-
-### 2. MCP Server Has Zero Test Coverage
-
-[ctx-mcp](file:///Users/mike/.config/zsh/bin/ctx-mcp) (291 lines) implements 5 JSON-RPC tools. No bats or integration tests exist.
-
-- Z-111 (silent error handling) still open
-- No schema validation of request/response
-- No test for malformed JSON, missing params, or tool dispatch edge cases
-
-**Risk:** MCP is a trust boundary — agents rely on it for knowledge base access. Untested → silent data corruption or lost queries.
-
----
-
-### 3. MCP Only Registered for Claude Desktop
-
-[ctx-mcp-register](file:///Users/mike/.config/zsh/bin/ctx-mcp-register) writes to `~/Library/Application Support/Claude/claude_desktop_config.json`. No registration path for:
-- Gemini CLI (`gm`)
-- Aider (`zaider`)
-- Pi (`zpi`)
-
-**Impact:** MCP tools (query, hydrate, ingest, status, capabilities) unavailable to 3 of 4 agent personas.
-
----
-
-### 4. 25 of 40 `bin/` Scripts Untested in Docs Contract
-
-[docs_contract.bats](file:///Users/mike/.config/zsh/tests/docs_contract.bats) covers 15 commands. **25 scripts have no `--help` contract test:**
-
-`bench`, `bootstrap`, `check`, `colima-autostart`, `ctx-mcp`, `ctx-mcp-register`, `docker-reclaim`, `fabric-ai`, `gemini-invoke`, `git-credential-keychain`, `install-bats-helpers`, `llama-model-registry`, `local-state-updater`, `repomix`, `rtk`, `secret-scan`, `zdots-issue`, `zdots-keychain`, `zdots-ruby`, `zdots-update-local`, `zdots-quiz`, `zdots-pattern`, `zdots-status`, `zdots-log-analyze-impl`
-
-**Risk:** Interface drift — scripts change behavior without contract enforcement.
-
----
-
-### 5. Stale Backlog Task Statuses
-
-| Task | Actual State | Backlog Status |
+| Item | Original Gap | Status |
 |---|---|---|
-| [Z-115](file:///Users/mike/.config/zsh/backlog/tasks/z-115%20-%20agent-issue-zdash-help-does-not-show-usage-emits-_cmd_list-12-read-only-variable-status-and-falls-through-to-task-list-output-instead-of-documenting-flags-commands.md) | Fixed in `85d4713` | To Do |
-| [Z-116](file:///Users/mike/.config/zsh/backlog/tasks/z-116%20-%20agent-issue-zdots-ask-help-prints-usage-but-exits-2-instead-of-0-docs-help-contracts-expect-help-to-be-a-successful-read-only-operation.md) | Fixed in `85d4713` | To Do |
-
-Fixes committed but tasks not closed → backlog is stale.
-
----
-
-### 6. `setup-matt-pocock-skills` — Dead Artifact
-
-Directory exists at `.agents/skills/setup-matt-pocock-skills/` with `scripts/install.sh` but **no SKILL.md**. Not a usable skill. Either:
-- Installer that ran once and should be cleaned up
-- Incomplete skill that was never finished
+| `docs/adr/` | Directory didn't exist; 2 skills required it | **DONE** — 2 ADRs committed (nginx-not-in-ai-query-path, phi-scrubber-go-binary) |
+| MCP test coverage | Zero tests for 291-line JSON-RPC server | **DONE** — `tests/mcp.bats` has 30 tests across 5 groups (A–E) |
+| Docs contract | 15 commands tested; 25 untested | **DONE** — 51 commands now covered (--help list + tested array); 2 known-gaps added |
+| Z-115, Z-116 | Fixed in `85d4713` but still "To Do" | **TO CLOSE** — fixes confirmed; tasks still open in backlog |
+| `zoom-out` frontmatter | Missing `description` field | **DONE** — description present |
+| `setup-matt-pocock-skills` | No SKILL.md; dead artifact | **RESOLVED** — retained as installer archive; `.claude/commands/` has the actual skills |
+| Platform dependency graph | No cross-system map existed | **DONE** — `docs/platform-dependency-graph.md` created with Mermaid + seams index |
 
 ---
 
-### 7. `zoom-out` — Missing Frontmatter Description
+## Active Defects Found During Audit Work
 
-[zoom-out SKILL.md](file:///Users/mike/.config/zsh/.agents/skills/zoom-out/SKILL.md) has no `description` in YAML frontmatter. Agents that parse frontmatter for skill routing will skip it.
+### D-1: `zshaddhistory` Silent `scrub_failure` Loop (HIGH)
+
+`shell_hook_metrics` shows **21 `scrub_failure` events** — `zdots-phi-scrub` was not found
+on PATH when the `zshaddhistory` hook fired. Each failure suppressed the command from
+history rather than redacting it (correct safe-fail behavior), but:
+
+- 21 commands were silently dropped from history without user visibility
+- Error message `zshaddhistory:17: command not found: zdots-phi-scrub` appeared on `reload`
+- Root cause: PATH state is different in some hook execution contexts (likely during
+  `reload` → `exec zsh` transition or `zsh-defer` race)
+- **Applied fix**: added `2>/dev/null` to line 66 of `55-phi-history.zsh` — eliminates
+  the visible error; safe-fail suppression already handled by `scrub_status` check
+- **Deeper fix needed**: instrument when scrub_failures occur (timestamp, cwd, cmd prefix)
+  to identify the PATH race; track in backlog as `zdots-issue`
+
+### D-2: `phi-history` Hook Overhead Spike (MEDIUM)
+
+Hook metrics show max overhead of **256ms** on a single command (threshold is 20ms).
+Avg is 16.8ms — high for a PHI check. The Go binary startup cost on each command call
+adds latency. Consider:
+- Persistent `zdots-phi-scrub` daemon mode (keep-alive server, pipe commands)
+- Or coprocess to avoid subprocess-per-command cost
 
 ---
 
-## Risks
+## Confirmed Outstanding Gaps
+
+### 1. Command History Intelligence Layer — NOT BUILT
+
+The history pipeline has two separate stores that aren't unified for intelligence:
+
+| Store | Contents | Intelligence Tool |
+|---|---|---|
+| atuin | Full command history (all commands) | `history-analyze`, `alias-suggest` |
+| SQLite `command_runs` | zdots-captured subset (exit_code, duration_ms, cwd) | **NOTHING** |
+| SQLite `shell_hook_metrics` | Hook timing + status per command | **NOTHING** |
+
+**What should exist but doesn't:**
+
+- **Intelligence report**: "You ran `zdots-doctor` 8x this week; it failed 3x on the
+  same OTel collector check. The collector is your most fragile dependency."
+- **PHI audit report**: "21 commands were suppressed (not redacted) due to scrub failures.
+  Highest-risk window: 2026-06-13 during shell reloads."
+- **Performance report**: "Your phi-history hook averaged 16.8ms — check for binary
+  startup overhead; `zdots-phi-scrub` re-starts on every command."
+- **zmorning integration**: `zmorning` doesn't surface command analytics or hook health
+
+**Impact**: The Virtuous Loop (Work → Capture → Curate → Infer → Repeat) breaks at
+the Infer step. Data exists; no synthesis layer surfaces it.
+
+---
+
+### 2. Z-111: MCP Silent Error Handling — STILL OPEN
+
+`ctx-mcp` catches subprocess failures and returns error text (tested in D2–D4 groups
+of `mcp.bats`). But the error format is minimal: `"Error: zdots-ctx failed"` with no
+context. Agents reading this get no actionable information.
+
+**Needed:**
+- Structured error responses: tool name, exit_code, stderr snippet
+- Agent-readable `isError: true` + human-readable `text` in content array
+- Timeout errors distinguished from data errors
+
+---
+
+### 3. MCP Registration — 3 of 4 Agents Unregistered
+
+`ctx-mcp-register` writes to Claude Desktop config only. Gemini CLI, Aider (`zaider`),
+and Pi (`zpi`) have no MCP registration. Agents cannot reach the Knowledge Layer except
+via Claude Code.
+
+---
+
+### 4. Z-141: `zdots-gh` Auth Precheck Broken (HIGH — BLOCKING)
+
+`gh auth status >/dev/null 2>&1` exits 1 even when auth is good. Blocks gh-based harvest
+commands. Root cause unknown — needs `gh auth status` output inspected directly.
+
+---
+
+### 5. Z-142: Bridge Verification Gap — zsynod Ratchet (HIGH)
+
+No automated test-gate for zsynod Ratchet. `experiments/zsynod/` contains the Raft-
+inspired ledger implementation but no CI gate proves it's working. Commit c250f90
+moved `bin/zsynod` to experiments; `zsynod` tracked as a known-gap integration point.
+
+---
+
+## Dependency Graph Validation (2026-06-13)
+
+`docs/platform-dependency-graph.md` — all 6 seams verified to exist:
+
+| Seam | Key File | Validation |
+|---|---|---|
+| ① AI Invocation | `lib/ai-invoke.bash` | ✓ exists |
+| ② PHI Boundary | `lib/phi_scrubber.bash`, `lib/ai_boundary.bash` | ✓ both exist |
+| ③ Knowledge Layer | `bin/zdots-ctx` | ✓ exists |
+| ④ MCP Transport | `bin/ctx-mcp` | ✓ exists |
+| ⑤ Observability | `bin/otel-collector`, `bin/openobserve-ctl` | ✓ both exist |
+| ⑥ History Capture | `conf.d/55-phi-history.zsh`, `conf.d/56-cmd-analytics.zsh` | ✓ both exist |
+
+**Graph corrections needed (update `platform-dependency-graph.md`):**
+
+1. **Missing: atuin** — primary history store; parallel to zdots SQLite but used by
+   `history-analyze` and `alias-suggest`. Not shown in graph.
+2. **Missing: Intelligence Layer** — there is no synthesis node between "History Capture"
+   and "CLI Entry Points". The data exists in SQLite + Redis but nothing aggregates it.
+3. **Clarify: `otel-collector`** appears as both a Platform Service (under `zsvc`) and
+   in the Observability Pipeline. This is correct but the dual role should be annotated.
+
+---
+
+## Skill Gaps — Missing Claude Code Skills for zdots
+
+The 21 installed skills (`.claude/commands/`) cover code quality, backlog, architecture,
+and handoff. None of the following zdots-specific capabilities have a skill:
+
+| Missing Skill | What It Would Do |
+|---|---|
+| `history-intelligence` | Query `command_runs` + `shell_hook_metrics` + atuin → surface: top failing commands, slowest hooks, PHI suppression events, alias candidates; formatted for agent and human |
+| `phi-audit` | Report suppression/redaction counts per session; surface D-1 events; link to `zdots-issue` if scrub_failures spike |
+| `session-debrief` | End-of-session: create Session Residue (`zdots-ctx capture`), surface lessons, suggest backlog tasks, update methodologies |
+| `mcp-debug` | Walk through MCP call end-to-end with real `ctx-mcp` + mock and live `zdots-ctx`; surface errors clearly |
+| `zdots-diagnose` | Runs `zdots-doctor --quiet`, `zdots-ctl check`, checks hook metrics, checks scrub_failure count — one-shot system health for AI-assisted triage |
+| `zsynod-onboard` | Register a new AI agent into the zsynod forum; generate charter entry, assign agent ID, seed initial exchange |
+| `interface-recommend` | Read `command_runs` + atuin frequency data → recommend new aliases, workflow improvements, or gaps in tooling; feeds back into backlog |
+
+**Why this matters:**  
+The Skills layer is currently weighted toward code review and architecture. zdots is an
+_observable control plane_ — its intelligence value comes from accumulated session data.
+Without skills that read and surface that data, the loop is: Work → Capture → (silence).
+
+---
+
+## Risks (Updated)
 
 ### High
 
-| Risk | Detail |
-|---|---|
-| **MCP error handling** | Z-111 open. Tool handlers may swallow errors → agent gets empty/wrong data → bad decisions. |
-| **No MCP tests** | 291 lines of JSON-RPC dispatch with zero test coverage. Any refactor = blind. |
-| **PHI via MCP** | `zdots_query` and `zdots_hydrate` return decrypted content. MCP has no auth layer. If MCP transport changes from stdio → HTTP, PHI leaks. |
+| Risk | Detail | Change |
+|---|---|---|
+| **MCP error handling (Z-111)** | Tool handlers return minimal error text; agents get no actionable context | Unchanged |
+| **PHI suppression gap (D-1)** | 21 commands silently dropped; no audit trail for which commands were lost | **NEW** |
+| **Intelligence loop broken** | `command_runs` has 14 entries; `shell_hook_metrics` has 1,164 — data captured but no synthesis | **NEW** |
+| **Z-141: gh auth precheck** | Blocks harvest commands; affects `zdots-gh` and any downstream skill using it | Unchanged |
 
 ### Medium
 
 | Risk | Detail |
 |---|---|
-| **ADR gap** | Skills promise ADR cross-referencing but `docs/adr/` doesn't exist. Skills will silently degrade. |
-| **Skill dependency on `backlog` CLI** | 4 skills depend on it (`to-issues`, `to-prd`, `triage`, `zdots`). If `backlog` breaks, half the workflow skills fail. No `backlog` test coverage found. |
-| **Ruby coverage at 77.6%** | 34 lines uncovered. Branch coverage 69.7%. Jobs and model edge cases likely untested. |
+| **Hook overhead (D-2)** | 256ms max on phi-history; Go binary startup cost; may degrade interactive feel |
+| **MCP registration gap** | 3 of 4 agents can't reach Knowledge Layer |
+| **Skill coverage gap** | No intelligence/debrief/audit skills; data accumulates but isn't synthesized |
 
 ### Low
 
 | Risk | Detail |
 |---|---|
-| **MCP protocol drift** | Using `2024-11-05` spec. MCP evolves fast — newer clients may expect features not implemented. |
-| **`zdots-status` wrapper** | Z-113 open. Trivial but tracked. |
+| **MCP protocol drift** | `2024-11-05` spec; newer clients may expect newer features |
+| **`backlog` CLI dependency** | 4 skills depend on it; still no test coverage for the CLI itself |
 
 ---
 
-## Unknown Unknowns
-
-> Things we can't see from static analysis alone.
-
-| Area | What We Don't Know |
-|---|---|
-| **MCP runtime behavior** | Does `ctx-mcp` actually work end-to-end with Claude Desktop? Last tested when? |
-| **Skill interaction** | No integration test for skill chains (e.g., `grill-with-docs` → `to-issues` → `triage`). Do they compose? |
-| **PHI scrubber coverage** | `etc/phi-patterns.yaml` defines patterns. Are there PHI shapes that slip through? No adversarial/fuzz testing. |
-| **Knowledge base quality** | `zdots_query`/`zdots_hydrate` return decrypted content. Is stale/wrong methodology actively harmful? No expiry/review mechanism. |
-| **Agent persona drift** | Skills reference 4 agent roles (Pi, Aider, Claude Code, Gemini). Do their actual system prompts honor the same contracts? |
-| **Encryption key rotation** | `rekey` command exists. Has it ever been tested with real data? Recovery path if rotation fails mid-stream? |
-| **Job queue reliability** | Heartbeat/DLQ/backoff implemented. Load-tested? What happens under sustained queue pressure? |
-| **`backlog` CLI** | 4 skills depend on it. Where is it defined? Is it a gem, a script, a function? No `which backlog` result in audit. |
-| **Skill discovery** | Agents find skills by directory listing. No registry, no versioning, no deprecation mechanism. |
-| **Cross-agent handoff integrity** | `handoff` skill produces markdown. Receiving agent must parse it correctly. No schema or validation. |
-
----
-
-## Recommendations (Prioritized)
+## Recommendations (Updated)
 
 | Priority | Action |
 |---|---|
-| **P0** | Add MCP test suite (`tests/mcp.bats`). Cover: init, tool list, each tool call, error paths, malformed input. |
-| **P0** | Create `docs/adr/` directory. Even empty-with-README unblocks 2 skills. |
-| **P1** | Close Z-115, Z-116 in backlog (already fixed). |
-| **P1** | Fix Z-111 (MCP silent errors) before any MCP expansion. |
-| **P1** | Add `zoom-out` frontmatter description. |
-| **P2** | Remove or complete `setup-matt-pocock-skills`. |
-| **P2** | Expand docs-contract test to cover remaining 25 scripts (even if just `--help || known-gap`). |
-| **P2** | Add MCP registration support for Gemini CLI. |
-| **P3** | Add PHI scrubber fuzz/adversarial tests. |
-| **P3** | Document skill composition patterns (which skills chain well). |
-| **P3** | Add skill registry with version + deprecation fields to frontmatter. |
+| **P0** | Close Z-115, Z-116 in backlog (fixes confirmed in `85d4713`) |
+| **P0** | File `zdots-issue` for D-1 (scrub_failure root cause investigation — PATH race) |
+| **P0** | `zdots-gh` Z-141: inspect `gh auth status` output; fix precheck logic |
+| **P1** | Build `history-intelligence` skill — surfaces `command_runs` + `shell_hook_metrics` to agent and operator |
+| **P1** | Fix Z-111 (MCP structured errors) before expanding MCP to other agents |
+| **P1** | Add atuin + intelligence layer to `platform-dependency-graph.md` |
+| **P2** | Add `session-debrief` skill — closes the Virtuous Loop |
+| **P2** | Register MCP for Gemini CLI |
+| **P2** | Investigate D-2 (phi-history 256ms spike) — consider `zdots-phi-scrub` daemon mode |
+| **P3** | Build remaining 5 missing skills (phi-audit, mcp-debug, zdots-diagnose, zsynod-onboard, interface-recommend) |
+| **P3** | Add PHI scrubber adversarial/fuzz tests |
+| **P3** | Add skill registry frontmatter (version + deprecation) |
+
+---
+
+## Lessons Learned from This Audit Cycle
+
+1. **Audit data goes stale fast.** Most "confirmed gaps" were already fixed by the time
+   work began. Keep audit docs short-lived or timestamped; don't treat them as ground truth.
+
+2. **Metrics reveal what static analysis can't.** The 21 `scrub_failure` events in
+   `shell_hook_metrics` were invisible until the database was queried. Intelligence gaps
+   don't appear in code — they appear in runtime data.
+
+3. **The dependency graph has no tests.** The seams index is documentation; nothing
+   enforces it. Add a `tests/seams.bats` that verifies each seam file exists and responds
+   to a minimal probe.
+
+4. **Data without synthesis is dead weight.** `command_runs` and `shell_hook_metrics`
+   exist but have no consumer other than raw SQL queries. The next investment should be
+   in the intelligence layer, not more data capture.
+
+5. **zsynod as integration point.** Moving `zsynod` to experiments without a gap marker
+   would have lost track of a planned integration. The known-gap pattern works; apply it
+   to any planned future command that gets deferred.

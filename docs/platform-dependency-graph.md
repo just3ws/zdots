@@ -81,11 +81,21 @@ flowchart TB
     subgraph History["History Capture ⑥"]
         phihistory["conf.d/55-phi-history.zsh\ncommand hook"]
         cmdanalytics["conf.d/56-cmd-analytics.zsh\nanalytics + suppress"]
-        histsqlite["~/.local/state/zdots/history.sqlite3"]
+        histsqlite["history.sqlite3\ncommand_runs + shell_hook_metrics"]
+        atuin["atuin\nprimary history store"]
         phihistory --> cmdanalytics
         cmdanalytics --> phiscrubber
         cmdanalytics --> histsqlite
         cmdanalytics --> redis
+        phihistory --> atuin
+    end
+
+    subgraph Intelligence["Intelligence Layer (PLANNED ⑦)"]
+        histintel["history-intelligence\nskill — NOT YET BUILT"]
+        sessiondebrief["session-debrief\nskill — NOT YET BUILT"]
+        histsqlite --> histintel
+        atuin --> histintel
+        histintel --> sessiondebrief
     end
 
     subgraph Callers["CLI Entry Points"]
@@ -127,7 +137,16 @@ flowchart TB
 | ③ | **Knowledge Layer** | `bin/zdots-ctx` | Shell scripts, `ctx-mcp`, `ztask done` | `context-engine` (Rails) → PostgreSQL |
 | ④ | **MCP Transport** | `bin/ctx-mcp` | AI agents (Claude Code, Gemini, Pi, Aider) | stdio JSON-RPC 2.0 → `zdots-ctx` |
 | ⑤ | **Observability Export** | OTLP / `otel-collector` | All shell spans, AI spans, service health | `otel-collector` → OpenObserve |
-| ⑥ | **History Capture** | `conf.d/55-phi-history.zsh` | Every interactive command | PHI scrub → SQLite + Redis |
+| ⑥ | **History Capture** | `conf.d/55-phi-history.zsh` | Every interactive command | PHI scrub → SQLite (`command_runs`, `shell_hook_metrics`) + atuin + Redis |
+| ⑦ | **Intelligence Layer** | `history-intelligence` skill (PLANNED) | Agent sessions, `zmorning` | `command_runs` + `shell_hook_metrics` + atuin → synthesized report |
+
+> **Note on ⑤:** `otel-collector` plays a dual role — it is both a Platform Service managed by `zsvc`
+> and the transport node in the Observability Pipeline. The seam is the OTLP export boundary;
+> the service lifecycle is a separate concern.
+
+> **Gap (2026-06-13):** Seam ⑦ does not yet exist. `command_runs` and `shell_hook_metrics` have
+> data (1,164 hook metric events; 14+ command runs) but no synthesis layer surfaces it. The
+> `history-analyze` tool reads atuin only; it does not read SQLite. This is the next investment.
 
 ---
 
