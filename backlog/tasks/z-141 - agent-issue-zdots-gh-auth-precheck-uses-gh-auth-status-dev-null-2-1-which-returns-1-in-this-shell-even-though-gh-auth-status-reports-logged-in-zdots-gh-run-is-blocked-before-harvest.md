@@ -4,10 +4,10 @@ title: >-
   [agent-issue] zdots-gh auth precheck uses 'gh auth status >/dev/null 2>&1',
   which returns 1 in this shell even though 'gh auth status' reports logged in;
   zdots-gh run is blocked before harvest
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-09 18:26'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-14 21:30'
 labels:
   - agent-reported
   - bug
