@@ -4,11 +4,13 @@ title: 'nginx: reverse proxy on port 80/443 with local hostname routing'
 status: To Do
 assignee: []
 created_date: '2026-05-25 13:52'
+updated_date: '2026-06-14 18:35'
 labels:
   - nginx
   - infra
   - local-dev
-dependencies: []
+dependencies:
+  - Z-047
 references:
   - docs/local-ai.md
   - lib/ai_boundary.bash
