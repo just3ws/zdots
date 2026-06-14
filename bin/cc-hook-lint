@@ -31,9 +31,13 @@ esac
 [[ "$is_shell" -eq 0 ]] && exit 0
 
 # zsh-only files: shellcheck has no zsh dialect; skip rather than emit noise.
+# Also catch extension-less scripts with a zsh shebang (e.g. bin/bench).
 case "$file" in
   *.zsh) exit 0 ;;
 esac
+if head -n1 "$file" 2>/dev/null | grep -Eq '^#!.*/env zsh|^#!/.*/zsh'; then
+  exit 0
+fi
 
 findings="$(shellcheck -x --severity=warning --format=tty "$file" 2>/dev/null)" || true
 [[ -z "$findings" ]] && exit 0

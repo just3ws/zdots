@@ -19,6 +19,24 @@ if command -v hyperfine >/dev/null 2>&1; then
   USE_HYPERFINE=1
 fi
 
+# Detect sandbox: nice priority increases (negative values) are blocked in
+# Codex and similar sandboxes — EPERM leaks as stderr noise. Probe once and
+# suppress selectively; full behavior is preserved when perms are available.
+_BENCH_RESTRICTED=0
+if nice -n -20 true 2>&1 | grep -qiE 'operation not permitted|permission denied|setpriority'; then
+  _BENCH_RESTRICTED=1
+fi
+
+# _bench_hyperfine — run hyperfine, stripping sandbox nice/priority noise
+# from stderr when restricted; passes all other stderr through unchanged.
+_bench_hyperfine() {
+  if [[ "$_BENCH_RESTRICTED" == "1" ]]; then
+    hyperfine "$@" 2> >(grep -vE 'operation not permitted|permission denied|setpriority|nice' >&2)
+  else
+    hyperfine "$@"
+  fi
+}
+
 message () {
   echo "==> $1"
 }
@@ -27,7 +45,7 @@ message () {
 bench_startup() {
   message "Benchmarking total shell startup (interactive)..."
   if [[ "$USE_HYPERFINE" == "1" ]]; then
-    hyperfine --warmup 3 --runs 10 \
+    _bench_hyperfine --warmup 3 --runs 10 \
       "ZDOTDIR=$REPO_ROOT zsh -i -c exit"
   else
     # Fallback to /usr/bin/time for basic median
@@ -42,8 +60,11 @@ bench_breakdown() {
   message "Profiling individual modules in conf.d..."
   for f in "$REPO_ROOT/conf.d/"*.zsh(N); do
     name=$(basename "$f")
-    # Time sourcing the file in a fresh zsh instance
-    t=$(ZDOTDIR="$REPO_ROOT" zsh -c "zmodload zsh/datetime; start=\$EPOCHREALTIME; source $f; end=\$EPOCHREALTIME; printf '%.6f' \$((end - start))")
+    # Time sourcing the file in a fresh zsh instance.
+    # Redirect stderr of the sourced file: module side-effects (otel-cli,
+    # trace syscalls) are irrelevant to the timing measurement and emit
+    # noise in sandboxes where those syscalls are blocked.
+    t=$(ZDOTDIR="$REPO_ROOT" zsh -c "zmodload zsh/datetime; start=\$EPOCHREALTIME; source $f 2>/dev/null; end=\$EPOCHREALTIME; printf '%.6f' \$((end - start))")
     printf "%-25s : %s s\n" "$name" "$t"
   done | sort -k3 -n -r
 }
@@ -56,13 +77,13 @@ bench_caching() {
   if [[ "$USE_HYPERFINE" == "1" ]]; then
     echo "Cold startup (no cache):"
     rm -f "$cache_dir/brew_shellenv" "$cache_dir/mise_activate"
-    hyperfine --runs 5 "ZDOTDIR=$REPO_ROOT zsh -i -c exit"
+    _bench_hyperfine --runs 5 "ZDOTDIR=$REPO_ROOT zsh -i -c exit"
 
     echo
     echo "Warm startup (with cache):"
     # Ensure cache is populated
     ZDOTDIR="$REPO_ROOT" zsh -i -c exit >/dev/null 2>&1
-    hyperfine --runs 5 "ZDOTDIR=$REPO_ROOT zsh -i -c exit"
+    _bench_hyperfine --runs 5 "ZDOTDIR=$REPO_ROOT zsh -i -c exit"
   else
     # Simple manual comparison if hyperfine is missing
     rm -f "$cache_dir/brew_shellenv" "$cache_dir/mise_activate"

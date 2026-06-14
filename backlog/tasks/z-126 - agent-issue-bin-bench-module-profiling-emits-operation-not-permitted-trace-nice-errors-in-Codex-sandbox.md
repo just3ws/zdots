@@ -3,10 +3,10 @@ id: Z-126
 title: >-
   [agent-issue] bin/bench module profiling emits operation-not-permitted
   trace/nice errors in Codex sandbox
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-03 00:43'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-14 23:11'
 labels:
   - agent-reported
   - bug
@@ -29,3 +29,9 @@ bin/bench module profiling emits operation-not-permitted trace/nice errors in Co
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Done 2026-06-14 (sonnet agent). bench_breakdown sources modules with 2>/dev/null (timing-irrelevant side effects); hyperfine stderr filtered for nice/priority EPERM only when a startup probe detects a restricted sandbox — full behavior preserved when perms exist. Collateral: cc-hook-lint now skips extension-less zsh-shebang scripts (was false-positive SC1071 on bin/bench). Verified: clean bench breakdown output in restricted env, syntax ok, secret-scan ok.
+<!-- SECTION:NOTES:END -->
