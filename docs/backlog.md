@@ -19,7 +19,7 @@ Backlog is configured for local, agent-safe operation in this repo:
 
 | Setting | Value | Reason |
 |---|---|---|
-| `auto_commit` | `true` | Task metadata changes stay tracked and auditable |
+| `auto_commit` | `false` | Board transitions commit **with** their related code as one coherent dependency-oriented unit — not as separate `Update task` noise; avoids worktree merge conflicts during fan-out (§5) |
 | `remote_operations` | `false` | Routine task edits never fetch/prune remotes from agent sessions |
 | `auto_open_browser` | `false` | CLI workflows do not open GUI browser windows |
 | `bypass_git_hooks` | `false` | Task commits keep the repo's normal safety checks |

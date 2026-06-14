@@ -12,7 +12,7 @@ default_editor: "/opt/homebrew/bin/nvim"
 auto_open_browser: false
 default_port: 6420
 remote_operations: false
-auto_commit: true
+auto_commit: false
 zero_padded_ids: 3
 bypass_git_hooks: false
 check_active_branches: true
