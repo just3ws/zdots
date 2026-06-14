@@ -4,10 +4,12 @@ title: Evaluate sequential-thinking MCP server for Claude Code
 status: To Do
 assignee: []
 created_date: '2026-06-06 00:10'
+updated_date: '2026-06-14 18:37'
 labels:
   - ai-tooling
   - mcp
   - agent-ready
+  - wave4
 dependencies: []
 priority: low
 ordinal: 23890
