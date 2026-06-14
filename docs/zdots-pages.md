@@ -105,7 +105,7 @@ gh api -X PUT repos/just3ws/<repo>/pages -F https_enforced=true
 The operator playbook — including folding in a **legacy** project's existing
 docs or old wiki — is the published page
 [Onboarding a Project](wiki/Onboarding-a-Project.md) (live at
-`www.just3ws.com/zdots/onboarding-a-project/`). The short form:
+`www.just3ws.com/zdots/Onboarding-a-Project.html`). The short form:
 
 1. Create `docs/wiki/` with at least `Home.md`; add the "The ecosystem" section
    and absolute peer links per the invariants above.
