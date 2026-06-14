@@ -4,11 +4,12 @@ title: 'Bridge the Physical Machine Gap: zsynod Cross-Platform Sync'
 status: To Do
 assignee: []
 created_date: '2026-06-10 13:22'
-updated_date: '2026-06-14 18:36'
+updated_date: '2026-06-14 18:37'
 labels:
   - zsynod
   - sync
   - multi-platform
+  - wave2
 dependencies:
   - Z-142
 priority: medium
