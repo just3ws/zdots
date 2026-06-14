@@ -3,10 +3,10 @@ id: Z-139
 title: >-
   [agent-issue] cc-doctor: validate .mcp.json server commands resolve and PATH
   overrides include $ZDOTDIR/bin
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-09 01:59'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-14 21:45'
 labels:
   - agent-reported
   - request
