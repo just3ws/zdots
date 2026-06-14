@@ -4,10 +4,11 @@ title: Migrate local observability from LGTM (Docker) to OpenObserve (native)
 status: To Do
 assignee: []
 created_date: '2026-06-06 05:49'
-updated_date: '2026-06-07 13:21'
+updated_date: '2026-06-14 18:37'
 labels:
   - observability
   - infra
+  - wave1
 dependencies: []
 priority: medium
 ordinal: 25890
