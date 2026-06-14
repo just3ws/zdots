@@ -2,55 +2,96 @@
 # ---
 # id: zdots-my-sync
 # title: "Zdots 'my' Directory Sync"
-# purpose: Initialize or update the ~/my directory structure for knowledge ingestion.
-# rationale: Keeps the local knowledge vault structure in alignment across machines.
+# purpose: Delegate ~/my structure validation to adots.
+# rationale: Keeps ~/my structural supervision in adots while zdots consumes the contract.
 # ---
-# bin/zdots-my-sync — Ensures required ~/my structure exists.
+# bin/zdots-my-sync — Validate required ~/my structure through adots-my.
 
-set -eo pipefail
+set -euo pipefail
 
 usage() {
   cat <<EOF
 Usage: zdots-my-sync [OPTIONS]
+       zdots-my-sync doctor [OPTIONS]
 
-Initializes or updates the ~/my directory structure for knowledge ingestion.
+Validate the ~/my directory structure by delegating to 'adots-my doctor'.
+This command is read-only; zdots no longer creates ~/my directories directly.
+
+Think of this as the Rails-style migration-status check for ~/my. Future
+structure creation belongs in an explicit adots generator/prepare command.
 
 Options:
-  -h, --help    Show this help
+  --my-root PATH          Validate PATH instead of \$ZDOTS_MY_ROOT or \$HOME/my
+  --strict-public-vault   Treat a missing vaults/public directory as a failure
+  --json                  Emit machine-readable JSON from adots-my
+  -q, --quiet             Suppress passing checks
+  -h, --help              Show this help
 
 EOF
 }
 
+COMMAND="doctor"
+MY_ROOT="${ZDOTS_MY_ROOT:-${ADOTS_MY_ROOT:-${MY_HOME:-$HOME/my}}}"
+JSON_MODE=0
+declare -a DOCTOR_ARGS=()
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h|--help) usage; exit 0 ;;
-    *) printf 'zdots-my-sync: unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+    doctor|sync)
+      COMMAND="doctor"
+      shift
+      ;;
+    --my-root)
+      [[ $# -ge 2 ]] || { printf 'zdots-my-sync: --my-root requires a path\n' >&2; exit 2; }
+      MY_ROOT="$2"
+      shift 2
+      ;;
+    --strict-public-vault)
+      DOCTOR_ARGS+=("$1")
+      shift
+      ;;
+    --json)
+      JSON_MODE=1
+      DOCTOR_ARGS+=("$1")
+      shift
+      ;;
+    -q|--quiet)
+      DOCTOR_ARGS+=("$1")
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'zdots-my-sync: unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 1
+      ;;
   esac
-  shift
 done
 
-MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
-DIRS=(
-  "backlog"
-  "lessons"
-  "methodologies"
-  "standards"
-  "transcripts"
-  "adrs"
-)
+if [[ "$COMMAND" != "doctor" ]]; then
+  printf 'zdots-my-sync: unsupported command: %s\n' "$COMMAND" >&2
+  exit 2
+fi
 
-echo "==> Syncing ~/my structure in $MY_ROOT..."
-
-for dir in "${DIRS[@]}"; do
-  target="$MY_ROOT/$dir"
-  if [ ! -d "$target" ]; then
-    echo "  [+] Creating $target"
-    mkdir -p "$target"
+ADOTS_MY="${ADOTS_MY_COMMAND:-}"
+if [[ -z "$ADOTS_MY" ]]; then
+  if command -v adots-my >/dev/null 2>&1; then
+    ADOTS_MY="$(command -v adots-my)"
+  elif [[ -x "$HOME/bin/adots-my" ]]; then
+    ADOTS_MY="$HOME/bin/adots-my"
+  else
+    printf 'zdots-my-sync: adots-my not found; install/update adots and run: adots-my doctor\n' >&2
+    exit 127
   fi
-done
+fi
 
-echo "==> ~/my sync complete."
-echo "    Next steps:"
-echo "    1. Populate $MY_ROOT/standards with platform docs."
-echo "    2. Run 'zdots-ctx ingest $MY_ROOT/standards/' to index documentation."
-echo "    3. Drop new transcripts in $MY_ROOT/transcripts/ and run ingest."
+DOCTOR_ARGS=(--my-root "$MY_ROOT" "${DOCTOR_ARGS[@]}")
+
+if [[ "$JSON_MODE" -eq 0 ]]; then
+  printf 'zdots-my-sync: delegating ~/my structure check to: %s doctor\n' "$ADOTS_MY"
+fi
+
+exec "$ADOTS_MY" doctor "${DOCTOR_ARGS[@]}"

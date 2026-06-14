@@ -143,7 +143,7 @@ _parse_capability() {
     source '$REAL_ADOTS_DIR/capabilities.sh' >/dev/null 2>&1
     # Count ADOTS_CAPABILITIES_* arrays
     declare -a all_caps
-    for arr in ADOTS_CAPABILITIES_{PROFILE,SYNC,HEALTH,GIT,UTILS}; do
+    for arr in ADOTS_CAPABILITIES_{PROFILE,SYNC,HEALTH,MY,GIT,UTILS}; do
       if declare -p \"\$arr\" >/dev/null 2>&1; then
         eval \"all_caps+=(\\\${arr[@]})\"
       fi
@@ -152,6 +152,16 @@ _parse_capability() {
   "
   [ "$status" -eq 0 ]
   [[ "$output" == "ok" ]]
+}
+
+@test "Capabilities: adots exposes the my doctor capability" {
+  [ -f "$REAL_ADOTS_DIR/capabilities.sh" ] || skip "adots/capabilities.sh not found"
+
+  run bash -c "
+    source '$REAL_ADOTS_DIR/capabilities.sh' >/dev/null 2>&1
+    printf '%s\n' \"\${ADOTS_ALL_CAPABILITIES[@]}\" | grep -Fx 'my:doctor:adots-my doctor'
+  "
+  [ "$status" -eq 0 ]
 }
 
 @test "Capabilities: Both capabilities files exist and are readable" {
@@ -248,6 +258,19 @@ _parse_capability() {
   "
   local exit_code="${output}"
   [ "$exit_code" != "124" ] || skip "adots-doctor timed out (service issue)"
+}
+
+@test "Health: adots-my doctor runs without blocking" {
+  skip_in_ci
+
+  [ -x "/Users/mike/bin/adots-my" ] || skip "adots-my not found"
+
+  run bash -c "
+    timeout 10 '/Users/mike/bin/adots-my' doctor --quiet >/dev/null 2>&1
+    echo \$?
+  "
+  local exit_code="${output}"
+  [ "$exit_code" != "124" ] || skip "adots-my timed out"
 }
 
 @test "Health: Startup succeeds even if zdots-doctor fails" {
