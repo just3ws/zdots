@@ -55,3 +55,45 @@ state under `~/.local/state/zsh/active_task`.
 Architecture and documentation audit work should reference
 `docs/architecture-diagram-audit-plan.md` so the plan remains visible to future
 agents and does not live only in conversation history.
+
+## 5. Dependency Graph & Leverage Waves
+
+Execution priority is driven by **dependency leverage**, not task count or
+feature visibility. Make the right next task the *obvious* one by encoding the
+graph, then letting the tool surface it:
+
+1. **Encode edges natively.** `backlog task edit <id> --depends-on <ids>`. A task
+   depends on the foundation that must land first. Never track dependencies in
+   prose or a side file.
+2. **Let the tool compute order.** `backlog sequence list --plain` topologically
+   sequences the open backlog from those edges (and proves it is a DAG — it errors
+   on a cycle). This is the **live source of truth** for what *can* run now.
+3. **Overlay leverage with labels.** `wave1`..`wave4` labels rank *what should run
+   first* within the unblocked set (highest downstream unlock per unit effort).
+   `set:<feature>` labels group feature sets. Query: `backlog task list --labels wave1`.
+4. **Rule:** pick the **lowest-wave** task among the currently-unblocked
+   (Sequence 1) tasks. Do not start a later wave while a foundation it depends on
+   is open.
+
+The rationale snapshot — graph, leverage ranking, divergence flags — lives in the
+Backlog.md doc **`analysis/dependency-graph` (doc-003)**: `backlog doc view doc-003`.
+When task state changes, trust `backlog sequence`, then refresh that doc.
+
+Favor **convergence over proliferation**: before implementing, verify no
+equivalent solution exists and extend the existing abstraction rather than adding
+a competing one. If you detect architectural divergence, stop and record it on the
+board (a task comment) instead of building the duplicate.
+
+## 6. "Backlog.md" is the tool, not a file
+
+"Backlog.md" refers to the **Backlog.md CLI/MCP** (github.com/MrLesk/Backlog.md),
+driven via `backlog`. It is **not** a literal file to create.
+
+- Never create a `Backlog.md` or `backlog.md` file as a planning/roadmap surface.
+  Tasks live in `backlog/tasks/`, docs in `backlog/docs/`, decisions in
+  `backlog/decisions/` — all managed through the tool.
+- `docs/backlog.md` (this guide) is the **only** sanctioned literal file, and it
+  documents the tool; it is not task state.
+- If you find a stray literal `Backlog.md`/`backlog.md` planning artifact, treat it
+  as a legacy AI mistake: migrate any real ideas onto the board via `task create`,
+  then remove the file.
