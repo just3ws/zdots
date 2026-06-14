@@ -6,12 +6,16 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-14 18:25'
+updated_date: '2026-06-14 18:36'
 labels:
   - feature
   - ai-cost
   - observability
   - knowledge-layer
-dependencies: []
+dependencies:
+  - Z-130
+  - Z-135
+  - Z-134
 references:
   - >-
     backlog/decisions/decision-006 -
