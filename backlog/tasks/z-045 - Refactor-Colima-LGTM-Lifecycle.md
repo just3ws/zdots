@@ -4,8 +4,9 @@ title: Refactor Colima/LGTM Lifecycle
 status: To Do
 assignee: []
 created_date: '2026-05-06 06:12'
-updated_date: '2026-06-14 18:35'
-labels: []
+updated_date: '2026-06-14 18:37'
+labels:
+  - wave2
 milestone: m-3
 dependencies:
   - Z-134
