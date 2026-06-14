@@ -4,10 +4,12 @@ title: Configure targeted GitHub tokens for Mise and Homebrew
 status: To Do
 assignee: []
 created_date: '2026-04-04 22:30'
+updated_date: '2026-06-14 18:37'
 labels:
   - setup
   - security
   - manual-action
+  - wave4
 dependencies: []
 priority: medium
 ---
