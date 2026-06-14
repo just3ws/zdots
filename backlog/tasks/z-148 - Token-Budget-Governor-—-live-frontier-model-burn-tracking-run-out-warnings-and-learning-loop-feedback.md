@@ -6,12 +6,13 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-14 18:25'
-updated_date: '2026-06-14 18:36'
+updated_date: '2026-06-14 18:37'
 labels:
   - feature
   - ai-cost
   - observability
   - knowledge-layer
+  - wave3
 dependencies:
   - Z-130
   - Z-135
