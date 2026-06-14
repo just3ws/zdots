@@ -90,12 +90,13 @@ flowchart TB
         phihistory --> atuin
     end
 
-    subgraph Intelligence["Intelligence Layer (PLANNED ⑦)"]
-        histintel["history-intelligence\nskill — NOT YET BUILT"]
+    subgraph Intelligence["Intelligence Layer ⑦"]
+        histintel["bin/history-intelligence\nsynthesis tool (Python)"]
         sessiondebrief["session-debrief\nskill — NOT YET BUILT"]
         histsqlite --> histintel
         atuin --> histintel
         histintel --> sessiondebrief
+        histintel --> zmorning2["recipes/morning\n(zmorning briefing)"]
     end
 
     subgraph Callers["CLI Entry Points"]
@@ -138,15 +139,19 @@ flowchart TB
 | ④ | **MCP Transport** | `bin/ctx-mcp` | AI agents (Claude Code, Gemini, Pi, Aider) | stdio JSON-RPC 2.0 → `zdots-ctx` |
 | ⑤ | **Observability Export** | OTLP / `otel-collector` | All shell spans, AI spans, service health | `otel-collector` → OpenObserve |
 | ⑥ | **History Capture** | `conf.d/55-phi-history.zsh` | Every interactive command | PHI scrub → SQLite (`command_runs`, `shell_hook_metrics`) + atuin + Redis |
-| ⑦ | **Intelligence Layer** | `history-intelligence` skill (PLANNED) | Agent sessions, `zmorning` | `command_runs` + `shell_hook_metrics` + atuin → synthesized report |
+| ⑦ | **Intelligence Layer** | `bin/history-intelligence` | `zmorning`, AI agents, hooks/CI (`--gate`) | reads `command_runs` + `shell_hook_metrics` + atuin → synthesized report (human + `--json`) |
 
 > **Note on ⑤:** `otel-collector` plays a dual role — it is both a Platform Service managed by `zsvc`
 > and the transport node in the Observability Pipeline. The seam is the OTLP export boundary;
 > the service lifecycle is a separate concern.
 
-> **Gap (2026-06-13):** Seam ⑦ does not yet exist. `command_runs` and `shell_hook_metrics` have
-> data (1,164 hook metric events; 14+ command runs) but no synthesis layer surfaces it. The
-> `history-analyze` tool reads atuin only; it does not read SQLite. This is the next investment.
+> **Seam ⑦ realized (2026-06-13):** `bin/history-intelligence` now reads the captured-but-unread
+> runtime data (`shell_hook_metrics`: always-on hook health + PHI accountability; `command_runs`:
+> opt-in exit codes/durations; atuin: command frequency) and synthesizes it into interface
+> signals. It closes the **Infer** step of the Virtuous Loop. Output is consumable by `zmorning`
+> (signals surfaced in the daily briefing), by AI agents (`--json`), and by hooks/CI (`--gate`
+> exits non-zero on a high-severity signal). Remaining: `session-debrief` (write-back to the
+> Knowledge Layer) is still unbuilt — that closes the loop back to **Capture/Curate**.
 
 ---
 
@@ -234,3 +239,4 @@ lib/ai-invoke.bash  ───────────────── Seam ①
 | ④ MCP Transport | `tests/mcp.bats` | 30 tests — protocol A-E groups |
 | ⑤ Observability | `tests/observability.bats` | OTLP spans, collector health |
 | ⑥ History Capture | `tests/cmd_analytics.bats` | suppress, redact, SQLite write |
+| ⑦ Intelligence Layer | `tests/history_intelligence.bats` | 14 tests — schema, PHI accountability, signal inference, `--gate`, graceful degradation, read-only |
