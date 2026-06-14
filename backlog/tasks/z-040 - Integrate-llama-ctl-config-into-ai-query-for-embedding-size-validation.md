@@ -4,11 +4,12 @@ title: Integrate llama-ctl config into ai-query for embedding size validation
 status: To Do
 assignee: []
 created_date: '2026-04-19 02:32'
-updated_date: '2026-06-14 18:35'
+updated_date: '2026-06-14 18:37'
 labels:
   - ai-query
   - llama-ctl
   - security
+  - wave2
 dependencies:
   - Z-130
 priority: medium
