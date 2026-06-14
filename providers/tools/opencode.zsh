@@ -20,6 +20,42 @@
 #   zopencode run "prompt"    # non-interactive (if supported by the installed CLI)
 
 zdots_opencode_init() {
+  # Optional first arg "gh" selects the opt-in GitHub Copilot cloud lane. Bare
+  # `zopencode` is unchanged (local llama.cpp). Copilot auth is managed by
+  # opencode itself (`opencode auth login` → GitHub Copilot device flow), so the
+  # cloud guard runs in "native" mode — home-only + scrubber posture, no zdots key.
+  local _mode="${1:-local}"
+
+  if [[ "$_mode" == "gh" ]]; then
+    if ! typeset -f zdots_cloud_lane_guard >/dev/null 2>&1; then
+      # shellcheck source=lib/ai_cloud_lane.bash
+      [[ -r "${ZDOTDIR}/lib/ai_cloud_lane.bash" ]] && source "${ZDOTDIR}/lib/ai_cloud_lane.bash"
+    fi
+    typeset -f zdots_cloud_lane_guard >/dev/null 2>&1 \
+      || { print -u2 "zopencode --gh: cloud lane guard unavailable."; return 1; }
+    zdots_cloud_lane_guard "zopencode --gh" native || return $?
+
+    # Do NOT pin the local config. Let opencode use its native Copilot provider
+    # and stored auth. Keep sharing disabled (PHI-adjacent) and select a model.
+    local _gh_cfg_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zdots/opencode"
+    [[ -d "$_gh_cfg_dir" ]] || mkdir -p "$_gh_cfg_dir" 2>/dev/null
+    local _gh_cfg="${_gh_cfg_dir}/opencode-copilot.json"
+    if command -v jq >/dev/null 2>&1; then
+      jq -n --arg model "${ZDOTS_COPILOT_MODEL:-github-copilot/gpt-4o}" '{
+        "$schema": "https://opencode.ai/config.json",
+        "share": "disabled",
+        "autoshare": false,
+        "model": $model
+      }' > "$_gh_cfg" 2>/dev/null
+      export OPENCODE_CONFIG="$_gh_cfg"
+    fi
+    export OPENCODE_DISABLE_AUTOUPDATE="1"
+    if ! opencode auth list 2>/dev/null | grep -qi 'copilot'; then
+      printf 'zopencode --gh: GitHub Copilot not authorized yet — run `opencode auth login` and pick GitHub Copilot.\n' >&2
+    fi
+    return 0
+  fi
+
   # Gate + locality: mode check and endpoint locality together. Fail-closed.
   if ! typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1; then
     # shellcheck source=lib/ai_boundary.bash
@@ -71,14 +107,20 @@ zdots_opencode_init() {
 
 # zopencode — launch OpenCode wired to local llama.cpp, from any directory.
 zopencode() {
-  zdots_opencode_init
+  # Opt-in cloud lane: `zopencode --gh [...]` routes to GitHub Copilot (home-only,
+  # scrubber-posture gated). Bare `zopencode` is unchanged — local llama.cpp.
+  local _mode="local"
+  if [[ "${1:-}" == "--gh" ]]; then
+    _mode="gh"; shift
+  fi
+  zdots_opencode_init "$_mode" || return $?
 
   if ! command -v opencode >/dev/null 2>&1; then
     printf 'zopencode: opencode not installed — `brew install opencode` (it is in Brewfile.home/.work).\n' >&2
     return 127
   fi
 
-  typeset -f zdots_trace_log >/dev/null 2>&1 && zdots_trace_log "ai_query" "tool=zopencode,args=$*"
+  typeset -f zdots_trace_log >/dev/null 2>&1 && zdots_trace_log "ai_query" "tool=zopencode,lane=${_mode},args=$*"
 
   opencode "$@"
 }
