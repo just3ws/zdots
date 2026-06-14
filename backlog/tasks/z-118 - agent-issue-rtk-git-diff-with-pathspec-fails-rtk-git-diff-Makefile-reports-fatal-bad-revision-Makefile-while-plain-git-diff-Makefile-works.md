@@ -3,10 +3,10 @@ id: Z-118
 title: >-
   [agent-issue] rtk git diff with pathspec fails: 'rtk git diff -- Makefile'
   reports fatal bad revision Makefile while plain git diff -- Makefile works
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-29 14:21'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-14 21:45'
 labels:
   - agent-reported
   - bug
