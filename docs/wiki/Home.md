@@ -12,6 +12,16 @@ This directory is the versioned source for the public wiki. GitHub wiki pages ma
 - [PHI Safety](PHI-Safety.md)
 - [Troubleshooting](Troubleshooting.md)
 
+## The ecosystem
+
+Zdots is the shell platform in a four-part personal-OS ecosystem. Peers:
+
+| System | Role | Wiki |
+|---|---|---|
+| **adots** | Home dotfiles + agent coordination (bare repo at `~/.homegit`) | [adots wiki](https://github.com/just3ws/adots/wiki) |
+| **vdots** | Neovim platform — LSP, plugins, editor config | [vdots wiki](https://github.com/just3ws/vdots/wiki) |
+| **my** | Private "Cerebral Control Plane" (no public wiki) | [My-System](https://github.com/just3ws/adots/wiki/My-System) |
+
 ## Truth Sources
 
 - Live state: `zdots-ctl status --json`
