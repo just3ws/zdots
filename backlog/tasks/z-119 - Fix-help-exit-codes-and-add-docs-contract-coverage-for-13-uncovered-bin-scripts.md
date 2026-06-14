@@ -3,10 +3,10 @@ id: Z-119
 title: >-
   Fix --help exit codes and add docs-contract coverage for 13 uncovered bin
   scripts
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-29 17:52'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-14 21:45'
 labels:
   - wave4
 dependencies: []
