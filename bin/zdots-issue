@@ -32,6 +32,7 @@ TRACE_ID="${ZDOTS_TRACE_ID:-}"
 FROM_TRACE=""
 
 _usage() {
+  local exit_code="${1:-2}"
   cat >&2 <<'EOF'
 zdots-issue — Agent help desk
 
@@ -64,7 +65,7 @@ Examples:
   zdots-issue --type friction "Alert system confusing, hard to silence"
   zdots-issue --from-trace abc123 "PHI scrubber timeout on large inputs"
 EOF
-  exit 2
+  exit "$exit_code"
 }
 
 # Parse arguments
@@ -74,7 +75,7 @@ while [[ $# -gt 0 ]]; do
     --severity)  SEVERITY="${2:?--severity requires a value}"; shift 2 ;;
     --from-trace) FROM_TRACE="${2:?--from-trace requires a value}"; TRACE_ID="$FROM_TRACE"; shift 2 ;;
     --title)     TITLE="${2:?--title requires a value}"; shift 2 ;;
-    --help|-h)   _usage ;;
+    --help|-h)   _usage 0 ;;
     --)          shift; DESCRIPTION="$*"; break ;;
     -*)          printf 'zdots-issue: unknown option: %s\n' "$1" >&2; exit 2 ;;
     *)           DESCRIPTION="$1"; shift ;;

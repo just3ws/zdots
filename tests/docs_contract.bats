@@ -82,6 +82,9 @@ _known_gap() {
     history-intelligence
     session-debrief
     zdots-pages
+    bench
+    zdots-pattern
+    zdots-issue
   "
   for command in $commands; do
     [[ -z "$command" ]] && continue
@@ -193,6 +196,7 @@ _known_gap() {
     zdots-worker zsynod zsynod-migrate zdots-mlx-prepare
     zmetrics zmorning zsvc ztask
     cc-home log-rotate zdots-config zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
+    bench zdots-pattern zdots-issue
   )
 
   local missing=()
