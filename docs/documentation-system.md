@@ -19,6 +19,7 @@ Zdots documentation has one job: make the live system legible enough that a huma
 | Evolution views | `docs/repository-evolution.md` | Git-derived timelines, histograms, velocity charts, and branch-flow context |
 | AI context | `AGENTS.md`, `CONTEXT.md`, `PI.md`, inventory | Agent operating contract |
 | Wiki source | `docs/wiki/` | Public handbook pages, versioned in this repo |
+| Docs publishing | `bin/zdots-pages`, [zdots-pages.md](zdots-pages.md) | Repo→Wiki→Pages mapping and maintenance contract for the shared just3ws docs surface |
 | Backlog | `backlog/` | Work state and known gaps |
 
 Policy lives in `AGENTS.md`. Facts that can drift belong in generated or contract-checked files.
@@ -73,6 +74,13 @@ Help output must document:
 `docs/wiki/` is the versioned source for the public wiki. The GitHub wiki may mirror it, but repo files win.
 
 Wiki pages are for navigation, narrative, and operator workflows. They are not the canonical source for command contracts.
+
+zdots is one of three published systems (zdots, adots, vdots) that share a single
+publisher, theme, and custom domain. The repo→Wiki→Pages mapping, the cross-link
+and visibility invariants, the custom-domain topology, and the
+add-a-page/add-a-repo procedures are the maintenance contract in
+[zdots-pages.md](zdots-pages.md). Never edit a wiki on `github.com` directly —
+the source `.md` wins and the next sync overwrites it.
 
 ## Contract
 
