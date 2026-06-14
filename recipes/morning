@@ -19,6 +19,7 @@ trap '' PIPE
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 HISTORY_ANALYZE="${ZDOTDIR}/bin/history-analyze"
+HISTORY_INTEL="${ZDOTDIR}/bin/history-intelligence"
 ALIAS_SUGGEST="${ZDOTDIR}/bin/alias-suggest"
 
 QUICK=false
@@ -93,6 +94,28 @@ for f in .zshrc .zprofile .zlogin .zlogout; do
 done
 if (( ${#ERRANT[@]} > 0 )); then
   _warn "errant zsh files in \$HOME: ${ERRANT[*]}"
+fi
+
+# 1.7 History Intelligence — inferred interface signals (Seam ⑦)
+# Reads shell_hook_metrics (hook health + PHI accountability) and command_runs.
+# --quiet prints only the synthesized signals; we surface them under morning's
+# own header for visual consistency.
+_header "History Intelligence"
+if [[ -x "$HISTORY_INTEL" ]]; then
+  _signals=$("$HISTORY_INTEL" --quiet --no-color 2>/dev/null | grep '●' || true)
+  if [[ -n "$_signals" ]]; then
+    printf '%s\n' "$_signals" | while IFS= read -r _line; do
+      case "$_line" in
+        *'[high]'*) _err "${_line#*● }" ;;
+        *'[medium]'*) _warn "${_line#*● }" ;;
+        *) printf '  %s\n' "${_line#*● }" ;;
+      esac
+    done
+  else
+    _ok "no concerns in window"
+  fi
+else
+  _warn "history-intelligence not found"
 fi
 
 # 2. Command frequency (always runs)

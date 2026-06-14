@@ -1,225 +1,24 @@
-# Brewfile.work — work machine configuration
+# Brewfile.work — work machine configuration.
 #
 # Install: brew bundle --file=Brewfile.work
+# Shared core lives in Brewfile.common (included below).
 #
-# Principle: tools that run locally or can be pointed at local endpoints
-#            are fine. Excluded = the product IS the cloud service
-#            (ChatGPT, Gemini, railway, flyctl, etc.) or is purely personal
-#            (deezer, antigravity, gource, julia). Claude is cleared for
-#            work (home/work parity); PHI deny-list + cc-hook-guard apply.
-#
-# To add a tool when cleared, uncomment from the "pending" section below
-# or add it here directly.
+# Principle: tools that run locally or point at local endpoints are fine.
+# Excluded = the product IS the cloud service, or is purely personal.
+# Claude is cleared for work (home/work parity); PHI deny-list + cc-hook-guard apply.
 
-tap "arimxyer/tap"            # local AI model management
-tap "bysiber/cleardisk"
-tap "dracula/install"
+instance_eval(File.read(File.expand_path("Brewfile.common", File.dirname(__FILE__))))
+
+# ── work-only packages ──
 tap "hashicorp/tap"           # Terraform and other HashiCorp tools
-tap "romkatv/powerlevel10k"
 
-brew "ack"
-brew "act"
-brew "shellcheck"
-brew "actionlint"
-brew "ansifilter"
-brew "openssl@3"
-brew "tmux"
-brew "aoe"
-brew "ast-grep"
-brew "atuin"
-brew "sqlite"
-brew "node"
-brew "backlog-md"
-brew "bash"
-brew "bat"
-brew "bats-core"
-brew "bandwhich"    # network traffic per process — verify AI local-only boundary at OS level
-brew "bottom"
-brew "boxes"
-brew "broot"
-brew "btop"
-brew "librsvg"
-brew "chafa"
-brew "cmake"
-brew "colima"
-brew "coreutils"
-brew "csvlens"
-brew "curl"
-brew "dasel"
-brew "dashing"
-brew "diff-so-fancy"
-brew "difftastic"   # structural (AST-aware) diffs — local tool, no cloud
-brew "direnv"
-brew "docker"
-brew "docker-buildx"
-brew "docker-compose"
-brew "docker-compose-langserver"
-brew "duckdb"       # embeddable OLAP SQL — fast local analytics (CSV/Parquet/SQLite)
-brew "entr"
-brew "eza"
-brew "fabric-ai"  # LLM pipeline tool — configurable to local endpoints
-brew "fd"
-brew "fdupes"
-brew "fish"
-brew "fswatch"
-brew "fx"
-brew "fzf"
-brew "geoipupdate"
-brew "gh"
-brew "git"
-brew "git-absorb"
-brew "git-delta"
-brew "git-lfs"
-brew "gitleaks"
-brew "gitlint"
-brew "glow"
-brew "gnupg"
-brew "go"
-brew "graphicsmagick"
-brew "graphviz"
-brew "grep"
-brew "hadolint"
-brew "htop"
-brew "hyperfine"
-brew "imagemagick"
-brew "jemalloc"
-brew "jless"
-brew "jq"
-brew "k6"
-brew "lazygit"
-brew "litecli"      # SQLite REPL with autocomplete
-brew "llama.cpp"    # local inference — no data leaves machine
-brew "lnav"
-brew "lua-language-server"
-brew "luacheck"
-brew "luarocks"
-brew "mactop"
-brew "mkcert"
-brew "mermaid-cli"
-brew "usage"
-brew "mise"
-brew "mmv"
-brew "mysql-client"
-brew "ncdu"
-brew "tree-sitter"
-brew "neovim"
-brew "ghostscript"    # nvim (vdots) doc rendering — provides `gs` for PDF preview (snacks/image.nvim)
-brew "tectonic"       # nvim (vdots) LaTeX math rendering in markdown preview
-brew "nginx"          # local reverse proxy — TLS via mkcert
                       # NOTE: start with launchctl, NOT brew services (brew services takes root ownership):
                       #   sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
-brew "nvtop"
-brew "ollama"         # local inference — no data leaves machine
-brew "openai-whisper" # local speech recognition — weights run on-device
-brew "openapi"
-brew "openjdk"
-brew "openapi-diff"
-brew "openapi-generator"
-brew "openapi-tui"
-brew "ossp-uuid"
-brew "otel-cli"
-brew "pandoc"
-brew "pgcli"        # PostgreSQL REPL with autocomplete
-brew "pgvector"
-brew "pipx"
-brew "pnpm"
-brew "postgresql@18", restart_service: :changed
-brew "powerlevel10k"
-brew "pre-commit"
-brew "prettier"
-brew "pv"
-brew "ranger"
-brew "redis", restart_service: :changed
-brew "rename"
-brew "repomix"
-brew "ripgrep"
-brew "rsync"
-brew "rtk"        # token optimization for local LLM workflows
-brew "ruby-lsp"
-brew "rustup"
-brew "sd"
-brew "sqlite-utils" # CLI analytics on SQLite
-brew "sentry-cli"
-brew "sesh"
-brew "shfmt"
-brew "sponge"
-brew "ssh-copy-id"
-brew "stylua"
-brew "svgo"
-brew "swift-format"
-brew "swiftformat"
-brew "swiftlint"
-brew "syft"
-brew "taplo"
-brew "tealdeer"
-brew "television"
-brew "terminal-notifier"
-brew "tokei"
-brew "tree"
-brew "tree-sitter-cli"
-brew "trivy"
-brew "trufflehog"
-brew "universal-ctags"
-brew "uv"
-brew "visidata"     # TUI spreadsheet for SQLite/PostgreSQL
-brew "vivid"
-brew "watch"
-brew "watchexec"
-brew "wget"
-brew "whisper-cpp"    # local speech recognition — runs on-device
-brew "whisperkit-cli" # local speech recognition — runs on-device
-brew "xcodegen"
-brew "xmlstarlet"
-brew "yamllint"
-brew "yarn"
-brew "yq"
-brew "yt-dlp"     # media ingestion — feeds local Whisper pipelines
-brew "zoxide"
-brew "zsh"
-brew "zsh-autopair"
-brew "zsh-autosuggestions"
-brew "zsh-completions"
-brew "zsh-history-enquirer"
-brew "zsh-history-substring-search"
-brew "zsh-syntax-highlighting"
-brew "zsh-vi-mode"
-brew "zsh-you-should-use"
-brew "dust"
 # gh-dash is a gh extension, not a Homebrew formula: gh extension install dlvhdr/gh-dash
-brew "git-cliff"
-brew "lazydocker"
 # otelcol-contrib is intentionally absent — custom binary managed by
 # bin/otel-collector install (not available via Homebrew)
-brew "arimxyer/tap/models"    # local model management
 
-cask "alfred"
-cask "bysiber/cleardisk/cleardisk"
-cask "cmux"
-cask "daisydisk"
-cask "dash"
-cask "dbeaver-community"
-cask "dracula/install/dracula-terminal"
-cask "dracula/install/dracula-xcode"
-cask "firefox"
-cask "font-fira-code-nerd-font"
-cask "font-meslo-lg-nerd-font"
-cask "google-chrome"
-cask "iterm2"
-cask "itermai"    # iTerm AI integration — configurable to local endpoints
-cask "marked-app"
-cask "microsoft-teams"
-cask "miro"
-cask "obsidian"
-cask "onyx"
 cask "openvpn-connect"   # corporate VPN client — network access to work infrastructure
-cask "pgadmin4"
-cask "postman"
-cask "rectangle"
-cask "slack"
-cask "stats"
-cask "vimr"
-cask "visual-studio-code"
-cask "zoom"
 
 vscode "github.copilot-chat"
 
@@ -230,16 +29,10 @@ npm "@earendil-works/pi-coding-agent"
 # OpenCode — terminal agentic coding seat (homebrew-core). Seated in the synod
 # per committed P18; drive it via `zopencode` (pinned to the local llama.cpp
 # endpoint, PHI guard parity). Principal-evaluated; pi stays the lightweight seat.
-brew "opencode"
-cask "opencode-desktop"   # OpenCode GUI (pairs with the opencode CLI)
 
 # Claude — cleared for work; home/work parity (mirrors Brewfile.home).
 # Provides the cl/claude CLI used as the zsynod frontier seat, plus the
 # desktop suite. Local-LLM defaults and the PHI deny-list still apply.
-cask "claude"
-cask "claude-code"
-cask "claude-devtools"
-cask "claudebar"
 vscode "saoudrizwan.claude-dev"
 
 # ---------------------------------------------------------------------------
