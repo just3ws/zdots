@@ -4,10 +4,12 @@ title: 'zdots-quiz: expand coverage for zdash fzf binding and llama-ctl patterns
 status: To Do
 assignee: []
 created_date: '2026-05-23 13:54'
+updated_date: '2026-06-14 18:37'
 labels:
   - local-ai
   - zdots-quiz
   - prompt-engineering
+  - wave4
 dependencies: []
 references:
   - bin/zdots-quiz
