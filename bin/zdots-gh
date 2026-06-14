@@ -224,7 +224,9 @@ _harvest_rest() {
 cmd_harvest() {
   _require_owner
   _need gh "install: brew bundle (gh) and run: gh auth login"
-  gh auth status >/dev/null 2>&1 || _die "gh is not authenticated — run: gh auth login"
+  # --active checks only the active account; bare `gh auth status` exits 1 if ANY
+  # known account on ANY host has issues, falsely blocking a logged-in operator.
+  gh auth status --active >/dev/null 2>&1 || _die "gh is not authenticated — run: gh auth login"
 
   local outdir; outdir="$(_owner_dir "$OWNER")"
   mkdir -p "$outdir"
