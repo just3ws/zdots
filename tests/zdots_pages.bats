@@ -90,3 +90,68 @@ teardown() { rm -rf "$TMP"; }
   [ "$status" -eq 0 ]
   [[ "$output" == *"publish site via zdots-pages"* ]]
 }
+
+@test "zdots-pages: build on a BARE repo via --git-dir + --wiki-src + --worktree" {
+  # A bare repo (no working tree) with an origin remote — mirrors adots (~/.homegit).
+  BARE="$TMP/home.git"
+  git init -q --bare "$BARE"
+  git --git-dir="$BARE" remote add origin "https://github.com/just3ws/adots.git"
+
+  # Docs live outside the repo: --wiki-src is REQUIRED in bare mode.
+  SRC="$TMP/wikisrc"; mkdir -p "$SRC"
+  printf '# Home\nwelcome\n' > "$SRC/Home.md"
+  printf '# Notes\nbody\n'   > "$SRC/Notes.md"
+
+  WT="$TMP/adots.gh-pages"; mkdir -p "$WT"
+
+  run "$BIN/zdots-pages" build --git-dir "$BARE" --wiki-src "$SRC" --worktree "$WT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"built 2 pages"* ]]
+
+  [ -f "$WT/index.md" ]                       # Home → index
+  [ -f "$WT/Notes.md" ]
+  grep -q 'permalink: /' "$WT/index.md"
+  grep -q 'title: Notes' "$WT/Notes.md"
+  # owner/repo derived from origin remote, not a working-tree toplevel.
+  grep -q 'baseurl: "/adots"' "$WT/_config.yml"
+  grep -q 'url: "https://just3ws.github.io"' "$WT/_config.yml"
+}
+
+@test "zdots-pages: --git-dir without --wiki-src is refused" {
+  BARE="$TMP/home.git"
+  git init -q --bare "$BARE"
+  git --git-dir="$BARE" remote add origin "https://github.com/just3ws/adots.git"
+  run "$BIN/zdots-pages" build --git-dir "$BARE"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"--wiki-src"* ]]
+}
+
+@test "zdots-pages: nav_order is sequential with Home pinned to 1 (no collisions)" {
+  # Home plus three other pages — Home must not reset the counter for the rest.
+  printf '# Alpha\na\n'   > "$REPO/docs/wiki/Alpha.md"
+  printf '# Beta\nb\n'    > "$REPO/docs/wiki/Beta.md"
+  printf '# Gamma\nc\n'   > "$REPO/docs/wiki/Gamma.md"
+
+  "$BIN/zdots-pages" init  --repo "$REPO"
+  run "$BIN/zdots-pages" build --repo "$REPO"
+  [ "$status" -eq 0 ]
+
+  # Home → index.md → nav_order: 1
+  grep -q '^nav_order: 1$' "$REPO/.gh-pages/index.md"
+
+  # Collect nav_order from every non-Home page; assert distinct + none equal 1.
+  local orders=()
+  for p in "$REPO"/.gh-pages/*.md; do
+    if [[ "$(basename "$p")" == "index.md" ]]; then continue; fi
+    local o; o="$(grep -m1 '^nav_order: ' "$p" | awk '{print $2}')"
+    [ -n "$o" ]
+    [ "$o" -ne 1 ]
+    orders+=("$o")
+  done
+  # No duplicates: unique count equals total count.
+  local total uniq
+  total="${#orders[@]}"
+  uniq="$(printf '%s\n' "${orders[@]}" | sort -u | wc -l | tr -d ' ')"
+  [ "$total" -eq "$uniq" ]
+  [ "$total" -ge 4 ]   # Sub-Page + Alpha + Beta + Gamma (Home excluded)
+}
