@@ -7,7 +7,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-12 17:10'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-14 21:30'
 labels:
   - agent-reported
   - bug
@@ -30,3 +30,8 @@ zdots-doctor: Colima check uses legacy ~/.colima path — reports FAIL even when
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 zdots-doctor Colima check delegates to colima-status (no hardcoded ~/.colima); does not FAIL when colima is healthy at XDG path
+<!-- AC:END -->
