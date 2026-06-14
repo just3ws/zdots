@@ -10,8 +10,24 @@ Aider-specific instructions for Zdots.
 |---------|---------|
 | `zaider` | Standard Aider session wired to local llama.cpp |
 | `laid` | Low-priority Aider — nice +19, reduced threads, background edits |
+| `zaider --hf` | **Opt-in** HuggingFace frontier lane (see below) |
 
-Both commands auto-configure `AIDER_OPENAI_API_BASE` and `AIDER_OPENAI_API_KEY=local` to target `ZDOTS_AI_ENDPOINT`. No cloud keys required.
+Both `zaider` and `laid` auto-configure `AIDER_OPENAI_API_BASE` and `AIDER_OPENAI_API_KEY=local` to target `ZDOTS_AI_ENDPOINT`. No cloud keys required.
+
+## Frontier (cloud) lane — `zaider --hf`
+
+`zaider --hf` routes Aider to the **HuggingFace Inference Router** instead of the
+local model. It is the opt-in counterpart to the local-only default; bare
+`zaider` never touches the cloud. Gated by `lib/ai_cloud_lane.bash`:
+
+- **Home-only.** Hard-refused when `ZDOTS_CONTEXT=work` (PHI boundary, exit 3).
+- **Fail-closed.** Refuses unless `phi_scrub` is loadable. Key (`HF_TOKEN`) is
+  read from the macOS Keychain only — never from a secrets file.
+- **Honest scope.** `phi_scrub` cannot sit in the loop of an interactive agent.
+  You are the last gate: do not type raw PHI/credentials into a cloud session.
+
+Model defaults to `openai/Qwen/Qwen2.5-Coder-32B-Instruct`; override with
+`ZDOTS_HF_MODEL`. Add the key once: `zdots-keychain add HF_TOKEN <value>`.
 
 ## Context Budget (7B model — 32k total)
 

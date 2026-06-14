@@ -13,10 +13,22 @@ Pi is `@earendil-works/pi-coding-agent` — a session-aware AI coding agent with
 | `zpi` | Interactive Pi session |
 | `zpi "question"` | One-shot question |
 | `zpi -p "prompt"` | Non-interactive, print output only |
+| `zpi --or "..."` | **Opt-in** OpenRouter frontier lane (see below) |
 | `zmorning` | Session-open ritual: brief + Pi orientation |
 | `zmorning --brief` | Brief only, no Pi |
 
 `zpi` auto-configures `PI_TELEMETRY=0`, `PI_CODING_AGENT_SESSION_DIR` (XDG), and enforces the AI boundary (`ZDOTS_AI_MODE`, RFC-1918 endpoint check).
+
+## Frontier (cloud) lane — `zpi --or`
+
+`zpi --or` routes Pi to **OpenRouter** (`--provider openrouter`) instead of the
+local model. Opt-in only; bare `zpi` never touches the cloud. Gated by
+`lib/ai_cloud_lane.bash` — **home-only** (refused on `ZDOTS_CONTEXT=work`),
+fail-closed on `phi_scrub`, key (`OPENROUTER_API_KEY`) from the Keychain only.
+`phi_scrub` cannot intercept interactive traffic — you are the last gate.
+
+Model defaults to `anthropic/claude-3.7-sonnet`; override with `ZDOTS_OR_MODEL`.
+Add the key once: `zdots-keychain add OPENROUTER_API_KEY <value>`.
 
 ## Pi vs Aider — the boundary
 

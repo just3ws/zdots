@@ -13,25 +13,47 @@
 #   ZDOTS_AI_ENDPOINT=http://other:11500 zaider  # override endpoint
 
 zdots_aider_init() {
-  # Gate + locality in one call — mode check and endpoint locality together.
-  if ! typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1; then
-    # shellcheck source=lib/ai_boundary.bash
-    [[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
+  # Optional first arg "hf" selects the opt-in HuggingFace cloud lane instead of
+  # the default local llama.cpp endpoint. Bare `zaider` is unchanged (local).
+  local _mode="${1:-local}"
+
+  if [[ "$_mode" == "hf" ]]; then
+    # Cloud lane: home-only, scrubber-posture, Keychain key. Fail-closed.
+    if ! typeset -f zdots_cloud_lane_guard >/dev/null 2>&1; then
+      # shellcheck source=lib/ai_cloud_lane.bash
+      [[ -r "${ZDOTDIR}/lib/ai_cloud_lane.bash" ]] && source "${ZDOTDIR}/lib/ai_cloud_lane.bash"
+    fi
+    typeset -f zdots_cloud_lane_guard >/dev/null 2>&1 \
+      || { print -u2 "zaider --hf: cloud lane guard unavailable."; return 1; }
+    zdots_cloud_lane_guard "zaider --hf" HF_TOKEN || return $?
+
+    # HuggingFace Inference Router is OpenAI-compatible; aider speaks to it via
+    # its openai provider with the base URL overridden. Model is overridable.
+    export AIDER_OPENAI_API_BASE="https://router.huggingface.co/v1"
+    export AIDER_OPENAI_API_KEY="$ZDOTS_CLOUD_KEY"
+    export AIDER_MODEL="${ZDOTS_HF_MODEL:-openai/Qwen/Qwen2.5-Coder-32B-Instruct}"
+    unset AIDER_MODEL_METADATA_FILE   # cloud model advertises its own context window
+  else
+    # Gate + locality in one call — mode check and endpoint locality together.
+    if ! typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1; then
+      # shellcheck source=lib/ai_boundary.bash
+      [[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
+    fi
+    typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1 \
+      && zdots_ai_gated_endpoint "zaider" >/dev/null
+
+    # Derive endpoint from the active llama.cpp provider so both always agree.
+    # ZDOTS_AI_ENDPOINT is set by providers/ai/llama-cpp.zsh before this runs.
+    local _endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+
+    export AIDER_OPENAI_API_BASE="${_endpoint}/v1"
+    export AIDER_OPENAI_API_KEY="local"   # llama.cpp ignores the key; any non-empty value works
+
+    # Point aider at the model metadata file so it knows the real context window
+    # (32768 tokens for the standard profile). Without this aider reports "0 of 0"
+    # and cannot budget tokens correctly, causing premature context exhaustion.
+    export AIDER_MODEL_METADATA_FILE="${HOME}/.aider.model.metadata.json"
   fi
-  typeset -f zdots_ai_gated_endpoint > /dev/null 2>&1 \
-    && zdots_ai_gated_endpoint "zaider" >/dev/null
-
-  # Derive endpoint from the active llama.cpp provider so both always agree.
-  # ZDOTS_AI_ENDPOINT is set by providers/ai/llama-cpp.zsh before this runs.
-  local _endpoint="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
-
-  export AIDER_OPENAI_API_BASE="${_endpoint}/v1"
-  export AIDER_OPENAI_API_KEY="local"   # llama.cpp ignores the key; any non-empty value works
-
-  # Point aider at the model metadata file so it knows the real context window
-  # (32768 tokens for the standard profile). Without this aider reports "0 of 0"
-  # and cannot budget tokens correctly, causing premature context exhaustion.
-  export AIDER_MODEL_METADATA_FILE="${HOME}/.aider.model.metadata.json"
 
   # Per-repo defaults (edit-format, map-tokens, history limits, etc.) live in
   # .aider.conf.yml in ZDOTDIR. Aider reads it automatically when launched
@@ -61,10 +83,16 @@ zdots_aider_init() {
 #   /clear            — wipe history at the start of each new task
 #   /tokens           — confirm headroom before adding large files
 zaider() {
-  zdots_aider_init
+  # Opt-in cloud lane: `zaider --hf [...]` routes to HuggingFace (home-only,
+  # scrubber-posture gated). Bare `zaider` is unchanged — local llama.cpp.
+  local _mode="local"
+  if [[ "${1:-}" == "--hf" ]]; then
+    _mode="hf"; shift
+  fi
+  zdots_aider_init "$_mode" || return $?
 
   # Performance Auditing: Log utilization
-  zdots_trace_log "ai_query" "tool=zaider,args=$*"
+  zdots_trace_log "ai_query" "tool=zaider,mode=${_mode},args=$*"
 
   # Warn when the repo map is stale or unavailable — Aider silently degrades
   # without it, producing edits with no repo awareness.
