@@ -11,6 +11,7 @@ This directory is the versioned source for the public wiki. GitHub wiki pages ma
 - [Observability](Observability.md)
 - [PHI Safety](PHI-Safety.md)
 - [Troubleshooting](Troubleshooting.md)
+- [Onboarding a Project](Onboarding-a-Project.md) — fold another (or legacy) project into the shared docs system
 
 ## The ecosystem
 
