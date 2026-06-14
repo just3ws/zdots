@@ -4,10 +4,11 @@ title: 'Narrow Searchable: drop dead semantic branch, own search strategy'
 status: To Do
 assignee: []
 created_date: '2026-06-05 19:58'
-updated_date: '2026-06-14 18:35'
+updated_date: '2026-06-14 18:37'
 labels:
   - architecture
   - refactor
+  - wave2
 dependencies:
   - Z-130
 priority: low
