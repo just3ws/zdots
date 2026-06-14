@@ -345,3 +345,22 @@ MOCK
   [[ "$(jq 'has("response_format")' "$capture")" == "false" ]]
   rm -f "$sysfile" "$userfile" "$capture"
 }
+
+@test "A6: aiq_submit refuses a non-local endpoint in local mode (single authoritative locality gate)" {
+  local sysfile userfile capture
+  sysfile=$(mktemp); printf 'system' > "$sysfile"
+  userfile=$(mktemp); printf 'user'   > "$userfile"
+  capture=$(mktemp)
+
+  # Z-130: locality is asserted exactly once — here, at the network boundary, on
+  # the real endpoint. Sourcing ai_boundary.bash activates the gate (the A1-A5
+  # tests deliberately omit it). A non-local endpoint must be refused BEFORE curl.
+  MOCK_CAPTURE_FILE="$capture" ZDOTS_AI_MODE=local \
+    PATH="$BATS_TEST_TMPDIR/curl-bin:$PATH" \
+    run bash -c "source '$LIB/ai_boundary.bash'; source '$LIB/ai-query-lib.bash' && aiq_submit '$sysfile' '$userfile' 'http://api.openai.com' 'test-model' 5"
+
+  [ "$status" -ne 0 ]
+  # No request reached the mock curl: the capture file stays empty.
+  [ ! -s "$capture" ]
+  rm -f "$sysfile" "$userfile" "$capture"
+}

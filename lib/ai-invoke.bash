@@ -4,7 +4,7 @@
 # The seam through which all local AI inference is called. Callers use these
 # functions; they never call ai-query directly from lib code or shell functions.
 #
-# zdots_ai_infer_raw PROMPT [SYSTEM_PROMPT]  — raw text inference, stdin → stdout
+# zdots_ai_infer_raw [--temperature N] [--thinking] PROMPT [SYSTEM_PROMPT]  — raw text inference, stdin → stdout
 #   Gate check + locality assertion (exits 1/2 on failure).
 #   Runs zdots_message_hygiene on input: normalize → PHI scrub. Owns hygiene.
 #   Uses ai-query --mode raw (no safe-extract wrapping): callers construct the
@@ -43,15 +43,22 @@ source "${_AI_INVOKE_LIB_DIR}/message_hygiene.bash"
 # Stdout: raw model response text
 # Exit:   0 on success, non-zero on gate failure or inference error
 #
-# Env-var call context (export before calling if non-default behaviour needed):
-#   AIQ_TEMPERATURE      — inference temperature (default: 0.2 in aiq_submit)
-#                          Set to 0.1 for deterministic outputs (distill, ZLE widgets).
-#   AIQ_ENABLE_THINKING  — set to 1 for Qwen3 thinking mode; default 0.
-#                          Output is always clean: think blocks stripped by aiq_sanitize_output.
-#   AIQ_JSON_SCHEMA      — JSON schema string for constrained decoding; default null.
-#                          Currently blocked while spec-decoding is active (see zdots_ai_distill).
+# Optional leading flags — the call contract lives in the signature (formerly
+# callers had to `export` AIQ_* env vars; those are still honoured by ai-query as
+# a back-compat fallback, but new callers pass flags):
+#   --temperature N  — inference temperature (default: 0.2; use 0.1 for determinism)
+#   --thinking       — enable Qwen3 thinking mode; think blocks stripped from output.
 # ---------------------------------------------------------------------------
 zdots_ai_infer_raw() {
+  # Parse optional leading flags before the positional prompt/system args.
+  local temperature="" thinking=""
+  while [[ "${1:-}" == --* ]]; do
+    case "$1" in
+      --temperature) temperature="${2:-}"; shift 2 ;;
+      --thinking)    thinking=1; shift ;;
+      *) break ;;
+    esac
+  done
   local prompt="${1:-}"
   local system_prompt="${2:-}"
 
@@ -60,10 +67,12 @@ zdots_ai_infer_raw() {
     return 2
   fi
 
-  # Gate + locality enforced; exits 1 or 2 on violation.
-  # zdots_ai_gated_endpoint validates mode AND endpoint locality in one call —
-  # zdots_ai_gate alone would pass a non-local endpoint in local mode.
-  zdots_ai_gated_endpoint "zdots_ai_infer_raw" >/dev/null
+  # Fast-fail UX gate: mode only (exits 2 if ZDOTS_AI_MODE=none), so a caller fails
+  # cleanly before spawning the ai-query subprocess. This is NOT the security
+  # boundary — the AUTHORITATIVE locality assertion (never send inference to a
+  # non-local endpoint) is asserted exactly once, at the network call in aiq_submit
+  # against the real endpoint. Do not re-add a locality check here.
+  zdots_ai_gate "zdots_ai_infer_raw"
 
   # Run hygiene pipeline: normalize → phi_scrub
   local clean_prompt
@@ -77,6 +86,8 @@ zdots_ai_infer_raw() {
   fi
 
   local ai_args=(--mode raw)
+  [[ -n "$temperature" ]] && ai_args+=(--temperature "$temperature")
+  [[ -n "$thinking" ]] && ai_args+=(--think)
   [[ -n "$system_prompt" ]] && ai_args+=(--system "$system_prompt")
 
   # Suppress the "raw mode" warning: input is PHI-scrubbed above and the prompt
@@ -108,12 +119,10 @@ zdots_ai_distill() {
   # enforced through the prompt and validated below. See AIQ_JSON_SCHEMA in
   # aiq_submit for the wiring; activate it once spec-draft is disabled.
   #
-  # Lower temperature (0.1) for deterministic field values. Safe to export here
-  # because zdots_ai_distill is always called in command substitution (subshell).
-  export AIQ_TEMPERATURE="0.1"
-
+  # Lower temperature (0.1) for deterministic field values — passed as an explicit
+  # parameter of the interface, no longer an exported env var.
   local raw
-  if ! raw=$(zdots_ai_infer_raw "$prompt"); then
+  if ! raw=$(zdots_ai_infer_raw --temperature 0.1 "$prompt"); then
     printf 'zdots_ai_distill: inference failed\n' >&2
     return 1
   fi
