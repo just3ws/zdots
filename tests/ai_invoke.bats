@@ -126,6 +126,29 @@ MOCK
   [[ "$output" != *"--system"* ]]
 }
 
+@test "ai_invoke: infer_raw forwards --temperature and --thinking flags to ai-query" {
+  cat > "$MOCK_BIN/ai-query" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$@"
+MOCK
+  chmod +x "$MOCK_BIN/ai-query"
+
+  run bash -c "
+    export ZDOTS_AI_QUERY='$MOCK_BIN/ai-query'
+    export ZDOTS_AI_MODE=local
+    export ZDOTDIR='$ZDOTDIR'
+    source $ZDOTDIR/lib/ai-invoke.bash
+    zdots_ai_infer_raw --temperature 0.1 --thinking 'my prompt'
+  "
+  [ "$status" -eq 0 ]
+  # The interface contract now lives in the signature: flags translate to
+  # ai-query --temperature/--think, not exported AIQ_* env vars.
+  [[ "$output" == *"--temperature"* ]]
+  [[ "$output" == *"0.1"* ]]
+  [[ "$output" == *"--think"* ]]
+  [[ "$output" == *"my prompt"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # B. zdots_ai_distill — JSON validation and error propagation
 # ---------------------------------------------------------------------------

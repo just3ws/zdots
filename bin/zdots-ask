@@ -235,10 +235,11 @@ fi
 # Route to local model via the AI Invocation Interface.
 # PHI gate + hygiene enforced inside zdots_ai_infer_raw.
 # ---------------------------------------------------------------------------
-# --think: signal via AIQ_ENABLE_THINKING so aiq_submit uses chat_template_kwargs.
-# Inherited by the ai-query subprocess spawned inside zdots_ai_infer_raw.
+# --think becomes an explicit --thinking parameter of the AI Invocation Interface
+# (was an exported AIQ_ENABLE_THINKING env var inherited by the ai-query subprocess).
+infer_flags=()
 if (( THINK_MODE )); then
-  export AIQ_ENABLE_THINKING=1
+  infer_flags+=(--thinking)
 fi
 
 if command -v zdots_trace_log >/dev/null 2>&1; then
@@ -250,5 +251,5 @@ if [[ -n "$PATTERN" ]]; then
     # fabric-ai reads from stdin if present
     printf '%s' "$PROMPT" | fabric-ai --pattern "$PATTERN"
 else
-    zdots_ai_infer_raw "$PROMPT" "$SYS_CONTENT"
+    zdots_ai_infer_raw "${infer_flags[@]}" "$PROMPT" "$SYS_CONTENT"
 fi

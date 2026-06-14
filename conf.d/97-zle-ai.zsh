@@ -80,10 +80,7 @@ _zdots_zle_ai_explain() {
   prompt=$(printf 'Explain this shell command concisely (2-3 sentences max):\n\n%s' "$cmd")
 
   local response
-  response=$(
-    export AIQ_TEMPERATURE=0.1
-    zdots_ai_infer_raw "$prompt" "${_ZLE_SYS_PROMPT:-}" 2>/dev/null
-  ) || true
+  response=$(zdots_ai_infer_raw --temperature 0.1 "$prompt" "${_ZLE_SYS_PROMPT:-}" 2>/dev/null) || true
 
   zle -M "${response:-ai: no response}"
 }
@@ -104,10 +101,7 @@ _zdots_zle_ai_fix() {
   prompt=$(printf 'This shell command failed with exit code %s:\n\n%s\n\nSuggest a corrected version and one-line explanation.' "$last_exit" "$last_cmd")
 
   local response
-  response=$(
-    export AIQ_TEMPERATURE=0.1
-    zdots_ai_infer_raw "$prompt" "${_ZLE_SYS_PROMPT:-}" 2>/dev/null
-  ) || true
+  response=$(zdots_ai_infer_raw --temperature 0.1 "$prompt" "${_ZLE_SYS_PROMPT:-}" 2>/dev/null) || true
 
   zle -M "${response:-ai: no response}"
 }
