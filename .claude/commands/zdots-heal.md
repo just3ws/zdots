@@ -153,12 +153,21 @@ zdots-ctx query tooling:catalog 2>/dev/null | grep -c 'tooling:' | \
 ## Gate 6 — Skill Audit
 
 ```bash
-# Scan all skills for command references that no longer exist in bin/
-grep -h 'zsvc\|zdots-\|colima-status\|capabilities\|agent-guide\|cc-doctor' \
+# Scan all skills for command references that no longer exist in bin/.
+# Anchor on the zdots command shapes (zsvc, colima-status, capabilities,
+# agent-guide, cc-doctor, zdots-*) so the scan extracts real invocations,
+# not arbitrary prose words. The surrounding [^/[:alnum:].-] guards reject
+# path/filename embeddings (audit/zdots-audit-foo.md, /tmp/zdots-update-run.log)
+# so only standalone command tokens match. Skip tokens that are themselves
+# skills (.claude/commands/*.md) — those are /slash commands, not bin/ orphans.
+grep -hoE '(^|[^/[:alnum:].-])(zsvc|colima-status|capabilities|agent-guide|cc-doctor|zdots-[a-z0-9-]+)([^./[:alnum:]-]|$)' \
   .claude/commands/*.md \
-  | grep -oE '\b[a-z][a-z0-9-]{3,}\b' | sort -u \
+  | grep -oE '(zsvc|colima-status|capabilities|agent-guide|cc-doctor|zdots-[a-z0-9-]+)' \
+  | sort -u \
   | while read -r cmd; do
-      command -v "$cmd" >/dev/null 2>&1 || printf 'MISSING: %s\n' "$cmd"
+      command -v "$cmd" >/dev/null 2>&1 && continue
+      [ -f ".claude/commands/${cmd}.md" ] && continue
+      printf 'MISSING: %s\n' "$cmd"
     done
 # PASS: no output
 # FAIL: each MISSING line is an orphaned reference
