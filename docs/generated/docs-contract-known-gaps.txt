@@ -6,9 +6,6 @@
 # A gap here must correspond to a backlog issue. This file prevents silent drift
 # while allowing the docs contract to pass during staged rollout.
 
-bench: --help exits 1 instead of 0; usage is printed but return code is wrong z-119
-zdots-pattern: --help exits 2 instead of 0 z-119
-zdots-issue: --help exits 2 instead of 0 z-119
 check: shell integrity runner invoked by make/CI; not --help-aware z-119
 colima-autostart: launchd daemon; no interactive --help contract z-119
 ctx-mcp: MCP stdio server; no --help contract by design z-119

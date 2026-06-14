@@ -100,8 +100,12 @@ case "${1:-all}" in
     echo
     bench_caching
     ;;
-  *)
+  --help|-h)
     echo "Usage: $0 [startup|breakdown|cache|zprof|all]"
+    exit 0
+    ;;
+  *)
+    echo "Usage: $0 [startup|breakdown|cache|zprof|all]" >&2
     exit 1
     ;;
 esac
