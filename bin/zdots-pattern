@@ -17,6 +17,7 @@ _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 
 _usage() {
+  local exit_code="${1:-0}"
   cat >&2 <<'EOF'
 Usage: zdots-pattern [OPTIONS]
 
@@ -26,7 +27,7 @@ Options:
   --context [TAG]    Prepend zdots-ctx hydrate output to input.
   --help, -h         Show this help
 EOF
-  exit 2
+  exit "$exit_code"
 }
 
 # ---------------------------------------------------------------------------
@@ -45,8 +46,8 @@ while [[ $# -gt 0 ]]; do
         shift
       fi
       ;;
-    --help|-h) _usage ;;
-    -*) printf 'zdots-pattern: unknown flag: %s\n' "$1" >&2; _usage ;;
+    --help|-h) _usage 0 ;;
+    -*) printf 'zdots-pattern: unknown flag: %s\n' "$1" >&2; _usage 2 ;;
     *) break ;;
   esac
 done
