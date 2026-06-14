@@ -92,11 +92,12 @@ flowchart TB
 
     subgraph Intelligence["Intelligence Layer ⑦"]
         histintel["bin/history-intelligence\nsynthesis tool (Python)"]
-        sessiondebrief["session-debrief\nskill — NOT YET BUILT"]
+        sessiondebrief["bin/session-debrief\nInfer → Curate write-back"]
         histsqlite --> histintel
         atuin --> histintel
         histintel --> sessiondebrief
         histintel --> zmorning2["recipes/morning\n(zmorning briefing)"]
+        sessiondebrief --> zdotsctx
     end
 
     subgraph Callers["CLI Entry Points"]
@@ -145,13 +146,22 @@ flowchart TB
 > and the transport node in the Observability Pipeline. The seam is the OTLP export boundary;
 > the service lifecycle is a separate concern.
 
-> **Seam ⑦ realized (2026-06-13):** `bin/history-intelligence` now reads the captured-but-unread
+> **Seam ⑦ realized (2026-06-13):** `bin/history-intelligence` reads the captured-but-unread
 > runtime data (`shell_hook_metrics`: always-on hook health + PHI accountability; `command_runs`:
 > opt-in exit codes/durations; atuin: command frequency) and synthesizes it into interface
-> signals. It closes the **Infer** step of the Virtuous Loop. Output is consumable by `zmorning`
-> (signals surfaced in the daily briefing), by AI agents (`--json`), and by hooks/CI (`--gate`
-> exits non-zero on a high-severity signal). Remaining: `session-debrief` (write-back to the
-> Knowledge Layer) is still unbuilt — that closes the loop back to **Capture/Curate**.
+> signals (**Infer**). `bin/session-debrief` then curates the actionable signals into atomic,
+> tagged Lessons via the `zdots-ctx` interface (**Curate**), which the next session reads back
+> through `zdots-ctx hydrate` (**Repeat**). The full Virtuous Loop is now closed in code:
+>
+> ```
+> Work → Capture (conf.d/55,56) → Infer (history-intelligence) → Curate (session-debrief)
+>      → Repeat (zdots-ctx hydrate) → Work …
+> ```
+>
+> Surfaces: `zmorning` (signals in the daily briefing), AI agents (`--json`), hooks/CI
+> (`history-intelligence --gate`). `session-debrief` dedups via a seen-file so repeated runs
+> don't create duplicate Lessons, and flags high-severity signals as `zdots-issue` candidates
+> without auto-filing (Schrute test — operator coordinates issue creation).
 
 ---
 
@@ -239,4 +249,4 @@ lib/ai-invoke.bash  ───────────────── Seam ①
 | ④ MCP Transport | `tests/mcp.bats` | 30 tests — protocol A-E groups |
 | ⑤ Observability | `tests/observability.bats` | OTLP spans, collector health |
 | ⑥ History Capture | `tests/cmd_analytics.bats` | suppress, redact, SQLite write |
-| ⑦ Intelligence Layer | `tests/history_intelligence.bats` | 14 tests — schema, PHI accountability, signal inference, `--gate`, graceful degradation, read-only |
+| ⑦ Intelligence Layer | `tests/history_intelligence.bats`, `tests/session_debrief.bats` | 14 + 17 tests — Infer (synthesis, signals, `--gate`) and Curate (write-back, dedup, retry safety) |
