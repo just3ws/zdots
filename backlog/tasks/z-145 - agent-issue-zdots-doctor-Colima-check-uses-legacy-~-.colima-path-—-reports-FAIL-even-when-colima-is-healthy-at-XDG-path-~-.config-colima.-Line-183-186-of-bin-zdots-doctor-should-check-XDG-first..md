@@ -4,7 +4,7 @@ title: >-
   [agent-issue] zdots-doctor: Colima check uses legacy ~/.colima path — reports
   FAIL even when colima is healthy at XDG path (~/.config/colima). Line 183-186
   of bin/zdots-doctor should check XDG first.
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-12 17:10'
 updated_date: '2026-06-14 21:30'
@@ -33,5 +33,5 @@ zdots-doctor: Colima check uses legacy ~/.colima path — reports FAIL even when
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 zdots-doctor Colima check delegates to colima-status (no hardcoded ~/.colima); does not FAIL when colima is healthy at XDG path
+- [x] #1 zdots-doctor Colima check delegates to colima-status (no hardcoded ~/.colima); does not FAIL when colima is healthy at XDG path
 <!-- AC:END -->
