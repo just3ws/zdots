@@ -4,11 +4,12 @@ title: Shrink the AI Invocation Interface — stop leaking via env vars
 status: To Do
 assignee: []
 created_date: '2026-06-05 19:58'
-updated_date: '2026-06-05 22:04'
+updated_date: '2026-06-14 18:37'
 labels:
   - architecture
   - refactor
   - agent-ready
+  - wave1
 dependencies: []
 priority: medium
 ordinal: 21890
