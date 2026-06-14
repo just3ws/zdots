@@ -4,11 +4,12 @@ title: 'Runtime-insight feedback loop: scrub-at-ingest + session read-back (work
 status: In Progress
 assignee: []
 created_date: '2026-06-07 16:55'
-updated_date: '2026-06-14 18:35'
+updated_date: '2026-06-14 18:37'
 labels:
   - agent-ready
   - observability
   - phi
+  - wave1
 dependencies:
   - Z-134
 priority: high
