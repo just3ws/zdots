@@ -32,6 +32,6 @@ rtk git diff with pathspec fails: 'rtk git diff -- Makefile' reports fatal bad r
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 rtk git diff -- <pathspec> no longer reports 'bad revision' (fixed upstream rtk 0.42.4)
-- [ ] #2 Regression guard added in tests/rtk_pathspec.bats
+- [x] #1 rtk git diff -- <pathspec> no longer reports 'bad revision' (fixed upstream rtk 0.42.4)
+- [x] #2 Regression guard added in tests/rtk_pathspec.bats
 <!-- AC:END -->
