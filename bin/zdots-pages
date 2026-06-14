@@ -180,7 +180,10 @@ cmd_wiki() {
   local wdir; wdir="$(mktemp -d)"
   if ! git clone -q "https://github.com/$OWNER/$REPO.wiki.git" "$wdir" 2>/dev/null; then
     rm -rf "$wdir"
-    die "wiki repo not initialized. Enable it (Settings → Features → Wikis) and create the first page in the GitHub UI, then retry."
+    die "wiki not initialized — GitHub creates the .wiki.git repo only after the
+  first page is saved in the web UI (no API exists for this). One-time step:
+    open https://github.com/$OWNER/$REPO/wiki  → 'Create the first page' → Save.
+  Then re-run: zdots-pages wiki --push"
   fi
   cp "$WIKI_SRC"/*.md "$wdir"/
   git -C "$wdir" add -A
