@@ -4,10 +4,11 @@ title: Scanner weight calibration and false-positive controls for ai-query
 status: To Do
 assignee: []
 created_date: '2026-04-19 02:32'
-updated_date: '2026-06-14 18:35'
+updated_date: '2026-06-14 18:37'
 labels:
   - ai-query
   - security
+  - wave2
 dependencies:
   - Z-130
 priority: low
