@@ -1,10 +1,10 @@
 ---
 id: Z-130
 title: Shrink the AI Invocation Interface — stop leaking via env vars
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-05 19:58'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-14 22:57'
 labels:
   - architecture
   - refactor
@@ -31,8 +31,8 @@ Wins: interface shrinks to what is true, locality (one gate assertion), testable
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 temperature and thinking are explicit parameters, not exported env vars
-- [ ] #2 the gate/locality check is asserted at exactly one layer
+- [x] #1 temperature and thinking are explicit parameters, not exported env vars
+- [x] #2 the gate/locality check is asserted at exactly one layer
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -108,6 +108,12 @@ manual: echo hi | ai-query --mode raw --temperature 0.1 --think 'summarize'.
 SCOPE: shell-only, no Ruby. Behaviour-preserving for request bodies. The win is the
 contract moving into signatures + one authoritative security gate. Est: M.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Done 2026-06-14. AC#1: temperature/thinking are explicit flags — bin/ai-query gains --temperature; zdots_ai_infer_raw takes leading --temperature/--thinking; zdots_ai_distill and the ZLE explain/fix widgets and zdots-ask --think all pass params instead of exporting AIQ_*. AIQ_* still honoured internally by ai-query as back-compat fallback (A1-A5 stay green). AC#2: locality (the PHI boundary) asserted at exactly ONE layer — aiq_submit, on the real endpoint before curl; ai-invoke.bash downgraded from zdots_ai_gated_endpoint to a mode-only zdots_ai_gate fast-fail (relabelled; boundary unweakened). Evidence: syntax+shellcheck clean on all 6 files; bats ai_invoke/ai_query/zdots_eval/zdots_ask green; new regression tests — ai_invoke flag-forwarding + zdots_eval A6 (aiq_submit refuses non-local endpoint, no request sent); live smoke 'ai-query --mode raw --temperature 0.1 --think' returned ok. NOTE: full 'make check' has 6 pre-existing failures unrelated to this seam (cmd_analytics, redis-drain, brain methodology, update-local) — out of scope for Z-130.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

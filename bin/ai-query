@@ -111,6 +111,7 @@ Options:
   --max-bytes N            Hard input ceiling in bytes (default: ${AIQ_MAX_BYTES})
   --timeout N              Curl request timeout in seconds (default: ${TIMEOUT})
   --think                  Enable Qwen3 thinking mode (sets AIQ_ENABLE_THINKING=1)
+  --temperature N          Sampling temperature (default: 0.2; lower = more deterministic)
   --show-risk              Always print scan findings to stderr
   --block-high             Exit 4 if heuristic scan scores high risk
   --no-wrap                Alias for --mode raw (emits loud warning)
@@ -168,6 +169,7 @@ while [[ $# -gt 0 ]]; do
     --show-risk)     OPT_SHOW_RISK=true;   shift   ;;
     --block-high)    OPT_BLOCK_HIGH=true;  shift   ;;
     --think)         AIQ_ENABLE_THINKING=1; export AIQ_ENABLE_THINKING; shift ;;
+    --temperature)   AIQ_TEMPERATURE="$2"; export AIQ_TEMPERATURE; shift 2 ;;
     --no-wrap)
       MODE="raw"
       printf 'ai-query: WARNING: --no-wrap / raw mode disables trust-boundary wrapping.\n' >&2
