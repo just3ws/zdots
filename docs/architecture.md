@@ -238,26 +238,29 @@ stateDiagram-v2
 
 The Knowledge Vault (`~/my`) is the local entry point for platform knowledge. It
 must be structured consistently across machines for reliable ingestion into the
-Brain.
+Brain. Treat its structure like a private Rails app: `adots-my doctor` is the
+migration-status check, future adots prepare commands are generators, and
+content consolidation should happen as explicit structural migrations.
 
 #### Vault Structure
 
-Initialize or verify the structure using the provided utility:
+Verify the structure using the zdots delegation utility:
 
 ```bash
 zdots-my-sync
 ```
 
-This creates the following directory hierarchy:
+This is read-only and delegates to `adots-my doctor`. The current active shape is:
 
 ```text
 ~/my/
-├── backlog/         # Implementation tickets and tasks
-├── lessons/         # Post-mortem insights, solved bugs
-├── methodologies/   # Engineering standards, patterns
-├── standards/       # Formal platform documentation
-├── transcripts/     # Raw transcriptions for ingestion
-└── adrs/            # Architecture Decision Records
+├── .archive/         # Inactive unmapped material, original paths preserved
+├── config/           # Source registry and local policy
+├── context-engine/   # Local my.localhost cockpit and context API
+├── knowledge/        # Curated lessons, methodologies, references
+└── vaults/
+    ├── personal/     # Private Obsidian vault
+    └── public/       # Planned public-safe vault, approval gated
 ```
 
 #### Domain Archeology & Asset Inventory
