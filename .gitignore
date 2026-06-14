@@ -56,3 +56,6 @@ __pycache__/
 
 # Scratch space — holds API tokens (huggingface.txt, open-router.txt); never commit
 tmp/
+
+# zdots-pages gh-pages worktree (local build output)
+.gh-pages/

@@ -81,6 +81,7 @@ _known_gap() {
     zdots-schema
     history-intelligence
     session-debrief
+    zdots-pages
   "
   for command in $commands; do
     [[ -z "$command" ]] && continue
@@ -191,7 +192,7 @@ _known_gap() {
     zdots-endpoints zdots-gh zdots-github-keys zdots-graph-audit zdots-index-tools zdots-keychain zdots-log-analyze zdots-logs zdots-o2-query zdots-otel-phi-compile zdots-patch-export zdots-pulse zdots-quiz zdots-ruby-default-gems zdots-server-keys zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-my-sync zdots-ingest-prepare
     zdots-worker zsynod zsynod-migrate zdots-mlx-prepare
     zmetrics zmorning zsvc ztask
-    cc-home log-rotate zdots-config zdots-phi-scrub zdots-schema history-intelligence session-debrief
+    cc-home log-rotate zdots-config zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
   )
 
   local missing=()

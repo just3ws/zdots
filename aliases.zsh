@@ -70,6 +70,7 @@ alias zhistory-ai='history-analyze --ai'              # + AI optimization sugges
 alias zaliases='alias-suggest'                        # suggest aliases from history
 alias zintel='history-intelligence'                   # Seam ⑦ — synthesized interface signals
 alias zdebrief='session-debrief'                       # curate session signals → Knowledge Layer
+alias zpages='zdots-pages'                             # GitHub Pages + Wiki publisher (shared theme)
 
 # Fabric-AI Integration (Pattern-based Intelligence)
 alias fabric='fabric-ai'
