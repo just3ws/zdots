@@ -4,11 +4,13 @@ title: 'Bridge the Contextual Continuity Gap: Implement the ''Librarian'' Member
 status: To Do
 assignee: []
 created_date: '2026-06-10 13:22'
+updated_date: '2026-06-14 18:35'
 labels:
   - zsynod
   - context
   - knowledge-layer
-dependencies: []
+dependencies:
+  - Z-142
 priority: medium
 ordinal: 34890
 ---
