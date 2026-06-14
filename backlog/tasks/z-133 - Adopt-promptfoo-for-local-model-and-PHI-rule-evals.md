@@ -4,10 +4,12 @@ title: Adopt promptfoo for local-model and PHI-rule evals
 status: To Do
 assignee: []
 created_date: '2026-06-06 00:10'
+updated_date: '2026-06-14 18:37'
 labels:
   - ai-tooling
   - testing
   - agent-ready
+  - wave1
 dependencies: []
 priority: low
 ordinal: 24890
