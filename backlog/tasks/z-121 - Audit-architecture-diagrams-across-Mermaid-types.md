@@ -4,9 +4,10 @@ title: Audit architecture diagrams across Mermaid types
 status: To Do
 assignee: []
 created_date: '2026-05-31 15:50'
-updated_date: '2026-05-31 15:54'
+updated_date: '2026-06-14 18:37'
 labels:
   - agent-ready
+  - wave4
 dependencies: []
 documentation:
   - docs/architecture-diagram-audit-plan.md
