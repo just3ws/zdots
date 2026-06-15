@@ -194,19 +194,30 @@ cmd_done() {
 
   local id; id=$(cat "$ACTIVE_TASK_FILE")
   local task_file; task_file=$(_find_task_file "$id")
-  
+
   _svc_log "completing task $id..."
   zdots_trace_log "task_done" "id=$id"
 
   # 1. Update status to Done through Backlog.md CLI.
+  #    This state transition is unconditional — AI distillation must never gate it.
   if [[ -n "$task_file" ]]; then
     _set_task_status "$id" "Done"
   fi
 
-  # 2. Capture residue
-  if [[ -x "$ZDOTS_CTX" ]]; then
+  # 2. Session Residue distillation — best-effort side-effect only.
+  #    Skip entirely when AI is disabled; degrade gracefully on failure.
+  #    Completion is never gated on distillation success.
+  if [[ "${ZDOTS_AI_MODE:-local}" == "none" ]]; then
+    _svc_log "session residue capture skipped (ZDOTS_AI_MODE=none)."
+  elif [[ -x "$ZDOTS_CTX" ]]; then
     _svc_log "triggering session residue capture..."
-    "$ZDOTS_CTX" capture
+    if ! "$ZDOTS_CTX" capture 2>/tmp/ztask_capture_err_$$; then
+      printf 'ztask: session residue capture failed (non-fatal) — %s\n' \
+        "$(cat /tmp/ztask_capture_err_$$ 2>/dev/null | head -1 || true)" >&2
+      rm -f /tmp/ztask_capture_err_$$
+    else
+      rm -f /tmp/ztask_capture_err_$$
+    fi
   fi
 
   rm -f "$ACTIVE_TASK_FILE"
