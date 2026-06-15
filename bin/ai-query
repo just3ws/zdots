@@ -106,6 +106,10 @@ Modes (--mode):
   summarize-untrusted      Summarize untrusted content safely.
   classify-risk            Ask model to classify injection/adversarial risk.
   inspect-prompt-injection Forensic inspection of embedded injection patterns.
+  embed                    Embedding mode. Use --embeddings flag as alias.
+                           Size ceiling derived from llama-ctl ubatch_size * 3
+                           bytes/token; falls back to AIQ_MAX_BYTES when
+                           llama-ctl is absent.
 
 Options:
   --mode MODE              Select operating mode (see above)
@@ -115,6 +119,7 @@ Options:
   --timeout N              Curl request timeout in seconds (default: ${TIMEOUT})
   --from-file PATH         Read PATH as the DATA block (same pipeline as stdin;
                            mutually exclusive with non-tty stdin; exit 2 if both)
+  --embeddings             Alias for --mode embed (server-aware size ceiling applies)
   --think                  Enable Qwen3 thinking mode (sets AIQ_ENABLE_THINKING=1)
   --temperature N          Sampling temperature (default: 0.2; lower = more deterministic)
   --show-risk              Always print scan findings to stderr
@@ -178,6 +183,7 @@ while [[ $# -gt 0 ]]; do
     --system|-s)     CUSTOM_SYSTEM="$2";  shift 2 ;;
     --show-risk)     OPT_SHOW_RISK=true;   shift   ;;
     --block-high)    OPT_BLOCK_HIGH=true;  shift   ;;
+    --embeddings)    MODE="embed";          shift   ;;
     --think)         AIQ_ENABLE_THINKING=1; export AIQ_ENABLE_THINKING; shift ;;
     --temperature)   AIQ_TEMPERATURE="$2"; export AIQ_TEMPERATURE; shift 2 ;;
     --no-wrap)
@@ -233,6 +239,22 @@ aiq_require_dep jq  "brew install jq"
 aiq_require_dep curl "brew install curl"
 
 # ---------------------------------------------------------------------------
+# Embed mode: derive server-aware byte ceiling from llama-ctl ubatch_size.
+#
+# Done once at startup and cached for the session.  When llama-ctl is absent
+# or returns no valid ubatch_size, falls back silently to AIQ_MAX_BYTES —
+# existing behavior is preserved.
+# ---------------------------------------------------------------------------
+AIQ_EMBED_CEILING="${AIQ_MAX_BYTES}"  # default: standard ceiling
+if [[ "$MODE" == "embed" ]]; then
+  AIQ_EMBED_CEILING=$(aiq_llama_embed_ceiling)
+  if $OPT_DEBUG; then
+    printf 'ai-query: debug: embed mode — ceiling=%d bytes (ubatch_size*3; fallback=%d)\n' \
+      "${AIQ_EMBED_CEILING}" "${AIQ_MAX_BYTES}" >&2
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Temp file registry — all tmp files registered here; EXIT trap cleans them
 # ---------------------------------------------------------------------------
 declare -a _TMP_FILES=()
@@ -276,22 +298,36 @@ _aiq_write_audit() {
 }
 
 # ---------------------------------------------------------------------------
+# Effective byte ceiling — tighter of AIQ_EMBED_CEILING (embed mode) and
+# AIQ_MAX_BYTES (standard).  For non-embed modes these are equal.
+# ---------------------------------------------------------------------------
+_AIQ_EFFECTIVE_CEILING="${AIQ_EMBED_CEILING}"
+
+# ---------------------------------------------------------------------------
 # Read stdin (bounded)
 # ---------------------------------------------------------------------------
 RAW_TMP=$(_mktmp)
 HAS_STDIN=false
 
 if [[ ! -t 0 ]]; then
-  # Read up to AIQ_MAX_BYTES + 1 byte to detect oversized input before buffering.
-  local_limit=$(( AIQ_MAX_BYTES + 1 ))
+  # Read up to ceiling + 1 byte to detect oversized input before buffering.
+  local_limit=$(( _AIQ_EFFECTIVE_CEILING + 1 ))
   dd bs=1 count="${local_limit}" 2>/dev/null < /dev/stdin > "$RAW_TMP" || true
 
   raw_bytes=$(wc -c < "$RAW_TMP" | tr -d ' ')
   if [[ "${raw_bytes}" -gt 0 ]]; then
     HAS_STDIN=true
-    if [[ "${raw_bytes}" -gt "${AIQ_MAX_BYTES}" ]]; then
-      printf 'ai-query: input too large: exceeds %d byte limit\n' "${AIQ_MAX_BYTES}" >&2
-      printf 'ai-query: trim input or raise limit with --max-bytes N\n' >&2
+    if [[ "${raw_bytes}" -gt "${_AIQ_EFFECTIVE_CEILING}" ]]; then
+      if [[ "$MODE" == "embed" ]]; then
+        printf 'ai-query: embed input too large: %d bytes exceeds server embed ceiling of %d bytes\n' \
+          "${raw_bytes}" "${_AIQ_EFFECTIVE_CEILING}" >&2
+        printf 'ai-query: embed ceiling = ubatch_size (%d tokens) * 3 bytes/token\n' \
+          "$(( _AIQ_EFFECTIVE_CEILING / 3 ))" >&2
+        printf 'ai-query: trim input or raise ubatch_size in llama-ctl config\n' >&2
+      else
+        printf 'ai-query: input too large: exceeds %d byte limit\n' "${_AIQ_EFFECTIVE_CEILING}" >&2
+        printf 'ai-query: trim input or raise limit with --max-bytes N\n' >&2
+      fi
       exit "${AIQ_TOO_LARGE}"
     fi
   fi
@@ -317,12 +353,20 @@ if [[ -n "$OPT_FROM_FILE" ]]; then
   # Record basename for metadata; never record contents.
   SOURCE_FILE_BASENAME="$(basename "$OPT_FROM_FILE")"
   # Copy into RAW_TMP with the same size guard as stdin.
-  local_limit=$(( AIQ_MAX_BYTES + 1 ))
+  local_limit=$(( _AIQ_EFFECTIVE_CEILING + 1 ))
   dd bs=1 count="${local_limit}" 2>/dev/null < "$OPT_FROM_FILE" > "$RAW_TMP" || true
   raw_bytes=$(wc -c < "$RAW_TMP" | tr -d ' ')
-  if [[ "${raw_bytes}" -gt "${AIQ_MAX_BYTES}" ]]; then
-    printf 'ai-query: input too large: exceeds %d byte limit\n' "${AIQ_MAX_BYTES}" >&2
-    printf 'ai-query: trim input or raise limit with --max-bytes N\n' >&2
+  if [[ "${raw_bytes}" -gt "${_AIQ_EFFECTIVE_CEILING}" ]]; then
+    if [[ "$MODE" == "embed" ]]; then
+      printf 'ai-query: embed input too large: %d bytes exceeds server embed ceiling of %d bytes\n' \
+        "${raw_bytes}" "${_AIQ_EFFECTIVE_CEILING}" >&2
+      printf 'ai-query: embed ceiling = ubatch_size (%d tokens) * 3 bytes/token\n' \
+        "$(( _AIQ_EFFECTIVE_CEILING / 3 ))" >&2
+      printf 'ai-query: trim input or raise ubatch_size in llama-ctl config\n' >&2
+    else
+      printf 'ai-query: input too large: exceeds %d byte limit\n' "${_AIQ_EFFECTIVE_CEILING}" >&2
+      printf 'ai-query: trim input or raise limit with --max-bytes N\n' >&2
+    fi
     exit "${AIQ_TOO_LARGE}"
   fi
   HAS_STDIN=true  # treat file content identically to stdin from here on
@@ -430,14 +474,15 @@ if [[ "$HAS_STDIN" == "true" ]]; then
     aiq_normalize "$RAW_TMP" 2>/dev/null | phi_scrub > "$NORM_TMP"
   fi
   norm_bytes=$(wc -c < "$NORM_TMP" | tr -d ' ')
-  aiq_check_size "$norm_bytes"
+  # Apply the effective ceiling (embed: server-derived; others: AIQ_MAX_BYTES).
+  AIQ_MAX_BYTES="${_AIQ_EFFECTIVE_CEILING}" aiq_check_size "$norm_bytes"
   CONTENT=$(cat "$NORM_TMP")
 else
   CONTENT=""
 fi
 
-$OPT_DEBUG && printf 'ai-query: debug: mode=%s model=%s endpoint=%s bytes=%s\n' \
-  "$MODE" "$MODEL" "$ENDPOINT" "${norm_bytes:-0}" >&2 || true
+$OPT_DEBUG && printf 'ai-query: debug: mode=%s model=%s endpoint=%s bytes=%s ceiling=%s\n' \
+  "$MODE" "$MODEL" "$ENDPOINT" "${norm_bytes:-0}" "${_AIQ_EFFECTIVE_CEILING}" >&2 || true
 
 # ---------------------------------------------------------------------------
 # Build trust-boundary-wrapped messages
