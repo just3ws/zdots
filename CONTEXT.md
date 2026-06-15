@@ -125,7 +125,8 @@ The personal "second brain" stored in the `my` PostgreSQL database. Contains eng
 
 **Stored entities (in order of abstraction):**
 - **Session Residue** — raw distillation of a captured shell session: `intent`, `result`, `summary`, linked by `trace_id`. Written by `zdots-ctx capture`. Has a `processed_into_docs_at` lifecycle flag; unset means not yet curated.
-- **Lesson** — a curated knowledge unit: `content`, `context`, `tags`. Can be promoted from Session Residue or authored directly (no source trace required).
+- **Lesson** — a curated knowledge unit: `content`, `context`, `tags`. Can be promoted from Session Residue or authored directly (no source trace required). All Lessons enter the Knowledge Base through `Zdots::Models::LessonIntake`, which owns `source_type` and `source_trace_id` derivation — no caller sets these directly.
+- **Lesson source_type** — the provenance discriminator on every Lesson. One of four values: `user` (operator-authored via CLI), `capture` (AI-distilled from a Session Residue), `ingest` (ingested from the Knowledge Vault), `distill` (AI-distilled from an external source such as a YouTube transcript). Set exclusively by `LessonIntake.create`; callers declare intent, not raw conventions. Enables querying human-authored vs AI-authored Lessons.
 - **Methodology** — a synthesized, higher-level knowledge artifact: `slug`, `title`, `content`, `tags`. Authored deliberately; represents stable principles rather than individual session observations.
 
 ---
