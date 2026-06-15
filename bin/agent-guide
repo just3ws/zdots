@@ -46,6 +46,11 @@ LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
 AGENT_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 LOG_ANALYZER="${AGENT_ZDOTDIR}/bin/zdots-log-analyze"
 
+# Platform version — the Astronomicon beacon (decision-007). Agents read this to
+# confirm which epoch they are operating in. my is per-environment by contract.
+PLATFORM_VERSION="$(cat "${AGENT_ZDOTDIR}/VERSION" 2>/dev/null || echo unknown)"
+MY_CONTRACT="my.structure.v1"
+
 AI_UP=false
 AI_MODEL_ID="unknown"
 OTEL_UP=false
@@ -113,6 +118,8 @@ fi
 # ---------------------------------------------------------------------------
 if $JSON; then
   jq -n \
+    --arg     platform_version "$PLATFORM_VERSION" \
+    --arg     my_contract      "$MY_CONTRACT" \
     --argjson ai_up        "$AI_UP" \
     --arg     ai_ep        "$AI_ENDPOINT" \
     --arg     ai_model     "$AI_MODEL_ID" \
@@ -127,6 +134,11 @@ if $JSON; then
     --arg     ai_mode        "$AI_MODE" \
     --argjson cloud_keys_set "$CLOUD_KEYS_SET" \
     '{
+      platform: {
+        version:     $platform_version,
+        scheme:      "imperial-calver",
+        my_contract: $my_contract
+      },
       services: {
         llama_cpp:   { up: $ai_up,      endpoint: $ai_ep,     model: $ai_model, start: "llama-ctl start" },
         whisper_cpp: { up: $whisper_up,                                          start: "whisper-ctl install" },
@@ -230,7 +242,8 @@ _head() { printf '\n'; _bold "$*"; printf '\n'; printf '%*s\n' "${#*}" '' | tr '
 # Human-readable output
 # ---------------------------------------------------------------------------
 _bold "=== Zdots Agent Guide ==="
-printf '\nThis machine is the central hub for AI inference and OTel observability.\n'
+printf '\nPlatform: %s  (public-trio epoch · my=%s)\n' "$PLATFORM_VERSION" "$MY_CONTRACT"
+printf 'This machine is the central hub for AI inference and OTel observability.\n'
 printf 'For machine-readable output: agent-guide --json\n'
 
 _head "Platform Control — zdots-ctl"
