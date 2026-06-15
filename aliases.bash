@@ -112,6 +112,12 @@ fi
 # Modern DSL Patterns
 alias path='echo $PATH | tr ":" "\n"'
 
+# Imperial calendar — the Astronomicon date converter (bin/imperial-date).
+#   idate              today's Imperial date (e.g. 0452026.M3)
+#   idate 2026-06-14   convert a Gregorian date
+#   idate --decode 0452026.M3   decode back to Gregorian (±1d)
+alias idate='imperial-date'
+
 # Utility Functions
 ff() { find "${2:-.}" -type f -iname "*$1*"; }
 
