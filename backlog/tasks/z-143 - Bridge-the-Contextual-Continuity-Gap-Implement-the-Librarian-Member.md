@@ -1,15 +1,15 @@
 ---
 id: Z-143
 title: 'Bridge the Contextual Continuity Gap: Implement the ''Librarian'' Member'
-status: To Do
+status: Experimental
 assignee: []
 created_date: '2026-06-10 13:22'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-15 01:37'
 labels:
   - zsynod
   - context
   - knowledge-layer
-  - wave2
+  - experimental
 dependencies:
   - Z-142
 priority: medium
@@ -35,3 +35,9 @@ Implement the 'Librarian' seat in zsynod for automated Knowledge Base injection.
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Parked Experimental 2026-06-14: zsynod is contained under experiments/zsynod/ (commit c250f90) — a funded, held experiment for future analysis, not active backlog work. Backend/integration direction is settled (llama.cpp primary). Pick back up deliberately when zsynod is reactivated. See experiments/zsynod/, project_zsynod.
+<!-- SECTION:NOTES:END -->
