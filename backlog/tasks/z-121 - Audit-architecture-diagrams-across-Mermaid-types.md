@@ -4,7 +4,7 @@ title: Audit architecture diagrams across Mermaid types
 status: To Do
 assignee: []
 created_date: '2026-05-31 15:50'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-15 22:09'
 labels:
   - agent-ready
   - wave4
@@ -24,7 +24,19 @@ ordinal: 12890
 - [ ] #1 Every Mermaid type in docs/architecture-diagram-audit-plan.md is marked used, translated, or not useful
 - [ ] #2 Every major zdots subsystem has at least one diagram linked to source files and validation tests
 - [ ] #3 GitHub PR rendering is checked for every added Mermaid block
+- [ ] #4 All 3 broken diagrams pass mmdc with exit 0: docs/architecture.md (subgraph Host label with unquoted parens/spaces ~L114), docs/local-ai.md (quadrantChart label with unquoted parens), docs/repository-evolution.md (xyChart-beta wrong casing -> xychart-beta)
+- [ ] #5 erDiagram in docs/architecture.md reflects current schema: embedding is vector(768) not 3584; PHI columns are *_enc bytea (content_enc, session_residue summary/intent/result); shell_hook_metrics table present
+- [ ] #6 Stale topology references corrected: README.md empty Colima group + openobserve-ctl->docker-compose edge (false post-Z-134, now native launchd); docs/lifecycle.md adds OpenObserve to zsvc registry; docs/platform-dependency-graph.md whisper-ctl->zsvc edge removed or scoped (whisper-ctl not registered in bin/zsvc)
+- [ ] #7 Every Mermaid diagram in the repo machine-validates via mmdc in CI or a make target (regression guard so diagram drift fails loudly, not silently)
 <!-- AC:END -->
+
+
+
+
+
+
+
+
 
 ## Implementation Plan
 
