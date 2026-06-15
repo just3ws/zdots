@@ -3,6 +3,17 @@
 
 
 [changelog]
+# Header rendered once at the top of CHANGELOG.md (survives regeneration).
+header = """
+# Changelog
+
+Platform versioning follows the **Astronomicon** scheme (decision-007): an
+Imperial-CalVer epoch `CFFFYYY.M#` — e.g. `0452026.M3` (2026-06-14) — shared by the
+public trio (zdots / adots / vdots). Compute a stamp with `imperial-date`; read the
+live beacon with `capabilities` or `zdots-doctor`. `my` is per-environment and
+versioned by contract (`my.structure.vN`), not by this epoch.
+
+"""
 # A Tera template to be rendered for each release in the changelog.
 # See https://keats.github.io/tera/docs/#introduction
 body = """

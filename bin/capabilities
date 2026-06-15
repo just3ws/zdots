@@ -58,11 +58,19 @@ for _arg in "$@"; do
 done
 unset _arg
 
+# Platform version — the Astronomicon beacon (CalVer epoch). The public trio
+# (zdots/adots/vdots) shares ONE epoch across every deploy; this is zdots's
+# attestation of it. `my` is per-environment content conforming to MY_CONTRACT.
+# See backlog/decisions/decision-007 (Astronomicon platform versioning).
+PLATFORM_VERSION="$(cat "${ZDOTDIR:-$HOME/.config/zsh}/VERSION" 2>/dev/null || echo unknown)"
+MY_CONTRACT="my.structure.v1"
+
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo "${BOLD}Zdots Environment Capabilities Report${RESET}"
   echo "----------------------------------------"
 
   # 1. Identity
+  echo "${CYAN}Platform:${RESET}    ${BOLD}${PLATFORM_VERSION}${RESET}  (public-trio epoch · my=${MY_CONTRACT})"
   echo "${CYAN}Session ID:${RESET}  ${ZDOTS_SESSION_ID:-<unset>}"
   echo "${CYAN}Profile:${RESET}     ${ZDOTS_ENV_PROFILE:-unknown}"
   echo "${CYAN}OS:${RESET}          $(uname -s) ($(uname -m))"
@@ -369,6 +377,8 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
   if command -v jq >/dev/null 2>&1; then
     jq -n \
       --arg sid "${ZDOTS_SESSION_ID:-}" \
+      --arg platform_version "$PLATFORM_VERSION" \
+      --arg my_contract "$MY_CONTRACT" \
       --arg profile "${ZDOTS_ENV_PROFILE:-unknown}" \
       --arg os "$(uname -s)" \
       --arg arch "$(uname -m)" \
@@ -398,6 +408,11 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg columns "${COLUMNS:-?}" \
       '{
         session_id: $sid,
+        platform: {
+          version: $platform_version,
+          scheme: "imperial-calver",
+          my_contract: $my_contract
+        },
         profile: $profile,
         os: $os,
         arch: $arch,
