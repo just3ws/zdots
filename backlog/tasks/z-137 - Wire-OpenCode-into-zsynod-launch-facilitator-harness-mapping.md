@@ -1,14 +1,14 @@
 ---
 id: Z-137
 title: Wire OpenCode into zsynod launch (facilitator harness mapping)
-status: In Progress
+status: Experimental
 assignee: []
 created_date: '2026-06-08 13:42'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-15 01:37'
 labels:
   - zsynod
   - agent-ready
-  - wave2
+  - experimental
 dependencies: []
 references:
   - bin/zsynod
@@ -43,7 +43,7 @@ Context: the work synod roster is Claude / Aider / Pi / soon OpenCode, with Clau
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Principal override P18 (2026-06-08): integrate now, do not wait on the pi eval — Mike evaluates OpenCode hands-on on the work box. DONE this pass: opencode seated in zsynod/members.json (local, non-voting, command=zopencode; quorum unchanged at 3/5); brew opencode added to Brewfile.work + Brewfile.home (homebrew-core, verified bottled 1.15.13); _launch_cmd maps opencode to zopencode; _launch_harness_json has an opencode branch (local-seat-no-facilitate, since launch needs a frontier facilitator it never facilitates); zopencode wrapper at providers/tools/opencode.zsh + lazy fn in conf.d/95-ai.zsh (gates via zdots_ai_gated_endpoint, generates a local-endpoint OpenCode config with sharing disabled, fail-closed). REMAINING (verify on work where opencode is installed): (1) confirm the OpenCode config schema/keys match the installed CLI (schema, provider options.baseURL, share=disabled) and adjust providers/tools/opencode.zsh if 1.15.x differs; (2) confirm zopencode reaches the local model and that sudo bandwhich shows loopback only, then touch the .verified-local stamp; (3) confirm the non-interactive form (opencode run) and any session/resume flags via opencode --help, then refine the harness note.
+Parked Experimental 2026-06-14: zsynod is contained under experiments/zsynod/ (commit c250f90) — a funded, held experiment for future analysis, not active backlog work. Backend/integration direction is settled (llama.cpp primary). Pick back up deliberately when zsynod is reactivated. See experiments/zsynod/, project_zsynod.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
