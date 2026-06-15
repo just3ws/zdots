@@ -16,6 +16,23 @@ contract.
 Usage: `/docs-sync <what-changed>` (apply) · `/docs-sync <what-changed> audit`
 (report drift only).
 
+## Cross-platform scope (zdots / adots / vdots / my)
+
+This skill's tier model governs the **zdots** repo only. The peer repos differ:
+
+| Repo | Root initializer(s) | Notes |
+|---|---|---|
+| **zdots** | `AGENTS.md` + `CLAUDE.md` + per-tool files + `etc/prompts/*.md` | This skill's home |
+| **my** (`~/my`) | `AGENT.md` (singular) + `HUMAN.md` | Different naming — not a typo |
+| **adots** | no root initializer; `capabilities.sh`, profile, wiki | No `AGENTS.md` equivalent |
+| **vdots** | — | Named peer; not currently on disk |
+
+**Three rules:**
+
+1. **Local change, stay local.** A change scoped to one repo does not cross repo boundaries. This skill does NOT edit adots/vdots/my.
+2. **Platform-wide change, propagate to ALL relevant peers.** Examples: imperial-CalVer version stamp (decision-007), `zdots <noun> <verb> --json` grammar contract (decision-008). File the equivalent issue in each peer repo and note the task IDs.
+3. **Don't silently "fix" naming inconsistencies.** The `AGENTS.md` vs `AGENT.md` vs no-file divergence is a known coherence gap (not yet resolved). Note it; do not rename files across repos. File `zdots-issue` if cross-repo standardisation is needed.
+
 ## Step 0 — Classify the change (this picks the surfaces)
 
 Do NOT touch every file. The change *type* selects the targets:
@@ -62,7 +79,11 @@ is how the family drifts.
 ## Closing gate (apply mode)
 
 Run, in order — all must pass before reporting done:
-1. `make docs-contract` — docs reference only real commands/files (the R2 guard).
+1. `make docs-contract` — runs `tests/docs_contract.bats`, which asserts that the
+   generated inventory (`docs/generated/interface-inventory.{json,md}`), wiki
+   source files, and manpages **exist and are non-empty**. It does NOT scan doc
+   bodies for phantom references — that is not yet mechanized (tracked by Z-153
+   AC#2). Step 2 below is the manual R2 discipline until that gap closes.
 2. **Fictional-reference scan** — for every command/file/flag you cited, confirm
    it exists: `command -v <cmd>` / `test -e <path>`. The canonical cautionary
    tale: AGENTS.md §9 cited `GLOSSARY.md`/`ONTOLOGY.md` for months; they never

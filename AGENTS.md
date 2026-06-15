@@ -205,7 +205,10 @@ All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are co
 
 ## 9. Vocabulary & Communication Standards
 
-Zdots has formal vocabulary (CONTEXT.md, GLOSSARY.md, ONTOLOGY.md). Use exact terms consistently in code, commits, PRs, and conversations.
+Zdots has formal vocabulary, defined in `CONTEXT.md` (the canon). The glossary
+and ontology become **data** — a concept registry, not markdown — per
+decision-009; until that registry ships, `CONTEXT.md` is the single source. Use
+exact terms consistently in code, commits, PRs, and conversations.
 
 **Core Terms (always use exact form):**
 
@@ -269,9 +272,9 @@ ADR-0002, Service Registry deepening (blocks on this)
 
 **In Documentation:**
 
-- Reference CONTEXT.md when introducing a concept
-- Use GLOSSARY.md definitions
-- Use ONTOLOGY.md to show relationships
+- Reference `CONTEXT.md` when introducing a concept — it carries the definitions
+  and the term relationships (the role the planned concept registry, decision-009,
+  will take over as data)
 
 **In Code Comments:**
 
@@ -282,7 +285,7 @@ Only comment WHY, not WHAT. Use vocabulary consistently:
 # (too obvious; uses "scrub" as verb)
 
 # Good: "Apply the PHI Scrubber before inference"
-# (references component by name; reader can look up semantics in GLOSSARY)
+# (references component by name; reader can look up semantics in CONTEXT.md)
 ```
 
 ---
