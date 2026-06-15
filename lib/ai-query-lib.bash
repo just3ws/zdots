@@ -22,7 +22,9 @@ unset _AIQ_LIB_DIR
 # ---------------------------------------------------------------------------
 # Exit code constants — callers must use symbolic names, never bare integers.
 # ---------------------------------------------------------------------------
+# shellcheck disable=SC2034  # consumed by callers (bin/ai-query) and tests
 readonly AIQ_OK=0
+# shellcheck disable=SC2034  # consumed by callers (bin/ai-query) and tests
 readonly AIQ_GENERAL=1
 readonly AIQ_USAGE=2
 readonly AIQ_TOO_LARGE=3
@@ -125,9 +127,9 @@ aiq_check_size() {
 # ---------------------------------------------------------------------------
 aiq_scan() {
   local infile="$1"
-  local score=0 findings=""
+  local score=0 findings="" fired=" "
 
-  # Inner helper — modifies caller's 'score' and 'findings' via bash dynamic scoping.
+  # Inner helper — modifies caller's 'score', 'findings', 'fired' via bash dynamic scoping.
   # Usage: _rule WEIGHT NAME ERE_PATTERN
   _rule() {
     local w="$1" name="$2" pat="$3"
@@ -136,6 +138,7 @@ aiq_scan() {
       excerpt=$(LC_ALL=C grep -Eim 1 "$pat" "$infile" 2>/dev/null \
         | head -c 120 | tr '\n\r' '  ')
       score=$(( score + w ))
+      fired="${fired}${name} "
       findings="${findings}  [+${w}] ${name} — \"${excerpt}\"\n"
       printf 'FINDING_JSON:%s\n' \
         "$(jq -cn --argjson w "$w" --arg n "$name" --arg e "$excerpt" \
@@ -198,6 +201,35 @@ aiq_scan() {
       "$(jq -cn --argjson w 15 --arg n 'ANSI_ESCAPE' \
          --arg e 'terminal control sequences in input' \
          '{weight:$w,name:$n,excerpt:$e}')"
+  fi
+
+  # Context-aware dampener (Z-041): academic/defensive writing about prompt
+  # injection legitimately quotes attack phrases ("ignore previous instructions",
+  # "reveal system prompt", "exfiltrate") and would otherwise score high. When the
+  # input carries multiple distinct meta-discussion markers AND none of the
+  # imperative-attack discriminators fired (EXEC_COMMAND / REDIRECT_INSTEAD /
+  # ROLE_TAG_INJECTION — the structures that mark instruction, not quotation),
+  # the matches are quotation: halve the score. A genuine attack keeps an
+  # imperative rule (injection_obvious has EXEC_COMMAND) and is never dampened.
+  # Two distinct markers are required so a single sprinkled academic word can't
+  # halve a real attack; halving (not zeroing) keeps strong attacks above the bar.
+  local academic_re='researchers?|documented|academ|mitigation|attack[[:space:]]+vector|security[[:space:]]+(documentation|vulnerabilit)|defen[sc]e'
+  if [[ "${score}" -gt 0 \
+        && "$fired" != *" EXEC_COMMAND "* \
+        && "$fired" != *" REDIRECT_INSTEAD "* \
+        && "$fired" != *" ROLE_TAG_INJECTION "* ]]; then
+    local marker_hits
+    marker_hits=$(LC_ALL=C grep -oEi "$academic_re" "$infile" 2>/dev/null \
+      | tr '[:upper:]' '[:lower:]' | sort -u | wc -l | tr -d ' ')
+    if [[ "${marker_hits:-0}" -ge 2 ]]; then
+      local damped=$(( score / 2 ))
+      findings="${findings}  [÷2] CONTEXT_DAMPEN — academic/defensive context (${marker_hits} markers), no imperative attack structure (${score}→${damped})\n"
+      printf 'FINDING_JSON:%s\n' \
+        "$(jq -cn --argjson w "$(( damped - score ))" --arg n 'CONTEXT_DAMPEN' \
+           --arg e "academic context, ${marker_hits} markers, no imperative rule (${score}->${damped})" \
+           '{weight:$w,name:$n,excerpt:$e}')"
+      score=$damped
+    fi
   fi
 
   # Classify score into risk level
