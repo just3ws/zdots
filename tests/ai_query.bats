@@ -853,3 +853,80 @@ ANSI_MOCK
   [ -f "$log_file" ]
   echo "$(head -1 "$log_file")" | jq -e '.risk_level == "high"' >/dev/null
 }
+
+# ===========================================================================
+# M. --from-file flag
+# ===========================================================================
+
+@test "M1: --from-file reads file and delivers response via mock server" {
+  printf 'test content from a file\n' > "$BATS_TEST_TMPDIR/m1.txt"
+  PATH="$MOCK_BIN:$PATH" run "$BIN/ai-query" --from-file "$BATS_TEST_TMPDIR/m1.txt" "summarize"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"mock"* ]]
+}
+
+@test "M2: --from-file missing file exits 1" {
+  run "$BIN/ai-query" --from-file "/nonexistent/path/no-such-file.txt" "analyze"
+  [ "$status" -eq 1 ]
+}
+
+@test "M2b: --from-file missing file prints error to stderr" {
+  stderr=$("$BIN/ai-query" --from-file "/nonexistent/path/no-such-file.txt" "analyze" 2>&1 >/dev/null || true)
+  [[ "$stderr" == *"not found"* ]] || [[ "$stderr" == *"not readable"* ]]
+}
+
+@test "M3: --from-file and non-tty stdin are mutually exclusive (exit 2)" {
+  printf 'stdin data\n' > "$BATS_TEST_TMPDIR/m3_stdin.txt"
+  printf 'file data\n'  > "$BATS_TEST_TMPDIR/m3_file.txt"
+  run bash -c \
+    "'$BIN/ai-query' --from-file '$BATS_TEST_TMPDIR/m3_file.txt' 'analyze' \
+     < '$BATS_TEST_TMPDIR/m3_stdin.txt'"
+  [ "$status" -eq 2 ]
+}
+
+@test "M3b: mutual-exclusion error message is clear" {
+  printf 'stdin data\n' > "$BATS_TEST_TMPDIR/m3b_stdin.txt"
+  printf 'file data\n'  > "$BATS_TEST_TMPDIR/m3b_file.txt"
+  stderr=$(bash -c \
+    "'$BIN/ai-query' --from-file '$BATS_TEST_TMPDIR/m3b_file.txt' 'analyze' \
+     < '$BATS_TEST_TMPDIR/m3b_stdin.txt'" 2>&1 >/dev/null || true)
+  [[ "$stderr" == *"mutually exclusive"* ]]
+}
+
+@test "M4: --from-file basename appears in --json output" {
+  printf 'content for json test\n' > "$BATS_TEST_TMPDIR/myreport.txt"
+  PATH="$MOCK_BIN:$PATH" run "$BIN/ai-query" --from-file "$BATS_TEST_TMPDIR/myreport.txt" \
+    --json "summarize"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq . >/dev/null
+  source_file=$(echo "$output" | jq -r '.source_file')
+  [ "$source_file" = "myreport.txt" ]
+}
+
+@test "M4b: --from-file source_file is basename not full path" {
+  mkdir -p "$BATS_TEST_TMPDIR/deep/dir"
+  printf 'some content\n' > "$BATS_TEST_TMPDIR/deep/dir/document.txt"
+  PATH="$MOCK_BIN:$PATH" run "$BIN/ai-query" \
+    --from-file "$BATS_TEST_TMPDIR/deep/dir/document.txt" --json "analyze"
+  [ "$status" -eq 0 ]
+  source_file=$(echo "$output" | jq -r '.source_file')
+  [ "$source_file" = "document.txt" ]
+  # Must not contain a slash (i.e. not a path)
+  [[ "$source_file" != *"/"* ]]
+}
+
+@test "M5: --from-file passes through scan pipeline (high-risk file triggers scan output)" {
+  # High-risk content via --from-file should still trigger risk scan output to stderr
+  stderr=$(PATH="$BATS_TEST_TMPDIR/fail-bin:$PATH" \
+    "$BIN/ai-query" --from-file "$FIXTURES/injection_obvious.txt" --show-risk "analyze" \
+    2>&1 >/dev/null || true)
+  [[ "$stderr" == *"risk scan"* ]] || [[ "$stderr" == *"SCORE"* ]]
+}
+
+@test "M6: --from-file without --json does not expose source_file in stdout" {
+  printf 'plain content\n' > "$BATS_TEST_TMPDIR/m6.txt"
+  PATH="$MOCK_BIN:$PATH" run "$BIN/ai-query" --from-file "$BATS_TEST_TMPDIR/m6.txt" "summarize"
+  [ "$status" -eq 0 ]
+  # Plain output must not contain the internal source_file metadata
+  [[ "$output" != *"source_file"* ]]
+}
