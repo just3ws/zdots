@@ -419,15 +419,11 @@ fi
 # ---------------------------------------------------------------------------
 set +e
 
-if [[ "${ZDOTS_INFERENCE_ENGINE:-llama-cpp}" == "mlx" ]]; then
-  # MLX call
-  RAW_RESPONSE=$(python3 -c "import sys; sys.path.append('/Users/mike/.config/zsh/lib'); from inference.mlx_engine import get_engine; engine = get_engine('local', 'mlx'); print(engine.generate_completion(open('$SYS_TMP').read(), open('$USER_TMP').read()))")
-  SUBMIT_EXIT=$?
-else
-  # Original call
-  RAW_RESPONSE=$(aiq_submit "$SYS_TMP" "$USER_TMP" "$ENDPOINT" "$MODEL" "$TIMEOUT")
-  SUBMIT_EXIT=$?
-fi
+# llama.cpp is the canonical local backend (primary integration). The MLX
+# experiment was archived to experiments/mlx/; Apple-native inference will arrive
+# via apfel as that capability matures.
+RAW_RESPONSE=$(aiq_submit "$SYS_TMP" "$USER_TMP" "$ENDPOINT" "$MODEL" "$TIMEOUT")
+SUBMIT_EXIT=$?
 
 set -e
 
