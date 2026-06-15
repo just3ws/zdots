@@ -1,10 +1,10 @@
 ---
 id: Z-093
 title: 'zdots-quiz: expand coverage for zdash fzf binding and llama-ctl patterns'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-23 13:54'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-15 10:47'
 labels:
   - local-ai
   - zdots-quiz
@@ -35,16 +35,22 @@ Add TC-15 and TC-16 to `bin/zdots-quiz` for two currently uncovered high-frequen
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 TC-15 and TC-16 added to zdots-quiz
-- [ ] #2 Both cases fail before prompt additions (gap confirmed)
-- [ ] #3 Prompts updated minimally to pass both cases
-- [ ] #4 Total quiz remains < 20 cases
-- [ ] #5 zdots-quiz --list shows TC-15 and TC-16
+- [x] #1 TC-15 and TC-16 added to zdots-quiz
+- [x] #2 Both cases fail before prompt additions (gap confirmed)
+- [x] #3 Prompts updated minimally to pass both cases
+- [x] #4 Total quiz remains < 20 cases
+- [x] #5 zdots-quiz --list shows TC-15 and TC-16
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added TC-15 (zdash fzf binding) and TC-16 (llama-ctl install/start/model-verify) to zdots-quiz, gap-first: both failed pre-fix (TC-15 empty→0/4; TC-16 'status' not 'model-verify'→2/3), then minimal prompt additions (7-line zdash fzf section in zdots-shell.md; 12-line llama-ctl table in zdots-default.md) closed the gap. Quiz now 17 cases (<20); --list shows both. Latent bug fixed: grep -qiE -- (the -- end-of-options marker) so the --bind pattern isn't parsed as a grep flag. secret-scan clean. Commit 499f1e3. (sonnet worktree fan-out, diff-reviewed before merge.)
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
