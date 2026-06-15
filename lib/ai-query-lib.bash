@@ -40,6 +40,48 @@ readonly AIQ_MISSING_DEP=7
 : "${AIQ_WARN_BYTES:=16384}"  # soft warning threshold
 
 # ---------------------------------------------------------------------------
+# aiq_llama_embed_ceiling — derive a server-aware byte ceiling for embed calls.
+#
+# Reads `llama-ctl config --json` and extracts ubatch_size, then applies the
+# formula: ubatch_size * 3 bytes/token (conservative estimate for UTF-8 text).
+#
+# Prints the derived ceiling (integer) to stdout.
+# Falls back to AIQ_MAX_BYTES silently when:
+#   - llama-ctl is not in PATH
+#   - llama-ctl config --json fails or returns no valid ubatch_size
+#
+# The result should be cached in a variable by the caller for the session.
+# ---------------------------------------------------------------------------
+aiq_llama_embed_ceiling() {
+  # Fall back immediately when llama-ctl is absent — no error, no noise.
+  if ! command -v llama-ctl >/dev/null 2>&1; then
+    printf '%s' "${AIQ_MAX_BYTES}"
+    return 0
+  fi
+
+  local cfg ubatch
+  # Capture config; swallow stderr so a non-running server does not clutter output.
+  cfg=$(llama-ctl config --json 2>/dev/null) || true
+
+  if [[ -z "$cfg" ]]; then
+    printf '%s' "${AIQ_MAX_BYTES}"
+    return 0
+  fi
+
+  # Extract ubatch_size from the config JSON.
+  ubatch=$(printf '%s\n' "$cfg" | jq -r '.ubatch_size // empty' 2>/dev/null) || true
+
+  # Validate: must be a positive integer.
+  if [[ -z "$ubatch" || ! "$ubatch" =~ ^[0-9]+$ || "$ubatch" -eq 0 ]]; then
+    printf '%s' "${AIQ_MAX_BYTES}"
+    return 0
+  fi
+
+  # Formula: ubatch_size tokens * 3 bytes/token.
+  printf '%s' "$(( ubatch * 3 ))"
+}
+
+# ---------------------------------------------------------------------------
 # aiq_require_dep NAME [INSTALL_HINT]
 # Exits AIQ_MISSING_DEP if NAME is not in PATH.
 # ---------------------------------------------------------------------------
@@ -334,9 +376,21 @@ END_SYSTEM
         "$target" > "$userfile"
       ;;
 
+    embed)
+      # Embedding mode: no trust-boundary wrapping needed — the text is vectorised,
+      # not interpreted by a language model as instructions.  Pass the content through
+      # as the sole user message.  The system prompt is intentionally minimal.
+      printf 'You are an embedding assistant.\n' > "$sysfile"
+      if [[ -n "$content" ]]; then
+        printf '%s\n' "$content" > "$userfile"
+      else
+        printf '%s\n' "$task" > "$userfile"
+      fi
+      ;;
+
     *)
       printf 'ai-query: unknown mode: %s\n' "$mode" >&2
-      printf 'ai-query: valid modes: safe-extract raw summarize-untrusted classify-risk inspect-prompt-injection\n' >&2
+      printf 'ai-query: valid modes: safe-extract raw summarize-untrusted classify-risk inspect-prompt-injection embed\n' >&2
       exit "${AIQ_USAGE}"
       ;;
   esac
