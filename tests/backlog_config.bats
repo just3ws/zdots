@@ -21,9 +21,15 @@ _config_value() {
 }
 
 @test "backlog config keeps auditability and hooks enabled" {
+  # auto_commit is deliberately FALSE: board transitions commit WITH their related
+  # code as one coherent dependency-oriented unit (not separate "Update task"
+  # noise), and this avoids task-markdown conflicts during worktree fan-out.
+  # Auditability is preserved by those coherent commits + enabled git hooks, not
+  # by per-edit auto-commits. See docs/backlog.md §1.1 / §5. Guards against drift
+  # back to auto_commit=true.
   run _config_value autoCommit
   [ "$status" -eq 0 ]
-  [[ "$output" == *"true"* ]]
+  [[ "$output" == *"false"* ]]
 
   run _config_value bypassGitHooks
   [ "$status" -eq 0 ]
