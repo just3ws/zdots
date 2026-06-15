@@ -173,6 +173,87 @@ _ztask_isolated() {
   [[ "$output" == *"no active task"* ]]
 }
 
+@test "ztask done skips capture when ZDOTS_AI_MODE=none (task still completes)" {
+  # Pre-condition: start a task so active state exists
+  _ztask_isolated start z-999
+
+  # Reset log so we can assert capture was NOT called
+  : > "$ZTASK_TEST_LOG"
+
+  run env \
+    ZDOTS_AI_MODE=none \
+    ZTASK_TASKS_DIR="$ZTASK_TEST_TASKS" \
+    ZTASK_ACTIVE_TASK_FILE="$ZTASK_TEST_ACTIVE" \
+    ZTASK_BACKLOG_BIN="$ZTASK_TEST_BIN/backlog" \
+    ZTASK_ZDOTS_CTL="$ZTASK_TEST_BIN/zdots-ctl" \
+    ZTASK_ZDOTS_CTX="$ZTASK_TEST_BIN/zdots-ctx" \
+    ZTASK_TEST_LOG="$ZTASK_TEST_LOG" \
+    "$ZTASK" done
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"task z-999 completed"* ]]
+  # Distillation must be skipped — zdots-ctx capture must NOT appear in the call log
+  ! grep -q 'zdots-ctx capture' "$ZTASK_TEST_LOG"
+  # State must have been marked Done
+  grep -q 'backlog task edit z-999 --status Done --plain' "$ZTASK_TEST_LOG"
+  grep -q '^status: Done$' "$ZTASK_TEST_TASKS/z-999 - isolated-proof.md"
+  # Active task file must be cleared
+  [[ ! -f "$ZTASK_TEST_ACTIVE" ]]
+
+  # Reset fixture status for subsequent tests
+  sed -i '' -E 's/^status: .*/status: To Do/' "$ZTASK_TEST_TASKS/z-999 - isolated-proof.md"
+}
+
+@test "ztask done degrades gracefully when capture fails (task still completes)" {
+  # Build a failing zdots-ctx stub
+  local failing_ctx="$ZTASK_TEST_ROOT/bin-fail/zdots-ctx"
+  mkdir -p "$(dirname "$failing_ctx")"
+  cat > "$failing_ctx" <<'FAILCTX'
+#!/usr/bin/env bash
+printf 'zdots-ctx %s\n' "$*" >> "${ZTASK_TEST_LOG:?}"
+case "${1:-}" in
+  status)  printf 'connected to database: my\n'; exit 0 ;;
+  hydrate) printf 'hydrated %s\n' "${2:-}"; exit 0 ;;
+  capture) printf 'capture: ai-query unreachable (HTTP 000)\n' >&2; exit 1 ;;
+esac
+exit 1
+FAILCTX
+  chmod +x "$failing_ctx"
+
+  # Start a fresh task with the failing ctx so we have active state
+  env \
+    ZTASK_TASKS_DIR="$ZTASK_TEST_TASKS" \
+    ZTASK_ACTIVE_TASK_FILE="$ZTASK_TEST_ACTIVE" \
+    ZTASK_BACKLOG_BIN="$ZTASK_TEST_BIN/backlog" \
+    ZTASK_ZDOTS_CTL="$ZTASK_TEST_BIN/zdots-ctl" \
+    ZTASK_ZDOTS_CTX="$failing_ctx" \
+    ZTASK_TEST_LOG="$ZTASK_TEST_LOG" \
+    "$ZTASK" start z-999
+
+  : > "$ZTASK_TEST_LOG"
+
+  run env \
+    ZTASK_TASKS_DIR="$ZTASK_TEST_TASKS" \
+    ZTASK_ACTIVE_TASK_FILE="$ZTASK_TEST_ACTIVE" \
+    ZTASK_BACKLOG_BIN="$ZTASK_TEST_BIN/backlog" \
+    ZTASK_ZDOTS_CTL="$ZTASK_TEST_BIN/zdots-ctl" \
+    ZTASK_ZDOTS_CTX="$failing_ctx" \
+    ZTASK_TEST_LOG="$ZTASK_TEST_LOG" \
+    "$ZTASK" done
+
+  # Task must complete despite capture failure
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"task z-999 completed"* ]]
+  # Warning about failure must appear on stderr (bats merges stderr into $output)
+  [[ "$output" == *"session residue capture failed"* ]]
+  # Active state cleared
+  [[ ! -f "$ZTASK_TEST_ACTIVE" ]]
+  # Status still set to Done
+  grep -q 'backlog task edit z-999 --status Done --plain' "$ZTASK_TEST_LOG"
+
+  # Reset fixture
+  sed -i '' -E 's/^status: .*/status: To Do/' "$ZTASK_TEST_TASKS/z-999 - isolated-proof.md"
+}
+
 @test "ztask stop clears active task without breaking health" {
   run _ztask_isolated stop
   [ "$status" -eq 0 ]
