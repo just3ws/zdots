@@ -4,12 +4,12 @@ title: Refactor Colima/LGTM Lifecycle
 status: To Do
 assignee: []
 created_date: '2026-05-06 06:12'
-updated_date: '2026-06-15 01:38'
+updated_date: '2026-06-15 02:04'
 labels:
   - wave2
 milestone: m-3
 dependencies:
-  - Z-134
+  - Z-047
 priority: medium
 ---
 
@@ -21,15 +21,14 @@ Integrate the complex Docker/Colima lifecycle into the standard platform engine,
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Refactor bin/local-ci to use lib/lifecycle.bash for start/stop/status.
-- [ ] #2 Implement a Docker/Compose adapter for the lifecycle engine.
-- [ ] #3 Maintain support for 'prune' and 'rebuild' as service-specific extensions.
+- [ ] #1 Implement a Docker/Compose adapter for the lifecycle engine.
+- [ ] #2 Maintain support for 'prune' and 'rebuild' as service-specific extensions.
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Reconcile 2026-06-14: the LGTM half of this task is OBSOLETE — Z-134 retired LGTM for OpenObserve (LGTM compose archived to etc/archive/, local-ci deprecated). Re-scope to Colima-lifecycle only, or fold into Z-047 (Deepen Orchestrator). See decision/doc-003 divergence flag #1.
+Divergence resolved (doc-003 flag #1): Z-134 retired the LGTM stack, so the bin/local-ci refactor AC is obsolete and removed. Remaining live value = the generic Docker/Compose lifecycle adapter for Colima-managed services, which belongs under Z-047 (Deepen Orchestrator). Re-scoped to that; now depends on Z-047. No dead LGTM scope remains.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
