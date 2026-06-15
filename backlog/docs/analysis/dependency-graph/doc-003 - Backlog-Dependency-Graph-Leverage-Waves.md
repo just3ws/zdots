@@ -3,6 +3,7 @@ id: doc-003
 title: Backlog Dependency Graph & Leverage Waves
 type: guide
 created_date: '2026-06-14 18:40'
+updated_date: '2026-06-14 23:37'
 tags:
   - dependency-analysis
   - planning
@@ -11,9 +12,29 @@ tags:
 ---
 # Backlog Dependency Graph & Leverage Waves
 
-Wave-0 dependency analysis of the open backlog (43 open tasks as of 2026-06-14).
-Drives execution priority by **dependency leverage**, not task count or feature
-visibility. The mission: *unlock the most future work for the least effort.*
+Wave-0 dependency analysis of the open backlog. Drives execution priority by
+**dependency leverage**, not task count or feature visibility. The mission:
+*unlock the most future work for the least effort.*
+
+> **Status — updated 2026-06-14.** 11 tasks closed this session; 2 Wave-1
+> foundations (Z-134, Z-130) done, which unblocked their downstream sets. See
+> **Progress** below. `backlog sequence list --plain` is the live truth; this doc
+> is the rationale snapshot kept in step with it.
+
+## Progress (2026-06-14)
+
+- **Done — Wave-1 foundations:** ✅ **Z-134** (OpenObserve migration) · ✅ **Z-130**
+  (AI-invocation seam: contract in the signature, locality asserted once).
+- **Done — Wave-4 leaves:** ✅ Z-118 Z-119 Z-126 Z-139 Z-141 Z-145 Z-147.
+- **Done — zsynod leaf fixes:** ✅ Z-136 (init jq stderr guard) · ✅ Z-138 (minutes
+  remark flatten — already on main, verified).
+- **In progress:** Z-135 (Runtime-insight loop, Wave-1) · Z-137 (OpenCode→zsynod).
+- **Advanced, kept open:** Z-140 — embed-health probe investigated; root cause is a
+  **restart timing race** (probe hits `/health` mid-load), not the busy-slot 503
+  theory. Fix = post-restart readiness poll, not a looser health contract.
+- **Unblocked by Z-130 (now in Sequence 1):** Z-038 Z-040 Z-041 Z-125 Z-131.
+- **Unblocked by Z-134:** Z-027; and the Z-045 divergence is now **actionable**
+  (LGTM retired → re-scope Z-045 to Colima-only or fold into Z-047).
 
 ## How to read this (two orthogonal orderings)
 
@@ -23,36 +44,36 @@ visibility. The mission: *unlock the most future work for the least effort.*
 | **Leverage wave** (`wave1..4` labels) | this doc + `backlog task list --labels wave1` | What *should* run first (unlocks the most)? |
 
 They are complementary. The native sequence proves the graph is a **DAG** (it
-computes without a cycle error; current critical-path depth = **4**:
-`Z-134 → Z-135 → Z-148`). Leverage waves overlay priority *within* the unblocked
-set. **Always pick the lowest-wave task among the currently-unblocked (Sequence 1)
-tasks.**
+computes without a cycle error). Leverage waves overlay priority *within* the
+unblocked set. **Always pick the lowest-wave task among the currently-unblocked
+(Sequence 1) tasks.**
 
 ## Dependency graph (open tasks)
 
-Arrows point **foundation → unlocked**. Color = leverage wave.
+Arrows point **foundation → unlocked**. Color = leverage wave; ✅ = done.
 
 ```mermaid
 graph LR
+  classDef done fill:#0b3d24,color:#9f9,stroke:#7CFC00,stroke-dasharray:4 3;
   classDef w1 fill:#1f6f43,color:#fff,stroke:#7CFC00,stroke-width:2px;
   classDef w2 fill:#2d6a9f,color:#fff;
   classDef w3 fill:#8a5a00,color:#fff;
   classDef w4 fill:#555,color:#fff;
 
   subgraph OBS[Observability]
-    Z134["Z-134 LGTM→OpenObserve"]:::w1
+    Z134["✅ Z-134 LGTM→OpenObserve"]:::done
     Z026["Z-026 Central Log Mgmt"]:::w1
     Z027["Z-027 Gemini→OTel"]:::w2
     Z146["Z-146 otel log rotation"]:::w2
   end
   subgraph KNOW[Knowledge Layer]
-    Z135["Z-135 Runtime-insight loop"]:::w1
+    Z135["Z-135 Runtime-insight loop (WIP)"]:::w1
     Z103["Z-103 cognitive-load/err-velocity"]:::w2
     Z129["Z-129 Lesson intake module"]:::w2
     Z148["Z-148 Token-Budget Governor"]:::w3
   end
   subgraph AI[AI Invocation Seam]
-    Z130["Z-130 Shrink AI invoke IF"]:::w1
+    Z130["✅ Z-130 Shrink AI invoke IF"]:::done
     Z133["Z-133 promptfoo evals"]:::w1
     Z038["Z-038 ai-query --from-file"]:::w2
     Z040["Z-040 embed-size validation"]:::w2
@@ -62,7 +83,7 @@ graph LR
   end
   subgraph PLAT[Platform]
     Z047["Z-047 Deepen Orchestrator"]:::w1
-    Z045["Z-045 Colima/LGTM lifecycle"]:::w2
+    Z045["Z-045 Colima/LGTM lifecycle (re-scope)"]:::w2
     Z104["Z-104 nginx reverse proxy"]:::w2
   end
   subgraph SYN[zsynod]
@@ -78,7 +99,7 @@ graph LR
 
   Z134 --> Z135 --> Z148
   Z134 --> Z027
-  Z134 -.competes.-> Z045
+  Z134 -.LGTM retired→re-scope.-> Z045
   Z135 --> Z103
   Z135 --> Z129
   Z135 --> Z052
@@ -100,42 +121,44 @@ graph LR
 
 `fan_out` = direct unlocks; `transitive` = all downstream open tasks.
 
-| Rank | Task | fan_out | transitive | Effort | Why first |
+| Rank | Task | fan_out | transitive | Status | Why first |
 |---|---|---|---|---|---|
-| 1 | **Z-134** OpenObserve migration | 4 | **7** | ~done (1 step) | Observability substrate the entire Knowledge spine reads from. Near-complete → highest unlock-per-effort. **Close it.** |
-| 2 | **Z-135** Runtime-insight loop | 4 | 4 | In Progress | The *Infer* step of the Virtuous Loop; unblocks Z-103/Z-129/Z-052/Z-148. Finish it. |
-| 3 | **Z-130** Shrink AI invocation IF | **6** | 6 | medium refactor | Highest *direct* fan-out. Establishes the single honest model seam — the one metering point Z-148 needs. Build AI features on this, not the leaky env-var IF. |
-| 4 | **Z-142** zsynod Test-Gate | 2 | 2 | medium | Verification foundation before adding zsynod members (Z-143/Z-144). |
-| 5 | **Z-026** Central Log Mgmt | 1 | 1 | medium | Subsumes Z-146 (don't build a one-off rotation). |
-| 6 | **Z-047** Deepen Orchestrator | 1 | 1 | medium | Platform deepening; enables the nginx service (Z-104). |
-| – | **Z-133** promptfoo evals | 0 | 0 | medium | No edge, but the quality gate that validates Z-130's refactor + PHI rules. Wave-1 enabler. |
+| 1 | **Z-134** OpenObserve migration | 4 | 7 | ✅ **done** | Observability substrate the Knowledge spine reads from. |
+| 2 | **Z-135** Runtime-insight loop | 4 | 4 | **WIP** | The *Infer* step of the Virtuous Loop; unblocks Z-103/Z-129/Z-052/Z-148. Finish next. |
+| 3 | **Z-130** Shrink AI invocation IF | 6 | 6 | ✅ **done** | Highest direct fan-out; the honest model seam + the metering point Z-148 needs. |
+| 4 | **Z-142** zsynod Test-Gate | 2 | 2 | open | Verification foundation before adding zsynod members (Z-143/Z-144). |
+| 5 | **Z-026** Central Log Mgmt | 1 | 1 | open | Subsumes Z-146 (don't build a one-off rotation). |
+| 6 | **Z-047** Deepen Orchestrator | 1 | 1 | open | Platform deepening; enables the nginx service (Z-104). |
+| – | **Z-133** promptfoo evals | 0 | 0 | open | The quality gate that now validates the Z-130 refactor + PHI rules. |
+
+**Next foundation to pick:** **Z-135** (finish the in-progress Infer loop) →
+then **Z-142**, **Z-026**, **Z-047**, **Z-133**. Z-134/Z-130 are cleared.
 
 ## Execution waves (leverage-ordered)
 
-- **Wave 0 (this analysis):** edges encoded, labels applied, DAG verified, artifacts cleaned. ✅
-- **Wave 1 — shared foundations:** Z-134 (close) · Z-135 (finish) · Z-130 · Z-142 · Z-026 · Z-047 · Z-133.
-- **Wave 2 — capability enablers:** Z-038 Z-040 Z-041 Z-125 Z-131 (need Z-130) · Z-103 Z-129 (need Z-135) · Z-027 Z-045 Z-146 · Z-143 Z-144 (need Z-142) · Z-104 (needs Z-047).
-- **Wave 3 — dependent features:** Z-148 (needs Z-130+Z-135+Z-134) · Z-052 Z-075 (need Z-121).
-- **Wave 4 — polish / independent leaves:** Z-121 · security Z-101 Z-102 · doctor-bug cluster (Z-118 Z-119 Z-126 Z-139 Z-140 Z-141 Z-145 Z-147) · zsynod bugs Z-136 Z-138 · Z-132 Z-093 Z-013 Z-034. Low leverage, high parallelism — safe subagent fan-out anytime.
+- **Wave 0 (analysis):** edges encoded, labels applied, DAG verified, artifacts cleaned. ✅
+- **Wave 1 — shared foundations:** ✅ Z-134 · ✅ Z-130 · **Z-135 (WIP)** · Z-142 · Z-026 · Z-047 · Z-133.
+- **Wave 2 — capability enablers:** Z-038 Z-040 Z-041 Z-125 Z-131 (**now unblocked — Z-130 done**) · Z-103 Z-129 (need Z-135) · Z-027 Z-045 Z-146 · Z-143 Z-144 (need Z-142) · Z-104 (needs Z-047).
+- **Wave 3 — dependent features:** Z-148 (needs Z-130✅+Z-135+Z-134✅) · Z-052 Z-075 (need Z-121).
+- **Wave 4 — polish / independent leaves:** ✅ Z-118 Z-119 Z-126 Z-136 Z-138 Z-139 Z-141 Z-145 Z-147 done · Z-140 (open, timing-race fix) · Z-121 · security Z-101 Z-102 · Z-132 Z-093 Z-013 Z-034. Low leverage, high parallelism — safe subagent fan-out.
 
 > Do not start a later wave while a Wave-1 blocker it depends on is open.
-> The doctor-bug leaves are wave-independent and may be fanned out in parallel.
+> Doctor/zsynod leaf bugs are wave-independent and fan out in parallel.
 
 ## Architectural divergence / duplication flags
 
 Favor **convergence over proliferation** — consolidate, don't add competing impls.
 
-1. **Z-045 ⟂ Z-134 (competing):** Z-045 "Refactor Colima/**LGTM** Lifecycle" — but
-   Z-134 *retires* LGTM for OpenObserve. The LGTM half of Z-045 is being deleted.
-   **Resolution:** after Z-134 closes, re-scope Z-045 to Colima-lifecycle only (or
-   fold it into Z-047 Orchestrator). Edge `Z-045 → Z-134` encoded so it waits.
+1. **Z-045 ⟂ Z-134 — NOW ACTIONABLE.** Z-134 retired LGTM, so the "LGTM" half of
+   Z-045 is dead. **Resolution:** re-scope Z-045 to Colima-lifecycle only, or fold
+   into Z-047 (Orchestrator). Edge `Z-045 → Z-134` is satisfied; pick this up when
+   touching platform lifecycle.
 2. **Z-146 ⊂ Z-026 (subset):** Z-146 (otel log rotation) is one instance of Z-026
    (centralized log management). **Resolution:** make Z-146 the first *consumer* of
-   Z-026, not a bespoke rotation. Edge `Z-146 → Z-026` encoded.
-3. **Resolved Done-duplicate pairs (informational):** Z-090/Z-100 (App Firewall
-   assertion), Z-091/Z-099 (SIP/FileVault assertion), Z-112/Z-113 (zdots-ctl
-   line-451 syntax error). Both of each pair are Done — no action, noted to prevent
-   re-filing.
+   Z-026, not a bespoke rotation. Edge `Z-146 → Z-026` encoded. (Deliberately not
+   fanned out as a standalone leaf for this reason.)
+3. **Resolved Done-duplicate pairs (informational):** Z-090/Z-100, Z-091/Z-099,
+   Z-112/Z-113 — both of each pair Done; noted to prevent re-filing.
 
 ## Live commands (the always-fresh source)
 
