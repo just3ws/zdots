@@ -1,0 +1,5 @@
+# etc/evals/promptfoo/.gitignore
+#
+# Eval results are ephemeral — not committed. Run bin/zdots-eval to regenerate.
+results/
+*.cache

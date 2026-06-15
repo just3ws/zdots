@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# bin/zdots-eval — run the promptfoo eval suite against the local llama.cpp endpoint.
+#
+# SAFETY: LOCAL-ONLY. All inference targets 127.0.0.1:11500 (loopback).
+# No cloud provider keys are used. OPENAI_API_KEY is set to a dummy value
+# so promptfoo does not require a real key; the config apiKey overrides it.
+#
+# Usage:
+#   bin/zdots-eval                           # full suite
+#   bin/zdots-eval --filter-first-n 3       # first N tests only
+#   bin/zdots-eval --filter-pattern PHI     # PHI tests only
+#   bin/zdots-eval --no-cache               # bypass promptfoo cache
+#
+# All promptfoo eval flags are passed through. See: npx promptfoo eval --help
+#
+# Override endpoint:
+#   ZDOTS_AI_ENDPOINT=http://192.168.1.10:11500 bin/zdots-eval
+
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_REPO_ROOT="$(cd "${_SCRIPT_DIR}/.." && pwd)"
+_CONFIG="${_REPO_ROOT}/etc/evals/promptfoo/promptfooconfig.yaml"
+
+# ---------------------------------------------------------------------------
+# Safety checks
+# ---------------------------------------------------------------------------
+if [[ ! -f "$_CONFIG" ]]; then
+  printf 'zdots-eval: config not found at %s\n' "$_CONFIG" >&2
+  exit 1
+fi
+
+# Verify the endpoint is loopback or RFC-1918 (local-only invariant)
+_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+_HOST="$(printf '%s' "$_ENDPOINT" | sed 's|^https\?://||' | cut -d: -f1 | cut -d/ -f1)"
+_is_local=false
+case "$_HOST" in
+  127.0.0.1|localhost|::1)       _is_local=true ;;
+  10.*)                           _is_local=true ;;
+  192.168.*)                      _is_local=true ;;
+  172.1[6-9].*|172.2[0-9].*|172.3[01].*)  _is_local=true ;;
+esac
+if [[ "$_is_local" != "true" ]]; then
+  printf 'zdots-eval: UNSAFE — endpoint %s is not loopback or RFC-1918.\n' "$_ENDPOINT" >&2
+  printf 'zdots-eval: evals must run against local endpoints only.\n' >&2
+  exit 2
+fi
+
+# Check llama.cpp is reachable
+if ! curl -sf --connect-timeout 3 "${_ENDPOINT}/v1/models" > /dev/null 2>&1; then
+  printf 'zdots-eval: llama.cpp not reachable at %s\n' "$_ENDPOINT" >&2
+  printf 'zdots-eval: run: zsvc start llama\n' >&2
+  exit 3
+fi
+
+printf 'zdots-eval: endpoint %s reachable\n' "$_ENDPOINT"
+printf 'zdots-eval: config %s\n' "$_CONFIG"
+printf 'zdots-eval: running promptfoo eval...\n\n'
+
+# ---------------------------------------------------------------------------
+# Run eval
+# OPENAI_API_KEY set to dummy — overridden by config apiKey: "zdots-local"
+# ---------------------------------------------------------------------------
+export OPENAI_API_KEY="zdots-local"
+export ZDOTS_AI_ENDPOINT="$_ENDPOINT"
+
+exec npx promptfoo eval --config "$_CONFIG" "$@"
