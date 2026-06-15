@@ -4,6 +4,7 @@
 require_relative "../lib/zdots"
 require_relative "../lib/zdots/models/job"
 require_relative "../lib/zdots/models/lesson"
+require_relative "../lib/zdots/models/lesson_intake"
 require_relative "../lib/zdots/models/methodology"
 require_relative "../lib/zdots/models/session_residue"
 require_relative "../lib/zdots/jobs/base"
@@ -151,10 +152,11 @@ module Zdots
         exit 1
       end
 
-      l = Zdots::Models::Lesson.create(
+      l = Zdots::Models::LessonIntake.create(
         content: content,
         context: context,
-        tags: Sequel.pg_array(tags)
+        tags: tags,
+        source_type: "user"
       )
 
       puts "zdots-brain: lesson saved."
@@ -190,11 +192,12 @@ module Zdots
         residue.metadata = Sequel.pg_jsonb(metadata)
         residue.save
 
-        lesson = Zdots::Models::Lesson.create(
+        lesson = Zdots::Models::LessonIntake.create(
           content: lesson_text,
           context: intent_text,
-          tags: Sequel.pg_array(tags),
-          source_trace_id: trace_id
+          tags: tags,
+          source_type: "capture",
+          trace_id: trace_id
         )
 
         Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
@@ -474,7 +477,7 @@ module Zdots
             puts "  [ok] #{type} '#{slug}'"
           when "lesson"
             Digest::MD5.hexdigest("ingest-lesson-#{slug}")
-            existing = Zdots::Models::Lesson.where(source_trace_id: "ingest:#{slug}").first
+            existing = Zdots::Models::LessonIntake.find_ingested(slug)
             if existing
               existing.content = body.strip
               existing.context = title
@@ -483,11 +486,12 @@ module Zdots
               l = existing
               puts "  [updated] lesson '#{slug}'"
             else
-              l = Zdots::Models::Lesson.create(
+              l = Zdots::Models::LessonIntake.create(
                 content: body.strip,
                 context: title,
-                tags: Sequel.pg_array(tags),
-                source_trace_id: "ingest:#{slug}"
+                tags: tags,
+                source_type: "ingest",
+                slug: slug
               )
               puts "  [ok] lesson '#{slug}'"
             end

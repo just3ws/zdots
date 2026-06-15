@@ -3,6 +3,7 @@
 require "dry/monads"
 require_relative "base"
 require_relative "../ai/pipeline"
+require_relative "../models/lesson_intake"
 
 module Zdots
   module Jobs
@@ -28,11 +29,12 @@ module Zdots
             puts "  --> Skipping: no technical lessons identified."
           else
             puts "  --> Saving distilled lesson..."
-            Zdots::Models::Lesson.create(
+            Zdots::Models::LessonIntake.create(
               content: summary,
               context: "YouTube: #{url}",
               tags: ["video-distillation"],
-              source_trace_id: job.trace_id
+              source_type: "distill",
+              trace_id: job.trace_id
             )
           end
         in Failure[reason, msg]
