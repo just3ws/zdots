@@ -4,7 +4,7 @@ title: Refactor Colima/LGTM Lifecycle
 status: To Do
 assignee: []
 created_date: '2026-05-06 06:12'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-15 01:38'
 labels:
   - wave2
 milestone: m-3
@@ -25,6 +25,12 @@ Integrate the complex Docker/Colima lifecycle into the standard platform engine,
 - [ ] #2 Implement a Docker/Compose adapter for the lifecycle engine.
 - [ ] #3 Maintain support for 'prune' and 'rebuild' as service-specific extensions.
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Reconcile 2026-06-14: the LGTM half of this task is OBSOLETE — Z-134 retired LGTM for OpenObserve (LGTM compose archived to etc/archive/, local-ci deprecated). Re-scope to Colima-lifecycle only, or fold into Z-047 (Deepen Orchestrator). See decision/doc-003 divergence flag #1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

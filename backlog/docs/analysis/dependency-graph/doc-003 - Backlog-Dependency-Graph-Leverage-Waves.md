@@ -28,7 +28,11 @@ Wave-0 dependency analysis of the open backlog. Drives execution priority by
 - **Done — Wave-4 leaves:** ✅ Z-118 Z-119 Z-126 Z-139 Z-141 Z-145 Z-147.
 - **Done — zsynod leaf fixes:** ✅ Z-136 (init jq stderr guard) · ✅ Z-138 (minutes
   remark flatten — already on main, verified).
-- **In progress:** Z-135 (Runtime-insight loop, Wave-1) · Z-137 (OpenCode→zsynod).
+- **In progress:** Z-135 (Runtime-insight loop, Wave-1).
+- **Parked → Experimental (held, not active backlog):** Z-137, Z-142, Z-143, Z-144
+  (all zsynod). zsynod is contained under `experiments/zsynod/` — a funded, held
+  experiment; these left the active waves and live in the board's Experimental lane.
+  MLX likewise archived to `experiments/mlx/` (code only — no board tasks).
 - **Advanced, kept open:** Z-140 — embed-health probe investigated; root cause is a
   **restart timing race** (probe hits `/health` mid-load), not the busy-slot 503
   theory. Fix = post-restart readiness poll, not a looser health contract.
