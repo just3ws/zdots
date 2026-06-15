@@ -378,9 +378,21 @@ if [[ "$HAS_STDIN" == "true" ]]; then
     printf '%s\n' "$SCAN_OUTPUT" >&2
   fi
 
-  # Block high-risk input if --block-high is set
-  if $OPT_BLOCK_HIGH && [[ "$RISK_LEVEL" == "high" ]]; then
-    printf 'ai-query: blocked: high-risk content detected (score=%s)\n' "$RISK_SCORE" >&2
+  # Per-mode block threshold (Z-041): the risk LEVEL classification (low/medium/
+  # high at 30/60) and --show-risk output are unchanged. Only the --block-high
+  # decision varies by mode: classify-risk and inspect-prompt-injection exist to
+  # receive adversarial content for inspection, so they tolerate a higher score
+  # before blocking. Default threshold 60 matches the prior high-level cutoff —
+  # default-mode blocking behavior is unchanged.
+  block_threshold=60
+  case "$MODE" in
+    classify-risk|inspect-prompt-injection) block_threshold=90 ;;
+  esac
+
+  # Block high-risk input if --block-high is set and score meets the mode threshold
+  if $OPT_BLOCK_HIGH && [[ "${RISK_SCORE:-0}" -ge "$block_threshold" ]]; then
+    printf 'ai-query: blocked: high-risk content detected (score=%s, threshold=%s)\n' \
+      "$RISK_SCORE" "$block_threshold" >&2
     printf 'ai-query: use --mode classify-risk or --mode inspect-prompt-injection to inspect\n' >&2
     printf 'ai-query: remove --block-high to submit anyway (not recommended)\n' >&2
     if $OPT_AUDIT; then
