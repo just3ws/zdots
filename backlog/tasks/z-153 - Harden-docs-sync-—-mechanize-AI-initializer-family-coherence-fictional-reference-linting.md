@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-15 13:17'
+updated_date: '2026-06-15 16:56'
 labels:
   - docs
   - agent-ready
@@ -26,9 +27,14 @@ The /docs-sync skill (drafted in .claude/commands/docs-sync.md) gives a discipli
 - [ ] #1 The /docs-sync skill is ratified and discoverable (linked from CLAUDE.md Agent Skills section / skills index)
 - [ ] #2 Fictional-reference linting is mechanized: docs-contract (or a linter it calls) FAILS when any tracked doc cites a command, file, or flag that does not exist — R2 becomes an invariant, not a manual step
 - [ ] #3 A tier-propagation manifest (data, not prose) enumerates the AI-initializer family + which change-type touches which files; the skill and the linter both read it (single source of truth)
-- [ ] #4 AGENTS.md §9 GLOSSARY.md/ONTOLOGY.md references are reconciled to point at the concept registry (decision-009) or CONTEXT.md — the canonical R2 example is closed
+- [x] #4 AGENTS.md §9 GLOSSARY.md/ONTOLOGY.md references are reconciled to point at the concept registry (decision-009) or CONTEXT.md — the canonical R2 example is closed
 - [ ] #5 CHANGELOG.md remains generated (git-cliff), never hand-edited; the skill's gate regenerates rather than edits
+- [ ] #6 Cross-platform initializer-naming divergence (zdots AGENTS.md vs my AGENT.md/HUMAN.md vs adots none vs vdots off-disk) is resolved or ratified as intentional: a shared convention is documented and the skill's Cross-platform scope section points at it; peers are notified via issue, not edited across repo boundaries
 <!-- AC:END -->
+
+
+
+
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
