@@ -1,10 +1,10 @@
 ---
 id: Z-040
 title: Integrate llama-ctl config into ai-query for embedding size validation
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-04-19 02:32'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-15 19:27'
 labels:
   - ai-query
   - llama-ctl
