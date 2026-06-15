@@ -989,3 +989,151 @@ ANSI_MOCK
   # Plain output must not contain the internal source_file metadata
   [[ "$output" != *"source_file"* ]]
 }
+
+# ===========================================================================
+# N. Embed mode — llama-ctl config integration and server-aware size ceiling
+# ===========================================================================
+
+# Helper: write a mock llama-ctl that emits a config with a given ubatch_size.
+_write_mock_llama_ctl() {
+  local dir="$1" ubatch="${2:-2048}"
+  mkdir -p "$dir"
+  cat > "$dir/llama-ctl" <<MOCK
+#!/usr/bin/env bash
+if [[ "\${1:-}" == "config" && "\${2:-}" == "--json" ]]; then
+  printf '{"ubatch_size":%s,"batch_size":%s,"endpoint":"http://127.0.0.1:11500"}\n' \
+    "${ubatch}" "${ubatch}"
+  exit 0
+fi
+exit 1
+MOCK
+  chmod +x "$dir/llama-ctl"
+}
+
+@test "N1: aiq_llama_embed_ceiling returns ubatch_size*3 from mock llama-ctl" {
+  _source_lib
+  local mock_dir="$BATS_TEST_TMPDIR/n1-mock"
+  _write_mock_llama_ctl "$mock_dir" 2048
+  ceiling=$(PATH="$mock_dir:$PATH" aiq_llama_embed_ceiling)
+  # 2048 * 3 = 6144
+  [ "$ceiling" -eq 6144 ]
+}
+
+@test "N2: aiq_llama_embed_ceiling falls back to AIQ_MAX_BYTES when llama-ctl absent" {
+  _source_lib
+  # Use a PATH that definitely has no llama-ctl
+  ceiling=$(PATH="$BATS_TEST_TMPDIR/empty-$$" AIQ_MAX_BYTES=32768 aiq_llama_embed_ceiling)
+  [ "$ceiling" -eq 32768 ]
+}
+
+@test "N3: aiq_llama_embed_ceiling falls back when llama-ctl returns empty output" {
+  _source_lib
+  local mock_dir="$BATS_TEST_TMPDIR/n3-mock"
+  mkdir -p "$mock_dir"
+  cat > "$mock_dir/llama-ctl" <<'MOCK'
+#!/usr/bin/env bash
+# Simulates unavailable server: exits 1 with no output
+exit 1
+MOCK
+  chmod +x "$mock_dir/llama-ctl"
+  ceiling=$(PATH="$mock_dir:$PATH" AIQ_MAX_BYTES=32768 aiq_llama_embed_ceiling)
+  [ "$ceiling" -eq 32768 ]
+}
+
+@test "N4: aiq_llama_embed_ceiling falls back when ubatch_size field is absent" {
+  _source_lib
+  local mock_dir="$BATS_TEST_TMPDIR/n4-mock"
+  mkdir -p "$mock_dir"
+  cat > "$mock_dir/llama-ctl" <<'MOCK'
+#!/usr/bin/env bash
+# Config without ubatch_size
+printf '{"batch_size":512,"endpoint":"http://127.0.0.1:11500"}\n'
+exit 0
+MOCK
+  chmod +x "$mock_dir/llama-ctl"
+  ceiling=$(PATH="$mock_dir:$PATH" AIQ_MAX_BYTES=32768 aiq_llama_embed_ceiling)
+  [ "$ceiling" -eq 32768 ]
+}
+
+@test "N5: --embeddings flag sets mode to embed" {
+  # Verify embed mode is accepted (reaches transport failure, not usage error)
+  local mock_dir="$BATS_TEST_TMPDIR/n5-mock"
+  _write_mock_llama_ctl "$mock_dir" 2048
+  run bash -c "PATH='$BATS_TEST_TMPDIR/fail-bin:$mock_dir:$PATH' \
+    '$BIN/ai-query' --embeddings 'text to embed'"
+  # Should reach transport (5) or be accepted — not usage error (2)
+  [ "$status" -ne 2 ]
+}
+
+@test "N6: --mode embed is accepted" {
+  local mock_dir="$BATS_TEST_TMPDIR/n6-mock"
+  _write_mock_llama_ctl "$mock_dir" 2048
+  run bash -c "PATH='$BATS_TEST_TMPDIR/fail-bin:$mock_dir:$PATH' \
+    '$BIN/ai-query' --mode embed 'text to embed'"
+  [ "$status" -ne 2 ]
+}
+
+@test "N7: embed mode rejects oversized input with server-aware diagnostic" {
+  # Mock llama-ctl with ubatch_size=100 → ceiling = 300 bytes
+  local mock_dir="$BATS_TEST_TMPDIR/n7-mock"
+  _write_mock_llama_ctl "$mock_dir" 100
+  # Generate 400 bytes (> 300 ceiling)
+  dd if=/dev/zero bs=1 count=400 2>/dev/null | tr '\0' 'x' > "$BATS_TEST_TMPDIR/n7.txt"
+  run bash -c "PATH='$mock_dir:$PATH' \
+    '$BIN/ai-query' --embeddings 'embed this' < '$BATS_TEST_TMPDIR/n7.txt'"
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"embed"* ]] || [[ "$output" == *"ceiling"* ]] || [[ "$output" == *"300"* ]]
+}
+
+@test "N7b: embed oversize error message names the derived limit" {
+  local mock_dir="$BATS_TEST_TMPDIR/n7b-mock"
+  _write_mock_llama_ctl "$mock_dir" 100
+  dd if=/dev/zero bs=1 count=400 2>/dev/null | tr '\0' 'x' > "$BATS_TEST_TMPDIR/n7b.txt"
+  stderr=$(PATH="$mock_dir:$PATH" \
+    "$BIN/ai-query" --embeddings 'embed this' < "$BATS_TEST_TMPDIR/n7b.txt" 2>&1 >/dev/null || true)
+  # Must mention the derived limit (300 = 100*3) or the token count (100)
+  [[ "$stderr" == *"300"* ]] || [[ "$stderr" == *"100"* ]]
+}
+
+@test "N8: embed mode accepts input under the server-derived ceiling" {
+  # Mock llama-ctl with ubatch_size=1000 → ceiling = 3000 bytes
+  local mock_dir="$BATS_TEST_TMPDIR/n8-mock"
+  _write_mock_llama_ctl "$mock_dir" 1000
+  # Generate 100 bytes — well under 3000
+  dd if=/dev/zero bs=1 count=100 2>/dev/null | tr '\0' 'x' > "$BATS_TEST_TMPDIR/n8.txt"
+  # Should not exit 3; will exit 5 (transport) since no real server
+  run bash -c "PATH='$BATS_TEST_TMPDIR/fail-bin:$mock_dir:$PATH' \
+    '$BIN/ai-query' --embeddings 'embed this' < '$BATS_TEST_TMPDIR/n8.txt'"
+  [ "$status" -ne 3 ]
+}
+
+@test "N9: --debug output shows embed ceiling when in embed mode" {
+  local mock_dir="$BATS_TEST_TMPDIR/n9-mock"
+  _write_mock_llama_ctl "$mock_dir" 2048
+  stderr=$(PATH="$BATS_TEST_TMPDIR/fail-bin:$mock_dir:$PATH" \
+    "$BIN/ai-query" --embeddings --debug 'text' 2>&1 >/dev/null || true)
+  # Debug output must mention embed mode and the ceiling
+  [[ "$stderr" == *"embed"* ]]
+  [[ "$stderr" == *"ceiling"* ]] || [[ "$stderr" == *"6144"* ]]
+}
+
+@test "N10: without llama-ctl, embed mode uses AIQ_MAX_BYTES silently (no error)" {
+  # No llama-ctl in PATH → should fall back without printing error
+  dd if=/dev/zero bs=1 count=100 2>/dev/null | tr '\0' 'x' > "$BATS_TEST_TMPDIR/n10.txt"
+  stderr=$(PATH="$BATS_TEST_TMPDIR/fail-bin:$PATH" \
+    "$BIN/ai-query" --embeddings 'embed this' < "$BATS_TEST_TMPDIR/n10.txt" 2>&1 >/dev/null || true)
+  # No error about llama-ctl being missing
+  [[ "$stderr" != *"llama-ctl: not found"* ]]
+  [[ "$stderr" != *"llama-ctl: command not found"* ]]
+  [[ "$stderr" != *"missing"* ]] || [[ "$stderr" == *"transport"* ]] || [[ "$stderr" == *"server"* ]]
+}
+
+@test "N11: --help mentions embed mode" {
+  run "$BIN/ai-query" --help
+  [[ "$output" == *"embed"* ]]
+}
+
+@test "N12: --help mentions --embeddings flag" {
+  run "$BIN/ai-query" --help
+  [[ "$output" == *"--embeddings"* ]]
+}
