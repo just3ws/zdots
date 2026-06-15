@@ -75,6 +75,13 @@ else
 fi
 ```
 
+## zdash fzf key bindings
+zdash is an fzf-powered task launcher. Add bindings via `--bind` in the fzf call. Example — add ctrl-d to run `ztask done` on the selected task:
+```bash
+--bind 'ctrl-d:execute(ztask done {2})'
+```
+Pattern: `--bind 'ctrl-X:execute(command {field})'`. Use `ctrl-` prefix for new bindings. `{2}` is the task ID field. `execute(...)` runs command without leaving fzf. Existing bindings: ctrl-p (zpi), ctrl-a (zaider), ctrl-s (zdots-status), ctrl-d (ztask done), ctrl-r (refresh).
+
 ## OTel span emission (requires active observable session)
 ```bash
 source "${ZDOTDIR}/lib/lifecycle.bash"

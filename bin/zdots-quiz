@@ -71,7 +71,7 @@ _run_case() {
 
   local passed=0; local failed=0
   for pat in "${required_patterns[@]}"; do
-    if printf '%s' "$response" | grep -qiE "$pat"; then
+    if printf '%s' "$response" | grep -qiE -- "$pat"; then
       passed=$(( passed + 1 ))
     else
       printf '  %sMISS%s %s\n' "$_YLW" "$_RST" "$pat"
@@ -118,6 +118,8 @@ while [[ $# -gt 0 ]]; do
       printf '  TC-12 shell  ZDOTS_CONTEXT home/work branching\n'
       printf '  TC-13 shell  OTel span emission pattern\n'
       printf '  TC-14 default  zdots-ctx capture prerequisites\n'
+      printf '  TC-15 shell  zdash fzf key binding for ztask done\n'
+      printf '  TC-16 default  llama-ctl install/start/verify subcommands\n'
       exit 0
       ;;
     --help|-h)
@@ -213,6 +215,19 @@ _run_case TC-14 default \
   "What are the two required conditions before zdots-ctx capture can be called?" \
   'ZDOTS_CAPTURE_ENABLED|capture.*enabled' \
   'ZDOTS_SESSION_ID|session.*id'
+
+_run_case TC-15 shell \
+  "Write a new fzf key binding for zdash that runs \`ztask done\` on the selected task." \
+  '--bind' \
+  'ctrl-' \
+  'execute' \
+  'ztask'
+
+_run_case TC-16 default \
+  "What llama-ctl commands install, start, and verify the local AI model?" \
+  'llama-ctl install' \
+  'llama-ctl start' \
+  'llama-ctl model-verify'
 
 # ---------------------------------------------------------------------------
 # Summary
