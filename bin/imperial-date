@@ -1,0 +1,128 @@
+#!/usr/bin/env sh
+# ---
+# id: imperial-date
+# title: "Imperial Dating System — the Astronomicon calendar"
+# purpose: Convert a Gregorian date to the Imperium of Mankind's Imperial date, the in-character beacon for platform versioning.
+# ---
+# bin/imperial-date — emit a date in the Imperial Dating System (Warhammer 40k).
+#
+# Format:  C FFF YYY.M#   written compact as  CFFFYYY.M#
+#   C    — Check Number (0 = date verified at the source / most accurate class)
+#   FFF  — Year Fraction (000-999): the elapsed fraction of the Gregorian year
+#   YYY  — Year within the millennium (000-999)
+#   M#   — Millennium (M3 = years 2001-3000)
+#
+# This is the platform Astronomicon beacon: the public trio (zdots/adots/vdots)
+# shares ONE stamp per release across every deploy; drift = mismatched stamps.
+# See backlog/decisions/decision-007.
+
+set -eu
+
+usage() {
+  cat <<'EOF'
+Usage: imperial-date [YYYY-MM-DD] [-c N] [--decode] [-h|--help]
+
+Emit a date in the Imperial Dating System (default: today).
+
+Options:
+  YYYY-MM-DD   Gregorian date to convert (default: today)
+  -c, --check N  Check Number 0-9 (default: 0 — verified at source)
+  --decode STR   Decode an Imperial date (CFFFYYY.M#) back to Gregorian (approx)
+  -h, --help     Show this help
+
+Examples:
+  imperial-date                 # today, e.g. 0452026.M3
+  imperial-date 2026-06-14      # 0452026.M3
+  imperial-date --decode 0452026.M3
+EOF
+}
+
+_is_leap() {
+  y="$1"
+  if [ $(( y % 4 )) -eq 0 ] && { [ $(( y % 100 )) -ne 0 ] || [ $(( y % 400 )) -eq 0 ]; }; then
+    return 0
+  fi
+  return 1
+}
+
+# _doy_to_md YEAR DAY_OF_YEAR -> YYYY-MM-DD (portable; no fragile date -v flags)
+_doy_to_md() {
+  _y="$1"; _n="$2"
+  if _is_leap "$_y"; then _feb=29; else _feb=28; fi
+  _mo=1
+  for _len in 31 "$_feb" 31 30 31 30 31 31 30 31 30 31; do
+    [ "$_n" -le "$_len" ] && break
+    _n=$(( _n - _len )); _mo=$(( _mo + 1 ))
+  done
+  printf '%04d-%02d-%02d' "$_y" "$_mo" "$_n"
+}
+
+# imperial_stamp YYYY MM DD CHECK -> CFFFYYY.M#
+imperial_stamp() {
+  _y="$1"; _m="$2"; _d="$3"; _check="$4"
+  # Day of year (BSD/macOS date; GNU date also supports -d).
+  if doy=$(date -j -f "%Y-%m-%d" "$_y-$_m-$_d" "+%j" 2>/dev/null); then :;
+  elif doy=$(date -d "$_y-$_m-$_d" "+%j" 2>/dev/null); then :;
+  else
+    echo "imperial-date: cannot parse date $_y-$_m-$_d" >&2; exit 1
+  fi
+  doy=$(printf '%s' "$doy" | sed 's/^0*//'); doy=${doy:-0}   # strip leading zeros (avoid octal)
+  if _is_leap "$_y"; then diy=366; else diy=365; fi
+  # Year fraction 000-999.
+  frac=$(( doy * 1000 / diy ))
+  [ "$frac" -gt 999 ] && frac=999
+  millennium=$(( ( _y - 1 ) / 1000 + 1 ))
+  year_in_mil=$(( _y - ( millennium - 1 ) * 1000 ))
+  printf '%01d%03d%03d.M%d\n' "$_check" "$frac" "$year_in_mil" "$millennium"
+}
+
+# decode CFFFYYY.M#  -> approximate Gregorian YYYY-MM-DD
+imperial_decode() {
+  stamp="$1"
+  case "$stamp" in
+    *.M*) : ;;
+    *) echo "imperial-date: not an Imperial date: $stamp" >&2; exit 1 ;;
+  esac
+  mil=${stamp##*.M}
+  digits=${stamp%%.*}
+  # digits = C FFF YYY  (1 + 3 + 3)
+  frac=$(printf '%s' "$digits" | cut -c2-4)
+  yim=$(printf '%s' "$digits" | cut -c5-7)
+  frac=$(printf '%s' "$frac" | sed 's/^0*//'); frac=${frac:-0}
+  yim=$(printf '%s' "$yim" | sed 's/^0*//'); yim=${yim:-0}
+  year=$(( ( mil - 1 ) * 1000 + yim ))
+  if _is_leap "$year"; then diy=366; else diy=365; fi
+  doy=$(( frac * diy / 1000 ))
+  [ "$doy" -lt 1 ] && doy=1
+  g=$(_doy_to_md "$year" "$doy")
+  printf '%s  (~M%d.%03d, approx ±1d)\n' "$g" "$mil" "$yim"
+}
+
+CHECK=0
+DATE_ARG=""
+DECODE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    -c|--check) CHECK="$2"; shift 2; continue ;;
+    --decode) DECODE="$2"; shift 2; continue ;;
+    [0-9]*-[0-9]*-[0-9]*) DATE_ARG="$1" ;;
+    *) printf 'imperial-date: unknown argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+if [ -n "$DECODE" ]; then
+  imperial_decode "$DECODE"
+  exit 0
+fi
+
+if [ -n "$DATE_ARG" ]; then
+  y=$(printf '%s' "$DATE_ARG" | cut -d- -f1)
+  m=$(printf '%s' "$DATE_ARG" | cut -d- -f2)
+  d=$(printf '%s' "$DATE_ARG" | cut -d- -f3)
+else
+  y=$(date "+%Y"); m=$(date "+%m"); d=$(date "+%d")
+fi
+
+imperial_stamp "$y" "$m" "$d" "$CHECK"

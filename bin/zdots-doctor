@@ -116,6 +116,44 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Platform version — the Astronomicon beacon. The public trio (zdots/adots/vdots)
+# must share ONE Imperial-CalVer epoch across a deploy; drift is the miasma.
+# `my` is per-environment content conforming to a contract, not a shared stamp.
+# See backlog/decisions/decision-007.
+# ---------------------------------------------------------------------------
+_section "Platform version (Astronomicon)"
+
+_zdots_ver_file="${ZDOTDIR:-$HOME/.config/zsh}/VERSION"
+if [[ -r "$_zdots_ver_file" ]]; then
+  _beacon="$(tr -d '[:space:]' < "$_zdots_ver_file")"
+  _pass "zdots  ${_beacon}  (the beacon)"
+
+  # Compare the public peers when their VERSION is present; absence is "not yet
+  # versioned" (forward-compatible during rollout), not a failure.
+  _vdots_ver_file="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/VERSION"
+  if [[ -r "$_vdots_ver_file" ]]; then
+    _v="$(tr -d '[:space:]' < "$_vdots_ver_file")"
+    [[ "$_v" == "$_beacon" ]] && _pass "vdots  ${_v}  (in sync)" \
+      || _warn "vdots  ${_v} ≠ beacon ${_beacon} — deploy drift"
+  else
+    _warn "vdots  not yet versioned (no ~/.config/nvim/VERSION) — rollout pending"
+  fi
+
+  _adots_ver="$(/usr/bin/git --git-dir="$HOME/.homegit" --work-tree="$HOME" show HEAD:VERSION 2>/dev/null | tr -d '[:space:]')"
+  if [[ -n "$_adots_ver" ]]; then
+    [[ "$_adots_ver" == "$_beacon" ]] && _pass "adots  ${_adots_ver}  (in sync)" \
+      || _warn "adots  ${_adots_ver} ≠ beacon ${_beacon} — deploy drift"
+  else
+    _warn "adots  not yet versioned (no tracked VERSION) — rollout pending"
+  fi
+
+  _pass "my  contract my.structure.v1 (per-environment content: just3ws/my @home · myworkname/my @work)"
+else
+  _warn "zdots  no VERSION beacon at ${_zdots_ver_file}"
+  _fix  "imperial-date > ${_zdots_ver_file}"
+fi
+
+# ---------------------------------------------------------------------------
 # Repo currency
 # ---------------------------------------------------------------------------
 _section "Repo"
