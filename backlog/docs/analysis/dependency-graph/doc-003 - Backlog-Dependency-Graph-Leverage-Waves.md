@@ -21,6 +21,21 @@ Wave-0 dependency analysis of the open backlog. Drives execution priority by
 > **Progress** below. `backlog sequence list --plain` is the live truth; this doc
 > is the rationale snapshot kept in step with it.
 
+## Wave-0 root discovered (2026-06-15)
+
+Traversing this graph yielded no insight on "complete the zdots CLI syntax"
+because the unification work was never a node — it is the implicit substrate under
+every task. Now filed:
+
+- **Z-149 — zdots dispatcher seam** (decision-008): the canonical
+  `zdots <noun> <verb> --json` grammar. **The Wave-0 root** the 33 flattened
+  `zdots-*` binaries converge into. Additive; makes the docs' `zdots doctor`
+  honest.
+- **Z-150 / Z-151 — Knowledge Ingestion & Terminology** (decision-009, doc-004):
+  source envelope (YouTube/playlist/webpage → Loop) + concept registry
+  (synonym→concept map, traversable ontology). Same disease, Knowledge-Layer site;
+  replaces the fictional `GLOSSARY.md`/`ONTOLOGY.md`. Both depend on Z-135.
+
 ## Progress (2026-06-14)
 
 - **Done — Wave-1 foundations:** ✅ **Z-134** (OpenObserve migration) · ✅ **Z-130**
@@ -70,11 +85,16 @@ graph LR
     Z027["Z-027 Gemini→OTel"]:::w2
     Z146["Z-146 otel log rotation"]:::w2
   end
+  subgraph ROOT[Command-Surface DSL — Wave-0 root]
+    Z149["Z-149 zdots dispatcher (DSL root)"]:::w1
+  end
   subgraph KNOW[Knowledge Layer]
     Z135["Z-135 Runtime-insight loop (WIP)"]:::w1
     Z103["Z-103 cognitive-load/err-velocity"]:::w2
     Z129["Z-129 Lesson intake module"]:::w2
     Z148["Z-148 Token-Budget Governor"]:::w3
+    Z150["Z-150 Source-ingestion envelope"]:::w2
+    Z151["Z-151 Concept registry"]:::w2
   end
   subgraph AI[AI Invocation Seam]
     Z130["✅ Z-130 Shrink AI invoke IF"]:::done
@@ -101,7 +121,11 @@ graph LR
     Z052["Z-052 Living Docs"]:::w3
   end
 
+  Z149 -.grammar converges.-> Z047
+  Z149 -.grammar converges.-> Z135
   Z134 --> Z135 --> Z148
+  Z135 --> Z150
+  Z135 --> Z151
   Z134 --> Z027
   Z134 -.LGTM retired→re-scope.-> Z045
   Z135 --> Z103
