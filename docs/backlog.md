@@ -24,9 +24,19 @@ Backlog is configured for local, agent-safe operation in this repo:
 | `auto_open_browser` | `false` | CLI workflows do not open GUI browser windows |
 | `bypass_git_hooks` | `false` | Task commits keep the repo's normal safety checks |
 | `check_active_branches` | `true` | Local branch awareness remains enabled |
-| `labels` | `agent-reported`, `bug`, `question`, `request`, `needs-info`, `agent-ready` | Matches `zdots-issue` and agent triage vocabulary |
+| `statuses` | `To Do`, `In Progress`, `Done`, `Experimental` | `Experimental` is a **holding lane** for parked experiments (see below) |
+| `labels` | `agent-reported`, `bug`, `question`, `request`, `needs-info`, `agent-ready`, `experimental`, `do-not-implement` | Triage vocabulary + experiment/park markers |
 
 Use `backlog config list` to verify these values.
+
+### The Experimental state
+
+`Experimental` holds work that is **parked, not abandoned** — code that has been
+contained under `experiments/` (e.g. `experiments/zsynod/`, `experiments/mlx/`) and
+is kept for future analysis but is not active backlog work. Moving a task to
+`Experimental` (plus the `experimental` label) takes it out of the active **To Do**
+queue and the leverage waves while keeping it on the board. Use `do-not-implement`
+for ideas explicitly declined. Reactivate by setting the status back to `To Do`.
 
 ## 2. Task Completion Protocol
 
