@@ -166,7 +166,7 @@ _append() {
 
 # ── roster ───────────────────────────────────────────────────────────────────
 _member_known() { [[ -f "$MEMBERS" ]] && jq -e --arg m "$1" '.members[]|select(.id==$m)' "$MEMBERS" >/dev/null 2>&1; }
-_voting_ids()   { jq -r '.members[]|select(.voting)|.id' "$MEMBERS"; }
+_voting_ids()   { [[ -f "$MEMBERS" ]] || return 0; jq -r '.members[]|select(.voting)|.id' "$MEMBERS"; }
 _quorum()       { local n; n="$(_voting_ids | wc -l | tr -d ' ')"; echo $(( n/2 + 1 )); }
 _cur_round()    { [[ -s "$LEDGER" ]] && jq -rs 'map(.round)|max // 0' "$LEDGER" || echo 0; }
 
