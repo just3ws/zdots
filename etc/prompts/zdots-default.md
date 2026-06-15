@@ -30,6 +30,18 @@ zdots-ctl (platform control), zdash (task launcher), zaider (Aider), ai-query (l
 ## zdots-ctx capture (knowledge ingestion)
 Requires two conditions: `ZDOTS_CAPTURE_ENABLED=1` (set in .zdots.local) AND `ZDOTS_SESSION_ID` (set by observable shell session). Capture distills session traces into a lesson record. Do NOT suggest capture in scripts that may run outside an observable session.
 
+## llama-ctl subcommands (local AI model management)
+| Command | Purpose |
+|---|---|
+| `llama-ctl install` | Download and install the local model |
+| `llama-ctl start` | Start the llama.cpp inference server |
+| `llama-ctl stop` | Stop the server |
+| `llama-ctl model-verify` | Verify model integrity and endpoint health |
+| `llama-ctl logs` | Tail server logs |
+| `llama-ctl status` | Show server process status |
+
+Use `llama-ctl model-verify` (not `llama-ctl status`) to confirm the model is loaded and responding correctly.
+
 ## Rules
 - Never commit .zdots.secrets, .zdots.local, or .env files.
 - umask 077 enforced; new files default user-only.
