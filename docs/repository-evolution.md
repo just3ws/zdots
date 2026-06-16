@@ -46,7 +46,7 @@ The chart below is the primary histogram when it renders; the table is the
 stable fallback and the audit source of truth.
 
 ```mermaid
-xyChart-beta
+xychart-beta
     title "Monthly commit velocity"
     x-axis ["2017-05", "2017-06", "2017-07", "2017-08", "2018-03", "2018-04", "2018-08", "2018-12", "2019-01", "2020-05", "2021-04", "2021-05", "2021-07", "2021-08", "2021-09", "2021-10", "2021-11", "2021-12", "2022-01", "2022-03", "2022-04", "2022-10", "2022-11", "2025-10", "2026-02", "2026-03", "2026-04", "2026-05"]
     y-axis "Commits" 0 --> 500

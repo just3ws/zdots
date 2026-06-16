@@ -111,7 +111,7 @@ graph TD
     Shell[Shell / Spans] -->|OTLP HTTP :4318| BMC[Bare Metal OTel Collector]
     Apps[Local Apps / Agents] -->|OTLP :4318| BMC
     
-    subgraph Host (all native)
+    subgraph Host["Host (all native)"]
         BMC
         O2[OpenObserve :5080\nlogs / metrics / traces + UI]
     end
@@ -138,25 +138,26 @@ erDiagram
     lessons ||--o{ jobs : "triggers embedding"
     jobs ||--o{ jobs : "chains follow-up"
     session_residue ||--o{ lessons : "promotes to"
+    shell_hook_metrics }o--|| command_runs : "same session"
     
     methodologies {
         uuid id PK
         text slug UK
         text title
-        text content
+        bytea content_enc
         text_array tags
         jsonb metadata
-        vector embedding "3584 dims"
+        vector embedding "768 dims"
         timestamptz created_at
     }
     
     lessons {
         uuid id PK
-        text content
+        bytea content_enc
         text context
         text_array tags
         text source_trace_id
-        vector embedding "3584 dims"
+        vector embedding "768 dims"
         timestamptz created_at
     }
     
@@ -177,9 +178,9 @@ erDiagram
     session_residue {
         uuid id PK
         text trace_id UK
-        text summary
-        text intent
-        text result
+        bytea summary_enc
+        bytea intent_enc
+        bytea result_enc
         int command_count
         jsonb metadata
         timestamptz processed_into_docs_at
@@ -204,6 +205,18 @@ erDiagram
         text key PK
         text value
         timestamptz updated_at
+    }
+
+    shell_hook_metrics {
+        bigserial id PK
+        text session_id
+        bigint ts_ms
+        text hook
+        text status
+        bigint elapsed_ms
+        bigint threshold_ms
+        text host
+        timestamptz synced_at
     }
 ```
 
