@@ -1,10 +1,10 @@
 ---
 id: Z-121
 title: Audit architecture diagrams across Mermaid types
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-31 15:50'
-updated_date: '2026-06-15 22:09'
+updated_date: '2026-06-16 01:26'
 labels:
   - agent-ready
   - wave4
