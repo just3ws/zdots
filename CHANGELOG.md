@@ -6,6 +6,53 @@ public trio (zdots / adots / vdots). Compute a stamp with `imperial-date`; read 
 live beacon with `capabilities` or `zdots-doctor`. `my` is per-environment and
 versioned by contract (`my.structure.vN`), not by this epoch.
 
+## [unreleased]
+
+### 🚀 Features
+
+- *(version)* Agent-guide reports the platform beacon (Astronomicon)
+- *(version)* Add 'idate' alias for the imperial-date calendar converter
+- *(ai-query)* Add --from-file PATH flag
+- *(zdots-quiz)* Add TC-15/TC-16 for zdash binding + llama-ctl
+- *(ai-query)* Server-aware embed size ceiling from llama-ctl ubatch_size (Z-040)
+- *(skills)* Add /fan-out dispatch playbook + zdots-local-analyst agent (local-first)
+
+### 🐛 Bug Fixes
+
+- *(ai-query)* Calibrate scanner via context dampener + per-mode block thresholds
+- *(ztask)* Never gate task completion on AI distillation (Z-125)
+- *(docs)* Repair 3 broken Mermaid diagrams + correct stale topology/schema (Z-121)
+- *(zdots-eval)* Add --help handler; register in docs-contract (Z-133 follow-up)
+
+### 🚜 Refactor
+
+- *(mlx)* Archive Apple MLX experiment to experiments/mlx/
+- *(searchable)* Drop dead semantic branch, own search strategy
+- *(lesson)* Single intake owns source_type + trace-id provenance (Z-129)
+
+### 📚 Documentation
+
+- *(changelog)* Regenerate for 0452026.M3 with Astronomicon header
+- *(backlog)* Capture command-surface DSL + knowledge-ingestion contracts
+- *(backlog)* Land Z-135 runtime-insight loop; record coherence risks
+- *(skills)* Draft /docs-sync for AI-initializer-family coherence; file Z-153
+- *(coherence)* Close AGENTS.md §9 R2 wound; correct /docs-sync overclaim + cross-platform scope
+
+### 🧪 Testing
+
+- *(evals)* Add local-only promptfoo suite for PHI rules + thinking modes (Z-133)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(backlog)* Audit + reconcile board; add Experimental state for parked work
+- *(backlog)* Reconcile Z-045 divergence — drop retired LGTM scope
+- *(backlog)* Land Z-038/Z-093 Done; attach Z-132 MCP eval
+- *(backlog)* Land Z-041 (scanner calibration) and Z-131 (Searchable) Done
+- *(backlog)* Land Z-125 (ztask AI-gate), Z-129 (Lesson intake), Z-133 (promptfoo evals) Done
+- *(backlog)* Z-153 AC#4 done (AGENTS.md §9 reconciled), add cross-platform AC#6
+- *(backlog)* Mark Z-040 Done
+- *(backlog)* Z-121 — add verified Mermaid audit findings as ACs
+- *(backlog)* Mark Z-121 Done
 ## [0452026.M3] - 2026-06-15
 
 ### 🚀 Features
