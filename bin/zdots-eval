@@ -18,6 +18,30 @@
 
 set -euo pipefail
 
+# --help / -h: print usage and exit before any gate (command-qc contract).
+for _arg in "$@"; do
+  case "$_arg" in
+    -h|--help)
+      cat <<'USAGE'
+zdots-eval — run the promptfoo eval suite against the local llama.cpp endpoint.
+
+LOCAL-ONLY: inference targets 127.0.0.1:11500 (loopback); no cloud keys.
+
+Usage:
+  zdots-eval                        # full suite
+  zdots-eval --filter-first-n N     # first N tests only
+  zdots-eval --filter-pattern PHI   # tests matching pattern
+  zdots-eval --no-cache             # bypass promptfoo cache
+  zdots-eval -h | --help            # this message
+
+All other flags pass through to `promptfoo eval`. See `npx promptfoo eval --help`.
+Override endpoint: ZDOTS_AI_ENDPOINT=http://192.168.1.10:11500 zdots-eval
+USAGE
+      exit 0
+      ;;
+  esac
+done
+
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _REPO_ROOT="$(cd "${_SCRIPT_DIR}/.." && pwd)"
 _CONFIG="${_REPO_ROOT}/etc/evals/promptfoo/promptfooconfig.yaml"
