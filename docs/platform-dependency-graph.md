@@ -24,7 +24,6 @@ flowchart TB
         zsvc --> llamactl["llama-ctl\nAI + embed"]
         zsvc --> otelctl["otel-collector\nhost collector"]
         zsvc --> o2ctl["openobserve-ctl\nobservability backend"]
-        zsvc --> whisperctl["whisper-ctl\ntranscription"]
         zsvc --> nginxctl["nginx-ctl\nreverse proxy"]
     end
 

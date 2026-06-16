@@ -2,7 +2,7 @@
 SHELL := /bin/sh
 ZDOTDIR ?= $(HOME)/.config/zsh
 
-.PHONY: bootstrap update-local check check-fast test docs-contract health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
+.PHONY: bootstrap update-local check check-fast test docs-contract docs-diagrams health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
 
 # ------------------------------------------------------------------------------
 # CORE & VALIDATION
@@ -26,6 +26,12 @@ test:
 
 docs-contract:
 	bats $(ZDOTDIR)/tests/docs_contract.bats
+
+# Machine-validate all Mermaid diagrams in the repo via mmdc.
+# Skips gracefully if mmdc is absent (CI without Chrome will not hard-fail).
+# Do NOT wire into `check` — that is an operator coordination decision (AGENTS.md §5).
+docs-diagrams:
+	bats $(ZDOTDIR)/tests/mermaid_diagrams.bats
 
 # Unified coverage report (Ruby via SimpleCov, Shell via kcov)
 coverage:
