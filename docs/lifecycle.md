@@ -37,6 +37,7 @@ graph TD
         Registry --> Llama[llama-server]
         Registry --> Embed[llama-embed]
         Registry --> OTel[otel-collector]
+        Registry --> O2ctl[openobserve-ctl]
         Registry --> Colima[colima]
         Registry --> Nginx[nginx]
         Registry --> PG[postgres]
@@ -45,6 +46,7 @@ graph TD
 
     subgraph "Infrastructure Layer"
         O2[OpenObserve: logs/metrics/traces]
+        O2ctl --> O2
         PG --> DB[(PostgreSQL: my)]
         Redis --> Cache[(Redis: analytics)]
         Nginx --> Proxy[Local .local URLs]
