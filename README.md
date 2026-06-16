@@ -68,12 +68,11 @@ Zdots includes a production-grade local AI runtime out of the box:
 ## 4. Architecture Diagrams
 
 ### System Overview
-The Zdots platform operates as a "Sidecar Control Plane" on the host, delegating heavy observability storage to an isolated container stack.
+The Zdots platform operates as a "Sidecar Control Plane" on the host. All services run natively — no Docker or Colima dependency in the observability path (Z-134).
 
 ```mermaid
 architecture-beta
     group host(logos:apple)[Bare Metal macOS]
-    group colima(logos:docker)[Colima Stack]
 
     service zsh(logos:zsh-icon)[Zsh Shell] in host
     service collector(logos:opentelemetry)[OTel Collector] in host
@@ -126,9 +125,8 @@ graph LR
         C[openobserve-ctl]
     end
 
-    subgraph LifecycleEngine ["lib/lifecycle.bash"]
+    subgraph LifecycleEngine ["lib/svc-launchd.bash"]
         L1[launchd primitives]
-        L2[docker-compose primitives]
         L3[Status/Health Formatters]
     end
 
@@ -138,7 +136,7 @@ graph LR
     B -- "delegates" --> L1
     B -- "delegates" --> L3
     
-    C -- "delegates" --> L2
+    C -- "delegates" --> L1
     C -- "delegates" --> L3
 
     L3 -- "Standard Output" --> UI[Terminal / JSON]

@@ -187,7 +187,7 @@ quadrantChart
 
     quadrant-1 Frontier model only
     quadrant-2 Human review required
-    quadrant-3 Unix tools (grep/jq/git/psql)
+    quadrant-3 Unix tools
     quadrant-4 zdots-ask — local LLM
 
     ZLE widget skeleton: [0.55, 0.22]
