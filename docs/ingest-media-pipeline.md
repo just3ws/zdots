@@ -99,14 +99,16 @@ failed check** — that is how ambiguity ("did it land?") creeps in.
 | 4 Retain | `MANIFEST.md` | `ls` the retention dir | audio + transcript + synthesis + manifest all present |
 | 5a Dry-run | stdout | `zdots-ctx ingest --dry-run` | `1 ingested, 0 skipped, 0 errors` |
 | 5b Ingest | DB row | `zdots-ctx status` before/after | lessons count **+1** |
-| 6 Embed | job row | `zdots-ctx jobs` | the lesson's embed job is **completed** (not pending/failed) |
-| 7 Verify | query stdout | `zdots-ctx query` + `--semantic` | lesson appears under **LESSONS** in both |
+| 6 Embed | recall, not job row | poll `zdots-ctx query --semantic` (≤~90s) | lesson returns under `### SEMANTIC MATCHES: LESSONS` — the authoritative drained signal |
+| 7 Verify | query stdout | `zdots-ctx query` (keyword) + `--semantic` | keyword hit under lowercase `searching lessons (text)...`; semantic hit under `### SEMANTIC MATCHES: LESSONS` (the two headers differ — don't grep `LESSONS` for keyword) |
 
 The **stage-6 async gap** is the subtle one: `zdots-ctx ingest` only *queues* the
 embed job. Semantic recall (stage 7) silently returns nothing until
-`zdots-worker` drains it. Always confirm the embed job is `completed` before
-declaring semantic recall verified. If `zsvc list` shows `zdots-worker` stopped,
-start it (`zsvc start worker`) or drain once with `zdots-ctx worker`.
+`zdots-worker` drains it. The authoritative "drained" signal is **semantic recall
+returning the lesson** (poll it, ≤~90s) — more reliable than hunting the job row.
+If it never lands, the queue is stuck: a prior non-recoverable job (e.g.
+`[:phi_suppressed, …]`) can loop and starve yours — check `zdots-ctx jobs`, and
+if `zsvc list` shows `zdots-worker` stopped, start it (`zsvc start worker`).
 
 ## Gap Audit (2026-06-17)
 
@@ -120,6 +122,15 @@ Findings from the live `rlbJr6kenS0` run, with the fix applied to the skill:
 | 4 | Whisper runs **blind** in the background — "run in background" with no progress mechanism | feedback gap | Documented `tail -f whisper.log` + last-timestamp-vs-duration progress signal |
 | 5 | ~10 hand-run steps with **copy-pasted slug/id/paths**; no single entrypoint | manual friction | Skill sets `SLUG`/`ID`/`DIR` **once**; a real orchestrator command is filed as a zdots **request** (not built ad-hoc, per AGENTS.md §5) |
 | 6 | Query preview showed **provenance boilerplate** instead of the thesis | minor UX | Skill leads the lesson body with a one-line summary; provenance follows |
+| 7 | Verification grepped `LESSONS`, silently missing **keyword** hits — keyword uses a lowercase `searching lessons (text)...` header; only *semantic* uses `### SEMANTIC MATCHES: LESSONS` | verification trap | Skill Step 5.4 + stage-7 row now spell out both headers |
+
+### Second confirmation run (2026-06-17, `kft86_LA-Pg`)
+
+OpenObserve OTel-correlation talk (5:07) re-ran the full chain clean: 843-word
+transcript (0 timestamps), portable split → 3 chunks, 4-section synthesis,
+lessons 2→3, embed drained in ~5s, keyword + semantic recall both hit. All
+session-1 hardening held; the only friction was finding #7 above (a grep error in
+verification, not a pipeline fault), now documented.
 
 ### Remaining manual-intervention points (by design / pending)
 
