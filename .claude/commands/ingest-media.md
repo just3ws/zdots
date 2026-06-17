@@ -106,11 +106,23 @@ The Knowledge Vault (`~/my/knowledge/`) is the source of truth; the DB mirrors i
 3. `zdots-ctx ingest <file>` (real) → `[ok] lesson '<slug>'`.
 4. **Verify it landed — three signals, no ambiguity:**
    - `zdots-ctx status` — lessons count rose by exactly 1.
-   - `zdots-ctx jobs | head` — the embed job is **`completed`** (ingest only
-     *queues* it; `zdots-worker` drains it async — semantic recall is empty
-     until then). If it's stuck pending, the worker is down (Step 0).
-   - `zdots-ctx query "<term>"` **and** `zdots-ctx query --semantic "<topic>"` —
-     the lesson appears under **LESSONS** in both (keyword + embedding).
+   - **Embed drained** — ingest only *queues* the embed job; `zdots-worker`
+     drains it async (seconds on a healthy queue). The authoritative signal is
+     that **semantic recall returns the lesson** — poll it rather than hunting
+     the job row:
+     ```bash
+     for i in $(seq 1 18); do
+       zdots-ctx query --semantic "<topic>" 2>/dev/null | sed -n '/SEMANTIC MATCHES: LESSONS/,$p' | grep -qi "<distinctive-phrase>" && { echo "embedded ✓"; break; }
+       sleep 5   # ~90s ceiling; if it never lands the queue is stuck (see below)
+     done
+     ```
+     If it never lands, the queue is stuck — a prior non-recoverable job
+     (e.g. `[:phi_suppressed, …]`) can loop and starve yours; check
+     `zdots-ctx jobs` and file a `zdots-issue`, don't hand-fix the worker.
+   - **Keyword recall** — `zdots-ctx query "<term>"`. Mind the output format:
+     keyword results sit under a lowercase `searching lessons (text)...` header
+     (NOT `LESSONS` — that's the *semantic* header `### SEMANTIC MATCHES: LESSONS`).
+     Grepping for `LESSONS` silently misses keyword hits.
 
 ## Closing report
 Give the user: the synthesis (the four sections), the retention path, the vault
