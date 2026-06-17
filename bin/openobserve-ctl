@@ -159,7 +159,9 @@ cmd_serve() {
   export ZO_GRPC_PORT="$GRPC_PORT"
   export ZO_TELEMETRY="false"        # PHI: no usage phone-home
   # Disposable dev telemetry — self-trim instead of growing forever.
-  export ZO_COMPACT_DATA_RETENTION_DAYS="${ZDOTS_O2_RETENTION_DAYS:-14}"
+  # 3-day default: spanmetrics duration_bucket ingests ~2 GB/day (Z-156 tuning
+  # pending), so a short window caps the store until the connector is tamed.
+  export ZO_COMPACT_DATA_RETENTION_DAYS="${ZDOTS_O2_RETENTION_DAYS:-3}"
   exec "$BINARY"
 }
 
