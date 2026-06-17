@@ -69,9 +69,11 @@ developer, not a system of record. The design leans into that:
 
   `reinit` guards the path before any `rm -rf`, stops the service, wipes
   `ZO_DATA_DIR`, and restarts. Streams re-populate from the collector within ~15s.
-- **Retention** defaults to 14 days (`ZDOTS_O2_RETENTION_DAYS` →
+- **Retention** defaults to 3 days (`ZDOTS_O2_RETENTION_DAYS` →
   `ZO_COMPACT_DATA_RETENTION_DAYS`) so the store self-trims instead of growing
-  unbounded.
+  unbounded. The short window is deliberate: the spanmetrics
+  `traces_span_metrics_duration_bucket` series ingests ~2 GB/day, so a tight
+  retention caps the store until the connector's cardinality/volume is tuned.
 
 ## PHI / security posture
 
@@ -98,7 +100,7 @@ Pinned in `bin/openobserve-ctl`:
 | Log | `~/.local/state/zsh/openobserve.log` |
 | Root email | `root@zdots.local` |
 | Root password | Keychain `zdots / ZDOTS_O2_ROOT_PASSWORD` |
-| Retention | 14 days (`ZDOTS_O2_RETENTION_DAYS`) |
+| Retention | 3 days (`ZDOTS_O2_RETENTION_DAYS`) |
 
 ## Migration status (Z-134)
 
