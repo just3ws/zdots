@@ -104,6 +104,11 @@ zdots-ctl check 2>&1 | grep -E 'FAIL|ERROR|CRITICAL' | grep -v '^#'
 zdots-doctor 2>&1 | grep -E '\[FAIL\]|\[ERROR\]'
 # PASS: no output
 # FAIL: lines printed
+
+# Telemetry store drift is warn-level, not FAIL — catch it explicitly:
+zdots-doctor 2>&1 | grep -i 'OpenObserve store.*exceeds'
+# PASS: no output
+# FAIL: store over ZDOTS_O2_SIZE_WARN_GB → see /telemetry-volume
 ```
 
 **Safe fixes (idempotent, apply directly):**
@@ -118,6 +123,7 @@ zdots-doctor 2>&1 | grep -E '\[FAIL\]|\[ERROR\]'
 | Pattern | Action |
 |---------|--------|
 | `ZDOTS_AI_MODE=cloud` on work machine | `zdots-issue --high "AI mode is cloud on PHI machine"` then STOP |
+| `OpenObserve store.*exceeds` | run `/telemetry-volume` to diagnose; `reinit` needs operator confirm (wipes telemetry); connector tuning → `zdots-issue` |
 | `FileVault.*disabled` | note in report (blocking on work; non-blocking on home) |
 | Any config edit required | `zdots-issue "zdots-heal: <description>"` |
 | Any destructive operation required | `zdots-issue "zdots-heal: <description>"` |
