@@ -78,6 +78,12 @@ Internal:
 Endpoints:
   UI / OTLP HTTP : ${ENDPOINT}
   OTLP gRPC      : ${HTTP_ADDR}:${GRPC_PORT}
+
+Retention (disposable telemetry self-trims):
+  ZDOTS_O2_RETENTION_DAYS   days kept (default 3 home / 2 enforced on work)
+  ZDOTS_O2_SIZE_WARN_GB     zdots-doctor warns above this store size (default 8)
+  If the store grows large, suspect ingest volume — see the /telemetry-volume
+  runbook and docs/storage-hygiene.md; reclaim now with 'reinit'.
 EOF
 }
 
