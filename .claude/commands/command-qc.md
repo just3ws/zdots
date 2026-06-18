@@ -29,16 +29,24 @@ Every verb in the dispatch must appear in help; every flag in the parser too.
 
 ### 2. Man page
 
-Location: `share/man/man1/<cmd>.1` (troff). Derive from the help text —
-NAME, SYNOPSIS, DESCRIPTION, subcommands, ENVIRONMENT, EXAMPLES, SEE ALSO.
+Location: `man/man<N>/<cmd>.<N>` (mdoc — `.Dd/.Dt/.Sh`, model on
+`man/man1/zdots-ctx.1`). Derive from the help text — NAME, SYNOPSIS,
+DESCRIPTION, subcommands, ENVIRONMENT, FILES, EXIT STATUS, SEE ALSO.
 
-One-time bootstrap (do it if `share/man` doesn't exist yet):
-1. `mkdir -p share/man/man1`
-2. Wire MANPATH in the conf.d module that owns path setup:
-   `manpath=("$ZDOTDIR/share/man" $manpath)` — follow the existing
-   `typeset -gU` discipline in `conf.d/40-completion.zsh`/path modules.
+**Pick the section by house convention** (a wrong section is drift):
+- **1** — user commands (`zdots-ctx`, `ai-query`, `ztask`).
+- **5** — config file formats (`zdots-env.5`, `phi-patterns.yaml.5`).
+- **7** — concept/overview pages (`zdots-observability.7`, `zdots.7`).
+- **8** — service & daemon managers, incl. every `*-ctl`
+  (`llama-ctl.8`, `zdots-ctl.8`, `otel-collector.8`, `openobserve-ctl.8`).
 
-Verify: `MANPATH="$ZDOTDIR/share/man:" man <cmd> | head` renders.
+Resolution is automatic: `$ZDOTDIR/bin` is on PATH, so macOS `man` derives
+`$ZDOTDIR/man` — no MANPATH wiring needed. (The `share/man` entry in `.zshenv`
+is empty/vestigial; do not put pages there.)
+
+Verify: `man <cmd>` resolves and `mandoc -Tlint man/man<N>/<cmd>.<N>` is clean
+(ignore the house-standard "new sentence, new line" / single-file "Xr not found"
+warnings — confirm an existing page emits the same set before treating any as new).
 
 ### 3. Completion
 
