@@ -81,9 +81,13 @@ connectors:
         buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 5s, 10s]
     dimensions:
       - name: event.type
+    # Volume controls (Z-156): the duration_bucket series was ~60% of the O2
+    # store at ~2 GB/day. Exemplars attached trace IDs to every histogram point
+    # (the dominant multiplier); query traces directly instead. A 60s flush
+    # cuts data points ~12x vs 5s — 1-min RED resolution is ample for a dev box.
     exemplars:
-      enabled: true
-    metrics_flush_interval: 5s
+      enabled: false
+    metrics_flush_interval: 60s
 
 exporters:
   # Debug: Output to console
