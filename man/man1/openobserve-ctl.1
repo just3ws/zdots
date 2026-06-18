@@ -1,0 +1,114 @@
+.Dd June 17, 2026
+.Dt OPENOBSERVE-CTL 1
+.Os zdots
+.Sh NAME
+.Nm openobserve-ctl
+.Nd lifecycle control for the native OpenObserve observability backend
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Fl -json
+.Sh DESCRIPTION
+.Nm
+manages OpenObserve, the single native binary that stores logs, metrics, and
+traces locally and serves its own UI. It replaced the containerized LGTM stack
+.Pq Z-134 .
+The OTel Collector remains the ingestion front door;
+.Nm
+manages the backend it forwards to.
+.Pp
+Local telemetry is disposable \(em short-lived signal for one developer, not a
+system of record. The store self-trims via retention and is safe to wipe with
+.Cm reinit .
+.Sh COMMANDS
+.Bl -tag -width reinit
+.It Cm install
+Download and sha256-verify the pinned binary, provision Keychain credentials,
+and register the launchd service. Idempotent; skips the download when the pinned
+version is already on disk.
+.It Cm start , Cm stop , Cm restart
+Load, unload, or cycle the launchd service.
+.It Cm reinit Op Fl -rotate
+Wipe the disposable data dir; the root user is recreated from the Keychain
+password on next boot. With
+.Fl -rotate ,
+generate a fresh Keychain password first. Guards the path before any removal.
+.It Cm status
+Show service state, pid, and endpoint.
+.It Cm health
+Exit 0 if the endpoint is reachable, else 1.
+.It Cm logs
+Tail the service log.
+.It Cm config
+Show version, paths, and endpoints.
+.It Cm creds Op Fl -show-password
+Print the root email; optionally reveal the Keychain password.
+.El
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -json
+JSON output for supported commands.
+.It Fl -rotate
+Rotate the Keychain password during
+.Cm reinit .
+.It Fl -show-password
+Reveal the root password during
+.Cm creds .
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_O2_RETENTION_DAYS
+.It Ev ZDOTS_O2_RETENTION_DAYS
+Days of telemetry kept before self-trim
+.Pq Ev ZO_COMPACT_DATA_RETENTION_DAYS .
+Defaults to 3 on home, 2 enforced on work
+.Pq Pa .zdots.work .
+Retention is a ceiling, not a brake \(em if the store grows, suspect ingest
+volume, not retention.
+.It Ev ZDOTS_O2_SIZE_WARN_GB
+Store-size threshold above which
+.Xr zdots-doctor 1
+warns of telemetry volume drift. Defaults to 8.
+.It Ev XDG_DATA_HOME
+Parent of the data dir. Defaults to
+.Pa ~/.local/share .
+.El
+.Sh FILES
+.Bl -tag -width ~/.local/state/zsh/openobserve.log
+.It Pa ~/.local/share/openobserve
+Data dir (disposable;
+.Ev ZO_DATA_DIR ) .
+.It Pa ~/.local/state/zsh/openobserve.log
+Service log.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width 1
+.It 0
+Success
+.Pq or healthy for Cm health .
+.It 1
+General failure
+.Pq or unreachable for Cm health .
+.El
+.Sh PHI SAFETY
+Bound to loopback only
+.Pq Ev ZO_HTTP_ADDR=127.0.0.1
+on a PHI-adjacent machine; telemetry phone-home is disabled
+.Pq Ev ZO_TELEMETRY=false .
+The launchd plist holds no secret \(em the
+.Cm serve
+target loads the root password from the Keychain at boot.
+Telemetry is scrubbed at the ingest edge by the collector;
+do not write raw patient records to prompts.
+.Sh SEE ALSO
+.Xr zdots-doctor 1 ,
+.Xr zdots-env 5 ,
+.Xr zdots-observability 7 ,
+.Xr otel-collector 8
+.Pp
+.Pa docs/openobserve.md ,
+.Pa docs/storage-hygiene.md ,
+and the
+.Sy /telemetry-volume
+runbook.
