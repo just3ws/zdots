@@ -1,0 +1,34 @@
+#compdef log-rotate
+# Completion for log-rotate — service names from the registry, plus flags.
+# Source of truth: lib/svc-registry.bash (same read as _zsvc). Every path is
+# guarded by CURRENT so sourcing the file outside a completion is a no-op.
+
+_log-rotate_services() {
+  local zdotdir="${ZDOTDIR:-$HOME/.config/zsh}"
+  local reg="$zdotdir/lib/svc-registry.bash"
+  [[ -r "$reg" ]] || return 1
+  local line name
+  local -a names f
+  while IFS= read -r line; do
+    line=${line#_svc_reg \"}; line=${line%\"}
+    f=("${(@s.|.)line}"); name=${f[1]}
+    [[ -n "$name" ]] && names+=("${name}:rotate this service log")
+  done < <(grep '^_svc_reg "' "$reg")
+  _describe -t services 'service' names
+}
+
+_log-rotate() {
+  local -a flags
+  flags=(
+    '--dry-run[show what would happen without rotating]'
+    '--help[show usage]'
+  )
+  if (( CURRENT == 2 )); then
+    _log-rotate_services
+    _values 'flag' $flags
+  elif (( CURRENT >= 3 )); then
+    _values 'flag' $flags
+  fi
+}
+
+_log-rotate "$@"

@@ -306,6 +306,15 @@ AI/HI handoff:
   zdots-log-analyze upgrade --ai
   zdots-ctx diagnose-log update --tail 160
 
+Live runtime insight (when OpenObserve is up; read-only, local, scrubbed):
+  zdots-o2-query errors --since 1h     recent ERROR/FATAL logs
+  zdots-o2-query failures              error-status spans
+  zdots-o2-query trace <id>            all spans + logs for one trace
+
+Workstation health:
+  zdots-doctor               full check (env, services, observability, PHI posture)
+  zdots-doctor --no-runtime  fast mode (own sections only)
+
 These packs include a non-OTel system snapshot, so diagnostics still work when
 the collector or OpenObserve are down.
 EOF

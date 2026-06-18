@@ -26,6 +26,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | Tool | Command | Purpose |
 |------|---------|---------|
 | Platform orchestrator | `zdots-ctl up/down/check/status` | Start, stop, health-check all services |
+| System health check | `zdots-doctor [--no-runtime] [--json]` | "brew doctor" for the workstation: env, repo, XDG, AI, services, observability |
 | Service controller | `zsvc list/health/logs/diag/restart` | Inspect, health-check, log-tail, and control registered platform components |
 | Knowledge layer CLI | `zdots-ctx query/capture/hydrate/sync-history` | Shell→PostgreSQL brain interface |
 | Task orchestrator | `ztask start/done/stop/status <id>` | Hydrate shell env to a specific task; links trace to work |
@@ -233,7 +234,9 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 | `docker` / `docker-compose` | `docker compose up` | Container management |
 | `otel-collector` | `bin/otel-collector start` | Bare-metal OTel collector (managed, not Homebrew) |
 | `openobserve-ctl` | `zsvc start o2` | Native OpenObserve backend (logs/metrics/traces) |
+| `zdots-o2-query` | `zdots-o2-query errors --since 1h` | Read runtime insight back from OpenObserve (errors/slow/failures/trace); read-only, local, scrubbed |
 | `zsvc` | `bin/zsvc health --json` / `bin/zsvc logs all --json` | Unified service registry, machine-readable health, and consolidated log sources |
+| `log-rotate` | `log-rotate otel-collector` | Compress + truncate a service log in place (no restart; safe for open fds) |
 | `nginx` | (managed via launchctl) | TLS reverse proxy for local service hostnames |
 | `mkcert` | `mkcert -install` | Local CA + certs for `*.local` hostnames |
 | `tailscale` | `tailscale status` | Mesh VPN — secure LAN endpoint access |
