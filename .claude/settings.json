@@ -85,6 +85,7 @@
       "Bash(yq:*)",
       "Bash(find:*)",
       "Bash(ls:*)",
+      "Bash(du:*)",
       "Bash(sort:*)",
       "Bash(test:*)",
       "Bash(mkdir:*)",
