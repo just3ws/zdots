@@ -73,8 +73,9 @@ colima status          # same
 ### OpenObserve (logs/metrics/traces)
 
 Observability is native now (the containerized LGTM stack was retired, Z-134).
-OpenObserve self-trims at 14 days (`ZDOTS_O2_RETENTION_DAYS`). Its data dir is
-`${XDG_DATA_HOME:-~/.local/share}/openobserve`. To wipe and start fresh:
+OpenObserve self-trims via `ZDOTS_O2_RETENTION_DAYS` — **3 days** on home, **2
+days** enforced on work (`.zdots.work`, the hotter/PHI-adjacent box). Its data
+dir is `${XDG_DATA_HOME:-~/.local/share}/openobserve`. To wipe and start fresh:
 
 ```sh
 openobserve-ctl reinit   # disposable telemetry; recreates root from Keychain
@@ -84,6 +85,13 @@ See [openobserve](openobserve.md).
 
 Only do this when historical traces/logs are not needed. OTel spans from
 the current session will resume flowing immediately after restart.
+
+**If the store is large, retention is a ceiling, not a brake — suspect ingest
+volume.** A derived spanmetrics histogram (`traces_span_metrics_*_bucket`) once
+reached 10 GB (~60% of the store) at ~2 GB/day (Z-156); the fix was source-level
+connector tuning, not shorter retention. `zdots-doctor` warns when the store
+exceeds `ZDOTS_O2_SIZE_WARN_GB` (default 8). Diagnose and tune with the
+`/telemetry-volume` runbook.
 
 ---
 
