@@ -69,11 +69,28 @@ developer, not a system of record. The design leans into that:
 
   `reinit` guards the path before any `rm -rf`, stops the service, wipes
   `ZO_DATA_DIR`, and restarts. Streams re-populate from the collector within ~15s.
-- **Retention** defaults to 3 days (`ZDOTS_O2_RETENTION_DAYS` →
-  `ZO_COMPACT_DATA_RETENTION_DAYS`) so the store self-trims instead of growing
-  unbounded. The short window is deliberate: the spanmetrics
-  `traces_span_metrics_duration_bucket` series ingests ~2 GB/day, so a tight
-  retention caps the store until the connector's cardinality/volume is tuned.
+- **Retention** defaults to 3 days on home, 2 days enforced on work
+  (`ZDOTS_O2_RETENTION_DAYS` → `ZO_COMPACT_DATA_RETENTION_DAYS`) so the store
+  self-trims instead of growing unbounded.
+
+## Volume controls (Z-156)
+
+Retention is a *ceiling*; it does not slow the *ingest rate*. The store once
+grew to 17 GB because a derived spanmetrics histogram
+(`traces_span_metrics_duration_bucket`) ingested ~2 GB/day — ~60% of the store —
+while retention was healthy. Volume is controlled in three layers:
+
+1. **Source** (`etc/otel-collector.yaml`, shared across machines) — the
+   spanmetrics connector runs with `exemplars: false` (trace IDs on every
+   histogram point were the dominant multiplier) and `metrics_flush_interval:
+   60s` (vs 5s — ~12× fewer data points). RED metrics and all latency buckets
+   are retained; only waste is removed.
+2. **Retention** — `ZDOTS_O2_RETENTION_DAYS`, tighter on work (above).
+3. **Drift guard** — `zdots-doctor` warns when the data dir exceeds
+   `ZDOTS_O2_SIZE_WARN_GB` (default 8 GB).
+
+When the store grows, diagnose with the `/telemetry-volume` runbook — the cause
+is almost always ingest volume from a derived metric, not retention.
 
 ## PHI / security posture
 
@@ -100,7 +117,8 @@ Pinned in `bin/openobserve-ctl`:
 | Log | `~/.local/state/zsh/openobserve.log` |
 | Root email | `root@zdots.local` |
 | Root password | Keychain `zdots / ZDOTS_O2_ROOT_PASSWORD` |
-| Retention | 3 days (`ZDOTS_O2_RETENTION_DAYS`) |
+| Retention | 3 days home / 2 days work (`ZDOTS_O2_RETENTION_DAYS`) |
+| Size drift warning | 8 GB (`ZDOTS_O2_SIZE_WARN_GB`, surfaced by `zdots-doctor`) |
 
 ## Migration status (Z-134)
 

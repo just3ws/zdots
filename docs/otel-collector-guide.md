@@ -332,6 +332,20 @@ These appear in OpenObserve → Metrics without any application instrumentation.
 
 The `spanmetrics` connector automatically derives **Rate**, **Error rate**, and **Duration** histogram metrics from every trace span. These appear as `traces_span_metrics_*` metric streams with no additional instrumentation — if you send traces, you get metrics for free.
 
+**Volume tuning (Z-156).** "For free" still has a storage cost — the duration
+histogram series is the highest-volume metric the collector produces. The
+connector is tuned to keep it bounded:
+
+- `exemplars: false` — exemplars attach trace IDs to every histogram point and
+  were the dominant storage multiplier (~60% of the OpenObserve store, ~2 GB/day).
+  Jump from a metric to a trace via the trace search instead.
+- `metrics_flush_interval: 60s` (not 5s) — ~12× fewer data points per series;
+  RED metrics resolve at 1 minute, which is ample for a single-developer box.
+
+All RED series and latency buckets are retained — only waste is removed. If the
+OpenObserve store grows, see `docs/storage-hygiene.md` and the `/telemetry-volume`
+runbook before reaching for shorter retention.
+
 ## Viewing Your Data
 
 - **OpenObserve:** https://o2.local (or http://127.0.0.1:5080) — login `root@zdots.local`, password in Keychain (`openobserve-ctl creds --show-password`)
