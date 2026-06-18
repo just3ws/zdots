@@ -139,7 +139,11 @@ if [[ -r "$_zdots_ver_file" ]]; then
     _warn "vdots  not yet versioned (no ~/.config/nvim/VERSION) — rollout pending"
   fi
 
-  _adots_ver="$(/usr/bin/git --git-dir="$HOME/.homegit" --work-tree="$HOME" show HEAD:VERSION 2>/dev/null | tr -d '[:space:]')"
+  # || true: adots isn't versioned yet (rollout pending), so `show HEAD:VERSION`
+  # exits 128. Without this, set -euo pipefail aborts the whole doctor here — long
+  # before the Services/Observability sections. Empty result flows to the graceful
+  # "not yet versioned" branch below, which is the documented intent.
+  _adots_ver="$(/usr/bin/git --git-dir="$HOME/.homegit" --work-tree="$HOME" show HEAD:VERSION 2>/dev/null | tr -d '[:space:]')" || true
   if [[ -n "$_adots_ver" ]]; then
     [[ "$_adots_ver" == "$_beacon" ]] && _pass "adots  ${_adots_ver}  (in sync)" \
       || _warn "adots  ${_adots_ver} ≠ beacon ${_beacon} — deploy drift"
