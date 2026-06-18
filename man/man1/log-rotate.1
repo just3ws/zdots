@@ -1,0 +1,42 @@
+.Dd June 17, 2026
+.Dt LOG-ROTATE 1
+.Os zdots
+.Sh NAME
+.Nm log-rotate
+.Nd rotate launchd service logs with compression
+.Sh SYNOPSIS
+.Nm
+.Ar service-name
+.Op Fl -dry-run
+.Op Fl -help
+.Sh DESCRIPTION
+.Nm
+rotates a service's log file by gzip-compressing the current content into a
+timestamped archive and truncating the active log. The truncation is in place,
+so a service holding the file descriptor open keeps writing without a
+restart \(em safe for live daemons.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -dry-run
+Show what would happen without rotating.
+.It Fl -help
+Show usage.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width 1
+.It 0
+Rotation succeeded
+.Pq or dry-run preview printed .
+.It 1
+Error.
+.El
+.Sh EXAMPLES
+.Bl -tag -width Ds
+.It Li log-rotate otel-collector
+Compress and truncate the OTel Collector log.
+.It Li log-rotate openobserve --dry-run
+Preview the rotation without changing anything.
+.El
+.Sh SEE ALSO
+.Xr openobserve-ctl 8 ,
+.Xr zsvc 8
