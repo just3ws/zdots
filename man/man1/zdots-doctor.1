@@ -1,0 +1,62 @@
+.Dd June 17, 2026
+.Dt ZDOTS-DOCTOR 1
+.Os zdots
+.Sh NAME
+.Nm zdots-doctor
+.Nd system health check for the zdots platform
+.Sh SYNOPSIS
+.Nm
+.Op Fl -no-runtime
+.Op Fl q | Fl -quiet
+.Op Fl -json
+.Sh DESCRIPTION
+.Nm
+is the
+.Dq brew doctor
+for the workstation. It runs environment, repo, XDG-compliance, platform
+version, AI-tool, services, and observability checks, then delegates the deep
+runtime probe to
+.Xr zdots-ctl 8
+.Pq Cm check .
+It also checks adots as a peer dependency. It exits 0 when no failures are
+found and 1 on any
+.Sy [FAIL] .
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -no-runtime
+Skip the
+.Xr zdots-ctl 8
+check section
+.Pq fast mode; own sections only .
+.It Fl q , Fl -quiet
+Print only warnings and failures.
+.It Fl -json
+Emit results as JSON; the exit code reflects zdots-only status.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_O2_SIZE_WARN_GB
+.It Ev ZDOTS_CONTEXT
+.Li home
+or
+.Li work ;
+gates PHI-posture checks
+.Pq FileVault, AI mode .
+.It Ev ZDOTS_O2_SIZE_WARN_GB
+Threshold above which the Observability section warns of telemetry store drift.
+Defaults to 8.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width 1
+.It 0
+No failures.
+.It 1
+One or more
+.Sy [FAIL]
+checks.
+.El
+.Sh SEE ALSO
+.Xr capabilities 1 ,
+.Xr zdots-observability 7 ,
+.Xr zdots-ctl 8

@@ -1,0 +1,72 @@
+.Dd June 17, 2026
+.Dt ZDOTS-O2-QUERY 1
+.Os zdots
+.Sh NAME
+.Nm zdots-o2-query
+.Nd read runtime insight back from OpenObserve into a session
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar options
+.Sh DESCRIPTION
+.Nm
+is the read side of the intelligence loop
+.Pq Z-135 :
+it queries the local OpenObserve backend for recent errors, slow spans,
+failures, per-service activity, log searches, or a single trace, as compact
+tables or JSON an agent can reason over.
+.Pp
+Read-only and local-only
+.Pq loopback O2 .
+Credentials come from the Keychain, never the command line, so it is safe on
+the work machine.
+Telemetry is scrubbed at the ingest edge; a light defense-in-depth scrub runs
+on read and can be skipped with
+.Fl -no-scrub .
+.Sh COMMANDS
+.Bl -tag -width failures
+.It Cm errors
+Recent ERROR/FATAL logs.
+.It Cm slow
+Slowest spans over a threshold
+.Pq Fl -ms .
+.It Cm failures
+Error-status spans.
+.It Cm service
+Activity grouped by service and severity.
+.It Cm logs
+General log search
+.Pq Fl -grep .
+.It Cm trace Ar id
+All spans and logs for one trace.
+.It Cm sql Fl -type Ar logs | traces Ar query
+Read-only SQL escape hatch.
+.It Cm streams
+List OpenObserve streams.
+.El
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -since Ar dur
+Time window
+.Pq Li 30s , 15m , 2h , 1d ; default Li 1h .
+.It Fl n , Fl -limit Ar n
+Row limit
+.Pq default 20 .
+.It Fl -json
+Machine-readable output.
+.It Fl -no-scrub
+Skip the defense-in-depth scrub pass.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_O2_ENDPOINT
+.It Ev ZDOTS_O2_ENDPOINT
+OpenObserve endpoint. Defaults to
+.Li http://127.0.0.1:5080 .
+.El
+.Sh PHI SAFETY
+Read-only and loopback-bound; credentials are read from the Keychain. If the
+defense-in-depth scrub ever trips a suppress-flagged value, that signals an
+ingest-scrub gap, not normal operation.
+.Sh SEE ALSO
+.Xr zdots-observability 7 ,
+.Xr openobserve-ctl 8

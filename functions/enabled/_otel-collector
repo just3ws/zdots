@@ -1,0 +1,26 @@
+#compdef otel-collector
+# Completion for otel-collector — the OTLP ingestion front door (launchd service).
+
+_otel-collector() {
+  local -a cmds
+  cmds=(
+    'install:download binary and register the launchd service'
+    'start:load and start the launchd service'
+    'stop:unload and stop the service'
+    'restart:stop then start (picks up config changes)'
+    'status:show service state and process info'
+    'health:exit 0 if the collector endpoint is reachable'
+    'logs:tail the collector log'
+    'validate:validate etc/otel-collector.yaml'
+    'config:show endpoints and configured signals'
+  )
+  if (( CURRENT == 2 )); then
+    _describe 'command' cmds
+    return
+  fi
+  case "${words[2]}" in
+    status|health|config) _values 'flag' '--json[output as JSON]' ;;
+  esac
+}
+
+_otel-collector "$@"
