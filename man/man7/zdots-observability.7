@@ -6,12 +6,30 @@
 .Nd tracing and diagnostics model for zdots
 .Sh DESCRIPTION
 Zdots uses local JSONL traces, optional OpenTelemetry export, deploy log packs,
-and service status probes. Non-OTel diagnostics are intentionally available
-when the collector or LGTM stack is down.
+and service status probes. The OTel Collector forwards logs, metrics, and traces
+to OpenObserve, the native local backend
+.Pq Xr openobserve-ctl 1 ,
+which replaced the containerized LGTM stack
+.Pq Z-134 .
+Non-OTel diagnostics are intentionally available when the collector or backend
+is down.
+.Pp
+Local telemetry is disposable and self-trims on a retention window
+.Pq Ev ZDOTS_O2_RETENTION_DAYS .
+Retention is a ceiling, not a brake on ingest volume: when the store grows the
+cause is usually a high-volume derived metric (spanmetrics histograms), not
+retention
+.Pq Z-156 .
+The collector tunes the spanmetrics connector at the source, and
+.Xr zdots-doctor 1
+warns when the store exceeds
+.Ev ZDOTS_O2_SIZE_WARN_GB .
 .Sh SURFACES
 .Bl -tag -width "zdots-log-analyze"
 .It Xr zdots-ctl 8
 Service and health checks.
+.It Xr openobserve-ctl 1
+OpenObserve backend lifecycle and retention.
 .It Xr capabilities 1
 Environment contract.
 .It Xr zdots-log-analyze 1
@@ -20,5 +38,6 @@ Deploy/update diagnostics independent of OTel.
 Local trace stream.
 .El
 .Sh SEE ALSO
-.Xr otel-collector 8 ,
-.Xr local-ci 8
+.Xr openobserve-ctl 1 ,
+.Xr zdots-doctor 1 ,
+.Xr otel-collector 8
