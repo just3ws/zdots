@@ -483,6 +483,21 @@ else
   _fix  "zsvc start o2   (diagnose: zsvc diag o2)"
 fi
 
+# Drift guardrail (Z-156): the disposable O2 store crept to 17 GB once when the
+# spanmetrics duration_bucket series ran unbounded. Warn before it fills the disk
+# again so retention/connector tuning is caught drifting, not discovered full.
+_o2_data="${XDG_DATA_HOME:-$HOME/.local/share}/openobserve"
+_o2_warn_gb="${ZDOTS_O2_SIZE_WARN_GB:-8}"
+if [[ -d "$_o2_data" ]]; then
+  _o2_mb=$(du -sm "$_o2_data" 2>/dev/null | awk '{print $1}')
+  if [[ -n "$_o2_mb" ]] && (( _o2_mb > _o2_warn_gb * 1024 )); then
+    _warn "OpenObserve store  $(( _o2_mb / 1024 )) GB exceeds ${_o2_warn_gb} GB — telemetry volume drift"
+    _fix  "lower ZDOTS_O2_RETENTION_DAYS or tune spanmetrics (Z-156); reclaim now: openobserve-ctl reinit"
+  else
+    _pass "OpenObserve store  $(( _o2_mb )) MB (under ${_o2_warn_gb} GB cap)"
+  fi
+fi
+
 # Collector must export to OpenObserve, not the retired LGTM stack
 _otel_cfg="${ZDOTDIR}/etc/otel-collector.yaml"
 if [[ -f "$_otel_cfg" ]]; then
