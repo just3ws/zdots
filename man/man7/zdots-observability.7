@@ -8,7 +8,7 @@
 Zdots uses local JSONL traces, optional OpenTelemetry export, deploy log packs,
 and service status probes. The OTel Collector forwards logs, metrics, and traces
 to OpenObserve, the native local backend
-.Pq Xr openobserve-ctl 1 ,
+.Pq Xr openobserve-ctl 8 ,
 which replaced the containerized LGTM stack
 .Pq Z-134 .
 Non-OTel diagnostics are intentionally available when the collector or backend
@@ -28,7 +28,7 @@ warns when the store exceeds
 .Bl -tag -width "zdots-log-analyze"
 .It Xr zdots-ctl 8
 Service and health checks.
-.It Xr openobserve-ctl 1
+.It Xr openobserve-ctl 8
 OpenObserve backend lifecycle and retention.
 .It Xr capabilities 1
 Environment contract.
@@ -38,6 +38,6 @@ Deploy/update diagnostics independent of OTel.
 Local trace stream.
 .El
 .Sh SEE ALSO
-.Xr openobserve-ctl 1 ,
+.Xr openobserve-ctl 8 ,
 .Xr zdots-doctor 1 ,
 .Xr otel-collector 8
