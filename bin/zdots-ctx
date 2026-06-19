@@ -11,7 +11,7 @@
 #   migrate   Apply pending SQL migrations from etc/db/migrations
 #   rotate-creds [role]  Rotate zdots_rw/zdots_ro password into Keychain (default: --all)
 #   query [--semantic] <t>  Search methodologies or lessons for <t>
-#   capture   Distill current session (traces/history) into a lesson
+#   capture [--yes]  Distill current session (traces/history) into a lesson; --yes skips confirmation (non-TTY safe)
 #   hydrate [tag] Get semantically relevant context for AI tasks
 #   diagnose-log <bootstrap|update|upgrade> [args...] Package deploy logs for AI/HI diagnostics
 #   seed      Import existing standards from ~/my/standards
@@ -256,6 +256,10 @@ cmd_query() {
 }
 
 cmd_capture() {
+  local auto_yes=0
+  [[ "${1:-}" == "--yes" ]] && { auto_yes=1; shift; }
+  [[ "${ZDOTS_CAPTURE_YES:-0}" == "1" ]] && auto_yes=1
+
   # PHI safety gate — capture is opt-in
   if [[ "${ZDOTS_CAPTURE_ENABLED:-0}" != "1" ]]; then
     zdots_audit_log "capture_blocked" "sid=${ZDOTS_SESSION_ID:-unknown}"
@@ -348,9 +352,14 @@ EOF
   printf "LESSON: %s\n" "$lesson"
   printf -- "---------------------------------\n\n"
 
-  printf "Save this residue to the intelligence suite? [y/N] "
   local response
-  read -r response
+  if [[ "$auto_yes" == "1" ]]; then
+    response="y"
+    printf "Save this residue to the intelligence suite? [y/N] y (--yes)\n"
+  else
+    printf "Save this residue to the intelligence suite? [y/N] "
+    read -r response
+  fi
   if [[ "$response" =~ ^[Yy]$ ]]; then
     local lesson_id
     lesson_id=$(jq -n \

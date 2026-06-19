@@ -218,6 +218,7 @@ GATE 3 Services:      PASS | FAIL | PARTIAL (list non-running: ...)
 GATE 4 Deep check:    PASS | FAIL | PARTIAL
 GATE 5 Knowledge:     PASS | FAIL | PARTIAL
 GATE 6 Skills:        PASS | FAIL | PARTIAL
+GATE 7 Worker logs:   PASS | FAIL | PARTIAL (stuck jobs: ...)
 
 ── HEALED (automated) ──────────────────────
 - <command run> → <what changed>
@@ -234,6 +235,36 @@ File a `zdots-issue` for every NEEDS OPERATOR item:
 zdots-issue "zdots-heal: <short description>"
 zdots-issue --high "zdots-heal: <blocking>"
 ```
+
+---
+
+## Gate 7 — Worker Log Scan
+
+```bash
+# Stuck jobs: same UUID appearing 3+ times
+grep -oE 'JOB [a-f0-9]{8}' ~/.local/state/zsh/zdots-worker.log \
+  | sort | uniq -c | sort -rn | awk '$1 >= 3'
+# PASS: no output
+# FAIL: one or more stuck job UUIDs printed
+```
+
+```bash
+# Recent job failure rate (last 200 lines)
+tail -200 ~/.local/state/zsh/zdots-worker.log \
+  | grep -c "FAILED"
+# PASS: 0
+# WARN: 1–5 (likely historical, embed was down)
+# FAIL: 6+ — see /zdots-log-triage for full analysis
+```
+
+**Fix table:**
+
+| Symptom | Fix |
+|---------|-----|
+| Stuck job — `exceed_context_size_error` | file `zdots-issue "embed ctx_size too low: <slug>"` |
+| Stuck job — `phi_suppressed` | content hit deny-list; file issue to review pattern or truncate |
+| High failure count (historical) | confirm `zsvc status embed` healthy; failures are self-clearing once service recovers |
+| Any other stuck pattern | `/zdots-log-triage` for full root-cause trace |
 
 ---
 

@@ -185,7 +185,7 @@ module Zdots
       metadata = data.fetch("metadata", {})
 
       Zdots.db.transaction do
-        residue = Zdots::Models::SessionResidue.find_or_new(trace_id: trace_id)
+        residue = Zdots::Models::SessionResidue.find_or_create(trace_id: trace_id)
         residue.intent   = intent_text
         residue.result   = result_text
         residue.summary  = lesson_text
