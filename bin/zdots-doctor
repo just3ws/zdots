@@ -151,7 +151,12 @@ if [[ -r "$_zdots_ver_file" ]]; then
     _warn "adots  not yet versioned (no tracked VERSION) — rollout pending"
   fi
 
-  _pass "my  contract my.structure.v1 (per-environment content: just3ws/my @home · myworkname/my @work)"
+  # Contract version sourced from adots-my (the authority); literal fallback when
+  # adots-my is absent. decision-007 §3.
+  _my_contract="$(command -v adots-my >/dev/null 2>&1 \
+    && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)"
+  _my_contract="${_my_contract:-my.structure.v1}"
+  _pass "my  contract ${_my_contract} (per-environment content: just3ws/my @home · myworkname/my @work)"
 else
   _warn "zdots  no VERSION beacon at ${_zdots_ver_file}"
   _fix  "imperial-date > ${_zdots_ver_file}"

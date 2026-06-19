@@ -63,7 +63,12 @@ unset _arg
 # attestation of it. `my` is per-environment content conforming to MY_CONTRACT.
 # See backlog/decisions/decision-007 (Astronomicon platform versioning).
 PLATFORM_VERSION="$(cat "${ZDOTDIR:-$HOME/.config/zsh}/VERSION" 2>/dev/null || echo unknown)"
-MY_CONTRACT="my.structure.v1"
+# Source the my contract version from adots-my (the authority); fall back to the
+# known contract when adots-my is absent. adots-my emits JSON even when its
+# doctor reports failures, so a degraded ~/my still yields the version.
+MY_CONTRACT="$(command -v adots-my >/dev/null 2>&1 \
+  && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)"
+MY_CONTRACT="${MY_CONTRACT:-my.structure.v1}"
 
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo "${BOLD}Zdots Environment Capabilities Report${RESET}"
