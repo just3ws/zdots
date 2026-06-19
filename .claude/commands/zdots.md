@@ -86,6 +86,20 @@ File issues with `zdots-issue "description"` — auto-attaches `agent-reported` 
 
 ---
 
+## Context Engine (my.local)
+
+| Command | What it does |
+|---------|-------------|
+| `bin/deploy` | Full prod deploy: bundle → assets:precompile → restart (run from ~/my/context-engine) |
+| `curl -sk https://my.local/` | Dashboard — stat cards, service links, recent queries |
+| `curl -sk https://my.local/health` | Health check (DB ping included) |
+| `curl -sk https://my.local/api/v1/gaps` | Open policy gaps JSON |
+| `touch ~/my/context-engine/tmp/restart.txt` | Restart Puma without asset recompile |
+
+Platform URLs: `my.local` (context-engine) · `o2.local` (OpenObserve) · `llama.local` (inference) · `embed.local` (embeddings)
+
+---
+
 ## When Something Breaks
 
 Apply the Schrute Test: would an idiot fix zdots infrastructure directly?
