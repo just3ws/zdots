@@ -29,15 +29,42 @@ config files (`capabilities.sh`, `profile`, `wiki`). The repo is the bare
 For each repo report: branch · ahead/behind upstream · uncommitted count.
 
 ```bash
-# zdots / my / vdots — normal repos
+# zdots / my / vdots — normal repos (fetch already done: skip -q fetch if just fetched)
 for r in ~/.config/zsh ~/my ~/.config/nvim; do
   git -C "$r" fetch -q origin 2>/dev/null
-  echo "$r: ahead=$(git -C "$r" rev-list --count @{u}..HEAD 2>/dev/null) behind=$(git -C "$r" rev-list --count HEAD..@{u} 2>/dev/null) dirty=$(git -C "$r" status --short | wc -l)"
+  echo "$r: branch=$(git -C "$r" branch --show-current 2>/dev/null) ahead=$(git -C "$r" rev-list --count origin/main..HEAD 2>/dev/null) behind=$(git -C "$r" rev-list --count HEAD..origin/main 2>/dev/null) dirty=$(git -C "$r" status --short 2>/dev/null | wc -l | tr -d ' ')"
 done
-# adots — bare repo, work-tree $HOME
+
+# adots — bare repo; @{u} fails (no upstream tracking config), use origin/main explicitly
 env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git fetch -q origin 2>/dev/null
-env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git -C $HOME status --short --untracked-files=no | head
+echo "adots: branch=$(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git branch --show-current 2>/dev/null) ahead=$(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git rev-list --count origin/main..HEAD 2>/dev/null) behind=$(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git rev-list --count HEAD..origin/main 2>/dev/null) dirty=$(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git status --short --untracked-files=no 2>/dev/null | wc -l | tr -d ' ')"
+# Detail on adots dirty files (tracked only):
+env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git status --short --untracked-files=no 2>/dev/null | head -10
 ```
+
+**Report format** — 4-row table: repo · sync (ahead/behind) · dirty count · what's dirty.
+
+## Post-pull checklist (after pulling zdots)
+
+After a `git pull --ff-only origin main` on zdots, check for pending work:
+
+```bash
+# Migration gate — run if db/migrations/ changed
+git -C ~/.config/zsh diff ORIG_HEAD..HEAD --name-only | grep -q 'db/migrations/' && \
+  echo "MIGRATION NEEDED: zdots-ctx migrate" || echo "no migration"
+
+# PHI patterns changed — shell restart recommended
+git -C ~/.config/zsh diff ORIG_HEAD..HEAD --name-only | grep -q 'phi-patterns.yaml' && \
+  echo "PHI PATTERNS UPDATED: restart shell" || true
+
+# Service registry changed — restart all services
+git -C ~/.config/zsh diff ORIG_HEAD..HEAD --name-only | grep -q 'svc-registry.bash' && \
+  echo "SVC REGISTRY CHANGED: zdots-ctl reset" || true
+```
+
+Full post-pull reconciliation: `/zdots-update`.
+
+---
 
 ## Push
 
