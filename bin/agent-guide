@@ -49,7 +49,11 @@ LOG_ANALYZER="${AGENT_ZDOTDIR}/bin/zdots-log-analyze"
 # Platform version — the Astronomicon beacon (decision-007). Agents read this to
 # confirm which epoch they are operating in. my is per-environment by contract.
 PLATFORM_VERSION="$(cat "${AGENT_ZDOTDIR}/VERSION" 2>/dev/null || echo unknown)"
-MY_CONTRACT="my.structure.v1"
+# Source the my contract version from adots-my (the authority); literal fallback
+# when adots-my is absent. JSON is emitted even on doctor failures.
+MY_CONTRACT="$(command -v adots-my >/dev/null 2>&1 \
+  && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)"
+MY_CONTRACT="${MY_CONTRACT:-my.structure.v1}"
 
 AI_UP=false
 AI_MODEL_ID="unknown"
