@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# bin/zclaude — Claude Code launcher tuned for zdots platform work.
+#
+# Wraps `claude` with the harmonized configuration for maintaining and extending
+# the platform: kernel cwd (so bin/ + the tracked settings.json/hooks apply), a
+# pre-loaded platform bootstrap prompt, the platform-trio repos on --add-dir, and
+# a conservative split-model policy — cheap when unattended, capable when you are.
+#
+# Modes:
+#   zclaude [task...]        Interactive maintenance session (sonnet)
+#   zclaude --sync           Headless four-repo platform-sync review, then exit
+#   zclaude --auto "task"    Headless automation (-p, haiku)
+#   zclaude --feature [task] Feature build: opus, plan-first, deeper effort
+#
+# Options:
+#   --model NAME   Override the model for this run (alias or full id)
+#   -n, --dry-run  Print the resolved `claude` invocation without running it
+#   -h, --help     Show this help
+#   --             Pass everything after through to `claude` verbatim
+#
+# Model policy (override via env):
+#   ZCLAUDE_MODEL_INTERACTIVE  (default: sonnet)  — you are in the loop
+#   ZCLAUDE_MODEL_AUTO         (default: haiku)   — unattended
+#   ZCLAUDE_MODEL_FEATURE      (default: opus)    — feature implementation
+#
+# Exit 0 on a clean launch (or a clean --dry-run); non-zero on bad usage or a
+# missing `claude` binary.
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+BOOTSTRAP="$ZDOTDIR/etc/claude/zclaude-bootstrap.md"
+
+# Split-model policy — match spend to attendance (env-overridable).
+MODEL_INTERACTIVE="${ZCLAUDE_MODEL_INTERACTIVE:-sonnet}"
+MODEL_AUTO="${ZCLAUDE_MODEL_AUTO:-haiku}"
+MODEL_FEATURE="${ZCLAUDE_MODEL_FEATURE:-opus}"
+FALLBACK_MODEL="${ZCLAUDE_FALLBACK_MODEL:-sonnet}"
+
+# Platform-trio peers added to the session (only when present). adots is reached
+# via its bare-git invocations and needs no --add-dir; $HOME is deliberately NOT
+# added — narrow dirs + the deny-list keep the PHI/secret surface minimal.
+PEER_DIRS=("$HOME/my" "${XDG_CONFIG_HOME:-$HOME/.config}/nvim")
+
+# ── Colors (suppressed when not a tty) ───────────────────────────────────────
+if [[ -t 2 ]]; then
+  RST=$'\e[0m'; BOLD=$'\e[1m'; DIM=$'\e[2m'; CYAN=$'\e[0;36m'; YEL=$'\e[0;33m'
+else
+  RST=''; BOLD=''; DIM=''; CYAN=''; YEL=''
+fi
+
+usage() { sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'; }
+
+die() { printf '%szclaude:%s %s\n' "$YEL" "$RST" "$*" >&2; exit 2; }
+
+# ── Parse args ───────────────────────────────────────────────────────────────
+MODE=interactive
+MODEL=""
+DRY_RUN=0
+declare -a TASK=()        # positional task words
+declare -a PASSTHRU=()    # everything after `--`
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --sync)         MODE=sync; shift ;;
+    --auto)         MODE=auto; shift ;;
+    --feature)      MODE=feature; shift ;;
+    --model)        [[ $# -ge 2 ]] || die "--model requires a value"; MODEL="$2"; shift 2 ;;
+    -n|--dry-run)   DRY_RUN=1; shift ;;
+    -h|--help)      usage; exit 0 ;;
+    --)             shift; PASSTHRU=("$@"); break ;;
+    -*)             die "unknown option: $1 (use -- to pass flags to claude)" ;;
+    *)              TASK+=("$1"); shift ;;
+  esac
+done
+
+command -v claude >/dev/null 2>&1 || die "claude not found on PATH — install Claude Code first"
+[[ -r "$BOOTSTRAP" ]] || die "bootstrap prompt missing: $BOOTSTRAP"
+
+# ── Resolve model + per-mode claude flags ────────────────────────────────────
+declare -a CLAUDE_ARGS=()
+case "$MODE" in
+  interactive) MODEL="${MODEL:-$MODEL_INTERACTIVE}" ;;
+  feature)
+    MODEL="${MODEL:-$MODEL_FEATURE}"
+    CLAUDE_ARGS+=(--permission-mode plan)   # plan-first for real changes
+    ;;
+  auto)
+    MODEL="${MODEL:-$MODEL_AUTO}"
+    [[ ${#TASK[@]} -gt 0 ]] || die "--auto needs a task, e.g. zclaude --auto \"report beacon drift\""
+    CLAUDE_ARGS+=(--print)
+    ;;
+  sync)
+    MODEL="${MODEL:-$MODEL_AUTO}"
+    CLAUDE_ARGS+=(--print)
+    # Canned read-only review task; the bootstrap prompt supplies the invocations.
+    TASK=("Run the /platform-sync read-only review across all four repos"
+          "(zdots, adots, my, vdots) and report the 4-row table:"
+          "repo · sync (ahead/behind) · dirty count · what's dirty."
+          "Do not commit or push. Flag any repo that is ahead of origin.")
+    ;;
+esac
+
+# The bootstrap prompt is appended to claude's system prompt. This version of
+# claude has no --append-system-prompt-file, so pass the file content directly.
+BOOTSTRAP_CONTENT="$(cat "$BOOTSTRAP")"
+# --add-dir is variadic (consumes until the next flag), so it must come BEFORE
+# the single-value flags — otherwise it swallows the trailing prompt. Keep
+# --append-system-prompt (single value) LAST so the positional prompt is clean.
+for d in "${PEER_DIRS[@]}"; do [[ -d "$d" ]] && CLAUDE_ARGS+=(--add-dir "$d"); done
+[[ ${#PASSTHRU[@]} -gt 0 ]] && CLAUDE_ARGS+=("${PASSTHRU[@]}")
+CLAUDE_ARGS+=(--model "$MODEL" --fallback-model "$FALLBACK_MODEL")
+CLAUDE_ARGS+=(--append-system-prompt "$BOOTSTRAP_CONTENT")
+
+# Task text: interactive/feature pass it as the initial prompt if given;
+# auto/sync always have one. Empty interactive task → plain REPL.
+PROMPT=""
+[[ ${#TASK[@]} -gt 0 ]] && PROMPT="${TASK[*]}"
+
+# ── Trace (best-effort; never blocks the launch) ─────────────────────────────
+# shellcheck source=/dev/null
+[[ -r "$ZDOTDIR/lib/trace_log.bash" ]] && source "$ZDOTDIR/lib/trace_log.bash"
+command -v zdots_trace_log >/dev/null 2>&1 \
+  && zdots_trace_log "zclaude_launch" "tool=zclaude mode=$MODE model=$MODEL" || true
+
+# ── Show the resolved configuration ──────────────────────────────────────────
+printf '%szclaude%s %smode=%s model=%s%s  (ctx=%s)\n' \
+  "$BOLD" "$RST" "$CYAN" "$MODE" "$MODEL" "$RST" "${ZDOTS_CONTEXT:-home}" >&2
+printf '%s  peers: %s%s\n' "$DIM" "${PEER_DIRS[*]}" "$RST" >&2
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  printf '%s  cwd: %s%s\n' "$DIM" "$ZDOTDIR" "$RST" >&2
+  # Render a reproducible command, but show the bootstrap as a readable token
+  # instead of dumping the whole prompt blob.
+  { printf 'cd %q && claude' "$ZDOTDIR"
+    for a in "${CLAUDE_ARGS[@]}"; do
+      if [[ "$a" == "$BOOTSTRAP_CONTENT" ]]; then
+        # shellcheck disable=SC2016  # literal token for human reproduction, not expansion
+        printf ' "$(cat %q)"' "$BOOTSTRAP"
+      else
+        printf ' %q' "$a"
+      fi
+    done
+    [[ -n "$PROMPT" ]] && printf ' %q' "$PROMPT"
+    printf '\n'
+  }
+  exit 0
+fi
+
+# ── Launch from the kernel cwd so bin/ + tracked settings.json/hooks apply ────
+cd "$ZDOTDIR"
+if [[ -n "$PROMPT" ]]; then
+  exec claude "${CLAUDE_ARGS[@]}" "$PROMPT"
+else
+  exec claude "${CLAUDE_ARGS[@]}"
+fi
