@@ -54,10 +54,26 @@ Feature implementation (opus) with
 .Fl -permission-mode Cm plan
 for plan-first changes.
 .El
+.Sh CONTINUITY
+.Bl -tag -width Fl
+.It Fl c , Fl -continue
+Resume the most recent zclaude conversation in the kernel cwd.
+.It Fl r , Fl -resume
+Pick a past session to resume (interactive picker).
+.It Fl -name Ar name
+Set a findable display name for the session.
+.El
+.Pp
+Durable cross-session context is carried by the zdots memory file and the
+Knowledge Layer, independent of conversation resume.
 .Sh OPTIONS
 .Bl -tag -width Fl
 .It Fl -model Ar name
 Override the model for this run (alias or full id).
+.It Fl -effort Ar level
+Override the per-mode effort: low, medium, high, xhigh, max.
+.It Fl -tmux
+Launch inside a tmux session (persistent; detach and reattach).
 .It Fl n , Fl -dry-run
 Print the resolved
 .Xr claude 1
