@@ -104,7 +104,7 @@ exporters:
   # Keychain at boot by `otel-collector serve` (env ZDOTS_O2_OTLP_AUTH) so the
   # credential never lands in this file or the launchd plist. Default empty keeps
   # `otel-collector validate` working without the env set.
-  otlphttp/openobserve:
+  otlp_http/openobserve:
     endpoint: "http://127.0.0.1:5080/api/default"
     headers:
       Authorization: "${env:ZDOTS_O2_OTLP_AUTH:-}"
@@ -123,14 +123,14 @@ service:
     traces:
       receivers: [otlp]
       processors: [resourcedetection, batch]
-      exporters: [debug, file, otlphttp/openobserve, spanmetrics]
+      exporters: [debug, file, otlp_http/openobserve, spanmetrics]
     # Metrics from apps + host + containers + spanmetrics
     metrics:
       receivers: [otlp, hostmetrics, spanmetrics]
       processors: [resourcedetection, batch]
-      exporters: [debug, otlphttp/openobserve]
+      exporters: [debug, otlp_http/openobserve]
     # Logs from apps + log files
     logs:
       receivers: [otlp]
       processors: [resourcedetection, batch]
-      exporters: [debug, otlphttp/openobserve]
+      exporters: [debug, otlp_http/openobserve]
