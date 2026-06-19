@@ -70,6 +70,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | Fabric | `fabric-ai` | Expert prompt pipelines (local or cloud) |
 | AI pattern browser | `zdots-pattern` | Interactive `fzf` browser for 250+ Fabric patterns |
 | Whisper transcription | `whisper-ctl` | Local audio-to-text (whisper.cpp) |
+| Claude (platform) | `zclaude` / `--sync` / `--auto` / `--feature` | Tuned Claude Code launcher: bootstrap prompt + trio repos + split-model policy |
 
 **Security boundary:** `ai-query` and `zdots-ask` enforce `ZDOTS_AI_MODE` and route through
 `lib/ai_boundary.bash`. Use them in preference to calling `llama-server` or cloud CLIs directly

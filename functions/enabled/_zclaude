@@ -1,0 +1,15 @@
+#compdef zclaude
+# Completion for zclaude — Claude Code launcher tuned for zdots platform work.
+
+_zclaude() {
+  _arguments -s \
+    '(--sync --auto --feature)--sync[headless four-repo platform-sync review]' \
+    '(--sync --auto --feature)--auto[headless automation (-p, haiku)]' \
+    '(--sync --auto --feature)--feature[feature build: opus, plan-first]' \
+    '--model[override model for this run]:model:(sonnet haiku opus)' \
+    '(-n --dry-run)'{-n,--dry-run}'[print resolved claude invocation without running]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '*::task: '
+}
+
+_zclaude "$@"
