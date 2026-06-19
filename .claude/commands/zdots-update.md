@@ -36,10 +36,20 @@ git -C "$ZDOTDIR" rev-parse HEAD
 
 ## Phase 1 — Pull
 
+Two paths — use whichever applies:
+
+**A. Direct pull (origin has the changes):**
 ```bash
 git -C "$ZDOTDIR" pull --ff-only origin main
 # PASS: "Fast-forward" or "Already up to date."
 # FAIL: non-fast-forward → investigate; do NOT force-merge without operator approval
+```
+
+**B. Patch file (from work machine via zdots-patch-cycle):**
+```bash
+git -C "$ZDOTDIR" am ~/path/to/<timestamp>-zdots-origin-main.patch
+# PASS: "Applied: chore(work-session): ..."
+# FAIL: git am --abort; ask operator to re-export a clean patch
 ```
 
 ```bash

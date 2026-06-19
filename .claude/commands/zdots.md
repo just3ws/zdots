@@ -32,6 +32,7 @@ Pi's output → Aider's input. Context budget (Pi, 7B): ~32k tokens per session.
 | `llama-ctl status` | llama.cpp server status |
 | `capabilities --json` | Environment contract |
 | `agent-guide` | Full agent usage guide |
+| `zdots-patch-export zdots origin/main` | Export squashed work-session patch to `~/Desktop/outbox/` |
 
 ---
 

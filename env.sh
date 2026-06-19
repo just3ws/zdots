@@ -352,6 +352,20 @@ _zdots_path_add "$HOME/.local/bin"
 _zdots_path_add "$HOME/.antigravity/antigravity/bin"
 _zdots_path_add "$HOME/bin"
 
+# Work-specific paths (ZDOTS_CONTEXT=work only)
+if [ "${ZDOTS_CONTEXT:-home}" = "work" ]; then
+  # ./bin — project-local scripts; added as a literal relative path (no -d check)
+  case ":$PATH:" in
+    *":./bin:"*) ;;
+    *) PATH="./bin:$PATH" ;;
+  esac
+  # work org tooling
+  case ":$PATH:" in
+    *":$HOME/github.com/work/bin:"*) ;;
+    *) [ -d "$HOME/github.com/work/bin" ] && PATH="$HOME/github.com/work/bin:$PATH" ;;
+  esac
+fi
+
 export PATH
 unset -f _zdots_path_add
 

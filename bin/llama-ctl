@@ -692,8 +692,10 @@ EMBED_ENDPOINT="http://127.0.0.1:11501"
 _register_embed_plist() {
   local bin; bin=$(_require_binary)
 
-  local model_file; model_file=$(_meta_get "profiles.${EMBED_PROFILE}.model_file" "")
-  if [[ -z "$model_file" ]]; then
+  # _meta_get uses the flat active-profile JSON and cannot reach profiles.* —
+  # use _yq_get to read embed fields directly from the YAML.
+  local model_file; model_file=$(_yq_get ".profiles.${EMBED_PROFILE}.model_file")
+  if [[ -z "$model_file" || "$model_file" == "null" ]]; then
     printf 'llama-ctl: error: embed profile missing in %s\n' "$CONFIG_FILE" >&2; exit 1
   fi
   local model_path="${MODELS_DIR}/${model_file}"
@@ -703,8 +705,8 @@ _register_embed_plist() {
     model_path="${MODELS_DIR}/embed.gguf"
   fi
 
-  local ctx_size;    ctx_size=$(   _meta_get "profiles.${EMBED_PROFILE}.ctx_size"    "512")
-  local n_gpu;       n_gpu=$(      _meta_get "profiles.${EMBED_PROFILE}.n_gpu_layers" "99")
+  local ctx_size;    ctx_size=$(_yq_get ".profiles.${EMBED_PROFILE}.ctx_size");    ctx_size=${ctx_size:-512}
+  local n_gpu;       n_gpu=$(   _yq_get ".profiles.${EMBED_PROFILE}.n_gpu_layers"); n_gpu=${n_gpu:-99}
   local host;        host=$(       _meta_get "embed_server.host"        "127.0.0.1")
   local port;        port=$(       _meta_get "embed_server.port"        "11501")
   _reject_reserved_llama_port "embedding" "$port"
@@ -741,14 +743,15 @@ _register_embed_plist() {
 
 install_embed() {
   # Download model if needed.
-  local model_file; model_file=$(_meta_get "profiles.${EMBED_PROFILE}.model_file" "")
-  if [[ -z "$model_file" ]]; then
+  # _meta_get cannot reach profiles.* (flat JSON); use _yq_get for embed profile fields.
+  local model_file; model_file=$(_yq_get ".profiles.${EMBED_PROFILE}.model_file")
+  if [[ -z "$model_file" || "$model_file" == "null" ]]; then
     printf 'llama-ctl: error: embed profile not found in %s\n' "$CONFIG_FILE" >&2; exit 1
   fi
   local model_path="${MODELS_DIR}/${model_file}"
   if [[ ! -f "$model_path" ]]; then
     printf 'llama-ctl: embed model not found — downloading...\n' >&2
-    local hf_repo; hf_repo=$(_meta_get "profiles.${EMBED_PROFILE}.hf_repo" "")
+    local hf_repo; hf_repo=$(_yq_get ".profiles.${EMBED_PROFILE}.hf_repo")
     if [[ -z "$hf_repo" || "$hf_repo" == "null" ]]; then
       printf 'llama-ctl: error: no hf_repo for embed profile in %s\n' "$CONFIG_FILE" >&2; exit 1
     fi
