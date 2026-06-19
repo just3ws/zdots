@@ -23,6 +23,29 @@ PHI-adjacent machine. CC now runs on both home and work (Brewfile.home and
 Brewfile.work install it at parity); work also retains Pi + the local LLM. On
 work the deny-list and `cc-hook-guard` are mandatory, not optional.
 
+## zclaude — tuned launcher for platform work
+
+`zclaude` wraps `claude` with the harmonized configuration for maintaining and
+extending the platform: it launches from the kernel cwd (so `bin/` and the
+tracked `settings.json`/hooks apply), appends a pre-loaded platform bootstrap
+prompt (`etc/claude/zclaude-bootstrap.md`), adds the platform-trio peers
+(`~/my`, `~/.config/nvim`) via `--add-dir`, and applies a conservative
+split-model policy — cheap when unattended, capable when you are.
+
+```bash
+zclaude                       # interactive maintenance session (sonnet)
+zclaude --sync                # headless four-repo platform-sync review, then exit
+zclaude --auto "report drift" # headless automation (-p, haiku)
+zclaude --feature             # feature build: opus + plan-first
+zclaude -n …                  # dry-run: print the resolved claude invocation
+```
+
+Models are env-overridable (`ZCLAUDE_MODEL_INTERACTIVE`/`_AUTO`/`_FEATURE`).
+adots is reached through its bare-git invocations (no `--add-dir`); `$HOME` is
+deliberately not added, keeping the PHI/secret surface minimal. The bootstrap
+prompt encodes that a `zclaude` session is operator-authorized to maintain zdots
+itself (relaxing AGENTS.md §5 for zdots) while keeping adots/my/vdots boundaries.
+
 ## Platform Control
 
 Two commands cover all service lifecycle needs:

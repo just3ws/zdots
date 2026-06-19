@@ -1,0 +1,102 @@
+.Dd June 18, 2026
+.Dt ZCLAUDE 1
+.Os zdots
+.Sh NAME
+.Nm zclaude
+.Nd Claude Code launcher tuned for zdots platform work
+.Sh SYNOPSIS
+.Nm
+.Op task ...
+.Nm
+.Fl -sync
+.Nm
+.Fl -auto Ar task
+.Nm
+.Fl -feature
+.Op task ...
+.Op Fl -model Ar name
+.Op Fl n | Fl -dry-run
+.Op Fl h | Fl -help
+.Sh DESCRIPTION
+.Nm
+wraps
+.Xr claude 1
+with the harmonized configuration for maintaining and extending the zdots
+platform: it launches from the kernel cwd
+.Pq Pa ~/.config/zsh
+so
+.Pa bin/
+and the tracked
+.Pa .claude/settings.json
+permissions and hooks apply, appends a pre-loaded platform bootstrap prompt,
+adds the platform-trio peer repos
+.Pq Pa ~/my , Pa ~/.config/nvim
+with
+.Fl -add-dir ,
+and applies a conservative split-model policy.
+.Pp
+adots is reached through its bare-git invocations and needs no
+.Fl -add-dir ;
+.Pa $HOME
+is deliberately not added, keeping the PHI/secret surface minimal.
+.Sh MODES
+.Bl -tag -width Fl
+.It Nm Op task ...
+Interactive maintenance session (sonnet). A task, if given, seeds the prompt.
+.It Nm Fl -sync
+Headless four-repo platform-sync review (haiku), report-only, then exit.
+.It Nm Fl -auto Ar task
+Headless automation via
+.Fl -print
+(haiku). Requires a task.
+.It Nm Fl -feature Op task ...
+Feature implementation (opus) with
+.Fl -permission-mode Cm plan
+for plan-first changes.
+.El
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -model Ar name
+Override the model for this run (alias or full id).
+.It Fl n , Fl -dry-run
+Print the resolved
+.Xr claude 1
+invocation without running it.
+.It Fl h , Fl -help
+Show usage.
+.It Fl -
+Pass everything after through to
+.Xr claude 1
+verbatim.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZCLAUDE_MODEL_INTERACTIVE
+.It Ev ZDOTDIR
+Repository root (kernel cwd).
+.It Ev ZCLAUDE_MODEL_INTERACTIVE
+Interactive model (default: sonnet).
+.It Ev ZCLAUDE_MODEL_AUTO
+Unattended model for
+.Fl -auto
+and
+.Fl -sync
+(default: haiku).
+.It Ev ZCLAUDE_MODEL_FEATURE
+Feature model (default: opus).
+.It Ev ZCLAUDE_FALLBACK_MODEL
+Fallback model (default: sonnet).
+.El
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa etc/claude/zclaude-bootstrap.md
+The pre-loaded platform bootstrap prompt appended to the session.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr capabilities 1 ,
+.Xr claude 1 ,
+.Xr imperial-date 1 ,
+.Xr zdots-doctor 1
+.Sh AUTHORS
+.An Mike Hall Aq Mt mike@just3ws.com
