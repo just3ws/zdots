@@ -354,7 +354,14 @@ _zdots_path_add "$HOME/bin"
 
 # Work-specific paths (ZDOTS_CONTEXT=work only)
 if [ "${ZDOTS_CONTEXT:-home}" = "work" ]; then
-  # ./bin — project-local scripts; added as a literal relative path (no -d check)
+  # ./sbin then ./bin — project-local scripts as literal relative paths so they
+  # re-resolve per directory (no -d check). ./bin is prepended last → highest
+  # precedence; ./sbin sits just behind it. Gated to work: relative entries in
+  # PATH are only safe in project dirs you control (cwd-shadowing risk).
+  case ":$PATH:" in
+    *":./sbin:"*) ;;
+    *) PATH="./sbin:$PATH" ;;
+  esac
   case ":$PATH:" in
     *":./bin:"*) ;;
     *) PATH="./bin:$PATH" ;;
