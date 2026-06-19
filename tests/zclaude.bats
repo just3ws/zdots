@@ -62,6 +62,39 @@ setup() {
   [[ "$output" == *"--add-dir"*"--append-system-prompt"*"task"* ]]
 }
 
+@test "zclaude: effort defaults per mode (medium / low / high)" {
+  run "$BIN" --dry-run "x";          [[ "$output" == *"effort=medium"* ]]
+  run "$BIN" --auto "x" --dry-run;   [[ "$output" == *"effort=low"* ]]
+  run "$BIN" --feature --dry-run;    [[ "$output" == *"effort=high"* ]]
+}
+
+@test "zclaude: --effort overrides the per-mode default" {
+  run "$BIN" --effort max --dry-run "x"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"effort=max"* ]]
+  [[ "$output" == *"--effort max"* ]]
+}
+
+@test "zclaude: invalid --effort is rejected" {
+  run "$BIN" --effort turbo --dry-run "x"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"invalid --effort"* ]]
+}
+
+@test "zclaude: continuity + session flags pass through" {
+  run "$BIN" -c --name maint --dry-run "x"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"--continue"* ]]
+  [[ "$output" == *"--name maint"* ]]
+}
+
+@test "zclaude: --resume and --tmux pass through" {
+  run "$BIN" --resume --tmux --dry-run "x"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"--resume"* ]]
+  [[ "$output" == *"--tmux"* ]]
+}
+
 @test "zclaude: --auto with no task is a usage error" {
   run "$BIN" --auto --dry-run
   [ "$status" -eq 2 ]

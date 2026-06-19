@@ -4,19 +4,27 @@
 # Wraps `claude` with the harmonized configuration for maintaining and extending
 # the platform: kernel cwd (so bin/ + the tracked settings.json/hooks apply), a
 # pre-loaded platform bootstrap prompt, the platform-trio repos on --add-dir, and
-# a conservative split-model policy — cheap when unattended, capable when you are.
+# a conservative split-model + effort policy — cheap when unattended, capable
+# when you are.
 #
 # Modes:
-#   zclaude [task...]        Interactive maintenance session (sonnet)
+#   zclaude [task...]        Interactive maintenance session (sonnet, medium effort)
 #   zclaude --sync           Headless four-repo platform-sync review, then exit
-#   zclaude --auto "task"    Headless automation (-p, haiku)
-#   zclaude --feature [task] Feature build: opus, plan-first, deeper effort
+#   zclaude --auto "task"    Headless automation (-p, haiku, low effort)
+#   zclaude --feature [task] Feature build: opus, plan-first, high effort
+#
+# Continuity & session:
+#   -c, --continue  Resume the most recent zclaude conversation in this cwd
+#   -r, --resume    Pick a past session to resume (interactive picker)
+#   --name NAME     Set a findable display name for the session
 #
 # Options:
-#   --model NAME   Override the model for this run (alias or full id)
-#   -n, --dry-run  Print the resolved `claude` invocation without running it
-#   -h, --help     Show this help
-#   --             Pass everything after through to `claude` verbatim
+#   --model NAME    Override the model for this run (alias or full id)
+#   --effort LEVEL  Override effort: low | medium | high | xhigh | max
+#   --tmux          Launch inside a tmux session (persistent; detach/reattach)
+#   -n, --dry-run   Print the resolved `claude` invocation without running it
+#   -h, --help      Show this help
+#   --              Pass everything after through to `claude` verbatim
 #
 # Model policy (override via env):
 #   ZCLAUDE_MODEL_INTERACTIVE  (default: sonnet)  — you are in the loop
@@ -50,13 +58,19 @@ else
   RST=''; BOLD=''; DIM=''; CYAN=''; YEL=''
 fi
 
-usage() { sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'; }
+# usage() prints the leading header comment block (after the shebang).
+usage() { awk 'NR==1{next} /^#/{sub(/^# ?/,"");print;next} {exit}' "$0"; }
 
 die() { printf '%szclaude:%s %s\n' "$YEL" "$RST" "$*" >&2; exit 2; }
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 MODE=interactive
 MODEL=""
+EFFORT=""
+NAME=""
+CONTINUE=0
+RESUME=0
+TMUX_MODE=0
 DRY_RUN=0
 declare -a TASK=()        # positional task words
 declare -a PASSTHRU=()    # everything after `--`
@@ -67,6 +81,11 @@ while [[ $# -gt 0 ]]; do
     --auto)         MODE=auto; shift ;;
     --feature)      MODE=feature; shift ;;
     --model)        [[ $# -ge 2 ]] || die "--model requires a value"; MODEL="$2"; shift 2 ;;
+    --effort)       [[ $# -ge 2 ]] || die "--effort requires a level"; EFFORT="$2"; shift 2 ;;
+    --name)         [[ $# -ge 2 ]] || die "--name requires a value"; NAME="$2"; shift 2 ;;
+    -c|--continue)  CONTINUE=1; shift ;;
+    -r|--resume)    RESUME=1; shift ;;
+    --tmux)         TMUX_MODE=1; shift ;;
     -n|--dry-run)   DRY_RUN=1; shift ;;
     -h|--help)      usage; exit 0 ;;
     --)             shift; PASSTHRU=("$@"); break ;;
@@ -77,22 +96,26 @@ done
 
 command -v claude >/dev/null 2>&1 || die "claude not found on PATH — install Claude Code first"
 [[ -r "$BOOTSTRAP" ]] || die "bootstrap prompt missing: $BOOTSTRAP"
+if [[ -n "$EFFORT" ]]; then
+  case "$EFFORT" in low|medium|high|xhigh|max) ;; *) die "invalid --effort: $EFFORT (low|medium|high|xhigh|max)";; esac
+fi
 
-# ── Resolve model + per-mode claude flags ────────────────────────────────────
+# ── Resolve model + effort + per-mode claude flags ───────────────────────────
 declare -a CLAUDE_ARGS=()
+EFFORT_DEFAULT=medium
 case "$MODE" in
-  interactive) MODEL="${MODEL:-$MODEL_INTERACTIVE}" ;;
+  interactive) MODEL="${MODEL:-$MODEL_INTERACTIVE}"; EFFORT_DEFAULT=medium ;;
   feature)
-    MODEL="${MODEL:-$MODEL_FEATURE}"
+    MODEL="${MODEL:-$MODEL_FEATURE}"; EFFORT_DEFAULT=high
     CLAUDE_ARGS+=(--permission-mode plan)   # plan-first for real changes
     ;;
   auto)
-    MODEL="${MODEL:-$MODEL_AUTO}"
+    MODEL="${MODEL:-$MODEL_AUTO}"; EFFORT_DEFAULT=low
     [[ ${#TASK[@]} -gt 0 ]] || die "--auto needs a task, e.g. zclaude --auto \"report beacon drift\""
     CLAUDE_ARGS+=(--print)
     ;;
   sync)
-    MODEL="${MODEL:-$MODEL_AUTO}"
+    MODEL="${MODEL:-$MODEL_AUTO}"; EFFORT_DEFAULT=low
     CLAUDE_ARGS+=(--print)
     # Canned read-only review task; the bootstrap prompt supplies the invocations.
     TASK=("Run the /platform-sync read-only review across all four repos"
@@ -101,6 +124,14 @@ case "$MODE" in
           "Do not commit or push. Flag any repo that is ahead of origin.")
     ;;
 esac
+EFFORT="${EFFORT:-$EFFORT_DEFAULT}"
+
+# Continuity / session flags (passthrough). Safe alongside a positional prompt.
+[[ "$CONTINUE" -eq 1 ]] && CLAUDE_ARGS+=(--continue)
+[[ "$RESUME"   -eq 1 ]] && CLAUDE_ARGS+=(--resume)
+[[ "$TMUX_MODE" -eq 1 ]] && CLAUDE_ARGS+=(--tmux)
+[[ -n "$NAME" ]] && CLAUDE_ARGS+=(--name "$NAME")
+CLAUDE_ARGS+=(--effort "$EFFORT")
 
 # The bootstrap prompt is appended to claude's system prompt. This version of
 # claude has no --append-system-prompt-file, so pass the file content directly.
@@ -122,11 +153,33 @@ PROMPT=""
 # shellcheck source=/dev/null
 [[ -r "$ZDOTDIR/lib/trace_log.bash" ]] && source "$ZDOTDIR/lib/trace_log.bash"
 command -v zdots_trace_log >/dev/null 2>&1 \
-  && zdots_trace_log "zclaude_launch" "tool=zclaude mode=$MODE model=$MODEL" || true
+  && zdots_trace_log "zclaude_launch" "tool=zclaude mode=$MODE model=$MODEL effort=$EFFORT" || true
+
+# ── Terminal decoration: tmux pane title + iTerm2 badge (interactive only) ────
+# Skipped in headless/piped contexts so it never pollutes --print output.
+_decorate_terminal() {
+  local label="zclaude:$MODE/$MODEL"
+  [[ -t 1 && -t 2 ]] || return 0
+  # tmux pane title (shown via pane-border-status — set in the zclaude tmux.conf)
+  if [[ -n "${TMUX:-}" ]] && command -v tmux >/dev/null 2>&1; then
+    tmux select-pane -T "$label" 2>/dev/null || true
+  fi
+  # iTerm2 badge — persists independent of the title; wrapped for tmux passthrough
+  # (needs `set -g allow-passthrough on`, provided by the zclaude tmux.conf).
+  if [[ "${TERM_PROGRAM:-}" == "iTerm.app" ]]; then
+    local b64; b64="$(printf '%s' "$label" | base64 | tr -d '\n')"
+    if [[ -n "${TMUX:-}" ]]; then
+      # shellcheck disable=SC1003  # \e\\ is the tmux/ST terminator, not a quote escape
+      printf '\ePtmux;\e\e]1337;SetBadgeFormat=%s\a\e\\' "$b64" >&2
+    else
+      printf '\e]1337;SetBadgeFormat=%s\a' "$b64" >&2
+    fi
+  fi
+}
 
 # ── Show the resolved configuration ──────────────────────────────────────────
-printf '%szclaude%s %smode=%s model=%s%s  (ctx=%s)\n' \
-  "$BOLD" "$RST" "$CYAN" "$MODE" "$MODEL" "$RST" "${ZDOTS_CONTEXT:-home}" >&2
+printf '%szclaude%s %smode=%s model=%s effort=%s%s  (ctx=%s)\n' \
+  "$BOLD" "$RST" "$CYAN" "$MODE" "$MODEL" "$EFFORT" "$RST" "${ZDOTS_CONTEXT:-home}" >&2
 printf '%s  peers: %s%s\n' "$DIM" "${PEER_DIRS[*]}" "$RST" >&2
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -149,6 +202,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 fi
 
 # ── Launch from the kernel cwd so bin/ + tracked settings.json/hooks apply ────
+[[ "$MODE" == interactive || "$MODE" == feature ]] && _decorate_terminal
 cd "$ZDOTDIR"
 if [[ -n "$PROMPT" ]]; then
   exec claude "${CLAUDE_ARGS[@]}" "$PROMPT"

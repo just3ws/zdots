@@ -7,6 +7,11 @@ _zclaude() {
     '(--sync --auto --feature)--auto[headless automation (-p, haiku)]' \
     '(--sync --auto --feature)--feature[feature build: opus, plan-first]' \
     '--model[override model for this run]:model:(sonnet haiku opus)' \
+    '--effort[override effort level]:level:(low medium high xhigh max)' \
+    '(-c --continue)'{-c,--continue}'[resume the most recent session in this cwd]' \
+    '(-r --resume)'{-r,--resume}'[pick a past session to resume]' \
+    '--name[set a findable session display name]:name:' \
+    '--tmux[launch inside a persistent tmux session]' \
     '(-n --dry-run)'{-n,--dry-run}'[print resolved claude invocation without running]' \
     '(-h --help)'{-h,--help}'[show help]' \
     '*::task: '
