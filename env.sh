@@ -347,6 +347,7 @@ fi
 # Each call prepends, so the LAST line wins. $HOME/bin is the personal override
 # dir — placed last so it shadows everything (drop a binary there to override a
 # packaged one without touching the repo).
+_zdots_path_add "$ZDOTDIR/sbin"
 _zdots_path_add "$ZDOTDIR/bin"
 _zdots_path_add "$HOME/.local/bin"
 _zdots_path_add "$HOME/.antigravity/antigravity/bin"
@@ -354,18 +355,18 @@ _zdots_path_add "$HOME/bin"
 
 # Work-specific paths (ZDOTS_CONTEXT=work only)
 if [ "${ZDOTS_CONTEXT:-home}" = "work" ]; then
-  # ./sbin then ./bin — project-local scripts as literal relative paths so they
-  # re-resolve per directory (no -d check). ./bin is prepended last → highest
-  # precedence; ./sbin sits just behind it. Gated to work: relative entries in
-  # PATH are only safe in project dirs you control (cwd-shadowing risk).
-  case ":$PATH:" in
-    *":./sbin:"*) ;;
-    *) PATH="./sbin:$PATH" ;;
-  esac
-  case ":$PATH:" in
-    *":./bin:"*) ;;
-    *) PATH="./bin:$PATH" ;;
-  esac
+  # Project-local bins — literal relative paths so they re-resolve per directory
+  # (no -d check). Listed low→high precedence; each prepend makes the next-listed
+  # win, so the final order is ./bin ./sbin ./node_modules/.bin ./.venv/bin
+  # ./venv/bin ./vendor/bin. Gated to work: relative PATH entries are only safe
+  # in project dirs you control (cwd-shadowing risk).
+  for _rel in ./vendor/bin ./venv/bin ./.venv/bin ./node_modules/.bin ./sbin ./bin; do
+    case ":$PATH:" in
+      *":$_rel:"*) ;;
+      *) PATH="$_rel:$PATH" ;;
+    esac
+  done
+  unset _rel
   # work org tooling
   case ":$PATH:" in
     *":$HOME/github.com/work/bin:"*) ;;
