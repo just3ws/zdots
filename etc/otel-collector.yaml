@@ -117,7 +117,7 @@ exporters:
 service:
   telemetry:
     logs:
-      level: debug
+      level: warn
   pipelines:
     # Traces from apps → spanmetrics connector → LGTM
     traces:
