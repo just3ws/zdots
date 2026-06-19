@@ -1,10 +1,10 @@
 ---
 id: Z-104
 title: 'nginx: reverse proxy on port 80/443 with local hostname routing'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-05-25 13:52'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-19 13:07'
 labels:
   - nginx
   - infra

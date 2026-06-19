@@ -2,6 +2,21 @@
 
 This document outlines the roadmap to elevate the Zdots "my" system from a basic knowledge vault into an agentic context engine, leveraging state-of-the-art RAG practices.
 
+## Status: Production (2026-06-19)
+
+context-engine is live in production at `my.local`. Key milestones reached this session:
+
+- **Boot:** launchd-managed Puma (com.my.context-engine-api) at `/tmp/my_prod.sock`; nginx proxy at `my.local`
+- **DB:** 8 context-engine tables migrated via `zdots-ctx migrate` (policy_*, markdown_inbox_*, policy_resolution_events, policy_gaps)
+- **API:** `POST /api/v1/context/query` processes full request cycle; `PolicyResolutionEvent` and `PolicyGap` persisted
+- **Dashboard:** Dark-themed landing page at `/` with stat cards, platform service links, API surface reference
+- **Deploy:** `bin/deploy` — bundle → assets:precompile → restart → verify
+- **Eliminated:** dev.my.local (nginx block removed, plist deleted, launchd unloaded)
+
+Active gaps from the Quick Wins list (§2) remain open. Backlog items B-101 through B-104 are pre-production runway.
+
+---
+
 ## 1. Architectural Philosophy
 We are shifting from **Naive RAG** (semantic chunking) to **Agentic Context Engineering**:
 - **Entity-Relational Reasoning**: Moving beyond chunks to understanding relationships (Graph-lite).
