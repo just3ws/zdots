@@ -112,7 +112,33 @@
       "Read(~/.local/state/zsh/**)",
       "Read(~/.local/share/llama-cpp/models/**)",
       "Read(~/Library/LaunchAgents/**)",
-      "Read(/opt/homebrew/etc/**)"
+      "Read(/opt/homebrew/etc/**)",
+      "Bash(imperial-date:*)",
+      "Bash(llama-caps:*)",
+      "Bash(zdots-my-sync:*)",
+      "Bash(zdots-eval:*)",
+      "Bash(zdots-pattern:*)",
+      "Bash(zdots-recommend:*)",
+      "Bash(zdots-secret-scan:*)",
+      "Bash(history-intelligence:*)",
+      "Bash(session-debrief:*)",
+      "Bash(trace-verify:*)",
+      "Bash(alias-suggest:*)",
+      "Bash(zdots-ingest-prepare:*)",
+      "Bash(colima-autostart:*)",
+      "Bash(whisper-ctl:*)",
+      "Bash(zdots-patch-export:*)",
+      "Bash(zdots-ruby-bump:*)",
+      "Bash(ruby-audit-batch:*)",
+      "Bash(ruby-audit-diff:*)",
+      "Bash(nginx-ctl status:*)",
+      "Bash(nginx-ctl health:*)",
+      "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git status:*)",
+      "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git log:*)",
+      "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git show:*)",
+      "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git branch:*)",
+      "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git diff:*)",
+      "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git rev-list:*)"
     ]
   },
   "hooks": {
@@ -120,7 +146,10 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-hook-guard\"" }
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-hook-guard\""
+          }
         ]
       }
     ],
@@ -128,7 +157,10 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-hook-lint\"" }
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-hook-lint\""
+          }
         ]
       }
     ],
@@ -136,7 +168,10 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-hook-session\"" }
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/bin/cc-hook-session\""
+          }
         ]
       }
     ]
