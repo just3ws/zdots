@@ -263,7 +263,12 @@ _mktmp() {
   _TMP_FILES+=( "$f" )
   printf '%s' "$f"
 }
-trap 'rm -f "${_TMP_FILES[@]}" 2>/dev/null || true' EXIT
+# NOTE: ${_TMP_FILES[@]+"${_TMP_FILES[@]}"} (not bare "${_TMP_FILES[@]}") — on an
+# EMPTY array under `set -u`, bash 3.2 (macOS default) AND bash <4.4 raise
+# "_TMP_FILES[@]: unbound variable", aborting the EXIT trap and breaking callers
+# (e.g. zdots-ctx capture distillation). The +-expansion is a no-op when empty and
+# safe on all bash versions.
+trap 'rm -f ${_TMP_FILES[@]+"${_TMP_FILES[@]}"} 2>/dev/null || true' EXIT
 
 # ---------------------------------------------------------------------------
 # Audit log helpers
