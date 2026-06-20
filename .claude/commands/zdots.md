@@ -88,12 +88,19 @@ File issues with `zdots-issue "description"` — auto-attaches `agent-reported` 
 
 ## Context Engine (my.local)
 
+my.local is the **platform operator console** (see `/my-deploy`):
+
+| Route | What it shows |
+|-------|---------------|
+| `/` | Dashboard — stat cards + **live service health badges** + recent queries |
+| `/platform` | Live health table (HTTP/DB probes; not via zsvc) |
+| `/docs`, `/docs/:slug` | Server-rendered browser over zdots docs/guides/skills |
+| `/health` | App health (DB ping) |
+| `/api/v1/gaps` | Open policy gaps JSON |
+
 | Command | What it does |
 |---------|-------------|
-| `bin/deploy` | Full prod deploy: bundle → assets:precompile → restart (run from ~/my/context-engine) |
-| `curl -sk https://my.local/` | Dashboard — stat cards, service links, recent queries |
-| `curl -sk https://my.local/health` | Health check (DB ping included) |
-| `curl -sk https://my.local/api/v1/gaps` | Open policy gaps JSON |
+| `cd ~/my/context-engine && bin/deploy` | Full prod deploy: bundle → assets:precompile → restart → verify |
 | `touch ~/my/context-engine/tmp/restart.txt` | Restart Puma without asset recompile |
 
 Platform URLs: `my.local` (context-engine) · `o2.local` (OpenObserve) · `llama.local` (inference) · `embed.local` (embeddings)
