@@ -3,6 +3,7 @@
 
 require_relative "../lib/zdots"
 require_relative "../lib/zdots/models/job"
+require_relative "../lib/zdots/models/media_source"
 require_relative "../lib/zdots/models/lesson"
 require_relative "../lib/zdots/models/lesson_intake"
 require_relative "../lib/zdots/models/methodology"
@@ -46,6 +47,8 @@ module Zdots
         cmd_hydrate(args)
       when "enqueue"
         cmd_enqueue(args)
+      when "ingest-media"
+        cmd_ingest_media(args)
       when "jobs"
         cmd_jobs
       when "reindex-embeddings"
@@ -342,6 +345,59 @@ module Zdots
       end
     rescue JSON::ParserError
       puts "zdots-brain: [!!] error: invalid JSON payload"
+      exit 1
+    end
+
+    # ingest-media — write the durable ledger row for a source (from metadata
+    # JSON on stdin, captured by bin/zdots-ingest-media) and enqueue its job.
+    # media_sources is the dedup anchor (unique source_uri); --force reprocesses.
+    def cmd_ingest_media(_args)
+      meta    = JSON.parse($stdin.read)
+      uri     = meta.fetch("source_uri")
+      force   = meta["force"] == true
+      profile = meta["profile"] || "standard"
+      existing = Zdots::Models::MediaSource.first(source_uri: uri)
+
+      if existing && !force
+        puts "zdots-ingest-media: [skip] already ingested (#{existing.id}); use --force to reprocess."
+        return
+      end
+
+      Zdots.db.transaction do
+        if existing
+          existing.update(ingest_status: "queued", updated_at: Sequel::CURRENT_TIMESTAMP)
+          media_source_id = existing.id
+          puts "zdots-ingest-media: reprocessing #{media_source_id}."
+        else
+          # source_snapshot is write-once; never overwritten on reprocess.
+          src = Zdots::Models::MediaSource.create(
+            source_type:     meta["source_type"],
+            source_uri:      uri,
+            source_id:       meta["source_id"],
+            title:           meta["title"],
+            duration_sec:    meta["duration_sec"],
+            ingest_status:   "queued",
+            source_snapshot: Sequel.pg_jsonb(meta["source_snapshot"] || {})
+          )
+          media_source_id = src.id
+          puts "zdots-ingest-media: ingested #{media_source_id} (#{meta['title']})."
+        end
+
+        payload     = { "media_source_id" => media_source_id, "profile" => profile }
+        fingerprint = Digest::MD5.hexdigest("ingest_media#{uri}")
+        ds = Zdots::Models::Job.dataset
+        # empty ON CONFLICT update is invalid SQL — bare insert_conflict = DO NOTHING (cf. cmd_enqueue)
+        ds = ds.insert_conflict(
+          target: :fingerprint,
+          update: { status: "pending", attempts: 0, error_message: nil,
+                    updated_at: Sequel::CURRENT_TIMESTAMP, next_run_at: Sequel::CURRENT_TIMESTAMP }
+        ) if force
+        ds = ds.insert_conflict(target: :fingerprint) unless force
+        job_id = ds.insert(type: "ingest_media", payload: Sequel.pg_jsonb(payload), priority: 10, fingerprint: fingerprint)
+        puts "zdots-ingest-media: job #{job_id ? "enqueued (#{job_id})" : 'already queued (idempotent)'}."
+      end
+    rescue JSON::ParserError
+      puts "zdots-ingest-media: [!!] invalid metadata JSON on stdin"
       exit 1
     end
 
