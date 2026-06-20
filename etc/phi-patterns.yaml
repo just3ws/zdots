@@ -1,52 +1,207 @@
 # etc/phi-patterns.yaml — PHI Pattern Registry
 #
 # Single source of truth for all sensitive-pattern redaction and suppression.
-# Consumed by lib/phi_scrubber.bash (redaction/suppression) and
-# lib/ai-query-lib.bash (risk scoring). All enforcement layers — AI inference,
-# shell history hook, command analytics — read from this file. No file other
-# than this one may define PHI or credential patterns.
+# Consumed by lib/phi_scrubber.bash (redaction/suppression), lib/ai-query-lib.bash
+# (risk scoring), AND zdots-otel-phi-compile (the OTel collector scrub layer).
+# All enforcement layers — AI inference, shell history hook, command analytics,
+# collector ingest — read from this file. No file other than this one may define
+# PHI or credential patterns (AGENTS.md §10).
 #
 # Fields:
 #   name     — identifier used in tests and audit logs
-#   regex    — POSIX ERE passed to sed -E (must be single-line safe)
+#   regex    — RE2 (Go) regex, consumed by the zdots-phi-scrub binary and embedded
+#              VERBATIM into the OTel collector OTTL/redaction config. RE2 supports
+#              POSIX bracket classes natively, including negated ([^[:space:];]).
+#              Must be single-line safe.
 #   replace  — replacement string (the redaction marker); unused for suppress patterns
 #   weight   — integer risk score for aiq_scan; omit for redaction-only patterns
 #   suppress — if true, matching input causes phi_scrub to fail-hard (non-zero)
 #              rather than redact. In the history hook, phi_should_suppress() uses
 #              this to drop the history entry entirely instead of redacting.
+#   trace_targets — (OPTIONAL, trace-aware) list of span/spanevent attribute KEYS
+#              this value pattern scrubs on the TRACES pipeline (e.g.
+#              [http.target, db.statement, exception.message]). OMITTED => the
+#              pattern stays logs-only (unchanged behavior). The compiler emits a
+#              guarded replace_pattern for each key in BOTH the span and spanevent
+#              context — span-event coverage is derived in the compiler, NOT via
+#              duplicate registry rows, so redaction/phi.blocked_values is untouched.
+#   structural — (OPTIONAL) a field-scoped, capture-preserving scrub for PHI that is
+#              POSITIONAL, not a self-identifying token — e.g. a bare record id in a
+#              URL path segment (/clients/12345, /survey/<uuid>) that no value regex
+#              can target without nuking all integers. Compiles ONLY into the
+#              transform/phi/traces span statements. Sub-keys:
+#                field   — span attribute key(s) to operate on; string OR list.
+#                mode    — "redact_all_except" => redact every /<seg>/<id> id EXCEPT
+#                          the enumerated `exempt:` prefixes (the compiler generates a
+#                          NONCE-scoped keep->redact->restore sentinel triple).
+#                exempt  — (with redact_all_except) NON-PHI path prefixes whose id
+#                          stays queryable (Customer/clinic/SaaS/admin/catalog).
+#                match   — RE2 regex; capture group ${1} marks the part to KEEP.
+#                replace — OTTL replacement in ${1} group-ref form (NOT sed \1). The
+#                          compiler doubles it to $${1} (load-safe; bare ${1} errors).
+#   probe / expect_absent / expect_redacted / expect_kept — (OPTIONAL) golden-test
+#              metadata, NOT a scrub pattern (AGENTS.md §10 carve-out). `probe` is a
+#              synthetic OTLP/JSON resourceSpans payload (local-dev synthetic data
+#              ONLY — never real Client values). The compiler's --probe gate pushes it
+#              through the compiled trace scrub and asserts: every expect_absent value
+#              GONE, every expect_redacted marker PRESENT, every expect_kept value
+#              UNCHANGED (negative control). A miss fails the build (fail closed).
 #
-# Constraint: regex and replace values must not contain ';' — it is used as
-# the sed substitution delimiter to avoid conflicts with patterns containing '/'.
-# If a future pattern requires ';', update _phi_load_patterns in lib/phi_scrubber.bash.
+# NOTE: the legacy sed `;`-delimiter constraint NO LONGER APPLIES — the live consumer
+# is the RE2 Go binary (zdots-phi-scrub), which has no delimiter; a ';' inside a class
+# such as [^[:space:];] is fine. There is no sed -E path.
+#
+# ENV-EXPANSION CAVEAT: the OTel collector resolves ${env:VAR} / ${VAR} at config load.
+# A bare ${1} is read as env var "1" and HARD-ERRORS. The compiler emits REPLACEMENT
+# capture refs DOUBLE-$ ($$1 value / $${1} structural) on the TRACE path; the LOG path
+# keeps single-$ ($1, which renders correctly). Author `replace` normally; the compiler
+# doubles it.
 
 patterns:
   - name: cli_credentials
     regex: '(-p|--password|--api-key|--token|--secret|--auth|--authorization)[[:space:]]+[^[:space:]]+'
     replace: '\1 [REDACTED]'
     weight: 80
+    trace_targets: [db.statement, exception.message, exception.stacktrace]
+    probe: |
+      {"resourceSpans":[{"resource":{"attributes":[
+        {"key":"service.name","value":{"stringValue":"app"}}]},
+        "scopeSpans":[{"spans":[{
+          "traceId":"000000000000000000000000000000c3","spanId":"00000000000000c3",
+          "name":"shellout","kind":3,
+          "startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000",
+          "attributes":[
+            {"key":"db.statement","value":{"stringValue":"mysqldump --password hunter2 --single-transaction emr"}}],
+          "events":[{"name":"exception","timeUnixNano":"1750000000050000000","attributes":[
+            {"key":"exception.message","value":{"stringValue":"auth failed token=abc123xyz"}}]}]}]}]}]}
+    expect_absent:   ["hunter2", "abc123xyz"]
+    # SAFETY property = the secret is GONE (expect_absent). The semantic marker
+    # "--password [REDACTED]" is NOT achievable on traces: transform/phi/traces emits
+    # it, then redaction/phi (the all-signal backstop) re-matches "--password <token>"
+    # and masks it to **** (verified live 2026-06-20). **** is equally safe. SSN/MRN/DOB
+    # markers DO survive (their markers have no digits to re-match). Credentials end ****.
+    expect_redacted: ["****"]
+    expect_kept:     ["--single-transaction"]
 
   - name: inline_credentials
     regex: '(password|passwd|token|secret|api[._-]?key|access[._-]?token|auth)=[^[:space:];]+'
     replace: '\1=[REDACTED]'
     weight: 80
+    trace_targets: [http.target, http.url, url.full, db.statement, exception.message, exception.stacktrace]
 
   - name: ssn
     regex: '[0-9]{3}-[0-9]{2}-[0-9]{4}'
     replace: '[REDACTED-SSN]'
     weight: 90
+    trace_targets: [http.target, http.url, url.full, db.statement, exception.message, exception.stacktrace]
+    probe: |
+      {"resourceSpans":[{"resource":{"attributes":[
+        {"key":"service.name","value":{"stringValue":"app"}}]},
+        "scopeSpans":[{"spans":[{
+          "traceId":"000000000000000000000000000000b2","spanId":"00000000000000b2",
+          "name":"db.query","kind":3,
+          "startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000",
+          "attributes":[
+            {"key":"db.statement","value":{"stringValue":"SELECT * FROM clients WHERE ssn='123-45-6789'"}},
+            {"key":"bear.state.to","value":{"stringValue":"checked_in"}}],
+          "events":[{"name":"exception","timeUnixNano":"1750000000050000000","attributes":[
+            {"key":"exception.message","value":{"stringValue":"RecordInvalid SSN 987-65-4321"}}]}]}]}]}]}
+    expect_absent:   ["123-45-6789", "987-65-4321"]
+    expect_redacted: ["[REDACTED-SSN]"]
+    expect_kept:     ["checked_in"]
 
   - name: mrn
     regex: 'MRN[[:space:]]*:?[[:space:]]*[0-9]+'
     replace: '[REDACTED-MRN]'
     weight: 75
+    trace_targets: [http.target, http.url, url.full, db.statement, exception.message, exception.stacktrace]
 
   - name: dob
     regex: '(DOB|[Dd]ate[[:space:]]+[Oo]f[[:space:]]+[Bb]irth)[[:space:]]*:?[[:space:]]*[0-9]{1,2}[/\-][0-9]{1,2}[/\-][0-9]{2,4}'
     replace: '[REDACTED-DOB]'
     weight: 60
+    trace_targets: [http.target, http.url, url.full, db.statement, exception.message, exception.stacktrace]
 
   - name: conn_string
     regex: '(postgresql|mysql|redis)://[^@[:space:]]+@[^[:space:]]*'
     replace: '[REDACTED-CONN]'
     suppress: true
     weight: 85
+
+  # STRUCTURAL: bare record ids in URL path segments are PHI by POSITION, not token
+  # shape — unreachable by value redaction (12345/<uuid> match no SSN/MRN/DOB pattern,
+  # and [0-9]+ would nuke every integer attribute). Provenance: live ./bin/work-routes
+  # dump (2026-06-20) = 831 /<resource>/:id member prefixes, ~819 clinical incl.
+  # /clients/:id. Adversarial-review fan-out (2026-06-20) additionally confirmed FOUR
+  # non-numeric clinical id routes (survey/:uuid srv/petitions#apply routes.rb:3433;
+  # copay-request/:uuid copay_requests#apply :3434; and three /twilio/:id/* callbacks
+  # :376/377/379 where :id secretly carries a ReminderMessage/SmsMessage UUID) — all
+  # dashed lowercase SecureRandom.uuid. ALL 12 exempt prefixes use NUMERIC ids
+  # (verified), so the digits-only keep/restore sentinel is safe.
+  #
+  # DESIGN (redact-all + NON-PHI exemption, fail-closed: a new clinical route is
+  # redacted automatically). id-class = numeric OR case-insensitive dashed UUID
+  # (8-4-4-4-12). The dashless-32hex branch was DROPPED (recon proved every real id is
+  # dashed; it only added false-positive surface). Hex class is [0-9a-fA-F] (RE2 is
+  # case-sensitive; lowercase-only would leak an upcased UUID). No trailing delimiter
+  # anchor: the id-class alternatives are self-bounding ([0-9]+ stops at non-digit; the
+  # UUID alt is fixed-length), which avoids a `$` confmap-expansion hazard at load.
+  #
+  # RESIDUALS (accepted, no real route emits them): (a) an id as the FIRST path segment
+  # with no preceding name (/12345 or /<uuid>) is not matched — every app route is
+  # /<resource>/<id>, so http.target always has a leading name segment; (b) an exempt
+  # prefix appearing MID-path (/x/agencies/42) is keep-exempted — benign for the
+  # all-numeric exempt set (round-trips byte-intact). The keep sentinel is NONCE-scoped
+  # (compiler-generated per compile) so a caller-injected literal __KD_<n>__ on
+  # http.target/url cannot be restored into a clinical position.
+  - name: url_path_client_id
+    structural:
+      field: [http.target, http.url, url.full]
+      mode: redact_all_except
+      exempt:
+        - agencies
+        - admin/invoices
+        - admin/dischargers
+        - saas/billing_notices
+        - saas/billing_policies
+        - billing_policies
+        - billing_levels
+        - dashboard/fax_configurations
+        - diagnostic_labs
+        - diagnostic_severities
+        - lab_history_favorites
+        - outside_referral/service_agreements
+      # UUID-FIRST alternation is REQUIRED (RE2 leftmost-first): a leading-digit UUID
+      # like 4f9a... would otherwise have [0-9]+ match just the "4" and leave "f9a..."
+      # to LEAK (caught by the live probe gate 2026-06-20). UUID alt is fixed-length so
+      # it cleanly fails on a pure-numeric id and falls through to [0-9]+.
+      match: '([A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)?)/(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[0-9]+)'
+      replace: '${1}/{id}'
+    probe: |
+      {"resourceSpans":[{"resource":{"attributes":[
+        {"key":"service.name","value":{"stringValue":"app"}}]},
+        "scopeSpans":[{"spans":[
+          {"traceId":"000000000000000000000000000000a1","spanId":"00000000000000a1","name":"p1","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/survey/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d"}}]},
+          {"traceId":"000000000000000000000000000000a2","spanId":"00000000000000a2","name":"p2","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/clients/12345"}}]},
+          {"traceId":"000000000000000000000000000000a3","spanId":"00000000000000a3","name":"p3","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/admin/invoices/9"}}]},
+          {"traceId":"000000000000000000000000000000a4","spanId":"00000000000000a4","name":"p4","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/survey/4F9A2B1C-3D4E-5A6B-7C8D-9E0F1A2B3C4D"}}]},
+          {"traceId":"000000000000000000000000000000a5","spanId":"00000000000000a5","name":"p5","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/twilio/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d/status"}}]},
+          {"traceId":"000000000000000000000000000000a6","spanId":"00000000000000a6","name":"p6","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/status/decade"}}]},
+          {"traceId":"000000000000000000000000000000a7","spanId":"00000000000000a7","name":"p7","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/clients/__KD_12345__"}}]},
+          {"traceId":"000000000000000000000000000000a8","spanId":"00000000000000a8","name":"p8","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/agencies/42/survey/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d"}}]},
+          {"traceId":"000000000000000000000000000000a9","spanId":"00000000000000a9","name":"p9","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.url","value":{"stringValue":"https://app.[redacted].com/copay-request/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d?x=1"}}]}
+        ]}]}]}
+    expect_absent:
+      - "4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d"
+      - "4F9A2B1C-3D4E-5A6B-7C8D-9E0F1A2B3C4D"
+      - "/clients/12345"
+    expect_redacted:
+      - "/survey/{id}"
+      - "/clients/{id}"
+      - "/twilio/{id}/status"
+      - "/copay-request/{id}"
+    expect_kept:
+      - "/admin/invoices/9"
+      - "/status/decade"
+      - "__KD_12345__"
+      - "/agencies/42"
