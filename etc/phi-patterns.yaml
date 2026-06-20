@@ -93,7 +93,7 @@ patterns:
     regex: '[0-9]{3}-[0-9]{2}-[0-9]{4}'
     replace: '[REDACTED-SSN]'
     weight: 90
-    trace_targets: [http.target, http.url, url.full, db.statement, exception.message, exception.stacktrace]
+    trace_targets: [http.target, http.url, url.full, name, db.statement, exception.message, exception.stacktrace]
     probe: |
       {"resourceSpans":[{"resource":{"attributes":[
         {"key":"service.name","value":{"stringValue":"app"}}]},
@@ -114,13 +114,13 @@ patterns:
     regex: 'MRN[[:space:]]*:?[[:space:]]*[0-9]+'
     replace: '[REDACTED-MRN]'
     weight: 75
-    trace_targets: [http.target, http.url, url.full, db.statement, exception.message, exception.stacktrace]
+    trace_targets: [http.target, http.url, url.full, name, db.statement, exception.message, exception.stacktrace]
 
   - name: dob
     regex: '(DOB|[Dd]ate[[:space:]]+[Oo]f[[:space:]]+[Bb]irth)[[:space:]]*:?[[:space:]]*[0-9]{1,2}[/\-][0-9]{1,2}[/\-][0-9]{2,4}'
     replace: '[REDACTED-DOB]'
     weight: 60
-    trace_targets: [http.target, http.url, url.full, db.statement, exception.message, exception.stacktrace]
+    trace_targets: [http.target, http.url, url.full, name, db.statement, exception.message, exception.stacktrace]
 
   - name: conn_string
     regex: '(postgresql|mysql|redis)://[^@[:space:]]+@[^[:space:]]*'
@@ -157,6 +157,11 @@ patterns:
   - name: url_path_client_id
     structural:
       field: [http.target, http.url, url.full]
+      # span_name: also scrub the span NAME (operation_name). HTTP server spans name
+      # themselves with the query-stripped URL path (otel.rb OTEL_URL_QUANTIZER), so the
+      # same positional /<seg>/<id> PHI lands there. Live-confirmed leak 2026-06-20:
+      # operation_name was /clients/8675309 while http.target was /clients/{id}.
+      span_name: true
       mode: redact_all_except
       exempt:
         - agencies
@@ -189,12 +194,15 @@ patterns:
           {"traceId":"000000000000000000000000000000a6","spanId":"00000000000000a6","name":"p6","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/status/decade"}}]},
           {"traceId":"000000000000000000000000000000a7","spanId":"00000000000000a7","name":"p7","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/clients/__KD_12345__"}}]},
           {"traceId":"000000000000000000000000000000a8","spanId":"00000000000000a8","name":"p8","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/agencies/42/survey/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d"}}]},
-          {"traceId":"000000000000000000000000000000a9","spanId":"00000000000000a9","name":"p9","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.url","value":{"stringValue":"https://app.work.com/copay-request/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d?x=1"}}]}
+          {"traceId":"000000000000000000000000000000a9","spanId":"00000000000000a9","name":"p9","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.url","value":{"stringValue":"https://app.work.com/copay-request/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d?x=1"}}]},
+          {"traceId":"000000000000000000000000000000b0","spanId":"00000000000000b0","name":"/clients/55555","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[]},
+          {"traceId":"000000000000000000000000000000b1","spanId":"00000000000000b1","name":"/admin/invoices/77","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[]}
         ]}]}]}
     expect_absent:
       - "4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d"
       - "4F9A2B1C-3D4E-5A6B-7C8D-9E0F1A2B3C4D"
       - "/clients/12345"
+      - "/clients/55555"          # span NAME surface (b0) — must be scrubbed, not just http.target
     expect_redacted:
       - "/survey/{id}"
       - "/clients/{id}"
@@ -205,3 +213,4 @@ patterns:
       - "/status/decade"
       - "__KD_12345__"
       - "/agencies/42"
+      - "/admin/invoices/77"      # span NAME exempt-prefix (b1) — keep/restore sentinel must round-trip on name
