@@ -44,13 +44,29 @@ receivers:
   # Colima docker.sock just produced connection errors when the VM is stopped.
   # Re-add it on a box that genuinely runs container workloads worth monitoring.
 
-  # Tail log files into OpenObserve
-  # Filelog receiver: uncomment and add application log paths as needed.
-  # Do NOT include otel-collector.log — creates a feedback loop with debug exporter.
-  # filelog:
-  #   include:
-  #     - "/path/to/app.log"
-  #   start_at: end
+  # work3 lograge request log -> OTLP log records (TASK-43.9 log spine).
+  # work3 runs in Colima and writes /work/log/lograge.json; /work is the repo
+  # bind-mount (.:/work in docker-compose.override.yml), so the file is visible
+  # on the host. The host collector tails it directly. (filelog + trace_parser
+  # both confirmed present in otelcol-contrib 0.148.0.)
+  filelog/work3:
+    include:
+      - "${env:HOME}/github.com/work/work3/log/lograge.json"
+    start_at: end          # only new requests; avoids replaying old lines on restart
+    include_file_path: false
+    operators:
+      - type: json_parser           # 1. parse each line as JSON into attributes
+        parse_from: body
+        parse_to: attributes
+      - type: trace_parser          # 2. lift hex trace_id/span_id into native OTLP fields
+        trace_id:
+          parse_from: attributes.trace_id
+        span_id:
+          parse_from: attributes.span_id
+      - type: remove                # 3. drop the now-redundant hex copies
+        field: attributes.trace_id
+      - type: remove
+        field: attributes.span_id
 
 processors:
   # Standard batching for all signals
@@ -72,6 +88,16 @@ processors:
           enabled: true
         os.description:
           enabled: true
+
+  # Stamp service.name onto filelog-sourced log records so they group under the
+  # same service as work3's OTLP traces in O2. work.tenant is carried per-record
+  # by the lograge custom_options (kept as a record attribute — its value is
+  # dynamic, do not hardcode "local").
+  resource/work3logs:
+    attributes:
+      - key: service.name
+        value: work3
+        action: upsert
 
 connectors:
   # Generate RED metrics (rate, errors, duration) from trace spans
@@ -131,6 +157,6 @@ service:
       exporters: [debug, otlp_http/openobserve]
     # Logs from apps + log files
     logs:
-      receivers: [otlp]
-      processors: [resourcedetection, batch]
+      receivers: [otlp, filelog/work3]
+      processors: [resource/work3logs, resourcedetection, batch]
       exporters: [debug, otlp_http/openobserve]
