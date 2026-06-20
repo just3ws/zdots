@@ -1,20 +1,22 @@
 ---
-id: Z-158
-title: 'my.local dashboard: live service health badges from zsvc'
-status: Done
+id: Z-160
+title: document context-engine deploy requirement in SETUP.md and agent-guide
+status: To Do
 assignee: []
-created_date: '2026-06-19 13:07'
-updated_date: '2026-06-20 03:35'
-labels: []
+created_date: '2026-06-19 13:29'
+labels:
+  - docs
+  - context-engine
+  - deploy
 dependencies: []
-priority: medium
-ordinal: 49890
+priority: low
+ordinal: 51890
 ---
 
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Current badges are static (up/unknown). Evolve to fetch real health from /health endpoints of each platform service (llama :11500, embed :11501, o2 :5080) via a Rails concern or Turbo Streams. Badges should reflect live state.
+bin/deploy must be run after asset changes (propshaft precompile). SETUP.md and agent-guide should mention this for new-machine setup. Also: public/assets/ is gitignored — document that this is intentional (precompile output, not source).
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Definition of Done
