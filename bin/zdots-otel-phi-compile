@@ -161,9 +161,21 @@ config["processors"]["transform/phi"] = {
 #     `!= nil and IsString(...)` so it only fires on malformed input. NOTE:
 #     propagate is NOT proof of redaction — that is the --probe gate (§6).
 
-# Helper: a guarded span/spanevent replace_pattern statement for one attribute key.
+# OTTL accessor for a span/log field. The span NAME (operation_name) and the log
+# BODY are TOP-LEVEL OTTL paths (`name`, `body`), NOT attributes — so a key of
+# "name"/"body" must compile to the bare path. Every other key is a span attribute.
+# Without this, "name" would compile to attributes["name"] and silently never match,
+# leaving the operation_name field (which carries the URL path for HTTP server spans)
+# UNSCRUBBED — a live-confirmed PHI leak (2026-06-20: /clients/8675309 in O2
+# operation_name while http.target was correctly /clients/{id}).
+def ottl_accessor(key)
+  %w[name body].include?(key) ? key : %(attributes["#{key}"])
+end
+
+# Helper: a guarded span/spanevent replace_pattern statement for one field key.
 def trace_stmt(key, re, repl)
-  %(replace_pattern(attributes["#{key}"], "#{re}", "#{repl}") where attributes["#{key}"] != nil and IsString(attributes["#{key}"]))
+  acc = ottl_accessor(key)
+  %(replace_pattern(#{acc}, "#{re}", "#{repl}") where #{acc} != nil and IsString(#{acc}))
 end
 
 span_statements      = []
@@ -188,6 +200,12 @@ end
 registry.each do |p|
   s = p["structural"] or next
   fields = Array(s.fetch("field"))
+  # `span_name: true` extends the structural scrub to the span NAME (operation_name).
+  # HTTP server spans name themselves with the (query-stripped) URL path, so the same
+  # /<seg>/<id> positional PHI lands there as in http.target. ottl_accessor maps the
+  # synthetic "name" key to the bare OTTL `name` path. Span context only (logs have
+  # no span name); the keep/redact/restore sentinel triple applies unchanged.
+  fields += ["name"] if s["span_name"]
 
   if s["mode"] == "redact_all_except"
     # REDACT-ALL + NON-PHI EXEMPTION. RE2 has NO lookahead, so "not these prefixes"
