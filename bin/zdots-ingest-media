@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# bin/zdots-ingest-media — capture a source's non-PHI provenance and enqueue it
+# into the transcription pipeline ledger (Z-164).
+#
+# Public sources (YouTube/Vimeo) store full public metadata. Private/local
+# sources store ONLY a technical fingerprint + an operator-supplied label —
+# never the filename or path — per the ratified PHI policy (Z-163). The bash
+# layer captures metadata; the Ruby `zdots-brain ingest-media` owns the DB write.
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+BRAIN="${ZDOTDIR}/sbin/zdots-brain"
+
+usage() {
+  cat <<'EOF'
+Usage: zdots-ingest-media <url|file> [options]
+  --label <text>   Non-PHI display label (REQUIRED for local files)
+  --profile <p>    Whisper profile (default: standard)
+  --force          Reprocess an already-ingested source
+  -h, --help       Show this help
+EOF
+}
+
+SRC="" LABEL="" PROFILE="standard" FORCE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --label)   LABEL="$2"; shift 2 ;;
+    --profile) PROFILE="$2"; shift 2 ;;
+    --force)   FORCE="--force"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *)         SRC="$1"; shift ;;
+  esac
+done
+[[ -z "$SRC" ]] && { usage; exit 1; }
+
+captured_by="zdots-ingest-media/yt-dlp-$(yt-dlp --version 2>/dev/null || echo '?')"
+FORCE_BOOL=$([[ -n "$FORCE" ]] && echo true || echo false)
+
+if [[ "$SRC" =~ ^https?:// ]]; then
+  # Public source — metadata only, no download. Public data, stored in full.
+  info="$(yt-dlp --dump-json --skip-download "$SRC")"
+  meta="$(jq -n --argjson i "$info" --arg cb "$captured_by" \
+              --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" '{
+    source_type:  ($i.extractor_key // "url" | ascii_downcase),
+    source_uri:   $i.webpage_url,
+    source_id:    $i.id,
+    title:        $i.title,
+    duration_sec: $i.duration,
+    profile:      $profile,
+    force:        $force,
+    source_snapshot: {
+      captured_by:  $cb,
+      channel:      ($i.channel // $i.uploader),
+      upload_date:  $i.upload_date,
+      view_count:   $i.view_count,
+      like_count:   $i.like_count,
+      availability: $i.availability,
+      webpage_url:  $i.webpage_url,
+      duration_sec: $i.duration
+    }
+  }')"
+else
+  # Private/local source — PHI policy Z-163: fingerprint + label only.
+  # The filename and absolute path are themselves PHI vectors; never stored.
+  [[ -f "$SRC" ]] || { echo "zdots-ingest-media: not a file: $SRC" >&2; exit 1; }
+  [[ -z "$LABEL" ]] && { echo "zdots-ingest-media: --label is required for local files (PHI policy Z-163)" >&2; exit 1; }
+  sha="$(shasum -a 256 "$SRC" | awk '{print $1}')"
+  bytes="$(stat -f %z "$SRC")"
+  mtime="$(stat -f %Sm -t %FT%TZ "$SRC")"
+  # ffprobe can emit partial output AND exit nonzero on a non-media file, so
+  # normalize through jq: valid JSON passes through compact, anything else → {}.
+  probe="$(ffprobe -v quiet -print_format json -show_format -show_streams "$SRC" 2>/dev/null || true)"
+  probe="$(printf '%s' "$probe" | jq -c . 2>/dev/null || echo '{}')"
+  meta="$(jq -n --arg sha "$sha" --arg label "$LABEL" --argjson bytes "$bytes" \
+              --arg mtime "$mtime" --arg cb "$captured_by" --argjson p "$probe" \
+              --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" '{
+    source_type:  "local",
+    source_uri:   ("local:sha256:" + $sha),
+    source_id:    $sha,
+    title:        $label,
+    duration_sec: (($p.format.duration // "0") | tonumber | floor),
+    profile:      $profile,
+    force:        $force,
+    source_snapshot: {
+      captured_by:   $cb,
+      sha256:        $sha,
+      byte_size:     $bytes,
+      mtime:         $mtime,
+      duration_sec:  (($p.format.duration // "0") | tonumber | floor),
+      codec:         ($p.streams[0].codec_name // null),
+      creation_time: ($p.format.tags.creation_time // null)
+    }
+  }')"
+fi
+
+printf '%s' "$meta" | "$BRAIN" ingest-media
