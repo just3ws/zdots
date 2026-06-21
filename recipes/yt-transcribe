@@ -45,6 +45,7 @@ KEEP_MEDIA=false
 DIARIZE_FLAG=false
 SUMMARIZE_FLAG=false
 JSON_FULL=false
+WHISPER_PROMPT=""
 WHISPER_PROFILE="max-accuracy"
 
 while [[ $# -gt 0 ]]; do
@@ -54,6 +55,7 @@ while [[ $# -gt 0 ]]; do
     --summarize)  SUMMARIZE_FLAG=true; shift ;;
     --json-full)  JSON_FULL=true; shift ;;            # token-level confidence (doubt loop)
     --out-dir)    OUT_BASE="$2"; shift 2 ;;           # override retention dir (default ~/Downloads)
+    --prompt)     WHISPER_PROMPT="$2"; shift 2 ;;     # bias whisper toward known vocabulary
     --profile)    WHISPER_PROFILE="$2"; shift 2 ;;
     -h|--help)    usage; exit 0 ;;
     *)            URL="$1"; shift ;;
@@ -118,11 +120,17 @@ fi
 JSON_FLAG="--output-json"
 if [[ "$JSON_FULL" == true ]]; then JSON_FLAG="--output-json-full"; fi
 
+# Optional priming prompt (known vocabulary). Build as an array so an empty
+# prompt expands to nothing — guarded for bash 3.2 set -u.
+PROMPT_ARGS=()
+if [[ -n "$WHISPER_PROMPT" ]]; then PROMPT_ARGS=(--prompt "$WHISPER_PROMPT"); fi
+
 # We run whisper-cli with live progress visible.
 "$WHISPER_BIN" \
   --model "$MODEL_PATH" \
   --file "$CONVERTED_WAV" \
   --output-txt --output-vtt --output-srt --output-csv "$JSON_FLAG" \
+  "${PROMPT_ARGS[@]+"${PROMPT_ARGS[@]}"}" \
   --output-file "${OUT_DIR}/${VIDEO_ID}"
 
 # 4. Optional Summarization & Cleanup
