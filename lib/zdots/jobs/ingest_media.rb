@@ -63,6 +63,8 @@ module Zdots
         end
         recipe = File.join(Zdots::ZDOTDIR, "recipes", "yt-transcribe")
         cmd = [recipe, src.source_uri, "--profile", profile, "--json-full", "--out-dir", out_base]
+        vocab = known_vocabulary
+        cmd += ["--prompt", vocab] unless vocab.empty?
         puts "  --> #{cmd.join(' ')}"
         Open3.popen2e(*cmd) do |_in, out, wait|
           out.each { |line| puts line }
@@ -72,6 +74,14 @@ module Zdots
         txt = Dir.glob(File.join(out_base, "*", "*.txt")).max_by { |f| File.size(f) }
         raise "no transcript produced in #{out_base}" unless txt
         txt
+      end
+
+      # The doubt loop's proactive half: bias whisper toward terms we already
+      # know, so it spells them right before any review. Capped to keep the
+      # prompt within whisper's context budget.
+      def known_vocabulary
+        terms = Zdots.db[:known_terms].order(:canonical).limit(100).select_map(:canonical)
+        terms.empty? ? "" : "Vocabulary: #{terms.join(', ')}."
       end
     end
   end
