@@ -3,6 +3,7 @@
 require_relative "base"
 require_relative "../models/media_source"
 require_relative "../models/pipeline_run"
+require_relative "../models/job"
 require "open3"
 require "digest"
 require "fileutils"
@@ -20,6 +21,12 @@ module Zdots
         ENV["ZDOTS_INGEST_SOURCES_DIR"] || "~/.local/state/zdots/ingest-sources"
       )
 
+      # Z-169 chunking knobs (env-overridable). Sources longer than the threshold
+      # fan out into overlapping windows transcribed as separate queue jobs.
+      CHUNK_THRESHOLD_SEC = (ENV["ZDOTS_CHUNK_THRESHOLD_SEC"] || 1800).to_i
+      CHUNK_WINDOW_SEC    = (ENV["ZDOTS_CHUNK_WINDOW_SEC"]    || 600).to_i
+      CHUNK_OVERLAP_SEC   = (ENV["ZDOTS_CHUNK_OVERLAP_SEC"]   || 15).to_i
+
       def run
         @mid      = payload.fetch("media_source_id")
         @profile  = payload["profile"] || "standard"
@@ -28,7 +35,8 @@ module Zdots
         FileUtils.mkdir_p(@out_base)
 
         @src.update(ingest_status: "running")
-        raw_txt = stage("raw") { { path: transcribe_raw, params: { "profile" => @profile } } }
+        raw_txt = ensure_raw
+        return true if raw_txt == :pending # chunks fanning out; resumes via fan-in
         stage("cleaned") { clean_transcript(raw_txt) }
         stage("distilled") { distill(raw_txt) }
         @src.update(ingest_status: "done")
@@ -38,7 +46,75 @@ module Zdots
         raise e
       end
 
+      # The known-vocabulary priming prompt (the doubt loop's proactive half).
+      # Class method so the per-chunk transcriber (Z-169) reuses it. Capped to
+      # whisper's prompt budget.
+      def self.known_vocabulary
+        terms = Zdots.db[:known_terms].order(:canonical).limit(100).select_map(:canonical)
+        terms.empty? ? "" : "Vocabulary: #{terms.join(', ')}."
+      end
+
       private
+
+      # Raw stage, chunk-aware + resumable. A done whole-stage summary row
+      # short-circuits (resume). Short sources transcribe inline; long sources
+      # (> CHUNK_THRESHOLD_SEC) fan out and return :pending — TranscribeChunk
+      # stitches and re-enqueues this job to finish cleaned/distilled.
+      def ensure_raw
+        summary = Models::PipelineRun.first(media_source_id: @mid, stage: "raw", chunk_index: nil)
+        return summary.artifact_path if summary&.status == "done"
+
+        dur = @src.duration_sec.to_i
+        return plan_chunks(dur) if dur > CHUNK_THRESHOLD_SEC
+
+        stage("raw") { { path: transcribe_raw, params: { "profile" => @profile } } }
+      end
+
+      # Plan overlapping windows and enqueue a transcribe_chunk job per window
+      # that isn't already done (idempotent → resume re-enqueues only the gaps).
+      def plan_chunks(dur)
+        wav  = prep_audio
+        step = CHUNK_WINDOW_SEC - CHUNK_OVERLAP_SEC
+        n    = [((dur - CHUNK_OVERLAP_SEC).to_f / step).ceil, 1].max
+        pending = 0
+        (0...n).each do |i|
+          next if upsert_run(@mid, "raw", chunk_index: i).status == "done"
+          enqueue_chunk(i, offset: i * step, n: n, wav: wav)
+          pending += 1
+        end
+        puts "  --> #{n} chunks planned, #{pending} enqueued (window=#{CHUNK_WINDOW_SEC}s overlap=#{CHUNK_OVERLAP_SEC}s)"
+        if pending.zero?
+          # All chunks already done but no summary — drive the reduce directly
+          # (covers a planning retry that lands after the last chunk finished).
+          require_relative "transcribe_chunk"
+          TranscribeChunk.reduce_if_complete(@mid, n, @profile)
+        end
+        :pending
+      end
+
+      # Download + convert to a 16k wav once, kept for the chunk jobs. Idempotent:
+      # a prior run's wav is reused, so resume never re-downloads.
+      def prep_audio
+        unless %w[youtube vimeo].include?(@src.source_type)
+          raise "chunked raw for source_type=#{@src.source_type} not yet supported"
+        end
+        wav = Dir.glob(File.join(@out_base, "*", "*_16k.wav")).max_by { |f| File.size(f) }
+        return wav if wav && File.file?(wav)
+
+        recipe = File.join(Zdots::ZDOTDIR, "recipes", "yt-transcribe")
+        out, status = Open3.capture2e(recipe, @src.source_uri, "--prep-only", "--out-dir", @out_base)
+        raise "prep-only failed: #{out}" unless status.success?
+        (out[/^WAV=(.+)$/, 1] || raise("prep-only did not report WAV path")).strip
+      end
+
+      def enqueue_chunk(i, offset:, n:, wav:)
+        payload = { "media_source_id" => @mid, "chunk_index" => i, "offset_sec" => offset,
+                    "window_sec" => CHUNK_WINDOW_SEC, "n" => n, "wav" => wav, "profile" => @profile }
+        Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+          type: "transcribe_chunk", payload: Sequel.pg_jsonb(payload), priority: 10,
+          fingerprint: Digest::MD5.hexdigest("transcribe_chunk-#{@mid}-#{i}")
+        )
+      end
 
       # Generic stage runner: marks pipeline_runs running → done|failed and
       # records the artifact, its content hash, and run params. The block
@@ -57,9 +133,9 @@ module Zdots
         raise e
       end
 
-      def upsert_run(mid, stage)
-        Models::PipelineRun.first(media_source_id: mid, stage: stage) ||
-          Models::PipelineRun.create(media_source_id: mid, stage: stage, status: "pending")
+      def upsert_run(mid, stage, chunk_index: nil)
+        Models::PipelineRun.first(media_source_id: mid, stage: stage, chunk_index: chunk_index) ||
+          Models::PipelineRun.create(media_source_id: mid, stage: stage, chunk_index: chunk_index, status: "pending")
       end
 
       # YouTube/Vimeo only for now: re-fetch + whisper into the retention store.
@@ -72,7 +148,7 @@ module Zdots
         end
         recipe = File.join(Zdots::ZDOTDIR, "recipes", "yt-transcribe")
         cmd = [recipe, @src.source_uri, "--profile", @profile, "--json-full", "--out-dir", @out_base]
-        vocab = known_vocabulary
+        vocab = self.class.known_vocabulary
         cmd += ["--prompt", vocab] unless vocab.empty?
         puts "  --> #{cmd.join(' ')}"
         Open3.popen2e(*cmd) do |_in, out, wait|
@@ -155,14 +231,6 @@ module Zdots
           end
         end
         apply_corrections(lines.join("\n")).first
-      end
-
-      # The doubt loop's proactive half: bias whisper toward terms we already
-      # know, so it spells them right before any review. Capped to keep the
-      # prompt within whisper's context budget.
-      def known_vocabulary
-        terms = Zdots.db[:known_terms].order(:canonical).limit(100).select_map(:canonical)
-        terms.empty? ? "" : "Vocabulary: #{terms.join(', ')}."
       end
     end
   end
