@@ -16,6 +16,24 @@ require "erb"
 Encoding.default_external = Encoding::UTF_8
 Encoding.default_internal = Encoding::UTF_8
 
+if ARGV.first =~ /\A(-h|--help)\z/
+  puts <<~USAGE
+    Usage: zdots-statusd            # serve the control-plane console (foreground)
+
+    The zdots.local status console — a no-dep loopback HTTP server rendering live
+    platform health (zdots-ctl status, zsvc, service logs). Binds
+    127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /healthz.
+
+    Don't run this by hand for normal use — manage it as a Platform Service:
+      zsvc start|stop|restart|status|logs status
+
+    Env:
+      ZDOTS_STATUS_PORT   listen port (default 11600)
+      ZDOTDIR             zdots root (for shelling out to zdots-ctl / zsvc)
+  USAGE
+  exit 0
+end
+
 PORT   = (ENV["ZDOTS_STATUS_PORT"] || "11600").to_i
 ZDOTS  = ENV["ZDOTDIR"] || File.expand_path("#{__dir__}/..")
 BIN    = File.join(ZDOTS, "bin")

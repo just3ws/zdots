@@ -237,6 +237,7 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 | `openobserve-ctl` | `zsvc start o2` | Native OpenObserve backend (logs/metrics/traces) |
 | `zdots-o2-query` | `zdots-o2-query errors --since 1h` | Read runtime insight back from OpenObserve (errors/slow/failures/trace); read-only, local, scrubbed |
 | `zsvc` | `bin/zsvc health --json` / `bin/zsvc logs all --json` | Unified service registry, machine-readable health, and consolidated log sources |
+| `zdots-statusd` | `zsvc start status` | Control-plane status console at zdots.local (loopback :11600) — live service/launchd/log health, independent of context-engine/PG |
 | `log-rotate` | `log-rotate otel-collector` | Compress + truncate a service log in place (no restart; safe for open fds) |
 | `nginx` | (managed via launchctl) | TLS reverse proxy for local service hostnames |
 | `mkcert` | `mkcert -install` | Local CA + certs for `*.local` hostnames |
