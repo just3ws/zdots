@@ -264,7 +264,10 @@ module Zdots
         ai_query = File.join(Zdots::ZDOTDIR, "bin", "ai-query")
         out, status = Open3.capture2(ai_query, task, stdin_data: input)
         raise "ai-query failed (exit #{status.exitstatus})" unless status.success?
-        out.strip
+        # Open3 tags subprocess output with the process default_external, which is
+        # US-ASCII under launchd (no LANG); the model emits UTF-8 (em-dashes, smart
+        # quotes) → strip/scan blow up. The bytes are UTF-8, so retag them.
+        out.force_encoding(Encoding::UTF_8).strip
       end
 
       # Build a [mm:ss]-tagged transcript from the whisper .vtt sibling, with
