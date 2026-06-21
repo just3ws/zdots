@@ -1,6 +1,12 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# launchd starts the worker with no LANG, so Ruby defaults to US-ASCII and any
+# UTF-8 content (transcripts, model output) raises "invalid byte sequence".
+# Everything this worker handles is UTF-8 — pin it process-wide.
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+
 require_relative "../lib/zdots"
 require_relative "../lib/zdots/models/job"
 require_relative "../lib/zdots/models/media_source"
