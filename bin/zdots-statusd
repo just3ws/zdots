@@ -1,0 +1,217 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# zdots-statusd — the Observable Control Plane's own status console, served at
+# zdots.local (separate from my.local so it survives context-engine/Postgres
+# being down). A thin viewer over zdots' health tools — the intelligence lives
+# in zsvc / zdots-ctl / the logs, not here. Loopback-only; nginx terminates TLS.
+#
+# ponytail: stdlib TCPServer, single-thread serial accept loop — one operator,
+# add threading if it ever matters. No web framework, no deps.
+
+require "socket"
+require "json"
+require "erb"
+
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+
+PORT   = (ENV["ZDOTS_STATUS_PORT"] || "11600").to_i
+ZDOTS  = ENV["ZDOTDIR"] || File.expand_path("#{__dir__}/..")
+BIN    = File.join(ZDOTS, "bin")
+STATE  = ENV["XDG_STATE_HOME"] ? File.join(ENV["XDG_STATE_HOME"], "zsh") :
+         File.expand_path("~/.local/state/zsh")
+
+# --- data sources -----------------------------------------------------------
+
+# Structured platform health (the one tool that emits real JSON).
+def ctl_status
+  out = `#{BIN}/zdots-ctl status --json 2>/dev/null`
+  JSON.parse(out)
+rescue StandardError
+  {}
+end
+
+# Per-service launchd detail (state/pid/endpoint), parsed from the zsvc table.
+def services
+  rows = []
+  `#{BIN}/zsvc list 2>/dev/null`.each_line do |ln|
+    next if ln =~ /\A(SERVICE|-+|\s*\z)/
+    cols = ln.split(/\s{2,}/).map(&:strip).reject(&:empty?)
+    next if cols.size < 2
+
+    rows << { name: cols[0], state: cols[1], pid: cols[2], endpoint: cols[3] }
+  end
+  rows
+end
+
+# Recent error counts for the *service* logs — "how are the logs doing" at a
+# glance. Filtered to logs that match a known service so the periodic
+# upgrade/update logs in the state dir don't drown out the signal.
+def log_health(svc_names)
+  keys = svc_names.map { |n| n.sub(/@.*\z/, "") } + %w[zdots-worker]
+  Dir["#{STATE}/*.log"].sort.filter_map do |path|
+    name = File.basename(path, ".log")
+    next unless keys.uniq.any? { |k| name.include?(k) }
+
+    tail = begin
+      File.readlines(path).last(400)
+    rescue StandardError
+      []
+    end
+    next if tail.empty?
+
+    errs = tail.count { |l| l =~ /\b(ERROR|FAILED|FATAL)\b/i }
+    { name: name, errors: errs }
+  end
+end
+
+# --- presentation -----------------------------------------------------------
+
+SERVICE_LABELS = {
+  "colima" => "Colima (Docker VM)", "openobserve" => "OpenObserve",
+  "otel_collector" => "OTel Collector", "ai_server" => "Inference (llama.cpp)",
+  "embed_server" => "Embed server", "intelligence_suite" => "Knowledge Layer",
+  "cache" => "Redis", "worker" => "zdots-worker"
+}.freeze
+
+def health_cards(status)
+  SERVICE_LABELS.filter_map do |key, label|
+    next unless status.key?(key)
+
+    { label: label, up: status[key] == true }
+  end
+end
+
+def pill(up)
+  cls = up ? "ok" : "down"
+  "<span class=\"pill #{cls}\">#{up ? 'up' : 'down'}</span>"
+end
+
+def h(str) = ERB::Util.html_escape(str.to_s)
+
+def render_page(live:)
+  status = ctl_status
+  cards  = health_cards(status)
+  up     = cards.count { |c| c[:up] }
+  svcs   = services
+  logs   = log_health(svcs.map { |s| s[:name] })
+  refresh = live ? %(<meta http-equiv="refresh" content="10">) : ""
+  now = Time.now.strftime("%Y-%m-%d %H:%M:%S")
+  toggle = live ? %(<a href="/?live=0">⏸ pause</a>) : %(<a href="/">▶ resume live</a>)
+
+  <<~HTML
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>zdots.local — Control Plane</title>
+      #{refresh}
+      <style>#{CSS}</style>
+    </head>
+    <body>
+      <header>
+        <h1><span class="mark">zdots</span>.local</h1>
+        <p class="sub">Observable Control Plane · #{up}/#{cards.size} services up · #{now}
+          · <span class="live">#{toggle}</span></p>
+      </header>
+      <main>
+        <section aria-labelledby="svc-h">
+          <h2 id="svc-h">Platform Services</h2>
+          <div class="grid">
+            #{cards.map { |c| %(<div class="card"><div class="lbl">#{h(c[:label])}</div>#{pill(c[:up])}</div>) }.join}
+          </div>
+        </section>
+
+        <section aria-labelledby="ld-h">
+          <h2 id="ld-h">launchd / processes</h2>
+          <table>
+            <thead><tr><th>Service</th><th>State</th><th>PID</th><th>Endpoint</th></tr></thead>
+            <tbody>
+              #{svcs.map { |s| %(<tr><td>#{h(s[:name])}</td><td>#{pill(s[:state] == 'running')}</td><td class="mono">#{h(s[:pid])}</td><td class="mono">#{h(s[:endpoint])}</td></tr>) }.join}
+            </tbody>
+          </table>
+        </section>
+
+        <section aria-labelledby="log-h">
+          <h2 id="log-h">Log health <span class="dim">(errors in last 400 lines)</span></h2>
+          <table>
+            <thead><tr><th>Log</th><th>Errors</th></tr></thead>
+            <tbody>
+              #{logs.map { |l| %(<tr><td class="mono">#{h(l[:name])}</td><td>#{l[:errors].zero? ? '<span class="pill ok">clean</span>' : %(<span class="pill warn">#{l[:errors]}</span>)}</td></tr>) }.join}
+            </tbody>
+          </table>
+        </section>
+
+        <section aria-labelledby="ep-h">
+          <h2 id="ep-h">Endpoints</h2>
+          <ul class="eps">
+            #{%w[o2_url ai_endpoint embed_endpoint otlp_endpoint].filter_map { |k| status[k] && %(<li class="mono">#{h(k)}: #{h(status[k])}</li>) }.join}
+          </ul>
+        </section>
+      </main>
+    </body>
+    </html>
+  HTML
+end
+
+CSS = <<~CSS
+  :root { --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a; --text:#e2e8f0;
+    --dim:#8892a4; --accent:#5b8dee; --green:#3ecf8e; --red:#e84040; --yellow:#f5a623;
+    --mono:"SF Mono","Fira Code",ui-monospace,monospace; }
+  * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.5 system-ui,-apple-system,sans-serif; }
+  header { padding:1.5rem 2rem; border-bottom:1px solid var(--border); }
+  h1 { margin:0; font-size:1.2rem; } h1 .mark { color:var(--accent); }
+  .sub { margin:.35rem 0 0; color:var(--dim); font-size:.85rem; }
+  .live a { color:var(--accent); }
+  main { padding:1.5rem 2rem; max-width:60rem; }
+  section { margin-bottom:2rem; }
+  h2 { font-size:.75rem; text-transform:uppercase; letter-spacing:.07em; color:var(--dim);
+    border-bottom:1px solid var(--border); padding-bottom:.4rem; }
+  h2 .dim { text-transform:none; letter-spacing:0; font-weight:400; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(13rem,1fr)); gap:.6rem; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:.75rem .9rem; display:flex; justify-content:space-between; align-items:center; }
+  .card .lbl { font-size:.85rem; }
+  .pill { font-size:.72rem; font-weight:700; padding:.12rem .5rem; border-radius:99px; }
+  .pill.ok { background:rgba(62,207,142,.15); color:var(--green); }
+  .pill.down { background:rgba(232,64,64,.15); color:var(--red); }
+  .pill.warn { background:rgba(245,166,35,.15); color:var(--yellow); }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th { text-align:left; padding:.45rem .6rem; font-size:.7rem; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--dim); border-bottom:1px solid var(--border); }
+  td { padding:.45rem .6rem; border-bottom:1px solid var(--border); }
+  .mono { font-family:var(--mono); color:var(--dim); }
+  .eps { list-style:none; padding:0; margin:0; } .eps li { padding:.25rem 0; font-size:.82rem; }
+  a { color:var(--accent); }
+CSS
+
+# --- minimal HTTP server ----------------------------------------------------
+
+def respond(client, body, status: "200 OK", type: "text/html; charset=utf-8")
+  client.print "HTTP/1.1 #{status}\r\nContent-Type: #{type}\r\n" \
+               "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+end
+
+server = TCPServer.new("127.0.0.1", PORT)
+warn "zdots-statusd listening on http://127.0.0.1:#{PORT}"
+loop do
+  client = server.accept
+  begin
+    line = client.gets.to_s
+    # drain request headers up to the blank line
+    while (hdr = client.gets) && hdr != "\r\n" && hdr != "\n"; end
+    path = line.split(" ")[1].to_s
+    case path
+    when %r{\A/healthz}      then respond(client, "ok", type: "text/plain")
+    when %r{\A/(\?.*)?\z}    then respond(client, render_page(live: path !~ /live=0/))
+    else respond(client, "not found", status: "404 Not Found", type: "text/plain")
+    end
+  rescue StandardError => e
+    respond(client, "error: #{e.message}", status: "500 Internal Server Error", type: "text/plain") rescue nil
+  ensure
+    client.close
+  end
+end
