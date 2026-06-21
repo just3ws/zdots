@@ -4,6 +4,7 @@ require_relative "base"
 require_relative "../models/media_source"
 require_relative "../models/pipeline_run"
 require_relative "../models/job"
+require_relative "../ai/phi_scrubber"
 require "open3"
 require "digest"
 require "fileutils"
@@ -195,8 +196,83 @@ module Zdots
       def distill(raw_path)
         source = timestamped_transcript(raw_path)
         out = raw_path.sub(/\.txt\z/, ".distilled.md")
-        File.write(out, ai_distill(source))
-        { path: out, params: { "model" => "local", "input_chars" => source.length } }
+        briefing, model = distill_briefing(source)
+        File.write(out, briefing)
+        { path: out, params: { "model" => model, "input_chars" => source.length } }
+      end
+
+      # Scoped, opt-in cloud distill (ADR-0003). Default local. The cloud path is
+      # taken ONLY when the flag is on, the source is public (YouTube/Vimeo —
+      # hard-asserted), and a key is present; the PHI Scrubber still runs first,
+      # and any failure falls back to local. ai-query's shared default is never
+      # touched. Records which model produced the briefing for the audit trail.
+      DISTILL_CLOUD       = ENV["ZDOTS_DISTILL_CLOUD"] == "1"
+      DISTILL_CLOUD_MODEL = ENV["ZDOTS_DISTILL_CLOUD_MODEL"] || "claude-haiku-4-5"
+
+      def distill_briefing(source)
+        if cloud_distill_eligible?
+          begin
+            briefing = cloud_distill(source)
+            warn "ingest_media: distilled via cloud (#{DISTILL_CLOUD_MODEL}) source=#{@mid}"
+            return [briefing, "cloud:#{DISTILL_CLOUD_MODEL}"]
+          rescue StandardError => e
+            warn "ingest_media: cloud distill failed (#{e.message}); falling back to local"
+          end
+        end
+        [ai_distill(source), "local"]
+      end
+
+      # All three must hold to send a byte to the cloud.
+      def cloud_distill_eligible?
+        DISTILL_CLOUD && public_source? && !anthropic_key.empty?
+      end
+
+      # Hard public-content gate: a local-file (or any non-public) ingest can
+      # NEVER take the cloud path, even with the flag on.
+      def public_source?
+        %w[youtube vimeo].include?(@src&.source_type.to_s.downcase)
+      end
+
+      # Key loaded from Keychain at runtime — never in the plist, logs, or git.
+      def anthropic_key
+        @anthropic_key ||=
+          `security find-generic-password -s zdots -a ANTHROPIC_API_KEY -w 2>/dev/null`.strip
+      rescue StandardError
+        @anthropic_key = ""
+      end
+
+      # PHI Scrubber first (defense-in-depth even for public content; raises on a
+      # suppress-flagged pattern → caller falls back to local), then one Haiku
+      # call — its 200K context fits a whole transcript, so no windowing here.
+      def cloud_distill(source)
+        scrubbed = Zdots::AI::PhiScrubber.call(source)
+        anthropic_messages(system: DISTILL_TASK, content: scrubbed)
+      end
+
+      def anthropic_messages(system:, content:)
+        require "net/http"
+        require "json"
+        uri = URI("https://api.anthropic.com/v1/messages")
+        req = Net::HTTP::Post.new(uri)
+        req["x-api-key"]         = anthropic_key
+        req["anthropic-version"] = "2023-06-01"
+        req["content-type"]      = "application/json"
+        req.body = JSON.generate(
+          model: DISTILL_CLOUD_MODEL, max_tokens: 4096,
+          system: system, messages: [{ role: "user", content: content }]
+        )
+        res = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 120) do |http|
+          http.request(req)
+        end
+        raise "anthropic HTTP #{res.code}: #{res.body.to_s[0, 200]}" unless res.code.to_i == 200
+
+        data = JSON.parse(res.body)
+        raise "anthropic refused the request" if data["stop_reason"] == "refusal"
+
+        text = Array(data["content"]).find { |b| b["type"] == "text" }&.dig("text").to_s.strip
+        raise "anthropic returned no text" if text.empty?
+
+        text
       end
 
       DISTILL_TASK =
