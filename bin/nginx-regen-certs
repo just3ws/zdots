@@ -19,7 +19,8 @@ set -uo pipefail
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 BREW="$(brew --prefix 2>/dev/null || echo /opt/homebrew)"
-CERT_DIR="$BREW/etc/nginx/certs"
+CONF_DIR="$BREW/etc/nginx"
+CERT_DIR="$CONF_DIR/certs"
 CERT="$CERT_DIR/zdots-local.pem"
 KEY="$CERT_DIR/zdots-local-key.pem"
 DRY_RUN=false
@@ -28,13 +29,46 @@ _die()  { printf 'nginx-regen-certs: error: %s\n' "$*" >&2; exit 1; }
 _info() { printf 'nginx-regen-certs: %s\n' "$*" >&2; }
 _ok()   { printf 'nginx-regen-certs: [ok] %s\n' "$*" >&2; }
 
+# Deploy the tracked nginx configs (ssl_params.conf + servers/*.conf) over the
+# copies nginx actually loads. bin/bootstrap installs them once and never
+# updates, so edits to the tracked vhosts (e.g. a new server_name) otherwise
+# never reach nginx. Overwrites only tracked-managed files; deployed-only vhosts
+# (e.g. [redacted].conf) are left untouched.
+sync_configs() {
+  local src dst rel n=0
+  mkdir -p "$CONF_DIR/servers"
+  for src in "$ZDOTDIR/etc/nginx/ssl_params.conf" "$ZDOTDIR"/etc/nginx/servers/*.conf; do
+    [[ -f "$src" ]] || continue
+    case "$src" in
+      */servers/*) rel="servers/${src##*/}" ;;
+      *)           rel="${src##*/}" ;;
+    esac
+    dst="$CONF_DIR/$rel"
+    diff -q "$src" "$dst" >/dev/null 2>&1 && continue
+    if $DRY_RUN; then
+      _info "would sync: $rel"
+    else
+      cp "$src" "$dst" || _die "failed to deploy $rel"
+      _info "synced: $rel"
+    fi
+    n=$((n + 1))
+  done
+  if [[ $n -eq 0 ]]; then
+    _info "nginx configs already in sync"
+  else
+    local verb=synced; $DRY_RUN && verb="would sync"
+    _ok "$verb $n config(s); deployed-only vhosts preserved"
+  fi
+}
+
 usage() {
   cat <<EOF
 Usage: nginx-regen-certs [--dry-run]
 
-Regenerate the local mkcert TLS cert so it covers every hostname nginx serves
-(plus zdots.local), then validate and graceful-reload nginx. Backs up the old
-cert and restores it if anything fails.
+Deploy the tracked nginx vhosts to the dir nginx loads, regenerate the local
+mkcert TLS cert so it covers every hostname nginx serves (plus zdots.local),
+then validate and graceful-reload nginx. Backs up the old cert and restores it
+if anything fails; deployed-only vhosts are preserved.
 
 Options:
   --dry-run   Show the resolved SAN set and planned actions; change nothing
@@ -79,6 +113,8 @@ _add zdots.local localhost 127.0.0.1
 
 _info "cert:        $CERT"
 _info "SANs (${#names[@]}): ${names[*]}"
+
+sync_configs
 
 if $DRY_RUN; then
   _ok "dry run — nothing changed"
