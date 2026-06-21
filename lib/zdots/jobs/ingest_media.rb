@@ -210,7 +210,10 @@ module Zdots
       # Egress goes through the `claude` CLI (Claude Code / zclaude auth) — this
       # machine has no Anthropic API key. See ADR-0003.
       DISTILL_CLOUD       = ENV["ZDOTS_DISTILL_CLOUD"] == "1"
-      DISTILL_CLOUD_MODEL = ENV["ZDOTS_DISTILL_CLOUD_MODEL"] || "haiku"
+      # .strip.empty? guard: the worker passthrough exports an empty string when
+      # unset, and Ruby's `|| "haiku"` only catches nil — "" would win and send
+      # `--model ""` (a 400 from the API).
+      DISTILL_CLOUD_MODEL = ENV["ZDOTS_DISTILL_CLOUD_MODEL"].to_s.strip.then { |m| m.empty? ? "haiku" : m }
 
       def distill_briefing(source)
         if cloud_distill_eligible?
