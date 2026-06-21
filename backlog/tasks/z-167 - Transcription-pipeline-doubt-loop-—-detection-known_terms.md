@@ -1,9 +1,10 @@
 ---
 id: Z-167
 title: 'Transcription pipeline: doubt loop — detection + known_terms'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-06-20 18:12'
+updated_date: '2026-06-21 03:04'
 labels:
   - transcription-pipeline
   - agent-ready
@@ -35,6 +36,12 @@ The spike (scratchpad/doubt-spike) is the reference implementation — it alread
 - [ ] #4 Priming string built from known_terms and passed to whisper --prompt on the next run
 - [ ] #5 No transcript_doubts table — doubts are derived, resolutions are persisted
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Increment 1/4: known_terms migration (20260620010000) applied + verified (uuid PK, canonical unique, aliases jsonb, category, source, local_only). Seeded 6 real project terms (Ponytail/YAGNI/Betterstack/Claude/Anthropic/Karpathy) directly in DB — NOT git, since local_only identity data stays on-box. Finding: KT transcripts are already anonymized ([Speaker A/B]), so no real names to bulk-import; the loop self-seeds via corrections. Increment 2/4: KnownTerm model (known_forms set + learn upsert) + DoubtDetector service (Ruby port of the spike) in context-engine, computed on-render not stored. Verified against the live ponytail json-full + seeded terms: seeded terms excluded from doubts (leaking:[] — vocabulary integration proven), 18 genuine doubts surface (NPM, Andrus, Eberhardt, Caveman...). Two precision bugs fixed beyond the spike: bare numbers no longer flagged as acronyms (require a letter); possessives ('Ponytail\'s') matched against the known base. Remaining: (3) doubts panel on show view + confirm/correct; (4) priming string from known_terms → whisper --prompt on next ingest.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
