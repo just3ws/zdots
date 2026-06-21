@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# bin/zdots-statusd-ctl — manage the zdots.local control-plane status service.
+#
+# zdots-statusd is the Observable Control Plane's own health console, served at
+# zdots.local — deliberately separate from my.local (context-engine) so it stays
+# up when the Rails app or Postgres is down. It is a thin viewer over zdots'
+# health tools (zdots-ctl status --json, zsvc list, service logs); the
+# intelligence lives in those CLIs, not here.
+#
+# GRAMMAR (consistent with zdots-worker / otel-collector / llama-ctl):
+#   install / start / stop / restart / status / health / logs
+# Plus one internal verb used only by launchd:
+#   run   Set up env, then exec the stdlib HTTP server (bin/zdots-statusd).
+#         Not meant to be run by hand.
+#
+# The service binds loopback only (127.0.0.1:${ZDOTS_STATUS_PORT:-11600}); nginx
+# terminates TLS for https://zdots.local. No secrets touch the plist.
+
+set -euo pipefail
+
+# SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+LOG_FILE="$STATE/zdots-statusd.log"
+PLIST_LABEL="com.zdots.statusd"
+PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
+SERVER="$ZDOTDIR/bin/zdots-statusd"
+PORT="${ZDOTS_STATUS_PORT:-11600}"
+
+# shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
+SVC_NAME="zdots-statusd"
+# shellcheck source=lib/svc-launchd.bash
+source "${ZDOTDIR}/lib/svc-launchd.bash"
+# shellcheck source=lib/svc-process.bash
+source "${ZDOTDIR}/lib/svc-process.bash"
+
+_die()  { printf 'zdots-statusd-ctl: error: %s\n' "$*" >&2; exit 1; }
+_info() { printf 'zdots-statusd-ctl: %s\n' "$*" >&2; }
+
+usage() {
+  cat <<EOF
+Usage: zdots-statusd-ctl <command> [--json]
+
+Service Lifecycle:
+  install   Register the macOS launchd status service (KeepAlive, RunAtLoad)
+  start     Load and start the service
+  stop      Unload and stop the service
+  restart   stop then start
+  status    Show service state and process info
+  health    Exit 0 if the service answers /healthz, exit 1 otherwise
+  logs      Tail the service log
+  run       launchd entry point — set up env, exec the HTTP server
+            (internal; do not run by hand)
+
+Options:
+  --json      Output status/health as JSON (valid for status, health)
+  -h, --help  Show this help
+
+Serves the zdots.local control-plane dashboard on 127.0.0.1:${PORT}. Manage it
+via \`zsvc <verb> status\`; this script is the authoritative ctl backing that.
+EOF
+}
+
+# run — launchd entry point. Pure-stdlib Ruby server; no DB, no secrets. PATH is
+# captured into the plist at install time so the server can shell out to
+# zdots-ctl / zsvc / launchctl exactly as the interactive shell does.
+cmd_run() {
+  cd "$ZDOTDIR" || _die "cannot cd to $ZDOTDIR"
+  export ZDOTDIR ZDOTS_STATUS_PORT="$PORT"
+  if command -v mise >/dev/null 2>&1; then
+    exec mise exec -- "$SERVER"
+  fi
+  exec "$SERVER"
+}
+
+cmd_install() {
+  [[ "$OS" == "darwin" ]] || _die "launchd service is macOS-only (nothing to install on $OS)"
+  [[ -x "$SERVER" ]] || _die "zdots-statusd not found or not executable: $SERVER"
+  mkdir -p "$STATE"
+  ZDOTS_SVC_ENV_KEYS="HOME PATH ZDOTDIR" \
+    zdots_svc_launchd_register \
+      "$PLIST_LABEL" "$PLIST_FILE" "$ZDOTDIR/bin/zdots-statusd-ctl" "$LOG_FILE" "run"
+}
+
+cmd_start() {
+  [[ "$OS" == "darwin" ]] || _die "macOS-only"
+  if [[ ! -f "$PLIST_FILE" ]]; then
+    _info "plist missing — running install first"
+    cmd_install
+  fi
+  zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
+}
+
+cmd_stop() {
+  [[ "$OS" == "darwin" ]] || _die "macOS-only"
+  zdots_svc_launchd_stop "$PLIST_LABEL"
+}
+
+cmd_status() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local state running pid
+  state=$(zdots_svc_launchd_status "$PLIST_LABEL")
+  running=$(echo "$state" | awk '{print $1}')
+  pid=$(echo "$state" | awk '{print $2}')
+
+  zdots_svc_print_status "$json" "$running" "$pid" "http://127.0.0.1:${PORT}" "$LOG_FILE" \
+    "launchd=$([[ -f "$PLIST_FILE" ]] && echo true || echo false)"
+}
+
+cmd_health() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local healthy=false
+  curl -sf --max-time 3 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1 && healthy=true
+
+  zdots_svc_print_health "$json" "$healthy" "http://127.0.0.1:${PORT}"
+}
+
+cmd_logs() {
+  zdots_svc_logs "$LOG_FILE"
+}
+
+case "${1:-}" in
+  install)   cmd_install ;;
+  start)     cmd_start ;;
+  stop)      cmd_stop ;;
+  restart)   zdots_svc_restart cmd_stop cmd_start ;;
+  status)    shift; cmd_status "${@}" ;;
+  health)    shift; cmd_health "${@}" ;;
+  logs)      cmd_logs ;;
+  run)       cmd_run ;;
+  -h|--help) usage; exit 0 ;;
+  "")        usage >&2; exit 1 ;;
+  *)         printf 'zdots-statusd-ctl: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+esac
