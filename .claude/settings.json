@@ -107,6 +107,7 @@
       "Bash(gh repo view:*)",
       "mcp__backlog__task_list",
       "mcp__backlog__task_view",
+      "mcp__backlog__task_search",
       "mcp__ctx__ctx_query",
       "mcp__ctx__ctx_status",
       "Read(~/.local/state/zsh/**)",
