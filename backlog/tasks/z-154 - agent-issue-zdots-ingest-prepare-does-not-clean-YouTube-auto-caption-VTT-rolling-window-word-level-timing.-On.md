@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-16 12:56'
+updated_date: '2026-06-21 05:29'
 labels:
   - agent-reported
   - request
@@ -27,3 +28,13 @@ zdots-ingest-prepare does not clean YouTube auto-caption VTT (rolling-window wor
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: claude
+created: 2026-06-21 05:29
+---
+Finding from Z-166: this VTT cleaner (bin/zdots-ingest-prepare, simple sed) is on the OLD manual ingest path. The new transcription pipeline (Z-164+) transcribes with whisper and never ingests YouTube auto-caption VTT, so this bug is off the pipeline's path. Disposition (operator): keep open; revisit at parity — likely close as SUPERSEDED once the pipeline fully replaces the manual ingest flow. Only fix the rolling-window sed if the manual zdots-ingest-prepare VTT path is still needed in the interim.
+---
+<!-- COMMENTS:END -->
