@@ -80,10 +80,25 @@ EOF
 cmd_run() {
   cd "$ZDOTDIR" || _die "cannot cd to $ZDOTDIR"
   export ZDOTDIR
+
+  # Honor local overrides — the same file bin/bootstrap sources. launchd starts
+  # the worker with a minimal env, so a flag set here (e.g. ZDOTS_DISTILL_CLOUD)
+  # is otherwise invisible to it. Sourced before the defaults below so its values
+  # win; guarded so a bad file doesn't take the worker down.
+  if [[ -f "$ZDOTDIR/.zdots.local" ]]; then
+    # shellcheck disable=SC1091
+    . "$ZDOTDIR/.zdots.local" || _info "warning: could not source .zdots.local"
+  fi
+
   export ZDOTS_DATABASE_URL="${ZDOTS_DATABASE_URL:-postgresql://zdots_rw@/my}"
   export ZDOTS_AI_MODE="${ZDOTS_AI_MODE:-local}"
   export ZDOTS_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
   export ZDOTS_AI_EMBED_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
+
+  # Scoped cloud distill (ADR-0003), default off. Re-export so a bare assignment
+  # in .zdots.local still reaches the Ruby worker process.
+  export ZDOTS_DISTILL_CLOUD="${ZDOTS_DISTILL_CLOUD:-}"
+  export ZDOTS_DISTILL_CLOUD_MODEL="${ZDOTS_DISTILL_CLOUD_MODEL:-}"
 
   # The DB encryption key is needed by distill jobs (encrypted Lesson writes).
   # Load it from Keychain at runtime so the secret never lands in the plist.
