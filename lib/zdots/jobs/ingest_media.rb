@@ -203,11 +203,14 @@ module Zdots
 
       # Scoped, opt-in cloud distill (ADR-0003). Default local. The cloud path is
       # taken ONLY when the flag is on, the source is public (YouTube/Vimeo —
-      # hard-asserted), and a key is present; the PHI Scrubber still runs first,
-      # and any failure falls back to local. ai-query's shared default is never
-      # touched. Records which model produced the briefing for the audit trail.
+      # hard-asserted), and the claude CLI is available; the PHI Scrubber still
+      # runs first, and any failure falls back to local. ai-query's shared
+      # default is never touched. Records which model produced the briefing.
+      #
+      # Egress goes through the `claude` CLI (Claude Code / zclaude auth) — this
+      # machine has no Anthropic API key. See ADR-0003.
       DISTILL_CLOUD       = ENV["ZDOTS_DISTILL_CLOUD"] == "1"
-      DISTILL_CLOUD_MODEL = ENV["ZDOTS_DISTILL_CLOUD_MODEL"] || "claude-haiku-4-5"
+      DISTILL_CLOUD_MODEL = ENV["ZDOTS_DISTILL_CLOUD_MODEL"] || "haiku"
 
       def distill_briefing(source)
         if cloud_distill_eligible?
@@ -224,7 +227,7 @@ module Zdots
 
       # All three must hold to send a byte to the cloud.
       def cloud_distill_eligible?
-        DISTILL_CLOUD && public_source? && !anthropic_key.empty?
+        DISTILL_CLOUD && public_source? && claude_available?
       end
 
       # Hard public-content gate: a local-file (or any non-public) ingest can
@@ -233,46 +236,34 @@ module Zdots
         %w[youtube vimeo].include?(@src&.source_type.to_s.downcase)
       end
 
-      # Key loaded from Keychain at runtime — never in the plist, logs, or git.
-      def anthropic_key
-        @anthropic_key ||=
-          `security find-generic-password -s zdots -a ANTHROPIC_API_KEY -w 2>/dev/null`.strip
-      rescue StandardError
-        @anthropic_key = ""
+      # The claude CLI (Claude Code / zclaude auth) is the cloud egress — no API
+      # key on this machine. Absent → not eligible → stays local.
+      def claude_bin
+        @claude_bin ||= (`command -v claude 2>/dev/null`.strip rescue "")
+      end
+
+      def claude_available?
+        !claude_bin.empty?
       end
 
       # PHI Scrubber first (defense-in-depth even for public content; raises on a
-      # suppress-flagged pattern → caller falls back to local), then one Haiku
-      # call — its 200K context fits a whole transcript, so no windowing here.
+      # suppress-flagged pattern → caller falls back to local), then one headless
+      # `claude -p` call. The model (Haiku) has a large context, so the whole
+      # transcript goes in one shot — no windowing. The task is the prompt arg;
+      # the transcript is piped on stdin (the `cat file | claude -p` pattern).
       def cloud_distill(source)
         scrubbed = Zdots::AI::PhiScrubber.call(source)
-        anthropic_messages(system: DISTILL_TASK, content: scrubbed)
-      end
-
-      def anthropic_messages(system:, content:)
-        require "net/http"
-        require "json"
-        uri = URI("https://api.anthropic.com/v1/messages")
-        req = Net::HTTP::Post.new(uri)
-        req["x-api-key"]         = anthropic_key
-        req["anthropic-version"] = "2023-06-01"
-        req["content-type"]      = "application/json"
-        req.body = JSON.generate(
-          model: DISTILL_CLOUD_MODEL, max_tokens: 4096,
-          system: system, messages: [{ role: "user", content: content }]
+        out, status = Open3.capture2(
+          claude_bin, "-p", "--model", DISTILL_CLOUD_MODEL,
+          "--no-session-persistence", DISTILL_TASK,
+          stdin_data: scrubbed
         )
-        res = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 120) do |http|
-          http.request(req)
-        end
-        raise "anthropic HTTP #{res.code}: #{res.body.to_s[0, 200]}" unless res.code.to_i == 200
+        raise "claude CLI failed (exit #{status.exitstatus}): #{out.to_s[0, 200]}" unless status.success?
 
-        data = JSON.parse(res.body)
-        raise "anthropic refused the request" if data["stop_reason"] == "refusal"
+        briefing = out.strip
+        raise "claude CLI returned no text" if briefing.empty?
 
-        text = Array(data["content"]).find { |b| b["type"] == "text" }&.dig("text").to_s.strip
-        raise "anthropic returned no text" if text.empty?
-
-        text
+        briefing
       end
 
       DISTILL_TASK =

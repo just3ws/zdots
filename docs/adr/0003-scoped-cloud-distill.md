@@ -33,22 +33,24 @@ other caller are untouched. The branch sends a byte to the cloud only when
    hard-asserted. A local-file / non-public ingest can never take the cloud path.
 3. **PHI Scrubber first** — the transcript passes through `Zdots::AI::PhiScrubber`
    before egress; a suppress-flagged pattern raises and falls back to local.
-4. **Key at runtime** — `ANTHROPIC_API_KEY` loaded from the macOS Keychain at
-   call time (`security find-generic-password`), never in the plist, logs, or
-   git. Absent key → fall back to local.
+4. **`claude` CLI available** — egress goes through the `claude` CLI (Claude
+   Code / `zclaude` auth). **This machine has no Anthropic API key**, so there
+   is no API path. Absent CLI → fall back to local.
 
 Any cloud error falls back to local — the job never dies on a cloud failure.
 The model that produced each briefing is recorded in
-`pipeline_runs.run_params` (`"cloud:claude-haiku-4-5"` vs `"local"`), and a line
-is written to the worker log — the audit trail for what left the machine.
+`pipeline_runs.run_params` (`"cloud:haiku"` vs `"local"`), and a line is written
+to the worker log — the audit trail for what left the machine.
 
-Implementation uses Ruby stdlib `net/http` (one POST to
-`https://api.anthropic.com/v1/messages`), not the `anthropic` gem — to avoid
-adding a dependency to the PHI-adjacent worker's bundle for a single text call.
+Implementation invokes the `claude` CLI headless via `Open3`:
+`claude -p --model haiku --no-session-persistence "<task>"` with the
+PHI-scrubbed transcript piped on stdin (the `cat file | claude -p` pattern). No
+`anthropic` gem, no API key, no `net/http` — the same authenticated path the
+operator already uses through `zclaude`.
 
-Model: `claude-haiku-4-5` (override via `ZDOTS_DISTILL_CLOUD_MODEL`). Haiku's
-200K context fits a whole transcript, so the cloud path skips the local
-map-reduce windowing.
+Model: `haiku` alias (override via `ZDOTS_DISTILL_CLOUD_MODEL`). Haiku's large
+context fits a whole transcript, so the cloud path skips the local map-reduce
+windowing.
 
 ## Consequences
 
@@ -56,9 +58,10 @@ map-reduce windowing.
   load-bearing boundary; the PHI Scrubber is defense-in-depth. Enabling cloud
   distill is **not** a green light for PHI egress — that needs an explicit BAA
   decision, separately.
-- **Operator turns it on** by provisioning the Keychain key and setting
-  `ZDOTS_DISTILL_CLOUD=1` in the worker's environment. Until both, the code is
-  inert.
+- **Operator turns it on** by setting `ZDOTS_DISTILL_CLOUD=1` in the worker's
+  environment (`claude`/`zclaude` is already logged in). That single flag is the
+  sole activation — there is no key to provision. Until the flag is set, the
+  code is inert.
 - **Verification:** the gate is covered by `tests/ingest_media_cloud_distill.bats`
   — a local-file source is refused the cloud path even with the flag on and a
   key present (the negative test), while a public source + key is eligible.
