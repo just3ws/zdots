@@ -125,6 +125,7 @@ def render_page(live:)
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       <title>zdots.local — Control Plane</title>
+      <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzIgMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJ6ZG90cy5sb2NhbCI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzBmMTExNyIvPgogIDxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjMuNiIgZmlsbD0iIzViOGRlZSIvPgogIDxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjcuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNWI4ZGVlIiBzdHJva2Utd2lkdGg9IjEuNyIgb3BhY2l0eT0iMC43Ii8+CiAgPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNWI4ZGVlIiBzdHJva2Utd2lkdGg9IjEuNSIgb3BhY2l0eT0iMC4zMiIvPgo8L3N2Zz4K">
       #{refresh}
       <style>#{CSS}</style>
     </head>
