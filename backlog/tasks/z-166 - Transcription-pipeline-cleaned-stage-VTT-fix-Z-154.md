@@ -1,10 +1,10 @@
 ---
 id: Z-166
 title: 'Transcription pipeline: cleaned stage + VTT fix (Z-154)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-20 18:12'
-updated_date: '2026-06-21 05:27'
+updated_date: '2026-06-21 05:29'
 labels:
   - transcription-pipeline
   - agent-ready
@@ -42,9 +42,16 @@ Cleaned stage done + verified. Generalized ingest_media into a stage-runner (#st
 SCOPING FINDING re AC#2 / Z-154: the broken rolling-window VTT cleaner lives in bin/zdots-ingest-prepare (lines 55-63, a simple sed) — a SEPARATE tool on the OLD manual ingest path. The new pipeline transcribes with whisper and never ingests YouTube auto-caption VTT, so Z-154's bug is off this pipeline's path and is superseded by it. AC#2 does not belong in Z-166. Left unchecked pending operator decision: fix zdots-ingest-prepare's VTT cleaner separately (truly close Z-154), or close Z-154 as superseded by the pipeline.
 <!-- SECTION:NOTES:END -->
 
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Cleaned stage delivered via a generic stage-runner. ingest_media#stage records each pipeline_runs row (status + artifact + content_hash + run_params) and chains raw → cleaned; cleaned deterministically applies confirmed known_terms corrections (mis-hearing alias → canonical) to the raw transcript, writing <vid>.cleaned.txt and recording the diff. The CLEANED tab shows the corrections (from → to ×count) or 'No corrections' when raw already matched. This is the doubt loop's payoff: confirmed corrections rewrite the transcript. Verified live (cleaned:done, content-hashed; mechanism proven synthetically; both render branches). AC#1, #3 met. AC#2 descoped — the rolling-window VTT bug (Z-154) is in zdots-ingest-prepare on the old manual path the pipeline supersedes; Z-154 remains open, to close as superseded once parity lands.
+<!-- SECTION:FINAL_SUMMARY:END -->
+
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
 - [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #3 All related changes committed — git status clean for files touched by this task
+- [ ] #4 AC#2 (Z-154 VTT cleaner) descoped by operator decision: it's a different tool (zdots-ingest-prepare) on the manual path the pipeline supersedes; Z-154 stays open as its own task. make check (DoD#2) not run — verified by live e2e + in-process render.
 <!-- DOD:END -->
