@@ -30,6 +30,7 @@ module Zdots
         @src.update(ingest_status: "running")
         raw_txt = stage("raw") { { path: transcribe_raw, params: { "profile" => @profile } } }
         stage("cleaned") { clean_transcript(raw_txt) }
+        stage("distilled") { distill(raw_txt) }
         @src.update(ingest_status: "done")
         true
       rescue StandardError => e
@@ -89,7 +90,15 @@ module Zdots
       # (mis-hearing alias → canonical) to the raw transcript. The doubt loop's
       # payoff — your corrections actually fix the text. Records what changed.
       def clean_transcript(raw_path)
-        text = File.read(raw_path)
+        text, corrections = apply_corrections(File.read(raw_path))
+        out = raw_path.sub(/\.txt\z/, ".cleaned.txt")
+        File.write(out, text)
+        { path: out, params: { "corrections" => corrections } }
+      end
+
+      # Apply confirmed known_terms aliases (mis-hearing → canonical) to text.
+      # Returns [corrected_text, corrections_list]. Shared by cleaned + distilled.
+      def apply_corrections(text)
         corrections = []
         Zdots.db[:known_terms].select(:canonical, :aliases).each do |t|
           Array(t[:aliases]).each do |al|
@@ -101,9 +110,51 @@ module Zdots
             corrections << { "from" => al, "to" => t[:canonical], "count" => n }
           end
         end
-        out = raw_path.sub(/\.txt\z/, ".cleaned.txt")
-        File.write(out, text)
-        { path: out, params: { "corrections" => corrections } }
+        [text, corrections]
+      end
+
+      # Distilled stage: the LLM step. Feed a [mm:ss]-tagged, corrected transcript
+      # to the local model (ai-query, which PHI-scrubs first — Z-163) and persist
+      # grounded insights. Output is editable in the UI (the Landed-Thoughts gate).
+      def distill(raw_path)
+        source = timestamped_transcript(raw_path)
+        out = raw_path.sub(/\.txt\z/, ".distilled.md")
+        File.write(out, ai_distill(source))
+        { path: out, params: { "model" => "local", "input_chars" => source.length } }
+      end
+
+      DISTILL_TASK =
+        "Distill this transcript into a knowledge briefing. Each line is prefixed " \
+        "with its [mm:ss] timestamp. Output markdown: a one-line summary, then 5-12 " \
+        "key insights as bullets. Begin every bullet with the [mm:ss] of the moment " \
+        "it draws from. Be faithful — invent nothing not in the transcript."
+
+      def ai_distill(transcript)
+        ai_query = File.join(Zdots::ZDOTDIR, "bin", "ai-query")
+        out, status = Open3.capture2(ai_query, DISTILL_TASK, stdin_data: transcript)
+        raise "ai-query failed (exit #{status.exitstatus})" unless status.success?
+        out.strip
+      end
+
+      # Build a [mm:ss]-tagged transcript from the whisper .vtt sibling, with
+      # known_terms corrections applied. Grounds the LLM's insights to moments.
+      # ponytail: whole transcript in one prompt; chunk long videos in Z-169.
+      def timestamped_transcript(raw_path)
+        vtt = raw_path.sub(/\.txt\z/, ".vtt")
+        return apply_corrections(File.read(raw_path)).first unless File.file?(vtt)
+
+        lines = []
+        ts = nil
+        File.foreach(vtt) do |ln|
+          ln = ln.chomp
+          if (m = ln.match(/\A(\d\d):(\d\d):(\d\d)\.\d+\s*-->/))
+            ts = format("%02d:%02d", m[1].to_i * 60 + m[2].to_i, m[3].to_i)
+          elsif ts && !ln.strip.empty?
+            lines << "[#{ts}] #{ln.strip}"
+            ts = nil # one tag per cue, on its first text line
+          end
+        end
+        apply_corrections(lines.join("\n")).first
       end
 
       # The doubt loop's proactive half: bias whisper toward terms we already
