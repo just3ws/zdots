@@ -205,9 +205,64 @@ module Zdots
         "key insights as bullets. Begin every bullet with the [mm:ss] of the moment " \
         "it draws from. Be faithful — invent nothing not in the transcript."
 
+      DISTILL_MAP_TASK =
+        "Distill this transcript SEGMENT into 3-8 key insight bullets. Lines may be " \
+        "prefixed with an [mm:ss] timestamp; when present, begin the bullet with it. " \
+        "Be faithful — invent nothing not in the segment."
+
+      DISTILL_REDUCE_TASK =
+        "Below are insight bullets distilled from consecutive segments of ONE " \
+        "transcript. Merge them into a single knowledge briefing: a one-line summary, " \
+        "then 5-12 deduplicated key insights as bullets in chronological order, each " \
+        "beginning with its [mm:ss] when available. Invent nothing beyond the bullets."
+
+      # ai-query enforces a hard input ceiling (AIQ_MAX_BYTES, ~32KB) sized to the
+      # local model's context; a long transcript (a 3.5h video ≈ 220KB) blows past
+      # it → exit 3. So distill map-reduces: distill each sub-ceiling window, then
+      # synthesize the partials into one briefing (folding in rounds if the joined
+      # partials themselves overflow — terminates because each round shrinks).
+      DISTILL_CEILING = (ENV["AIQ_MAX_BYTES"] || "32768").to_i
+      DISTILL_WINDOW  = (DISTILL_CEILING * 0.85).to_i # headroom for normalization
+
       def ai_distill(transcript)
+        windows = split_for_distill(transcript)
+        return distill_call(DISTILL_TASK, transcript) if windows.size <= 1
+
+        partials = windows.map { |w| distill_call(DISTILL_MAP_TASK, w) }
+        reduce_partials(partials.join("\n\n"))
+      end
+
+      def reduce_partials(text)
+        windows = split_for_distill(text)
+        return distill_call(DISTILL_REDUCE_TASK, text) if windows.size <= 1
+
+        folded = windows.map { |w| distill_call(DISTILL_REDUCE_TASK, w) }
+        reduce_partials(folded.join("\n\n"))
+      end
+
+      # Split into <DISTILL_WINDOW-byte windows on whole units — lines when the text
+      # has them, else whitespace-delimited words (a stitched transcript is often one
+      # giant line). Unit-wise concat keeps UTF-8 intact (no mid-char byteslicing).
+      def split_for_distill(text)
+        return [text] if text.bytesize <= DISTILL_WINDOW
+
+        units = text.include?("\n") ? text.each_line.to_a : text.scan(/\S+\s*/)
+        windows = []
+        cur = +""
+        units.each do |u|
+          if !cur.empty? && cur.bytesize + u.bytesize > DISTILL_WINDOW
+            windows << cur
+            cur = +""
+          end
+          cur << u
+        end
+        windows << cur unless cur.empty?
+        windows
+      end
+
+      def distill_call(task, input)
         ai_query = File.join(Zdots::ZDOTDIR, "bin", "ai-query")
-        out, status = Open3.capture2(ai_query, DISTILL_TASK, stdin_data: transcript)
+        out, status = Open3.capture2(ai_query, task, stdin_data: input)
         raise "ai-query failed (exit #{status.exitstatus})" unless status.success?
         out.strip
       end
