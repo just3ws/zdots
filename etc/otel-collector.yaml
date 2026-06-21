@@ -19,6 +19,12 @@ receivers:
             - http://localhost:5173
             - http://localhost:3003
             - http://localhost:8080      # app app origin (session-capture browser OTel Web SDK)
+          # The session-capture extension wraps window.fetch to inject X-Request-Id on
+          # EVERY request (injected.js), incl. the OTLP export — so the browser preflight
+          # requests it. Without listing it here CORS drops ACAO and the export is blocked.
+          allowed_headers:
+            - Content-Type
+            - X-Request-Id
 
   # System metrics: CPU, memory, disk, network, load, processes
   hostmetrics:
