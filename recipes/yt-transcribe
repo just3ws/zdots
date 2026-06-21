@@ -47,20 +47,69 @@ SUMMARIZE_FLAG=false
 JSON_FULL=false
 WHISPER_PROMPT=""
 WHISPER_PROFILE="max-accuracy"
+PREP_ONLY=false           # Z-169: download+convert to 16k wav, keep it, stop before whisper
+FROM_WAV=""               # Z-169: transcribe a window of an existing 16k wav (skip download)
+OFFSET_SEC=""             # Z-169: window start (seconds) for --from-wav
+WINDOW_SEC=""             # Z-169: window length (seconds) for --from-wav
+OUTPUT_BASE=""            # Z-169: whisper --output-file base (required with --from-wav)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --keep-media) KEEP_MEDIA=true; shift ;;
-    --diarize)    DIARIZE_FLAG=true; shift ;;
-    --summarize)  SUMMARIZE_FLAG=true; shift ;;
-    --json-full)  JSON_FULL=true; shift ;;            # token-level confidence (doubt loop)
-    --out-dir)    OUT_BASE="$2"; shift 2 ;;           # override retention dir (default ~/Downloads)
-    --prompt)     WHISPER_PROMPT="$2"; shift 2 ;;     # bias whisper toward known vocabulary
-    --profile)    WHISPER_PROFILE="$2"; shift 2 ;;
-    -h|--help)    usage; exit 0 ;;
-    *)            URL="$1"; shift ;;
+    --keep-media)  KEEP_MEDIA=true; shift ;;
+    --diarize)     DIARIZE_FLAG=true; shift ;;
+    --summarize)   SUMMARIZE_FLAG=true; shift ;;
+    --json-full)   JSON_FULL=true; shift ;;            # token-level confidence (doubt loop)
+    --out-dir)     OUT_BASE="$2"; shift 2 ;;           # override retention dir (default ~/Downloads)
+    --prompt)      WHISPER_PROMPT="$2"; shift 2 ;;     # bias whisper toward known vocabulary
+    --profile)     WHISPER_PROFILE="$2"; shift 2 ;;
+    --prep-only)   PREP_ONLY=true; shift ;;            # Z-169
+    --from-wav)    FROM_WAV="$2"; shift 2 ;;           # Z-169
+    --offset-sec)  OFFSET_SEC="$2"; shift 2 ;;         # Z-169
+    --window-sec)  WINDOW_SEC="$2"; shift 2 ;;         # Z-169
+    --output-base) OUTPUT_BASE="$2"; shift 2 ;;        # Z-169
+    -h|--help)     usage; exit 0 ;;
+    *)             URL="$1"; shift ;;
   esac
 done
+
+# resolve_model: sets MODEL_PATH + WHISPER_BIN for the active profile. Shared by
+# the full pipeline and the Z-169 --from-wav window path.
+resolve_model() {
+  ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" model-download >&2
+  local models_dir model_file
+  models_dir="${ZDOTS_WHISPER_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/whisper-cpp/models}"
+  model_file=$(ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" config | jq -r '.model_file')
+  MODEL_PATH="${models_dir}/${model_file}"
+  WHISPER_BIN=$("$WHISPER_CTL" config | jq -r '.binary // empty')
+  [[ -z "$WHISPER_BIN" || "$WHISPER_BIN" == "null" ]] && WHISPER_BIN="/opt/homebrew/bin/whisper-cli"
+  if [[ ! -f "$MODEL_PATH" ]]; then
+    printf 'yt-transcribe: error: model not found at %s\n' "$MODEL_PATH" >&2
+    exit 1
+  fi
+}
+
+# Z-169 window mode: transcribe one time window of an already-prepared 16k wav.
+# No download/convert; outputs only .txt (+ json-full if asked) under --output-base.
+if [[ -n "$FROM_WAV" ]]; then
+  [[ -f "$FROM_WAV" ]]    || { printf 'yt-transcribe: error: --from-wav not found: %s\n' "$FROM_WAV" >&2; exit 1; }
+  [[ -n "$OUTPUT_BASE" ]] || { printf 'yt-transcribe: error: --from-wav requires --output-base\n' >&2; exit 1; }
+  mkdir -p "$(dirname "$OUTPUT_BASE")"
+  resolve_model
+  WIN_ARGS=()
+  [[ -n "$OFFSET_SEC" ]] && WIN_ARGS+=(--offset-t "$((OFFSET_SEC * 1000))")
+  [[ -n "$WINDOW_SEC" ]] && WIN_ARGS+=(--duration "$((WINDOW_SEC * 1000))")
+  PROMPT_ARGS=()
+  [[ -n "$WHISPER_PROMPT" ]] && PROMPT_ARGS=(--prompt "$WHISPER_PROMPT")
+  JSON_FLAG="--output-json"
+  [[ "$JSON_FULL" == true ]] && JSON_FLAG="--output-json-full"
+  "$WHISPER_BIN" \
+    --model "$MODEL_PATH" --file "$FROM_WAV" \
+    --output-txt "$JSON_FLAG" \
+    "${WIN_ARGS[@]+"${WIN_ARGS[@]}"}" "${PROMPT_ARGS[@]+"${PROMPT_ARGS[@]}"}" \
+    --output-file "$OUTPUT_BASE" >&2
+  printf 'CHUNK_TXT=%s.txt\n' "$OUTPUT_BASE"
+  exit 0
+fi
 
 if [[ -z "$URL" ]]; then
   usage; exit 1
@@ -97,23 +146,19 @@ printf '── Converting audio to 16kHz mono WAV ...\n' >&2
 CONVERTED_WAV="${OUT_DIR}/${VIDEO_ID}_16k.wav"
 ffmpeg -y -i "$RAW_WAV" -ar 16000 -ac 1 -c:a pcm_s16le "$CONVERTED_WAV" > /dev/null 2>&1
 
+# Z-169 prep-only: keep the 16k wav for windowed chunk jobs, report it, stop
+# before whisper. The original download is removed to save space.
+if [[ "$PREP_ONLY" == true ]]; then
+  DURATION_SEC=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$CONVERTED_WAV" 2>/dev/null | cut -d. -f1)
+  rm -f "$RAW_WAV"
+  printf 'WAV=%s\n' "$CONVERTED_WAV"
+  printf 'DURATION_SEC=%s\n' "${DURATION_SEC:-0}"
+  exit 0
+fi
+
 # 3. Transcription
 printf '── Transcribing with Whisper (%s) ...\n' "$WHISPER_PROFILE" >&2
-# Ensure the model is downloaded first.
-ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" model-download >&2
-
-# Resolve paths robustly
-MODELS_DIR="${ZDOTS_WHISPER_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/whisper-cpp/models}"
-MODEL_FILE=$(ZDOTS_WHISPER_PROFILE="$WHISPER_PROFILE" "$WHISPER_CTL" config | jq -r '.model_file')
-MODEL_PATH="${MODELS_DIR}/${MODEL_FILE}"
-
-WHISPER_BIN=$("$WHISPER_CTL" config | jq -r '.binary // empty')
-[[ -z "$WHISPER_BIN" || "$WHISPER_BIN" == "null" ]] && WHISPER_BIN="/opt/homebrew/bin/whisper-cli"
-
-if [[ ! -f "$MODEL_PATH" ]]; then
-  printf 'yt-transcribe: error: model not found at %s\n' "$MODEL_PATH" >&2
-  exit 1
-fi
+resolve_model
 
 # --output-json-full carries per-token confidence (the doubt loop's signal);
 # plain --output-json is segment-only. Default stays segment-only for old callers.
