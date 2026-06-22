@@ -4,7 +4,7 @@ title: Adopt promptfoo for local-model and PHI-rule evals
 status: Done
 assignee: []
 created_date: '2026-06-06 00:10'
-updated_date: '2026-06-15 13:07'
+updated_date: '2026-06-22 18:26'
 labels:
   - ai-tooling
   - testing
@@ -28,6 +28,12 @@ ordinal: 24890
 - [x] #3 No cloud providers configured — evals run entirely against local endpoints
 - [x] #4 Document usage (where evals live, how to run)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Serves as Station 1 (the eval 'ruler') of the AI-stack evaluation itinerary epic Z-172. Z-172.04 (retrieval) and Z-172.05 (inference) depend on this harness to measure improvement.
+<!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
