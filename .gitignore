@@ -59,3 +59,6 @@ tmp/
 
 # zdots-pages gh-pages worktree (local build output)
 .gh-pages/
+
+# /team-onboarding artifact — regenerable, holds personal usage analytics; share via link, not git
+ONBOARDING.md
