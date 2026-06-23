@@ -1,0 +1,42 @@
+.Dd June 23, 2026
+.Dt CC-BURN-WATCH 8
+.Os zdots
+.Sh NAME
+.Nm cc-burn-watch
+.Nd periodic Claude Code burn-rate alerter
+.Sh SYNOPSIS
+.Nm
+.Op Cm run | install | uninstall | status
+.Sh DESCRIPTION
+.Nm
+is a LaunchAgent that reads
+.Xr cc-burn 1
+.Fl -json
+on an interval and fires a macOS notification when the 5h-window severity
+.Sy worsens
+(ok \(-> warn \(-> alert). Only transitions notify \(em no spam while you sit at
+the same level. It also caches a compact line and the full JSON the zdots.local
+console and status line read, so neither pays
+.Xr ccusage 1 Ns 's
+per-render cost.
+.Sh COMMANDS
+.Bl -tag -width uninstall
+.It Cm run
+One check plus notify-on-transition (what launchd invokes).
+.It Cm install
+Write and load the LaunchAgent.
+.It Cm uninstall
+Unload and remove it.
+.It Cm status
+Report whether the agent is loaded and the last severity.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_CC_WATCH_INTERVAL
+.It Ev ZDOTS_CC_WATCH_INTERVAL
+Seconds between checks (default 300).
+.El
+Plus the
+.Xr cc-burn 1
+ceiling and threshold knobs.
+.Sh SEE ALSO
+.Xr cc-burn 1

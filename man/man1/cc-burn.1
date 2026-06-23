@@ -1,0 +1,59 @@
+.Dd June 23, 2026
+.Dt CC-BURN 1
+.Os zdots
+.Sh NAME
+.Nm cc-burn
+.Nd Claude Code token burn-rate and 5h-window monitor
+.Sh SYNOPSIS
+.Nm
+.Op Fl -json | Fl -quiet | Cm calibrate | Fl h
+.Sh DESCRIPTION
+.Nm
+wraps
+.Xr ccusage 1
+(local, offline \(em reads
+.Pa ~/.claude
+transcripts, no network) and reports burn rate, time-to-reset for the rolling
+5-hour usage window, projected end-of-window usage, cache reuse, and threshold
+severity against a self-calibrating ceiling.
+.Pp
+.Sy Self-calibration :
+the ceiling defaults to the maximum of your own completed 5h windows and rises
+as you go, so the percentage means "% of your heaviest-ever window" and converges
+toward the real plan limit the first time you hit a throttle. Pin a fixed ceiling
+with
+.Ev ZDOTS_CC_WINDOW_BUDGET .
+.Sh OPTIONS
+.Bl -tag -width calibrate
+.It (default)
+Human-readable report.
+.It Fl -json
+Active block plus computed fields \(em consumed by
+.Xr cc-burn-watch 8 ,
+the ccusage MCP, and the status line.
+.It Fl -quiet
+One compact line for the status line.
+.It Cm calibrate
+Show the self-calibrated ceiling and the window history it is derived from.
+.El
+.Sh EXIT STATUS
+0 normal; 2 at or over the alert percentage for the current window; 3 if
+.Xr ccusage 1
+is unavailable.
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_CC_WINDOW_BUDGET
+.It Ev ZDOTS_CC_WINDOW_BUDGET
+Pin a fixed ceiling in tokens (default
+.Dq max ,
+i.e. auto-calibrate). Find your plan ceiling with Claude Code's
+.Ic /usage .
+.It Ev ZDOTS_CC_WARN_PCT
+Warn at this percent of the ceiling (default 70).
+.It Ev ZDOTS_CC_ALERT_PCT
+Alert at this percent of the ceiling (default 90).
+.El
+.Sh SEE ALSO
+.Xr cc-burn-watch 8 ,
+.Xr cc-doctor 1
+.Pp
+Surfaced live on the zdots.local console.
