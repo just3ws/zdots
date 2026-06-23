@@ -110,6 +110,7 @@ Changes to `enabledPlugins` take effect on the **next CC launch**.
 - Telemetry: local + collector up? or action taken.
 - Anything ambiguous left for the operator.
 
-**Standing gap:** cc-doctor does not yet check the global plugin layer — consider
-adding a `context=work` "global cloud plugin" gate to `bin/cc-doctor` so this
-audit becomes automatic. File `zdots-issue` rather than hand-patching that tool.
+**Automatic baseline:** `cc-doctor`'s "Global plugins & telemetry" section now
+flags cloud-egress plugins enabled globally on `context=work` and FAILs on
+non-loopback telemetry — so `cc-doctor` catches drift between runs of this skill.
+This skill is the deeper, remediating pass (scoping, removal, setup).
