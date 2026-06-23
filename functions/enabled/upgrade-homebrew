@@ -99,7 +99,8 @@ run_cmd() {
 }
 
 brewfile_has() {
-  [[ -f "$brewfile" ]] && grep -Eq "^[[:space:]]*${1}" "$brewfile"
+  { [[ -f "$brewfile" ]] && grep -Eq "^[[:space:]]*${1}" "$brewfile"; } ||
+  { [[ -f "$ZDOTDIR/Brewfile.common" ]] && grep -Eq "^[[:space:]]*${1}" "$ZDOTDIR/Brewfile.common"; }
 }
 
 trust_declared_homebrew_targets() {
