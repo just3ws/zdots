@@ -45,7 +45,6 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
     fi
 
   }
-  typeset -gi _ZDOTS_CMD_COUNT=0
   add-zsh-hook precmd _zdots_trace_precmd
 
   # Hook: Command Execution (Pre-execution: Rotate Span ID)
