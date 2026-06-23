@@ -153,8 +153,11 @@ if [[ -r "$_zdots_ver_file" ]]; then
 
   # Contract version sourced from adots-my (the authority); literal fallback when
   # adots-my is absent. decision-007 §3.
+  # || true: same set -euo pipefail hazard as the adots line above — the `head -1`
+  # closes the pipe (SIGPIPE upstream) so the substitution exits non-zero, which
+  # without this guard aborts the whole doctor before the Repo/Services sections.
   _my_contract="$(command -v adots-my >/dev/null 2>&1 \
-    && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)"
+    && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)" || true
   _my_contract="${_my_contract:-my.structure.v1}"
   _pass "my  contract ${_my_contract} (per-environment content: just3ws/my @home · myworkname/my @work)"
 else
