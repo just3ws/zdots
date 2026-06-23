@@ -1,36 +1,41 @@
 #!/usr/bin/env bash
-# bin/cc-burn — Claude Code token burn-rate + 5h-window monitor.
+# bin/cc-burn — Claude Code token burn-rate + 5h-window monitor (self-calibrating).
 #
 # Wraps `ccusage blocks` (local, offline — reads ~/.claude transcripts, no
 # network) and adds zdots framing: burn rate, time-to-reset for the rolling
 # 5-hour window, projected end-of-window usage, cache efficiency, and threshold
-# alerts against a calibratable window budget.
+# alerts against a SELF-CALIBRATING window ceiling.
 #
-# Usage: cc-burn [--json | --quiet | -h]
+# Self-calibration: by default the ceiling is "max" — ccusage derives it from
+# your own historical peak 5h window and tracks it upward as you go (so % means
+# "% of your heaviest-ever window"; it converges toward the real plan limit the
+# first time you actually hit a throttle). Pin a fixed ceiling by setting
+# ZDOTS_CC_WINDOW_BUDGET to a token count (find yours via Claude Code's /usage).
+#
+# Usage: cc-burn [--json | --quiet | calibrate | -h]
 #   (default)  human-readable report
-#   --json     the active block + computed fields (for the watcher / MCP / statusline)
+#   --json     active block + computed fields (for the watcher / MCP / statusline)
 #   --quiet    one compact line (for the statusline)
+#   calibrate  show the self-calibrated ceiling + the history it's derived from
 #
 # Exit: 0 normal · 2 at/over ALERT pct (current window) · 3 if ccusage unavailable.
 #
-# Calibration knobs (the real per-window cap isn't published and changes —
-# find yours with Claude Code's `/usage`, then set this):
-#   ZDOTS_CC_WINDOW_BUDGET  tokens per 5h window for the % gauge (default 250000000)
-#   ZDOTS_CC_WARN_PCT       warn at this % of budget consumed   (default 70)
-#   ZDOTS_CC_ALERT_PCT      alert at this % of budget consumed  (default 90)
+# Knobs: ZDOTS_CC_WINDOW_BUDGET (pin ceiling; default "max" = auto),
+#        ZDOTS_CC_WARN_PCT (70), ZDOTS_CC_ALERT_PCT (90).
 
 set -uo pipefail
 trap '' PIPE
 
-BUDGET="${ZDOTS_CC_WINDOW_BUDGET:-250000000}"
+LIMIT="${ZDOTS_CC_WINDOW_BUDGET:-max}"   # "max" = self-calibrate from history
 WARN_PCT="${ZDOTS_CC_WARN_PCT:-70}"
 ALERT_PCT="${ZDOTS_CC_ALERT_PCT:-90}"
 
 mode="human"
 case "${1:-}" in
-  --json)  mode="json" ;;
-  --quiet) mode="quiet" ;;
-  -h|--help) sed -n '2,21p' "$0" | sed 's/^# \?//'; exit 0 ;;
+  --json)    mode="json" ;;
+  --quiet)   mode="quiet" ;;
+  calibrate) mode="calibrate" ;;
+  -h|--help) sed -n '2,28p' "$0" | sed 's/^# \?//'; exit 0 ;;
   "") ;;
   *) printf 'cc-burn: unknown option: %s\n' "$1" >&2; exit 1 ;;
 esac
@@ -40,17 +45,34 @@ _ccusage() {
   else npx -y ccusage@latest "$@"; fi
 }
 
-raw="$(_ccusage blocks --json --offline 2>/dev/null)" || true
+_m() { awk -v n="$1" 'BEGIN{printf (n>=1e6)?"%.1fM":(n>=1e3)?"%.0fk":"%d", (n>=1e6)?n/1e6:(n>=1e3)?n/1e3:n}'; }
+
+raw="$(_ccusage blocks --json --offline --token-limit "$LIMIT" 2>/dev/null)" || true
 if [[ -z "$raw" ]] || ! printf '%s' "$raw" | jq -e . >/dev/null 2>&1; then
   printf 'cc-burn: ccusage unavailable or produced no data\n' >&2
   exit 3
 fi
 
+if [[ "$mode" == "calibrate" ]]; then
+  hist="$(printf '%s' "$raw" | jq '[.blocks[] | select(.isActive==false and .isGap==false) | .totalTokens]')"
+  n=$(jq 'length' <<<"$hist"); mx=$(jq 'max // 0' <<<"$hist")
+  p50=$(jq 'sort | .[(length/2|floor)] // 0' <<<"$hist")
+  src="auto (max of history)"; [[ "$LIMIT" != "max" ]] && src="pinned: ZDOTS_CC_WINDOW_BUDGET=$LIMIT"
+  printf 'cc-burn calibration\n'
+  printf '  ceiling     %s tokens   [%s]\n' "$(_m "$([[ "$LIMIT" == max ]] && echo "$mx" || echo "$LIMIT")")" "$src"
+  printf '  history     %s completed 5h windows · max %s · median %s\n' "$n" "$(_m "$mx")" "$(_m "$p50")"
+  printf '  thresholds  warn ≥%s%% · alert ≥%s%% of ceiling\n' "$WARN_PCT" "$ALERT_PCT"
+  printf '  self-tunes  the auto ceiling rises with your heaviest window; pin it with\n'
+  printf '              ZDOTS_CC_WINDOW_BUDGET=<tokens> (see Claude Code /usage)\n'
+  exit 0
+fi
+
 # Active 5h block, with computed fields folded in. No active block → null.
-computed="$(printf '%s' "$raw" | jq --argjson budget "$BUDGET" '
+computed="$(printf '%s' "$raw" | jq '
   (.blocks[] | select(.isActive == true)) // null
   | if . == null then null else
-      ( .tokenCounts.cacheReadInputTokens // 0 ) as $cr
+      .tokenLimitStatus as $t
+    | ( .tokenCounts.cacheReadInputTokens // 0 ) as $cr
     | ( (.tokenCounts.inputTokens // 0) + (.tokenCounts.cacheCreationInputTokens // 0) + $cr ) as $cacheBase
     | {
         used:          .totalTokens,
@@ -61,9 +83,10 @@ computed="$(printf '%s' "$raw" | jq --argjson budget "$BUDGET" '
         cost_per_hr:   (.burnRate.costPerHour // null),
         proj_tokens:   (.projection.totalTokens // null),
         proj_cost:     (.projection.totalCost // null),
+        limit:         ($t.limit // null),
         cache_pct:     (if $cacheBase > 0 then ($cr * 100 / $cacheBase | floor) else 0 end),
-        pct:           (.totalTokens * 100 / $budget | floor),
-        proj_pct:      (if .projection.totalTokens then (.projection.totalTokens * 100 / $budget | floor) else null end)
+        pct:           (if $t then ($t.percentUsed | floor) else null end),
+        proj_pct:      (if $t and ($t.limit // 0) > 0 then ($t.projectedUsage * 100 / $t.limit | floor) else null end)
       }
     end')"
 
@@ -77,26 +100,28 @@ if [[ "$computed" == "null" ]]; then
   exit 0
 fi
 
-# Pull computed fields.
 used=$(jq -r '.used' <<<"$computed")
-pct=$(jq -r '.pct' <<<"$computed")
+pct=$(jq -r '.pct // -1' <<<"$computed")
 proj_pct=$(jq -r '.proj_pct // "?"' <<<"$computed")
 rate=$(jq -r '.rate_tpm // 0 | floor' <<<"$computed")
 rmin=$(jq -r '.remaining_min // 0' <<<"$computed")
 cost=$(jq -r '.cost | floor' <<<"$computed")
 cache=$(jq -r '.cache_pct' <<<"$computed")
 reset_at=$(jq -r '.reset_at' <<<"$computed")
+limit=$(jq -r '.limit // 0' <<<"$computed")
 
-_m() { awk -v n="$1" 'BEGIN{printf (n>=1e6)?"%.1fM":(n>=1e3)?"%.0fk":"%d", (n>=1e6)?n/1e6:(n>=1e3)?n/1e3:n}'; }
 rmin_h=$(( rmin / 60 )); rmin_m=$(( rmin % 60 ))
 reset_clock=$(date -j -f '%Y-%m-%dT%H:%M:%S' "${reset_at%.*}" '+%H:%M' 2>/dev/null || echo "${reset_at}")
 
-# Severity from current-window %.
+# Severity from current-window %. pct == -1 means "no calibration yet".
 sev="ok"
-(( pct >= WARN_PCT ))  && sev="warn"
-(( pct >= ALERT_PCT )) && sev="alert"
+if (( pct >= 0 )); then
+  (( pct >= WARN_PCT ))  && sev="warn"
+  (( pct >= ALERT_PCT )) && sev="alert"
+fi
 
 if [[ "$mode" == "quiet" ]]; then
+  if (( pct < 0 )); then printf 'CC · calibrating · %s tok/m · reset %dh%02dm\n' "$(_m "$rate")" "$rmin_h" "$rmin_m"; exit 0; fi
   icon="·"; [[ "$sev" == warn ]] && icon="⚠"; [[ "$sev" == alert ]] && icon="🔴"
   printf 'CC %s %s%% · %s tok/m · reset %dh%02dm\n' "$icon" "$pct" "$(_m "$rate")" "$rmin_h" "$rmin_m"
   [[ "$sev" == alert ]] && exit 2 || exit 0
@@ -107,14 +132,19 @@ printf 'Claude Code — 5h rolling window\n'
 printf '  used       %s tokens  ·  $%s\n' "$(_m "$used")" "$cost"
 printf '  burn       %s tok/min  ·  $%s/hr\n' "$(_m "$rate")" "$(jq -r '.cost_per_hr // 0 | floor' <<<"$computed")"
 printf '  resets     in %dh %02dm  (%s)\n' "$rmin_h" "$rmin_m" "$reset_clock"
-printf '  projected  %s tokens by reset  ·  $%s  (%s%% of budget)\n' \
-  "$(_m "$(jq -r '.proj_tokens // 0' <<<"$computed")")" "$(jq -r '.proj_cost // 0 | floor' <<<"$computed")" "$proj_pct"
-case "$sev" in
-  ok)    printf '  budget     %s%% of %s used  ✓\n' "$pct" "$(_m "$BUDGET")" ;;
-  warn)  printf '  budget     ⚠ %s%% of %s used (warn ≥%s%%)\n' "$pct" "$(_m "$BUDGET")" "$WARN_PCT" ;;
-  alert) printf '  budget     🔴 %s%% of %s used (alert ≥%s%%) — slow down or wait for reset\n' "$pct" "$(_m "$BUDGET")" "$ALERT_PCT" ;;
-esac
+printf '  projected  %s tokens by reset  ·  $%s%s\n' \
+  "$(_m "$(jq -r '.proj_tokens // 0' <<<"$computed")")" "$(jq -r '.proj_cost // 0 | floor' <<<"$computed")" \
+  "$( [[ "$proj_pct" != "?" ]] && printf '  (%s%% of ceiling)' "$proj_pct" )"
+if (( pct < 0 )); then
+  printf '  ceiling    calibrating — need a completed 5h window first (`cc-burn calibrate`)\n'
+else
+  case "$sev" in
+    ok)    printf '  ceiling    %s%% of %s used  ✓  (auto-calibrated)\n' "$pct" "$(_m "$limit")" ;;
+    warn)  printf '  ceiling    ⚠ %s%% of %s used (warn ≥%s%%)\n' "$pct" "$(_m "$limit")" "$WARN_PCT" ;;
+    alert) printf '  ceiling    🔴 %s%% of %s used (alert ≥%s%%) — slow down or wait for reset\n' "$pct" "$(_m "$limit")" "$ALERT_PCT" ;;
+  esac
+fi
 printf '  cache      %s%% read-reuse\n' "$cache"
-[[ "$proj_pct" != "?" ]] && (( proj_pct >= 100 )) && printf '  ⚠ on track to exhaust the window before reset at this rate\n'
+[[ "$proj_pct" != "?" ]] && (( proj_pct >= 100 )) && printf '  ⚠ on track to exceed your heaviest window before reset\n'
 
 [[ "$sev" == alert ]] && exit 2 || exit 0
