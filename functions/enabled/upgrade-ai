@@ -16,7 +16,7 @@ run_cmd() {
 # 1. Claude Code
 if command -v claude >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
   echo "Updating Claude Code..."
-  run_cmd npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code
+  run_cmd npm install -g @anthropic-ai/claude-code
 fi
 
 # 2. llama.cpp binary (via Homebrew)
