@@ -506,7 +506,8 @@ _wait_for_unified_log_marker() {
 
 @test "message_hygiene: fails hard on conn_string" {
   run bash -c "ZDOTDIR='$ZDOTDIR' source $ZDOTDIR/lib/message_hygiene.bash && printf 'postgresql://user:secret@db.internal/mydb' | zdots_message_hygiene 2>&1; printf 'exit:%d\n' \$?"
-  [[ "$output" == *"exit:1"* ]]
+  # Suppress-flagged input exits 2 (stack-wide suppress code: binary → hygiene → history hook).
+  [[ "$output" == *"exit:2"* ]]
   [[ "$output" != *"secret"* ]]
 }
 
