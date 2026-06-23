@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# bin/cc-burn-watch — periodic Claude Code burn-rate alerter.
+#
+# A LaunchAgent runs `run` every few minutes; it reads cc-burn --json and fires a
+# macOS notification when the 5h-window severity WORSENS (ok→warn→alert). Only
+# transitions notify — no spam while you sit at the same level. State of the last
+# severity lives in $XDG_STATE_HOME/zsh/cc-burn-watch.state.
+#
+# Usage:
+#   cc-burn-watch run        one check + notify-on-transition (what launchd calls)
+#   cc-burn-watch install    write + load the LaunchAgent (StartInterval seconds)
+#   cc-burn-watch uninstall  unload + remove it
+#   cc-burn-watch status     is the agent loaded?
+#
+# Knobs: ZDOTS_CC_WATCH_INTERVAL (default 300s) plus cc-burn's budget/pct knobs.
+
+set -uo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+STATE_FILE="$STATE_DIR/cc-burn-watch.state"
+LOG_FILE="$STATE_DIR/cc-burn-watch.log"
+LABEL="com.zdots.cc-burn-watch"
+PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+INTERVAL="${ZDOTS_CC_WATCH_INTERVAL:-300}"
+
+_notify() {
+  local title="$1" msg="$2"
+  if command -v terminal-notifier >/dev/null 2>&1; then
+    terminal-notifier -title "$title" -message "$msg" -group "$LABEL" -sound default >/dev/null 2>&1 || true
+  else
+    osascript -e "display notification \"${msg//\"/}\" with title \"${title//\"/}\"" >/dev/null 2>&1 || true
+  fi
+}
+
+cmd_run() {
+  mkdir -p "$STATE_DIR"
+  local json sev pct rmin
+  json="$("$ZDOTDIR/bin/cc-burn" --json 2>/dev/null)" || return 0
+  [[ -z "$json" || "$json" == "null" ]] && { printf 'ok\n' >"$STATE_FILE"; return 0; }
+
+  pct=$(printf '%s' "$json" | jq -r '.pct // 0')
+  rmin=$(printf '%s' "$json" | jq -r '.remaining_min // 0')
+  local warn="${ZDOTS_CC_WARN_PCT:-70}" alert="${ZDOTS_CC_ALERT_PCT:-90}"
+  sev="ok"; (( pct >= warn )) && sev="warn"; (( pct >= alert )) && sev="alert"
+
+  local last="ok"; [[ -r "$STATE_FILE" ]] && last="$(<"$STATE_FILE")"
+  printf '%s\n' "$sev" >"$STATE_FILE"
+
+  # Rank severities so we only notify on a WORSENING transition (bash 3.2-safe).
+  _rank() { case "$1" in alert) echo 2 ;; warn) echo 1 ;; *) echo 0 ;; esac; }
+  if (( $(_rank "$sev") > $(_rank "$last") )); then
+    local h=$(( rmin / 60 )) m=$(( rmin % 60 ))
+    case "$sev" in
+      warn)  _notify "Claude Code · slowing advised" "${pct}% of the 5h window used — resets in ${h}h${m}m." ;;
+      alert) _notify "Claude Code · 🔴 burning hot" "${pct}% of the 5h window used — consider pausing until reset in ${h}h${m}m." ;;
+    esac
+    printf '[%s] %s→%s pct=%s\n' "$(date '+%H:%M')" "$last" "$sev" "$pct" >>"$LOG_FILE" 2>/dev/null || true
+  fi
+}
+
+cmd_install() {
+  mkdir -p "$HOME/Library/LaunchAgents" "$STATE_DIR"
+  cat >"$PLIST" <<PLIST_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>${LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${ZDOTDIR}/bin/cc-burn-watch</string>
+    <string>run</string>
+  </array>
+  <key>StartInterval</key><integer>${INTERVAL}</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>${LOG_FILE}</string>
+  <key>StandardErrorPath</key><string>${LOG_FILE}</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>ZDOTDIR</key><string>${ZDOTDIR}</string><key>PATH</key><string>${ZDOTDIR}/bin:/opt/homebrew/bin:/usr/bin:/bin</string></dict>
+</dict>
+</plist>
+PLIST_EOF
+  launchctl unload "$PLIST" 2>/dev/null || true
+  launchctl load "$PLIST" && printf 'cc-burn-watch: installed (every %ss). Notifies on ok→warn→alert transitions.\n' "$INTERVAL"
+}
+
+cmd_uninstall() {
+  launchctl unload "$PLIST" 2>/dev/null || true
+  rm -f "$PLIST" && printf 'cc-burn-watch: uninstalled.\n'
+}
+
+cmd_status() {
+  if launchctl list 2>/dev/null | grep -q "$LABEL"; then
+    printf 'cc-burn-watch: loaded (interval %ss). Last severity: %s\n' "$INTERVAL" "$( [[ -r "$STATE_FILE" ]] && cat "$STATE_FILE" || echo unknown )"
+  else
+    printf 'cc-burn-watch: not loaded. Run: cc-burn-watch install\n'
+  fi
+}
+
+case "${1:-}" in
+  run)        cmd_run ;;
+  install)    cmd_install ;;
+  uninstall)  cmd_uninstall ;;
+  status)     cmd_status ;;
+  -h|--help)  sed -n '2,19p' "$0" | sed 's/^# \?//'; exit 0 ;;
+  "")         cmd_status ;;
+  *)          printf 'cc-burn-watch: unknown command: %s\n' "$1" >&2; exit 1 ;;
+esac
