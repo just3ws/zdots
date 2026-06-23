@@ -67,7 +67,7 @@ PLATFORM_VERSION="$(cat "${ZDOTDIR:-$HOME/.config/zsh}/VERSION" 2>/dev/null || e
 # known contract when adots-my is absent. adots-my emits JSON even when its
 # doctor reports failures, so a degraded ~/my still yields the version.
 MY_CONTRACT="$(command -v adots-my >/dev/null 2>&1 \
-  && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)"
+  && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)" || true
 MY_CONTRACT="${MY_CONTRACT:-my.structure.v1}"
 
 if [ "$OUTPUT_FORMAT" = "text" ]; then
@@ -117,7 +117,9 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo ""
   echo "${BOLD}Service Composition:${RESET}"
 fi
-_z_services="PKG_MANAGER NODE_RUNTIME PYTHON_RUNTIME TRACE AI WHISPER"
+# PYTHON_RUNTIME dropped: python is managed by mise directly, not via a zdots
+# provider seam (providers/python/ removed with Z-134-era DI cleanup).
+_z_services="PKG_MANAGER NODE_RUNTIME TRACE AI WHISPER"
 
 errors=0
 for s in $_z_services; do
@@ -130,7 +132,6 @@ for s in $_z_services; do
   case "$s" in
     PKG_MANAGER) service_dir="pkg" ;;
     NODE_RUNTIME) service_dir="node" ;;
-    PYTHON_RUNTIME) service_dir="python" ;;
     TRACE) service_dir="trace" ;;
     AI) service_dir="ai" ;;
     WHISPER) service_dir="ai" ;;
