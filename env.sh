@@ -113,8 +113,6 @@ zdots_trace_redact() {
 # 5. Dependency Injection (DI) Helper
 # Loads a service provider and verifies it satisfies the service contract.
 # Soft-fail: missing contract functions emit a warning but never abort the shell.
-# Providers may optionally define zdots_<service>_contract() returning a
-# space-separated list of additional exported functions to verify.
 
 # Private helper — checks a single function exists; warns softly if not.
 _zdots_require_fn() {
@@ -153,28 +151,10 @@ zdots_require() {
       _zdots_require_fn node    "$provider" zdots_node_runtime_init
       _zdots_require_fn node    "$provider" zdots_node_runtime_paths
       ;;
-    python)
-      _zdots_require_fn python  "$provider" zdots_python_runtime_init
-      _zdots_require_fn python  "$provider" zdots_python_runtime_paths
-      ;;
     whisper)
       _zdots_require_fn whisper "$provider" zdots_whisper_init
       ;;
   esac
-
-  # Extended contract: provider may declare additional exports via
-  # zdots_<service>_contract() returning a space-separated function list.
-  local _contract_fn="zdots_${service_type}_contract"
-  if [ -n "$(command -v "$_contract_fn" 2>/dev/null)" ]; then
-    local _fn
-    # shellcheck disable=SC2046
-    for _fn in $( "$_contract_fn" ); do
-      if [ -z "$(command -v "$_fn" 2>/dev/null)" ]; then
-        printf 'zdots: warning: provider %s/%s: declared but missing %s\n' \
-          "$service_type" "$provider" "$_fn" >&2
-      fi
-    done
-  fi
 
   return 0
 }
