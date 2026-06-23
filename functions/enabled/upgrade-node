@@ -24,14 +24,13 @@ if command -v pnpm >/dev/null 2>&1; then
   fi
 
   echo "Updating global pnpm packages..."
-  run_cmd pnpm update -g
-  # ponytail: approve all pending build scripts non-interactively to suppress warnings
-  [[ "$dry_run" != "1" ]] && pnpm approve-builds -g --all 2>/dev/null || true
+  # ponytail: pnpm-specific rc so allow-build doesn't leak into npm as an unknown key
+  NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/pnpm/npmrc" run_cmd pnpm update -g
 fi
 
 if command -v npm >/dev/null 2>&1; then
-  # Allow claude-code postinstall script globally (suppress allow-scripts warnings)
-  [[ "$dry_run" != "1" ]] && npm config set allow-scripts=@anthropic-ai/claude-code --location=user 2>/dev/null || true
+  # Allow known packages with postinstall scripts (add to this list when new ones warn)
+  [[ "$dry_run" != "1" ]] && npm config set allow-scripts=@anthropic-ai/claude-code,@google/genai,protobufjs --location=user 2>/dev/null || true
   echo "Updating global npm packages..."
   run_cmd npm update -g
 fi
