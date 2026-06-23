@@ -49,9 +49,18 @@ else
   printf '%s' "$llama" >| "$cache" 2>/dev/null || true
 fi
 
+# --- CC token burn (read the cache cc-burn-watch writes; never run ccusage here) -
+burn=""
+burn_cache="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/cc-burn.line"
+if [[ -f "$burn_cache" ]]; then
+  bage=$(( $(date +%s) - $(stat -f %m "$burn_cache" 2>/dev/null || echo 0) ))
+  (( bage < 900 )) && burn="$(cat "$burn_cache" 2>/dev/null || true)"
+fi
+
 # --- render ----------------------------------------------------------------
 # Make work context loud — it changes what Claude Code is allowed to do.
 local_badge="home"
 [[ "$context" == "work" ]] && local_badge="WORK⚠"
 out="[${local_badge}] ${model} · AI:${ai_mode} · ⎇ ${branch:-—} · llama:${llama}"
+[[ -n "$burn" ]] && out="${out} · ${burn}"
 printf '%s' "$out"
