@@ -70,7 +70,8 @@ _zca_redact() {
 
   echo "$1" | zdots-phi-scrub
   # exit 0 = redaction succeeded (output written to stdout)
-  # exit 1 = suppress-flagged pattern matched (no output, signal failure)
+  # exit 2 = suppress-flagged pattern matched (no output) | exit 1 = scrub error
+  # Caller treats any non-zero as "skip the analytics insert".
 }
 
 _zca_sql_esc() {

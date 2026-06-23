@@ -3,7 +3,8 @@
 // Loads the single registry (etc/phi-patterns.yaml) and provides:
 //
 //	zdots-phi-scrub          stdin → redacted stdout (exit 0 on success)
-//	                         exit 1 if input matches a suppress-flagged pattern (fail hard, no output)
+//	                         exit 2 if input matches a suppress-flagged pattern (fail hard, no output)
+//	                         exit 1 on operational error (registry load / stdin read failure)
 //
 //	zdots-phi-scrub --check  take argument on command line
 //	                         exit 0 if input matches a suppress pattern
@@ -78,14 +79,17 @@ func main() {
 	}
 
 	// Default mode: redact (stdin → stdout)
-	// Check for suppress-flagged patterns first; fail hard if found
+	// Check for suppress-flagged patterns first; fail hard if found.
+	// Exit 2 (distinct from the exit-1 operational errors above) lets callers
+	// distinguish a deliberate suppress-match from a binary failure in a single
+	// invocation — no separate --check pre-pass needed.
 	if registry.IsSuppressed(input) {
 		fmt.Fprintf(os.Stderr, "zdots-phi-scrub: suppress-flagged pattern in input — refusing to process\n")
 		// Emit OTEL span for audit trail
 		if tp != nil && !tp.Disabled() {
 			tp.EmitSuppressMatch(ctx, "suppress_match")
 		}
-		os.Exit(1)
+		os.Exit(2)
 	}
 
 	// Apply redaction patterns
