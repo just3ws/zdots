@@ -50,3 +50,8 @@ fi
 # Git identity configuration (XDG compliant)
 : "${GIT_CONFIG_GLOBAL:=$XDG_CONFIG_HOME/git/config}"
 export GIT_CONFIG_GLOBAL
+
+# Machine-specific overrides (gitignored). Sourced last, at .zshenv time —
+# before conf.d/compinit — so local fpath/completion additions take effect.
+# Tools that self-install completions (e.g. sentry-cli) write here, not here-above.
+[[ -r "${ZDOTDIR:-$HOME/.config/zsh}/.zshenv.local" ]] && source "${ZDOTDIR:-$HOME/.config/zsh}/.zshenv.local"
