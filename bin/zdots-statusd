@@ -12,6 +12,7 @@
 require "socket"
 require "json"
 require "erb"
+require "shellwords"
 
 Encoding.default_external = Encoding::UTF_8
 Encoding.default_internal = Encoding::UTF_8
@@ -84,6 +85,19 @@ def log_health(svc_names)
   end
 end
 
+# Claude Code token burn — read the cache cc-burn-watch writes (never run
+# ccusage here; the console must stay fast). nil when the watcher is off/stale.
+def token_burn
+  path = "#{STATE}/cc-burn.json"
+  return nil unless File.exist?(path) && (Time.now - File.mtime(path)) < 1800
+
+  data = JSON.parse(File.read(path))
+  return nil if data.nil?
+  data
+rescue StandardError
+  nil
+end
+
 # --- presentation -----------------------------------------------------------
 
 SERVICE_LABELS = {
@@ -108,12 +122,89 @@ end
 
 def h(str) = ERB::Util.html_escape(str.to_s)
 
+def fmt_n(n)
+  n = n.to_f
+  return format("%.1fM", n / 1e6) if n >= 1e6
+  return format("%.0fk", n / 1e3) if n >= 1e3
+  format("%d", n)
+end
+
+# Claude Code token-burn panel. Empty string when no fresh data (watcher off) so
+# the section simply doesn't render.
+def burn_section(b)
+  return "" unless b
+
+  warn_pct  = (ENV["ZDOTS_CC_WARN_PCT"]  || "70").to_i
+  alert_pct = (ENV["ZDOTS_CC_ALERT_PCT"] || "90").to_i
+  pct = b["pct"]
+  sev = "ok"
+  if pct
+    sev = "warn"  if pct >= warn_pct
+    sev = "alert" if pct >= alert_pct
+  end
+  pillcls = { "ok" => "ok", "warn" => "warn", "alert" => "down" }[sev]
+  pctcell = pct ? %(<span class="pill #{pillcls}">#{pct}% of ceiling</span>) : %(<span class="pill warn">calibrating</span>)
+  rmin = b["remaining_min"].to_i
+  reset = format("%dh %02dm", rmin / 60, rmin % 60)
+  proj = b["proj_pct"] ? "#{b['proj_pct']}%" : "?"
+
+  <<~SEC
+    <section aria-labelledby="cc-h">
+      <h2 id="cc-h">Claude Code — 5h token window <span class="dim">(self-calibrating · <a href="/man/cc-burn">cc-burn</a>)</span></h2>
+      <div class="grid">
+        <div class="card"><div class="lbl">window used</div>#{pctcell}</div>
+        <div class="card"><div class="lbl">resets in</div><span class="mono">#{reset}</span></div>
+        <div class="card"><div class="lbl">burn rate</div><span class="mono">#{fmt_n(b['rate_tpm'])}/min</span></div>
+        <div class="card"><div class="lbl">used / ceiling</div><span class="mono">#{fmt_n(b['used'])} / #{fmt_n(b['limit'])}</span></div>
+        <div class="card"><div class="lbl">projected</div><span class="mono">#{proj} by reset</span></div>
+        <div class="card"><div class="lbl">cache reuse</div><span class="mono">#{b['cache_pct']}%</span></div>
+      </div>
+    </section>
+  SEC
+end
+
+ROOT_NAV = %(<a href="/">← console</a> · <a href="/man">man index</a>).freeze
+
+# Shared page chrome so /man pages match the console (cross-linked back).
+def wrap(title, inner)
+  <<~HTML
+    <!doctype html>
+    <html lang="en"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>#{h(title)} — zdots.local</title><style>#{CSS}</style></head>
+    <body><header><h1><span class="mark">zdots</span>.local</h1>
+    <p class="sub">#{ROOT_NAV}</p></header><main>#{inner}</main></body></html>
+  HTML
+end
+
+# /man — index of every tracked manual page, grouped, cross-linked.
+def man_index
+  items = Dir["#{ZDOTS}/man/man*/*"].sort.map do |p|
+    sect = File.basename(File.dirname(p)).sub("man", "")
+    name = File.basename(p).sub(/\.\d+\z/, "")
+    %(<li><a href="/man/#{h(name)}">#{h(name)}</a> <span class="mono">(#{sect})</span></li>)
+  end.join
+  wrap("man pages", %(<section aria-labelledby="m-h"><h2 id="m-h">Manual pages</h2><ul class="eps cols">#{items}</ul></section>))
+end
+
+# /man/<cmd> — render a manual page to HTML via mandoc, wrapped in console chrome.
+def render_man(cmd)
+  return nil unless cmd =~ /\A[a-z0-9][a-z0-9-]*\z/
+  path = Dir["#{ZDOTS}/man/man*/#{cmd}.*"].first
+  return nil unless path
+
+  html = `mandoc -Thtml -O fragment #{path.shellescape} 2>/dev/null`
+  return nil if html.strip.empty?
+  wrap("#{cmd} (man)", %(<section class="man">#{html}</section>))
+end
+
 def render_page(live:)
   status = ctl_status
   cards  = health_cards(status)
   up     = cards.count { |c| c[:up] }
   svcs   = services
   logs   = log_health(svcs.map { |s| s[:name] })
+  burn   = token_burn
   refresh = live ? %(<meta http-equiv="refresh" content="10">) : ""
   now = Time.now.strftime("%Y-%m-%d %H:%M:%S")
   toggle = live ? %(<a href="/?live=0">⏸ pause</a>) : %(<a href="/">▶ resume live</a>)
@@ -133,7 +224,7 @@ def render_page(live:)
       <header>
         <h1><span class="mark">zdots</span>.local</h1>
         <p class="sub">Observable Control Plane · #{up}/#{cards.size} services up · #{now}
-          · <span class="live">#{toggle}</span></p>
+          · <a href="/man">man pages</a> · <span class="live">#{toggle}</span></p>
       </header>
       <main>
         <section aria-labelledby="svc-h">
@@ -142,6 +233,8 @@ def render_page(live:)
             #{cards.map { |c| %(<div class="card"><div class="lbl">#{h(c[:label])}</div>#{pill(c[:up])}</div>) }.join}
           </div>
         </section>
+
+        #{burn_section(burn)}
 
         <section aria-labelledby="ld-h">
           <h2 id="ld-h">launchd / processes</h2>
@@ -204,7 +297,15 @@ CSS = <<~CSS
   td { padding:.45rem .6rem; border-bottom:1px solid var(--border); }
   .mono { font-family:var(--mono); color:var(--dim); }
   .eps { list-style:none; padding:0; margin:0; } .eps li { padding:.25rem 0; font-size:.82rem; }
+  .eps.cols { columns:3; } @media (max-width:48rem){ .eps.cols { columns:2; } }
   a { color:var(--accent); }
+  .man { font-size:.86rem; line-height:1.6; }
+  .man table.head, .man table.foot { display:none; }
+  .man h1, .man h2 { color:var(--text); border:0; text-transform:none; letter-spacing:0;
+    font-size:.95rem; margin:1.2rem 0 .4rem; }
+  .man pre, .man code, .man b, .man i { font-family:var(--mono); }
+  .man dt { color:var(--accent); margin-top:.5rem; } .man dd { margin:0 0 .3rem 1.2rem; color:var(--text); }
+  .man table { width:auto; } .man td { border:0; padding:.1rem .5rem .1rem 0; }
 CSS
 
 # --- minimal HTTP server ----------------------------------------------------
@@ -224,7 +325,11 @@ loop do
     while (hdr = client.gets) && hdr != "\r\n" && hdr != "\n"; end
     path = line.split(" ")[1].to_s
     case path
-    when %r{\A/healthz}      then respond(client, "ok", type: "text/plain")
+    when %r{\A/healthz}             then respond(client, "ok", type: "text/plain")
+    when %r{\A/man/?(\?.*)?\z}      then respond(client, man_index)
+    when %r{\A/man/([a-z0-9-]+)\z}
+      page = render_man($1)
+      page ? respond(client, page) : respond(client, "no such man page", status: "404 Not Found", type: "text/plain")
     when %r{\A/(\?.*)?\z}    then respond(client, render_page(live: path !~ /live=0/))
     else respond(client, "not found", status: "404 Not Found", type: "text/plain")
     end
