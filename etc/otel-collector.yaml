@@ -152,7 +152,7 @@ service:
     logs:
       level: warn
   pipelines:
-    # Traces from apps → spanmetrics connector → LGTM
+    # Traces from apps → spanmetrics connector → OpenObserve
     traces:
       receivers: [otlp]
       processors: [resourcedetection, batch]

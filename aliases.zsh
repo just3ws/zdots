@@ -52,7 +52,6 @@ alias zreset='zdots-ctl reset'                        # full platform restart
 alias zmake='make -C "${ZDOTDIR}"'                    # any make target from anywhere
 alias zlogs='llama-ctl logs'                          # tail llama.cpp server log
 alias zlogs-otel='otel-collector logs'                # tail OTel collector log
-alias zlogs-ci='local-ci logs'                        # tail LGTM stack log
 
 # AI Recipes (pre-built scenarios — run with no args for usage)
 alias zmorning='"${ZDOTDIR}"/recipes/morning'                      # daily briefing: health + history + suggestions
