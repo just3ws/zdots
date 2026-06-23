@@ -513,7 +513,8 @@ fi
 # Collector must export to OpenObserve, not the retired LGTM stack
 _otel_cfg="${ZDOTDIR}/etc/otel-collector.yaml"
 if [[ -f "$_otel_cfg" ]]; then
-  if grep -q 'otlphttp/openobserve' "$_otel_cfg" && ! grep -q 'otlphttp/lgtm' "$_otel_cfg"; then
+  # Exporter is named otlp_http/openobserve in the config (underscore) — match that.
+  if grep -q 'otlp_http/openobserve' "$_otel_cfg" && ! grep -qiE 'otlp_?http/lgtm|exporters:.*lgtm' "$_otel_cfg"; then
     _pass "collector  exports to OpenObserve"
   else
     _warn "collector  config still references the retired LGTM exporter"
