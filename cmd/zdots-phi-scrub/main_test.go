@@ -51,6 +51,31 @@ func TestBinarySuppressMode(t *testing.T) {
 	}
 }
 
+// TestBinaryDefaultModeSuppressExitsTwo verifies that a suppress-flagged input
+// in default (redact) mode exits with code 2 — distinct from the exit-1
+// operational errors — so callers can tell a deliberate suppress-match from a
+// binary failure in a single invocation (the phi-history hook relies on this).
+func TestBinaryDefaultModeSuppressExitsTwo(t *testing.T) {
+	binaryPath := buildTestBinary(t)
+	defer os.Remove(binaryPath)
+
+	if _, err := os.Stat(filepath.Join(os.Getenv("HOME"), ".config", "zsh", "etc", "phi-patterns.yaml")); err != nil {
+		t.Skipf("registry not found")
+	}
+
+	// Connection string is suppress-flagged in the registry.
+	cmd := exec.Command(binaryPath)
+	cmd.Stdin = strings.NewReader("postgresql://user:secret@db.internal/mydb")
+	err := cmd.Run()
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("default mode on suppress input should exit non-zero, got err=%v", err)
+	}
+	if got := exitErr.ExitCode(); got != 2 {
+		t.Errorf("default mode suppress: exit code = %d, want 2", got)
+	}
+}
+
 // TestBinaryInitFlag tests the --init flag (preload and validate).
 func TestBinaryInitFlag(t *testing.T) {
 	binaryPath := buildTestBinary(t)

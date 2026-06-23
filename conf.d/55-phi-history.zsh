@@ -2,10 +2,12 @@
 # Loaded only in interactive shells. Skipped if ZDOTS_HISTORY_REDACT != 1.
 #
 # Behavior:
-#   - Connection strings (postgresql://, mysql://, redis:// with credentials)
-#     are SUPPRESSED entirely via zdots-phi-scrub --check — entry not written.
-#   - All other patterns from etc/phi-patterns.yaml are REDACTED in-place
-#     via zdots-phi-scrub (default mode). Single pass over compiled patterns.
+#   - A single zdots-phi-scrub (default mode) invocation per command:
+#       exit 0 → clean (or redacted, when stdout differs from input)
+#       exit 2 → SUPPRESSED (connection string etc.) — entry not written
+#       exit 1 → scrub failure — entry suppressed (fail safe)
+#   - One process spawn per command (previously two: a redundant --check pre-pass
+#     plus the redact pass). Default mode already detects suppress patterns.
 #   - If the binary is unavailable, all commands are suppressed until corrected.
 #
 # Pattern source: etc/phi-patterns.yaml (PHI Pattern Registry). No patterns
@@ -51,26 +53,26 @@ zshaddhistory() {
   local t0=$EPOCHREALTIME
   local threshold_ms=1 print_threshold_ms=20 elapsed ts_ms
 
-  # Suppress-flagged patterns (connection strings): drop entry entirely.
-  # zdots-phi-scrub --check: exit 0 = matches suppress, exit 1 = doesn't match.
-  if echo "$line" | zdots-phi-scrub --check >/dev/null 2>&1; then
-    elapsed=$(( (EPOCHREALTIME - t0) * 1000 ))
-    ts_ms=$(( EPOCHREALTIME * 1000 ))
-    _phi_history_maybe_record_overhead "suppressed" "$elapsed" "$threshold_ms" "$ts_ms"
-    zdots_audit_log "history_suppressed" "reason=suppress_pattern"
-    return 1
-  fi
-
-  # Redact remaining patterns via the Go binary (single pass over all patterns).
+  # Single pass: default mode redacts and also detects suppress patterns.
+  #   exit 0 → clean/redacted (stdout holds the result)
+  #   exit 2 → suppress-flagged pattern (connection string) — drop entry
+  #   exit 1 → scrub failure — drop entry (fail safe)
   local redacted
   redacted="$(echo "$line" | zdots-phi-scrub 2>/dev/null)"
   local scrub_status=$?
   elapsed=$(( (EPOCHREALTIME - t0) * 1000 ))
   ts_ms=$(( EPOCHREALTIME * 1000 ))
 
+  if (( scrub_status == 2 )); then
+    # Deliberate suppress-match: drop the entry entirely.
+    _phi_history_maybe_record_overhead "suppressed" "$elapsed" "$threshold_ms" "$ts_ms"
+    zdots_audit_log "history_suppressed" "reason=suppress_pattern"
+    return 1
+  fi
+
   if (( scrub_status != 0 )); then
-    # zdots-phi-scrub failed (binary unavailable or unexpected suppress match).
-    # Suppress the entry rather than risk writing sensitive data.
+    # zdots-phi-scrub failed (registry/stdin error). Suppress the entry rather
+    # than risk writing sensitive data.
     _phi_history_maybe_record_overhead "scrub_failure" "$elapsed" "$threshold_ms" "$ts_ms"
     zdots_audit_log "history_suppressed" "reason=scrub_failure"
     return 1
