@@ -195,7 +195,91 @@ def render_man(cmd)
 
   html = `mandoc -Thtml -O fragment #{path.shellescape} 2>/dev/null`
   return nil if html.strip.empty?
-  wrap("#{cmd} (man)", %(<section class="man">#{html}</section>))
+
+  # Interlink: turn mandoc's .Xr cross-references (rendered as <a class="Xr">,
+  # no href) into clickable links to the referenced man page when we have it.
+  html = html.gsub(%r{<a class="Xr">([a-z0-9][a-z0-9._-]*)\((\d+)\)</a>}) do
+    name, sect = Regexp.last_match(1), Regexp.last_match(2)
+    have = !Dir["#{ZDOTS}/man/man*/#{name}.*"].empty?
+    have ? %(<a class="Xr" href="/man/#{name}">#{name}(#{sect})</a>) : "#{name}(#{sect})"
+  end
+  wrap("#{cmd} (man)", %(<section class="man"><p class="dim"><a href="/man">↩ all man pages</a></p>#{html}</section>))
+end
+
+# --- docs (markdown) --------------------------------------------------------
+
+def doc_files
+  top = %w[README.md AGENTS.md CLAUDE.md SETUP.md GEMINI.md].map { |f| "#{ZDOTS}/#{f}" }
+  (top + Dir["#{ZDOTS}/docs/**/*.md"]).select { |p| File.file?(p) }.uniq
+end
+
+def doc_key(path) = path.sub("#{ZDOTS}/", "").sub(/\.md\z/, "").gsub("/", ":")
+
+def docs_index
+  items = doc_files.sort_by { |p| doc_key(p) }.map { |p| %(<li><a href="/docs/#{h(doc_key(p))}">#{h(doc_key(p))}</a></li>) }.join
+  wrap("docs", %(<section aria-labelledby="d-h"><h2 id="d-h">Documentation</h2><ul class="eps cols">#{items}</ul></section>))
+end
+
+def render_doc(key)
+  return nil unless key =~ /\A[A-Za-z0-9:._-]+\z/
+  path = doc_files.find { |p| doc_key(p) == key }
+  return nil unless path
+
+  md = File.read(path)
+  # Render via pandoc (reliable here; the kramdown gem mis-loads strscan on this
+  # Ruby). Fall back to escaped <pre> if pandoc is absent.
+  body =
+    if system("command -v pandoc >/dev/null 2>&1")
+      out = IO.popen(["pandoc", "-f", "gfm", "-t", "html"], "r+") do |io|
+        io.write(md); io.close_write; io.read
+      end
+      # Interlink: relative *.md links → /docs/<key>.
+      out.to_s.gsub(/href="([^":]+?)\.md(#[^"]*)?"/) do
+        tgt, frag = Regexp.last_match(1), Regexp.last_match(2)
+        %(href="/docs/#{tgt.sub(%r{\A\./}, '').gsub('/', ':')}#{frag}")
+      end
+    else
+      "<pre>#{h(md)}</pre>"
+    end
+  wrap("#{key} (doc)", %(<section class="doc"><p class="dim"><a href="/docs">↩ all docs</a></p>#{body}</section>))
+end
+
+# --- live --help ------------------------------------------------------------
+
+def help_index
+  cmds = Dir["#{BIN}/*"].select { |p| File.file?(p) && File.executable?(p) }.map { |p| File.basename(p) }.sort
+  items = cmds.map { |c| %(<li><a href="/help/#{h(c)}">#{h(c)}</a></li>) }.join
+  wrap("help", %(<section aria-labelledby="hp-h"><h2 id="hp-h">Command <code>--help</code></h2><ul class="eps cols">#{items}</ul></section>))
+end
+
+def render_help(cmd)
+  return nil unless cmd =~ /\A[a-z0-9][a-z0-9._-]*\z/
+  bin = "#{BIN}/#{cmd}"
+  return nil unless File.file?(bin) && File.executable?(bin)
+
+  # Safety: only invoke --help on scripts that actually handle it, else the
+  # command could execute real behaviour. Pre-check the source for a handler.
+  handles = File.read(bin).match?(/--help|-h\)|"help"|\bhelp\)/) rescue false
+  man = Dir["#{ZDOTS}/man/man*/#{cmd}.*"].empty? ? "" : %( · <a href="/man/#{cmd}">man page</a>)
+  out = "(no --help handler detected — see the man page or the source)"
+  if handles
+    out = `timeout 5 #{bin.shellescape} --help 2>&1`
+    out = `timeout 5 #{bin.shellescape} -h 2>&1` if out.strip.empty?
+  end
+  wrap("#{cmd} --help", %(<section><h2>#{h(cmd)} <span class="dim">--help#{man}</span></h2><pre class="man">#{h(out)}</pre></section>))
+end
+
+# Service-name → ctl man page, for linking the launchd table to its docs.
+SVC_MAN = {
+  "llama-server" => "llama-ctl", "llama-embed" => "llama-ctl",
+  "otel-collector" => "otel-collector", "openobserve" => "openobserve-ctl",
+  "whisper" => "whisper-ctl"
+}.freeze
+
+def svc_link(name)
+  base = name.sub(/@.*\z/, "")
+  man = SVC_MAN[base] || base
+  Dir["#{ZDOTS}/man/man*/#{man}.*"].empty? ? h(name) : %(<a href="/man/#{man}">#{h(name)}</a>)
 end
 
 def render_page(live:)
@@ -224,7 +308,7 @@ def render_page(live:)
       <header>
         <h1><span class="mark">zdots</span>.local</h1>
         <p class="sub">Observable Control Plane · #{up}/#{cards.size} services up · #{now}
-          · <a href="/man">man pages</a> · <span class="live">#{toggle}</span></p>
+          · <a href="/man">man</a> · <a href="/docs">docs</a> · <a href="/help">help</a> · <span class="live">#{toggle}</span></p>
       </header>
       <main>
         <section aria-labelledby="svc-h">
@@ -241,7 +325,7 @@ def render_page(live:)
           <table>
             <thead><tr><th>Service</th><th>State</th><th>PID</th><th>Endpoint</th></tr></thead>
             <tbody>
-              #{svcs.map { |s| %(<tr><td>#{h(s[:name])}</td><td>#{pill(s[:state] == 'running')}</td><td class="mono">#{h(s[:pid])}</td><td class="mono">#{h(s[:endpoint])}</td></tr>) }.join}
+              #{svcs.map { |s| %(<tr><td>#{svc_link(s[:name])}</td><td>#{pill(s[:state] == 'running')}</td><td class="mono">#{h(s[:pid])}</td><td class="mono">#{h(s[:endpoint])}</td></tr>) }.join}
             </tbody>
           </table>
         </section>
@@ -306,6 +390,18 @@ CSS = <<~CSS
   .man pre, .man code, .man b, .man i { font-family:var(--mono); }
   .man dt { color:var(--accent); margin-top:.5rem; } .man dd { margin:0 0 .3rem 1.2rem; color:var(--text); }
   .man table { width:auto; } .man td { border:0; padding:.1rem .5rem .1rem 0; }
+  .man pre { background:var(--surface); border:1px solid var(--border); border-radius:6px;
+    padding:.75rem; overflow-x:auto; white-space:pre-wrap; }
+  .doc { font-size:.9rem; line-height:1.65; }
+  .doc h1,.doc h2,.doc h3,.doc h4 { color:var(--text); border:0; text-transform:none;
+    letter-spacing:0; margin:1.3rem 0 .5rem; }
+  .doc h1 { font-size:1.3rem; } .doc h2 { font-size:1.1rem; } .doc h3 { font-size:.98rem; }
+  .doc code { font-family:var(--mono); background:var(--surface); padding:.1rem .3rem; border-radius:4px; font-size:.85em; }
+  .doc pre { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:.75rem; overflow-x:auto; }
+  .doc pre code { background:none; padding:0; }
+  .doc table { width:auto; } .doc th,.doc td { border:1px solid var(--border); padding:.3rem .6rem; }
+  .doc blockquote { border-left:3px solid var(--border); margin:.5rem 0; padding-left:.8rem; color:var(--dim); }
+  .doc img { max-width:100%; }
 CSS
 
 # --- minimal HTTP server ----------------------------------------------------
@@ -330,6 +426,14 @@ loop do
     when %r{\A/man/([a-z0-9-]+)\z}
       page = render_man($1)
       page ? respond(client, page) : respond(client, "no such man page", status: "404 Not Found", type: "text/plain")
+    when %r{\A/docs/?(\?.*)?\z}     then respond(client, docs_index)
+    when %r{\A/docs/([A-Za-z0-9:._-]+)\z}
+      page = render_doc($1)
+      page ? respond(client, page) : respond(client, "no such doc", status: "404 Not Found", type: "text/plain")
+    when %r{\A/help/?(\?.*)?\z}     then respond(client, help_index)
+    when %r{\A/help/([a-z0-9._-]+)\z}
+      page = render_help($1)
+      page ? respond(client, page) : respond(client, "no such command", status: "404 Not Found", type: "text/plain")
     when %r{\A/(\?.*)?\z}    then respond(client, render_page(live: path !~ /live=0/))
     else respond(client, "not found", status: "404 Not Found", type: "text/plain")
     end
