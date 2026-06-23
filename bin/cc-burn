@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# bin/cc-burn — Claude Code token burn-rate + 5h-window monitor.
+#
+# Wraps `ccusage blocks` (local, offline — reads ~/.claude transcripts, no
+# network) and adds zdots framing: burn rate, time-to-reset for the rolling
+# 5-hour window, projected end-of-window usage, cache efficiency, and threshold
+# alerts against a calibratable window budget.
+#
+# Usage: cc-burn [--json | --quiet | -h]
+#   (default)  human-readable report
+#   --json     the active block + computed fields (for the watcher / MCP / statusline)
+#   --quiet    one compact line (for the statusline)
+#
+# Exit: 0 normal · 2 at/over ALERT pct (current window) · 3 if ccusage unavailable.
+#
+# Calibration knobs (the real per-window cap isn't published and changes —
+# find yours with Claude Code's `/usage`, then set this):
+#   ZDOTS_CC_WINDOW_BUDGET  tokens per 5h window for the % gauge (default 250000000)
+#   ZDOTS_CC_WARN_PCT       warn at this % of budget consumed   (default 70)
+#   ZDOTS_CC_ALERT_PCT      alert at this % of budget consumed  (default 90)
+
+set -uo pipefail
+trap '' PIPE
+
+BUDGET="${ZDOTS_CC_WINDOW_BUDGET:-250000000}"
+WARN_PCT="${ZDOTS_CC_WARN_PCT:-70}"
+ALERT_PCT="${ZDOTS_CC_ALERT_PCT:-90}"
+
+mode="human"
+case "${1:-}" in
+  --json)  mode="json" ;;
+  --quiet) mode="quiet" ;;
+  -h|--help) sed -n '2,21p' "$0" | sed 's/^# \?//'; exit 0 ;;
+  "") ;;
+  *) printf 'cc-burn: unknown option: %s\n' "$1" >&2; exit 1 ;;
+esac
+
+_ccusage() {
+  if command -v ccusage >/dev/null 2>&1; then ccusage "$@"
+  else npx -y ccusage@latest "$@"; fi
+}
+
+raw="$(_ccusage blocks --json --offline 2>/dev/null)" || true
+if [[ -z "$raw" ]] || ! printf '%s' "$raw" | jq -e . >/dev/null 2>&1; then
+  printf 'cc-burn: ccusage unavailable or produced no data\n' >&2
+  exit 3
+fi
+
+# Active 5h block, with computed fields folded in. No active block → null.
+computed="$(printf '%s' "$raw" | jq --argjson budget "$BUDGET" '
+  (.blocks[] | select(.isActive == true)) // null
+  | if . == null then null else
+      ( .tokenCounts.cacheReadInputTokens // 0 ) as $cr
+    | ( (.tokenCounts.inputTokens // 0) + (.tokenCounts.cacheCreationInputTokens // 0) + $cr ) as $cacheBase
+    | {
+        used:          .totalTokens,
+        cost:          .costUSD,
+        reset_at:      .endTime,
+        remaining_min: (.projection.remainingMinutes // null),
+        rate_tpm:      (.burnRate.tokensPerMinuteForIndicator // null),
+        cost_per_hr:   (.burnRate.costPerHour // null),
+        proj_tokens:   (.projection.totalTokens // null),
+        proj_cost:     (.projection.totalCost // null),
+        cache_pct:     (if $cacheBase > 0 then ($cr * 100 / $cacheBase | floor) else 0 end),
+        pct:           (.totalTokens * 100 / $budget | floor),
+        proj_pct:      (if .projection.totalTokens then (.projection.totalTokens * 100 / $budget | floor) else null end)
+      }
+    end')"
+
+if [[ "$mode" == "json" ]]; then
+  printf '%s\n' "$computed"
+  exit 0
+fi
+
+if [[ "$computed" == "null" ]]; then
+  [[ "$mode" == "quiet" ]] && printf 'CC: idle (no active 5h window)\n' || printf 'Claude Code — no active 5h window (idle).\n'
+  exit 0
+fi
+
+# Pull computed fields.
+used=$(jq -r '.used' <<<"$computed")
+pct=$(jq -r '.pct' <<<"$computed")
+proj_pct=$(jq -r '.proj_pct // "?"' <<<"$computed")
+rate=$(jq -r '.rate_tpm // 0 | floor' <<<"$computed")
+rmin=$(jq -r '.remaining_min // 0' <<<"$computed")
+cost=$(jq -r '.cost | floor' <<<"$computed")
+cache=$(jq -r '.cache_pct' <<<"$computed")
+reset_at=$(jq -r '.reset_at' <<<"$computed")
+
+_m() { awk -v n="$1" 'BEGIN{printf (n>=1e6)?"%.1fM":(n>=1e3)?"%.0fk":"%d", (n>=1e6)?n/1e6:(n>=1e3)?n/1e3:n}'; }
+rmin_h=$(( rmin / 60 )); rmin_m=$(( rmin % 60 ))
+reset_clock=$(date -j -f '%Y-%m-%dT%H:%M:%S' "${reset_at%.*}" '+%H:%M' 2>/dev/null || echo "${reset_at}")
+
+# Severity from current-window %.
+sev="ok"
+(( pct >= WARN_PCT ))  && sev="warn"
+(( pct >= ALERT_PCT )) && sev="alert"
+
+if [[ "$mode" == "quiet" ]]; then
+  icon="·"; [[ "$sev" == warn ]] && icon="⚠"; [[ "$sev" == alert ]] && icon="🔴"
+  printf 'CC %s %s%% · %s tok/m · reset %dh%02dm\n' "$icon" "$pct" "$(_m "$rate")" "$rmin_h" "$rmin_m"
+  [[ "$sev" == alert ]] && exit 2 || exit 0
+fi
+
+# Human report.
+printf 'Claude Code — 5h rolling window\n'
+printf '  used       %s tokens  ·  $%s\n' "$(_m "$used")" "$cost"
+printf '  burn       %s tok/min  ·  $%s/hr\n' "$(_m "$rate")" "$(jq -r '.cost_per_hr // 0 | floor' <<<"$computed")"
+printf '  resets     in %dh %02dm  (%s)\n' "$rmin_h" "$rmin_m" "$reset_clock"
+printf '  projected  %s tokens by reset  ·  $%s  (%s%% of budget)\n' \
+  "$(_m "$(jq -r '.proj_tokens // 0' <<<"$computed")")" "$(jq -r '.proj_cost // 0 | floor' <<<"$computed")" "$proj_pct"
+case "$sev" in
+  ok)    printf '  budget     %s%% of %s used  ✓\n' "$pct" "$(_m "$BUDGET")" ;;
+  warn)  printf '  budget     ⚠ %s%% of %s used (warn ≥%s%%)\n' "$pct" "$(_m "$BUDGET")" "$WARN_PCT" ;;
+  alert) printf '  budget     🔴 %s%% of %s used (alert ≥%s%%) — slow down or wait for reset\n' "$pct" "$(_m "$BUDGET")" "$ALERT_PCT" ;;
+esac
+printf '  cache      %s%% read-reuse\n' "$cache"
+[[ "$proj_pct" != "?" ]] && (( proj_pct >= 100 )) && printf '  ⚠ on track to exhaust the window before reset at this rate\n'
+
+[[ "$sev" == alert ]] && exit 2 || exit 0
