@@ -19,7 +19,8 @@ setup() {
     _zca_redact "psql postgresql://user:pass@host/db"
     printf "exit:%d\n" $?
   '
-  [[ "$output" == *"exit:1"* ]]
+  # Suppress-flagged input exits 2 (stack-wide suppress code from zdots-phi-scrub).
+  [[ "$output" == *"exit:2"* ]]
   [[ "$output" != *"pass"* ]]
 }
 
@@ -85,7 +86,8 @@ setup() {
     _zca_redact "psql postgresql://user:pass@host/db"
     printf "exit:%d\n" $?
   '
-  [[ "$output" == *"exit:1"* ]]
+  # Suppress-flagged input exits 2 (stack-wide suppress code from zdots-phi-scrub).
+  [[ "$output" == *"exit:2"* ]]
 }
 
 @test "cmd_analytics: cross-layer — analytics hook uses registry credential pattern" {

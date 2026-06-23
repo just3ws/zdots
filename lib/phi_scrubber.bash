@@ -62,5 +62,5 @@ phi_scrub() {
     return 1
   fi
   zdots-phi-scrub
-  # Exit code flows through: 0 = success, 1 = suppress-flagged pattern
+  # Exit code flows through: 0 = success, 2 = suppress-flagged pattern, 1 = scrub error.
 }
