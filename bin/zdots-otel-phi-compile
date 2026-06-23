@@ -58,7 +58,8 @@ until args.empty?
   when "--no-probe" then skip_probe = true   # escape hatch for the install path
   when "-o"      then out_path = args.shift or abort("zdots-otel-phi-compile: -o needs a path")
   when "-h", "--help"
-    puts File.read(__FILE__).lines[2..32].join.gsub(/^# ?/, "")
+    # Through the Usage/options block (line 41) so --help carries a Usage: line.
+    puts File.read(__FILE__).lines[3..40].join.gsub(/^# ?/, "")
     exit 0
   else abort("zdots-otel-phi-compile: unknown arg: #{a}")
   end
