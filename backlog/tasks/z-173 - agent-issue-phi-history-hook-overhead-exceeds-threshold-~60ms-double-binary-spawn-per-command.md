@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-22 19:45'
-updated_date: '2026-06-22 19:46'
+updated_date: '2026-06-23 02:30'
 labels:
   - performance
   - phi
@@ -31,3 +31,16 @@ IMPACT: adds latency to every command on a work (PHI) machine where the hook is 
 
 POSSIBLE DIRECTIONS (operator's call — not prescribing): single-pass binary that both checks-and-redacts in one invocation; or a long-lived scrub daemon/socket the hook talks to; or combine --check into the default scrub exit code so only one spawn is needed. Filed per AGENTS.md §5 — do not hand-patch the PHI boundary.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+PARTIAL FIX committed 9b5bfe8c5 (this work-machine session, operating ON zdots → fix-forward authorized).
+
+Eliminated the redundant double-spawn: the hook spawned zdots-phi-scrub twice/command (--check + redact). Default mode already detects suppress, so gave the binary a distinct suppress exit code (2; 1 = operational error) and collapsed the hook to ONE spawn. Stack-wide convention now: binary → message_hygiene → cmd-analytics → history hook all read exit 2 = suppress.
+
+MEASURED: clean-command hot path 15.9ms → 7.2ms (~55%) on this machine.
+TESTS: phi_boundary + fuzz green (93); new Go test asserts default-mode suppress=2; bats exit-code assertions updated to exit:2 / -ne 0.
+
+REMAINING (the deeper cost): even one spawn pays ~7ms RE2 registry-compile per command because each invocation is a cold process. The SOTA fix is a resident scrub daemon/socket (compile once, serve) — an architectural change to the PHI boundary, operator-designed. Left open under this issue.
+<!-- SECTION:NOTES:END -->
