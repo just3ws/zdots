@@ -58,6 +58,12 @@ cmd_run() {
     esac
     printf '[%s] %s→%s pct=%s\n' "$(date '+%H:%M')" "$last" "$sev" "$pct" >>"$LOG_FILE" 2>/dev/null || true
   fi
+
+  # Cache a compact line for cc-statusline (so the statusline never pays
+  # ccusage's per-render cost — it just reads this).
+  local h=$(( rmin / 60 )) m=$(( rmin % 60 )) icon=""
+  [[ "$sev" == warn ]] && icon="⚠ "; [[ "$sev" == alert ]] && icon="🔴 "
+  printf 'CC %s%s%% ↻%dh%02dm\n' "$icon" "$pct" "$h" "$m" >"$STATE_DIR/cc-burn.line" 2>/dev/null || true
 }
 
 cmd_install() {
