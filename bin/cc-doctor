@@ -233,6 +233,57 @@ if [[ -f "$PROJ_SETTINGS" ]] && (( _has_jq )); then
 fi
 
 # ---------------------------------------------------------------------------
+# Global plugin layer (~/.claude) — NOT covered by the tracked-config checks
+# above. On a work machine a cloud-egress plugin enabled globally is the risk
+# the /cc-audit skill exists to catch; surface it here so the audit is automatic.
+_sec "Global plugins & telemetry (cloud egress)"
+GLOBAL_SETTINGS="$HOME/.claude/settings.json"
+# Plugins with cloud backends — scope per-project on work, never enable globally.
+_CLOUD_PLUGINS="sentry dash0"
+if [[ $_has_jq -eq 1 && -r "$GLOBAL_SETTINGS" ]]; then
+  _flagged=""
+  while IFS= read -r p; do
+    [[ -z "$p" ]] && continue
+    _short="${p%@*}"
+    # Exact match: flag the cloud-MCP plugins (sentry, dash0); NOT sentry-cli,
+    # a thin CLI authed with a narrow token that may stay global by choice.
+    for c in $_CLOUD_PLUGINS; do
+      [[ "$_short" == "$c" ]] && _flagged="${_flagged:+$_flagged }$_short"
+    done
+  done < <(jq -r '.enabledPlugins // {} | to_entries[] | select(.value==true) | .key' "$GLOBAL_SETTINGS" 2>/dev/null)
+
+  if [[ -n "$_flagged" ]]; then
+    if [[ "${_ctx:-}" == "work" ]]; then
+      _warn "cloud-egress plugins enabled globally on work: $_flagged"
+      _fix "/cc-audit — disable globally; enable only in the project that needs it"
+    else
+      _pass "cloud-egress plugins enabled (context=${_ctx:-?}, allowed off-work): $_flagged"
+    fi
+  else
+    _pass "no cloud-egress plugins enabled globally"
+  fi
+else
+  _warn "cannot check global plugins (no ~/.claude/settings.json or jq)"
+fi
+
+# Telemetry must target the local collector — CC exports metrics/logs/traces, so a
+# non-loopback/non-RFC-1918 endpoint is cloud egress (mirrors lib/ai_boundary.bash).
+if [[ $_has_jq -eq 1 && -r "$PROJ_SETTINGS" ]]; then
+  _tel="$(jq -r '.env.CLAUDE_CODE_ENABLE_TELEMETRY // "0"' "$PROJ_SETTINGS" 2>/dev/null)"
+  _ep="$(jq -r '.env.OTEL_EXPORTER_OTLP_ENDPOINT // ""' "$PROJ_SETTINGS" 2>/dev/null)"
+  if [[ "$_tel" == "1" ]]; then
+    case "$_ep" in
+      http://127.0.0.1:*|http://localhost:*|http://10.*|http://192.168.*|http://172.1[6-9].*|http://172.2[0-9].*|http://172.3[0-1].*)
+        _pass "telemetry → local collector ($_ep)" ;;
+      *)
+        _fail "telemetry enabled but endpoint not loopback/RFC-1918: ${_ep:-unset} — cloud egress" ;;
+    esac
+  else
+    _pass "telemetry off (no CC OTel export configured)"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 _sec "Recommended toolchain"
 # Map of doctor-name → actual binary to probe.
 _tools=( "ripgrep:rg" "fd:fd" "ast-grep:ast-grep" "shellcheck:shellcheck"
