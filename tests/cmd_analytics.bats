@@ -66,7 +66,9 @@ setup() {
     _ZCA_START=$EPOCHREALTIME
     _ZCA_CWD=/tmp
     ZDOTS_LAST_EXIT=0
-    _zca_precmd
+    # 2>/dev/null: the suppress diagnostic from zdots-phi-scrub goes to stderr;
+    # bats folds it into $output and would break the exact-match below.
+    _zca_precmd 2>/dev/null
     printf "cmd:%s\n" "$_ZCA_CMD"
   '
   [ "$status" -eq 0 ]
