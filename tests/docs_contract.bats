@@ -198,7 +198,7 @@ _known_gap() {
     nginx-regen-certs zclaude zdots-statusd zdots-statusd-ctl
     zdots-worker zdots-eval zsynod zsynod-migrate
     zmetrics zmorning zsvc ztask
-    cc-home log-rotate zdots-config zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
+    cc-home log-rotate zdots-config zdots-buffer-drain zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
     bench zdots-pattern zdots-issue imperial-date
   )
 
