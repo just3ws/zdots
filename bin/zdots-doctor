@@ -58,9 +58,12 @@ _ok()   { printf '  [ok]   %s\n' "$*"; }
 _warn() { printf '  [warn] %s\n' "$*"; }
 _fail() { printf '  [FAIL] %s\n' "$*"; }
 _fix()  { printf '         fix: %s\n' "$*"; }
-_skip() { [[ "$QUIET" -eq 0 ]] && printf '  [----] %s\n' "$*"; }
+# return 0: under `set -e`, a QUIET=1 run makes the trailing `[[ ]] &&` short-
+# circuit to false, so without this the helper returns 1 and aborts the doctor
+# at its first call — i.e. --quiet always exited 1. Keep the helpers infallible.
+_skip() { [[ "$QUIET" -eq 0 ]] && printf '  [----] %s\n' "$*"; return 0; }
 
-_pass() { _PASS=$((_PASS+1)); [[ "$QUIET" -eq 0 ]] && printf "  ${_CLR_OK}[ok]   ${_CLR_RST}%s\n" "$*"; }
+_pass() { _PASS=$((_PASS+1)); [[ "$QUIET" -eq 0 ]] && printf "  ${_CLR_OK}[ok]   ${_CLR_RST}%s\n" "$*"; return 0; }
 _warn() { _WARN=$((_WARN+1)); printf "  ${_CLR_WARN}[warn] ${_CLR_RST}%s\n" "$*"; }
 _fail() { _FAIL=$((_FAIL+1)); printf "  ${_CLR_ERR}[FAIL] ${_CLR_RST}%s\n" "$*"; }
 
