@@ -250,21 +250,29 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   log "commit=$(git rev-parse --short HEAD)"
 fi
 
-phase "colima: reconcile storage paths"
-step "enforce ~/.colima -> ~/.config/colima symlink"
-# Ensure ~/.colima is the source of truth
-mkdir -p "$HOME/.colima"
-# Reconcile if ~/.config/colima exists and is not a symlink
-if [[ -d "$HOME/.config/colima" && ! -L "$HOME/.config/colima" ]]; then
-    log "Migrating ~/.config/colima to ~/.colima..."
-    mv "$HOME/.config/colima"/* "$HOME/.colima/" 2>/dev/null || true
-    rmdir "$HOME/.config/colima" 2>/dev/null || true
+phase "colima: reconcile storage paths (XDG canonical)"
+step "root colima at \$XDG_CONFIG_HOME/colima, not legacy ~/.colima"
+# colima >=0.8 uses $XDG_CONFIG_HOME/colima when ~/.colima is absent, and ignores
+# XDG entirely if ~/.colima exists. XDG is the source of truth here.
+_colima_xdg="${XDG_CONFIG_HOME:-$HOME/.config}/colima"
+# Drop any legacy compatibility symlink.
+if [[ -L "$HOME/.config/colima" ]]; then
+    rm -f "$HOME/.config/colima"
 fi
-# Recreate symlink if missing
-if [[ ! -L "$HOME/.config/colima" ]]; then
-    log "Linking ~/.config/colima -> ~/.colima"
-    ln -s "$HOME/.colima" "$HOME/.config/colima"
+# Migrate a real legacy ~/.colima into the XDG dir — only while the VM is stopped
+# (moving live VM state corrupts it). colima-status health exits 0 when running.
+if [[ -d "$HOME/.colima" && ! -L "$HOME/.colima" ]]; then
+    if colima-status health >/dev/null 2>&1; then
+        log "WARNING: ~/.colima present but colima is RUNNING — skipping; run 'colima stop' then re-run"
+    else
+        log "Migrating legacy ~/.colima -> $_colima_xdg"
+        mkdir -p "$_colima_xdg"
+        mv "$HOME/.colima"/* "$_colima_xdg/" 2>/dev/null || true
+        mv "$HOME/.colima"/.[!.]* "$_colima_xdg/" 2>/dev/null || true
+        rmdir "$HOME/.colima" 2>/dev/null || true
+    fi
 fi
+unset _colima_xdg
 
 phase "brew: reconcile selected Brewfile"
 if [[ "$SKIP_BREW" -eq 0 ]]; then

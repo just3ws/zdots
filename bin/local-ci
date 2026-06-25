@@ -108,7 +108,7 @@ cmd_rebuild() {
 cmd_run() {
   _check_deps
   _info "running GitHub Actions locally via act..."
-  DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" \
+  DOCKER_HOST="$(colima-status --json | jq -r '.docker_host')" \
   act \
     --container-architecture linux/arm64 \
     --container-daemon-socket - \
