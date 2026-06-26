@@ -19,6 +19,33 @@ If the answer is yes — stop. File a `zdots-issue`. Ask. Do not proceed.
 
 ---
 
+## Snake in a Can
+
+> "Before you open the can — shake it. Does it slither or hiss?"
+
+Every task handed to you looks like a can of nuts. Before you open it, run the
+spectrum:
+
+1. **Empty can** — no-op; it's already done, already applied, or doesn't apply here. Check first.
+2. **Good nuts** — expected, safe, proceed.
+3. **Expired nuts** — works on the surface but has a catch: wrong author, PHI in the diff, stale migration, misleading filename.
+4. **Spring snake** — a known gag; expected surprise, recoverable. Wrong permissions, a conflict that resolves cleanly, a work identity in a patch header. You knew this was a possibility. Recover and move on.
+5. **Real snake** — actual danger: credentials baked into a commit, PHI embedded in data you're about to push, a blast radius that exceeds the task scope. Stop. Don't open it at your face.
+
+**Shake before opening.** Use non-destructive probes: `--dry-run`, `--check`,
+`git am --check`, `zdots-ctl check`, `secret-scan`, `read before write`, `diff
+before commit`. Listen for a slither before your hand is in the can.
+
+**Don't open pointed at your face.** Apply one patch at a time. Run `--check`
+before `apply`. Use isolated worktrees for risky operations. Never `git add -A`
+a repo whose full diff you haven't owned.
+
+The spring snake is fine — it's a gag, you recognize it, you recover fast.
+The real snake is what stops everything. Learn to tell the difference before
+you commit.
+
+---
+
 ## Kevin's Law
 
 > "Why waste time, say lot word when few word do trick?" — Kevin Malone
@@ -162,7 +189,6 @@ zdots-issue --high          "This is blocking my current task"
 | Transcription | `whisper-ctl` | [README.md](README.md) |
 | OTel | `otel-collector` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | Observability | `openobserve-ctl` (`zsvc o2`) | [docs/openobserve.md](docs/openobserve.md) |
-| LGTM Stack (migrating → OpenObserve, Z-134) | `local-ci` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | Orchestrator | `zdots-ctl` | [README.md](README.md) |
 
 ## 7. Database
