@@ -19,7 +19,14 @@ case "$noun" in
   *)
     target="zdots-${noun}"
     if ! command -v "$target" &>/dev/null; then
+      logger -t zdots "noun-miss: $noun${*:+ (args: $*)}"  # desire-path sensor (Z-177)
       printf 'zdots: unknown noun "%s"\n' "$noun" >&2
+      local suggestions=()
+      for _b in "${ZDOTDIR:-$HOME/.config/zsh}/bin"/zdots-*; do
+        _n="${_b##*/zdots-}"
+        [[ "$_n" == *"$noun"* ]] && suggestions+=("$_n")
+      done
+      (( ${#suggestions[@]} )) && printf 'did you mean: zdots %s\n' "${suggestions[@]}" >&2
       printf 'run: zdots --help\n' >&2
       exit 1
     fi
