@@ -3,9 +3,10 @@ id: Z-174
 title: >-
   OKF ingest adapter — source_type:okf behind the 009 envelope + concept
   type-bridge
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-28 16:33'
+updated_date: '2026-06-28 21:23'
 labels:
   - agent-ready
   - knowledge-layer
