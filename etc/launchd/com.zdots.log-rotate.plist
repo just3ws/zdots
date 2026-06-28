@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.zdots.log-rotate</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-c</string>
+        <string>log-rotate otel-collector; log-rotate openobserve; log-rotate llama-server; log-rotate llama-embed</string>
+    </array>
+    <!-- Weekly: Sunday 03:15 — after index-tools (03:00) to avoid I/O contention -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>15</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/mike/.local/state/zsh/zdots-log-rotate.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/mike/.local/state/zsh/zdots-log-rotate.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/mike</string>
+        <key>PATH</key>
+        <string>/Users/mike/bin:/Users/mike/.antigravity/antigravity/bin:/Users/mike/.local/bin:/Users/mike/.config/zsh/bin:/Users/mike/.local/share/mise/installs/ruby/4.0.5/bin:/Users/mike/.local/share/mise/installs/node/26.0.0/bin:/Users/mike/.local/share/mise/installs/go/1.26.3/bin:/Users/mike/.local/share/mise/installs/python/3.14.5/bin:/Users/mike/.local/share/mise/shims:/opt/homebrew/bin:/opt/homebrew/sbin:/Users/mike/.bun/bin:/Users/mike/.local/share/pnpm/bin:/Users/mike/.local/share/pnpm:/opt/homebrew/opt/rustup/bin:/opt/homebrew/opt/postgresql@18/bin:/opt/homebrew/opt/openjdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/opt/fzf/bin</string>
+        <key>ZDOTDIR</key>
+        <string>/Users/mike/.config/zsh</string>
+        <key>XDG_STATE_HOME</key>
+        <string>/Users/mike/.local/state</string>
+    </dict>
+</dict>
+</plist>
