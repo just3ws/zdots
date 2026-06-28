@@ -81,6 +81,22 @@ if (( ! _pi_only )); then
     print "  git      : ${_branch} (${_ahead} ahead, ${_dirty} dirty)"
   fi
 
+  # Intelligence signals — surface desire paths and workflow anomalies (Seam ⑦)
+  if command -v history-intelligence >/dev/null 2>&1; then
+    local _hi_json _hi_high _hi_med
+    _hi_json=$(history-intelligence --json 2>/dev/null) || true
+    if [[ -n "$_hi_json" ]]; then
+      read -r _hi_high _hi_med < <(printf '%s' "$_hi_json" | python3 -c "
+import json, sys
+s = json.load(sys.stdin).get('signals', [])
+print(sum(1 for x in s if x.get('severity')=='high'), sum(1 for x in s if x.get('severity')=='medium'))
+" 2>/dev/null) || true
+      if (( ${_hi_high:-0} > 0 || ${_hi_med:-0} > 0 )); then
+        print "  signals  : ${_hi_high:-0} high, ${_hi_med:-0} medium — run: zdots debrief"
+      fi
+    fi
+  fi
+
   # Active backlog tasks (if backlog available)
   if command -v backlog >/dev/null 2>&1; then
     local _tasks_raw _tasks
