@@ -827,6 +827,14 @@ status_embed() {
   pid=$(echo "$state" | awk '{print $2}')
   curl -sf -m 2 "${EMBED_ENDPOINT}/health" >/dev/null 2>&1 && healthy=true || healthy=false
   zdots_svc_loopback_listening "${EMBED_ENDPOINT}" && socket_listening=true || socket_listening=false
+  # If socket is up but HTTP not yet healthy, the model may still be loading.
+  # Retry up to 2×1s before declaring unhealthy (avoids false-negative on cold start).
+  local _r=0
+  while [[ "$healthy" == "false" && "$socket_listening" == "true" && $_r -lt 2 ]]; do
+    sleep 1
+    curl -sf -m 2 "${EMBED_ENDPOINT}/health" >/dev/null 2>&1 && healthy=true
+    (( _r++ ))
+  done
   zdots_svc_print_status "$json" "$running" "$pid" "$EMBED_ENDPOINT" "$EMBED_LOG_FILE" \
     "profile=${EMBED_PROFILE}" \
     "healthy=${healthy}" \
@@ -882,6 +890,7 @@ case "${1:-}" in
   install-embed)  install_embed ;;
   start-embed)    start_embed ;;
   stop-embed)     stop_embed ;;
+  restart-embed)  stop_embed; start_embed ;;
   status-embed)   shift; status_embed "${@}" ;;
   -h|--help)      usage; exit 0 ;;
   "")             usage >&2; exit 1 ;;
