@@ -16,6 +16,8 @@ require_relative "../lib/zdots/models/lesson_intake"
 require_relative "../lib/zdots/models/methodology"
 require_relative "../lib/zdots/models/session_residue"
 require_relative "../lib/zdots/models/concept"
+require_relative "../lib/zdots/models/source_document"
+require_relative "../lib/zdots/ingest/okf_adapter"
 require_relative "../lib/zdots/jobs/base"
 require_relative "../lib/zdots/jobs/transcription"
 require_relative "../lib/zdots/jobs/ingest_media"
@@ -470,6 +472,21 @@ module Zdots
     # Idempotent: upserts by slug; re-ingesting a file updates the existing record.
     def cmd_ingest(args)
       dry_run = @options[:dry_run]
+
+      if @options[:type] == "okf"
+        bundle = args.first
+        unless bundle && File.directory?(bundle)
+          puts "usage: zdots-brain ingest --type okf <bundle-dir>"
+          exit 1
+        end
+        result = Zdots::Ingest::OkfAdapter.new(bundle, dry_run: dry_run).ingest
+        if result[:unknown_types].any?
+          puts "  [warn] unknown types (logged, not rejected): #{result[:unknown_types].join(', ')}"
+        end
+        puts "\nzdots-brain ingest --type okf#{' (dry run)' if dry_run}: #{result[:ingested]} ingested, #{result[:skipped]} skipped"
+        return
+      end
+
       vault_root = File.join(ENV.fetch("ZDOTS_MY_ROOT", File.expand_path("~/my")), "knowledge")
 
       targets = if @options[:all]
