@@ -15,6 +15,7 @@ require_relative "../lib/zdots/models/lesson"
 require_relative "../lib/zdots/models/lesson_intake"
 require_relative "../lib/zdots/models/methodology"
 require_relative "../lib/zdots/models/session_residue"
+require_relative "../lib/zdots/models/concept"
 require_relative "../lib/zdots/jobs/base"
 require_relative "../lib/zdots/jobs/transcription"
 require_relative "../lib/zdots/jobs/ingest_media"
@@ -64,6 +65,8 @@ module Zdots
         cmd_reindex_embeddings
       when "ingest"
         cmd_ingest(args)
+      when "concept"
+        cmd_concept(args)
       when "sync-history"
         cmd_sync_history(args)
       when "rekey"
@@ -87,6 +90,8 @@ module Zdots
         opts.on("--dry-run", "Scan without writing changes") { @options[:dry_run] = true }
         opts.on("--all", "Ingest full Knowledge Vault") { @options[:all] = true }
       end.parse!
+    rescue OptionParser::InvalidOption => e
+      e.recover(ARGV) # leave unrecognized flags in ARGV for subcommands
     end
 
     def cmd_worker(_args)
@@ -629,6 +634,64 @@ module Zdots
       [fm, body]
     rescue StandardError
       [nil, raw]
+    end
+
+    def cmd_concept(args)
+      subcommand = args.shift
+      json_out   = @options[:format] == "json"
+
+      case subcommand
+      when "add"
+        slug = args.shift or abort "usage: concept add <slug> <term>"
+        term = args.join(" ")
+        term = term.empty? ? slug : term
+        c = Models::Concept.add(slug: slug, term: term, source_ref: "user")
+        output = json_out ? c.to_h.to_json : "added: #{c.slug} (#{c.term})"
+        puts output
+
+      when "alias"
+        alias_text = args.shift or abort "usage: concept alias <alias> <slug> [--disallowed]"
+        slug       = args.shift or abort "usage: concept alias <alias> <slug> [--disallowed]"
+        disallowed = args.include?("--disallowed")
+        Models::Concept.add_alias(alias_text, slug, disallowed: disallowed)
+        puts json_out ? { alias: alias_text, concept: slug, disallowed: disallowed }.to_json \
+                      : "alias '#{alias_text}' → #{slug} (disallowed=#{disallowed})"
+
+      when "link"
+        from = args.shift or abort "usage: concept link <from> <relation> <to>"
+        rel  = args.shift or abort "usage: concept link <from> <relation> <to>"
+        to   = args.shift or abort "usage: concept link <from> <relation> <to>"
+        Models::Concept.link(from, rel, to)
+        puts json_out ? { from: from, relation: rel, to: to }.to_json : "#{from} -[#{rel}]-> #{to}"
+
+      when "resolve"
+        word = args.join(" ")
+        word = word.empty? ? (abort "usage: concept resolve <word>") : word
+        c = Models::Concept.resolve(word)
+        if c
+          puts json_out ? c.to_h.to_json : "#{word} → #{c.slug} (#{c.term})"
+        else
+          puts json_out ? { slug: nil, word: word }.to_json : "not found: #{word}"
+          exit 1
+        end
+
+      when "seed-canon"
+        n = Models::Concept.seed_canon!
+        puts json_out ? { seeded: n }.to_json : "seeded #{n} canon concepts"
+
+      when nil, "--help", "-h"
+        puts "usage: zdots-brain concept <add|alias|link|resolve|seed-canon> ..."
+        exit 0
+
+      else
+        slug = subcommand
+        c = Models::Concept.find(slug: slug)
+        if c
+          puts json_out ? c.to_h.to_json : "#{c.slug}: #{c.term}\n  #{c.definition}"
+        else
+          abort "concept not found: #{slug}"
+        end
+      end
     end
 
     def cmd_sync_history(args)
