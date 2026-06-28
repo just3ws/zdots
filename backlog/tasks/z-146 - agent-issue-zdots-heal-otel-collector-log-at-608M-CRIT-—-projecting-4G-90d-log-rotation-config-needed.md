@@ -3,10 +3,10 @@ id: Z-146
 title: >-
   [agent-issue] zdots-heal: otel-collector log at 608M (CRIT) — projecting
   4G/90d; log rotation config needed
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-12 18:06'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-28 20:57'
 labels:
   - agent-reported
   - bug
