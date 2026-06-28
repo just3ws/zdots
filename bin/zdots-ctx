@@ -424,6 +424,10 @@ cmd_ingest() {
   "${ZDOTDIR}/sbin/zdots-brain" ingest "$@"
 }
 
+cmd_concept() {
+  "${ZDOTDIR}/sbin/zdots-brain" concept "$@"
+}
+
 # _drain_redis_to_sqlite — move Redis-buffered command_runs into SQLite so
 # sync-history (which reads SQLite) sees a complete record.
 #
@@ -776,6 +780,7 @@ case "${1:-}" in
   add-methodology) shift; cmd_add_methodology "${@}" ;;
   add-lesson)      shift; cmd_add_lesson "${@}" ;;
   ingest)          shift; cmd_ingest "${@}" ;;
+  concept)         shift; cmd_concept "${@}" ;;
   sync-history)    shift; cmd_sync_history "${@}" ;;
   enqueue)         shift; cmd_enqueue "${@}" ;;
   requeue)         shift; cmd_requeue "${@}" ;;
