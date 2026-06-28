@@ -3,10 +3,10 @@ id: Z-140
 title: >-
   [agent-issue] zsvc status embed reports healthy=false/http_healthy=false while
   semantic zdots-ctx query succeeds against the embed service after restart
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-09 18:25'
-updated_date: '2026-06-14 23:13'
+updated_date: '2026-06-28 22:47'
 labels:
   - agent-reported
   - bug

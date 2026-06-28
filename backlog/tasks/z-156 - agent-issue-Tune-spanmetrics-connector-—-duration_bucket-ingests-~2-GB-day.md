@@ -1,9 +1,10 @@
 ---
 id: Z-156
 title: '[agent-issue] Tune spanmetrics connector — duration_bucket ingests ~2 GB/day'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-17 19:26'
+updated_date: '2026-06-28 22:37'
 labels:
   - agent-reported
   - request

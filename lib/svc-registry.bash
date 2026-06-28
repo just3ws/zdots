@@ -98,7 +98,7 @@ _svc_reg() {
 # Endpoints resolve from the same env vars both consumers already honour.
 # Fields: name|display|label|log|ctl|endpoint|type|managed|aliases|install|start|stop|restart|status|health|logs|validate|probe_fn
 _svc_reg "llama|llama-server|com.zdots.llama-server|${_SVC_REG_STATE}/llama-server.log|llama-ctl|${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}|launchd|1|llama-server ai server|install|start|stop|restart|status|health|logs|validate|zdots_probe_llama"
-_svc_reg "embed|llama-embed|com.zdots.llama-embed|${_SVC_REG_STATE}/llama-embed.log|llama-ctl|${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}|launchd|1|llama-embed embedding|install-embed|start-embed|stop-embed||status-embed||||zdots_probe_embed"
+_svc_reg "embed|llama-embed|com.zdots.llama-embed|${_SVC_REG_STATE}/llama-embed.log|llama-ctl|${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}|launchd|1|llama-embed embedding|install-embed|start-embed|stop-embed|restart-embed|status-embed||||zdots_probe_embed"
 _svc_reg "otel|otel-collector|com.zdots.otel-collector|${_SVC_REG_STATE}/otel-collector.log|otel-collector|http://127.0.0.1:4318|launchd|1|otel-collector telemetry collector|install|start|stop|restart|status|health|logs|validate|zdots_probe_otel"
 _svc_reg "o2|openobserve|com.zdots.openobserve|${_SVC_REG_STATE}/openobserve.log|openobserve-ctl|http://127.0.0.1:5080|launchd|1|openobserve observability obs telemetry-ui|install|start|stop|restart|status|health|logs||zdots_probe_o2"
 _svc_reg "colima|colima|com.zdots.colima-autostart||colima||colima|1|vm docker||start|stop||status||logs||zdots_probe_colima"
