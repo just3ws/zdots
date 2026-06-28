@@ -231,10 +231,17 @@ All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are co
 
 ## 9. Vocabulary & Communication Standards
 
-Zdots has formal vocabulary, defined in `CONTEXT.md` (the canon). The glossary
-and ontology become **data** — a concept registry, not markdown — per
-decision-009; until that registry ships, `CONTEXT.md` is the single source. Use
-exact terms consistently in code, commits, PRs, and conversations.
+Zdots has formal vocabulary. The concept registry is **live data** — built from
+decision-009/Z-151, queryable via:
+
+```bash
+zdots-ctx concept <slug>              # look up a term
+zdots-ctx concept resolve <word>      # resolve alias → canonical term
+zdots-ctx concept <slug> --json       # machine-readable
+```
+
+`CONTEXT.md` remains the prose reference. Use exact terms consistently in code,
+commits, PRs, and conversations.
 
 **Core Terms (always use exact form):**
 
@@ -298,9 +305,8 @@ ADR-0002, Service Registry deepening (blocks on this)
 
 **In Documentation:**
 
-- Reference `CONTEXT.md` when introducing a concept — it carries the definitions
-  and the term relationships (the role the planned concept registry, decision-009,
-  will take over as data)
+- Reference `CONTEXT.md` for prose definitions. Verify the canonical slug with
+  `zdots-ctx concept resolve <word>` — the registry (decision-009/Z-151) is now live.
 
 **In Code Comments:**
 
