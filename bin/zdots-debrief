@@ -1,0 +1,110 @@
+#!/usr/bin/env zsh
+# zdots-debrief — Seam ⑦ write-back: history-intelligence → lesson (decision-009, Z-149 spine)
+# Non-interactive. Runs history-intelligence, distills signals via local LLM, saves to KB.
+#
+# Usage:
+#   zdots-debrief              # debrief last 1 day, write to KB
+#   zdots-debrief --dry-run    # print proposed lesson JSON, don't save
+#   zdots-debrief --window 3   # expand to last 3 days of history
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+[[ -r "${ZDOTDIR}/lib/ai_boundary.bash" ]] && source "${ZDOTDIR}/lib/ai_boundary.bash"
+
+_dry_run=0
+_window=1
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)   _dry_run=1; shift ;;
+    --window)    _window="${2:?--window requires N}"; shift 2 ;;
+    --window=*)  _window="${1#--window=}"; shift ;;
+    -h|--help)
+      print "usage: zdots-debrief [--dry-run] [--window N]"
+      print "  Distill history-intelligence signals into a KB lesson via local LLM."
+      exit 0 ;;
+    *)           shift ;;
+  esac
+done
+
+# ── Idempotent trace_id: one debrief per day ──────────────────────────────────
+trace_id="debrief-$(date '+%Y%m%d')"
+
+# ── Pull structured signal report ─────────────────────────────────────────────
+intelligence_json=$(history-intelligence --json --window "$_window" 2>/dev/null) || {
+  print "zdots-debrief: history-intelligence failed" >&2
+  exit 1
+}
+
+# ── Gate: skip if no medium+ signals ─────────────────────────────────────────
+signal_count=$(print "$intelligence_json" \
+  | jq '[.signals[] | select(.severity == "high" or .severity == "medium")] | length')
+
+if [[ "$signal_count" -eq 0 ]]; then
+  print "zdots-debrief: nothing to debrief (no medium/high signals in last ${_window}d)"
+  exit 0
+fi
+
+# ── Build prompt ──────────────────────────────────────────────────────────────
+signals_text=$(print "$intelligence_json" | jq -r '
+  .signals[] |
+  "[\(.severity | ascii_upcase)] \(.kind): \(.message)"
+' | head -10)
+
+top_cmds=$(print "$intelligence_json" | jq -r '
+  .atuin_frequency.top[:8][] | "\(.cmd) (\(.count)x)"
+' 2>/dev/null | tr '\n' ', ' || true)
+
+prompt="Shell history signal report (last ${_window} day(s)):
+
+SIGNALS:
+${signals_text}
+
+TOP COMMANDS: ${top_cmds}
+
+You are a platform intelligence assistant. Write a single concise technical lesson (2-4 sentences) summarising what this operator's workflow reveals: recurring patterns, problems to fix, or improvements to consider. Output ONLY valid JSON with keys: lesson, intent, result, tags (array of lowercase strings)."
+
+# ── Distill via local LLM ────────────────────────────────────────────────────
+raw=$(print "$prompt" | ai-query "output only JSON" 2>/dev/null) || {
+  print "zdots-debrief: ai-query failed — is the local LLM running? (zdots ctl status)" >&2
+  exit 1
+}
+
+# Extract JSON — strip any markdown fences the LLM may add
+lesson_json=$(print "$raw" | sed 's/^```[a-z]*//;s/^```//' | awk '/^\{/,/^\}/')
+
+# Validate required fields
+lesson=$(print "$lesson_json" | jq -r '.lesson // empty' 2>/dev/null)
+intent=$(print "$lesson_json" | jq -r '.intent // empty' 2>/dev/null)
+result=$(print "$lesson_json" | jq -r '.result // empty' 2>/dev/null)
+tags=$(print "$lesson_json"   | jq -c  '.tags   // ["debrief","workflow"]' 2>/dev/null)
+
+if [[ -z "$lesson" ]]; then
+  print "zdots-debrief: LLM did not return a parseable lesson" >&2
+  print "raw output: $raw" >&2
+  exit 1
+fi
+
+# ── Assemble save-capture payload ─────────────────────────────────────────────
+payload=$(jq -n \
+  --arg  trace_id "$trace_id" \
+  --arg  lesson   "$lesson" \
+  --arg  intent   "$intent" \
+  --arg  result   "$result" \
+  --argjson tags  "$tags" \
+  '{trace_id: $trace_id, lesson: $lesson, intent: $intent, result: $result, tags: $tags, metadata: {source: "zdots-debrief", window_days: '"$_window"'}}')
+
+# ── Dry-run or write ──────────────────────────────────────────────────────────
+if (( _dry_run )); then
+  print "=== zdots-debrief dry-run (trace_id: ${trace_id}) ==="
+  print "$payload" | jq .
+  exit 0
+fi
+
+lesson_id=$(print "$payload" | "${ZDOTDIR}/sbin/zdots-brain" save-capture) || {
+  print "zdots-debrief: save-capture failed" >&2
+  exit 1
+}
+
+print "zdots-debrief: lesson saved (id=${lesson_id} trace=${trace_id})"
