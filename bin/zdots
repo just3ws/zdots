@@ -1,0 +1,29 @@
+#!/usr/bin/env zsh
+# zdots — DSL dispatcher root (decision-008, Z-149)
+# zdots <noun> [verb] [args…]  →  zdots-<noun> [verb] [args…]
+#
+# Additive thin router — every existing zdots-* binary keeps working unchanged.
+# New capabilities land as nouns/verbs under this spine, not new top-level binaries.
+
+noun="${1:-}"
+
+case "$noun" in
+  -h|--help|"")
+    printf 'usage: zdots <noun> [verb] [args...]\n\n'
+    printf 'nouns:\n'
+    for bin in "${ZDOTDIR:-$HOME/.config/zsh}/bin"/zdots-*; do
+      [[ -x "$bin" ]] && printf '  %s\n' "${bin##*/zdots-}"
+    done
+    exit 0
+    ;;
+  *)
+    target="zdots-${noun}"
+    if ! command -v "$target" &>/dev/null; then
+      printf 'zdots: unknown noun "%s"\n' "$noun" >&2
+      printf 'run: zdots --help\n' >&2
+      exit 1
+    fi
+    shift
+    exec "$target" "$@"
+    ;;
+esac
