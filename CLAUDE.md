@@ -66,9 +66,9 @@ zsvc diag   <svc>      # status + health + launchd state + last 50 log lines
 **`zdots doctor`** — system health check. Run this first when anything feels wrong.
 
 ```bash
-zdots-doctor               # full check: env, repo, XDG, AI tools, services, runtime
-zdots-doctor --no-runtime  # fast mode: skip zdots-ctl check (own sections only)
-zdots-doctor --quiet       # warnings and failures only
+zdots doctor               # full check: env, repo, XDG, AI tools, services, runtime
+zdots doctor --no-runtime  # fast mode: skip zdots-ctl check (own sections only)
+zdots doctor --quiet       # warnings and failures only
 ```
 
 **`zdots-ctl`** — full-platform orchestration. Use for bring-up, teardown, and diagnostics.
