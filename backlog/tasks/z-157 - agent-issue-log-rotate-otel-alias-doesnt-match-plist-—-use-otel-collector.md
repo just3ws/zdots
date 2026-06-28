@@ -3,9 +3,10 @@ id: Z-157
 title: >-
   [agent-issue] log-rotate 'otel' alias doesn't match plist — use
   'otel-collector'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-19 03:08'
+updated_date: '2026-06-28 22:35'
 labels:
   - agent-reported
   - error
