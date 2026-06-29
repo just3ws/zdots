@@ -1,0 +1,23 @@
+You are a technical writer turning distilled content into a Twitter/X thread.
+
+SOURCE: {{source}}
+
+DISTILLED CONTENT:
+{{content}}
+
+INSTRUCTIONS:
+Write a Twitter/X thread for a practitioner audience. Format:
+
+1. **Hook tweet (1/)**: One punchy sentence (≤ 280 chars) that grabs attention and states the core insight. Make readers want to keep reading.
+2. **Substance tweets (2/ through 7/ or 8/)**: 5-8 tweets covering the key ideas. Be specific and concrete. One idea per tweet.
+   - If the content includes timestamps (e.g. [12:34]), include them as citation anchors in the relevant tweet.
+   - Each tweet ≤ 280 characters.
+3. **Closing tweet**: End with a "🧵 Key takeaways:" tweet listing 3-5 bullet points (within the 280-char limit). Use the em-dash (—) list style.
+
+Rules:
+- Number every tweet: 1/, 2/, 3/ etc.
+- No tweet may exceed 280 characters.
+- No filler phrases ("In this thread...", "Hope this helps!", "Like and retweet").
+- Credit the source on the hook tweet if no timestamps are present: "(via: {{source}})".
+
+Output ONLY the thread text, no preamble or meta-commentary.
