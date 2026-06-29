@@ -30,6 +30,9 @@ module Zdots
           embedding = Zdots::AI.embed_client.embed(model: "embed", input: term).vectors
           vec_literal = "[#{embedding.join(',')}]"
           exclude(embedding: nil).order(Sequel.lit("embedding <=> ?::vector", vec_literal))
+        rescue Errno::ECONNREFUSED
+          warn "zdots-brain: embed service unavailable (127.0.0.1:11501) — start with: zsvc start embed"
+          where(false)
         end
 
         # Models define which fields to include in text search.

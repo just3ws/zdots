@@ -437,7 +437,9 @@ module Zdots
     # reindex-embeddings — enqueue embed jobs for lessons and methodologies that
     # are missing an embedding (e.g. rows whose content exceeded the old context
     # limit, now handled by the chunking embed job). Idempotent: the embed
-    # fingerprint prevents duplicate pending jobs. The worker does the work.
+    # fingerprint prevents duplicate pending jobs. Dead jobs (e.g. from a prior
+    # embed service outage) are reset to pending so they are retried. The worker
+    # does the work.
     def cmd_reindex_embeddings
       enqueued = 0
       {
@@ -448,7 +450,12 @@ module Zdots
           text = row.content.to_s
           next if text.strip.empty?
 
-          Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+          Zdots::Models::Job.dataset.insert_conflict(
+            target: :fingerprint,
+            update_where: { Sequel[:jobs][:status] => "dead" },
+            update: { status: "pending", attempts: 0, error_message: nil,
+                      next_run_at: Sequel.function(:NOW) }
+          ).insert(
             type: "embed",
             payload: Sequel.pg_jsonb({ table: table, id: row.id, text: text }),
             priority: 5,
