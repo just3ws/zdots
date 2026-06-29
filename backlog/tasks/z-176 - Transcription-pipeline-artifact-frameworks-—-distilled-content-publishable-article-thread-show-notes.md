@@ -3,9 +3,10 @@ id: Z-176
 title: >-
   Transcription pipeline: artifact frameworks — distilled content -> publishable
   article/thread/show-notes
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-28 16:54'
+updated_date: '2026-06-29 01:52'
 labels:
   - transcription-pipeline
   - dream
