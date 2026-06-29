@@ -371,8 +371,17 @@ _register_plist() {
 
   export ZDOTS_AI_PROFILE="${AI_PROFILE}"
   export ZDOTS_AI_MODELS_DIR="${MODELS_DIR}"
-  ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR ZDOTS_AI_PROFILE ZDOTS_AI_MODELS_DIR" \
-    zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$bin" "$LOG_FILE" "${args[@]}"
+
+  local _sb_profile="${ZDOTDIR}/etc/llama-server.sb"
+  if [[ -x "/usr/bin/sandbox-exec" && -f "$_sb_profile" ]]; then
+    ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR ZDOTS_AI_PROFILE ZDOTS_AI_MODELS_DIR" \
+      zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "/usr/bin/sandbox-exec" "$LOG_FILE" \
+        "-D" "HOME=${HOME}" "-f" "$_sb_profile" "$bin" "${args[@]}"
+  else
+    printf 'llama-ctl: warning: sandbox-exec unavailable or profile missing — starting without sandbox\n' >&2
+    ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR ZDOTS_AI_PROFILE ZDOTS_AI_MODELS_DIR" \
+      zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$bin" "$LOG_FILE" "${args[@]}"
+  fi
 }
 
 start_llama() {
