@@ -6,7 +6,7 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-06-15 13:17'
-updated_date: '2026-06-29 02:49'
+updated_date: '2026-06-29 03:14'
 labels:
   - docs
   - agent-ready
@@ -30,7 +30,22 @@ The /docs-sync skill (drafted in .claude/commands/docs-sync.md) gives a discipli
 - [x] #4 AGENTS.md §9 GLOSSARY.md/ONTOLOGY.md references are reconciled to point at the concept registry (decision-009) or CONTEXT.md — the canonical R2 example is closed
 - [ ] #5 CHANGELOG.md remains generated (git-cliff), never hand-edited; the skill's gate regenerates rather than edits
 - [ ] #6 Cross-platform initializer-naming divergence (zdots AGENTS.md vs my AGENT.md/HUMAN.md vs adots none vs vdots off-disk) is resolved or ratified as intentional: a shared convention is documented and the skill's Cross-platform scope section points at it; peers are notified via issue, not edited across repo boundaries
+- [ ] #7 1:done: /docs-sync linked from CLAUDE.md §Agent Skills (docs-sync.md line: 'Use /docs-sync <what-changed>...')
+- [ ] #8 2:done: test 13 in tests/docs_contract.bats — fictional-reference linter; passes in make docs-contract 13/13
+- [ ] #9 3:done: etc/docs-sync-manifest.yaml; linter reads it via yq with fallback; skill references it in closing gate step 1
+- [ ] #10 5:done: docs-sync.md closing gate step 3 always runs make changelog; never skip
+- [ ] #11 6:done: ratified as intentional in docs-sync.md cross-platform section + manifest cross_platform block; Z-153 AC#6 cited inline
 <!-- AC:END -->
+
+
+
+
+
+
+
+
+
+
 
 
 
