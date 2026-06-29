@@ -60,3 +60,25 @@ can interrupt work, which must be tunable to avoid false stops.
 Related: PHI Operating Mode (AGENTS.md §10) — same fail-closed philosophy applied
 to cost instead of leakage; project_frontier_lanes; the Token-Budget Governor
 feature task (Z-148).
+
+## Implementation
+
+Delivered incrementally as Z-148 (Token-Budget Governor):
+
+- **`bin/cc-burn`** — 5h rolling-window monitor wrapping `ccusage blocks --offline`
+  (reads `~/.claude` transcripts; no network). Computes burn rate, time-to-reset,
+  projected usage, cache efficiency, threshold alerts, and a fail-closed ceiling gate
+  (`--assert-ceiling`). Modes: human | --json | --quiet | --assert-ceiling | calibrate.
+- **`bin/cc-burn-watch`** — periodic LaunchAgent alerter (default 300 s). Reads
+  `cc-burn --json`; fires macOS notifications on severity worsening (ok→warn→alert).
+  On window-close (warn/alert→ok), records a numeric efficiency lesson in the
+  Knowledge Layer via `zdots-ctx add-lesson` (tokens, cost, cache %; no transcript
+  content — PHI-safe by construction).
+- **`bin/cc-statusline`** — reads the watcher cache; appends burn state to the shell
+  statusline at zero per-render cost.
+- **Ceiling gate (constraint 3):** `zclaude` calls `cc-burn --assert-ceiling` before
+  any attended launch. Exit 1 (warn) is advisory; exit 2 (alert) blocks unless
+  `ZDOTS_CC_ALLOW_OVERRUN=1` is set and logged. Headless modes (--auto, --sync)
+  bypass the gate by design — they should not silently block cron jobs. Wiring `cl`
+  (adots) to the same gate is tracked separately.
+- **Local lanes** are exempt per constraint 5.

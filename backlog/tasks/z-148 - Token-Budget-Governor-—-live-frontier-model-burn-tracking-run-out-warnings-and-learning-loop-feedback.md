@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-14 18:25'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-06-29 03:11'
 labels:
   - feature
   - ai-cost
@@ -59,7 +59,22 @@ NON-GOALS
 - [ ] #3 Projected spend approaching the configured account level warns; crossing it fails closed and requires an explicit logged opt-in
 - [ ] #4 Per-call token/cost/latency is captured as runtime telemetry and a per-session efficiency record reaches the Knowledge Layer for trend analysis
 - [ ] #5 decision-006 constraint is documented and the governor is registered against it
+- [ ] #6 1:done: statusline + cc-burn on-demand; (est.) label added when ceiling is auto-calibrated
+- [ ] #7 2:done: warn prints rtk tip; alert prints checkpoint/compact/stop action; --assert-ceiling does same
+- [ ] #8 3:done: --assert-ceiling flag in cc-burn; zclaude wired; ZDOTS_CC_ALLOW_OVERRUN=1 opt-in logged via logger; cl→Z-178
+- [ ] #9 5:done: decision-006 Implementation section added; references cc-burn/cc-burn-watch as the delivering tools
+- [ ] #10 4:partial: per-session KB record done (cc-burn-watch window-close → zdots-ctx add-lesson); per-call OTel spans deferred (no llm_call pipeline configured — Z-task needed)
 <!-- AC:END -->
+
+
+
+
+
+
+
+
+
+
 
 ## Implementation Plan
 

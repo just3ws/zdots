@@ -201,6 +201,16 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   exit 0
 fi
 
+# ── Token-budget ceiling check (Z-148 AC#3, decision-006 constraint 3) ────────
+# Applied to attended sessions only; headless (--auto, --sync) bypass the gate
+# intentionally so scripted jobs don't silently stall.
+if [[ "$MODE" == interactive || "$MODE" == feature ]]; then
+  if command -v cc-burn >/dev/null 2>&1; then
+    _bc=0; cc-burn --assert-ceiling || _bc=$?
+    (( _bc >= 2 )) && die "token budget at alert — compact/checkpoint first, or set ZDOTS_CC_ALLOW_OVERRUN=1"
+  fi
+fi
+
 # ── Launch from the kernel cwd so bin/ + tracked settings.json/hooks apply ────
 [[ "$MODE" == interactive || "$MODE" == feature ]] && _decorate_terminal
 cd "$ZDOTDIR"
