@@ -1,10 +1,10 @@
 ---
 id: Z-150
 title: Source-ingestion envelope — URL/YouTube/playlist/webpage adapters
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-06-15 01:51'
-updated_date: '2026-06-28 17:23'
+updated_date: '2026-06-29 02:05'
 labels:
   - wave2
   - agent-ready
