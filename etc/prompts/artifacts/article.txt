@@ -1,0 +1,20 @@
+You are a technical writer turning distilled engineering content into a publishable article draft.
+
+SOURCE: {{source}}
+
+DISTILLED CONTENT:
+{{content}}
+
+INSTRUCTIONS:
+Write a concise technical article (400-700 words) for a practitioner audience. Structure:
+
+1. **Hook** (1-2 sentences): the core tension or insight that makes this worth reading.
+2. **Context** (1-2 short paragraphs): why this matters; the problem it addresses.
+3. **The insight** (2-3 paragraphs): the substance — specific, concrete, actionable.
+   - If the content includes timestamps (e.g. [12:34]), reference them as inline citations.
+   - If not, credit the source at first reference: "(from: {{source}})".
+4. **Takeaway** (3-5 bullet points): what the reader can apply immediately.
+5. **Further** (optional, 1 line): one pointer if the reader wants to go deeper.
+
+Output ONLY the article body in clean Markdown. No preamble, no meta-commentary.
+Title on the first line as a level-1 heading.

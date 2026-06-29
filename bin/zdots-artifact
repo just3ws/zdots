@@ -1,0 +1,88 @@
+#!/usr/bin/env zsh
+# bin/zdots-artifact — Artifact framework: distilled content → publishable draft
+#
+# Usage:
+#   zdots-artifact --framework article [--source TITLE] [--file PATH] [--edit] [--dry-run]
+#   echo "content..." | zdots-artifact --framework article --source "Talk title"
+#
+# Frameworks: article (thread, show-notes — add prompts to etc/prompts/artifacts/)
+# Output: ~/.local/state/zdots/artifacts/<framework>-<timestamp>.md (human-editable)
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+ARTIFACTS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zdots/artifacts"
+
+_framework=""
+_source="unknown source"
+_file=""
+_edit=0
+_dry_run=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --framework)  _framework="${2:?--framework requires name}"; shift 2 ;;
+    --framework=*) _framework="${1#--framework=}"; shift ;;
+    --source)     _source="${2:?--source requires title}"; shift 2 ;;
+    --source=*)   _source="${1#--source=}"; shift ;;
+    --file)       _file="${2:?--file requires path}"; shift 2 ;;
+    --file=*)     _file="${1#--file=}"; shift ;;
+    --edit)       _edit=1; shift ;;
+    --dry-run)    _dry_run=1; shift ;;
+    -h|--help)
+      print "usage: zdots-artifact --framework <name> [--source TITLE] [--file PATH] [--edit] [--dry-run]"
+      print "  Frameworks: $(ls "${ZDOTDIR}/etc/prompts/artifacts/"*.txt 2>/dev/null | xargs -n1 basename | sed 's/\.txt//' | tr '\n' ' ')"
+      exit 0 ;;
+    *) print "zdots-artifact: unknown flag: $1" >&2; exit 1 ;;
+  esac
+done
+
+[[ -z "$_framework" ]] && { print "zdots-artifact: --framework required" >&2; exit 1; }
+
+prompt_file="${ZDOTDIR}/etc/prompts/artifacts/${_framework}.txt"
+[[ -f "$prompt_file" ]] || { print "zdots-artifact: unknown framework '${_framework}' (no ${prompt_file})" >&2; exit 1; }
+
+# Read content
+if [[ -n "$_file" ]]; then
+  content=$(<"$_file")
+elif [[ ! -t 0 ]]; then
+  content=$(cat)
+else
+  print "zdots-artifact: provide content via --file or stdin" >&2; exit 1
+fi
+
+[[ -z "$content" ]] && { print "zdots-artifact: empty content" >&2; exit 1; }
+
+# Build prompt from template (escape & so sed doesn't expand it as backreference)
+_source_esc="${_source//&/\\&}"
+prompt=$(sed \
+  -e "s|{{source}}|${_source_esc}|g" \
+  -e "s|{{framework}}|${_framework}|g" \
+  "$prompt_file")
+# Append content block
+full_prompt="${prompt}
+
+${content}"
+
+if (( _dry_run )); then
+  print "=== zdots-artifact dry-run (framework: ${_framework}, source: ${_source}) ==="
+  print "$full_prompt" | head -20
+  print "..."
+  exit 0
+fi
+
+# Run through local LLM
+draft=$(print "$full_prompt" | ai-query --timeout 120 "output only the article markdown" 2>/dev/null) || {
+  print "zdots-artifact: ai-query failed — is the local LLM running? (zsvc status llama)" >&2
+  exit 1
+}
+
+# Write draft
+mkdir -p "$ARTIFACTS_DIR"
+slug=$(print "$_source" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-' | cut -c1-40)
+outfile="${ARTIFACTS_DIR}/${_framework}-${slug}-$(date +%Y%m%d%H%M%S).md"
+print "$draft" > "$outfile"
+
+print "zdots-artifact: draft written → ${outfile}"
+
+if (( _edit )); then "${EDITOR:-vi}" "$outfile"; fi
