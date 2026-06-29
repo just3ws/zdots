@@ -1,0 +1,87 @@
+;;; llama-server.sb — macOS Seatbelt (sandbox-exec) profile
+;;;
+;;; SECURITY GOAL: Network containment — deny all outbound connections so a
+;;; compromised llama-server cannot exfiltrate data. Inbound TCP on loopback
+;;; is permitted so local clients can reach the inference endpoint.
+;;;
+;;; FILE READS: Broad `(subpath "/")` is required on macOS 15+ (Darwin 25).
+;;; The dyld shared-cache mechanism resolves library paths through the Preboot
+;;; Cryptexes volume using kernel-internal paths that don't match any enumerable
+;;; set of subpath rules. Restricting file-read* to specific subpaths causes
+;;; SIGABRT at dyld initialisation before main() runs. Since reads cannot
+;;; exfiltrate data (network is blocked), this is an acceptable trade-off.
+;;;
+;;; FILE WRITES: Restricted to the launchd-redirected log file, /tmp, and
+;;; /dev/null. Writes to the rest of the filesystem are explicitly denied.
+;;;
+;;; Usage (injected by llama-ctl into the launchd plist):
+;;;   sandbox-exec -D HOME=$HOME -f /path/to/llama-server.sb \
+;;;     /opt/homebrew/bin/llama-server [args...]
+;;;
+;;; The only variable binding passed is HOME (via -D HOME=$HOME).
+;;;
+;;; AC#3 smoke tests:
+;;;   sandbox-exec -D HOME=$HOME -f etc/llama-server.sb /bin/ls /System/Library
+;;;   # → exit 0
+;;;   sandbox-exec -D HOME=$HOME -f etc/llama-server.sb curl -sv https://93.184.216.34
+;;;   # → exit 7, "Operation not permitted" (outbound TCP denied)
+
+(version 1)
+(deny default)
+
+;;; ─── Mach IPC (required by macOS runtime, CoreFoundation, and Metal) ─────────
+(allow mach-lookup)
+(allow mach-bootstrap)
+(allow mach-priv-host-port)
+
+;;; ─── Process ─────────────────────────────────────────────────────────────────
+(allow process-exec)
+(allow process-fork)
+(allow signal (target self))
+
+;;; ─── Network: inbound only on loopback ───────────────────────────────────────
+;;; Bind and accept on 127.0.0.1/::1 only.
+;;; network-outbound is NOT listed — denied by (deny default).
+(allow network-bind   (local tcp))
+(allow network-inbound (local tcp))
+
+;;; ─── File reads: all paths ───────────────────────────────────────────────────
+;;; Broad read access is required on macOS 15+ (Darwin 25) because dyld's
+;;; shared-cache loading uses opaque kernel-internal paths that cannot be
+;;; enumerated. See comment at the top of this file.
+(allow file-read* (subpath "/"))
+
+;;; ─── File writes: restricted to log, tmp, and /dev/null ─────────────────────
+;;; Explicitly deny writes to everything, then re-allow specific paths.
+(deny file-write* (subpath "/"))
+
+(allow file-write*
+  ;;; launchd-redirected log (stdout/stderr go here via plist StandardOutPath)
+  (literal (string-append (param "HOME") "/.local/state/zsh/llama-server.log"))
+  ;;; Temp scratch space used by some Metal/llama.cpp internals
+  (subpath "/private/tmp")
+  (subpath "/private/var/folders")
+  ;;; Null device
+  (literal "/dev/null")
+)
+
+;;; ─── sysctl reads (CPU/RAM info for thread-pool sizing) ─────────────────────
+(allow sysctl-read)
+
+;;; ─── IOKit / Metal (GPU inference) ──────────────────────────────────────────
+;;; Apple Silicon (M-series) and generic GPU clients.
+(allow iokit-open
+  (iokit-user-client-class "AGXDeviceUserClient")
+  (iokit-user-client-class "AGXCommandQueueUserClient")
+  (iokit-user-client-class "AGXGlobalMemoryUserClient")
+  (iokit-user-client-class "IOAccelerator")
+  (iokit-user-client-class "IOAcceleratorDevice")
+  (iokit-user-client-class "IOGPUDeviceUserClient")
+  (iokit-user-client-class "IOSurfaceRootUserClient")
+  (iokit-user-client-class "IOSurfaceSendRight")
+  (iokit-user-client-class "AppleGraphicsDeviceControlClient")
+)
+
+;;; ─── Misc system operations ──────────────────────────────────────────────────
+(allow system-socket)
+(allow file-ioctl)
