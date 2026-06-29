@@ -1,0 +1,214 @@
+#!/usr/bin/env zdots-ruby
+# bin/o2-mcp — MCP server for on-demand OpenObserve runtime pull.
+#
+# Exposes live telemetry (errors, slow spans, failures, service activity, traces)
+# from the local OpenObserve instance to AI agents. Data is already PHI-scrubbed
+# at the OTel ingest edge — no additional scrubbing is applied here.
+#
+# Transport: stdio (JSON-RPC 2.0)
+# Register in .mcp.json → mcpServers:
+#   "o2": {"type":"stdio","command":"${HOME}/.config/zsh/bin/o2-mcp","env":{"ZDOTDIR":"${HOME}/.config/zsh"}}
+#
+# Tools exposed:
+#   o2_errors     Recent ERROR/FATAL log entries
+#   o2_slow       Slowest spans over a threshold
+#   o2_failures   Error-status spans
+#   o2_service    Activity by service and severity
+#   o2_logs       General log search with optional grep
+#   o2_trace      All spans + logs for a specific trace ID
+
+require "json"
+require "open3"
+
+ZDOTDIR = ENV.fetch("ZDOTDIR", File.expand_path("~/.config/zsh"))
+O2_BIN  = File.join(ZDOTDIR, "bin", "zdots-o2-query")
+
+$stdout.sync = true
+$stderr.sync = true
+
+# ---------------------------------------------------------------------------
+# Tool registry
+# ---------------------------------------------------------------------------
+TOOLS = [
+  {
+    name: "o2_errors",
+    description: "Recent ERROR/FATAL log entries from OpenObserve. Returns a compact table of timestamp, service, message, and trace ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        since: { type: "string", description: "Time window (e.g. 30m, 2h, 1d). Default: 1h" },
+        limit: { type: "integer", description: "Max rows to return. Default: 20" }
+      },
+      required: []
+    }
+  },
+  {
+    name: "o2_slow",
+    description: "Slowest spans over a latency threshold. Use to identify performance regressions or slow operations.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        since:     { type: "string",  description: "Time window. Default: 1h" },
+        threshold: { type: "integer", description: "Minimum duration in ms to include. Default: 100" },
+        limit:     { type: "integer", description: "Max rows. Default: 20" }
+      },
+      required: []
+    }
+  },
+  {
+    name: "o2_failures",
+    description: "Error-status spans from OpenObserve. Returns failed operations with their service, operation name, and message.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        since: { type: "string",  description: "Time window. Default: 1h" },
+        limit: { type: "integer", description: "Max rows. Default: 20" }
+      },
+      required: []
+    }
+  },
+  {
+    name: "o2_service",
+    description: "Activity summary by service and severity. Use for a quick health overview across all platform services.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        since: { type: "string", description: "Time window. Default: 1h" }
+      },
+      required: []
+    }
+  },
+  {
+    name: "o2_logs",
+    description: "General log search from OpenObserve. Optionally filter by a substring match.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        since: { type: "string",  description: "Time window. Default: 1h" },
+        grep:  { type: "string",  description: "Substring to filter log messages (optional)" },
+        limit: { type: "integer", description: "Max rows. Default: 20" }
+      },
+      required: []
+    }
+  },
+  {
+    name: "o2_trace",
+    description: "All spans and logs for a single trace ID. Use when you have a trace ID from errors or failures and want the full picture.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        trace_id: { type: "string", description: "The trace ID to look up" }
+      },
+      required: ["trace_id"]
+    }
+  }
+].freeze
+
+# ---------------------------------------------------------------------------
+# Implementations
+# ---------------------------------------------------------------------------
+def run_o2(*args)
+  env_sh = File.join(ZDOTDIR, "env.sh")
+  escaped = args.map { |a| "'" + a.to_s.gsub("'", "'\\''") + "'" }.join(" ")
+  cmd = "source #{env_sh} 2>/dev/null; #{O2_BIN} #{escaped}"
+  stdout, stderr, status = Open3.capture3("bash", "-c", cmd)
+  status.success? ? stdout : "Error: #{stderr.strip}"
+end
+
+def tool_o2_errors(args)
+  a = ["errors"]
+  a += ["--since", args["since"]] if args["since"]
+  a += ["-n", args["limit"].to_s] if args["limit"]
+  run_o2(*a)
+end
+
+def tool_o2_slow(args)
+  a = ["slow"]
+  a += ["--since",  args["since"]]          if args["since"]
+  a += ["--ms",     args["threshold"].to_s] if args["threshold"]
+  a += ["-n",       args["limit"].to_s]     if args["limit"]
+  run_o2(*a)
+end
+
+def tool_o2_failures(args)
+  a = ["failures"]
+  a += ["--since", args["since"]] if args["since"]
+  a += ["-n", args["limit"].to_s] if args["limit"]
+  run_o2(*a)
+end
+
+def tool_o2_service(args)
+  a = ["service"]
+  a += ["--since", args["since"]] if args["since"]
+  run_o2(*a)
+end
+
+def tool_o2_logs(args)
+  a = ["logs"]
+  a += ["--since", args["since"]] if args["since"]
+  a += ["--grep",  args["grep"]]  if args["grep"]
+  a += ["-n", args["limit"].to_s] if args["limit"]
+  run_o2(*a)
+end
+
+def tool_o2_trace(args)
+  run_o2("trace", args["trace_id"])
+end
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+def respond(id, result)
+  $stdout.puts JSON.generate({ jsonrpc: "2.0", id: id, result: result })
+end
+
+def error_response(id, code, message)
+  $stdout.puts JSON.generate({ jsonrpc: "2.0", id: id, error: { code: code, message: message } })
+end
+
+def call_tool(name, args)
+  case name
+  when "o2_errors"   then tool_o2_errors(args)
+  when "o2_slow"     then tool_o2_slow(args)
+  when "o2_failures" then tool_o2_failures(args)
+  when "o2_service"  then tool_o2_service(args)
+  when "o2_logs"     then tool_o2_logs(args)
+  when "o2_trace"    then tool_o2_trace(args)
+  else raise "Unknown tool: #{name}"
+  end
+end
+
+$stdin.each_line do |line|
+  line = line.strip
+  next if line.empty?
+  begin
+    msg = JSON.parse(line)
+  rescue JSON::ParserError
+    error_response(nil, -32700, "Parse error")
+    next
+  end
+
+  id     = msg["id"]
+  method = msg["method"]
+  params = msg["params"] || {}
+
+  case method
+  when "initialize"
+    respond(id, {
+      protocolVersion: "2024-11-05",
+      capabilities: { tools: {} },
+      serverInfo: { name: "o2-mcp", version: "1.0.0" }
+    })
+  when "tools/list"
+    respond(id, { tools: TOOLS })
+  when "tools/call"
+    begin
+      result_text = call_tool(params["name"], params.fetch("arguments", {}))
+      respond(id, { content: [{ type: "text", text: result_text }] })
+    rescue => e
+      respond(id, { content: [{ type: "text", text: "Error: #{e.message}" }], isError: true })
+    end
+  when "ping" then respond(id, {})
+  else respond(id, {}) if id
+  end
+end
