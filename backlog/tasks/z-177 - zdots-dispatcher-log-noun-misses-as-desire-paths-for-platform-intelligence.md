@@ -1,9 +1,10 @@
 ---
 id: Z-177
 title: 'zdots dispatcher: log noun-misses as desire paths for platform intelligence'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-28 20:43'
+updated_date: '2026-06-29 02:05'
 labels:
   - wave2
   - agent-ready
