@@ -3,10 +3,10 @@ id: Z-153
 title: >-
   Harden /docs-sync — mechanize AI-initializer-family coherence +
   fictional-reference linting
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-15 13:17'
-updated_date: '2026-06-15 16:56'
+updated_date: '2026-06-29 02:49'
 labels:
   - docs
   - agent-ready
