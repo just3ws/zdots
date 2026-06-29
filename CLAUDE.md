@@ -163,3 +163,7 @@ Canonical triage roles map to backlog priorities and labels (`agent-ready`, `nee
 ### Domain docs
 
 Single-context repo. Primary doc is `AGENTS.md`. No `CONTEXT.md` or `docs/adr/` yet. See `docs/agents/domain.md`.
+
+### Docs sync
+
+Use `/docs-sync <what-changed>` after any vocabulary, command-surface, or contract change to propagate it across the tiered AI-initializer family (AGENTS.md → CLAUDE.md → per-tool files → local prompts) and verify against `make docs-contract`. See `.claude/commands/docs-sync.md`.
