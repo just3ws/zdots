@@ -8,6 +8,7 @@ module Zdots
       include Searchable
 
       encrypted_attribute :content
+      encrypted_attribute :context
 
       # FTS index removed after encryption — filter in app after decrypting.
       # Revisit if row counts grow significantly.

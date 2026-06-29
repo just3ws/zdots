@@ -3,6 +3,9 @@ module Zdots
   module Models
     class SourceDocument < Sequel::Model(:source_document)
       plugin :timestamps, update_on_create: true
+      include EncryptedContent
+
+      encrypted_attribute :body_md
 
       def self.upsert_by_uri(uri:, source_type:, title: nil, body_md: nil,
                               checksum: nil, provenance: {}, fetched_at: nil)

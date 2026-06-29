@@ -33,6 +33,14 @@ require "yaml"
 
 module Zdots
   class CLI
+    # Tables and their encrypted columns — used by cmd_rekey and cmd_status.
+    REKEY_TABLES = {
+      "lessons"         => %i[content_enc context_enc],
+      "methodologies"   => %i[content_enc],
+      "session_residue" => %i[summary_enc intent_enc result_enc],
+      "source_document" => %i[body_md_enc]
+    }.freeze
+
     def initialize
       @options = { format: "text", semantic: false }
       parse_options
@@ -807,8 +815,8 @@ module Zdots
     def cmd_rekey(args)
       dry_run = @options[:dry_run]
       table = args.shift || "lessons"
-      unless %w[lessons methodologies].include?(table)
-        puts "usage: zdots-brain rekey [--dry-run] [lessons|methodologies]"
+      unless REKEY_TABLES.key?(table)
+        puts "usage: zdots-brain rekey [--dry-run] [#{REKEY_TABLES.keys.join('|')}]"
         exit 1
       end
 
@@ -819,56 +827,64 @@ module Zdots
         exit e.message.include?("identical") ? 0 : 1
       end
 
-      puts "zdots-brain: re-keying #{table}#{' (dry run)' if dry_run}..."
+      columns = REKEY_TABLES[table]
+      puts "zdots-brain: re-keying #{table} (#{columns.join(', ')})#{' (dry run)' if dry_run}..."
 
-      rows = Zdots.db[table.to_sym].select(:id, :content_enc).all
-      rekeyed = 0
-      already_new = 0
-      null_rows = 0
-      errors = 0
+      total_rekeyed = total_already_new = total_null = total_errors = 0
 
-      rows.each do |row|
-        if row[:content_enc].nil?
-          null_rows += 1
-          next
-        end
+      columns.each do |col|
+        rows = Zdots.db[table.to_sym].select(:id, col).all
+        rekeyed = already_new = null_rows = errors = 0
 
-        begin
-          plaintext = nil
-          Zdots.db.transaction(savepoint: true) do
-            plaintext = Zdots.db.get(
-              Sequel.function(:pgp_sym_decrypt, Sequel.blob(row[:content_enc].to_s), old_key)
-            )
+        rows.each do |row|
+          if row[col].nil?
+            null_rows += 1
+            next
           end
 
-          unless dry_run
-            new_enc = Zdots.db.get(Sequel.function(:pgp_sym_encrypt, plaintext, new_key))
-            Zdots.db[table.to_sym].where(id: row[:id]).update(content_enc: new_enc)
-          end
-
-          rekeyed += 1
-        rescue Sequel::DatabaseError
-          # pgp_sym_decrypt failed with old key — row may already be on new key
           begin
+            plaintext = nil
             Zdots.db.transaction(savepoint: true) do
-              Zdots.db.get(
-                Sequel.function(:pgp_sym_decrypt, Sequel.blob(row[:content_enc].to_s), new_key)
+              plaintext = Zdots.db.get(
+                Sequel.function(:pgp_sym_decrypt, Sequel.blob(row[col].to_s), old_key)
               )
             end
-            already_new += 1
+
+            unless dry_run
+              new_enc = Zdots.db.get(Sequel.function(:pgp_sym_encrypt, plaintext, new_key))
+              Zdots.db[table.to_sym].where(id: row[:id]).update(col => new_enc)
+            end
+
+            rekeyed += 1
           rescue Sequel::DatabaseError
-            errors += 1
+            # pgp_sym_decrypt failed with old key — row may already be on new key
+            begin
+              Zdots.db.transaction(savepoint: true) do
+                Zdots.db.get(
+                  Sequel.function(:pgp_sym_decrypt, Sequel.blob(row[col].to_s), new_key)
+                )
+              end
+              already_new += 1
+            rescue Sequel::DatabaseError
+              errors += 1
+            end
           end
         end
+
+        puts "    #{col}: rekeyed=#{rekeyed} already_new=#{already_new} null=#{null_rows} errors=#{errors}"
+        total_rekeyed += rekeyed
+        total_already_new += already_new
+        total_null += null_rows
+        total_errors += errors
       end
 
       puts "zdots-brain: #{table} rekey #{dry_run ? 'scan' : 'complete'}:"
-      puts "  rekeyed     : #{rekeyed}"
-      puts "  already new : #{already_new}"
-      puts "  null        : #{null_rows}"
-      puts "  unreadable  : #{errors}"
+      puts "  rekeyed     : #{total_rekeyed}"
+      puts "  already new : #{total_already_new}"
+      puts "  null        : #{total_null}"
+      puts "  unreadable  : #{total_errors}"
 
-      exit(errors.positive? ? 1 : 0)
+      exit(total_errors.positive? ? 1 : 0)
     end
 
     def cmd_status
@@ -880,6 +896,15 @@ module Zdots
         false
       end
 
+      enc_coverage = REKEY_TABLES.flat_map do |tbl, cols|
+        cols.filter_map do |col|
+          schema_cols = db[tbl.to_sym].columns rescue []
+          next unless schema_cols.include?(col)
+          count = db[tbl.to_sym].exclude(col => nil).count rescue 0
+          ["#{tbl}.#{col}", count]
+        end
+      end.to_h
+
       data = {
         connected: connected,
         database: db.opts[:database] || "unknown",
@@ -889,7 +914,8 @@ module Zdots
           pending_jobs: Zdots::Models::Job.pending_count,
           dead_jobs: Zdots::Models::Job.dead_count
         },
-        my_root: ENV.fetch("ZDOTS_MY_ROOT", nil)
+        my_root: ENV.fetch("ZDOTS_MY_ROOT", nil),
+        encryption_coverage: enc_coverage
       }
 
       if @options[:format] == "json"
@@ -901,6 +927,8 @@ module Zdots
         puts "  pending jobs  : #{data[:counts][:pending_jobs]}"
         puts "  dead jobs     : #{data[:counts][:dead_jobs]}"
         puts "  my_root       : #{data[:my_root]}"
+        puts "  encryption:"
+        enc_coverage.each { |col, n| puts "    #{col.ljust(34)} #{n} rows" }
       end
     rescue StandardError => e
       if @options[:format] == "json"
