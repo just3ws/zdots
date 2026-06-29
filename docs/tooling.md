@@ -29,6 +29,8 @@ The zdots-specific stack. Every agent session should orient here first.
 | System health check | `zdots-doctor [--no-runtime] [--json]` | "brew doctor" for the workstation: env, repo, XDG, AI, services, observability |
 | Service controller | `zsvc list/health/logs/diag/restart` | Inspect, health-check, log-tail, and control registered platform components |
 | Knowledge layer CLI | `zdots-ctx query/capture/hydrate/sync-history` | Shell→PostgreSQL brain interface |
+| Brain status | `zdots-brain status [--json]` | DB row counts + encryption coverage across all 8 `_enc` columns |
+| Brain rekey | `zdots-brain rekey [table]` | Re-encrypt after key rotation; covers lessons, methodologies, session_residue, source_document |
 | Task orchestrator | `ztask start/done/stop/status <id>` | Hydrate shell env to a specific task; links trace to work |
 | Service guide | `agent-guide` | Live status + endpoint map for agents |
 | Environment contract | `capabilities --json` | Machine capability report |
