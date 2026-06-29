@@ -225,9 +225,9 @@ _known_gap() {
 }
 
 @test "docs: fictional-reference linting — backtick commands in tracked docs exist in bin/ or allowlist" {
-  # R2 invariant (Z-153 AC#2): docs must not cite zdots-* commands that don't exist.
-  # Scans AGENTS.md, CLAUDE.md, and docs/wiki/*.md for `zdots-*` backtick references
-  # and asserts each one resolves in bin/.
+  # R2 invariant (Z-153 AC#2+AC#3): docs must not cite zdots-* commands that don't exist.
+  # Tier file list comes from etc/docs-sync-manifest.yaml (AC#3 single source of truth).
+  # Falls back to AGENTS.md + CLAUDE.md if yq/manifest unavailable.
   #
   # Non-binary tokens (labels, aliases, external tools, schema terms) are allowlisted below.
   local -a allowlist=(
@@ -243,10 +243,20 @@ _known_gap() {
     context-engine my zdots-brain
   )
 
-  local -a docs=(
-    "$REPO_ROOT/AGENTS.md"
-    "$REPO_ROOT/CLAUDE.md"
-  )
+  local -a docs=()
+  local manifest="$REPO_ROOT/etc/docs-sync-manifest.yaml"
+  if command -v yq >/dev/null 2>&1 && [[ -f "$manifest" ]]; then
+    # Read tier files from the manifest
+    while IFS= read -r f; do
+      [[ -f "$REPO_ROOT/$f" ]] && docs+=("$REPO_ROOT/$f")
+    done < <(yq '.tiers[].file // ""' "$manifest" 2>/dev/null | grep -v '^$\|^null$')
+  fi
+  # Always include the core initializers (fallback if manifest unreadable)
+  for core in AGENTS.md CLAUDE.md; do
+    local already=0
+    for d in "${docs[@]}"; do [[ "$d" == "$REPO_ROOT/$core" ]] && already=1 && break; done
+    [[ $already -eq 0 && -f "$REPO_ROOT/$core" ]] && docs+=("$REPO_ROOT/$core")
+  done
   # add wiki docs if present
   for w in "$REPO_ROOT"/docs/wiki/*.md; do
     [[ -f "$w" ]] && docs+=("$w")
