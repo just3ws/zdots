@@ -201,6 +201,16 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   exit 0
 fi
 
+# ── OTel telemetry export for CC (Z-172.01): ensure exporter/protocol are set ─
+# settings.json env block may not propagate to the CC process OTel pipeline;
+# set here to guarantee metrics+logs reach the local collector via HTTP/protobuf.
+# Use :-default so explicit shell overrides still take precedence.
+export OTEL_METRICS_EXPORTER="${OTEL_METRICS_EXPORTER:-otlp}"
+export OTEL_LOGS_EXPORTER="${OTEL_LOGS_EXPORTER:-otlp}"
+export OTEL_EXPORTER_OTLP_PROTOCOL="${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}"
+export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://127.0.0.1:4318}"
+export CLAUDE_CODE_ENABLE_TELEMETRY="${CLAUDE_CODE_ENABLE_TELEMETRY:-1}"
+
 # ── Token-budget ceiling check (Z-148 AC#3, decision-006 constraint 3) ────────
 # Applied to attended sessions only; headless (--auto, --sync) bypass the gate
 # intentionally so scripted jobs don't silently stall.
