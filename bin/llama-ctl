@@ -743,11 +743,20 @@ _register_embed_plist() {
     "--no-warmup"
   )
 
-  ZDOTS_AI_PROFILE="${EMBED_PROFILE}" \
-  ZDOTS_AI_MODELS_DIR="${MODELS_DIR}" \
-  ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR ZDOTS_AI_PROFILE ZDOTS_AI_MODELS_DIR" \
-    zdots_svc_launchd_register "${EMBED_PLIST_LABEL}" "${EMBED_PLIST_FILE}" \
-      "$bin" "${EMBED_LOG_FILE}" "${args[@]}"
+  local _sb_profile="${ZDOTDIR}/etc/llama-server.sb"
+  export ZDOTS_AI_PROFILE="${EMBED_PROFILE}"
+  export ZDOTS_AI_MODELS_DIR="${MODELS_DIR}"
+  if [[ -x "/usr/bin/sandbox-exec" && -f "$_sb_profile" ]]; then
+    ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR ZDOTS_AI_PROFILE ZDOTS_AI_MODELS_DIR" \
+      zdots_svc_launchd_register "${EMBED_PLIST_LABEL}" "${EMBED_PLIST_FILE}" \
+        "/usr/bin/sandbox-exec" "${EMBED_LOG_FILE}" \
+        "-D" "HOME=${HOME}" "-f" "$_sb_profile" "$bin" "${args[@]}"
+  else
+    printf 'llama-ctl: warning: sandbox-exec unavailable or profile missing — starting embed without sandbox\n' >&2
+    ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR ZDOTS_AI_PROFILE ZDOTS_AI_MODELS_DIR" \
+      zdots_svc_launchd_register "${EMBED_PLIST_LABEL}" "${EMBED_PLIST_FILE}" \
+        "$bin" "${EMBED_LOG_FILE}" "${args[@]}"
+  fi
 }
 
 install_embed() {
