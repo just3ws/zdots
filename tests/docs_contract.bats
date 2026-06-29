@@ -200,6 +200,7 @@ _known_gap() {
     zmetrics zmorning zsvc ztask
     cc-home log-rotate zdots-config zdots-buffer-drain zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
     bench zdots-pattern zdots-issue imperial-date
+    zdots zdots-artifact zdots-debrief
   )
 
   local missing=()
@@ -219,6 +220,60 @@ _known_gap() {
 
   if [[ ${#missing[@]} -gt 0 ]]; then
     printf 'Unaccounted scripts (add to --help test or known-gaps): %s\n' "${missing[*]}" >&2
+    return 1
+  fi
+}
+
+@test "docs: fictional-reference linting — backtick commands in tracked docs exist in bin/ or allowlist" {
+  # R2 invariant (Z-153 AC#2): docs must not cite zdots-* commands that don't exist.
+  # Scans AGENTS.md, CLAUDE.md, and docs/wiki/*.md for `zdots-*` backtick references
+  # and asserts each one resolves in bin/.
+  #
+  # Non-binary tokens (labels, aliases, external tools, schema terms) are allowlisted below.
+  local -a allowlist=(
+    # backlog labels / triage tags
+    agent-ready agent-reported needs-info
+    # shell aliases (not bin/ scripts)
+    cl laid zpi zaider
+    # external tools / well-known binaries
+    git curl brew jq yq psql pgcli sqlite3
+    # concept/schema terms used in backticks
+    scram-sha-256 cloud none local
+    # platform concepts that aren't commands
+    context-engine my zdots-brain
+  )
+
+  local -a docs=(
+    "$REPO_ROOT/AGENTS.md"
+    "$REPO_ROOT/CLAUDE.md"
+  )
+  # add wiki docs if present
+  for w in "$REPO_ROOT"/docs/wiki/*.md; do
+    [[ -f "$w" ]] && docs+=("$w")
+  done
+
+  local -a phantom=()
+
+  for doc in "${docs[@]}"; do
+    # extract all `zdots-*` backtick references
+    while IFS= read -r token; do
+      # check allowlist
+      local allowed=0
+      for a in "${allowlist[@]}"; do
+        [[ "$token" == "$a" ]] && allowed=1 && break
+      done
+      (( allowed )) && continue
+      # must exist in bin/
+      if [[ ! -x "$REPO_ROOT/bin/$token" ]]; then
+        phantom+=("${token} (in $(basename "$doc"))")
+      fi
+    done < <(grep -ohE '`zdots-[a-z][a-z0-9-]+`' "$doc" 2>/dev/null | sed "s/\`//g" | sort -u)
+  done
+
+  if [[ ${#phantom[@]} -gt 0 ]]; then
+    printf 'Phantom zdots-* references (cited in docs but not in bin/):\n' >&2
+    printf '  %s\n' "${phantom[@]}" >&2
+    printf 'Either add the script to bin/ or add an entry to docs-contract-known-gaps.txt\n' >&2
     return 1
   fi
 }
