@@ -25,6 +25,31 @@ LABEL="com.zdots.cc-burn-watch"
 PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
 INTERVAL="${ZDOTS_CC_WATCH_INTERVAL:-300}"
 
+_ccusage() {
+  if command -v ccusage >/dev/null 2>&1; then ccusage "$@"
+  else npx -y ccusage@latest "$@"; fi
+}
+
+# Record numeric efficiency snapshot for the last completed 5h block.
+# PHI-safe: reads token counts and cost only — no transcript content.
+_record_window_efficiency() {
+  command -v zdots-ctx >/dev/null 2>&1 || return 0
+  local blocks_json completed tok cost cr ci cc cache_base cache_pct cost_fmt content
+  blocks_json="$(_ccusage blocks --json --offline 2>/dev/null)" || return 0
+  completed="$(printf '%s' "$blocks_json" | jq '[.blocks[] | select(.isActive==false and .isGap==false)] | last')"
+  [[ -z "$completed" || "$completed" == "null" ]] && return 0
+  tok=$(printf '%s' "$completed" | jq -r '.totalTokens // 0')
+  cost=$(printf '%s' "$completed" | jq -r '.costUSD // 0')
+  cr=$(printf '%s' "$completed" | jq -r '.tokenCounts.cacheReadInputTokens // 0')
+  ci=$(printf '%s' "$completed" | jq -r '.tokenCounts.inputTokens // 0')
+  cc=$(printf '%s' "$completed" | jq -r '.tokenCounts.cacheCreationInputTokens // 0')
+  cache_base=$(( ci + cc + cr ))
+  cache_pct=0; (( cache_base > 0 )) && cache_pct=$(( cr * 100 / cache_base ))
+  cost_fmt=$(printf '%.2f' "$cost" 2>/dev/null || printf '%s' "$cost")
+  content="CC 5h window: $(( tok / 1000 ))k tokens · \$${cost_fmt} · ${cache_pct}% cache reuse"
+  zdots-ctx add-lesson "$content" "cc-token-budget" "cc-efficiency" "frontier-model" 2>/dev/null || true
+}
+
 _notify() {
   local title="$1" msg="$2"
   if command -v terminal-notifier >/dev/null 2>&1; then
@@ -57,6 +82,12 @@ cmd_run() {
       alert) _notify "Claude Code · 🔴 burning hot" "${pct}% of the 5h window used — consider pausing until reset in ${h}h${m}m." ;;
     esac
     printf '[%s] %s→%s pct=%s\n' "$(date '+%H:%M')" "$last" "$sev" "$pct" >>"$LOG_FILE" 2>/dev/null || true
+  fi
+
+  # Window-close: returning to ok after a non-ok state means the 5h block just reset.
+  # Record its numeric efficiency snapshot in the Knowledge Layer.
+  if [[ "$sev" == "ok" && "$last" != "ok" ]]; then
+    _record_window_efficiency 2>/dev/null || true
   fi
 
   # Cache a compact line for cc-statusline (so the statusline never pays

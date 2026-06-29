@@ -12,16 +12,18 @@
 # first time you actually hit a throttle). Pin a fixed ceiling by setting
 # ZDOTS_CC_WINDOW_BUDGET to a token count (find yours via Claude Code's /usage).
 #
-# Usage: cc-burn [--json | --quiet | calibrate | -h]
-#   (default)  human-readable report
-#   --json     active block + computed fields (for the watcher / MCP / statusline)
-#   --quiet    one compact line (for the statusline)
-#   calibrate  show the self-calibrated ceiling + the history it's derived from
+# Usage: cc-burn [--json | --quiet | --assert-ceiling | calibrate | -h]
+#   (default)         human-readable report
+#   --json            active block + computed fields (for the watcher / MCP / statusline)
+#   --quiet           one compact line (for the statusline)
+#   --assert-ceiling  fail-closed gate: exit 0 ok | 1 warn | 2 alert (blocks launch)
+#   calibrate         show the self-calibrated ceiling + the history it's derived from
 #
-# Exit: 0 normal · 2 at/over ALERT pct (current window) · 3 if ccusage unavailable.
+# Exit: 0 ok · 1 warn (--assert-ceiling) · 2 alert · 3 ccusage unavailable.
 #
 # Knobs: ZDOTS_CC_WINDOW_BUDGET (pin ceiling; default "max" = auto),
-#        ZDOTS_CC_WARN_PCT (70), ZDOTS_CC_ALERT_PCT (90).
+#        ZDOTS_CC_WARN_PCT (70), ZDOTS_CC_ALERT_PCT (90),
+#        ZDOTS_CC_ALLOW_OVERRUN (1 = log the opt-in and override the alert ceiling).
 
 set -uo pipefail
 trap '' PIPE
@@ -32,10 +34,11 @@ ALERT_PCT="${ZDOTS_CC_ALERT_PCT:-90}"
 
 mode="human"
 case "${1:-}" in
-  --json)    mode="json" ;;
-  --quiet)   mode="quiet" ;;
-  calibrate) mode="calibrate" ;;
-  -h|--help) sed -n '2,28p' "$0" | sed 's/^# \?//'; exit 0 ;;
+  --json)           mode="json" ;;
+  --quiet)          mode="quiet" ;;
+  --assert-ceiling) mode="assert" ;;
+  calibrate)        mode="calibrate" ;;
+  -h|--help)        sed -n '2,30p' "$0" | sed 's/^# \?//'; exit 0 ;;
   "") ;;
   *) printf 'cc-burn: unknown option: %s\n' "$1" >&2; exit 1 ;;
 esac
@@ -95,6 +98,30 @@ if [[ "$mode" == "json" ]]; then
   exit 0
 fi
 
+if [[ "$mode" == "assert" ]]; then
+  if [[ "$computed" == "null" ]]; then exit 0; fi
+  pct_a=$(jq -r '.pct // -1' <<<"$computed")
+  sev_a="ok"
+  (( pct_a >= 0 && pct_a >= WARN_PCT ))  && sev_a="warn"
+  (( pct_a >= 0 && pct_a >= ALERT_PCT )) && sev_a="alert"
+  case "$sev_a" in
+    ok) exit 0 ;;
+    warn)
+      printf 'cc-burn: ⚠ token budget %s%% of 5h window used (warn ≥%s%%)\n' "$pct_a" "$WARN_PCT" >&2
+      printf '  use rtk for high-output commands; compact before starting large tasks\n' >&2
+      exit 1 ;;
+    alert)
+      printf 'cc-burn: 🔴 token budget %s%% of 5h window used (alert ≥%s%%)\n' "$pct_a" "$ALERT_PCT" >&2
+      printf '  checkpoint, compact, or stop at a recoverable point before reset\n' >&2
+      if [[ "${ZDOTS_CC_ALLOW_OVERRUN:-0}" == "1" ]]; then
+        printf '  ZDOTS_CC_ALLOW_OVERRUN=1 — proceeding with explicit opt-in (logged)\n' >&2
+        logger -t "zdots.cc-budget" "OVERRUN opt-in: pct=${pct_a} user=${USER:-?}" 2>/dev/null || true
+        exit 0
+      fi
+      exit 2 ;;
+  esac
+fi
+
 if [[ "$computed" == "null" ]]; then
   [[ "$mode" == "quiet" ]] && printf 'CC: idle (no active 5h window)\n' || printf 'Claude Code — no active 5h window (idle).\n'
   exit 0
@@ -135,13 +162,21 @@ printf '  resets     in %dh %02dm  (%s)\n' "$rmin_h" "$rmin_m" "$reset_clock"
 printf '  projected  %s tokens by reset  ·  $%s%s\n' \
   "$(_m "$(jq -r '.proj_tokens // 0' <<<"$computed")")" "$(jq -r '.proj_cost // 0 | floor' <<<"$computed")" \
   "$( [[ "$proj_pct" != "?" ]] && printf '  (%s%% of ceiling)' "$proj_pct" )"
+_est=""; [[ "$LIMIT" == "max" ]] && _est=" (est.)"
 if (( pct < 0 )); then
   printf '  ceiling    calibrating — need a completed 5h window first (`cc-burn calibrate`)\n'
 else
   case "$sev" in
-    ok)    printf '  ceiling    %s%% of %s used  ✓  (auto-calibrated)\n' "$pct" "$(_m "$limit")" ;;
-    warn)  printf '  ceiling    ⚠ %s%% of %s used (warn ≥%s%%)\n' "$pct" "$(_m "$limit")" "$WARN_PCT" ;;
-    alert) printf '  ceiling    🔴 %s%% of %s used (alert ≥%s%%) — slow down or wait for reset\n' "$pct" "$(_m "$limit")" "$ALERT_PCT" ;;
+    ok)
+      printf '  ceiling    %s%%%s of %s used  ✓  (auto-calibrated)\n' "$pct" "$_est" "$(_m "$limit")" ;;
+    warn)
+      printf '  ceiling    ⚠ %s%%%s of %s used (warn ≥%s%%)\n' "$pct" "$_est" "$(_m "$limit")" "$WARN_PCT"
+      printf '  tip        use rtk for high-output commands; compact before starting large tasks\n'
+      ;;
+    alert)
+      printf '  ceiling    🔴 %s%%%s of %s used (alert ≥%s%%)\n' "$pct" "$_est" "$(_m "$limit")" "$ALERT_PCT"
+      printf '  action     checkpoint, compact, or stop at a recoverable point before reset\n'
+      ;;
   esac
 fi
 printf '  cache      %s%% read-reuse\n' "$cache"
