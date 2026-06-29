@@ -29,6 +29,7 @@ AGENT_SPAN_ID=$(zdots_svc_new_span_id)
 # Update environment for the agent process
 export ZDOTS_SPAN_ID="$AGENT_SPAN_ID"
 export TRACEPARENT="00-${ZDOTS_TRACE_ID}-${AGENT_SPAN_ID}-01"
+export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES:+${OTEL_RESOURCE_ATTRIBUTES},}zdots.trace.id=${ZDOTS_TRACE_ID}"
 
 _svc_log "starting observable agent session [trace:${ZDOTS_TRACE_ID:0:8}]..."
 
