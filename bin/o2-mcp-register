@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# bin/o2-mcp-register — Register o2-mcp in ~/.claude.json as an MCP server
+#
+# o2-mcp exposes OpenObserve runtime telemetry (errors, slow spans, failures,
+# traces) to AI agents. Data is PHI-scrubbed at ingest — safe to expose.
+#
+# Mirrors ctx-mcp-register. Safe to run multiple times.
+#
+# Usage:
+#   o2-mcp-register [--force]
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+CLAUDE_JSON="${HOME}/.claude.json"
+SERVER_NAME="o2"
+SERVER_CMD="${ZDOTDIR}/bin/o2-mcp"
+
+FORCE=0
+[[ "${1:-}" == "--force" ]] && FORCE=1
+
+if [[ ! -f "$CLAUDE_JSON" ]]; then
+  echo "error: $CLAUDE_JSON not found — is Claude Code installed?" >&2
+  exit 1
+fi
+
+if [[ ! -x "$SERVER_CMD" ]]; then
+  echo "error: $SERVER_CMD not found or not executable" >&2
+  exit 1
+fi
+
+if [[ "$FORCE" -eq 0 ]]; then
+  existing=$(jq -r --arg name "$SERVER_NAME" '.mcpServers[$name] // empty' "$CLAUDE_JSON")
+  if [[ -n "$existing" ]]; then
+    echo "o2-mcp already registered (use --force to overwrite)"
+    exit 0
+  fi
+fi
+
+tmp=$(mktemp)
+jq --arg name "$SERVER_NAME" \
+   --arg cmd "$SERVER_CMD" \
+   --arg zdotdir "$ZDOTDIR" \
+   '.mcpServers[$name] = {"type": "stdio", "command": $cmd, "env": {"ZDOTDIR": $zdotdir}}' \
+   "$CLAUDE_JSON" > "$tmp"
+
+mv "$tmp" "$CLAUDE_JSON"
+echo "o2-mcp registered → $CLAUDE_JSON"
+echo "  server: $SERVER_NAME"
+echo "  command: $SERVER_CMD"
+echo ""
+echo "Restart your Claude Code session to connect."
