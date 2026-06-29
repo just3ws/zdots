@@ -3,10 +3,10 @@ id: Z-148
 title: >-
   Token-Budget Governor — live frontier-model burn tracking, run-out warnings,
   and learning-loop feedback
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-14 18:25'
-updated_date: '2026-06-29 03:11'
+updated_date: '2026-06-29 03:12'
 labels:
   - feature
   - ai-cost
