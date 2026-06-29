@@ -1,0 +1,75 @@
+# docs-sync-manifest.yaml — tier-propagation manifest for the AI-initializer family
+# Read by /docs-sync skill (change-type → file targets) and tests/docs_contract.bats
+# (tier-file list for fictional-reference scanning).
+#
+# Edit this file when the family gains or loses a tier member, or when a change-type
+# gains new propagation targets. Do NOT hard-code these paths elsewhere.
+
+# The ordered tier family (highest to lowest capability).
+# 'glob' entries match zero or more files; 'file' entries are exact paths.
+tiers:
+  - id: agents
+    file: AGENTS.md
+    description: Core contract — universal; auto-imported into every session
+  - id: claude
+    file: CLAUDE.md
+    description: Claude Code (frontier) specifics; imports AGENTS.md
+  - id: pi
+    file: PI.md
+    description: Pi per-tool initializer
+  - id: aider
+    file: AIDER.md
+    description: Aider per-tool initializer
+  - id: gemini
+    file: GEMINI.md
+    description: Gemini per-tool initializer
+  - id: router
+    file: ROUTER.md
+    description: zai router initializer
+  - id: local_prompts
+    glob: etc/prompts/zdots-*.md
+    description: Local-model system prompts (lowest tier); terse + example-driven
+
+# Which change-type touches which tier IDs + extra paths.
+# 'canonical' = where the change is authored first.
+# 'tiers' = tier IDs above that receive the propagation.
+# 'extra' = additional non-tier paths.
+change_types:
+  vocabulary:
+    canonical: CONTEXT.md
+    tiers: [agents, local_prompts]
+    extra:
+      - docs/wiki/
+  command_surface:
+    canonical: AGENTS.md
+    tiers: [claude]
+    extra:
+      - docs/tooling.md
+      - bin/agent-guide
+  contract_decision:
+    canonical: backlog/decisions/
+    tiers: [agents]
+    extra: []
+  capability_tier:
+    canonical: one_tier_file
+    tiers: []
+    extra: []
+
+# Cross-platform peer repos — naming convention ratified as intentional.
+# Divergence is by design: each repo serves a different reader population.
+# Coordination happens via issues, not cross-repo edits (AGENTS.md §5).
+cross_platform:
+  convention: each_repo_owns_its_own_naming
+  peers:
+    zdots:
+      initializers: [AGENTS.md, CLAUDE.md]
+      notes: kernel; this manifest lives here
+    my:
+      initializers: [AGENT.md, HUMAN.md]
+      notes: private vault; different naming is intentional (singular agent, human-facing companion)
+    adots:
+      initializers: []
+      notes: no root initializer; capabilities.sh + profile + wiki serve its readers
+    vdots:
+      initializers: []
+      notes: named peer; not currently on disk
