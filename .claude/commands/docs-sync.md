@@ -18,20 +18,22 @@ Usage: `/docs-sync <what-changed>` (apply) · `/docs-sync <what-changed> audit`
 
 ## Cross-platform scope (zdots / adots / vdots / my)
 
-This skill's tier model governs the **zdots** repo only. The peer repos differ:
+This skill's tier model governs the **zdots** repo only. The peer repos differ — this
+divergence is **ratified as intentional** (Z-153 AC#6; see `etc/docs-sync-manifest.yaml`
+`cross_platform` section for the machine-readable record):
 
 | Repo | Root initializer(s) | Notes |
 |---|---|---|
 | **zdots** | `AGENTS.md` + `CLAUDE.md` + per-tool files + `etc/prompts/*.md` | This skill's home |
-| **my** (`~/my`) | `AGENT.md` (singular) + `HUMAN.md` | Different naming — not a typo |
-| **adots** | no root initializer; `capabilities.sh`, profile, wiki | No `AGENTS.md` equivalent |
+| **my** (`~/my`) | `AGENT.md` (singular) + `HUMAN.md` | Intentional: singular agent, human-facing companion — not a typo |
+| **adots** | no root initializer; `capabilities.sh`, profile, wiki | Intentional: home-dir config; no AI-session bootstrap needed |
 | **vdots** | — | Named peer; not currently on disk |
 
 **Three rules:**
 
 1. **Local change, stay local.** A change scoped to one repo does not cross repo boundaries. This skill does NOT edit adots/vdots/my.
 2. **Platform-wide change, propagate to ALL relevant peers.** Examples: imperial-CalVer version stamp (decision-007), `zdots <noun> <verb> --json` grammar contract (decision-008). File the equivalent issue in each peer repo and note the task IDs.
-3. **Don't silently "fix" naming inconsistencies.** The `AGENTS.md` vs `AGENT.md` vs no-file divergence is a known coherence gap (not yet resolved). Note it; do not rename files across repos. File `zdots-issue` if cross-repo standardisation is needed.
+3. **Naming divergence is intentional — do not "fix" it.** Each repo uses the naming that fits its reader population. Do not rename files across repos. The convention is documented in `etc/docs-sync-manifest.yaml`.
 
 ## Step 0 — Classify the change (this picks the surfaces)
 
@@ -68,9 +70,11 @@ is how the family drifts.
 
 - **`README.md`** — human entry point. Hand-edited; update only when the change
   alters how a person first understands or installs the system.
-- **`CHANGELOG.md`** — **automated. Do NOT hand-edit.** Regenerate with
-  `make changelog` (git-cliff over conventional commits). If your change deserves
-  a changelog line, the fix is the *commit message*, not this file.
+- **`CHANGELOG.md`** — **automated. Do NOT hand-edit.** Always regenerate with
+  `make changelog` (git-cliff over conventional commits) and commit the result if
+  it changed. If your change deserves a changelog line, the fix is the *commit
+  message*, not this file. The closing gate (step 4 below) always runs
+  `make changelog` — never skip it.
 - **`docs/wiki/*.md`** — published via `zdots-pages`. Edit content here; the tool
   publishes. Keep `Command-Reference.md` / `System-Map.md` current with grammar
   changes.
@@ -79,20 +83,17 @@ is how the family drifts.
 ## Closing gate (apply mode)
 
 Run, in order — all must pass before reporting done:
-1. `make docs-contract` — runs `tests/docs_contract.bats`, which asserts that the
-   generated inventory (`docs/generated/interface-inventory.{json,md}`), wiki
-   source files, and manpages **exist and are non-empty**. It does NOT scan doc
-   bodies for phantom references — that is not yet mechanized (tracked by Z-153
-   AC#2). Step 2 below is the manual R2 discipline until that gap closes.
-2. **Fictional-reference scan** — for every command/file/flag you cited, confirm
-   it exists: `command -v <cmd>` / `test -e <path>`. The canonical cautionary
-   tale: AGENTS.md §9 cited `GLOSSARY.md`/`ONTOLOGY.md` for months; they never
-   existed. Never add a reference you have not resolved.
-3. **Tier check** — re-read each file you touched and confirm the change is true
+1. `make docs-contract` — runs `tests/docs_contract.bats`. This now includes the
+   fictional-reference linter (Z-153 AC#2), which reads the tier file list from
+   `etc/docs-sync-manifest.yaml` (Z-153 AC#3) and fails on phantom `zdots-*`
+   backtick references. No manual phantom scan needed — the linter covers it.
+2. **Tier check** — re-read each file you touched and confirm the change is true
    at that tier (no frontier-only text in a local prompt; no universal contract
-   stranded in one tool file).
-4. `make changelog` if any conventional commits since the last tag warrant it.
-5. `bin/secret-scan` before any commit.
+   stranded in one tool file). Consult `etc/docs-sync-manifest.yaml`
+   `change_types` for the canonical propagation targets.
+3. `make changelog` — always run this; commit the result if it changed. Never
+   skip; never hand-edit `CHANGELOG.md`.
+4. `bin/secret-scan` before any commit.
 
 Then report a table: surface → touched / clean / n-a, one line each. Anything
 skipped gets a reason in the table, not silence.
