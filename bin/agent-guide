@@ -288,7 +288,7 @@ Use zsvc for per-service diagnostics and consolidated logs.
   zsvc logs all             tail all registered logs from one terminal
   zsvc diag <service>       status + health + launchd state + recent logs
 
-Registered services: llama, embed, otel, colima, nginx, postgres, redis.
+Registered services: llama, embed, otel, colima, nginx, postgres, redis, zdots-statusd.
 
 Log rotation (when a service log grows large):
   log-rotate <service>          compress + truncate in-place (safe with open FDs)
