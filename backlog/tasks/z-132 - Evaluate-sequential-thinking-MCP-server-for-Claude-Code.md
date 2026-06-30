@@ -1,10 +1,10 @@
 ---
 id: Z-132
 title: Evaluate sequential-thinking MCP server for Claude Code
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-06 00:10'
-updated_date: '2026-06-29 15:42'
+updated_date: '2026-06-30 00:27'
 labels:
   - ai-tooling
   - mcp
@@ -23,10 +23,12 @@ Considered during the Claude Code + Pi/Aider integration (see ROUTER.md). A loca
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Confirm the server is the official @modelcontextprotocol/server-sequential-thinking (reject any unvetted/third-party source)
-- [ ] #2 Verify it makes no network calls (safe on a PHI-adjacent machine)
-- [ ] #3 If adopted, add to tracked .mcp.json and document in CLAUDE.md MCP section
+- [x] #1 Confirm the server is the official @modelcontextprotocol/server-sequential-thinking (reject any unvetted/third-party source)
+- [x] #2 Verify it makes no network calls (safe on a PHI-adjacent machine)
+- [x] #3 If adopted, add to tracked .mcp.json and document in CLAUDE.md MCP section
 <!-- AC:END -->
+
+
 
 ## Implementation Notes
 
@@ -38,7 +40,7 @@ EVAL COMPLETE (sonnet, 2026-06-15) — awaiting operator adopt decision. (1) Pro
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->

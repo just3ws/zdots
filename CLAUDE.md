@@ -13,7 +13,7 @@ validity, the secrets/PHI deny-list, MCP reproducibility, hook + statusline
 wiring, and the recommended toolchain. It is the "brew doctor" for the CC setup;
 run it periodically (or fold it into `zdots-doctor`) to keep the config from
 drifting. The tracked config lives in `.claude/settings.json` (permissions +
-hooks + statusline) and `.mcp.json` (backlog/ctx/llama servers); the gitignored
+hooks + statusline) and `.mcp.json` (backlog/ctx/llama/sequential-thinking/o2 servers); the gitignored
 `.claude/settings.local.json` holds only machine-specific permission grants.
 
 Note: Claude Code is a **cloud** tool — it bypasses the local
