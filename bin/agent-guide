@@ -654,6 +654,9 @@ WRITE PATH — all mutations must go through intentional interfaces:
   zdots-ctx <command>          CLI interface (zdots_rw user)
   context-engine API           Rails app (zdots_rw user)
 
+FIRST DEPLOY (fresh clone): public/assets/ is gitignored — run bin/deploy once:
+  cd ~/my/context-engine && bin/deploy   # propshaft precompile + Puma restart
+
 READ-ONLY EXPLORATION — safe for ad-hoc queries:
   psql -U zdots_ro my          connects as zdots_ro (SELECT only)
   zdots-ctx query <term>       full-text search via the safe interface

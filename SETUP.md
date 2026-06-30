@@ -413,6 +413,19 @@ fabric-ai --updatepatterns
 
 The zdots integration (`zdots-ask --pattern` and `zdots-pattern`) uses this local configuration.
 
+## context-engine: first deploy
+
+`public/assets/` is gitignored — `propshaft` precompiles assets into it at deploy time.
+On a fresh clone the directory is empty, so the web UI returns 404 on CSS/JS until you run:
+
+```bash
+cd ~/my/context-engine
+bin/deploy
+```
+
+Run this once after cloning, and again after any frontend asset change. The `bin/deploy`
+script precompiles assets and restarts the Puma server.
+
 ## Verify
 
 ```bash
