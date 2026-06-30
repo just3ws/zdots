@@ -1,10 +1,10 @@
 ---
 id: Z-152
 title: 'Optional: o2 MCP server (4th) for on-demand runtime pull'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-15 01:57'
-updated_date: '2026-06-29 15:52'
+updated_date: '2026-06-30 00:27'
 labels:
   - wave3
   - observability
@@ -21,9 +21,11 @@ Optional 4th MCP server mirroring the ctx MCP pattern for on-demand O2 runtime p
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 o2 MCP server mirrors ctx-mcp registration + lifecycle
-- [ ] #2 Reads already-clean O2 data (single-source phi-patterns.yaml preserved)
+- [x] #1 o2 MCP server mirrors ctx-mcp registration + lifecycle
+- [x] #2 Reads already-clean O2 data (single-source phi-patterns.yaml preserved)
 <!-- AC:END -->
+
+
 
 ## Implementation Notes
 
@@ -33,7 +35,7 @@ Optional 4th MCP server mirroring the ctx MCP pattern for on-demand O2 runtime p
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->

@@ -30,6 +30,18 @@
       "env": {
         "PATH": "${HOME}/.config/zsh/bin:${HOME}/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
       }
+    },
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "${HOME}/.local/share/mise/installs/node/26.0.0/bin/mcp-server-sequential-thinking",
+      "env": {}
+    },
+    "o2": {
+      "type": "stdio",
+      "command": "${HOME}/.config/zsh/bin/o2-mcp",
+      "env": {
+        "ZDOTDIR": "${HOME}/.config/zsh"
+      }
     }
   }
 }
