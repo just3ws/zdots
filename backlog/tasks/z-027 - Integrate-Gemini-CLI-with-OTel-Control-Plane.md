@@ -1,10 +1,10 @@
 ---
 id: Z-027
 title: Integrate Gemini CLI with OTel Control Plane
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-03-28 17:23'
-updated_date: '2026-06-29 19:14'
+updated_date: '2026-06-29 19:15'
 labels:
   - wave2
 milestone: m-2
@@ -35,5 +35,5 @@ OTEL_RESOURCE_ATTRIBUTES exported in gemini-invoke with append semantics (${exis
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
+- [x] #1 The update ensures a more safe shell experience and verifies there are no functional regressions.
 <!-- DOD:END -->
