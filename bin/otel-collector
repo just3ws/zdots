@@ -67,6 +67,41 @@ _compile_phi() {
   "$PHI_COMPILE" -o "$GEN_CONFIG"
 }
 
+# PID of the running launchd service, or empty if not running.
+_running_pid() {
+  [ "$OS" = "darwin" ] || return 1
+  local state
+  state=$(zdots_svc_launchd_status "$PLIST_LABEL")
+  [ "$(echo "$state" | awk '{print $1}')" = "true" ] || return 1
+  echo "$state" | awk '{print $2}'
+}
+
+_gen_config_hash() {
+  [ -f "$GEN_CONFIG" ] || return 1
+  shasum -a 256 "$GEN_CONFIG" 2>/dev/null | awk '{print $1}'
+}
+
+# Records the hash of the config the process now booting will actually run.
+# Not mtime — _compile_phi rewrites GEN_CONFIG (and bumps its mtime) on every
+# call regardless of content, so mtime-vs-start-time false-positives on every
+# validate. Content hash only changes when the config actually did.
+STARTED_HASH_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.config-hash"
+_record_started_hash() { _gen_config_hash > "$STARTED_HASH_FILE" 2>/dev/null || true; }
+
+# Config-drift guard: true (0) if the current compiled config differs from
+# what the running process was actually launched with — i.e. a source edit
+# and recompile happened but nothing restarted the service to pick it up.
+# Caught manually once (339M debug-level log from an 8-day-stale process);
+# this is the automated version of that check.
+_config_stale() {
+  local pid="$1"
+  [ -n "$pid" ] && [ -f "$STARTED_HASH_FILE" ] || return 1
+  local current started
+  current=$(_gen_config_hash) || return 1
+  started=$(cat "$STARTED_HASH_FILE" 2>/dev/null) || return 1
+  [ -n "$started" ] && [ "$current" != "$started" ]
+}
+
 usage() {
   cat <<EOF
 Usage: otel-collector <command> [--json]
@@ -140,16 +175,29 @@ cmd_serve() {
   # base. start/validate/install regenerate it in the foreground; if it is
   # somehow missing here, refuse rather than ship unscrubbed telemetry.
   [ -f "$GEN_CONFIG" ] || _die "compiled config missing ($GEN_CONFIG) — run 'otel-collector start' to regenerate the PHI scrub layer"
+  _record_started_hash
   exec "$BINARY" --config "$GEN_CONFIG"
 }
 
 cmd_start() {
   [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
   _compile_phi || _die "failed to compile PHI scrub layer — refusing to start (would ship unscrubbed telemetry)"
+
+  local pid; pid=$(_running_pid) || true
+
+  # Guard: if already running and the recompile changed the config, plain
+  # `start` is a launchd no-op (already-running short-circuits it) and the
+  # stale process keeps serving the old config forever. Force the restart.
+  if [ -n "${pid:-}" ] && _config_stale "$pid"; then
+    _info "compiled config changed since PID ${pid} started — restarting to apply it"
+    cmd_stop
+  fi
+
   if [ "$OS" = "darwin" ]; then
     zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
   else
     zdots_svc_pid_start "$BINARY --config $GEN_CONFIG" "$LOG_FILE" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.pid"
+    _record_started_hash
   fi
 }
 
@@ -176,7 +224,10 @@ cmd_status() {
 
   zdots_svc_health_check_url "${OTLP_ENDPOINT}/v1/traces" "POST" '{"resourceSpans":[]}' && healthy=true || healthy=false
 
-  zdots_svc_print_status "$json" "$running" "$pid" "$OTLP_ENDPOINT" "$LOG_FILE" "healthy=${healthy}"
+  local config_state=current
+  [ "$running" = "true" ] && _config_stale "$pid" && config_state=stale
+
+  zdots_svc_print_status "$json" "$running" "$pid" "$OTLP_ENDPOINT" "$LOG_FILE" "healthy=${healthy}" "config=${config_state}"
 }
 
 cmd_health() {
@@ -198,6 +249,11 @@ cmd_validate() {
   _compile_phi || _die "failed to compile PHI scrub layer"
   _info "validating $GEN_CONFIG (base + compiled PHI scrub)..."
   "$BINARY" validate --config "$GEN_CONFIG"
+
+  local pid; pid=$(_running_pid) || true
+  if [ -n "${pid:-}" ] && _config_stale "$pid"; then
+    _info "WARNING: running PID ${pid} predates this compile — run 'otel-collector start' (or 'zsvc restart otel') to apply it"
+  fi
 }
 
 cmd_config() {
