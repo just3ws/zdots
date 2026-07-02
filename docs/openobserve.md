@@ -120,16 +120,14 @@ Pinned in `bin/openobserve-ctl`:
 | Retention | 3 days home / 2 days work (`ZDOTS_O2_RETENTION_DAYS`) |
 | Size drift warning | 8 GB (`ZDOTS_O2_SIZE_WARN_GB`, surfaced by `zdots-doctor`) |
 
-## Migration status (Z-134)
+## Migration (Z-134) — complete
 
-- **Phase 1 (done):** OpenObserve stood up natively, running alongside LGTM.
-- **Phase 2:** repoint the OTel Collector exporter `otlphttp/lgtm` (`:4418`) to
-  OpenObserve (`:5080/api/default`, basic-auth), validated in parallel, then drop
-  LGTM from the traces/metrics/logs pipelines.
-- **Phase 3–4:** `o2.local` nginx vhost + cert; confirm all three signals land.
-- **Phase 5:** tear down LGTM (`bin/local-ci`, `etc/docker-compose.lgtm.yaml`),
-  reclaim the Colima VM on home.
-- **Phase 6:** docs/doctor/check finalization.
+The containerized LGTM stack (Grafana/Loki/Tempo/Mimir) is fully removed.
+Observability is native end-to-end: apps → OTel Collector → OpenObserve
+(`otlp_http/openobserve` → `:5080/api/default`), served at `o2.local`. The
+collector carries no LGTM exporter, `bin/local-ci` no longer manages an LGTM
+stack, and the archived compose file is deleted. Nothing in the observability
+path depends on Colima/Docker.
 
 ## Troubleshooting
 

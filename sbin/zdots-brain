@@ -30,6 +30,7 @@ require "optparse"
 require "json"
 require "digest"
 require "yaml"
+require "date"
 
 module Zdots
   class CLI
@@ -40,6 +41,14 @@ module Zdots
       "session_residue" => %i[summary_enc intent_enc result_enc],
       "source_document" => %i[body_md_enc]
     }.freeze
+
+    # ON CONFLICT update that re-arms an existing job: back to pending with a
+    # clean retry slate. Shared by reprocess / ingest-media --force / enqueue
+    # --force. (cmd_reindex_embeddings deliberately differs: it revives ONLY
+    # dead jobs via update_where.)
+    RESET_JOB = { status: "pending", attempts: 0, error_message: nil,
+                  updated_at: Sequel::CURRENT_TIMESTAMP,
+                  next_run_at: Sequel::CURRENT_TIMESTAMP }.freeze
 
     def initialize
       @options = { format: "text", semantic: false }
@@ -71,6 +80,10 @@ module Zdots
         cmd_ingest_media(args)
       when "jobs"
         cmd_jobs
+      when "cancel"
+        cmd_cancel(args)
+      when "reprocess"
+        cmd_reprocess(args)
       when "reindex-embeddings"
         cmd_reindex_embeddings
       when "ingest"
@@ -99,6 +112,7 @@ module Zdots
         opts.on("--type TYPE", "Filter by job type") { |t| @options[:type] = t }
         opts.on("--dry-run", "Scan without writing changes") { @options[:dry_run] = true }
         opts.on("--all", "Ingest full Knowledge Vault") { @options[:all] = true }
+        opts.on("--transcribe", "reprocess: also re-run transcription (not just downstream stages)") { @options[:transcribe] = true }
       end.parse!
     rescue OptionParser::InvalidOption => e
       e.recover(ARGV) # leave unrecognized flags in ARGV for subcommands
@@ -110,9 +124,22 @@ module Zdots
       puts "zdots-brain: starting worker..."
       puts "  filter by type: #{@options[:type]}" if @options[:type]
 
+      # Graceful shutdown (Unix signal best practice): SIGTERM/SIGINT only flip a
+      # flag — never do work in a trap. The loop finishes the current job, then
+      # stops BEFORE claiming the next, so a stop is clean and resumable (a
+      # partly-done job picks up where it left off via pipeline_runs). A second
+      # signal exits immediately (impatient operator). SIGKILL is untrappable,
+      # but resumability means even a hard kill recovers. launchd sends SIGTERM
+      # on `zsvc stop worker`, then SIGKILL after its ExitTimeOut — a job longer
+      # than that window is cut short but resumes on next start.
+      @stop = false
+      %w[TERM INT].each do |sig|
+        Signal.trap(sig) { @stop ? exit!(1) : (@stop = true) }
+      end
+
       idle_notified = false
 
-      loop do
+      until @stop
         job = Zdots::Models::Job.claim(@options[:type], ENV.fetch("ZDOTS_TRACE_ID", nil))
 
         if job.nil?
@@ -120,7 +147,7 @@ module Zdots
             puts "zdots-brain: queue empty, waiting for jobs..."
             idle_notified = true
           end
-          sleep 5
+          sleep 5 # interrupted early by a trapped signal; loop re-checks @stop
           next
         end
 
@@ -139,6 +166,91 @@ module Zdots
           # Error handling is also inside JobBase#perform_with_otel
         end
       end
+
+      remaining = Zdots::Models::Job.pending_count(@options[:type]) rescue "?"
+      puts "zdots-brain: worker stopped gracefully (finished current job; #{remaining} pending remain, resumable)."
+    end
+
+    # Cancel a queued job so the worker never runs it again. Terminal by design
+    # (marks 'dead'); only pending/failed jobs are cancellable — a running job
+    # is left to the graceful worker stop, and completed/dead are already
+    # terminal. Reversible with `requeue` if cancelled by mistake.
+    def cmd_cancel(args)
+      id = args.shift
+      if id.nil?
+        puts "usage: zdots-brain cancel <job_id>"
+        exit 1
+      end
+      n = begin
+        Zdots::Models::Job.where(id: id, status: %w[pending failed]).update(status: "dead")
+      rescue Sequel::DatabaseError
+        puts "zdots-brain: invalid job id #{id.inspect}"
+        exit 1
+      end
+      if n.zero?
+        puts "zdots-brain: no cancellable job #{id} (not found, running, or already terminal)."
+        exit 1
+      end
+      puts "zdots-brain: job #{id[0..7]} cancelled (marked dead; will not be retried)."
+    end
+
+    # Reprocess an already-ingested media source through the pipeline, applying
+    # the CURRENT known_terms corrections (and, with --transcribe, priming). The
+    # default re-runs only the downstream stages (cleaned + distilled) from the
+    # existing raw transcript — fast, no audio touched — since corrections flow to
+    # both via apply_corrections. --transcribe additionally clears the raw stage so
+    # whisper re-runs primed by the current vocabulary; chunked sources reuse the
+    # retained WAV (no re-download), a short source re-downloads until first-
+    # transcribe keeps its WAV (P1.5). Raw is never edited in place — corrections
+    # are the edit mechanism, so a reprocess is deterministic and re-runnable.
+    def cmd_reprocess(args)
+      transcribe = @options[:transcribe] == true # parsed by OptionParser (see parse_options)
+      token = args.shift
+      if token.nil?
+        puts "usage: zdots-brain reprocess <source_id|uri-or-title-substring> [--transcribe]"
+        exit 1
+      end
+      src = resolve_media_source(token)
+
+      if transcribe
+        n = Zdots::Models::PipelineRun.where(media_source_id: src.id, stage: "raw").delete
+        puts "zdots-brain: cleared #{n} raw run(s) — whisper will re-transcribe (primed by current known_terms)."
+      end
+
+      src.update(ingest_status: "queued", updated_at: Sequel::CURRENT_TIMESTAMP)
+      Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint, update: RESET_JOB).insert(
+        type: "ingest_media",
+        payload: Sequel.pg_jsonb({ "media_source_id" => src.id, "profile" => "standard" }),
+        priority: 10,
+        fingerprint: Digest::MD5.hexdigest("ingest_media#{src.source_uri}")
+      )
+      puts "zdots-brain: reprocessing #{src.id} — #{src.title.to_s[0, 60].inspect}" \
+           "#{transcribe ? ' (re-transcribe)' : ' (stages only)'}."
+    end
+
+    # Resolve a media source by exact UUID, exact source_uri, or a unique
+    # uri/title substring. Disambiguate loudly rather than guess.
+    def resolve_media_source(token)
+      src = (Zdots::Models::MediaSource[token] rescue nil)
+      src ||= Zdots::Models::MediaSource.first(source_uri: token)
+      return src if src
+
+      # id prefix (ids surface as 8-char prefixes in jobs/status output), or a
+      # uri/title substring.
+      like = "%#{token}%"
+      matches = Zdots::Models::MediaSource
+                .where(Sequel.like(Sequel.cast(:id, String), "#{token}%") |
+                       Sequel.like(:source_uri, like) |
+                       Sequel.like(:title, like)).all
+      if matches.empty?
+        puts "zdots-brain: no media source matching #{token.inspect}"
+        exit 1
+      elsif matches.size > 1
+        puts "zdots-brain: #{matches.size} sources match #{token.inspect} — be more specific:"
+        matches.first(10).each { |m| puts "  #{m.id}  #{m.source_type}  #{m.title.to_s[0, 50]}" }
+        exit 1
+      end
+      matches.first
     end
 
     def cmd_add_methodology(args)
@@ -352,9 +464,7 @@ module Zdots
 
       if force
         Zdots::Models::Job.dataset.insert_conflict(
-          target: :fingerprint,
-          update: { status: "pending", attempts: 0, error_message: nil, priority: priority,
-                    updated_at: Sequel::CURRENT_TIMESTAMP, next_run_at: Sequel::CURRENT_TIMESTAMP }
+          target: :fingerprint, update: RESET_JOB.merge(priority: priority)
         ).insert(type: type, payload: Sequel.pg_jsonb(payload), priority: priority, fingerprint: fingerprint)
         puts "zdots-brain: job reset to pending."
       else
@@ -411,11 +521,7 @@ module Zdots
         fingerprint = Digest::MD5.hexdigest("ingest_media#{uri}")
         ds = Zdots::Models::Job.dataset
         # empty ON CONFLICT update is invalid SQL — bare insert_conflict = DO NOTHING (cf. cmd_enqueue)
-        ds = ds.insert_conflict(
-          target: :fingerprint,
-          update: { status: "pending", attempts: 0, error_message: nil,
-                    updated_at: Sequel::CURRENT_TIMESTAMP, next_run_at: Sequel::CURRENT_TIMESTAMP }
-        ) if force
+        ds = ds.insert_conflict(target: :fingerprint, update: RESET_JOB) if force
         ds = ds.insert_conflict(target: :fingerprint) unless force
         job_id = ds.insert(type: "ingest_media", payload: Sequel.pg_jsonb(payload), priority: 10, fingerprint: fingerprint)
         puts "zdots-ingest-media: job #{job_id ? "enqueued (#{job_id})" : 'already queued (idempotent)'}."
@@ -662,9 +768,10 @@ module Zdots
 
       fm_text = raw[4...close]
       body    = raw[(close + 5)..]
-      fm = YAML.safe_load(fm_text, permitted_classes: [Symbol])
+      fm = YAML.safe_load(fm_text, permitted_classes: [Symbol, Date, Time])
       [fm, body]
-    rescue StandardError
+    rescue StandardError => e
+      warn "  [warn] frontmatter parse failed (#{e.class}): #{e.message}"
       [nil, raw]
     end
 

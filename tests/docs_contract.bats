@@ -200,7 +200,7 @@ _known_gap() {
     zmetrics zmorning zsvc ztask
     cc-home log-rotate zdots-config zdots-buffer-drain zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
     bench zdots-pattern zdots-issue imperial-date
-    zdots zdots-artifact zdots-debrief
+    zdots zdots-artifact zdots-debrief zdots-snapshot
   )
 
   local missing=()

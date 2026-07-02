@@ -28,6 +28,21 @@ module Zdots
       CHUNK_WINDOW_SEC    = (ENV["ZDOTS_CHUNK_WINDOW_SEC"]    || 600).to_i
       CHUNK_OVERLAP_SEC   = (ENV["ZDOTS_CHUNK_OVERLAP_SEC"]   || 15).to_i
 
+      # ── Declared pipeline (Z-188) ────────────────────────────────────────────
+      # Single source of truth for the ingest process SHAPE. #run walks this list;
+      # docs/generated/ingest-pipeline.mmd is a Mermaid projection of it, kept
+      # honest by tests/ingest_pipeline_diagram.bats (drift fails the build). This
+      # is "BPMN as description, code as execution": the code is authoritative, the
+      # diagram is generated FROM it — never the reverse (no designer, no XML
+      # runtime). Add a stage here → the executor (#run_stage) and the diagram both
+      # follow; P2/P3 hooks (hint capture, diarization) attach as new stages/events
+      # HERE, not as ad-hoc code in #run.
+      PIPELINE = [
+        { stage: "raw",       desc: "transcribe audio (whisper; chunk fan-out if long)" },
+        { stage: "cleaned",   desc: "apply known_terms corrections" },
+        { stage: "distilled", desc: "LLM knowledge briefing (local, or scoped cloud)" }
+      ].freeze
+
       def run
         @mid      = payload.fetch("media_source_id")
         @profile  = payload["profile"] || "standard"
@@ -36,15 +51,42 @@ module Zdots
         FileUtils.mkdir_p(@out_base)
 
         @src.update(ingest_status: "running")
-        raw_txt = ensure_raw
-        return true if raw_txt == :pending # chunks fanning out; resumes via fan-in
-        stage("cleaned") { clean_transcript(raw_txt) }
-        stage("distilled") { distill(raw_txt) }
+        # Thin executor: walk the declared graph. The raw stage may fan out into
+        # chunk jobs and defer (:pending) — stop; the fan-in re-enqueues this job
+        # to finish the remaining stages.
+        PIPELINE.each { |step| return true if run_stage(step[:stage]) == :pending }
         @src.update(ingest_status: "done")
         true
       rescue StandardError => e
         @src&.update(ingest_status: "failed")
         raise e
+      end
+
+      # Bind each declared stage to its implementation. A PIPELINE stage with no
+      # binding here (or an orphan binding not in PIPELINE) is a bug — the former
+      # raises loudly, the latter simply never runs.
+      def run_stage(name)
+        case name
+        when "raw"       then @raw_txt = ensure_raw
+        when "cleaned"   then stage("cleaned")   { clean_transcript(@raw_txt) }
+        when "distilled" then stage("distilled") { distill(@raw_txt) }
+        else raise "unknown pipeline stage: #{name.inspect}"
+        end
+      end
+
+      # Mermaid projection of PIPELINE — the process description, generated FROM
+      # the executable. Regenerate the committed copy with:
+      #   zdots-ruby -e 'require "./lib/zdots"; require "./lib/zdots/jobs/ingest_media"; \
+      #     print Zdots::Jobs::IngestMedia.to_mermaid' > docs/generated/ingest-pipeline.mmd
+      def self.to_mermaid
+        lines = ["flowchart TD", "  queued([queued]) --> #{PIPELINE.first[:stage]}"]
+        PIPELINE.each_with_index do |s, i|
+          lines << %(  #{s[:stage]}["#{s[:stage]} — #{s[:desc]}"])
+          nxt = PIPELINE[i + 1]
+          lines << "  #{s[:stage]} --> #{nxt[:stage]}" if nxt
+        end
+        lines << "  #{PIPELINE.last[:stage]} --> done([done])"
+        "#{lines.join("\n")}\n"
       end
 
       # The known-vocabulary priming prompt (the doubt loop's proactive half).
@@ -96,9 +138,7 @@ module Zdots
       # Download + convert to a 16k wav once, kept for the chunk jobs. Idempotent:
       # a prior run's wav is reused, so resume never re-downloads.
       def prep_audio
-        unless %w[youtube vimeo].include?(@src.source_type)
-          raise "chunked raw for source_type=#{@src.source_type} not yet supported"
-        end
+        require_fetchable!
         wav = Dir.glob(File.join(@out_base, "*", "*_16k.wav")).max_by { |f| File.size(f) }
         return wav if wav && File.file?(wav)
 
@@ -139,14 +179,20 @@ module Zdots
           Models::PipelineRun.create(media_source_id: mid, stage: stage, chunk_index: chunk_index, status: "pending")
       end
 
-      # YouTube/Vimeo only for now: re-fetch + whisper into the retention store.
-      # Local sources don't store their path (PHI policy Z-163), so their raw
-      # stage needs a retention-store copy made at ingest — a later slice.
+      # Decouple downloader from processor: the recipe (yt-dlp) IS the fetcher and
+      # handles any URL source it supports — youtube, vimeo, twitter, … — so the
+      # processor doesn't gatekeep by platform. The one real exception is a
+      # 'local' source, whose path isn't stored (PHI policy Z-163: source_uri is a
+      # local:sha256 pseudo-URI, not re-fetchable); that still needs an
+      # ingest-time retention copy — not yet implemented.
+      def require_fetchable!
+        return unless @src.source_type == "local"
+        raise "local sources need a retention-store copy at ingest time (not yet implemented)"
+      end
+
+      # Re-fetch + whisper into the retention store.
       def transcribe_raw
-        unless %w[youtube vimeo].include?(@src.source_type)
-          raise "raw stage for source_type=#{@src.source_type} not yet supported " \
-                "(local needs a retention-store copy at ingest time)"
-        end
+        require_fetchable!
         recipe = File.join(Zdots::ZDOTDIR, "recipes", "yt-transcribe")
         cmd = [recipe, @src.source_uri, "--profile", @profile, "--json-full", "--out-dir", @out_base]
         vocab = self.class.known_vocabulary

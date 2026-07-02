@@ -1,6 +1,6 @@
 project_name: "Zdots"
 default_status: "To Do"
-statuses: ["To Do", "In Progress", "Done", "Experimental"]
+statuses: ["To Do", "In Progress", "Experimental", "Done"]
 labels: ["agent-reported", "bug", "question", "request", "needs-info", "agent-ready", "experimental", "do-not-implement"]
 definition_of_done:
   - "All acceptance criteria checked with evidence (command output, file path, or test result)"

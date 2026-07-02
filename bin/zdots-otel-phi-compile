@@ -280,7 +280,7 @@ pipelines.each do |name, p|
   pre << "filter/phi"           if (name == "logs" || name == "traces") && config["processors"].key?("filter/phi")
   pre << "transform/phi"        if name == "logs"
   pre << "transform/phi/traces" if name == "traces" && has_trace_transform
-  pre << "redaction/phi"
+  pre << "redaction/phi" unless name.to_s.end_with?("/diag")
   p["processors"] = pre + (p["processors"] || [])
 end
 

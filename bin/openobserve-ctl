@@ -51,6 +51,7 @@ SVC_NAME="openobserve"
 source "${ZDOTDIR:-$(pwd)}/lib/svc-launchd.bash"
 # shellcheck source=lib/svc-process.bash
 source "${ZDOTDIR:-$(pwd)}/lib/svc-process.bash"
+source "${ZDOTDIR:-$(pwd)}/lib/cli-help.bash"
 
 _die()  { printf 'openobserve-ctl: error: %s\n' "$*" >&2; exit 1; }
 _info() { printf 'openobserve-ctl: %s\n' "$*" >&2; }
@@ -110,6 +111,7 @@ _pw_ensure() {
 # Subcommands
 # ---------------------------------------------------------------------------
 cmd_install() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
   [ "$OS" = "darwin" ] || _die "only darwin is supported (got $OS)"
   local sha_var="TARBALL_SHA256_${OS}_${ARCH}" expected_sha
   expected_sha="${!sha_var:-}"
@@ -154,6 +156,7 @@ cmd_install() {
 
 # Internal launchd target: set env from Keychain + exec the binary.
 cmd_serve() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
   [ -x "$BINARY" ] || _die "binary not found. Run 'openobserve-ctl install' first."
   mkdir -p "$DATA_DIR"
   export ZO_ROOT_USER_EMAIL="$ROOT_EMAIL"
@@ -184,7 +187,13 @@ cmd_stop() { zdots_svc_launchd_stop "$PLIST_LABEL"; }
 # env on first init). --rotate generates a fresh Keychain password first.
 cmd_reinit() {
   local rotate=false
-  [ "${1:-}" = "--rotate" ] && rotate=true
+  # Short-circuit help / reject unknown flags BEFORE any side effect (the wipe).
+  case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    --rotate)  rotate=true ;;
+    "")        : ;;
+    *)         printf 'openobserve-ctl: unknown reinit flag: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+  esac
   # Guard: never rm -rf an unexpected path.
   case "$DATA_DIR" in
     "$HOME"/*/openobserve|"$HOME"/*/*/openobserve) : ;;
@@ -267,8 +276,8 @@ cmd_creds() {
 }
 
 case "${1:-}" in
-  install)   cmd_install ;;
-  serve)     cmd_serve ;;
+  install)   shift; cmd_install "${@}" ;;
+  serve)     shift; cmd_serve "${@}" ;;
   start)     cmd_start ;;
   stop)      cmd_stop ;;
   restart)   zdots_svc_restart cmd_stop cmd_start ;;

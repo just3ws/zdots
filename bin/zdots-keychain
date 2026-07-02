@@ -17,6 +17,18 @@ source "${ZDOTDIR}/lib/keychain.bash"
 
 _cmd="${1:-help}"; shift || true
 
+# Help/flag short-circuit: -h/--help (or any unrecognized leading flag) on ANY
+# subcommand prints usage and exits 0 — never reaches a destructive call
+# (e.g. `delete --help` must not delete a secret literally named "--help").
+for _arg in "$@"; do
+  case "$_arg" in
+    -h|--help) _cmd="help"; break ;;
+    -*) echo "zdots-keychain: unknown option '$_arg'" >&2
+        echo "Run: zdots-keychain help" >&2
+        exit 1 ;;
+  esac
+done
+
 case "$_cmd" in
 
   add)

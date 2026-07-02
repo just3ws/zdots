@@ -19,6 +19,8 @@
 #   add-lesson <content> [context] [tags...]
 #   enqueue [--force] <type> <payload_json> [priority]
 #   requeue <job_id>
+#   cancel <job_id>   Cancel a pending/failed job (marks dead; not retried)
+#   reprocess <source> [--transcribe]  Re-run an ingested source (stages, or +whisper)
 #   jobs      List pending and recent jobs
 #   worker    [--type T] Run a worker to process queued jobs
 #   triage    Review and resolve permanently failed 'dead' jobs
@@ -37,6 +39,7 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 source "${ZDOTDIR}/lib/svc-health.bash"
 # shellcheck source=lib/ai-invoke.bash
 source "${ZDOTDIR}/lib/ai-invoke.bash"
+source "${ZDOTDIR}/lib/cli-help.bash"
 # 1. Ensure basics (handle unbound variables for complex environment files)
 [[ -z "${ZDOTS_DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
 # shellcheck source=lib/trace_log.bash
@@ -86,6 +89,11 @@ Knowledge Layer Interface:
   sync-history [--dry-run] [db-path]  Sync SQLite analytics → PostgreSQL
   enqueue [--force] <type> <payload_json> [priority]
   requeue <job_id>
+  cancel <job_id>  Cancel a pending/failed job (marks it dead; not retried)
+  reprocess <source> [--transcribe]  Re-run an ingested source: default re-runs
+            cleaned+distilled from the existing transcript (applies current
+            known_terms; no re-download). --transcribe also re-runs whisper
+            (primed by current known_terms). <source> = id or uri/title substring.
   jobs      List pending and recent jobs
   worker    [--type T] Run a worker to process queued jobs
   triage    Review and resolve permanently failed 'dead' jobs
@@ -148,6 +156,13 @@ cmd_status() {
 }
 
 cmd_init_db() {
+  # Guard: migrator.rb ignores ARGV, so any flag (incl. -h/--help) would otherwise
+  # fall through to a full CREATE DATABASE + migrate. Short-circuit before side effects.
+  zdots_cli_wants_help "${1:-}" && { usage; return 0; }
+  case "${1:-}" in
+    -*) printf 'zdots-ctx: init-db: unknown option: %s\n' "$1" >&2; usage >&2; return 1 ;;
+  esac
+
   _require_psql
   _svc_log "initializing intelligence suite database..."
 
@@ -172,6 +187,14 @@ cmd_init_db() {
 }
 
 cmd_migrate() {
+  # Guard: migrator.rb ignores ARGV and applies ALL pending migrations, so
+  # `migrate --help` (or any flag) would otherwise silently migrate. Short-circuit
+  # before the destructive call. (Internal callers invoke this with no args.)
+  zdots_cli_wants_help "${1:-}" && { usage; return 0; }
+  case "${1:-}" in
+    -*) printf 'zdots-ctx: migrate: unknown option: %s\n' "$1" >&2; usage >&2; return 1 ;;
+  esac
+
   zdots-ruby "${ZDOTDIR}/lib/zdots/migrator.rb"
 }
 
@@ -484,6 +507,14 @@ cmd_jobs() {
   "${ZDOTDIR}/sbin/zdots-brain" jobs "$@"
 }
 
+cmd_cancel() {
+  "${ZDOTDIR}/sbin/zdots-brain" cancel "$@"
+}
+
+cmd_reprocess() {
+  "${ZDOTDIR}/sbin/zdots-brain" reprocess "$@"
+}
+
 cmd_worker() {
   "${ZDOTDIR}/sbin/zdots-brain" worker "$@"
 }
@@ -785,6 +816,8 @@ case "${1:-}" in
   enqueue)         shift; cmd_enqueue "${@}" ;;
   requeue)         shift; cmd_requeue "${@}" ;;
   jobs)            shift; cmd_jobs "${@}" ;;
+  cancel)          shift; cmd_cancel "${@}" ;;
+  reprocess)       shift; cmd_reprocess "${@}" ;;
   worker)          shift; cmd_worker "${@}" ;;
   triage)          shift; cmd_triage "${@}" ;;
   clear-stale-jobs) shift; cmd_clear_stale_jobs "${@}" ;;

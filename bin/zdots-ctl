@@ -20,6 +20,7 @@ ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 
 # shellcheck source=lib/svc-health.bash
 source "${ZDOTDIR}/lib/svc-health.bash"
+source "${ZDOTDIR}/lib/cli-help.bash"
 # 1. Ensure environment is loaded (no set -u to avoid .zdots.env errors)
 [[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
 # shellcheck source=lib/trace_log.bash
@@ -898,11 +899,29 @@ EOF
 # Dispatch
 # ---------------------------------------------------------------------------
 
+# Destructive-on---help guard: dispatch below matches $1 only, and the cmd_*
+# functions ignore their args — so `zdots-ctl down --help` (and up/reset/install)
+# would otherwise run the action. Short-circuit -h/--help in ANY position to
+# print usage and exit 0 with no side effect, before the destructive dispatch.
+zdots_cli_wants_help "$@" && { usage; exit 0; }
+
+# Reject unrecognized extra args on the no-arg destructive commands before the
+# action runs (e.g. `zdots-ctl down --force`). -h/--help is already handled
+# above; these commands take no other arguments, so anything left is a mistake.
+_reject_extra_args() {
+  local cmd="$1"; shift
+  if [[ $# -gt 0 ]]; then
+    printf 'zdots-ctl: %s takes no arguments (got: %s)\n' "$cmd" "$*" >&2
+    usage >&2
+    exit 1
+  fi
+}
+
 case "${1:-}" in
-  up)        cmd_up ;;
-  down)      cmd_down ;;
-  reset)     cmd_reset ;;
-  install)   cmd_install ;;
+  up)        shift; _reject_extra_args up "$@";      cmd_up ;;
+  down)      shift; _reject_extra_args down "$@";    cmd_down ;;
+  reset)     shift; _reject_extra_args reset "$@";   cmd_reset ;;
+  install)   shift; _reject_extra_args install "$@"; cmd_install ;;
   check)     cmd_check ;;
   status)    shift; cmd_status "${@}" ;;
   -h|--help) usage; exit 0 ;;
