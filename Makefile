@@ -2,7 +2,7 @@
 SHELL := /bin/sh
 ZDOTDIR ?= $(HOME)/.config/zsh
 
-.PHONY: bootstrap update-local check check-fast test docs-contract docs-diagrams health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
+.PHONY: bootstrap update-local check check-fast test docs-contract flag-audit docs-diagrams health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
 
 # ------------------------------------------------------------------------------
 # CORE & VALIDATION
@@ -26,6 +26,9 @@ test:
 
 docs-contract:
 	bats $(ZDOTDIR)/tests/docs_contract.bats
+
+flag-audit:
+	bats $(ZDOTDIR)/tests/flag_audit.bats
 
 # Machine-validate all Mermaid diagrams in the repo via mmdc.
 # Skips gracefully if mmdc is absent (CI without Chrome will not hard-fail).

@@ -37,12 +37,20 @@ PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 OTLP_ENDPOINT="http://127.0.0.1:4318"
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 
+# App request-log tail (filelog/app receiver in the config). Generic +
+# override-able so no app-specific path is baked into the platform config —
+# set ZDOTS_APP_LOG in .zdots.work/.zdots.local on machines that need it. A
+# missing file is benign (filelog tails nothing until it appears), so an
+# unset var is safe on machines without that app.
+export ZDOTS_APP_LOG="${ZDOTS_APP_LOG:-}"
+
 # shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
 SVC_NAME="otel-collector"
 # shellcheck source=lib/svc-launchd.bash
 source "${ZDOTDIR:-$(pwd)}/lib/svc-launchd.bash"
 # shellcheck source=lib/svc-process.bash
 source "${ZDOTDIR:-$(pwd)}/lib/svc-process.bash"
+source "${ZDOTDIR:-$(pwd)}/lib/cli-help.bash"
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -244,6 +252,12 @@ cmd_config() {
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
+
+# Help short-circuit: -h/--help anywhere on the command line prints usage and
+# exits 0 WITHOUT side effects, so a trailing flag on a destructive verb (e.g.
+# `stop --help`, `restart --help`) prints help instead of bouncing the
+# collector. Only -h/--help match, so status/health/config --json are untouched.
+zdots_cli_wants_help "$@" && { usage; exit 0; }
 
 case "${1:-}" in
   install)   cmd_install ;;

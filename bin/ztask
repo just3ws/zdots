@@ -15,6 +15,7 @@ source "${ZDOTDIR}/lib/svc-health.bash"
 [[ -z "${DATABASE_URL:-}" ]] && source "${ZDOTDIR}/env.sh" || true
 # shellcheck source=lib/trace_log.bash
 source "${ZDOTDIR}/lib/trace_log.bash"
+source "${ZDOTDIR}/lib/cli-help.bash"
 
 TASKS_DIR="${ZTASK_TASKS_DIR:-${ZDOTDIR}/backlog/tasks}"
 ACTIVE_TASK_FILE="${ZTASK_ACTIVE_TASK_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh/active_task}"
@@ -37,6 +38,17 @@ Task-Driven Environment:
 EOF
 }
 
+# Short-circuit a destructive subcommand on -h/--help (or an unrecognized
+# leading flag) BEFORE any side effect: print usage and exit cleanly.
+# Returns non-zero so callers do nothing further; usage goes to stdout for
+# explicit help and stderr (exit 1) for an unknown flag.
+_ztask_help_guard() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+  case "${1:-}" in
+    -*)        usage >&2; exit 1 ;;
+  esac
+}
+
 _find_task_file() {
   local id="$1"
   local slug; slug=$(echo "$id" | tr '[:upper:]' '[:lower:]')
@@ -52,6 +64,7 @@ _set_task_status() {
 }
 
 cmd_start() {
+  _ztask_help_guard "${1:-}"
   local id="${1:-}"
   if [[ -z "$id" ]]; then
     _svc_die "usage: ztask start <task-id> (e.g. z-054)"
@@ -178,6 +191,7 @@ cmd_health() {
 }
 
 cmd_stop() {
+  _ztask_help_guard "${1:-}"
   if [[ -f "$ACTIVE_TASK_FILE" ]]; then
     local id; id=$(cat "$ACTIVE_TASK_FILE")
     rm -f "$ACTIVE_TASK_FILE"
@@ -188,6 +202,7 @@ cmd_stop() {
 }
 
 cmd_done() {
+  _ztask_help_guard "${1:-}"
   if [[ ! -f "$ACTIVE_TASK_FILE" ]]; then
     _svc_die "no active task found. run 'ztask start <id>' first."
   fi

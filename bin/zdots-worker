@@ -37,6 +37,7 @@ SVC_NAME="zdots-worker"
 source "${ZDOTDIR}/lib/svc-launchd.bash"
 # shellcheck source=lib/svc-process.bash
 source "${ZDOTDIR}/lib/svc-process.bash"
+source "${ZDOTDIR}/lib/cli-help.bash"
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -178,6 +179,12 @@ cmd_logs() {
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
+
+# Help short-circuit: a -h/--help anywhere on the line prints usage and exits 0
+# WITHOUT dispatching, guarding the destructive lifecycle verbs (install, start,
+# stop, restart, run) so `zdots-worker install --help` shows help instead of
+# registering/loading the launchd worker as a side effect.
+zdots_cli_wants_help "$@" && { usage; exit 0; }
 
 case "${1:-}" in
   install)   cmd_install ;;

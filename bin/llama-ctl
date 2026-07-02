@@ -49,6 +49,7 @@ source "${ZDOTDIR}/lib/svc-launchd.bash"
 # Source the model store
 # shellcheck source=lib/model-store.bash
 source "${ZDOTDIR}/lib/model-store.bash"
+source "${ZDOTDIR}/lib/cli-help.bash"
 
 # Resolve context-specific profile default before the metadata fetch so
 # the correct profile is baked into _META_JSON from the start.
@@ -862,6 +863,12 @@ status_embed() {
 }
 
 # ─── case dispatcher ──────────────────────────────────────────────────────────
+# Help short-circuit: -h/--help anywhere in the args prints usage and exits 0
+# WITHOUT side effects — otherwise a help flag past the first arg (e.g.
+# `model-prune --help`, `server install --help`) falls through to a destructive
+# function that ignores it. Scans every path: top-level, legacy, nested.
+zdots_cli_wants_help "$@" && { usage; exit 0; }
+
 # Nested dispatcher
 case "${1:-}" in
   server)

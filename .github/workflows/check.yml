@@ -130,3 +130,9 @@ jobs:
           mapfile -t files < <(grep -vE '^\s*#|^\s*$' tests/ci-allowlist.txt | sed 's#^#tests/#')
           printf 'running %d allowlisted bats files\n' "${#files[@]}"
           bats "${files[@]}"
+
+      - name: Run Bats (flag-audit contract)
+        shell: bash
+        env:
+          ZDOTS_SKIP_ENV_TESTS: "1"
+        run: bats tests/flag_audit.bats
