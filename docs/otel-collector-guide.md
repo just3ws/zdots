@@ -62,6 +62,14 @@ bin/otel-collector validate  # Verify etc/otel-collector.yaml syntax
 bin/otel-collector logs      # Tail the collector logs (~/.local/state/zsh/otel-collector.log)
 ```
 
+**Config-drift guard:** `start` compares a hash of the compiled config against
+the one the running process actually booted with. If a config edit was
+compiled (via `validate`/`start`/`install`) but the live process never
+restarted, `start` force-restarts it instead of leaving it running stale —
+this is what silently ran the collector at `debug` log level for 8 days and
+grew its log to 339M. `status` surfaces the same check as `config: current|stale`;
+`validate` prints a one-line nag if the running process is stale.
+
 | Component | Managed by | Auto-starts | Auto-restarts |
 |-----------|-----------|-------------|---------------|
 | OTel Collector | `bin/otel-collector` | Yes (login) | Yes (`KeepAlive`) |
