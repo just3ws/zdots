@@ -12,7 +12,7 @@ Gemini-specific instructions for Zdots.
 - Respect the performance budget (< 0.08s) when suggesting shell modifications.
 
 ## Agent Context & Observability
-- **Traceability**: This is an observable session. Every tool call and command is emitted as an OTel span to the local LGTM stack.
+- **Traceability**: This is an observable session. Every tool call and command is emitted as an OTel span to the local OpenObserve backend (via the OTel Collector).
 - **System Capabilities**: Use the `capabilities --json` command to verify the environment contract before performing complex operations.
 - **Platform Awareness**:
     - **Platform (`zdots`)**: Shell behavior, service lifecycle, real-time observability.

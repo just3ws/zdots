@@ -21,6 +21,8 @@ trap '' PIPE
 REPO_ROOT="${0:A:h:h}"
 cd "$REPO_ROOT"
 
+source "${REPO_ROOT}/lib/cli-help.bash"
+
 CPU=${ZDOTS_CI_CPU:-2}
 MEMORY=${ZDOTS_CI_MEMORY:-4}
 DISK=${ZDOTS_CI_DISK:-60}
@@ -73,6 +75,8 @@ EOF
 }
 
 cmd_prune() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+
   local force=false
   [[ "${1:-}" == "-f" ]] && force=true
 
@@ -93,6 +97,8 @@ cmd_prune() {
 }
 
 cmd_rebuild() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+
   printf 'local-ci: WARNING: deletes the current Colima VM. Proceed? [y/N] ' >&2
   local response
   read -r response
@@ -122,7 +128,7 @@ cmd_run() {
 
 case "${1:-}" in
   prune)        shift; cmd_prune "${@}" ;;
-  rebuild)      cmd_rebuild ;;
+  rebuild)      shift; cmd_rebuild "${@}" ;;
   run)          shift; cmd_run "${@}" ;;
   -h|--help)    usage; exit 0 ;;
   "")           usage >&2; exit 1 ;;

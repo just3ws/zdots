@@ -1,25 +1,28 @@
-.Dd May 29, 2026
+.Dd June 23, 2026
 .Dt LOCAL-CI 8
 .Os zdots
 .Sh NAME
 .Nm local-ci
-.Nd manage Colima, LGTM, and local GitHub Actions runs
+.Nd Colima maintenance and local GitHub Actions runs
 .Sh SYNOPSIS
 .Nm
 .Ar command
-.Op Fl -json
+.Op Ar args
+.Sh DESCRIPTION
+.Nm
+maintains the Colima container runtime and runs GitHub Actions locally via
+.Xr act 1 .
+Observability runs natively on the OTel Collector and OpenObserve
+.Pq Xr openobserve-ctl 8 , Cm zsvc o2 ;
+the containerized LGTM stack this tool once managed was removed (Z-134).
 .Sh COMMANDS
 .Bl -tag -width reset-password
-.It Cm start , Cm stop , Cm restart , Cm status , Cm health , Cm logs
-Manage Colima and the LGTM stack.
 .It Cm prune
-Prune Docker storage; destructive with
+Prune Docker containers, images, and build cache; dry run by default, destructive with
 .Fl f .
 .It Cm rebuild
-Delete and recreate the Colima VM.
-.It Cm reset-password
-Reset Grafana admin password.
-.It Cm run
+Delete and recreate the Colima VM (destructive).
+.It Cm run Op Ar args
 Run GitHub Actions locally via act.
 .El
 .Sh ENVIRONMENT
@@ -32,5 +35,5 @@ Colima memory in GB.
 Colima disk in GB.
 .El
 .Sh SEE ALSO
-.Xr zdots-ctl 8 ,
-.Xr zdots-observability 7
+.Xr openobserve-ctl 8 ,
+.Xr zdots-ctl 8

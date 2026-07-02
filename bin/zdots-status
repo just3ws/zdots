@@ -122,9 +122,6 @@ probe_storage() {
   fi
 
   if command -v docker >/dev/null 2>&1 && $COLIMA_UP; then
-    DOCKER_DISK=$(docker system df --format '{{.Size}}' 2>/dev/null \
-      | awk '{sum+=$1} END{print sum"B"}' || echo "?")
-    # simpler: just total line
     DOCKER_DISK=$(docker system df 2>/dev/null \
       | awk '/^Local Volumes/{v=$4} /^Images/{i=$4} END{print i" images, "v" volumes"}' \
       || echo "unavailable")

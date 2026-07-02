@@ -98,7 +98,7 @@ To verify: `curl -sk https://llama.local/health | head -1` (after local AI is up
 ```bash
 sudo sh -c 'echo "127.0.0.1 llama.local" >> /etc/hosts'
 sudo sh -c 'echo "127.0.0.1 embed.local" >> /etc/hosts'
-sudo sh -c 'echo "127.0.0.1 grafana.local" >> /etc/hosts'
+sudo sh -c 'echo "127.0.0.1 o2.local" >> /etc/hosts'
 ```
 
 These map the TLS hostnames nginx routes by Host header. Without them,

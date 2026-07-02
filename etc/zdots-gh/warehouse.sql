@@ -20,17 +20,39 @@ CREATE OR REPLACE TABLE raw_issue_pages AS
   SELECT * FROM read_json_auto('__DATA_DIR__/*_issues.json', union_by_name=true, maximum_object_size=67108864);
 
 -- ── Explode connection nodes ─────────────────────────────────────────────────
+-- Dedup by (repo, number) keeping the freshest copy. A full-history base file (<repo>_prs.json) and
+-- an incremental delta (<repo>.incr_prs.json) BOTH match the *_prs.json glob, so a recently-updated
+-- PR can appear in both; keep the row with the greatest updatedAt (coalesce to createdAt for any
+-- pre-updatedAt cache). No-op when there are no delta files (one row per number already).
 CREATE OR REPLACE TABLE pr_nodes AS
-  SELECT data.repository.nameWithOwner AS repo_name,
-         unnest(data.repository.pullRequests.nodes) AS node
-  FROM raw_pr_pages
-  WHERE data.repository.pullRequests.nodes IS NOT NULL;
+  WITH exploded AS (
+    SELECT data.repository.nameWithOwner AS repo_name,
+           unnest(data.repository.pullRequests.nodes) AS node
+    FROM raw_pr_pages
+    WHERE data.repository.pullRequests.nodes IS NOT NULL
+  )
+  SELECT repo_name, node FROM (
+    SELECT repo_name, node,
+           row_number() OVER (PARTITION BY repo_name, node.number
+                              ORDER BY coalesce(json_extract_string(to_json(node), '$.updatedAt'),
+                                                json_extract_string(to_json(node), '$.createdAt')) DESC) AS _rn
+    FROM exploded
+  ) WHERE _rn = 1;
 
 CREATE OR REPLACE TABLE issue_nodes AS
-  SELECT data.repository.nameWithOwner AS repo_name,
-         unnest(data.repository.issues.nodes) AS node
-  FROM raw_issue_pages
-  WHERE data.repository.issues.nodes IS NOT NULL;
+  WITH exploded AS (
+    SELECT data.repository.nameWithOwner AS repo_name,
+           unnest(data.repository.issues.nodes) AS node
+    FROM raw_issue_pages
+    WHERE data.repository.issues.nodes IS NOT NULL
+  )
+  SELECT repo_name, node FROM (
+    SELECT repo_name, node,
+           row_number() OVER (PARTITION BY repo_name, node.number
+                              ORDER BY coalesce(json_extract_string(to_json(node), '$.updatedAt'),
+                                                json_extract_string(to_json(node), '$.createdAt')) DESC) AS _rn
+    FROM exploded
+  ) WHERE _rn = 1;
 
 -- ── Flattened core tables ────────────────────────────────────────────────────
 CREATE OR REPLACE TABLE prs AS
@@ -91,30 +113,42 @@ CREATE OR REPLACE TABLE pr_issue_links AS
   FROM pr_nodes, unnest(node.closingIssuesReferences.nodes) AS t(ci)
   WHERE node.closingIssuesReferences.nodes IS NOT NULL;
 
+-- Issue tables extract via JSON, not struct dereference: an estate with ZERO
+-- issues anywhere (e.g. a solo owner whose backlog lives in-repo) gives
+-- read_json_auto nothing to type `node` with, so `node.number` fails to bind
+-- and every downstream CREATE cascades. to_json + json_extract binds on any
+-- type and yields typed-empty tables instead (same bind-safe idiom as the
+-- dedup ORDER BY above). PR tables keep struct access — one PR anywhere types
+-- them; a PR-less owner would hit the same wall there if that estate ever occurs.
 CREATE OR REPLACE TABLE issues AS
   SELECT repo_name,
-         node.number               AS number,
-         node.title                AS title,
-         node.state                AS state,
-         node.author.login         AS author,
-         node.createdAt::TIMESTAMP AS created_at,
-         node.closedAt::TIMESTAMP  AS closed_at,
-         node.milestone.title      AS milestone,                  -- Phase 2
-         coalesce(node.reopened.totalCount, 0) AS reopen_count    -- Phase 2 (rework)
-  FROM issue_nodes;
+         json_extract(j, '$.number')::BIGINT          AS number,
+         json_extract_string(j, '$.title')            AS title,
+         json_extract_string(j, '$.state')            AS state,
+         json_extract_string(j, '$.author.login')     AS author,
+         try_cast(json_extract_string(j, '$.createdAt') AS TIMESTAMP) AS created_at,
+         try_cast(json_extract_string(j, '$.closedAt')  AS TIMESTAMP) AS closed_at,
+         json_extract_string(j, '$.milestone.title')  AS milestone,                        -- Phase 2
+         coalesce(json_extract(j, '$.reopened.totalCount')::BIGINT, 0) AS reopen_count     -- Phase 2 (rework)
+  FROM (SELECT repo_name, to_json(node) AS j FROM issue_nodes);
 
 -- Issue discussion + ownership (Phase 2). src: issue GraphQL  [observed]
 CREATE OR REPLACE TABLE issue_comments AS
-  SELECT repo_name, node.number AS issue_number,
-         c.author.login         AS commenter,
-         c.createdAt::TIMESTAMP  AS commented_at
-  FROM issue_nodes, unnest(node.comments.nodes) AS t(c)
-  WHERE node.comments.nodes IS NOT NULL AND c.author.login IS NOT NULL;
+  SELECT repo_name,
+         json_extract(j, '$.number')::BIGINT AS issue_number,
+         json_extract_string(c.value, '$.author.login') AS commenter,
+         try_cast(json_extract_string(c.value, '$.createdAt') AS TIMESTAMP) AS commented_at
+  FROM (SELECT repo_name, to_json(node) AS j FROM issue_nodes),
+       json_each(coalesce(json_extract(j, '$.comments.nodes'), '[]'::JSON)) AS c
+  WHERE json_extract_string(c.value, '$.author.login') IS NOT NULL;
 
 CREATE OR REPLACE TABLE issue_assignees AS
-  SELECT repo_name, node.number AS issue_number, a.login AS assignee
-  FROM issue_nodes, unnest(node.assignees.nodes) AS t(a)
-  WHERE node.assignees.nodes IS NOT NULL;
+  SELECT repo_name,
+         json_extract(j, '$.number')::BIGINT AS issue_number,
+         json_extract_string(a.value, '$.login') AS assignee
+  FROM (SELECT repo_name, to_json(node) AS j FROM issue_nodes),
+       json_each(coalesce(json_extract(j, '$.assignees.nodes'), '[]'::JSON)) AS a
+  WHERE json_extract_string(a.value, '$.login') IS NOT NULL;
 
 -- ── Phase-2 REST sources (field-projected arrays; explicit columns so empty
 --    estates yield typed-empty tables, never a no-schema bind error) ──────────
@@ -279,9 +313,12 @@ CREATE OR REPLACE TABLE pr_labels AS
   WHERE node.labels.nodes IS NOT NULL;
 
 CREATE OR REPLACE TABLE issue_labels AS
-  SELECT repo_name, node.number AS issue_number, lbl.name AS label
-  FROM issue_nodes, unnest(node.labels.nodes) AS t(lbl)
-  WHERE node.labels.nodes IS NOT NULL;
+  SELECT repo_name,
+         json_extract(j, '$.number')::BIGINT AS issue_number,
+         json_extract_string(lbl.value, '$.name') AS label
+  FROM (SELECT repo_name, to_json(node) AS j FROM issue_nodes),
+       json_each(coalesce(json_extract(j, '$.labels.nodes'), '[]'::JSON)) AS lbl
+  WHERE json_extract_string(lbl.value, '$.name') IS NOT NULL;
 
 -- Calendar-correct year bucket relative to a reference timestamp. Day-aware
 -- (to_years intervals, not /365) so leap years don't misbucket boundaries.

@@ -1,0 +1,13 @@
+#!/usr/bin/env zsh
+# .githooks/pre-commit — fast gate: flag-audit only when bin/ is touched.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# Skip unless a staged path lives under bin/ — keeps the common commit fast.
+if ! git diff --cached --name-only | grep -qE '^bin/'; then
+  exit 0
+fi
+
+exec bats tests/flag_audit.bats

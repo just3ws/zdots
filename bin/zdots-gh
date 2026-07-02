@@ -14,7 +14,7 @@
 # bin/zdots-gh — GitHub org/user delivery-health insights for the zdots brain.
 #
 # Pipeline:  harvest → warehouse → report → ingest
-#   harvest    gh GraphQL → per-repo JSON cache (incremental; skips fresh files)
+#   harvest    gh GraphQL → per-repo JSON cache (incremental updatedAt delta; --force = full)
 #   warehouse  cache JSON → per-owner DuckDB (etc/zdots-gh/warehouse.sql)
 #   report     DuckDB → Markdown (always) + HTML (--html)  (etc/zdots-gh/report.py)
 #   ingest     the Markdown report → `zdots-ctx ingest` (Knowledge Vault)
@@ -61,6 +61,9 @@ Commands:
   ingest    <owner>          Ingest the Markdown report(s) into the knowledge base
   run       <owner> [--html] harvest → warehouse → report → insights → ingest
   status    [owner]          Show cache/warehouse/report freshness
+  dora      <owner>          DORA four keys from the warehouse (per-metric honesty labels)
+  standup   <owner>          Flow-first standup: opened/merged/closed + stuck PRs
+  rollup    <owner>          Per-engineer activity rollup (PRs, reviews, issues)
   -h, --help                 Show this help
 
 Options:
@@ -72,6 +75,10 @@ Options:
   --no-insights   For 'run': skip the forensic insights step
   --no-ingest     For 'run': skip the knowledge-base ingest step
   --dry-run       For 'ingest': show what would be ingested, change nothing
+  --days N        For dora/standup/rollup: analysis window (defaults: 180/1/30)
+  --repos A,B,C   For harvest/run: scope to these repos of <owner> (concern-scoped
+                  warehouse; re-run with the same list — see ZDOTS_GH_REPOS)
+  --json          For dora/standup/rollup: machine-readable output instead of md
 
 Environment:
   ZDOTS_GH_STATE          Cache/warehouse/report root (default \$XDG_STATE_HOME/zdots/gh)
@@ -80,6 +87,7 @@ Environment:
   ZDOTS_GH_ISSUE_PAGE     Issues per GraphQL page (default ${ISSUE_PAGE})
   ZDOTS_GH_INCLUDE_FORKS  1 = include forks (default ${INCLUDE_FORKS})
   ZDOTS_GH_INCLUDE_ARCHIVED 1 = include archived repos (default ${INCLUDE_ARCHIVED})
+  ZDOTS_GH_REPOS          Default --repos allowlist (comma-separated)
 
 Examples:
   zdots-gh run phalanxduel --html      # full loop + dashboard + insights
@@ -103,7 +111,7 @@ CMD="${1:-}"; [[ -z "$CMD" || "$CMD" == "-h" || "$CMD" == "--help" ]] && { usage
 shift || true
 
 OWNER=""; OPT_FORCE=0; OPT_HTML=0; OPT_NO_INGEST=0; OPT_DRYRUN=0
-OPT_NO_INSIGHTS=0; OPT_ASOF=""
+OPT_NO_INSIGHTS=0; OPT_ASOF=""; OPT_DAYS=""; OPT_JSON=0; OPT_REPOS="${ZDOTS_GH_REPOS:-}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force)       OPT_FORCE=1 ;;
@@ -112,6 +120,11 @@ while [[ $# -gt 0 ]]; do
     --no-insights) OPT_NO_INSIGHTS=1 ;;
     --as-of)       shift; OPT_ASOF="${1:-}"; [[ -n "$OPT_ASOF" ]] || _die "--as-of needs a date (YYYY-MM-DD)" ;;
     --as-of=*)     OPT_ASOF="${1#*=}" ;;
+    --days)        shift; OPT_DAYS="${1:-}"; [[ "$OPT_DAYS" =~ ^[0-9]+$ ]] || _die "--days needs a positive integer" ;;
+    --repos)       shift; OPT_REPOS="${1:-}"; [[ -n "$OPT_REPOS" ]] || _die "--repos needs a comma-separated list" ;;
+    --repos=*)     OPT_REPOS="${1#*=}" ;;
+    --days=*)      OPT_DAYS="${1#*=}"; [[ "$OPT_DAYS" =~ ^[0-9]+$ ]] || _die "--days needs a positive integer" ;;
+    --json)        OPT_JSON=1 ;;
     --dry-run)     OPT_DRYRUN=1 ;;
     -h|--help)     usage; exit 0 ;;
     -*)            _die "unknown option: $1" ;;
@@ -134,13 +147,14 @@ _graphs_dir() { printf '%s/graphs' "$(_owner_dir "$1")"; }
 # paginating pullRequests AND issues on one shared $endCursor, which silently
 # truncated both. We query them separately so --paginate follows each correctly.
 _pr_query() {
+  local order="${1:-CREATED_AT}" first="${2:-$PR_PAGE}"
   cat <<GQL
 query(\$owner: String!, \$name: String!, \$endCursor: String) {
   repository(owner: \$owner, name: \$name) {
     nameWithOwner
-    pullRequests(first: ${PR_PAGE}, after: \$endCursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+    pullRequests(first: ${first}, after: \$endCursor, orderBy: {field: ${order}, direction: DESC}) {
       nodes {
-        number title state createdAt mergedAt
+        number title state createdAt updatedAt mergedAt
         headRefName baseRefName isDraft
         mergedBy { login }
         author { login ... on User { name company } }
@@ -161,13 +175,14 @@ GQL
 }
 
 _issue_query() {
+  local order="${1:-CREATED_AT}" first="${2:-$ISSUE_PAGE}"
   cat <<GQL
 query(\$owner: String!, \$name: String!, \$endCursor: String) {
   repository(owner: \$owner, name: \$name) {
     nameWithOwner
-    issues(first: ${ISSUE_PAGE}, after: \$endCursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+    issues(first: ${first}, after: \$endCursor, orderBy: {field: ${order}, direction: DESC}) {
       nodes {
-        number title state createdAt closedAt
+        number title state createdAt updatedAt closedAt
         author { login ... on User { name company } }
         labels(first: 15) { nodes { name } }
         assignees(first: 10) { nodes { login } }
@@ -182,22 +197,33 @@ query(\$owner: String!, \$name: String!, \$endCursor: String) {
 GQL
 }
 
+# Harvest one connection (prs|issues) for a repo, in one of two modes:
+#   full        — base cache missing OR --force: paginate ALL history (CREATED_AT) → <repo>_<kind>.json
+#   incremental — base exists: fetch only the most-recently-UPDATED page (UPDATED_AT, single call) →
+#                 <repo>.incr_<kind>.json.
+# The warehouse globs *_<kind>.json (which matches BOTH files) and dedups by (repo, number) keeping
+# the freshest, so the delta file only needs to cover what changed since the last full harvest.
+# A periodic `--force` reconciles any change that spilled past the single incremental page.
 _harvest_one() {
-  local repo="$1" outdir="$2" kind="$3" query="$4"
+  local repo="$1" outdir="$2" kind="$3" full_q="$4" recent_q="$5"
   local safe="${repo//\//_}"
-  local out="${outdir}/${safe}_${kind}.json"
-  if [[ -f "$out" && "$OPT_FORCE" -ne 1 ]]; then
-    return 0  # incremental: already cached
+  local base="${outdir}/${safe}_${kind}.json"
+  local incr="${outdir}/${safe}.incr_${kind}.json"
+  local owner="${repo%/*}" name="${repo#*/}"
+
+  if [[ ! -f "$base" || "$OPT_FORCE" -eq 1 ]]; then
+    if gh api graphql --paginate --slurp -f owner="$owner" -f name="$name" -f query="$full_q" >"${base}.tmp" 2>/dev/null; then
+      mv -f "${base}.tmp" "$base"; rm -f "$incr"   # a fresh full history supersedes any prior delta
+      return 0
+    fi
+    rm -f "${base}.tmp"; _warn "failed full harvest of ${kind} for ${repo}"; return 1
   fi
-  if gh api graphql --paginate --slurp \
-        -f owner="${repo%/*}" -f name="${repo#*/}" -f query="$query" \
-        >"${out}.tmp" 2>/dev/null; then
-    mv -f "${out}.tmp" "$out"
-    return 0
+
+  # incremental: one page of the most-recently-updated items (no --paginate, single response object)
+  if gh api graphql -f owner="$owner" -f name="$name" -f query="$recent_q" >"${incr}.tmp" 2>/dev/null; then
+    mv -f "${incr}.tmp" "$incr"; return 0
   fi
-  rm -f "${out}.tmp"
-  _warn "failed to harvest ${kind} for ${repo}"
-  return 1
+  rm -f "${incr}.tmp"; _warn "failed incremental harvest of ${kind} for ${repo}"; return 1
 }
 
 # REST harvest for the Phase-2 auxiliary sources (Actions, releases, repo meta).
@@ -241,14 +267,31 @@ cmd_harvest() {
     || _die "could not list repos for '${OWNER}' — is it a valid org/user you can see?"
   [[ -n "$repos" ]] || _die "no repositories found for '${OWNER}'"
 
-  local n=0 prq isq
-  prq="$(_pr_query)"; isq="$(_issue_query)"
+  # Scope the harvest to an explicit repo allowlist (--repos a,b,c). Keeps a
+  # concern-scoped warehouse (e.g. just3ws filtered to the zdots platform trio)
+  # separate from an org-wide one. Per-invocation: re-run with the SAME --repos,
+  # or a later unfiltered harvest widens the cache and the warehouse follows.
+  if [[ -n "$OPT_REPOS" ]]; then
+    local filtered="" repo r
+    while IFS= read -r repo; do
+      [[ -n "$repo" ]] || continue
+      for r in ${OPT_REPOS//,/ }; do
+        [[ "$repo" == "$OWNER/$r" || "$repo" == "$r" ]] && { filtered+="$repo"$'\n'; break; }
+      done
+    done <<<"$repos"
+    repos="$filtered"
+    [[ -n "$repos" ]] || _die "no repos of '${OWNER}' match --repos ${OPT_REPOS}"
+  fi
+
+  local n=0 prq_full isq_full prq_recent isq_recent
+  prq_full="$(_pr_query CREATED_AT)";        isq_full="$(_issue_query CREATED_AT)"
+  prq_recent="$(_pr_query UPDATED_AT 100)";  isq_recent="$(_issue_query UPDATED_AT 100)"
   while IFS= read -r repo; do
     [[ -n "$repo" ]] || continue
     n=$((n+1))
     printf '  %s%2d%s %s\n' "$DIM" "$n" "$RST" "$repo" >&2
-    _harvest_one "$repo" "$outdir" prs    "$prq" || true
-    _harvest_one "$repo" "$outdir" issues "$isq" || true
+    _harvest_one "$repo" "$outdir" prs    "$prq_full" "$prq_recent" || true
+    _harvest_one "$repo" "$outdir" issues "$isq_full" "$isq_recent" || true
     # Phase-2 auxiliary sources (REST, field-projected). Best-effort: a missing
     # endpoint yields an empty contribution, never a harvest failure. The jq
     # filters below use $repo (a jq --arg var) — single-quoted on purpose.
@@ -400,6 +443,134 @@ cmd_status() {
   done
 }
 
+# ── delivery metrics (Z-190) ─────────────────────────────────────────────────
+# dora / standup / rollup: SQL computes (window filters, medians, tier bands) in
+# one duckdb -json call per verb; jq renders md and --json from the SAME rows, so
+# the two outputs can't diverge. Per work-dora's honesty standard every DORA
+# metric carries a source label: solid (warehouse-native), proxy (a stand-in the
+# reader must know about), gap (not instrumented — reported, not invented).
+
+# Run a query against the owner's warehouse, rows out as JSON.
+_metrics_db() {
+  _require_owner; _need duckdb "brew install duckdb"
+  local db; db="$(_owner_db "$OWNER")"
+  [[ -f "$db" ]] || _die "no warehouse for ${OWNER} — run: zdots-gh warehouse ${OWNER}"
+  duckdb -readonly -json "$db" "$1"
+}
+
+cmd_dora() {
+  local days="${OPT_DAYS:-180}"
+  local rows by_repo
+  rows="$(_metrics_db "
+    WITH win AS (SELECT now() - INTERVAL ${days} DAY AS cutoff),
+    merged AS (SELECT * FROM prs, win WHERE merged_at IS NOT NULL AND merged_at >= cutoff AND NOT is_bot),
+    rel    AS (SELECT * FROM releases, win WHERE published_at >= cutoff AND NOT draft),
+    lt AS (SELECT quantile_cont(epoch(merged_at - created_at)/3600.0, 0.5) v, count(*) n FROM merged),
+    cfr AS (SELECT 100.0 * count(*) FILTER (regexp_matches(title, '(?i)^revert')) / nullif(count(*),0) v,
+                   count(*) n FROM merged),
+    dep AS (SELECT count(*) / (${days}/7.0) v, count(*) n FROM rel),
+    inc AS (SELECT quantile_cont(epoch(i.closed_at - i.created_at)/3600.0, 0.5) v, count(*) n
+            FROM issues i JOIN issue_labels l ON l.repo_name = i.repo_name AND l.issue_number = i.number, win
+            WHERE i.closed_at IS NOT NULL AND i.closed_at >= cutoff
+              AND lower(l.label) IN ('incident','outage','hotfix','sev1','p0','production-issue'))
+    SELECT 'deploy_frequency' AS metric, round(v,2) AS value, 'deploys/week' AS unit, n, 'proxy' AS label,
+           'GitHub release publishes as deploy proxy' AS note,
+           CASE WHEN n = 0 THEN '—' WHEN v >= 7 THEN 'Elite' WHEN v >= 1 THEN 'High'
+                WHEN v >= 0.23 THEN 'Medium' ELSE 'Low' END AS tier FROM dep
+    UNION ALL
+    SELECT 'lead_time', round(v,1), 'hours', n, 'solid', 'median created→merged, non-bot PRs',
+           CASE WHEN n = 0 THEN '—' WHEN v <= 24 THEN 'Elite' WHEN v <= 168 THEN 'High'
+                WHEN v <= 720 THEN 'Medium' ELSE 'Low' END FROM lt
+    UNION ALL
+    SELECT 'change_failure_rate', round(v,1), '%', n, 'proxy', 'revert-PR rate over merged PRs',
+           CASE WHEN n = 0 THEN '—' WHEN v <= 15 THEN 'Elite' WHEN v <= 30 THEN 'High'
+                WHEN v <= 45 THEN 'Medium' ELSE 'Low' END FROM cfr
+    UNION ALL
+    SELECT 'mttr', round(v,1), 'hours', n,
+           CASE WHEN n = 0 THEN 'gap' ELSE 'proxy' END,
+           CASE WHEN n = 0 THEN 'not instrumented — no incident-labeled issues in window'
+                ELSE 'median close time of incident-labeled issues' END,
+           CASE WHEN n = 0 THEN '—' WHEN v <= 1 THEN 'Elite' WHEN v <= 24 THEN 'High'
+                WHEN v <= 168 THEN 'Medium' ELSE 'Low' END FROM inc;")"
+  by_repo="$(_metrics_db "
+    SELECT repo_name, round(quantile_cont(epoch(merged_at - created_at)/3600.0, 0.5),1) AS median_hours, count(*) AS n
+    FROM prs WHERE merged_at IS NOT NULL AND merged_at >= now() - INTERVAL ${days} DAY AND NOT is_bot
+    GROUP BY 1 HAVING count(*) >= 3 ORDER BY n DESC LIMIT 10;")"
+  [[ -n "$rows" ]] || rows="[]"; [[ -n "$by_repo" ]] || by_repo="[]"
+  if (( OPT_JSON )); then
+    jq -n --arg owner "$OWNER" --argjson days "$days" --argjson metrics "$rows" --argjson by_repo "$by_repo" \
+      '{owner:$owner, window_days:$days, metrics:$metrics, lead_time_by_repo:$by_repo}'
+  else
+    printf '# DORA — %s (last %s days)\n\n' "$OWNER" "$days"
+    jq -r '.[] | "- **\(.metric)**: \(.value // "—") \(.unit) [\(.tier)] (\(.label), n=\(.n)) — \(.note)"' <<<"$rows"
+    printf '\n## Lead time by repo (median hours, ≥3 merged PRs)\n\n'
+    jq -r '.[] | "- \(.repo_name): \(.median_hours)h (n=\(.n))"' <<<"$by_repo"
+  fi
+}
+
+cmd_standup() {
+  local days="${OPT_DAYS:-1}"
+  local rows
+  rows="$(_metrics_db "
+    WITH win AS (SELECT now() - INTERVAL ${days} DAY AS cutoff)
+    SELECT 'merged' AS section, repo_name, number, title, author FROM prs, win
+      WHERE merged_at IS NOT NULL AND merged_at >= cutoff AND NOT is_bot
+    UNION ALL
+    SELECT 'opened', repo_name, number, title, author FROM prs, win
+      WHERE created_at >= cutoff AND merged_at IS NULL AND NOT is_bot
+    UNION ALL
+    SELECT 'issues_closed', repo_name, number, title, author FROM issues, win
+      WHERE closed_at IS NOT NULL AND closed_at >= cutoff
+    UNION ALL
+    SELECT 'issues_opened', repo_name, number, title, author FROM issues, win
+      WHERE created_at >= cutoff AND closed_at IS NULL
+    UNION ALL
+    SELECT 'stuck', repo_name, number, title, author FROM prs
+      WHERE state = 'OPEN' AND NOT is_draft AND NOT is_bot
+        AND created_at < now() - INTERVAL 7 DAY
+    ORDER BY section, repo_name, number;")"
+  [[ -n "$rows" ]] || rows="[]"
+  if (( OPT_JSON )); then
+    jq -n --arg owner "$OWNER" --argjson days "$days" --argjson items "$rows" \
+      '{owner:$owner, window_days:$days, items:$items}'
+  else
+    printf '# Standup — %s (last %s day(s))\n' "$OWNER" "$days"
+    for s in merged opened issues_closed issues_opened stuck; do
+      printf '\n## %s\n' "$s"
+      jq -r --arg s "$s" '[.[] | select(.section == $s)] |
+        if length == 0 then "- (none)" else .[] | "- \(.repo_name)#\(.number) \(.title) (@\(.author))" end' <<<"$rows"
+    done
+  fi
+}
+
+cmd_rollup() {
+  local days="${OPT_DAYS:-30}"
+  local rows
+  rows="$(_metrics_db "
+    WITH win AS (SELECT now() - INTERVAL ${days} DAY AS cutoff),
+    authored AS (SELECT author AS actor, count(*) AS n FROM prs, win WHERE created_at >= cutoff AND NOT is_bot GROUP BY 1),
+    merged   AS (SELECT author AS actor, count(*) AS n FROM prs, win WHERE merged_at >= cutoff AND NOT is_bot GROUP BY 1),
+    reviews  AS (SELECT reviewer AS actor, count(*) AS n FROM pr_reviews, win WHERE reviewed_at >= cutoff GROUP BY 1),
+    closed   AS (SELECT author AS actor, count(*) AS n FROM issues, win WHERE closed_at >= cutoff GROUP BY 1)
+    SELECT coalesce(a.actor, m.actor, r.actor, c.actor) AS actor,
+           coalesce(a.n,0) AS prs_opened, coalesce(m.n,0) AS prs_merged,
+           coalesce(r.n,0) AS reviews_given, coalesce(c.n,0) AS issues_closed
+    FROM authored a FULL JOIN merged m USING (actor)
+                    FULL JOIN reviews r USING (actor)
+                    FULL JOIN closed c USING (actor)
+    ORDER BY prs_merged DESC, reviews_given DESC;")"
+  [[ -n "$rows" ]] || rows="[]"
+  if (( OPT_JSON )); then
+    jq -n --arg owner "$OWNER" --argjson days "$days" --argjson engineers "$rows" \
+      '{owner:$owner, window_days:$days, engineers:$engineers}'
+  else
+    printf '# Rollup — %s (last %s days)\n\n' "$OWNER" "$days"
+    printf '%s\n' '| engineer | PRs opened | PRs merged | reviews | issues closed |'
+    printf '%s\n' '|---|---|---|---|---|'
+    jq -r '.[] | "| \(.actor) | \(.prs_opened) | \(.prs_merged) | \(.reviews_given) | \(.issues_closed) |"' <<<"$rows"
+  fi
+}
+
 case "$CMD" in
   harvest)   cmd_harvest ;;
   warehouse) cmd_warehouse ;;
@@ -408,5 +579,8 @@ case "$CMD" in
   ingest)    cmd_ingest ;;
   run)       cmd_run ;;
   status)    cmd_status ;;
+  dora)      cmd_dora ;;
+  standup)   cmd_standup ;;
+  rollup)    cmd_rollup ;;
   *)         _die "unknown command: ${CMD} (try: zdots-gh --help)" ;;
 esac
