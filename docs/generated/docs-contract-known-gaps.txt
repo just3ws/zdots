@@ -13,6 +13,8 @@ ctx-mcp-register: registration tool; --help not implemented z-119
 diarize: uv Python script; --help triggers dependency download z-119
 gemini-invoke: starts observable agent session on invocation; no --help contract z-119
 llama-mcp: MCP stdio server; no --help contract by design z-119
+o2-mcp: MCP stdio server; no --help contract by design z-119
+o2-mcp-register: registration tool; --help not implemented z-119
 secret-scan: runs scan on invocation; no --help contract z-119
 trace-verify: first positional arg is session_id; treats --help as a session ID z-119
 zdots-ruby: Ruby launcher shim; passes all args to mise-managed Ruby z-119

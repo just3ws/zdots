@@ -56,9 +56,12 @@ receivers:
   # bind-mount (.:/bear in docker-compose.override.yml), so the file is visible
   # on the host. The host collector tails it directly. (filelog + trace_parser
   # both confirmed present in otelcol-contrib 0.148.0.)
+  # Path is generic — not baked to one app. ZDOTS_APP_LOG defaults to the app
+  # dev log (set in bin/otel-collector); override it to tail a different app.
+  # A missing file is fine — filelog just tails nothing until it appears.
   filelog/app:
     include:
-      - "${env:HOME}/github.com/[redacted]/app/log/lograge.json"
+      - "${env:ZDOTS_APP_LOG}"
     start_at: end          # only new requests; avoids replaying old lines on restart
     include_file_path: false
     operators:
@@ -132,6 +135,14 @@ exporters:
     rotation:
       max_megabytes: 10
       max_backups: 3
+  # Raw per-run diagnostic tap. Full-fidelity, NO phi scrub (see the */diag pipelines).
+  # LOCAL diagnostic-exercise-runner only; work-scenario-run slices per-run windows out
+  # of this file by byte offset. Generous rotation so a serial run never rotates mid-flight.
+  file/diag:
+    path: "${env:HOME}/.local/state/zsh/collector-diag.jsonl"
+    rotation:
+      max_megabytes: 128
+      max_backups: 2
   # OpenObserve (native, :5080). OTLP HTTP ingest under /api/<org>; the otlphttp
   # exporter appends /v1/{traces,metrics,logs}. Basic-auth is injected from the
   # Keychain at boot by `otel-collector serve` (env ZDOTS_O2_OTLP_AUTH) so the
@@ -167,3 +178,18 @@ service:
       receivers: [otlp, filelog/app]
       processors: [resource/applogs, resourcedetection, batch]
       exporters: [debug, otlp_http/openobserve]
+    # Raw diagnostic taps — same receivers as the live trio, batch only (no phi), raw → file/diag.
+    # The /diag suffix dodges the phi-compiler's name=="traces"/"logs" injection gates. Task 2
+    # also exempts these from the otherwise-unconditional redaction/phi. O2 path is untouched.
+    traces/diag:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [file/diag]
+    logs/diag:
+      receivers: [otlp, filelog/app]
+      processors: [batch]
+      exporters: [file/diag]
+    metrics/diag:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [file/diag]

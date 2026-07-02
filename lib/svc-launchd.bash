@@ -208,8 +208,22 @@ zdots_svc_launchd_start() {
 
 zdots_svc_launchd_stop() {
   local label="$1"
+  local target; target="$(_zdots_svc_launchd_target "$label")"
   _svc_log "stopping ${label}..."
-  launchctl bootout "$(_zdots_svc_launchd_target "$label")" 2>/dev/null || true
+  launchctl bootout "$target" 2>/dev/null || true
+  # bootout sends SIGTERM and returns BEFORE a slow/graceful process exits — the
+  # worker draining its current job, llama releasing the GPU. Wait until the
+  # service is actually gone so a following start (restart = stop; start) bootstraps
+  # a clean service instead of racing the still-exiting one and landing in the
+  # start()'s "SIGTERMed → trust KeepAlive" branch with KeepAlive already booted
+  # out (→ never restarts). Bounded to outlast launchd's SIGKILL escalation so a
+  # wedged process can't hang the stop.
+  local waited=0
+  while (( waited++ < 150 )); do        # ~30s cap (150 * 0.2s)
+    launchctl print "$target" >/dev/null 2>&1 || return 0
+    sleep 0.2
+  done
+  _svc_warn "${label} still present ~30s after bootout; proceeding anyway"
 }
 
 zdots_svc_launchd_status() {

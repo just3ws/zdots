@@ -44,6 +44,28 @@ _gate() {
   [ "$(_gate youtube '')" = "blocked" ]
 }
 
+# Decoupling gate (downloader/processor): require_fetchable! lets any yt-dlp URL
+# source through and refuses only 'local' (no re-fetchable URI).
+_fetchable() {
+  ruby -e '
+    require "'"$ROOT"'/lib/zdots"
+    require "'"$ROOT"'/lib/zdots/jobs/ingest_media"
+    o = Zdots::Jobs::IngestMedia.allocate
+    o.instance_variable_set(:@src, Struct.new(:source_type).new(ARGV[0]))
+    begin; o.send(:require_fetchable!); puts "ok"; rescue StandardError; puts "raised"; end
+  ' "$1" 2>/dev/null
+}
+
+@test "fetchable: twitter/youtube/vimeo pass (yt-dlp fetches them)" {
+  [ "$(_fetchable twitter)" = "ok" ]
+  [ "$(_fetchable youtube)" = "ok" ]
+  [ "$(_fetchable vimeo)" = "ok" ]
+}
+
+@test "fetchable: local is refused (no re-fetchable URI)" {
+  [ "$(_fetchable local)" = "raised" ]
+}
+
 @test "cloud distill: flag OFF blocks even public source + claude present" {
   run bash -c "ZDOTS_DISTILL_CLOUD=0 ruby -e '
     require \"$ROOT/lib/zdots\"

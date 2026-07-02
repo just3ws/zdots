@@ -2,8 +2,8 @@
 # tests/cli_contracts.bats — CLI grammar and interface contract tests
 #
 # Validates the command vocabulary and grammar contract established across
-# the three service managers (llama-ctl, otel-collector, local-ci) and the
-# orientation tools (agent-guide, capabilities).
+# the service managers (llama-ctl, otel-collector) and the orientation tools
+# (agent-guide, capabilities). local-ci is a Colima/CI utility (no lifecycle).
 #
 # Tests are split into two groups:
 #   Stateless — no live services required; always run.
@@ -15,7 +15,6 @@ setup() {
   BIN="$REPO_ROOT/bin"
   AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
   OTEL_ENDPOINT="http://127.0.0.1:4318"
-  GRAFANA_URL="http://127.0.0.1:3000"
 }
 
 # ---------------------------------------------------------------------------
@@ -23,7 +22,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 _service_managers() {
-  echo "llama-ctl otel-collector local-ci"
+  echo "llama-ctl otel-collector"
 }
 
 _ai_up() {
@@ -32,10 +31,6 @@ _ai_up() {
 
 _otel_up() {
   launchctl list com.zdots.otel-collector 2>/dev/null | grep -q '"PID"'
-}
-
-_grafana_up() {
-  curl -sf -m 2 "${GRAFANA_URL}/api/health" >/dev/null 2>&1
 }
 
 # ---------------------------------------------------------------------------
@@ -59,6 +54,11 @@ _grafana_up() {
 
 @test "agent-guide: --help exits 0" {
   run "$BIN/agent-guide" --help
+  [ "$status" -eq 0 ]
+}
+
+@test "zdots-snapshot: --help exits 0" {
+  run "$BIN/zdots-snapshot" --help
   [ "$status" -eq 0 ]
 }
 
@@ -145,19 +145,8 @@ EOF
   [[ "$output" == *"install"*  ]]
 }
 
-@test "local-ci: help lists standard lifecycle verbs" {
-  run "$BIN/local-ci" --help
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"start"*    ]]
-  [[ "$output" == *"stop"*     ]]
-  [[ "$output" == *"restart"*  ]]
-  [[ "$output" == *"status"*   ]]
-  [[ "$output" == *"health"*   ]]
-  [[ "$output" == *"logs"*     ]]
-}
-
 # ---------------------------------------------------------------------------
-# --json flag: all three service managers advertise --json
+# --json flag: the service managers advertise --json
 # ---------------------------------------------------------------------------
 
 @test "llama-ctl: help mentions --json" {
@@ -187,11 +176,6 @@ EOF
   [[ "$output" == *"--json"* ]]
 }
 
-@test "local-ci: help mentions --json" {
-  run "$BIN/local-ci" --help
-  [[ "$output" == *"--json"* ]]
-}
-
 @test "agent-guide: help mentions --json" {
   run "$BIN/agent-guide" --help
   [[ "$output" == *"--json"* ]]
@@ -212,19 +196,6 @@ EOF
   [[ "$output" != *"  df  "* ]]
   [[ "$output" != *"  df	"* ]]
   [[ "$output" == *"model-df"* ]]
-}
-
-@test "local-ci: 'up' subcommand removed (replaced by start)" {
-  run "$BIN/local-ci" --help
-  # 'up' must not appear as a subcommand entry
-  [[ "$output" != *"  up "* ]]
-  [[ "$output" == *"start"* ]]
-}
-
-@test "local-ci: 'down' subcommand removed (replaced by stop)" {
-  run "$BIN/local-ci" --help
-  [[ "$output" != *"  down "* ]]
-  [[ "$output" == *"stop"* ]]
 }
 
 @test "local-ci: 'otel' sub-manager removed" {
@@ -305,11 +276,6 @@ EOF
 
 @test "otel-collector: status output goes to stdout" {
   stdout=$("$BIN/otel-collector" status 2>/dev/null)
-  [ -n "$stdout" ]
-}
-
-@test "local-ci: status output goes to stdout" {
-  stdout=$("$BIN/local-ci" status 2>/dev/null || true)
   [ -n "$stdout" ]
 }
 
@@ -412,26 +378,6 @@ EOF
   echo "$output" | jq . >/dev/null
 }
 
-@test "local-ci: status --json produces valid JSON" {
-  if ! _grafana_up; then skip "LGTM stack not running"; fi
-  run "$BIN/local-ci" status --json
-  [ "$status" -eq 0 ]
-  echo "$output" | jq . >/dev/null
-}
-
-@test "local-ci: health exits 0 when Grafana is up" {
-  if ! _grafana_up; then skip "LGTM stack not running"; fi
-  run "$BIN/local-ci" health
-  [ "$status" -eq 0 ]
-}
-
-@test "local-ci: health --json produces valid JSON" {
-  if ! _grafana_up; then skip "LGTM stack not running"; fi
-  run "$BIN/local-ci" health --json
-  [ "$status" -eq 0 ]
-  echo "$output" | jq . >/dev/null
-}
-
 @test "agent-guide: --json produces valid JSON" {
   run "$BIN/agent-guide" --json
   [ "$status" -eq 0 ]
@@ -489,8 +435,8 @@ EOF
 }
 
 @test "zdots-ctl: check exits 0 when platform healthy" {
-  if ! curl -sf -m 2 http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
-    skip "LGTM stack not running"
+  if ! _otel_up; then
+    skip "platform not fully running"
   fi
   run "$BIN/zdots-ctl" check
   [ "$status" -eq 0 ]

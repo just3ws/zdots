@@ -81,7 +81,7 @@ Defines the telemetry pipeline (receivers, processors, exporters).
 ### OpenObserve
 Native observability backend (logs/metrics/traces) configured in
 `bin/openobserve-ctl`; no compose file. See [openobserve](openobserve.md). The
-old `etc/docker-compose.lgtm.yaml` was archived when LGTM was retired (Z-134).
+containerized LGTM stack and its compose file were removed when LGTM was retired (Z-134).
 
 ## 3. Secrets
 

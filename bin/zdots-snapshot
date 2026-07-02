@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# bin/zdots-snapshot — capture a re-runnable command's output over time and diff it.
+#
+# Turns any changing report into an evolution timeline: each run captures stdout
+# under the snapshot's name and prints the diff against the previous capture.
+# Generic observability primitive (Z-191; concept consolidated from the [redacted]
+# work-snapshot). Pairs with the self-improvement trend metrics — point it at any
+# report you want to watch drift.
+#
+# Usage:
+#   zdots-snapshot <name> -- <command...>   run command, capture stdout, diff vs previous
+#   zdots-snapshot list                     snapshot names with capture counts
+#   zdots-snapshot show <name>              captures for a name (newest last)
+#
+# State:  ${XDG_STATE_HOME:-~/.local/state}/zdots/snapshots/<name>/<timestamp>.txt
+# Exit:   the captured command's exit status (a failing report is still a data
+#         point — the capture is kept). list/show exit 0.
+
+set -euo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+source "${ZDOTDIR}/lib/cli-help.bash"
+
+STATE_ROOT="${ZDOTS_SNAPSHOT_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zdots/snapshots}"
+
+_die() { printf 'zdots-snapshot: error: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<'EOF'
+Usage: zdots-snapshot <name> -- <command...>
+       zdots-snapshot list
+       zdots-snapshot show <name>
+
+Capture a command's stdout under <name> and diff it against the previous
+capture — an evolution timeline for any re-runnable report.
+
+Exit status: the captured command's (capture is kept either way).
+EOF
+}
+
+# Only $1 is checked so the captured command's own flags are never swallowed
+# (zdots-snapshot report -- mytool --help must reach mytool).
+zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+
+case "${1:-}" in
+  list)
+    shift
+    [[ -d "$STATE_ROOT" ]] || exit 0
+    for d in "$STATE_ROOT"/*/; do
+      [[ -d "$d" ]] || continue
+      printf '%s\t%s captures\n' "$(basename "$d")" "$(find "$d" -maxdepth 1 -name '*.txt' | wc -l | tr -d ' ')"
+    done
+    exit 0
+    ;;
+  show)
+    shift
+    name="${1:-}"; [[ -n "$name" ]] || _die "usage: zdots-snapshot show <name>"
+    dir="$STATE_ROOT/$name"
+    [[ -d "$dir" ]] || _die "no snapshot named '$name'"
+    ls -1 "$dir" | sort
+    exit 0
+    ;;
+  "")
+    usage >&2; exit 1
+    ;;
+esac
+
+# ── capture: <name> -- <command...> ─────────────────────────────────────────
+name="$1"; shift
+# Trust boundary: the name becomes a directory component — no separators/dots-paths.
+[[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || _die "invalid snapshot name: '$name' (use [A-Za-z0-9._-])"
+[[ "${1:-}" == "--" ]] || { usage >&2; exit 1; }
+shift
+[[ $# -gt 0 ]] || _die "no command given after --"
+
+dir="$STATE_ROOT/$name"
+mkdir -p "$dir"
+prev="$(find "$dir" -maxdepth 1 -name '*.txt' | sort | tail -1)"
+out="$dir/$(date +%Y%m%dT%H%M%S).txt"
+[[ -e "$out" ]] && out="${out%.txt}.$$.txt" # same-second re-run
+
+set +e
+"$@" > "$out"
+rc=$?
+set -e
+(( rc == 0 )) || printf 'zdots-snapshot: command exited %d (capture kept)\n' "$rc" >&2
+
+if [[ -n "$prev" ]]; then
+  # diff prints the change itself; identical -> note it (diff exit 1 = differ, fine)
+  if diff -u "$prev" "$out"; then
+    printf 'zdots-snapshot: unchanged since %s\n' "$(basename "$prev" .txt)" >&2
+  fi
+else
+  printf 'zdots-snapshot: first capture -> %s\n' "$out" >&2
+fi
+exit "$rc"

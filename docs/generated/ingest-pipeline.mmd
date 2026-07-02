@@ -1,0 +1,8 @@
+flowchart TD
+  queued([queued]) --> raw
+  raw["raw — transcribe audio (whisper; chunk fan-out if long)"]
+  raw --> cleaned
+  cleaned["cleaned — apply known_terms corrections"]
+  cleaned --> distilled
+  distilled["distilled — LLM knowledge briefing (local, or scoped cloud)"]
+  distilled --> done([done])

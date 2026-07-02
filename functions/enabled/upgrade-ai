@@ -14,7 +14,10 @@ run_cmd() {
 }
 
 # 1. Claude Code
-if command -v claude >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+if brew list --cask claude-code >/dev/null 2>&1; then
+  echo "Updating Claude Code..."
+  run_cmd brew upgrade --cask claude-code 2>/dev/null || echo "  (already at latest)"
+elif command -v claude >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
   echo "Updating Claude Code..."
   run_cmd npm install -g @anthropic-ai/claude-code
 fi

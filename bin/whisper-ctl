@@ -12,6 +12,7 @@ META_LIB="$ZDOTDIR/lib/metadata.bash"
 # Source the model store
 # shellcheck source=lib/model-store.bash
 source "${ZDOTDIR}/lib/model-store.bash"
+source "${ZDOTDIR}/lib/cli-help.bash"
 
 # Resolve configuration via metadata service
 if [[ -f "$META_LIB" ]]; then
@@ -89,11 +90,11 @@ cmd_transcribe() {
 }
 
 case "${1:-}" in
-  install)        cmd_install ;;
-  model-download) cmd_download ;;
-  model-list)     ls -lh "$MODELS_DIR" ;;
-  transcribe)     shift; cmd_transcribe "$@" ;;
-  config)         bash "$META_LIB" dump whisper ;;
+  install)        shift; zdots_cli_wants_help_strict "$@" && { usage; exit 0; }; cmd_install ;;
+  model-download) shift; zdots_cli_wants_help_strict "$@" && { usage; exit 0; }; cmd_download ;;
+  model-list)     shift; zdots_cli_wants_help_strict "$@" && { usage; exit 0; }; ls -lh "$MODELS_DIR" ;;
+  transcribe)     shift; zdots_cli_wants_help_strict "$@" && { usage; exit 0; }; cmd_transcribe "$@" ;;
+  config)         shift; zdots_cli_wants_help_strict "$@" && { usage; exit 0; }; bash "$META_LIB" dump whisper ;;
   -h|--help)      usage; exit 0 ;;
   *)              usage >&2; exit 1 ;;
 esac

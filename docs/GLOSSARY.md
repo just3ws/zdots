@@ -412,7 +412,7 @@ A comprehensive reference of zdots terminology. Terms are ordered by domain and 
 **Stack:**
 - **Tracer** — emits spans (zsh provider via OTEL, bash fallback)
 - **Collector** — aggregates traces/metrics (otel-collector, OpenObserve)
-- **Query** — search and analyze (zdots-o2-query, Grafana dashboards)
+- **Query** — search and analyze (zdots-o2-query, OpenObserve UI at o2.local)
 
 **Related:** OTEL, Trace, Span.
 
