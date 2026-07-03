@@ -156,12 +156,12 @@ zsvc diag postgres
 
 ## 8. Troubleshooting Tutorial: "The Local URL Failure"
 
-Scenario: `zsvc health` reports `llama.local` is `fail` with code `000`, but core services are healthy.
+Scenario: `zsvc health` reports `llama.localhost` is `fail` with code `000`, but core services are healthy.
 
 **Step 1: Verify Core Services**
 ```bash
 zsvc health
-# Result: llama-server is 'ok', but llama.local is 'fail'.
+# Result: llama-server is 'ok', but llama.localhost is 'fail'.
 ```
 
 **Step 2: Check Logs for Proxied Errors**

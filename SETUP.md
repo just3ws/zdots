@@ -87,23 +87,19 @@ Complete them after `bootstrap` finishes:
 sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
 ```
 
-To verify: `curl -sk https://llama.local/health | head -1` (after local AI is up)
+To verify: `curl -sk https://llama.localhost/health | head -1` (after local AI is up)
 
 > **Do not use `sudo brew services restart nginx`** — it takes root ownership of
 > Homebrew paths and breaks subsequent `brew link` / `brew install` operations.
 > Use `sudo launchctl kickstart -k system/homebrew.mxcl.nginx` for restarts.
 
-### 2. Add local service hostnames to /etc/hosts
+### 2. Local service hostnames
 
-```bash
-sudo sh -c 'echo "127.0.0.1 llama.local" >> /etc/hosts'
-sudo sh -c 'echo "127.0.0.1 embed.local" >> /etc/hosts'
-sudo sh -c 'echo "127.0.0.1 o2.local" >> /etc/hosts'
-```
-
-These map the TLS hostnames nginx routes by Host header. Without them,
-`https://llama.local` never resolves — `ai-query` falls back to the port-11500
-plain URL, but browser access and cert validation won't work.
+`llama.localhost` / `embed.localhost` / `o2.localhost` / `zdots.localhost` need
+**no `/etc/hosts` entry** — `.localhost` is IANA-reserved (RFC 6761) and every
+OS resolver hard-wires it to loopback unconditionally (decision-011). `bin/bootstrap`
+still adds `/etc/hosts` entries for `my.local`/`dev.my.local` (the `~/my`-owned
+cockpit, which predates this convention and keeps `.local` for its own reasons).
 
 ---
 

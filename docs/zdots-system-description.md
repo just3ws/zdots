@@ -287,7 +287,7 @@ Any process (OTel SDK)
 otelcol-contrib (native binary, com.zdots.otel-collector)
     ↓
 OpenObserve (native binary, com.zdots.openobserve, :5080)
-    UI: http://o2.local (nginx reverse proxy)
+    UI: https://o2.localhost (nginx reverse proxy)
 ```
 
 All three (OTLP endpoint, collector, OpenObserve) run as native macOS processes — no Docker dependency. The LGTM stack (Grafana/Loki/Tempo/Prometheus in Docker) was deprecated in favor of this native stack (task Z-134, completed).

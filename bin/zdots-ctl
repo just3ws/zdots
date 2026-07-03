@@ -549,27 +549,17 @@ cmd_check() {
       _chk_pass "nginx TLS certs  present ($cert_file)"
     else
       _chk_warn "nginx TLS certs  missing"
-      _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.local embed.local o2.local my.local dev.my.local localhost 127.0.0.1"
+      _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.localhost embed.localhost o2.localhost zdots.localhost my.local dev.my.local localhost 127.0.0.1"
     fi
   else
     _chk_warn "mkcert  not installed"
     _fix "brew install mkcert && mkcert -install"
   fi
 
-  # /etc/hosts entries for nginx virtual hosts
-  local _missing_hosts=""
-  for _h in llama.local embed.local o2.local; do
-    grep -qF "$_h" /etc/hosts 2>/dev/null || _missing_hosts="$_missing_hosts $_h"
-  done
-  if [[ -z "$_missing_hosts" ]]; then
-    _chk_pass "/etc/hosts  llama.local embed.local o2.local all present"
-  else
-    _chk_warn "/etc/hosts  missing entries:${_missing_hosts}"
-    for _h in $_missing_hosts; do
-      _fix "sudo sh -c 'echo \"127.0.0.1 ${_h}\" >> /etc/hosts'"
-    done
-  fi
-  unset _missing_hosts _h
+  # No /etc/hosts check for llama/embed/o2/zdots: they're .localhost names now
+  # (decision-011) — RFC 6761 hard-wires every resolver to loopback, so there
+  # is nothing to verify here. (my.local/dev.my.local are ~/my-owned and out
+  # of zdots' concern.)
 
   # ── AI router structural check (fast — no model call) ─────────────────────
   printf '\nAI router\n'
