@@ -103,25 +103,15 @@ export CLAUDE_AI_MODE="${ZDOTS_AI_MODE}"
 # Exports here only reach a caller that *sources* this hook (cc-home). When the
 # harness *executes* the hook, child-process exports evaporate — so skip the
 # work (two doctor probes + two source reads) on that path to keep CC startup
-# fast. Both capability files are idempotent and ${VAR:-default}-guarded.
+# fast. Discovery logic lives in lib/peer-bootstrap.bash — the single source
+# of truth shared with Pi (zdots_pi_init) and Aider (zdots_aider_init).
 
 if [[ $_HOOK_SOURCED -eq 1 ]]; then
-  zdots_caps_file="${ZDOTS_DIR:-$HOME/.config/zsh}/etc/capabilities.sh"
-  adots_caps_file="${ADOTS_CONFIG_DIR:-$HOME/.config/adots}/capabilities.sh"
   # shellcheck source=/dev/null
-  [[ -f "$zdots_caps_file" ]] && source "$zdots_caps_file" 2>/dev/null || true
-  # shellcheck source=/dev/null
-  [[ -f "$adots_caps_file" ]] && source "$adots_caps_file" 2>/dev/null || true
-
-  # Soft health probes. Never block the session; just record posture.
-  zdots_healthy=0
-  { command -v zdots-doctor >/dev/null 2>&1 && zdots-doctor --no-runtime >/dev/null 2>&1 && zdots_healthy=1; } || true
-  adots_healthy=0
-  { command -v adots-doctor >/dev/null 2>&1 && adots-doctor >/dev/null 2>&1 && adots_healthy=1; } || true
-
-  export ZDOTS_HEALTHY="$zdots_healthy"
-  export ADOTS_HEALTHY="$adots_healthy"
-  export PERSONAL_OS_READY=$(( zdots_healthy & adots_healthy ))
+  if source "${ZDOTS_DIR:-$HOME/.config/zsh}/lib/peer-bootstrap.bash" 2>/dev/null; then
+    zdots_peer_bootstrap   # capabilities + attested counts (fast)
+    zdots_peer_probe       # doctor probes → ZDOTS_HEALTHY/ADOTS_HEALTHY/PERSONAL_OS_READY
+  fi
 fi
 
 if [[ $_HOOK_SOURCED -eq 1 ]]; then return 0; else exit 0; fi

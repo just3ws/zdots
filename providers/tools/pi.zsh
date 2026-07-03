@@ -42,6 +42,16 @@ zdots_pi_init() {
       && zdots_ai_gated_endpoint "zpi" >/dev/null
   fi
 
+  # Peer-aware Capability discovery: exports ZDOTS/ADOTS availability and
+  # attested capability counts into Pi's environment (Pi's bash tool and any
+  # zdots command it runs see them). The model-visible line rides pi-ctx-brief.
+  # Bootstrap only — no doctor probes; keep interactive launch snappy.
+  if ! typeset -f zdots_peer_bootstrap >/dev/null 2>&1; then
+    # shellcheck source=lib/peer-bootstrap.bash
+    [[ -r "${ZDOTDIR}/lib/peer-bootstrap.bash" ]] && source "${ZDOTDIR}/lib/peer-bootstrap.bash"
+  fi
+  typeset -f zdots_peer_bootstrap >/dev/null 2>&1 && zdots_peer_bootstrap
+
   # Prune Pi skills: only load project-local skills to avoid bloat/collisions.
   local _pi_skills_dir="${XDG_STATE_HOME:-$HOME/.local/state}/pi/skills.tmp"
   mkdir -p "$_pi_skills_dir"
