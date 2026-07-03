@@ -107,3 +107,13 @@ ls "${XDG_STATE_HOME}/pi/agent/sessions"
 | `providers/ai/pi.zsh` | Zsh integration, boundary enforcement, `zpi()` |
 
 The `llamacpp` provider in `models.json` points at `http://127.0.0.1:11500/v1` — the local llama.cpp OpenAI-compatible endpoint. Changing `ZDOTS_AI_ENDPOINT` in `.zdots.local` does **not** automatically update Pi's `models.json`; they must be kept in sync manually.
+
+## Peer Capability discovery
+
+`zdots_pi_init` sources `lib/peer-bootstrap.bash` (shared with Claude Code and
+Aider), exporting `ZDOTS_AVAILABLE`/`ADOTS_AVAILABLE` and the attested/declared
+Capability counts `ZDOTS_PEER_CAPS`/`ADOTS_PEER_CAPS` (e.g. `118/122`) into
+Pi's environment — attested means the command resolves right now, not merely
+that it is declared. The model-visible summary is the `peers:` line in the
+`pi-ctx-brief` system-prompt injection; the exported vars serve Pi's bash tool.
+No doctor probes at launch (they cost seconds); posture, not health.
