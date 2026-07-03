@@ -3,9 +3,10 @@ id: Z-198
 title: >-
   [agent-issue] zdots' own etc/nginx/servers/my.conf is stale vs the ~/my-owned
   source: still my.local-canonical wit
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-03 21:59'
+updated_date: '2026-07-03 22:38'
 labels:
   - agent-reported
   - error
