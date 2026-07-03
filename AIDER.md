@@ -48,6 +48,15 @@ Model defaults to `openai/Qwen/Qwen2.5-Coder-32B-Instruct`; override with
 /tokens               # check budget before adding large files
 ```
 
+## Peer Capability discovery
+
+`zdots_aider_init` sources `lib/peer-bootstrap.bash` (shared with Claude Code
+and Pi), exporting `ZDOTS_AVAILABLE`/`ADOTS_AVAILABLE` and attested/declared
+Capability counts (`ZDOTS_PEER_CAPS`, e.g. `118/122`) into Aider's environment
+for its `/run` subshells and any zdots tooling it invokes. Env-only by design:
+nothing is injected into the prompt — the 7B/32k context budget is too tight
+to spend on a capability listing.
+
 ## Platform Control
 
 `zdots-ctl` is the single command for service orchestration.

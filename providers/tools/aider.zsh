@@ -69,6 +69,16 @@ zdots_aider_init() {
 
   # Disable analytics — no telemetry from a PHI-adjacent machine.
   export AIDER_ANALYTICS=false
+
+  # Peer-aware Capability discovery: env-only for Aider (ZDOTS_AVAILABLE,
+  # ZDOTS_PEER_CAPS, ...) so its /run subshells and any zdots tooling it
+  # invokes see peer posture. No in-prompt injection — the 7B/32k context
+  # budget is too tight to spend on a capability listing (see AIDER.md).
+  if ! typeset -f zdots_peer_bootstrap >/dev/null 2>&1; then
+    # shellcheck source=lib/peer-bootstrap.bash
+    [[ -r "${ZDOTDIR}/lib/peer-bootstrap.bash" ]] && source "${ZDOTDIR}/lib/peer-bootstrap.bash"
+  fi
+  typeset -f zdots_peer_bootstrap >/dev/null 2>&1 && zdots_peer_bootstrap
 }
 
 # zaider — launch aider wired to local llama.cpp, from any directory.

@@ -44,5 +44,14 @@ printf 'ai: mode=%s endpoint=%s\n' \
   "${ZDOTS_AI_MODE:-local}" \
   "${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 
+# Peer posture: attested/declared Capability counts (lib/peer-bootstrap.bash).
+# Attested = resolvable via command -v right now; the gap is a real signal.
+# shellcheck source=/dev/null
+if source "${ZDOTDIR}/lib/peer-bootstrap.bash" 2>/dev/null; then
+  zdots_peer_bootstrap 2>/dev/null || true
+  [[ -n "${ZDOTS_PEER_CAPS:-}" ]] && printf 'peers: zdots %s adots %s capabilities attested (gap = declared, not installed)\n' \
+    "${ZDOTS_PEER_CAPS}" "${ADOTS_PEER_CAPS:-0/0}"
+fi
+
 # Available context tools (one line — Pi can call these via bash)
 printf 'tools: pi-ctx-query <term> | pi-ctx-hydrate [tag] | pi-ctx-status\n'
