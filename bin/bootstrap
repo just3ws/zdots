@@ -509,8 +509,9 @@ if command -v nginx >/dev/null 2>&1; then
     cp "$_REPO_NGINX/ssl_params.conf" "$_NGINX_PREFIX/ssl_params.conf"
     echo "bootstrap: installed nginx ssl_params.conf"
   fi
-  # Install every tracked vhost (zdots.conf, my.conf, …). Guard per-file so an
-  # operator-customized deployed config is never clobbered.
+  # Install every zdots-tracked vhost (zdots.conf, …). Guard per-file so an
+  # operator-customized deployed config is never clobbered. my.conf is
+  # ~/my-owned (decision-011 / Z-198) — deployed from its own repo, not here.
   for _vhost in "$_REPO_NGINX"/servers/*.conf; do
     [ -f "$_vhost" ] || continue
     _vname="$(basename "$_vhost")"
