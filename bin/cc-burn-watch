@@ -95,7 +95,7 @@ cmd_run() {
   local h=$(( rmin / 60 )) m=$(( rmin % 60 )) icon=""
   [[ "$sev" == warn ]] && icon="⚠ "; [[ "$sev" == alert ]] && icon="🔴 "
   printf 'CC %s%s%% ↻%dh%02dm\n' "$icon" "$pct" "$h" "$m" >"$STATE_DIR/cc-burn.line" 2>/dev/null || true
-  # Full JSON for the zdots.local console (statusd reads this; never runs ccusage itself).
+  # Full JSON for the zdots.localhost console (statusd reads this; never runs ccusage itself).
   printf '%s' "$json" >"$STATE_DIR/cc-burn.json" 2>/dev/null || true
 }
 

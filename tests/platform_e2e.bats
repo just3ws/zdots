@@ -88,7 +88,7 @@ _have() { command -v "$1" >/dev/null 2>&1; }
   [[ "$output" == *llama-server* ]]
   [[ "$output" == *postgresql@18* ]]
   [[ "$output" == *redis* ]]
-  [[ "$output" == *llama.local* ]]
+  [[ "$output" == *llama.localhost* ]]
   [[ "$output" == *my.local* ]]
 }
 
@@ -98,7 +98,7 @@ _have() { command -v "$1" >/dev/null 2>&1; }
     (.healthy | type == "boolean")
     and ([.services[].name] | index("nginx"))
     and ([.services[].name] | index("redis"))
-    and ([.local_urls[].name] | index("llama.local"))
+    and ([.local_urls[].name] | index("llama.localhost"))
     and ([.local_urls[].name] | index("my.local"))
   ' >/dev/null
 }

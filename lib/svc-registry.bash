@@ -102,7 +102,7 @@ _svc_reg "embed|llama-embed|com.zdots.llama-embed|${_SVC_REG_STATE}/llama-embed.
 _svc_reg "otel|otel-collector|com.zdots.otel-collector|${_SVC_REG_STATE}/otel-collector.log|otel-collector|http://127.0.0.1:4318|launchd|1|otel-collector telemetry collector|install|start|stop|restart|status|health|logs|validate|zdots_probe_otel"
 _svc_reg "o2|openobserve|com.zdots.openobserve|${_SVC_REG_STATE}/openobserve.log|openobserve-ctl|http://127.0.0.1:5080|launchd|1|openobserve observability obs telemetry-ui|install|start|stop|restart|status|health|logs||zdots_probe_o2"
 _svc_reg "colima|colima|com.zdots.colima-autostart||colima||colima|1|vm docker||start|stop||status||logs||zdots_probe_colima"
-_svc_reg "nginx|nginx|homebrew.mxcl.nginx|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.local (+ llama/embed/o2.local)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate|zdots_probe_nginx"
+_svc_reg "nginx|nginx|homebrew.mxcl.nginx|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.localhost (+ llama/embed/o2/zdots.localhost)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate|zdots_probe_nginx"
 _svc_reg "postgres|postgresql@18|homebrew.mxcl.postgresql@18|${_SVC_REG_BREW}/var/log/postgresql@18.log||postgresql:///my (:5432)|plist|1|postgresql pg db database||start|stop|restart|status|health|||zdots_probe_postgres"
 _svc_reg "redis|redis|homebrew.mxcl.redis|${_SVC_REG_BREW}/var/log/redis.log||127.0.0.1:6379|plist|1|cache kv||start|stop|restart|status|health|||zdots_probe_redis"
 _svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.log|zdots-worker|jobs queue (my)|launchd|1|jobs brain-worker|install|start|stop|restart|status|health|logs||zdots_probe_worker"

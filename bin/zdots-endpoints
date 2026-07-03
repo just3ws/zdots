@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# bin/zdots-endpoints — verify the *.local web endpoints (nginx proxy chain)
+# bin/zdots-endpoints — verify the nginx-proxied web endpoints (.localhost / .local)
 #
-# Discovers every *.local host from /etc/hosts, probes each through the full
-# chain (hosts → nginx → TLS → upstream), and prints a status table with
+# Discovers every endpoint from two sources — *.localhost names from the
+# deployed nginx server_names (RFC 6761: always loopback, never in /etc/hosts)
+# and *.local names from /etc/hosts (the mDNS namespace: needs an explicit
+# pinned entry, see decision-011) — probes each through the full chain
+# (resolution → nginx → TLS → upstream), and prints a status table with
 # clickable links to open each interface and the command to tail its log.
 # Cross-checks against the deployed nginx vhosts to flag hosts that resolve but
-# have no server block, and flags any host not pointed at loopback.
+# have no server block, and flags any *.local host not pointed at loopback.
 #
 # Usage:
 #   zdots-endpoints            Status table (default)
-#   zdots-endpoints logs HOST  Tail the log for HOST (e.g. llama.local)
+#   zdots-endpoints logs HOST  Tail the log for HOST (e.g. llama.localhost)
 #   zdots-endpoints open HOST  Open HOST's interface in the browser
 #   zdots-endpoints -q         Quiet: only non-healthy rows
 #
@@ -29,17 +32,19 @@ command -v zdots_trace_log >/dev/null 2>&1 && zdots_trace_log "endpoints_check" 
 
 # ── Per-host metadata. Unknown hosts fall back to "/" + the nginx error log. ──
 declare -A HEALTH=(
-  [llama.local]=/health     [embed.local]=/health   [o2.local]=/healthz
+  [llama.localhost]=/health  [embed.localhost]=/health  [o2.localhost]=/healthz
+  [zdots.localhost]=/healthz
   [my.local]=/up            [dev.my.local]=/up
 )
 declare -A LABEL=(
-  [llama.local]="Qwen3 chat inference"   [embed.local]="Nomic embeddings"
-  [o2.local]="OpenObserve (logs/metrics/traces)"
+  [llama.localhost]="Qwen3 chat inference"   [embed.localhost]="Nomic embeddings"
+  [o2.localhost]="OpenObserve (logs/metrics/traces)"
+  [zdots.localhost]="Observable Control Plane status console"
   [my.local]="context-engine (prod)"     [dev.my.local]="context-engine (dev)"
 )
 declare -A LOGCMD=(
-  [llama.local]="zsvc logs llama"   [embed.local]="zsvc logs embed"
-  [o2.local]="zsvc logs o2"
+  [llama.localhost]="zsvc logs llama"   [embed.localhost]="zsvc logs embed"
+  [o2.localhost]="zsvc logs o2"         [zdots.localhost]="zsvc logs status"
   [my.local]="tail -f $NGINX_ERR"   [dev.my.local]="tail -f $NGINX_ERR"
 )
 
@@ -55,14 +60,6 @@ fi
 # shellcheck disable=SC1003  # \e\\ is the OSC-8 ST terminator, not a quote escape
 _link() { printf '\e]8;;%s\e\\%s\e]8;;\e\\' "$1" "$2"; }
 
-# ── Discover *.local hosts and their mapped IPs from /etc/hosts ───────────────
-declare -A HOST_IP=()
-while read -r ip host _; do
-  [[ "$ip" == \#* || -z "${host:-}" ]] && continue
-  [[ "$host" == *.local ]] || continue
-  HOST_IP["$host"]="$ip"
-done < <(grep -E '[[:space:]][a-zA-Z0-9.-]+\.local([[:space:]]|$)' /etc/hosts 2>/dev/null || true)
-
 # ── Collect nginx server_names from the deployed vhosts ──────────────────────
 vhosts=""
 if [[ -d "$NGINX_SERVERS" ]]; then
@@ -70,6 +67,26 @@ if [[ -d "$NGINX_SERVERS" ]]; then
     | sed -E 's/^\s*server_name\s+//; s/;.*//' | tr ' ' '\n' | sort -u)"
 fi
 _has_vhost() { printf '%s\n' "$vhosts" | grep -qx "$1"; }
+
+# ── Discover hosts to check, two families ────────────────────────────────────
+# *.localhost — RFC 6761: every resolver hard-wires this to loopback, so it
+# never appears in /etc/hosts (decision-011). Source of truth is which vhosts
+# nginx actually serves, not a hosts-file entry.
+# *.local — the mDNS/Bonjour namespace: resolution depends on either a static
+# /etc/hosts pin or live Bonjour broadcast, so it's only trustworthy (and only
+# checked here) if explicitly pinned — a missing entry means "don't know",
+# not "loopback", unlike *.localhost.
+declare -A HOST_IP=()
+while read -r host; do
+  [[ "$host" == *.localhost ]] || continue
+  HOST_IP["$host"]="127.0.0.1"
+done < <(printf '%s\n' "$vhosts")
+
+while read -r ip host _; do
+  [[ "$ip" == \#* || -z "${host:-}" ]] && continue
+  [[ "$host" == *.local ]] || continue
+  HOST_IP["$host"]="$ip"
+done < <(grep -E '[[:space:]][a-zA-Z0-9.-]+\.local([[:space:]]|$)' /etc/hosts 2>/dev/null || true)
 
 # ── Probe one URL through the proxy; echo a status token ─────────────────────
 # Tokens: <2xx/3xx>=ok  tls!<code>=ok-but-untrusted-cert  5xx=upstream-down
@@ -106,7 +123,7 @@ esac
 nginx_up=1
 # nginx's comm is "nginx: master process ...", so -x nginx never matches.
 pgrep -f 'nginx: master' >/dev/null 2>&1 || nginx_up=0
-printf '\n%s*.local endpoints%s  %s(via nginx %s)%s\n\n' "$BOLD" "$RST" "$DIM" \
+printf '\n%snginx-proxied endpoints%s  %s(via nginx %s)%s\n\n' "$BOLD" "$RST" "$DIM" \
   "$([[ $nginx_up -eq 1 ]] && echo running || echo 'NOT running — start: zsvc start nginx')" "$RST"
 
 # ── Status table ─────────────────────────────────────────────────────────────

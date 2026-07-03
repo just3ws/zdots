@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # zdots-statusd — the Observable Control Plane's own status console, served at
-# zdots.local (separate from my.local so it survives context-engine/Postgres
+# zdots.localhost (separate from my.local so it survives context-engine/Postgres
 # being down). A thin viewer over zdots' health tools — the intelligence lives
 # in zsvc / zdots-ctl / the logs, not here. Loopback-only; nginx terminates TLS.
 #
@@ -21,7 +21,7 @@ if ARGV.first =~ /\A(-h|--help)\z/
   puts <<~USAGE
     Usage: zdots-statusd            # serve the control-plane console (foreground)
 
-    The zdots.local status console — a no-dep loopback HTTP server rendering live
+    The zdots.localhost status console — a no-dep loopback HTTP server rendering live
     platform health (zdots-ctl status, zsvc, service logs). Binds
     127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /healthz.
 
@@ -171,7 +171,7 @@ def wrap(title, inner)
     <!doctype html>
     <html lang="en"><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>#{h(title)} — zdots.local</title><style>#{CSS}</style></head>
+    <title>#{h(title)} — zdots.localhost</title><style>#{CSS}</style></head>
     <body><header><h1><span class="mark">zdots</span>.local</h1>
     <p class="sub">#{ROOT_NAV}</p></header><main>#{inner}</main></body></html>
   HTML
@@ -299,7 +299,7 @@ def render_page(live:)
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>zdots.local — Control Plane</title>
+      <title>zdots.localhost — Control Plane</title>
       <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzIgMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJ6ZG90cy5sb2NhbCI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzBmMTExNyIvPgogIDxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjMuNiIgZmlsbD0iIzViOGRlZSIvPgogIDxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjcuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNWI4ZGVlIiBzdHJva2Utd2lkdGg9IjEuNyIgb3BhY2l0eT0iMC43Ii8+CiAgPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTEuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNWI4ZGVlIiBzdHJva2Utd2lkdGg9IjEuNSIgb3BhY2l0eT0iMC4zMiIvPgo8L3N2Zz4K">
       #{refresh}
       <style>#{CSS}</style>

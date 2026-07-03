@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
-# tests/zdots_statusd.bats — contract tests for the zdots.local status service.
+# tests/zdots_statusd.bats — contract tests for the zdots.localhost status service.
 #
 # zdots-statusd (the server) + zdots-statusd-ctl (the launchd manager) back the
-# Observable Control Plane console at zdots.local. These tests assert the ctl
+# Observable Control Plane console at zdots.localhost. These tests assert the ctl
 # grammar, the server's no-bind --help, and registry membership only — they
 # never start, stop, or otherwise mutate launchd state.
 
