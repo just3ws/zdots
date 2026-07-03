@@ -31,7 +31,7 @@ Managed by `bin/openobserve-ctl` and as `zsvc o2`. Migration tracked in backlog
 openobserve-ctl install     # pinned binary, sha-verified; provisions Keychain creds; registers launchd
 zsvc start o2               # or: openobserve-ctl start
 zsvc status o2              # health + pid + endpoint
-open http://127.0.0.1:5080  # UI  (or https://o2.local once the vhost lands — Phase 3)
+open http://127.0.0.1:5080  # UI  (or https://o2.localhost)
 openobserve-ctl creds --show-password   # login: root@zdots.local
 ```
 
@@ -124,7 +124,7 @@ Pinned in `bin/openobserve-ctl`:
 
 The containerized LGTM stack (Grafana/Loki/Tempo/Mimir) is fully removed.
 Observability is native end-to-end: apps → OTel Collector → OpenObserve
-(`otlp_http/openobserve` → `:5080/api/default`), served at `o2.local`. The
+(`otlp_http/openobserve` → `:5080/api/default`), served at `o2.localhost`. The
 collector carries no LGTM exporter, `bin/local-ci` no longer manages an LGTM
 stack, and the archived compose file is deleted. Nothing in the observability
 path depends on Colima/Docker.

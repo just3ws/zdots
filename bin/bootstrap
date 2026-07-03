@@ -468,8 +468,8 @@ fi
 _bootstrap_phase "local proxy: mkcert, nginx, and hosts guidance"
 
 # 6c. Local TLS: mkcert CA + service certs
-# mkcert creates a locally-trusted CA and issues certs for *.local hostnames.
-# nginx uses these certs for https://llama.local, https://embed.local, etc.
+# mkcert creates a locally-trusted CA and issues certs for *.localhost hostnames.
+# nginx uses these certs for https://llama.localhost, https://embed.localhost, etc.
 _NGINX_PREFIX="$(brew --prefix)/etc/nginx"
 if command -v mkcert >/dev/null 2>&1; then
   echo "bootstrap: installing local CA via mkcert (macOS will prompt for your password)..."
@@ -482,7 +482,7 @@ if command -v mkcert >/dev/null 2>&1; then
     mkcert \
       -cert-file "$_NGINX_PREFIX/certs/zdots-local.pem" \
       -key-file  "$_NGINX_PREFIX/certs/zdots-local-key.pem" \
-      llama.local embed.local o2.local my.local dev.my.local localhost 127.0.0.1 \
+      llama.localhost embed.localhost o2.localhost zdots.localhost my.local dev.my.local localhost 127.0.0.1 \
       || echo "bootstrap: WARNING: cert generation failed — run mkcert manually."
   else
     echo "bootstrap: TLS certs already present ($_CERT_PEM)"
@@ -541,7 +541,9 @@ unset _NGINX_PREFIX
 # 6e. /etc/hosts — local service hostnames
 # nginx routes requests by Host header; /etc/hosts maps hostnames to 127.0.0.1.
 # These entries require sudo — bootstrap prints the commands.
-_NEEDED_HOSTS="llama.local embed.local o2.local my.local dev.my.local"
+# llama/embed/o2/zdots use .localhost (decision-011) — RFC 6761 hard-wires
+# every resolver to loopback, so no /etc/hosts entry is needed for them.
+_NEEDED_HOSTS="my.local dev.my.local"
 _MISSING_HOSTS=""
 for _HOST in $_NEEDED_HOSTS; do
   grep -qF "$_HOST" /etc/hosts 2>/dev/null || _MISSING_HOSTS="$_MISSING_HOSTS $_HOST"

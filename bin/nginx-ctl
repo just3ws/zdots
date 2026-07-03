@@ -25,7 +25,9 @@ PLIST="/Library/LaunchDaemons/${LABEL}.plist"
 ERR_LOG="${BREW_PREFIX}/var/log/nginx/error.log"
 ACC_LOG="${BREW_PREFIX}/var/log/nginx/access.log"
 # Hostnames fronted by nginx (servers/*.conf). Used by `health`.
-HOSTS=(llama.local embed.local o2.local my.local dev.my.local zdots.local)
+# llama/embed/o2/zdots use .localhost (decision-011: RFC 6761, no /etc/hosts
+# needed); my.local/dev.my.local are ~/my-owned and stay on .local for now.
+HOSTS=(llama.localhost embed.localhost o2.localhost zdots.localhost my.local dev.my.local)
 
 _ok()   { printf 'nginx-ctl: [ok]  %s\n' "$*" >&2; }
 _warn() { printf 'nginx-ctl: [!!]  %s\n' "$*" >&2; }

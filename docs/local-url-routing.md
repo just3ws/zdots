@@ -1,6 +1,10 @@
 # Local URL Routing (nginx)
 
-nginx fronts the local services behind friendly `*.local` HTTPS URLs (mkcert TLS).
+nginx fronts the local services behind friendly HTTPS URLs (mkcert TLS).
+Loopback-only zdots vhosts use the `*.localhost` TLD (decision-011: RFC 6761 —
+every resolver hard-wires it to loopback, no `/etc/hosts` entry needed, and no
+mDNS/Bonjour name-collision exposure the way `.local` carries). `my.local` /
+`my.localhost` are `~/my`-owned and follow the same pattern independently.
 It is a **root LaunchDaemon** in launchd's *system* domain because it binds the
 privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launchctl`,
 **never** `sudo brew services`, see `bin/nginx-repair`), and wired into `zsvc`.
@@ -9,10 +13,11 @@ privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launch
 
 | URL | nginx upstream | Backed by | zsvc service |
 |-----|----------------|-----------|--------------|
-| `https://llama.local`     | `127.0.0.1:11500` | llama-server (Qwen3-8B) | `zsvc llama` |
-| `https://embed.local`     | `127.0.0.1:11501` | llama-embed (Nomic)     | `zsvc embed` |
-| `https://o2.local`        | `127.0.0.1:5080`  | OpenObserve (logs/metrics/traces) | `zsvc o2` |
-| `https://my.local`        | `unix:/tmp/my_prod.sock` | context-engine (Rails, prod) | — |
+| `https://llama.localhost` | `127.0.0.1:11500` | llama-server (Qwen3-8B) | `zsvc llama` |
+| `https://embed.localhost` | `127.0.0.1:11501` | llama-embed (Nomic)     | `zsvc embed` |
+| `https://o2.localhost`    | `127.0.0.1:5080`  | OpenObserve (logs/metrics/traces) | `zsvc o2` |
+| `https://zdots.localhost` | `127.0.0.1:11600` | zdots-statusd (Observable Control Plane) | `zsvc status` |
+| `https://my.localhost`    | `127.0.0.1:7010`  | context-engine (Rails, prod) | — |
 
 ## Deploy workflow (context-engine)
 
@@ -56,14 +61,20 @@ Status as of 2026-05-30. Severity: 🔴 breaks a URL · 🟡 latent/ops · ⚪ p
 # Gap 1 — apply the port fix (graceful, validated):
 zsvc nginx reload
 
-# o2.local — add the hosts entry for the OpenObserve vhost (needs sudo):
-echo '127.0.0.1 o2.local' | sudo tee -a /etc/hosts && nginx-ctl reload
-# (and drop the retired lgtm.local line if present)
+# .localhost names (llama/embed/o2/zdots) need NO /etc/hosts entry — RFC 6761
+# hard-wires them to loopback. Regenerate the cert + deploy configs instead:
+nginx-regen-certs
 
 # Restart Puma only (no asset change):
 touch ~/my/context-engine/tmp/restart.txt
 ```
 
-> Resolution note: `*.local` resolves via `/etc/hosts` (verified: `ping my.local`,
-> `dscacheutil -q host -a name llama.local` → 127.0.0.1). A `000` from `curl` in a
-> sandboxed/non-interactive context is a resolver artifact there, not a routing gap.
+> Resolution note: `*.local` names (`my.local`) resolve via `/etc/hosts`
+> (verified: `ping my.local`). `*.localhost` names (`llama.localhost`, etc.)
+> need no entry at all — every resolver hard-wires them to loopback per RFC
+> 6761 (verified: `dscacheutil -q host -a name llama.localhost` → 127.0.0.1
+> with zero `/etc/hosts` configuration; see decision-011). A `000` from `curl`
+> in a sandboxed/non-interactive context is a resolver artifact there, not a
+> routing gap. A `200` where you expect a different backend may mean `curl`
+> silently followed a redirect — check with `--max-redirs 0` before trusting
+> a green health check.

@@ -11,7 +11,7 @@ links:
 
 # Connecting to the Local OTel Collector
 
-This machine runs a bare-metal OpenTelemetry Collector (`otelcol-contrib`) that accepts telemetry from any local application and forwards it to **OpenObserve** — a native single-binary backend for logs, metrics, and traces (UI at `o2.local` / `:5080`). See [openobserve](openobserve.md). The containerized LGTM stack it used to forward to was retired (Z-134).
+This machine runs a bare-metal OpenTelemetry Collector (`otelcol-contrib`) that accepts telemetry from any local application and forwards it to **OpenObserve** — a native single-binary backend for logs, metrics, and traces (UI at `o2.localhost` / `:5080`). See [openobserve](openobserve.md). The containerized LGTM stack it used to forward to was retired (Z-134).
 
 ## Quick Start
 
@@ -356,7 +356,7 @@ runbook before reaching for shorter retention.
 
 ## Viewing Your Data
 
-- **OpenObserve:** https://o2.local (or http://127.0.0.1:5080) — login `root@zdots.local`, password in Keychain (`openobserve-ctl creds --show-password`)
+- **OpenObserve:** https://o2.localhost (or http://127.0.0.1:5080) — login `root@zdots.local`, password in Keychain (`openobserve-ctl creds --show-password`)
   - **Traces:** Traces tab → stream `default` → search by service name or trace_id
   - **Logs:** Logs tab → stream `default` → query by service or severity
   - **Metrics:** Metrics tab → query by metric name

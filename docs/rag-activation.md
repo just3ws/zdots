@@ -70,7 +70,7 @@ zdots-ctl check   # should show 0 failures
 | Embedding | Nomic embed-v2 MoE (:11501) | Running |
 | Embed client | `Zdots::AI::EmbedConnection` | Active |
 | Chat client | Qwen3-8B + 0.6B spec-draft (:11500) | Running |
-| TLS proxy | nginx (`llama.local`, `embed.local`) | Running |
+| TLS proxy | nginx (`llama.localhost`, `embed.localhost`) | Running |
 
 ## Constraints
 

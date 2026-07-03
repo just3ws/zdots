@@ -5,8 +5,8 @@
 # "Safely" means:
 #   - backs up the current cert + key (timestamped) before touching them
 #   - regenerates with the UNION of (existing cert SANs) ∪ (hostnames nginx
-#     serves, parsed from nginx-ctl) ∪ zdots.local ∪ loopback — so a name that
-#     already worked is never silently dropped
+#     serves, parsed from nginx-ctl) ∪ zdots.localhost ∪ loopback — so a name
+#     that already worked is never silently dropped
 #   - validates the nginx config and only reloads if it is valid
 #   - restores the previous cert if regeneration or validation fails
 #
@@ -66,7 +66,7 @@ usage() {
 Usage: nginx-regen-certs [--dry-run]
 
 Deploy the tracked nginx vhosts to the dir nginx loads, regenerate the local
-mkcert TLS cert so it covers every hostname nginx serves (plus zdots.local),
+mkcert TLS cert so it covers every hostname nginx serves (plus zdots.localhost),
 then validate and graceful-reload nginx. Backs up the old cert and restores it
 if anything fails; deployed-only vhosts are preserved.
 
@@ -105,9 +105,9 @@ while IFS= read -r n; do _add "$n"; done < <(
     | grep -oE '(DNS|IP Address):[^,]+' | sed -E 's/^(DNS|IP Address)://'
 )
 while IFS= read -r n; do _add "$n"; done < <(
-  grep -oE 'HOSTS=\([^)]*\)' "$ZDOTDIR/bin/nginx-ctl" 2>/dev/null | tr ' ()' '\n' | grep -E '\.local$'
+  grep -oE 'HOSTS=\([^)]*\)' "$ZDOTDIR/bin/nginx-ctl" 2>/dev/null | tr ' ()' '\n' | grep -E '\.local(host)?$'
 )
-_add zdots.local localhost 127.0.0.1
+_add zdots.localhost localhost 127.0.0.1
 
 [[ ${#names[@]} -gt 0 ]] || _die "no hostnames resolved for the cert"
 
@@ -142,10 +142,10 @@ fi
 
 "$ZDOTDIR/bin/nginx-ctl" reload || _die "reload failed (config was valid; new cert kept)"
 
-code="$(curl -sk --max-time 5 -o /dev/null -w '%{http_code}' https://zdots.local/healthz 2>/dev/null || true)"
+code="$(curl -sk --max-time 5 -o /dev/null -w '%{http_code}' https://zdots.localhost/healthz 2>/dev/null || true)"
 if [[ "$code" == "200" ]]; then
-  _ok "https://zdots.local/healthz → 200"
+  _ok "https://zdots.localhost/healthz → 200"
 else
-  _info "reloaded; https://zdots.local/healthz → ${code:-no-response} (start it with: zsvc start status)"
+  _info "reloaded; https://zdots.localhost/healthz → ${code:-no-response} (start it with: zsvc start status)"
 fi
 _ok "done"
