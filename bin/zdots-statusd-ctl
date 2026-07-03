@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# bin/zdots-statusd-ctl — manage the zdots.local control-plane status service.
+# bin/zdots-statusd-ctl — manage the zdots.localhost control-plane status service.
 #
 # zdots-statusd is the Observable Control Plane's own health console, served at
-# zdots.local — deliberately separate from my.local (context-engine) so it stays
+# zdots.localhost — deliberately separate from my.local (context-engine) so it stays
 # up when the Rails app or Postgres is down. It is a thin viewer over zdots'
 # health tools (zdots-ctl status --json, zsvc list, service logs); the
 # intelligence lives in those CLIs, not here.
@@ -14,7 +14,7 @@
 #         Not meant to be run by hand.
 #
 # The service binds loopback only (127.0.0.1:${ZDOTS_STATUS_PORT:-11600}); nginx
-# terminates TLS for https://zdots.local. No secrets touch the plist.
+# terminates TLS for https://zdots.localhost. No secrets touch the plist.
 
 set -euo pipefail
 
@@ -59,7 +59,7 @@ Options:
   --json      Output status/health as JSON (valid for status, health)
   -h, --help  Show this help
 
-Serves the zdots.local control-plane dashboard on 127.0.0.1:${PORT}. Manage it
+Serves the zdots.localhost control-plane dashboard on 127.0.0.1:${PORT}. Manage it
 via \`zsvc <verb> status\`; this script is the authoritative ctl backing that.
 EOF
 }

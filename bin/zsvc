@@ -52,9 +52,10 @@ _svc_meta() {
 
 mapfile -t ALL_SVCS < <(zdots_svc_managed)
 LOCAL_URLS=(
-  "llama.local|https://llama.local/health"
-  "embed.local|https://embed.local/health"
-  "o2.local|https://o2.local/healthz"
+  "llama.localhost|https://llama.localhost/health"
+  "embed.localhost|https://embed.localhost/health"
+  "o2.localhost|https://o2.localhost/healthz"
+  "zdots.localhost|https://zdots.localhost/healthz"
   "my.local|http://my.local/"
   "dev.my.local|http://dev.my.local/"
 )

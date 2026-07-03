@@ -486,7 +486,7 @@ Architecture:
   Your app → OTLP (http/protobuf :4318 or gRPC :4317)
            → otelcol-contrib (host, native)
            → OpenObserve (native binary, :5080)
-           → UI / logs / metrics / traces at o2.local
+           → UI / logs / metrics / traces at o2.localhost
 
 CONNECT YOUR APP — set these env vars:
   export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_ENDPOINT}"

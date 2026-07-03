@@ -120,7 +120,7 @@ graph TD
 ```
 
 1. **Bare Metal Collector (BMC)**: Runs directly on the host. It acts as a high-performance buffer and router. It is the primary "Ground Truth" for local traces.
-2. **OpenObserve**: A native single-binary backend for logs, metrics, and traces with its own UI (`o2.local`). Replaced the containerized LGTM stack (Z-134), removing the Colima/Docker dependency from the observability path.
+2. **OpenObserve**: A native single-binary backend for logs, metrics, and traces with its own UI (`o2.localhost`). Replaced the containerized LGTM stack (Z-134), removing the Colima/Docker dependency from the observability path.
 3. **Single-hop Routing**: BMC forwards all signals to OpenObserve over OTLP HTTP (`:5080/api/default`); auth is loaded from Keychain at boot.
 
 ---

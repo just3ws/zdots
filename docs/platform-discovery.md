@@ -27,7 +27,7 @@ The following local services are managed by the Zdots control plane:
 | Service | Port | Protocol | Description |
 | :--- | :--- | :--- | :--- |
 | OTel Ingest (Host) | 4318 | OTLP/HTTP | High-performance host-based collector. |
-| OpenObserve | 5080 | HTTP | Native backend + UI for logs/metrics/traces (o2.local). |
+| OpenObserve | 5080 | HTTP | Native backend + UI for logs/metrics/traces (o2.localhost). |
 | OpenObserve gRPC | 5081 | OTLP/gRPC | OpenObserve OTLP ingest. |
 | AI Inference | 11500 | HTTP | Local LLM service (llama.cpp). |
 | AI Embeddings | 11501 | HTTP | Dedicated llama.cpp embedding service. |
