@@ -26,7 +26,9 @@ cd ~/my/context-engine && bin/deploy   # bundle install → assets:precompile �
 ```
 
 - nginx config: `/opt/homebrew/etc/nginx/` — `nginx.conf` includes `servers/*`
-  (`zdots.conf` = AI/infra, `my.conf` = context-engine). Certs in `certs/`.
+  (`zdots.conf` = AI/infra, tracked here; `my.conf` = context-engine, tracked
+  and deployed from `~/my/context-engine/ops/nginx/servers/my.conf` — not
+  zdots' concern, see decision-011 / Z-198). Certs in `certs/`.
 - Control: `zsvc nginx {status|health|reload|restart|start|stop|logs}` →
   `bin/nginx-ctl`. Use `reload` after editing `servers/*.conf` (validates first,
   zero-downtime); `restart` only for a full bounce.
