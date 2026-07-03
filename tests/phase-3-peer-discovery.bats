@@ -6,7 +6,8 @@
 # checks, and graceful degradation.
 #
 # Summary of test groups:
-#   1. Hook file existence and executability
+#   1. Peer bootstrap lib (lib/peer-bootstrap.bash) + adapter wiring
+#      (CC hook §5, zdots_pi_init, zdots_aider_init, pi-ctx-brief)
 #   2. Capabilities sourcing and array exports
 #   3. Environment variable setup (ZDOTS_DIR, ADOTS_DIR, etc.)
 #   4. Health check execution and status capture
@@ -92,32 +93,68 @@ _parse_capability() {
   [ "$status" -eq 0 ]
 }
 
-@test "Hook file: ~/.config/pi/hooks/session_start exists and is executable" {
-  local hook="$HOME/.config/pi/hooks/session_start"
+# Pi and Aider discovery runs through lib/peer-bootstrap.bash sourced by their
+# zdots launchers (zdots_pi_init / zdots_aider_init) — NOT per-tool hook files.
+# The old untracked ~/.config/{pi,aider}/hooks/session_start stubs are retired.
 
-  # Pi hook is optional; skip if not present
-  if [ ! -f "$hook" ]; then
-    skip "Pi hooks not initialized on this machine"
-  fi
-
-  [ -x "$hook" ] || skip "Pi session_start hook not executable"
-
-  run bash -n "$hook"
+@test "Peer bootstrap: lib/peer-bootstrap.bash exists and parses in both shells" {
+  local lib="$REAL_ZDOTDIR/lib/peer-bootstrap.bash"
+  [ -f "$lib" ]
+  run bash -n "$lib"
+  [ "$status" -eq 0 ]
+  run zsh -n "$lib"
   [ "$status" -eq 0 ]
 }
 
-@test "Hook file: ~/.config/aider/hooks/session_start exists and is executable" {
-  local hook="$HOME/.config/aider/hooks/session_start"
-
-  # Aider hook is optional; skip if not present
-  if [ ! -f "$hook" ]; then
-    skip "Aider hooks not initialized on this machine"
-  fi
-
-  [ -x "$hook" ] || skip "Aider session_start hook not executable"
-
-  run bash -n "$hook"
+@test "Peer bootstrap: bash source exports availability + attested/declared counts" {
+  run bash -c "source '$REAL_ZDOTDIR/lib/peer-bootstrap.bash'; zdots_peer_bootstrap; echo \"\$ZDOTS_AVAILABLE \$ZDOTS_PEER_CAPS\""
   [ "$status" -eq 0 ]
+  [[ "$output" == "1 "*/* ]]
+}
+
+@test "Peer bootstrap: zsh source works and does not leak errexit/nounset" {
+  run zsh -fc "ZDOTDIR='$REAL_ZDOTDIR'; source '$REAL_ZDOTDIR/lib/peer-bootstrap.bash'; zdots_peer_bootstrap; [[ -o errexit ]] && exit 1; [[ -o nounset ]] && exit 2; echo \"\$ZDOTS_AVAILABLE \$ZDOTS_PEER_CAPS\""
+  [ "$status" -eq 0 ]
+  [[ "$output" == "1 "*/* ]]
+}
+
+@test "Peer bootstrap: bash caller's set -euo pipefail is restored after bootstrap" {
+  run bash -c "set -euo pipefail; source '$REAL_ZDOTDIR/lib/peer-bootstrap.bash'; zdots_peer_bootstrap; [[ \"\$-\" == *e* && \"\$-\" == *u* ]] || exit 1; set -o | grep -q 'pipefail.*on' || exit 2; echo restored"
+  [ "$status" -eq 0 ]
+  [ "$output" = "restored" ]
+}
+
+@test "Peer bootstrap: idempotent — second call is a no-op that returns 0" {
+  run zsh -fc "ZDOTDIR='$REAL_ZDOTDIR'; source '$REAL_ZDOTDIR/lib/peer-bootstrap.bash'; zdots_peer_bootstrap; zdots_peer_bootstrap; echo ok"
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok" ]
+}
+
+@test "Providers: zdots_pi_init and zdots_aider_init wire peer bootstrap" {
+  grep -q "peer-bootstrap.bash" "$REAL_ZDOTDIR/providers/tools/pi.zsh"
+  grep -q "zdots_peer_bootstrap" "$REAL_ZDOTDIR/providers/tools/pi.zsh"
+  grep -q "peer-bootstrap.bash" "$REAL_ZDOTDIR/providers/tools/aider.zsh"
+  grep -q "zdots_peer_bootstrap" "$REAL_ZDOTDIR/providers/tools/aider.zsh"
+}
+
+@test "Providers: pi-ctx-brief emits the model-visible peers line" {
+  grep -q "peer-bootstrap.bash" "$REAL_ZDOTDIR/bin/pi-ctx-brief"
+  run bash "$REAL_ZDOTDIR/bin/pi-ctx-brief"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"peers: zdots "*/*" adots "* ]]
+}
+
+@test "Hook: session_start §5 delegates to lib/peer-bootstrap.bash" {
+  grep -q "peer-bootstrap.bash" "$REAL_ZDOTDIR/.claude/hooks/session_start"
+  # Sourced path exports the cc-home contract vars
+  run bash -c "ZDOTS_DIR='$REAL_ZDOTDIR'; source '$REAL_ZDOTDIR/.claude/hooks/session_start'; echo \"\${ZDOTS_HEALTHY?}-\${ADOTS_HEALTHY?}-\${PERSONAL_OS_READY?}-\${ZDOTS_PEER_CAPS?}\""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *-*-*-*/* ]]
+}
+
+@test "Retirement: orphaned per-tool hook stubs are gone" {
+  [ ! -e "$HOME/.config/pi/hooks/session_start" ]
+  [ ! -e "$HOME/.config/aider/hooks/session_start" ]
 }
 
 # ---------------------------------------------------------------------------

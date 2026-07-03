@@ -38,8 +38,11 @@ fi
 glyph() { [[ "${1:-0}" == "1" ]] && printf '✓' || printf '❌'; }
 zdots_status="$(glyph "${ZDOTS_HEALTHY:-0}")"
 adots_status="$(glyph "${ADOTS_HEALTHY:-0}")"
-if [[ -n "${ZDOTS_CAPABILITIES[*]:-}" ]]; then zdots_count="${#ZDOTS_CAPABILITIES[@]}"; else zdots_count=0; fi
-if [[ -n "${ADOTS_ALL_CAPABILITIES[*]:-}" ]]; then adots_count="${#ADOTS_ALL_CAPABILITIES[@]}"; else adots_count=0; fi
+# Attested/declared counts from lib/peer-bootstrap.bash scalars — raw arrays
+# don't survive the hook's function scope (adots' declare -a lacks -g), and
+# "116/122 attested" says more than "122 declared" ever did.
+zdots_count="${ZDOTS_PEER_CAPS:-0/0}"
+adots_count="${ADOTS_PEER_CAPS:-0/0}"
 
 # Attest each advertised command: ✓ if on PATH, ✗ if it would 404. A banner that
 # promises commands the agent can't run is worse than one that admits the gap.
@@ -59,8 +62,8 @@ cat <<EOF
 📍 Location: $HOME (personal workspace)
 
 Peer Status:
-  zdots (infrastructure):     $zdots_status   ($zdots_count capabilities)
-  adots (home management):    $adots_status   ($adots_count capabilities)
+  zdots (infrastructure):     $zdots_status   ($zdots_count capabilities attested/declared)
+  adots (home management):    $adots_status   ($adots_count capabilities attested/declared)
 
 Architecture:
   • zdots manages: services, observability, knowledge layer, CLI tools
