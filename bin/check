@@ -578,9 +578,10 @@ assert_no_home_zsh_configs() {
 assert_no_home_zsh_configs
 
 assert_colima_xdg() {
-  if [[ -d "$HOME/.colima" ]]; then
-    echo "check: XDG drift: ~/.colima exists — colima will ignore \$XDG_CONFIG_HOME" >&2
-    echo "  fix: mv ~/.colima \"\${XDG_CONFIG_HOME:-\$HOME/.config}/colima\"" >&2
+  local _xdg="${XDG_CONFIG_HOME:-$HOME/.config}/colima"
+  if [[ -d "$_xdg" && ! -L "$_xdg" ]]; then
+    echo "check: colima drift: $_xdg exists — ~/.colima is canonical (decided 2026-07-04, Z-195/Z-181)" >&2
+    echo "  fix: colima stop && rm -rf \"$_xdg\"" >&2
     if [[ "${ZDOTS_CHECK_STRICT_XDG:-0}" == "1" ]]; then
       exit 1
     fi
