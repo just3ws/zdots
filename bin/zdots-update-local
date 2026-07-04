@@ -250,26 +250,28 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   log "commit=$(git rev-parse --short HEAD)"
 fi
 
-phase "colima: reconcile storage paths (XDG canonical)"
-step "root colima at \$XDG_CONFIG_HOME/colima, not legacy ~/.colima"
-# colima >=0.8 uses $XDG_CONFIG_HOME/colima when ~/.colima is absent, and ignores
-# XDG entirely if ~/.colima exists. XDG is the source of truth here.
+phase "colima: reconcile storage paths (homedir canonical)"
+step "root colima at ~/.colima, not \$XDG_CONFIG_HOME/colima"
+# Colima's own runtime ignores $XDG_CONFIG_HOME whenever ~/.colima exists — this
+# is upstream behavior, not something zdots can fix. Decided 2026-07-04
+# (Z-195/Z-181): stop fighting it, treat ~/.colima as canonical.
 _colima_xdg="${XDG_CONFIG_HOME:-$HOME/.config}/colima"
-# Drop any legacy compatibility symlink.
-if [[ -L "$HOME/.config/colima" ]]; then
-    rm -f "$HOME/.config/colima"
+# Drop any compatibility symlink pointing the other way.
+if [[ -L "$HOME/.colima" ]]; then
+    rm -f "$HOME/.colima"
 fi
-# Migrate a real legacy ~/.colima into the XDG dir — only while the VM is stopped
-# (moving live VM state corrupts it). colima-status health exits 0 when running.
-if [[ -d "$HOME/.colima" && ! -L "$HOME/.colima" ]]; then
+if [[ -L "$_colima_xdg/.colima" ]]; then
+    rm -f "$_colima_xdg/.colima"
+fi
+# Remove a stale XDG dir now that ~/.colima is canonical — only while the VM is
+# stopped (touching live VM state corrupts it). colima-status health exits 0
+# when running.
+if [[ -d "$_colima_xdg" && ! -L "$_colima_xdg" ]]; then
     if colima-status health >/dev/null 2>&1; then
-        log "WARNING: ~/.colima present but colima is RUNNING — skipping; run 'colima stop' then re-run"
+        log "WARNING: $_colima_xdg present but colima is RUNNING — skipping; run 'colima stop' then re-run"
     else
-        log "Migrating legacy ~/.colima -> $_colima_xdg"
-        mkdir -p "$_colima_xdg"
-        mv "$HOME/.colima"/* "$_colima_xdg/" 2>/dev/null || true
-        mv "$HOME/.colima"/.[!.]* "$_colima_xdg/" 2>/dev/null || true
-        rmdir "$HOME/.colima" 2>/dev/null || true
+        log "Removing stale XDG colima dir $_colima_xdg (~/.colima is canonical)"
+        rm -rf "$_colima_xdg"
     fi
 fi
 unset _colima_xdg

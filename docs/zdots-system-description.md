@@ -114,7 +114,7 @@ zdots-ctl status --json    # machine-readable aggregate status
 
 ### The Socket Problem
 
-Colima (the macOS VM runtime for Docker) moved its Unix socket from `~/.colima/<profile>/docker.sock` to `~/.config/colima/<profile>/docker.sock` in recent versions. Scripts that hardcode the old path silently miss the running socket and report Docker as unavailable. This caused significant token waste as AI agents looped on false negatives.
+Colima's upstream runtime supports an XDG-compliant socket at `~/.config/colima/<profile>/docker.sock`, but silently ignores `$XDG_CONFIG_HOME` and falls back to `~/.colima/<profile>/docker.sock` whenever that legacy directory exists — even if you set the env var explicitly. Decided 2026-07-04 (Z-195/Z-181): stop fighting upstream. `~/.colima` is canonical for zdots; the XDG path is not probed at all.
 
 ### The Solution: `colima-status`
 
@@ -139,10 +139,10 @@ The JSON output schema:
   "profile": "default",
   "running": true,
   "healthy": true,
-  "socket": "/Users/mike/.config/colima/default/docker.sock",
+  "socket": "/Users/mike/.colima/default/docker.sock",
   "socket_exists": true,
   "docker_reachable": true,
-  "docker_host": "unix:///Users/mike/.config/colima/default/docker.sock",
+  "docker_host": "unix:///Users/mike/.colima/default/docker.sock",
   "runtime": "docker",
   "arch": "aarch64",
   "vm_type": "macOS Virtualization.Framework",
@@ -498,7 +498,7 @@ zdots-ctx status --json    # connected, counts, pending jobs
 | State/logs | `~/.local/state/zsh/` |
 | Knowledge base | PostgreSQL `my` database |
 | Secrets | macOS Keychain, service=zdots |
-| Colima socket | `~/.config/colima/default/docker.sock` (XDG, canonical) |
+| Colima socket | `~/.colima/default/docker.sock` (homedir, canonical) |
 | History SQLite | `~/.local/state/zdots/history.sqlite3` |
 | OTel traces JSONL | `~/.local/state/zsh/traces.jsonl` |
 

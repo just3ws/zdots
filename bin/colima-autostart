@@ -29,27 +29,22 @@ else
 fi
 
 # 2. Wait for Docker socket to be ready (up to 30s).
-# Canonical path (colima ≥0.5 uses XDG_CONFIG_HOME, not ~/.colima).
-# If found at legacy path, warn loudly — a script somewhere is using the old dir.
-_xdg_sock="${XDG_CONFIG_HOME:-$HOME/.config}/colima/default/docker.sock"
-_legacy_sock="${HOME}/.colima/default/docker.sock"
+# ~/.colima is canonical — colima ignores XDG_CONFIG_HOME whenever it exists
+# (decided 2026-07-04, see Z-195/Z-181; not worth fighting upstream).
+_sock="${HOME}/.colima/default/docker.sock"
 socket=""
 i=0
 while [ "$i" -lt 30 ]; do
-  if [ -S "$_xdg_sock" ]; then
-    socket="$_xdg_sock"
-    break
-  elif [ -S "$_legacy_sock" ]; then
-    log "WARNING: socket found at LEGACY path ${_legacy_sock} — update scripts to use ${_xdg_sock}"
-    socket="$_legacy_sock"
+  if [ -S "$_sock" ]; then
+    socket="$_sock"
     break
   fi
   sleep 1
   i=$((i + 1))
 done
-unset _xdg_sock _legacy_sock
+unset _sock
 if [ -z "$socket" ]; then
-  log "ERROR: Docker socket not available after 30s at either XDG or legacy path"
+  log "ERROR: Docker socket not available after 30s at ${HOME}/.colima/default/docker.sock"
   exit 1
 fi
 log "Docker socket ready: ${socket}"

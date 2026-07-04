@@ -3,9 +3,10 @@ id: Z-195
 title: >-
   [agent-issue] adots-doctor --fix for legacy ~/.colima isn't durable:
   ~/.config/colima/.colima is itself a symlink
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-02 13:19'
+updated_date: '2026-07-04 14:57'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ adots-doctor --fix for legacy ~/.colima isn't durable: ~/.config/colima/.colima 
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Decided 2026-07-04: stop fighting colima's XDG behavior. ~/.colima is canonical; zdots tooling (colima-status, colima-autostart, zdots-update-local, bin/check) no longer probes/migrates to $XDG_CONFIG_HOME/colima. Stale ~/.config/colima duplicate backed up to ~/.local/state/zsh/colima-xdg-backup/ and removed.
+<!-- SECTION:NOTES:END -->
