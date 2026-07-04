@@ -2,10 +2,11 @@
 # bin/colima-status — Authoritative Colima + Docker status interface for zdots.
 #
 # STOP — do not call `colima status` or search for the docker socket yourself.
-# Use this command. Colima moved its socket from ~/.colima/ to ~/.config/colima/
-# in recent versions, and existing scripts that hardcode the old path will wait
-# forever or report incorrect state. This command tries both locations in order
-# and returns the live socket path so callers never have to guess.
+# Use this command. Colima's own runtime hardcodes homedir config (~/.colima)
+# whenever that directory exists and silently ignores XDG_CONFIG_HOME — this is
+# colima upstream behavior, not a zdots bug, and not worth fighting (decided
+# 2026-07-04, see Z-195/Z-181). zdots treats ~/.colima as canonical and does
+# not probe XDG_CONFIG_HOME/colima at all.
 #
 # Commands:
 #   socket           Print the live docker socket path; exit 1 if not present
@@ -50,33 +51,16 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Socket resolution ─────────────────────────────────────────────────────────
-# Colima ≥0.5 writes to XDG_CONFIG_HOME/colima/<profile>/docker.sock.
-# Older installs used ~/.colima/<profile>/docker.sock.
-_socket_candidates=(
-  "${XDG_CONFIG_HOME:-$HOME/.config}/colima/${PROFILE}/docker.sock"
-  "$HOME/.colima/${PROFILE}/docker.sock"
-)
-
-# Canonical (XDG) path — used for display even if the socket doesn't exist yet
-CANONICAL_SOCKET="${XDG_CONFIG_HOME:-$HOME/.config}/colima/${PROFILE}/docker.sock"
+# ~/.colima is canonical. Do not probe XDG_CONFIG_HOME/colima — colima itself
+# ignores it whenever ~/.colima exists, so checking it only invites drift.
+CANONICAL_SOCKET="$HOME/.colima/${PROFILE}/docker.sock"
 LIVE_SOCKET=""
 SOCKET_EXISTS=0
-LEGACY_SOCKET="${HOME}/.colima/${PROFILE}/docker.sock"
 
-for _s in "${_socket_candidates[@]}"; do
-  if [[ -S "$_s" ]]; then
-    LIVE_SOCKET="$_s"
-    SOCKET_EXISTS=1
-    # Guard: if socket is at the legacy path and NOT at the canonical XDG path,
-    # yell. Something is using an old colima install or stale config dir.
-    if [[ "$_s" == "$LEGACY_SOCKET" && "$JSON" -eq 0 ]]; then
-      printf 'colima-status: GUARD: socket found at LEGACY path %s\n' "$_s" >&2
-      printf 'colima-status: GUARD: expected canonical path:    %s\n' "$CANONICAL_SOCKET" >&2
-      printf 'colima-status: GUARD: run: colima stop && colima start — or check COLIMA_HOME\n' >&2
-    fi
-    break
-  fi
-done
+if [[ -S "$CANONICAL_SOCKET" ]]; then
+  LIVE_SOCKET="$CANONICAL_SOCKET"
+  SOCKET_EXISTS=1
+fi
 [[ -z "$LIVE_SOCKET" ]] && LIVE_SOCKET="$CANONICAL_SOCKET"
 
 # ── State probes ──────────────────────────────────────────────────────────────

@@ -585,9 +585,9 @@ _head "Container Runtime — Colima + Docker"
 
 cat <<'EOF'
 STOP. Do not call `colima status` directly or search for the docker socket path.
-Use colima-status — it is the authoritative interface and resolves the socket
-correctly across colima versions (the socket moved from ~/.colima/ to
-~/.config/colima/ in recent versions; hardcoded paths silently miss it).
+Use colima-status — it is the authoritative interface. ~/.colima is canonical
+(colima ignores $XDG_CONFIG_HOME whenever it exists); hardcoded XDG paths
+silently miss the socket.
 
 STATUS AND HEALTH — always start here:
   colima-status              human-readable status
