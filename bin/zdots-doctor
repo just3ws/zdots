@@ -235,8 +235,8 @@ for _f in .zshrc .zprofile .zlogin .zlogout; do
   fi
 done
 
-# Colima — delegate to colima-status (authoritative; handles legacy ~/.colima
-# and XDG ~/.config/colima socket locations). Never hardcode the socket path.
+# Colima — delegate to colima-status (authoritative; ~/.colima is canonical).
+# Never hardcode the socket path.
 if command -v colima-status >/dev/null 2>&1; then
   if colima-status health >/dev/null 2>&1; then
     _pass "Colima  healthy ($(colima-status socket 2>/dev/null))"
