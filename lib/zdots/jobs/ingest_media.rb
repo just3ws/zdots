@@ -40,7 +40,8 @@ module Zdots
       PIPELINE = [
         { stage: "raw",       desc: "transcribe audio (whisper; chunk fan-out if long)" },
         { stage: "cleaned",   desc: "apply known_terms corrections" },
-        { stage: "distilled", desc: "LLM knowledge briefing (local, or scoped cloud)" }
+        { stage: "distilled", desc: "LLM knowledge briefing (local, or scoped cloud)" },
+        { stage: "diarized",  desc: "acoustic speaker turns (pyannote; opt-in ZDOTS_DIARIZE)" }
       ].freeze
 
       def run
@@ -70,8 +71,23 @@ module Zdots
         when "raw"       then @raw_txt = ensure_raw
         when "cleaned"   then stage("cleaned")   { clean_transcript(@raw_txt) }
         when "distilled" then stage("distilled") { distill(@raw_txt) }
+        when "diarized"  then run_diarized
         else raise "unknown pipeline stage: #{name.inspect}"
         end
+      end
+
+      # Diarized is opt-in (ZDOTS_DIARIZE=1) and best-effort. It depends on an
+      # unverified external toolchain (uv-resolved pyannote+torch, gated model), so
+      # keeping it off by default AND rescuing here stops a dep/env failure from
+      # dead-lettering the whole ingest — raw/cleaned/distilled already produced
+      # their value, and this is the LAST stage. Off → returns nil (pipeline
+      # continues). Mirrors the DISTILL_CLOUD opt-in + cloud_distill fallback idiom.
+      def run_diarized
+        return nil unless ENV["ZDOTS_DIARIZE"] == "1"
+        stage("diarized") { diarize_audio }
+      rescue StandardError => e
+        warn "ingest_media: diarize stage failed (#{e.message}); continuing"
+        nil
       end
 
       # Mermaid projection of PIPELINE — the process description, generated FROM
@@ -207,6 +223,24 @@ module Zdots
         txt = Dir.glob(File.join(@out_base, "*", "*.txt")).reject { |f| f.end_with?(".cleaned.txt") }.max_by { |f| File.size(f) }
         raise "no transcript produced in #{@out_base}" unless txt
         txt
+      end
+
+      # Whole-file acoustic diarization over the retained 16k wav → a self-contained
+      # diarization.json (pyannote turns; the site's TASK-247 binds M1/S1/S2 →
+      # SPEAKER_xx from it). Independent of the text stages — consumes the audio,
+      # not the transcript. prep_audio returns the retained wav (long/chunked path)
+      # or re-preps it (short path deletes its wav after whisper). num_speakers is a
+      # caller-passed hint (site: interviewees + 1) — tenant data, never computed here.
+      def diarize_audio
+        wav = prep_audio
+        out = File.join(File.dirname(wav), "diarization.json")
+        diarize = File.join(Zdots::ZDOTDIR, "bin", "diarize")
+        cmd = [diarize, wav, "--sidecar", out]
+        hint = payload["num_speakers"]
+        cmd += ["--num-speakers", hint.to_s] if hint
+        stdout_err, status = Open3.capture2e(*cmd)
+        raise "diarize failed: #{stdout_err}" unless status.success?
+        { path: out, params: { "engine" => "pyannote-3.1", "num_speakers" => hint } }
       end
 
       # Cleaned stage: deterministically apply confirmed known_terms corrections
