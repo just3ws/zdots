@@ -1,0 +1,12 @@
+Generate YouTube distribution metadata for the following interview transcript.
+
+Requirements:
+- title: follow the format exactly: `Hook/Achievement: Guest Name on Topic | Context`. Extract the guest name and topic from the transcript. Include ` | Context` only if a venue, event, or conference is clearly identifiable in the transcript; otherwise omit the ` | Context` segment. Do not add branding or the interviewer's name.
+- description: 2-3 short paragraphs summarizing the conversation, followed by a "Key Topics:" bullet list of 4-6 points. Base everything on the transcript only.
+- tags: 6-10 relevant keyword tags.
+- chapters: derive chapters from timestamps that appear in the transcript. Each chapter has a timestamp (MM:SS) and a title. If the transcript contains no timestamps, output an empty chapters list.
+
+Output ONLY YAML with these top-level keys in this order: title, description, tags, chapters. Use a YAML list for tags. Use a list of {timestamp, title} for chapters. No preamble, no commentary, no code fences.
+
+TRANSCRIPT:
+{{content}}
