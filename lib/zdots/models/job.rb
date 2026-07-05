@@ -19,7 +19,11 @@ module Zdots
         refresh
       end
 
-      def complete!
+      # result: optional Hash written to metadata (the generic tenant-fetchable
+      # result slot — see `zdots-ctx result`). Non-hash returns from Jobs::Base#run
+      # (e.g. `true`) are ignored so existing jobs are unaffected.
+      def complete!(result = nil)
+        update(metadata: Sequel.pg_jsonb(metadata.to_h.merge(result))) if result.is_a?(Hash)
         Zdots.db.fetch("SELECT complete_job(?);", id).all
         refresh
       end

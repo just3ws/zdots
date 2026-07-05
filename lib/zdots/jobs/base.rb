@@ -40,7 +40,7 @@ module Zdots
                          "job.type" => job.type
                        }) do |span|
           result = run
-          job.complete!
+          job.complete!(result)
           result
         rescue StandardError => e
           span.record_exception(e)

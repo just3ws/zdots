@@ -23,6 +23,7 @@ require_relative "../lib/zdots/jobs/transcription"
 require_relative "../lib/zdots/jobs/ingest_media"
 require_relative "../lib/zdots/jobs/transcribe_chunk"
 require_relative "../lib/zdots/jobs/distill"
+require_relative "../lib/zdots/jobs/transform"
 require_relative "../lib/zdots/jobs/embed"
 require_relative "../lib/zdots/jobs/docs_sync"
 
@@ -80,6 +81,8 @@ module Zdots
         cmd_ingest_media(args)
       when "jobs"
         cmd_jobs
+      when "result"
+        cmd_result(args)
       when "cancel"
         cmd_cancel(args)
       when "reprocess"
@@ -529,6 +532,27 @@ module Zdots
     rescue JSON::ParserError
       puts "zdots-ingest-media: [!!] invalid metadata JSON on stdin"
       exit 1
+    end
+
+    # Z-199: tenant-facing result fetch. metadata is the generic result slot —
+    # any job type can write structured output there via Job#complete!(hash).
+    def cmd_result(args)
+      id = args.shift
+      if id.nil?
+        puts "usage: zdots-brain result <job_id>"
+        exit 1
+      end
+
+      job = Zdots::Models::Job[id]
+      unless job
+        puts "zdots-brain: [!!] job not found: #{id}"
+        exit 1
+      end
+
+      puts JSON.pretty_generate(
+        id: job.id, type: job.type, status: job.status,
+        result: job.metadata, error_message: job.error_message
+      )
     end
 
     def cmd_jobs
