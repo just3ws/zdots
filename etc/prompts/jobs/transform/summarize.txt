@@ -1,0 +1,4 @@
+Summarize the following text in 3-5 sentences. Output plain prose, no preamble, no headers.
+
+TEXT:
+{{content}}
