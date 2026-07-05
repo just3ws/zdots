@@ -22,6 +22,7 @@
 #   cancel <job_id>   Cancel a pending/failed job (marks dead; not retried)
 #   reprocess <source> [--transcribe]  Re-run an ingested source (stages, or +whisper)
 #   jobs      List pending and recent jobs
+#   result <job_id>  Fetch a completed job's structured result (JSON)
 #   worker    [--type T] Run a worker to process queued jobs
 #   triage    Review and resolve permanently failed 'dead' jobs
 #   clear-stale-jobs Reset 'running' jobs that have timed out
@@ -507,6 +508,10 @@ cmd_jobs() {
   "${ZDOTDIR}/sbin/zdots-brain" jobs "$@"
 }
 
+cmd_result() {
+  "${ZDOTDIR}/sbin/zdots-brain" result "$@"
+}
+
 cmd_cancel() {
   "${ZDOTDIR}/sbin/zdots-brain" cancel "$@"
 }
@@ -816,6 +821,7 @@ case "${1:-}" in
   enqueue)         shift; cmd_enqueue "${@}" ;;
   requeue)         shift; cmd_requeue "${@}" ;;
   jobs)            shift; cmd_jobs "${@}" ;;
+  result)          shift; cmd_result "${@}" ;;
   cancel)          shift; cmd_cancel "${@}" ;;
   reprocess)       shift; cmd_reprocess "${@}" ;;
   worker)          shift; cmd_worker "${@}" ;;
