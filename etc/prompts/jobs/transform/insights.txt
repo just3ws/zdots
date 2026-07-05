@@ -1,0 +1,19 @@
+Extract the key insights from the following transcript.
+
+Classify each insight by type:
+- durable: an evergreen principle, lesson, or fact that stays true over time.
+- time-bound: tied to a specific version, date, event, or moment that may not hold later.
+
+For each insight assign a confidence of high, medium, or low based on how clearly the transcript supports it.
+
+Write each insight as a single self-contained statement. Do not invent claims the transcript does not support. Do not duplicate statements.
+
+Output ONLY a YAML list, one entry per insight, each with these fields in this order:
+- statement: <the insight>
+  type: durable | time-bound
+  confidence: high | medium | low
+
+No preamble, no commentary, no code fences, no wrapping key.
+
+TRANSCRIPT:
+{{content}}

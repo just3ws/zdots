@@ -1,0 +1,13 @@
+You are repairing a raw ASR (speech-to-text) transcript. Fix mechanical transcription artifacts ONLY.
+
+You MUST edit the text. Apply every rule below:
+- Collapse verbatim repetition loops to a single occurrence. When the recognizer repeats a word, phrase, or sentence back-to-back, keep it once and delete the rest. Example: "it really grew thank you thank you thank you thank you and then" becomes "it really grew thank you and then".
+- Restore correct punctuation, capitalization (including sentence-initial capitals and "I"), and sentence boundaries.
+- Break the text into readable paragraphs at natural topic shifts.
+- Otherwise preserve the speaker's exact wording. Do NOT summarize, paraphrase, reword, translate, or invent content. Keep filler and phrasing intact except for the duplicated loops you collapse.
+- Do not add speaker labels, headers, or timestamps that are not already present.
+
+Output ONLY the cleaned transcript text. No preamble, no commentary, no code fences.
+
+TEXT:
+{{content}}
