@@ -464,6 +464,39 @@ USAGE:
 Models are stored in: \${XDG_DATA_HOME:-~/.local/share}/whisper-cpp/models
 EOF
 
+_head "Job Queue — zdots-ctx"
+
+cat <<'EOF'
+Postgres-backed async job queue. A launchd worker (com.zdots.worker) polls
+every 5s and processes any registered type; you rarely need to run a worker
+by hand.
+
+ENQUEUE / INSPECT:
+  zdots-ctx enqueue [--force] <type> <payload_json> [priority]
+  zdots-ctx jobs                  list pending + recent jobs
+  zdots-ctx result <job_id>       fetch a job's structured result (JSON)
+  zdots-ctx requeue <job_id>      reset a failed/dead job to pending
+  zdots-ctx cancel <job_id>       stop retrying (marks dead)
+  zdots-ctx triage                review permanently-failed 'dead' jobs
+
+Idempotent by construction: fingerprint = md5(type + payload_json), so
+re-enqueuing the same call is a no-op unless --force.
+
+REGISTERED JOB TYPES:
+  transcription   {"url": "..."}                  yt-dlp + whisper, no result fetch
+  transform       {"text": "...", "profile": "p"}  generic AI transform, tenant-fetchable
+                  result via `zdots-ctx result` — see etc/prompts/jobs/transform/
+  distill         {"url": "..."}                  YouTube → internal Lesson (not tenant-fetchable)
+  ingest_media    internal (fan-out for long-audio transcription, Z-169)
+  embed           internal (lesson/methodology embeddings)
+  docs_sync       internal (living-docs regeneration)
+
+`transform` is the tenant-consumer contract (Z-199): external repos enqueue
+text + a profile name, then fetch `{status, result: {output}}` by job ID
+instead of hand-rolling direct-LLM calls. Add a profile by dropping a prompt
+at etc/prompts/jobs/transform/<name>.txt — no code change needed.
+EOF
+
 _head "Deliberation — zsynod"
 
 cat <<'EOF'
@@ -622,9 +655,10 @@ COLIMA STATUS JSON FIELDS (for scripts/agents):
   .arch            string      — "aarch64" (Apple Silicon)
   .vm_type         string      — "macOS Virtualization.Framework"
 
-GUARD: colima-status warns loudly to stderr if the socket is found at the
-legacy ~/.colima/ path instead of the canonical XDG location. This guard
-fires in colima-autostart as well. If you see it, a script has a stale path.
+~/.colima is canonical and permanent (Z-195/Z-181, decided 2026-07-04) — colima
+itself ignores $XDG_CONFIG_HOME whenever ~/.colima exists, so zdots stopped
+fighting it. colima-status/colima-autostart no longer probe or migrate to
+$XDG_CONFIG_HOME/colima; if you see that path, something outside zdots created it.
 EOF
 
 _head "Destructive Commands — Confirm Before Running"
