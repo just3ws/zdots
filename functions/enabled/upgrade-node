@@ -24,7 +24,8 @@ if command -v pnpm >/dev/null 2>&1; then
   fi
 
   echo "Updating global pnpm packages..."
-  # ponytail: pnpm-specific rc so allow-build doesn't leak into npm as an unknown key
+  # ponytail: pnpm-specific rc so allow-build doesn't leak into npm as an unknown key.
+  # upgrade: drop the split rc when npm stops erroring on unknown keys, or a 3rd tool needs its own.
   NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/pnpm/npmrc" run_cmd pnpm update -g
 fi
 
