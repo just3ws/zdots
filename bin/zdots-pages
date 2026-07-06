@@ -216,12 +216,28 @@ cmd_wiki() {
   [[ -d "$WIKI_SRC" ]] || die "no docs/wiki/ in $REPO_ROOT"
   _guard_outward
   local wdir; wdir="$(mktemp -d)"
-  if ! git clone -q "https://github.com/$OWNER/$REPO.wiki.git" "$wdir" 2>/dev/null; then
+  # git ignores ~/.curlrc, so an unbounded clone can hang on a stalled remote;
+  # timeout(1) (if present) group-kills + KILL-escalates. Capture stderr (2>&1)
+  # so a real failure — auth, network, timeout — isn't masked by the "not
+  # initialized" message: GitHub only creates .wiki.git after the first page is
+  # saved in the web UI, and a missing wiki clones as "repository not found".
+  local url="https://github.com/$OWNER/$REPO.wiki.git"
+  local tbin clone_err rc
+  tbin="$(command -v gtimeout || command -v timeout || true)"
+  if [[ -n "$tbin" ]]; then
+    clone_err="$("$tbin" -k 10 120 git clone -q "$url" "$wdir" 2>&1)" && rc=0 || rc=$?
+  else
+    clone_err="$(git clone -q "$url" "$wdir" 2>&1)" && rc=0 || rc=$?
+  fi
+  if (( rc != 0 )); then
     rm -rf "$wdir"
-    die "wiki not initialized — GitHub creates the .wiki.git repo only after the
+    if printf '%s' "$clone_err" | grep -qiE 'not found|does not exist'; then
+      die "wiki not initialized — GitHub creates the .wiki.git repo only after the
   first page is saved in the web UI (no API exists for this). One-time step:
     open https://github.com/$OWNER/$REPO/wiki  → 'Create the first page' → Save.
   Then re-run: zdots-pages wiki --push"
+    fi
+    die "wiki clone failed (rc=$rc): ${clone_err:-timed out or unknown error}"
   fi
   cp "$WIKI_SRC"/*.md "$wdir"/
   git -C "$wdir" add -A
