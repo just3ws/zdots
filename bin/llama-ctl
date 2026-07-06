@@ -878,11 +878,11 @@ case "${1:-}" in
       start)    start_llama ;;
       stop)     stop_llama ;;
       restart)  zdots_svc_restart stop_llama start_llama ;;
-      status)   shift; status_llama "${@}" ;;
-      health)   shift; health_llama "${@}" ;;
+      status)   shift; status_llama "$@" ;;
+      health)   shift; health_llama "$@" ;;
       logs)     logs_llama ;;
       validate) validate_llama ;;
-      config)   shift; config_dump "${@}" ;;
+      config)   shift; config_dump "$@" ;;
       *)        printf 'llama-ctl: unknown server command: %s\n' "${1:-}" >&2; usage >&2; exit 1 ;;
     esac
     ;;
@@ -892,7 +892,7 @@ case "${1:-}" in
       install)  install_embed ;;
       start)    start_embed ;;
       stop)     stop_embed ;;
-      status)   shift; status_embed "${@}" ;;
+      status)   shift; status_embed "$@" ;;
       *)        printf 'llama-ctl: unknown embed command: %s\n' "${1:-}" >&2; usage >&2; exit 1 ;;
     esac
     ;;
@@ -901,13 +901,13 @@ case "${1:-}" in
   start)          start_llama ;;
   stop)           stop_llama ;;
   restart)        zdots_svc_restart stop_llama start_llama ;;
-  status)         shift; status_llama "${@}" ;;
-  health)         shift; health_llama "${@}" ;;
+  status)         shift; status_llama "$@" ;;
+  health)         shift; health_llama "$@" ;;
   logs)           logs_llama ;;
   validate)       validate_llama ;;
-  config)         shift; config_dump "${@}" ;;
+  config)         shift; config_dump "$@" ;;
   model-list)     model_list ;;
-  model-download) shift; model_download "${@}" ;;
+  model-download) shift; model_download "$@" ;;
   model-verify)   _vp=$(_active_model_path); zdots_model_verify "${_vp:-}" ;;
   model-switch)   model_switch "${2:-}" ;;
   model-prune)    model_prune ;;
@@ -916,7 +916,7 @@ case "${1:-}" in
   start-embed)    start_embed ;;
   stop-embed)     stop_embed ;;
   restart-embed)  stop_embed; start_embed ;;
-  status-embed)   shift; status_embed "${@}" ;;
+  status-embed)   shift; status_embed "$@" ;;
   -h|--help)      usage; exit 0 ;;
   "")             usage >&2; exit 1 ;;
   *)              printf 'llama-ctl: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;

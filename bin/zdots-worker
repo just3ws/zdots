@@ -191,8 +191,8 @@ case "${1:-}" in
   start)     cmd_start ;;
   stop)      cmd_stop ;;
   restart)   zdots_svc_restart cmd_stop cmd_start ;;
-  status)    shift; cmd_status "${@}" ;;
-  health)    shift; cmd_health "${@}" ;;
+  status)    shift; cmd_status "$@" ;;
+  health)    shift; cmd_health "$@" ;;
   logs)      cmd_logs ;;
   run)       cmd_run ;;
   -h|--help) usage; exit 0 ;;
