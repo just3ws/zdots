@@ -153,7 +153,14 @@ _db_ping() {
 # ---------------------------------------------------------------------------
 
 cmd_status() {
-  "${ZDOTDIR}/sbin/zdots-brain" status "$@"
+  # Run the brain under the pinned zdots Ruby (via zdots-ruby), same as cmd_migrate.
+  # sbin/zdots-brain uses a bare `#!/usr/bin/env ruby` shebang, so a bare invocation
+  # runs under whatever ambient Ruby the caller happens to have active. When that is
+  # not the pinned 4.0.5 (e.g. capabilities run from another repo's cwd, statusd,
+  # launchd/cron), the brain hits a LoadError (missing opentelemetry gem) and the
+  # probe's `2>/dev/null` swallows it — surfacing as "Knowledge DB: offline". Pinning
+  # the launcher makes `status` robust against a wrong ambient Ruby.
+  "${ZDOTDIR}/bin/zdots-ruby" "${ZDOTDIR}/sbin/zdots-brain" status "$@"
 }
 
 cmd_init_db() {
