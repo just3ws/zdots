@@ -5,6 +5,7 @@ require_relative "../models/media_source"
 require_relative "../models/pipeline_run"
 require_relative "../models/job"
 require_relative "../ai/phi_scrubber"
+require_relative "../bounded_run"
 require "open3"
 require "digest"
 require "fileutils"
@@ -294,6 +295,12 @@ module Zdots
       # unset, and Ruby's `|| "haiku"` only catches nil — "" would win and send
       # `--model ""` (a 400 from the API).
       DISTILL_CLOUD_MODEL = ENV["ZDOTS_DISTILL_CLOUD_MODEL"].to_s.strip.then { |m| m.empty? ? "haiku" : m }
+      # Wall-clock ceiling for the cloud call. "Inaccessible" isn't only an absent
+      # binary (claude_available? covers that) — the binary can be present while
+      # Anthropic is unreachable, hanging `claude -p` indefinitely. Bounded so the
+      # ingest pipeline degrades to local instead of stalling. Env-overridable
+      # because a long transcript → Haiku one-shot can legitimately run a while.
+      DISTILL_CLOUD_TIMEOUT = (ENV["ZDOTS_DISTILL_CLOUD_TIMEOUT"] || 120).to_i
 
       def distill_briefing(source)
         if cloud_distill_eligible?
@@ -336,10 +343,10 @@ module Zdots
       # the transcript is piped on stdin (the `cat file | claude -p` pattern).
       def cloud_distill(source)
         scrubbed = Zdots::AI::PhiScrubber.call(source)
-        out, status = Open3.capture2(
+        out, status = Zdots.run_bounded(
           claude_bin, "-p", "--model", DISTILL_CLOUD_MODEL,
           "--no-session-persistence", DISTILL_TASK,
-          stdin_data: scrubbed
+          stdin_data: scrubbed, timeout: DISTILL_CLOUD_TIMEOUT
         )
         raise "claude CLI failed (exit #{status.exitstatus}): #{out.to_s[0, 200]}" unless status.success?
 
