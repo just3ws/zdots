@@ -1,11 +1,21 @@
 #!/usr/bin/env -S uv run --script
 # /// script
+# requires-python = ">=3.10,<3.13"
 # dependencies = [
-#   "pyannote.audio",
-#   "torch",
-#   "numpy",
+#   "pyannote.audio>=3.1,<4",
+#   "torch>=2.2,<2.5",
+#   "torchaudio>=2.2,<2.5",
+#   "numpy<2",
+#   "huggingface_hub>=0.19,<0.26",
 # ]
 # ///
+#
+# Pins matter: unbounded deps resolve to pyannote.audio 4.x, whose 3.1 pipeline
+# pulls the SEPARATELY-gated pyannote/speaker-diarization-community-1 weights.
+# The 3.x line above uses only the segmentation-3.0 + wespeaker embeddings that
+# ship with the accepted speaker-diarization-3.1 license. torch<2.5 keeps a
+# macOS-arm64/py3.12 wheel available; huggingface_hub<0.26 keeps use_auth_token.
+# See docs/superpowers/youtube-transcription.md for the license/token setup.
 """
 bin/diarize — speaker diarization via pyannote/speaker-diarization-3.1.
 
@@ -60,7 +70,12 @@ def main():
         sys.exit(1)
 
     print("Loading diarization pipeline...", file=sys.stderr)
-    pipeline = Pipeline.from_pretrained(MODEL, token=hf_token)
+    # pyannote 3.x wants use_auth_token=; 4.x renamed it to token=. Pinned to 3.x
+    # above, but stay version-agnostic so a future bump doesn't silently break.
+    try:
+        pipeline = Pipeline.from_pretrained(MODEL, token=hf_token)
+    except TypeError:
+        pipeline = Pipeline.from_pretrained(MODEL, use_auth_token=hf_token)
 
     # Move to GPU if available (Metal on Mac).
     if torch.backends.mps.is_available():
