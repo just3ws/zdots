@@ -276,17 +276,17 @@ cmd_creds() {
 }
 
 case "${1:-}" in
-  install)   shift; cmd_install "${@}" ;;
-  serve)     shift; cmd_serve "${@}" ;;
+  install)   shift; cmd_install "$@" ;;
+  serve)     shift; cmd_serve "$@" ;;
   start)     cmd_start ;;
   stop)      cmd_stop ;;
   restart)   zdots_svc_restart cmd_stop cmd_start ;;
-  reinit)    shift; cmd_reinit "${@}" ;;
-  status)    shift; cmd_status "${@}" ;;
-  health)    shift; cmd_health "${@}" ;;
+  reinit)    shift; cmd_reinit "$@" ;;
+  status)    shift; cmd_status "$@" ;;
+  health)    shift; cmd_health "$@" ;;
   logs)      cmd_logs ;;
-  config)    shift; cmd_config "${@}" ;;
-  creds)     shift; cmd_creds "${@}" ;;
+  config)    shift; cmd_config "$@" ;;
+  creds)     shift; cmd_creds "$@" ;;
   -h|--help) usage; exit 0 ;;
   "")        usage >&2; exit 1 ;;
   *)         printf 'openobserve-ctl: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
