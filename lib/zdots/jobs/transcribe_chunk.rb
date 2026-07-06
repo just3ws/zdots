@@ -133,7 +133,7 @@ module Zdots
         vocab = IngestMedia.known_vocabulary
         cmd += ["--prompt", vocab] unless vocab.empty?
         puts "  --> chunk #{i}: #{cmd.join(' ')}"
-        out, status = Open3.capture2e(*cmd)
+        out, status = Zdots.run_bounded(*cmd, timeout: IngestMedia::RECIPE_TIMEOUT, merge_err: true)
         raise "chunk #{i} failed: #{out}" unless status.success?
         txt = "#{base}.txt"
         raise "chunk #{i} produced no transcript at #{txt}" unless File.file?(txt)

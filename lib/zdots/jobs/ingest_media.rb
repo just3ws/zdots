@@ -29,6 +29,13 @@ module Zdots
       CHUNK_WINDOW_SEC    = (ENV["ZDOTS_CHUNK_WINDOW_SEC"]    || 600).to_i
       CHUNK_OVERLAP_SEC   = (ENV["ZDOTS_CHUNK_OVERLAP_SEC"]   || 15).to_i
 
+      # Wall-clock ceiling on the media recipes (yt-dlp download + whisper) and
+      # diarization. Bounds a wedged download/ffmpeg/torch so the stage fails
+      # instead of hanging the worker; run_bounded group-kills, so no yt-dlp or
+      # whisper grandchild leaks. Generous + env-overridable — a long source
+      # legitimately runs many minutes (first diarize also fetches torch weights).
+      RECIPE_TIMEOUT = (ENV["ZDOTS_RECIPE_TIMEOUT"] || 3600).to_i
+
       # ── Declared pipeline (Z-188) ────────────────────────────────────────────
       # Single source of truth for the ingest process SHAPE. #run walks this list;
       # docs/generated/ingest-pipeline.mmd is a Mermaid projection of it, kept
@@ -160,7 +167,8 @@ module Zdots
         return wav if wav && File.file?(wav)
 
         recipe = File.join(Zdots::ZDOTDIR, "recipes", "yt-transcribe")
-        out, status = Open3.capture2e(recipe, @src.source_uri, "--prep-only", "--out-dir", @out_base)
+        out, status = Zdots.run_bounded(recipe, @src.source_uri, "--prep-only", "--out-dir", @out_base,
+                                        timeout: RECIPE_TIMEOUT, merge_err: true)
         raise "prep-only failed: #{out}" unless status.success?
         (out[/^WAV=(.+)$/, 1] || raise("prep-only did not report WAV path")).strip
       end
@@ -215,11 +223,13 @@ module Zdots
         vocab = self.class.known_vocabulary
         cmd += ["--prompt", vocab] unless vocab.empty?
         puts "  --> #{cmd.join(' ')}"
-        Open3.popen2e(*cmd) do |_in, out, wait|
-          out.each { |line| puts line }
-          status = wait.value
-          raise "yt-transcribe failed (exit #{status.exitstatus})" unless status.success?
-        end
+        # ponytail: bounded capture instead of live streaming — progress prints
+        # at the end, not line-by-line. Worth it to get the wall-clock ceiling
+        # (a wedged download/whisper can't hang the worker) without a second
+        # subprocess path. Restore streaming only if progress visibility matters.
+        out, status = Zdots.run_bounded(*cmd, timeout: RECIPE_TIMEOUT, merge_err: true)
+        puts out
+        raise "yt-transcribe failed (exit #{status.exitstatus})" unless status.success?
         # raw whisper text — exclude the cleaned sibling we may have written before
         txt = Dir.glob(File.join(@out_base, "*", "*.txt")).reject { |f| f.end_with?(".cleaned.txt") }.max_by { |f| File.size(f) }
         raise "no transcript produced in #{@out_base}" unless txt
@@ -239,7 +249,7 @@ module Zdots
         cmd = [diarize, wav, "--sidecar", out]
         hint = payload["num_speakers"]
         cmd += ["--num-speakers", hint.to_s] if hint
-        stdout_err, status = Open3.capture2e(*cmd)
+        stdout_err, status = Zdots.run_bounded(*cmd, timeout: RECIPE_TIMEOUT, merge_err: true)
         raise "diarize failed: #{stdout_err}" unless status.success?
         { path: out, params: { "engine" => "pyannote-3.1", "num_speakers" => hint } }
       end
@@ -301,6 +311,10 @@ module Zdots
       # ingest pipeline degrades to local instead of stalling. Env-overridable
       # because a long transcript → Haiku one-shot can legitimately run a while.
       DISTILL_CLOUD_TIMEOUT = (ENV["ZDOTS_DISTILL_CLOUD_TIMEOUT"] || 120).to_i
+      # Local distill runs one transcript window through bin/ai-query. Tighter
+      # than RECIPE_TIMEOUT: a wedged llama/embed server should fail the window
+      # fast, not hang the whole map/reduce. Env-overridable.
+      DISTILL_LOCAL_TIMEOUT = (ENV["ZDOTS_DISTILL_LOCAL_TIMEOUT"] || 180).to_i
 
       def distill_briefing(source)
         if cloud_distill_eligible?
@@ -419,7 +433,7 @@ module Zdots
 
       def distill_call(task, input)
         ai_query = File.join(Zdots::ZDOTDIR, "bin", "ai-query")
-        out, status = Open3.capture2(ai_query, task, stdin_data: input)
+        out, status = Zdots.run_bounded(ai_query, task, stdin_data: input, timeout: DISTILL_LOCAL_TIMEOUT)
         raise "ai-query failed (exit #{status.exitstatus})" unless status.success?
         # Open3 tags subprocess output with the process default_external, which is
         # US-ASCII under launchd (no LANG); the model emits UTF-8 (em-dashes, smart
