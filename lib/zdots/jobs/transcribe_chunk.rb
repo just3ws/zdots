@@ -87,15 +87,31 @@ module Zdots
         out
       end
 
-      # Greedy word-overlap splice: drop B's leading words that duplicate A's
-      # trailing words (consecutive whisper windows overlap), so the seam reads
-      # once. Case-insensitive match; keeps A's casing.
-      def self.splice(a, b, max_words: 80)
+      # Normalize a word for seam comparison: casing and surrounding punctuation
+      # diverge between independently-decoded windows, so strip both.
+      def self.norm(w)
+        w.downcase.gsub(/[^a-z0-9']/, "")
+      end
+
+      # Fuzzy word-overlap splice: drop B's leading words that duplicate A's
+      # trailing words at the window seam, so it reads once. Windows now decode
+      # independently (--max-context 0), so the shared ~15s overlap can diverge on
+      # punctuation/casing/filler — compare NORMALIZED tokens and accept the
+      # largest overlap that mismatches at most ~1 word per 10. Bias conservative:
+      # a missed overlap duplicates the seam (safe, visible); an over-eager match
+      # DROPS real words (data loss). Keeps A's casing.
+      def self.splice(a, b, max_words: 256)
         aw = a.split
         bw = b.split
+        an = aw.map { |w| norm(w) }
+        bn = bw.map { |w| norm(w) }
         k_max = [aw.size, bw.size, max_words].min
         best = 0
-        (1..k_max).each { |k| best = k if aw.last(k).map(&:downcase) == bw.first(k).map(&:downcase) }
+        (1..k_max).each do |k|
+          matches = an.last(k).zip(bn.first(k)).count { |x, y| x == y && !x.empty? }
+          best = k if matches >= k - (k / 10)
+        end
+        warn "splice: no overlap found at a long #{aw.size}+#{bw.size}-word seam" if best.zero? && aw.size > max_words && bw.size > max_words
         (aw + bw.drop(best)).join(" ")
       end
 
@@ -134,5 +150,14 @@ if __FILE__ == $PROGRAM_NAME
   raise "no overlap"  unless s.splice("a b c", "d e f")     == "a b c d e f"
   raise "full dup"    unless s.splice("a b c", "a b c")     == "a b c"
   raise "case-insens" unless s.splice("Foo Bar", "bar Baz") == "Foo Bar Baz"
+  # punctuation diverges across the seam but the word is the same -> still merges
+  raise "punct"       unless s.splice("keep a b c,", "c d e") == "keep a b c, d e"
+  # one divergent word inside a long overlap (fife vs five) -> one seam, keep A's
+  raise "fuzzy-long"  unless s.splice(
+    "intro one two three four five six seven eight nine ten eleven",
+    "one two three four fife six seven eight nine ten eleven post"
+  ) == "intro one two three four five six seven eight nine ten eleven post"
+  # unrelated windows must NOT over-merge (no words dropped)
+  raise "no-merge"    unless s.splice("the quick brown fox", "lazy dog runs fast") == "the quick brown fox lazy dog runs fast"
   puts "transcribe_chunk splice: OK"
 end
