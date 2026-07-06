@@ -913,7 +913,7 @@ case "${1:-}" in
   reset)     shift; _reject_extra_args reset "$@";   cmd_reset ;;
   install)   shift; _reject_extra_args install "$@"; cmd_install ;;
   check)     cmd_check ;;
-  status)    shift; cmd_status "${@}" ;;
+  status)    shift; cmd_status "$@" ;;
   -h|--help) usage; exit 0 ;;
   "")        usage >&2; exit 1 ;;
   *)         printf 'zdots-ctl: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;

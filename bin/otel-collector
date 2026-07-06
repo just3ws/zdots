@@ -321,11 +321,11 @@ case "${1:-}" in
   start)     cmd_start ;;
   stop)      cmd_stop ;;
   restart)   zdots_svc_restart cmd_stop cmd_start ;;
-  status)    shift; cmd_status "${@}" ;;
-  health)    shift; cmd_health "${@}" ;;
+  status)    shift; cmd_status "$@" ;;
+  health)    shift; cmd_health "$@" ;;
   logs)      cmd_logs ;;
   validate)  cmd_validate ;;
-  config)    shift; cmd_config "${@}" ;;
+  config)    shift; cmd_config "$@" ;;
   -h|--help) usage; exit 0 ;;
   "")        usage >&2; exit 1 ;;
   *)         printf 'otel-collector: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
