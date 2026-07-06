@@ -48,6 +48,7 @@ module Zdots
       # stitch, then re-enqueue ingest_media to finish the pipeline.
       # ponytail: a crash after claiming strands the summary in "running"; rare
       # and stitch is cheap+deterministic — re-run the source if it happens.
+      # upgrade: add a stale-"running" reaper if strands stop being rare.
       def self.reduce_if_complete(mid, n, profile)
         done = Models::PipelineRun.where(media_source_id: mid, stage: "raw")
                                   .exclude(chunk_index: nil).where(status: "done").count

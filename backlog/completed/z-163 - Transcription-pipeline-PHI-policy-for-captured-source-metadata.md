@@ -53,7 +53,7 @@ D2 — PRIVATE sources store ONLY the non-PHI provenance set; identifying free-t
   KEEP: sha256, byte_size, duration_sec, codec/resolution/fps, mtime/birthtime/embedded creation_time, host, + an operator-supplied non-PHI label (typed at ingest).
   DROP (not stored): absolute path, filename, embedded title tags, free-text description. source_snapshot.raw is filtered to the KEEP set before storage. Dashboard renders the operator label.
 
-D3 — Encrypted columns: NOT in v1. D2 keeps PHI out of media_sources; FileVault (enforced by zdots-ctl check) covers at-rest. Defer content_enc-style treatment unless a real need to store raw clinical identifiers emerges. // ponytail: don't encrypt what you don't store.
+D3 — Encrypted columns: NOT in v1. D2 keeps PHI out of media_sources; FileVault (enforced by zdots-ctl check) covers at-rest. Defer content_enc-style treatment unless a real need to store raw clinical identifiers emerges. // ponytail: don't encrypt what you don't store; upgrade: add content_enc if D2 ever has to store raw clinical identifiers.
 
 D4 — Destination keying: metadata policy is source-type-keyed (above). Transcript CONTENT scrubbing is destination-keyed and lives in Z-168 (scrub before ai-query); local stays on-box; name pseudonymization deferred until a shared/cloud destination is actually used.
 
