@@ -86,7 +86,10 @@ cmd_transcribe() {
     exit 1
   fi
 
-  "$bin" --model "$model_path" --file "$audio" --output-txt
+  # --max-context 0: don't condition on prior-text tokens. The default (-1) lets
+  # large-v3-turbo feed its own output back in and spiral into a repetition loop;
+  # see recipes/yt-transcribe for the same guard on the other decode sites.
+  "$bin" --model "$model_path" --file "$audio" --max-context 0 --output-txt
 }
 
 case "${1:-}" in
