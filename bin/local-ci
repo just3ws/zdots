@@ -127,9 +127,9 @@ cmd_run() {
 # ---------------------------------------------------------------------------
 
 case "${1:-}" in
-  prune)        shift; cmd_prune "${@}" ;;
-  rebuild)      shift; cmd_rebuild "${@}" ;;
-  run)          shift; cmd_run "${@}" ;;
+  prune)        shift; cmd_prune "$@" ;;
+  rebuild)      shift; cmd_rebuild "$@" ;;
+  run)          shift; cmd_run "$@" ;;
   -h|--help)    usage; exit 0 ;;
   "")           usage >&2; exit 1 ;;
   *)            printf 'local-ci: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
