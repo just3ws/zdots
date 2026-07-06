@@ -36,6 +36,7 @@ ISSUE_PAGE="${ZDOTS_GH_ISSUE_PAGE:-50}"
 REPO_LIMIT="${ZDOTS_GH_REPO_LIMIT:-100}"
 INCLUDE_FORKS="${ZDOTS_GH_INCLUDE_FORKS:-0}"
 INCLUDE_ARCHIVED="${ZDOTS_GH_INCLUDE_ARCHIVED:-0}"
+GH_API_TIMEOUT="${ZDOTS_GH_API_TIMEOUT:-300}"   # per-call wall-clock ceiling (s); generous for --paginate
 
 if [[ -t 1 ]]; then
   RST=$'\e[0m'; BOLD=$'\e[1m'; DIM=$'\e[2m'; RED=$'\e[0;31m'; GRN=$'\e[0;32m'; YEL=$'\e[0;33m'; BLU=$'\e[0;34m'
@@ -45,6 +46,21 @@ _log()  { printf '%s==>%s %s\n' "$BLU" "$RST" "$*" >&2; }
 _ok()   { printf '  %s[ok]%s   %s\n' "$GRN" "$RST" "$*" >&2; }
 _warn() { printf '  %s[warn]%s %s\n' "$YEL" "$RST" "$*" >&2; }
 _die()  { printf '%szdots-gh: %s%s\n' "$RED" "$*" "$RST" >&2; exit 1; }
+
+# A GitHub API call bounded by a wall clock. gh uses Go's net/http and ignores
+# ~/.curlrc, so without this one stalled connection hangs the whole harvest (a
+# loop over up to REPO_LIMIT repos). timeout(1) group-kills and escalates to
+# KILL (-k) itself. No timeout(1) present (stock macOS w/o coreutils) → warn
+# once and run unbounded rather than fail the harvest.
+_TIMEOUT_BIN="$(command -v gtimeout || command -v timeout || true)"
+_gh() {
+  if [[ -n "$_TIMEOUT_BIN" ]]; then
+    "$_TIMEOUT_BIN" -k 10 "$GH_API_TIMEOUT" gh "$@"
+  else
+    [[ -n "${_GH_TIMEOUT_WARNED:-}" ]] || { _warn "no timeout(1) on PATH — gh calls run unbounded (brew install coreutils)"; _GH_TIMEOUT_WARNED=1; }
+    gh "$@"
+  fi
+}
 
 usage() {
   cat <<EOF
@@ -212,7 +228,7 @@ _harvest_one() {
   local owner="${repo%/*}" name="${repo#*/}"
 
   if [[ ! -f "$base" || "$OPT_FORCE" -eq 1 ]]; then
-    if gh api graphql --paginate --slurp -f owner="$owner" -f name="$name" -f query="$full_q" >"${base}.tmp" 2>/dev/null; then
+    if _gh api graphql --paginate --slurp -f owner="$owner" -f name="$name" -f query="$full_q" >"${base}.tmp" 2>/dev/null; then
       mv -f "${base}.tmp" "$base"; rm -f "$incr"   # a fresh full history supersedes any prior delta
       return 0
     fi
@@ -220,7 +236,7 @@ _harvest_one() {
   fi
 
   # incremental: one page of the most-recently-updated items (no --paginate, single response object)
-  if gh api graphql -f owner="$owner" -f name="$name" -f query="$recent_q" >"${incr}.tmp" 2>/dev/null; then
+  if _gh api graphql -f owner="$owner" -f name="$name" -f query="$recent_q" >"${incr}.tmp" 2>/dev/null; then
     mv -f "${incr}.tmp" "$incr"; return 0
   fi
   rm -f "${incr}.tmp"; _warn "failed incremental harvest of ${kind} for ${repo}"; return 1
@@ -237,7 +253,7 @@ _harvest_rest() {
   local safe="${repo//\//_}"
   local out="${outdir}/${safe}_${kind}.json"
   if [[ -f "$out" && "$OPT_FORCE" -ne 1 ]]; then return 0; fi
-  if gh api "$path" 2>/dev/null | jq -c --arg repo "$repo" "$filter" >"${out}.tmp" 2>/dev/null; then
+  if _gh api "$path" 2>/dev/null | jq -c --arg repo "$repo" "$filter" >"${out}.tmp" 2>/dev/null; then
     mv -f "${out}.tmp" "$out"
   else
     printf '[]\n' >"$out"      # endpoint absent/empty → typed-empty contribution
