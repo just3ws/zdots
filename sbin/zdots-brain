@@ -7,6 +7,26 @@
 Encoding.default_external = Encoding::UTF_8
 Encoding.default_internal = Encoding::UTF_8
 
+# Self-heal the Ruby toolchain. This script has a bare `#!/usr/bin/env ruby`
+# shebang; invoked outside ~/.config/zsh (or from launchd/cron) `ruby` resolves
+# to the global mise Ruby (e.g. 4.0.2), which lacks our bundled gems — every job
+# requires opentelemetry via jobs/base.rb, so it dies with a LoadError before
+# doing anything. Direct callers (zdots-ctx, zdots-ingest-media, zdots-debrief)
+# all hit this. Re-exec once under the pinned Ruby (bin/zdots-ruby →
+# etc/ruby-version) if the canary gem is absent; the sentinel makes a
+# still-broken pin fail loud via the real require below, never loop.
+# The worker runs us under `mise exec` (correct Ruby), so the canary passes and
+# this is a no-op there.
+unless ENV["ZDOTS_BRAIN_PINNED"]
+  begin
+    require "opentelemetry"
+  rescue LoadError
+    ENV["ZDOTS_BRAIN_PINNED"] = "1"
+    exec File.expand_path("../bin/zdots-ruby", __dir__),
+         File.expand_path(__FILE__), *ARGV
+  end
+end
+
 require_relative "../lib/zdots"
 require_relative "../lib/zdots/models/job"
 require_relative "../lib/zdots/models/media_source"
