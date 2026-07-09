@@ -90,7 +90,13 @@ resolve_model() {
 
 # Z-169 window mode: transcribe one time window of an already-prepared 16k wav.
 # No download/convert; outputs only .txt (+ json-full if asked) under --output-base.
+MAX_CONTEXT=(--max-context 0)
+if [[ -n "$WHISPER_PROMPT" ]]; then
+  MAX_CONTEXT=()
+fi
+
 if [[ -n "$FROM_WAV" ]]; then
+
   [[ -f "$FROM_WAV" ]]    || { printf 'yt-transcribe: error: --from-wav not found: %s\n' "$FROM_WAV" >&2; exit 1; }
   [[ -n "$OUTPUT_BASE" ]] || { printf 'yt-transcribe: error: --from-wav requires --output-base\n' >&2; exit 1; }
   mkdir -p "$(dirname "$OUTPUT_BASE")"
@@ -107,7 +113,7 @@ if [[ -n "$FROM_WAV" ]]; then
   # loop (a 20-min talk ballooned to 3x its words). Off = each window decodes clean.
   "$WHISPER_BIN" \
     --model "$MODEL_PATH" --file "$FROM_WAV" \
-    --max-context 0 \
+    ${MAX_CONTEXT[@]+"${MAX_CONTEXT[@]}"} \
     --output-txt "$JSON_FLAG" \
     "${WIN_ARGS[@]+"${WIN_ARGS[@]}"}" "${PROMPT_ARGS[@]+"${PROMPT_ARGS[@]}"}" \
     --output-file "$OUTPUT_BASE" >&2
@@ -180,7 +186,7 @@ if [[ -n "$WHISPER_PROMPT" ]]; then PROMPT_ARGS=(--prompt "$WHISPER_PROMPT"); fi
 "$WHISPER_BIN" \
   --model "$MODEL_PATH" \
   --file "$CONVERTED_WAV" \
-  --max-context 0 \
+  ${MAX_CONTEXT[@]+"${MAX_CONTEXT[@]}"} \
   --output-txt --output-vtt --output-srt --output-csv "$JSON_FLAG" \
   "${PROMPT_ARGS[@]+"${PROMPT_ARGS[@]}"}" \
   --output-file "${OUT_DIR}/${VIDEO_ID}"
