@@ -95,6 +95,7 @@ Knowledge Layer Interface:
             cleaned+distilled from the existing transcript (applies current
             known_terms; no re-download). --transcribe also re-runs whisper
             (primed by current known_terms). <source> = id or uri/title substring.
+  reprocess-series <tag> [--transcribe] Re-run all ingested sources matching <tag>
   jobs      List pending and recent jobs
   worker    [--type T] Run a worker to process queued jobs
   triage    Review and resolve permanently failed 'dead' jobs
@@ -527,6 +528,10 @@ cmd_reprocess() {
   "${ZDOTDIR}/sbin/zdots-brain" reprocess "$@"
 }
 
+cmd_reprocess_series() {
+  "${ZDOTDIR}/sbin/zdots-brain" reprocess-series "$@"
+}
+
 cmd_worker() {
   "${ZDOTDIR}/sbin/zdots-brain" worker "$@"
 }
@@ -831,6 +836,7 @@ case "${1:-}" in
   result)          shift; cmd_result "$@" ;;
   cancel)          shift; cmd_cancel "$@" ;;
   reprocess)       shift; cmd_reprocess "$@" ;;
+  reprocess-series) shift; cmd_reprocess_series "$@" ;;
   worker)          shift; cmd_worker "$@" ;;
   triage)          shift; cmd_triage "$@" ;;
   clear-stale-jobs) shift; cmd_clear_stale_jobs "$@" ;;
