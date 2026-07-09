@@ -116,9 +116,28 @@ module Zdots
       # The known-vocabulary priming prompt (the doubt loop's proactive half).
       # Class method so the per-chunk transcriber (Z-169) reuses it. Capped to
       # whisper's prompt budget.
-      def self.known_vocabulary
-        terms = Zdots.db[:known_terms].order(:canonical).limit(100).select_map(:canonical)
-        terms.empty? ? "" : "Vocabulary: #{terms.join(', ')}."
+      def self.known_vocabulary(source_tags = nil, primer_text = nil)
+        source_tags = Array(source_tags).compact.reject(&:empty?)
+        terms = []
+        
+        if source_tags.any?
+          tagged = Zdots.db[:known_terms]
+            .where(Sequel.pg_array_op(:tags).overlaps(Sequel.pg_array(source_tags, :text)))
+            .order(:canonical)
+            .limit(100)
+            .select_map(:canonical)
+          terms += tagged
+        end
+        
+        if terms.size < 100
+          global = Zdots.db[:known_terms].order(:canonical)
+          global = global.exclude(canonical: terms) unless terms.empty?
+          global = global.limit(100 - terms.size).select_map(:canonical)
+          terms += global
+        end
+
+        vocab = terms.empty? ? "" : "Vocabulary: #{terms.join(', ')}."
+        primer_text.to_s.strip.empty? ? vocab : "#{vocab} Context: #{primer_text.strip}".strip
       end
 
       private
@@ -220,7 +239,7 @@ module Zdots
         require_fetchable!
         recipe = File.join(Zdots::ZDOTDIR, "recipes", "yt-transcribe")
         cmd = [recipe, @src.source_uri, "--profile", @profile, "--json-full", "--out-dir", @out_base]
-        vocab = self.class.known_vocabulary
+        vocab = self.class.known_vocabulary(@src.tags, @src.primer_text)
         cmd += ["--prompt", vocab] unless vocab.empty?
         puts "  --> #{cmd.join(' ')}"
         # ponytail: bounded capture instead of live streaming — progress prints
@@ -357,9 +376,11 @@ module Zdots
       # the transcript is piped on stdin (the `cat file | claude -p` pattern).
       def cloud_distill(source)
         scrubbed = Zdots::AI::PhiScrubber.call(source)
+        task = DISTILL_TASK
+        task += "\n\nAdditional Context for this video: #{@src.primer_text}" if @src && @src.primer_text.to_s.strip != ""
         out, status = Zdots.run_bounded(
           claude_bin, "-p", "--model", DISTILL_CLOUD_MODEL,
-          "--no-session-persistence", DISTILL_TASK,
+          "--no-session-persistence", task,
           stdin_data: scrubbed, timeout: DISTILL_CLOUD_TIMEOUT
         )
         raise "claude CLI failed (exit #{status.exitstatus}): #{out.to_s[0, 200]}" unless status.success?
@@ -397,9 +418,13 @@ module Zdots
 
       def ai_distill(transcript)
         windows = split_for_distill(transcript)
-        return distill_call(DISTILL_TASK, transcript) if windows.size <= 1
+        task = DISTILL_TASK
+        task += "\n\nAdditional Context for this video: #{@src.primer_text}" if @src && @src.primer_text.to_s.strip != ""
+        return distill_call(task, transcript) if windows.size <= 1
 
-        partials = windows.map { |w| distill_call(DISTILL_MAP_TASK, w) }
+        map_task = DISTILL_MAP_TASK
+        map_task += "\n\nAdditional Context for this video: #{@src.primer_text}" if @src && @src.primer_text.to_s.strip != ""
+        partials = windows.map { |w| distill_call(map_task, w) }
         reduce_partials(partials.join("\n\n"))
       end
 
@@ -433,7 +458,7 @@ module Zdots
 
       def distill_call(task, input)
         ai_query = File.join(Zdots::ZDOTDIR, "bin", "ai-query")
-        out, status = Zdots.run_bounded(ai_query, task, stdin_data: input, timeout: DISTILL_LOCAL_TIMEOUT)
+        out, status = Zdots.run_bounded(ai_query, "--timeout", DISTILL_LOCAL_TIMEOUT.to_s, task, stdin_data: input, timeout: DISTILL_LOCAL_TIMEOUT)
         raise "ai-query failed (exit #{status.exitstatus})" unless status.success?
         # Open3 tags subprocess output with the process default_external, which is
         # US-ASCII under launchd (no LANG); the model emits UTF-8 (em-dashes, smart

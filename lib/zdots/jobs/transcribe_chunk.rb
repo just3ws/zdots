@@ -130,7 +130,7 @@ module Zdots
                "--offset-sec", p.fetch("offset_sec").to_s,
                "--window-sec", p.fetch("window_sec").to_s,
                "--output-base", base, "--profile", (p["profile"] || "standard")]
-        vocab = IngestMedia.known_vocabulary
+        vocab = IngestMedia.known_vocabulary(@src.tags, @src.primer_text)
         cmd += ["--prompt", vocab] unless vocab.empty?
         puts "  --> chunk #{i}: #{cmd.join(' ')}"
         out, status = Zdots.run_bounded(*cmd, timeout: IngestMedia::RECIPE_TIMEOUT, merge_err: true)
