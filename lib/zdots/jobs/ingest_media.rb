@@ -213,8 +213,11 @@ module Zdots
                   content_hash: Digest::SHA256.hexdigest(File.read(result[:path])),
                   run_params: Sequel.pg_jsonb(result[:params] || {}))
         result[:path]
+      rescue Sequel::NoExistingObject => e
+        warn "pipeline_run was deleted, assuming restart/cancel"
+        raise e
       rescue StandardError => e
-        pr.update(status: "failed", error_message: e.message, finished_at: Sequel::CURRENT_TIMESTAMP) if defined?(pr) && pr
+        pr.update(status: "failed", error_message: e.message, finished_at: Sequel::CURRENT_TIMESTAMP) rescue nil if defined?(pr) && pr
         raise e
       end
 
