@@ -107,6 +107,8 @@ module Zdots
         cmd_cancel(args)
       when "reprocess"
         cmd_reprocess(args)
+      when "reprocess-series"
+        cmd_reprocess_series(args)
       when "reindex-embeddings"
         cmd_reindex_embeddings
       when "ingest"
@@ -249,6 +251,39 @@ module Zdots
       )
       puts "zdots-brain: reprocessing #{src.id} — #{src.title.to_s[0, 60].inspect}" \
            "#{transcribe ? ' (re-transcribe)' : ' (stages only)'}."
+    end
+
+    def cmd_reprocess_series(args)
+      transcribe = @options[:transcribe] == true # parsed by OptionParser (see parse_options)
+      tag = args.shift
+      if tag.nil?
+        puts "usage: zdots-brain reprocess-series <tag> [--transcribe]"
+        exit 1
+      end
+
+      matches = Zdots::Models::MediaSource.where(Sequel.pg_array_op(:tags).contains([tag])).all
+      if matches.empty?
+        puts "zdots-brain: no media sources matching tag #{tag.inspect}"
+        exit 1
+      end
+
+      enqueued = 0
+      matches.each do |src|
+        if transcribe
+          Zdots::Models::PipelineRun.where(media_source_id: src.id, stage: "raw").delete
+        end
+
+        src.update(ingest_status: "queued", updated_at: Sequel::CURRENT_TIMESTAMP)
+        Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint, update: RESET_JOB).insert(
+          type: "ingest_media",
+          payload: Sequel.pg_jsonb({ "media_source_id" => src.id, "profile" => "standard" }),
+          priority: 10,
+          fingerprint: Digest::MD5.hexdigest("ingest_media#{src.source_uri}")
+        )
+        enqueued += 1
+      end
+      puts "zdots-brain: reprocessed #{enqueued} sources matching tag #{tag.inspect}" \
+           "#{transcribe ? ' (cleared raw transcripts)' : ''}."
     end
 
     # Resolve a media source by exact UUID, exact source_uri, or a unique
