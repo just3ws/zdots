@@ -38,8 +38,11 @@ module Zdots
 
         self.class.reduce_if_complete(@mid, n, payload["profile"])
         true
+      rescue Sequel::NoExistingObject => e
+        warn "pipeline_run was deleted, assuming restart/cancel"
+        raise e
       rescue StandardError => e
-        pr&.update(status: "failed", error_message: e.message, finished_at: Sequel::CURRENT_TIMESTAMP) if defined?(pr)
+        pr&.update(status: "failed", error_message: e.message, finished_at: Sequel::CURRENT_TIMESTAMP) rescue nil if defined?(pr)
         raise e
       end
 
