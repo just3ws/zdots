@@ -290,13 +290,28 @@ module Zdots
       # Returns [corrected_text, corrections_list]. Shared by cleaned + distilled.
       def apply_corrections(text)
         corrections = []
-        Zdots.db[:known_terms].select(:canonical, :aliases).each do |t|
+        # Words we can ignore if they appear between parts of a multi-word alias
+        filler_words = %w[uh um ah like you know i mean so well person okay yes no yeah]
+        filler_re = "(?:\\W|(?:\\b(?:#{filler_words.join('|')})\\b))+"
+
+        Zdots.db[:known_terms].select(:canonical, :aliases, :category).each do |t|
           Array(t[:aliases]).each do |al|
             al = al.to_s.strip
             next if al.empty?
-            n = text.scan(/\b#{Regexp.escape(al)}\b/i).size
+
+            parts = al.split(/\s+/)
+            regex = if parts.size > 1
+              # Allow filler words and punctuation between multi-word parts (e.g. "Firstname uh Lastname")
+              # This ensures common words that are only names when paired together don't get individually replaced.
+              pattern = "\\b" + parts.map { |p| Regexp.escape(p) }.join(filler_re) + "\\b"
+              Regexp.new(pattern, Regexp::IGNORECASE)
+            else
+              Regexp.new("\\b#{Regexp.escape(al)}\\b", Regexp::IGNORECASE)
+            end
+
+            n = text.scan(regex).size
             next if n.zero?
-            text = text.gsub(/\b#{Regexp.escape(al)}\b/i, t[:canonical])
+            text = text.gsub(regex, t[:canonical])
             corrections << { "from" => al, "to" => t[:canonical], "count" => n }
           end
         end
@@ -336,7 +351,7 @@ module Zdots
       # Local distill runs one transcript window through bin/ai-query. Tighter
       # than RECIPE_TIMEOUT: a wedged llama/embed server should fail the window
       # fast, not hang the whole map/reduce. Env-overridable.
-      DISTILL_LOCAL_TIMEOUT = (ENV["ZDOTS_DISTILL_LOCAL_TIMEOUT"] || 180).to_i
+      DISTILL_LOCAL_TIMEOUT = (ENV["ZDOTS_DISTILL_LOCAL_TIMEOUT"] || 900).to_i
 
       def distill_briefing(source)
         if cloud_distill_eligible?
