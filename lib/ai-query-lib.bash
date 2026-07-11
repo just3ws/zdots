@@ -455,6 +455,8 @@ aiq_submit() {
   # structured distillation callers set AIQ_TEMPERATURE=0.1 for determinism).
   local _temp="${AIQ_TEMPERATURE:-0.2}"
 
+  local _max_tokens="${AIQ_MAX_TOKENS:-null}"
+
   local tmp_resp; tmp_resp=$(mktemp)
   # Caller owns the EXIT trap for cleanup; we remove on error paths below.
 
@@ -471,6 +473,7 @@ aiq_submit() {
     --argjson thinking "$_thinking" \
     --argjson temp    "$_temp" \
     --argjson schema  "$_schema" \
+    --argjson max_tokens "$_max_tokens" \
     '{
       model: $model,
       messages: [
@@ -480,7 +483,7 @@ aiq_submit() {
       stream: false,
       temperature: $temp,
       chat_template_kwargs: {enable_thinking: $thinking}
-    } + if $schema != null then {
+    } + if $max_tokens != null then { max_tokens: $max_tokens } else {} end + if $schema != null then {
       response_format: {
         type: "json_schema",
         json_schema: {name: "output", schema: $schema, strict: true}
@@ -491,7 +494,7 @@ aiq_submit() {
         -H "Content-Type: application/json" \
         "${trace_header[@]}" \
         --max-time "$timeout" \
-        --connect-timeout 5 \
+        --connect-timeout 60 \
         -d @- 2>/dev/null) || true
 
   if [[ "${http_code:-000}" != "200" ]]; then
