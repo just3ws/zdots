@@ -55,6 +55,12 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(z-101)* Encrypt remaining PHI columns — lessons.context + source_document.body_md
 - *(gemini-invoke)* Export OTEL_RESOURCE_ATTRIBUTES with zdots.trace.id for O2 correlation
 - *(mcp)* Add sequential-thinking and o2 MCP servers to .mcp.json
+- *(peer-discovery)* Complete Phase 3 — one bootstrap lib, three adapters
+- *(nginx)* Migrate llama/embed/o2/zdots vhosts to .localhost (decision-011)
+- *(jobs)* Generic transform job type for tenant-consumable AI results (Z-199)
+- *(transform)* Transcript cleanup/insights/seo profiles
+- *(ingest)* Opt-in acoustic diarization stage in ingest_media
+- *(zdots)* Add bulk reprocess-series by tag
 
 ### 🐛 Bug Fixes
 
@@ -85,10 +91,29 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(zclaude)* Export OTel exporter vars before claude launch (Z-172.01)
 - *(knowledge-layer)* Semantic search + embed reindex reliability
 - *(eval)* Close Z-172.05 — no MLX migration on M4 16GB
+- *(deps)* Bump concurrent-ruby 1.3.6 → 1.3.7 (CVE fix)
+- *(deps)* Bump faraday 2.14.2 → 2.14.3 (CVE fix)
+- *(otel-collector)* Guard against stale-compiled-config drift
+- *(nginx)* Remove zdots' stale duplicate of my.conf (Z-198)
+- *(colima)* Consolidate config off XDG, ~/.colima is canonical (Z-195, Z-181)
+- *(diarize)* Pin verified pyannote 3.1 stack + document token/licenses
+- *(zdots-ctx)* Pin brain launcher Ruby for status probe
+- *(transcribe)* Disable whisper prior-text context to stop turbo loops
+- *(transcribe)* Dedup divergent window seams after anti-loop change
+- *(ingest)* Bound cloud distill so a hung claude can't stall ingest
+- *(ingest)* Bound every media-pipeline subprocess, not just cloud distill
+- *(gh,pages)* Bound outward gh/git calls that ignore ~/.curlrc
+- *(openobserve)* Serve crash-loops under launchd — "${@}" empty + set -u
+- *(brain)* Self-heal Ruby toolchain so direct callers stop LoadError-ing
 
 ### 💼 Other
 
 - *(z-172.02)* Arize Phoenix S2 eval complete — local LLM tracing confirmed
+- Live-verify AC #1 + #2 — reprocess stages-only + --transcribe
+- Add primer text to ingestion pipelines
+- Fix pipeline run race condition on manual restart
+- Allow whisper --prompt to work by conditionally dropping --max-context 0
+- Mark task as Done
 
 ### 🚜 Refactor
 
@@ -96,6 +121,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(zshenv)* Wire .zshenv.local override hook; drop machine-specific fpath
 - Remove dead DI provider seams + unused contract machinery
 - Remove the retired LGTM observability stack (Z-134)
+- *(bin)* Use "$@" not "${@}" in ctl dispatch (bash 3.2 hygiene)
 
 ### 📚 Documentation
 
@@ -110,6 +136,9 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(docs-sync)* Tier-propagation manifest + ratify naming convention (Z-153 AC#3,5,6)
 - Refresh agent-guide + tooling.md after Z-101 + statusd
 - *(z-159)* Document context-engine bin/deploy step in SETUP.md and agent-guide
+- *(nginx)* Note my.conf is ~/my-owned, not zdots' (Z-198 follow-up)
+- *(agent-guide)* Fix stale colima GUARD text, add Job Queue section
+- *(ponytail)* Add upgrade triggers to 3 no-trigger shortcut markers
 
 ### ⚡ Performance
 
@@ -118,6 +147,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 ### 🧪 Testing
 
 - *(docs-contract)* Fictional-reference linting + register new binaries (Z-153 AC#2)
+- *(z-188)* Reprocess CLI wiring/guard smoke test; record P1 verification
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -148,6 +178,14 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(backlog)* File Z-181 — adots .colima/.config/colima coexistence
 - *(z-101)* Mark done — all AC checked, 731 tests pass
 - *(z-172.01)* Mark done — claude_code.* metrics confirmed in O2
+- *(release)* Stamp Astronomicon beacon 0493026.M3
+- *(work-session)* CLI hardening, otel diagnostics, delivery-metrics, snapshot, backlog cleanup
+- *(backlog)* Track Z-194 (adots-doctor .tmux.conf pathspec crash)
+- *(backlog)* Track Z-195 (colima legacy-root symlink defeats adots-doctor --fix)
+- *(backlog)* Mark Z-198 done
+- *(backlog)* Reconcile z-199 against landed transform mechanism
+- *(backlog)* Track transcribe stitch validation + deferred cuts
+- *(backlog)* Z-202 done — zdots-brain Ruby self-heal (fixed in 0b5ab68)
 ## [0463026.M3] - 2026-06-19
 
 ### 🚀 Features
