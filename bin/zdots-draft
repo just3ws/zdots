@@ -1,0 +1,78 @@
+#!/usr/bin/env zdots-ruby
+# frozen_string_literal: true
+
+require_relative "../lib/zdots"
+require_relative "../lib/zdots/ai/pipeline"
+require_relative "../lib/zdots/ai/retriever"
+
+if ARGV.include?("--help") || ARGV.include?("-h")
+  puts <<~HELP
+    Usage: zdots-draft <prompt>
+
+    Multi-source AI article drafting. Uses semantic search across the
+    knowledge_chunks database to retrieve relevant quotes and timelines from
+    multiple videos, then synthesizes a cohesive article using an LLM.
+
+    Requires local embedding and chat servers to be running (llama-ctl start).
+
+    Examples:
+      zdots-draft "The evolution of the Agile manifesto based on historical interviews"
+  HELP
+  exit 0
+end
+
+query = ARGV.join(" ").strip
+if query.empty?
+  warn "Usage: zdots-draft <prompt>"
+  exit 1
+end
+
+retriever = Zdots::AI::Retriever.new
+puts "==> Embedding query and searching semantic memory..."
+res = retriever.search(query, limit: 15)
+
+if res.failure?
+  warn "Retrieval failed: #{res.failure}"
+  exit 1
+end
+
+chunks = res.value!
+if chunks.empty?
+  warn "No semantic matches found for the prompt."
+  exit 0
+end
+
+context = retriever.format_context(chunks)
+puts "==> Retrieved #{chunks.size} chunks from semantic memory."
+puts "==> Synthesizing article draft (this may take a minute)..."
+
+system_prompt = <<~SYS
+  You are an expert technical historian and writer.
+  Your task is to synthesize a cohesive, well-structured article based on the
+  provided semantic search context from our video archive.
+  
+  CRITICAL REQUIREMENTS:
+  1. Use quotes and snippets from the provided context.
+  2. You MUST correctly attribute quotes to their specific source video (e.g., "In the Interview with Ken Auer...").
+  3. Synthesize the snippets logically to answer the user's prompt.
+  4. Output the final article in Markdown format.
+SYS
+
+full_prompt = <<~USER
+  PROMPT: #{query}
+  
+  <source_context>
+  #{context}
+  </source_context>
+USER
+
+chat_res = Zdots::AI::Pipeline.chat(full_prompt, system: system_prompt, model: "local")
+
+if chat_res.failure?
+  warn "Synthesis failed: #{chat_res.failure}"
+  exit 1
+end
+
+puts "\n\n"
+puts chat_res.value!
+puts "\n"
