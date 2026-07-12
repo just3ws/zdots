@@ -212,11 +212,11 @@ module Zdots
       # returns { path:, params: }. Content-hashed → re-runs are idempotent.
       def stage(name)
         pr = upsert_run(@mid, name)
-        pr.update(status: "running", started_at: Sequel::CURRENT_TIMESTAMP)
+        pr.update(status: "running", started_at: Sequel::CURRENT_TIMESTAMP, error_message: nil)
         result = yield
         pr.update(status: "done", finished_at: Sequel::CURRENT_TIMESTAMP,
                   artifact_path: result[:path],
-                  content_hash: Digest::SHA256.hexdigest(File.read(result[:path])),
+                  content_hash: result[:path] ? Digest::SHA256.hexdigest(File.read(result[:path])) : nil,
                   run_params: Sequel.pg_jsonb(result[:params] || {}))
         result[:path]
       rescue Sequel::NoExistingObject => e
@@ -256,7 +256,7 @@ module Zdots
         # (a wedged download/whisper can't hang the worker) without a second
         # subprocess path. Restore streaming only if progress visibility matters.
         out, status = Zdots.run_bounded(*cmd, timeout: RECIPE_TIMEOUT, merge_err: true)
-        puts out
+        File.open("/Users/mike/.local/state/zsh/zdots-worker.log", "a") { |f| f.puts out } rescue nil
         raise "yt-transcribe failed (exit #{status.exitstatus})" unless status.success?
         # raw whisper text — exclude the cleaned sibling we may have written before
         txt = Dir.glob(File.join(@out_base, "*", "*.txt")).reject { |f| f.end_with?(".cleaned.txt") }.max_by { |f| File.size(f) }
@@ -584,11 +584,16 @@ TIMELINE_REDUCE_TASK =
       end
 
       def publish_clips
-        publisher_cmd = File.join(Zdots::ZDOTDIR, "bin", "zdots-publish")
-        out, status = Zdots.run_bounded(publisher_cmd, @mid)
-        warn out unless out.strip.empty?
-        raise "zdots-publish failed (exit #{status.exitstatus})" unless status.success?
-        { path: nil, params: { "published" => true } }
+        begin
+          publisher_cmd = File.join(Zdots::ZDOTDIR, "bin", "zdots-publish")
+          out, status = Zdots.run_bounded(publisher_cmd, @mid, timeout: RECIPE_TIMEOUT)
+          warn out unless out.strip.empty?
+          raise "zdots-publish failed (exit #{status.exitstatus})" unless status.success?
+          { path: nil, params: { "published" => true } }
+        rescue StandardError => e
+          File.write("/tmp/publish_crash.log", "#{e.class}: #{e.message}\n" + e.backtrace.join("\n"))
+          raise e
+        end
       end
     end
   end

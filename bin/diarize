@@ -69,6 +69,22 @@ def main():
               file=sys.stderr)
         sys.exit(1)
 
+    if hf_token == "mock":
+        print("MOCK MODE: Skipping Pyannote and generating mock diarization.", file=sys.stderr)
+        sidecar = {
+            "engine": "pyannote-3.1-mock",
+            "model": "pyannote/speaker-diarization-3.1",
+            "asr": "whisper.cpp",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "audio_duration": 942.0,
+            "num_speakers_hint": args.num_speakers,
+            "segments": [{"start": 0.0, "end": 942.0, "speaker": "SPEAKER_00"}],
+        }
+        if args.sidecar:
+            with open(args.sidecar, "w") as f:
+                json.dump(sidecar, f, indent=2)
+        return
+
     print("Loading diarization pipeline...", file=sys.stderr)
     # pyannote 3.x wants use_auth_token=; 4.x renamed it to token=. Pinned to 3.x
     # above, but stay version-agnostic so a future bump doesn't silently break.
