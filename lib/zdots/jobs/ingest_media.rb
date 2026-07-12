@@ -195,7 +195,7 @@ module Zdots
       def enqueue_chunk(i, offset:, n:, wav:)
         payload = { "media_source_id" => @mid, "chunk_index" => i, "offset_sec" => offset,
                     "window_sec" => CHUNK_WINDOW_SEC, "n" => n, "wav" => wav, "profile" => @profile }
-        Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+        Models::Job.dataset.insert_conflict(target: :fingerprint, update: { status: "pending", attempts: 0, error_message: nil, updated_at: Sequel::CURRENT_TIMESTAMP }).insert(
           type: "transcribe_chunk", payload: Sequel.pg_jsonb(payload), priority: 10,
           fingerprint: Digest::MD5.hexdigest("transcribe_chunk-#{@mid}-#{i}")
         )
