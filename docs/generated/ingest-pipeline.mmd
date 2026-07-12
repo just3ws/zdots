@@ -11,4 +11,6 @@ flowchart TD
   diarized["diarized — acoustic speaker turns (pyannote; opt-in ZDOTS_DIARIZE)"]
   diarized --> embedded
   embedded["embedded — slice transcript into knowledge_chunks and embed (pgvector)"]
-  embedded --> done([done])
+  embedded --> published
+  published["published — auto-publish timeline clips to social APIs (FFmpeg)"]
+  published --> done([done])
