@@ -1,7 +1,7 @@
 ---
 id: Z-221
 title: Semantic Memory - pgvector integration and Knowledge Chunking
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-12 07:50'
 updated_date: '2026-07-12 07:50'
@@ -21,10 +21,10 @@ Integrate `pgvector` into the `context-engine` database to provide a semantic se
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `pgvector` extension enabled in PostgreSQL and `knowledge_chunks` schema defined.
-- [ ] #2 `embedded` stage added to `ingest_media.rb` pipeline (running after `timeline`).
-- [ ] #3 Slices transcripts into small chunks and generates vector embeddings locally.
-- [ ] #4 Retrieval mechanism allows querying across the entire video corpus by semantic intent.
+- [x] #1 `pgvector` extension enabled in PostgreSQL and `knowledge_chunks` schema defined.
+- [x] #2 `embedded` stage added to `ingest_media.rb` pipeline (running after `timeline`).
+- [x] #3 Slices transcripts into small chunks and generates vector embeddings locally.
+- [x] #4 Retrieval mechanism allows querying across the entire video corpus by semantic intent.
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -34,7 +34,7 @@ This is the foundational component for the autonomous research assistant for aut
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
