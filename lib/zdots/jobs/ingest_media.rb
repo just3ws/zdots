@@ -50,7 +50,8 @@ module Zdots
         { stage: "cleaned",   desc: "apply known_terms corrections" },
         { stage: "distilled", desc: "LLM knowledge briefing (local, or scoped cloud)" },
         { stage: "timeline",  desc: "extract curated timeline of moments (LLM)" },
-        { stage: "diarized",  desc: "acoustic speaker turns (pyannote; opt-in ZDOTS_DIARIZE)" }
+        { stage: "diarized",  desc: "acoustic speaker turns (pyannote; opt-in ZDOTS_DIARIZE)" },
+        { stage: "embedded",  desc: "slice transcript into knowledge_chunks and embed (pgvector)" }
       ].freeze
 
       def run
@@ -82,6 +83,7 @@ module Zdots
         when "distilled" then stage("distilled") { distill(@raw_txt) }
         when "timeline"  then stage("timeline")  { extract_timeline(@raw_txt) }
         when "diarized"  then run_diarized
+        when "embedded"  then stage("embedded")  { embed_chunks(@raw_txt) }
         else raise "unknown pipeline stage: #{name.inspect}"
         end
       end
@@ -365,6 +367,31 @@ def extract_timeline(raw_path)
   json_str = result.gsub(/\A```(?:json)?\s*|\s*```\z/, "").strip
   File.write(out, json_str)
   { path: out, params: { "model" => model, "input_chars" => source.length } }
+end
+
+# Embedded stage: slice the cleaned transcript into paragraphs and queue for vectorization
+def embed_chunks(raw_path)
+  cleaned = raw_path.sub(/\.txt\z/, ".cleaned.txt")
+  text = File.read(File.exist?(cleaned) ? cleaned : raw_path)
+  paragraphs = text.split(/\n\n+/).map(&:strip).reject(&:empty?)
+  
+  paragraphs.each do |para|
+    # Insert row without vector first
+    row = Zdots.db[:knowledge_chunks].returning(:id).insert(
+      media_source_id: @mid,
+      content: para
+    ).first
+    id = row[:id]
+    
+    # Enqueue standard embed job to compute and save vector
+    Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+      type: "embed",
+      payload: Sequel.pg_jsonb({ "table" => "knowledge_chunks", "id" => id, "text" => para }),
+      priority: 10, 
+      fingerprint: Digest::MD5.hexdigest("embed-knowledge_chunk-#{id}")
+    )
+  end
+  { path: cleaned, params: { "chunks" => paragraphs.size } }
 end
 
 def timeline_llm(source)
