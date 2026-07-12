@@ -369,25 +369,31 @@ def extract_timeline(raw_path)
   { path: out, params: { "model" => model, "input_chars" => source.length } }
 end
 
-# Embedded stage: slice the cleaned transcript into paragraphs and queue for vectorization
+# Embedded stage: slice the cleaned transcript into paragraphs and queue for
+# vectorization. Idempotent: clears existing chunks before re-inserting.
 def embed_chunks(raw_path)
   cleaned = raw_path.sub(/\.txt\z/, ".cleaned.txt")
   text = File.read(File.exist?(cleaned) ? cleaned : raw_path)
   paragraphs = text.split(/\n\n+/).map(&:strip).reject(&:empty?)
-  
+
+  # Idempotency: remove stale chunks so reprocess doesn't duplicate
+  deleted = Zdots.db[:knowledge_chunks].where(media_source_id: @mid).delete
+  warn "embed_chunks: cleared #{deleted} existing chunks for source #{@mid}" if deleted > 0
+
   paragraphs.each do |para|
-    # Insert row without vector first
     row = Zdots.db[:knowledge_chunks].returning(:id).insert(
       media_source_id: @mid,
       content: para
     ).first
     id = row[:id]
-    
-    # Enqueue standard embed job to compute and save vector
-    Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+
+    Zdots::Models::Job.dataset.insert_conflict(target: :fingerprint, update: {
+      status: "pending", attempts: 0, error_message: nil,
+      updated_at: Sequel::CURRENT_TIMESTAMP
+    }).insert(
       type: "embed",
       payload: Sequel.pg_jsonb({ "table" => "knowledge_chunks", "id" => id, "text" => para }),
-      priority: 10, 
+      priority: 10,
       fingerprint: Digest::MD5.hexdigest("embed-knowledge_chunk-#{id}")
     )
   end
