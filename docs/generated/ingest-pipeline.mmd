@@ -9,4 +9,6 @@ flowchart TD
   timeline["timeline — extract curated timeline of moments (LLM)"]
   timeline --> diarized
   diarized["diarized — acoustic speaker turns (pyannote; opt-in ZDOTS_DIARIZE)"]
-  diarized --> done([done])
+  diarized --> embedded
+  embedded["embedded — slice transcript into knowledge_chunks and embed (pgvector)"]
+  embedded --> done([done])
