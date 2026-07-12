@@ -1,0 +1,86 @@
+#!/usr/bin/env zdots-ruby
+# frozen_string_literal: true
+
+require_relative "../lib/zdots"
+require_relative "../lib/zdots/ai/publisher"
+require "fileutils"
+
+if ARGV.include?("--help") || ARGV.include?("-h")
+  puts <<~HELP
+    Usage: zdots-publish <media_source_id> [options]
+
+    Automated publishing engine. Reads the extracted timeline for a given source,
+    extracts video clips using FFmpeg, burns in subtitles, and pushes them to
+    social distribution channels.
+
+    Options:
+      --mock     Mock social pushing (default)
+      --real     Actually execute external API pushes
+
+    Examples:
+      zdots-publish c99e6698-ff84-4488-8b70-2d413dd65457
+  HELP
+  exit 0
+end
+
+source_id = ARGV.shift
+unless source_id
+  warn "Usage: zdots-publish <media_source_id>"
+  exit 1
+end
+
+publisher = Zdots::AI::Publisher.new(source_id)
+
+# Try to find the timeline file
+source_dir = File.join(ENV["HOME"], ".local/state/zdots/ingest-sources", source_id)
+timeline_files = Dir.glob(File.join(source_dir, "*.timeline.json"))
+
+if timeline_files.empty?
+  warn "No timeline.json found for source #{source_id}. Has it passed the timeline stage?"
+  exit 1
+end
+
+timeline_file = timeline_files.first
+puts "==> Reading timeline from #{timeline_file}"
+
+timeline_data = begin
+  JSON.parse(File.read(timeline_file))
+rescue JSON::ParserError => e
+  warn "Failed to parse timeline JSON: #{e.message}"
+  exit 1
+end
+
+clips = timeline_data["timeline"] || []
+if clips.empty?
+  puts "==> No clips defined in the timeline."
+  exit 0
+end
+
+out_dir = File.join(source_dir, "clips")
+FileUtils.mkdir_p(out_dir)
+
+clips.each_with_index do |clip, i|
+  start_sec = clip["start_sec"]
+  end_sec = clip["end_sec"]
+  title = clip["title"] || "clip_#{i}"
+  
+  next unless start_sec && end_sec
+
+  safe_title = title.downcase.gsub(/[^a-z0-9_-]/, "_")
+  out_file = File.join(out_dir, "#{safe_title}.mp4")
+
+  puts "==> Extracting and burning clip: #{title} (#{start_sec}s - #{end_sec}s)"
+  success, res = publisher.extract_and_burn(start_sec, end_sec, out_file, title: title)
+
+  if success
+    puts "    Saved to: #{res}"
+    
+    # Auto-publish
+    desc = "Clip: #{title}\n\n#{clip["quote"]}\n\nReason: #{clip["reason"]}"
+    publisher.push_to_social(out_file, "Highlights: #{title}", desc)
+  else
+    warn "    Extraction failed: #{res}"
+  end
+end
+
+puts "==> Publish workflow complete."
