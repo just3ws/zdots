@@ -1,9 +1,13 @@
 Sequel.migration do
   up do
-    add_column :media_sources, :primer_text, String, text: true
+    unless schema(:media_sources).map(&:first).include?(:primer_text)
+      add_column :media_sources, :primer_text, String, text: true
+    end
   end
 
   down do
-    drop_column :media_sources, :primer_text
+    if schema(:media_sources).map(&:first).include?(:primer_text)
+      drop_column :media_sources, :primer_text
+    end
   end
 end

@@ -23,16 +23,16 @@ The speaker-identity twin of the shipped term loop (Z-167). Same shape, pointed 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Speaker turns diarized; low-confidence attributions surface as doubts, derived on render (no doubts table)
-- [ ] #2 Confirm/correct panel labels [Speaker A] -> name; resolution persists
-- [ ] #3 Speaker registry holds identities local-only (DB, never git), mirroring known_terms
-- [ ] #4 Enrolled voiceprints auto-attribute speakers on the next ingest (proactive half)
-- [ ] #5 Clinical-source voice data stays local, never shared/cloud (Z-163 model)
+- [x] #1 Speaker turns diarized; low-confidence attributions surface as doubts, derived on render (no doubts table)
+- [x] #2 Confirm/correct panel labels [Speaker A] -> name; resolution persists
+- [x] #3 Speaker registry holds identities local-only (DB, never git), mirroring known_terms
+- [x] #4 Enrolled voiceprints auto-attribute speakers on the next ingest (proactive half)
+- [x] #5 Clinical-source voice data stays local, never shared/cloud (Z-163 model)
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
