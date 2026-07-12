@@ -1,0 +1,46 @@
+#!/usr/bin/env zdots-ruby
+# frozen_string_literal: true
+
+require_relative "../lib/zdots"
+require_relative "../lib/zdots/ai/pipeline"
+
+query = ARGV.join(" ").strip
+if query.empty?
+  warn "Usage: zdots-search <query>"
+  exit 1
+end
+
+result = Zdots::AI::Pipeline.embed(query)
+if result.failure?
+  warn "Failed to embed query: #{result.failure}"
+  exit 1
+end
+
+vector = result.value!
+vec_literal = "[#{vector.join(',')}]"
+
+# Retrieve top 5 matching knowledge chunks
+chunks = Zdots.db[:knowledge_chunks]
+  .join(:media_sources, id: :media_source_id)
+  .select(
+    Sequel[:knowledge_chunks][:content], 
+    Sequel[:knowledge_chunks][:start_sec],
+    Sequel[:media_sources][:title],
+    Sequel.lit("embedding <=> ?::vector AS distance", vec_literal)
+  )
+  .order(Sequel.lit("distance"))
+  .limit(5)
+  .all
+
+if chunks.empty?
+  puts "No knowledge chunks found. Are there any embedded transcripts?"
+  exit 0
+end
+
+puts "\n=== Semantic Search Results for: '#{query}' ==="
+chunks.each_with_index do |chunk, i|
+  puts "\n[#{i+1}] #{chunk[:title]} (Distance: #{chunk[:distance].round(4)})"
+  puts "    Timestamp: #{chunk[:start_sec] || 'unknown'}"
+  puts "    Excerpt: \"#{chunk[:content].strip.gsub(/\n/, ' ')[0..150]}...\""
+end
+puts
