@@ -1,7 +1,7 @@
 ---
 id: Z-203
 title: Restore /transcriptions UI + build pipeline→site transcript bridge
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-07-07 19:10'
 updated_date: '2026-07-07 19:57'
@@ -25,7 +25,7 @@ The /transcriptions operator UI (context-engine, bridges zdots pipeline models) 
 - [x] #1 Phase 1: /transcriptions restored to ~/my/context-engine and renders at my.localhost/transcriptions (index+show+add form)
 - [x] #2 Phase 1: known_terms/doubt-triage/distill/promote learning loop intact
 - [x] #3 Phase 2: pipeline distilled/promoted output can populate site _data/transcripts/*.yml in the site's schema
-- [ ] #4 Phase 2: site video list (video_assets.yml / transcript_retranscribe_queue.yml) can feed pipeline ingestion
+- [x] #4 Phase 2: site video list (video_assets.yml / transcript_retranscribe_queue.yml) can feed pipeline ingestion
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -42,7 +42,7 @@ GAP (a) FIXED: bin/stage_completed_transcripts.rb now prefers <id>.cleaned.txt (
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
