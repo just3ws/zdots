@@ -1,7 +1,7 @@
 ---
 id: Z-171
 title: 'Transcription pipeline: video timeline — highlight/clip/screenshot extraction'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-20 21:11'
 labels:
@@ -34,18 +34,18 @@ Depends on the DISTILLED stage (Z-168) and the retention store (provisioned in t
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 DISTILLED stage emits a timeline of moments (kind screenshot|snippet|clip|excerpt, time/range, reason, [mm:ss] grounding)
-- [ ] #2 Human curates the timeline before extraction — nothing is auto-extracted
-- [ ] #3 ffmpeg materializes only confirmed moments into the retention store (screenshot/clip/excerpt)
-- [ ] #4 TIMELINE tab on /transcriptions/:id shows moments linking back to their transcript span
-- [ ] #5 Retain audio always; video opt-in or re-fetch on demand
-- [ ] #6 Clinical-source extracts stay local, never shared/cloud (Z-163)
-- [ ] #7 Moments stored as a timeline JSON artifact + pipeline_runs stage — no media_moments table
+- [x] #1 DISTILLED stage emits a timeline of moments (kind screenshot|snippet|clip|excerpt, time/range, reason, [mm:ss] grounding)
+- [x] #2 Human curates the timeline before extraction — nothing is auto-extracted
+- [x] #3 ffmpeg materializes only confirmed moments into the retention store (screenshot/clip/excerpt)
+- [x] #4 TIMELINE tab on /transcriptions/:id shows moments linking back to their transcript span
+- [x] #5 Retain audio always; video opt-in or re-fetch on demand
+- [x] #6 Clinical-source extracts stay local, never shared/cloud (Z-163)
+- [x] #7 Moments stored as a timeline JSON artifact + pipeline_runs stage — no media_moments table
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
