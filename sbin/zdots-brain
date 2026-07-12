@@ -46,6 +46,7 @@ require_relative "../lib/zdots/jobs/distill"
 require_relative "../lib/zdots/jobs/transform"
 require_relative "../lib/zdots/jobs/embed"
 require_relative "../lib/zdots/jobs/docs_sync"
+require_relative "../lib/zdots/jobs/extract_moment"
 
 require "optparse"
 require "json"
