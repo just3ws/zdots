@@ -577,12 +577,19 @@ module Zdots
         end
 
         payload     = { "media_source_id" => media_source_id, "profile" => profile }
+        # Diarization speaker-count hint from the caller (site: interviewees + 1).
+        # Tenant data — passed through, never computed here. Consumed by ingest_media#diarize_audio.
+        ns = meta["num_speakers"]
+        payload["num_speakers"] = ns if ns.is_a?(Integer) && ns.positive?
+        pg_payload  = Sequel.pg_jsonb(payload)
         fingerprint = Digest::MD5.hexdigest("ingest_media#{uri}")
         ds = Zdots::Models::Job.dataset
-        # empty ON CONFLICT update is invalid SQL — bare insert_conflict = DO NOTHING (cf. cmd_enqueue)
-        ds = ds.insert_conflict(target: :fingerprint, update: RESET_JOB) if force
+        # empty ON CONFLICT update is invalid SQL — bare insert_conflict = DO NOTHING (cf. cmd_enqueue).
+        # --force also refreshes payload: the fingerprint is URI-only, so a re-enqueue would
+        # otherwise keep the previous payload and silently drop an updated num_speakers.
+        ds = ds.insert_conflict(target: :fingerprint, update: RESET_JOB.merge(payload: pg_payload)) if force
         ds = ds.insert_conflict(target: :fingerprint) unless force
-        job_id = ds.insert(type: "ingest_media", payload: Sequel.pg_jsonb(payload), priority: 10, fingerprint: fingerprint)
+        job_id = ds.insert(type: "ingest_media", payload: pg_payload, priority: 10, fingerprint: fingerprint)
         puts "zdots-ingest-media: job #{job_id ? "enqueued (#{job_id})" : 'already queued (idempotent)'}."
       end
     rescue JSON::ParserError

@@ -14,33 +14,38 @@ BRAIN="${ZDOTDIR}/sbin/zdots-brain"
 usage() {
   cat <<'EOF'
 Usage: zdots-ingest-media <url|file> [options]
-  --label <text>   Non-PHI display label (REQUIRED for local files)
-  --profile <p>    Whisper profile (default: standard)
-  --force          Reprocess an already-ingested source
-  -h, --help       Show this help
+  --label <text>          Non-PHI display label (REQUIRED for local files)
+  --profile <p>           Whisper profile (default: standard)
+  --num-speakers <n>      Diarization speaker-count hint (e.g. interviewees + 1)
+  --force                 Reprocess an already-ingested source
+  -h, --help              Show this help
 EOF
 }
 
-SRC="" LABEL="" PROFILE="standard" FORCE=""
+SRC="" LABEL="" PROFILE="standard" FORCE="" NUM_SPEAKERS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --label)   LABEL="$2"; shift 2 ;;
-    --profile) PROFILE="$2"; shift 2 ;;
-    --force)   FORCE="--force"; shift ;;
-    -h|--help) usage; exit 0 ;;
-    *)         SRC="$1"; shift ;;
+    --label)        LABEL="$2"; shift 2 ;;
+    --profile)      PROFILE="$2"; shift 2 ;;
+    --num-speakers) NUM_SPEAKERS="$2"; shift 2 ;;
+    --force)        FORCE="--force"; shift ;;
+    -h|--help)      usage; exit 0 ;;
+    *)              SRC="$1"; shift ;;
   esac
 done
 [[ -z "$SRC" ]] && { usage; exit 1; }
 
 captured_by="zdots-ingest-media/yt-dlp-$(yt-dlp --version 2>/dev/null || echo '?')"
 FORCE_BOOL=$([[ -n "$FORCE" ]] && echo true || echo false)
+# null when unset → zdots-brain omits the hint; a bare int otherwise.
+SPEAKERS_JSON=$([[ -n "$NUM_SPEAKERS" ]] && echo "$NUM_SPEAKERS" || echo null)
 
 if [[ "$SRC" =~ ^https?:// ]]; then
   # Public source — metadata only, no download. Public data, stored in full.
   info="$(yt-dlp --dump-json --skip-download "$SRC")"
   meta="$(jq -n --argjson i "$info" --arg cb "$captured_by" \
-              --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" '{
+              --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" \
+              --argjson speakers "$SPEAKERS_JSON" '{
     source_type:  ($i.extractor_key // "url" | ascii_downcase),
     source_uri:   $i.webpage_url,
     source_id:    $i.id,
@@ -48,6 +53,7 @@ if [[ "$SRC" =~ ^https?:// ]]; then
     duration_sec: $i.duration,
     profile:      $profile,
     force:        $force,
+    num_speakers: $speakers,
     source_snapshot: {
       captured_by:  $cb,
       channel:      ($i.channel // $i.uploader),
@@ -73,7 +79,8 @@ else
   probe="$(printf '%s' "$probe" | jq -c . 2>/dev/null || echo '{}')"
   meta="$(jq -n --arg sha "$sha" --arg label "$LABEL" --argjson bytes "$bytes" \
               --arg mtime "$mtime" --arg cb "$captured_by" --argjson p "$probe" \
-              --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" '{
+              --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" \
+              --argjson speakers "$SPEAKERS_JSON" '{
     source_type:  "local",
     source_uri:   ("local:sha256:" + $sha),
     source_id:    $sha,
@@ -81,6 +88,7 @@ else
     duration_sec: (($p.format.duration // "0") | tonumber | floor),
     profile:      $profile,
     force:        $force,
+    num_speakers: $speakers,
     source_snapshot: {
       captured_by:   $cb,
       sha256:        $sha,
