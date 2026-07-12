@@ -20,9 +20,9 @@ Automate the distribution of synthesized historical insights. When the `timeline
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Subtitle burn-in capability using FFmpeg to create highly readable, platform-optimized video clips.
-- [ ] #2 Integration with YouTube / external APIs to push new video content.
-- [ ] #3 Automated hook to trigger publishing workflows when an article is finalized.
+- [x] #1 Subtitle burn-in capability using FFmpeg to create highly readable, platform-optimized video clips.
+- [x] #2 Integration with YouTube / external APIs to push new video content.
+- [x] #3 Automated hook to trigger publishing workflows when an article is finalized.
 <!-- AC:END -->
 
 ## Implementation Notes

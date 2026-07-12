@@ -51,7 +51,8 @@ module Zdots
         { stage: "distilled", desc: "LLM knowledge briefing (local, or scoped cloud)" },
         { stage: "timeline",  desc: "extract curated timeline of moments (LLM)" },
         { stage: "diarized",  desc: "acoustic speaker turns (pyannote; opt-in ZDOTS_DIARIZE)" },
-        { stage: "embedded",  desc: "slice transcript into knowledge_chunks and embed (pgvector)" }
+        { stage: "embedded",  desc: "slice transcript into knowledge_chunks and embed (pgvector)" },
+        { stage: "published", desc: "auto-publish timeline clips to social APIs (FFmpeg)" }
       ].freeze
 
       def run
@@ -84,6 +85,7 @@ module Zdots
         when "timeline"  then stage("timeline")  { extract_timeline(@raw_txt) }
         when "diarized"  then run_diarized
         when "embedded"  then stage("embedded")  { embed_chunks(@raw_txt) }
+        when "published" then stage("published") { publish_clips }
         else raise "unknown pipeline stage: #{name.inspect}"
         end
       end
@@ -579,6 +581,14 @@ TIMELINE_REDUCE_TASK =
           end
         end
         apply_corrections(lines.join("\n")).first
+      end
+
+      def publish_clips
+        publisher_cmd = File.join(Zdots::ZDOTDIR, "bin", "zdots-publish")
+        out, status = Zdots.run_bounded(publisher_cmd, @mid)
+        warn out unless out.strip.empty?
+        raise "zdots-publish failed (exit #{status.exitstatus})" unless status.success?
+        { path: nil, params: { "published" => true } }
       end
     end
   end
