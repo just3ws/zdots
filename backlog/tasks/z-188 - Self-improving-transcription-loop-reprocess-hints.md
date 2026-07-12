@@ -1,10 +1,10 @@
 ---
 id: Z-188
 title: Self-improving transcription loop (reprocess + hints)
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-07-01 22:01'
-updated_date: '2026-07-08'
+updated_date: '2026-07-12'
 labels:
   - feature
   - agent-ready
@@ -46,7 +46,7 @@ Skip: new correction store (extend known_terms), WER harness, in-place raw edits
 - [x] #2 reprocess --transcribe clears the raw stage and re-transcribes primed by current known_terms (chunked reuses WAV)
 - [x] #3 source resolvable by id or uri/title substring with disambiguation
 - [x] #4 raw stays immutable; corrections remain the edit mechanism (edits-as-corrections)
-- [ ] #5 P2/P3 (hint capture, diarization hints) tracked as follow-on
+- [x] #5 P2/P3 (hint capture, diarization hints) tracked as follow-on
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -129,7 +129,7 @@ RECOMMENDATIONS:
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->

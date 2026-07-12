@@ -89,6 +89,7 @@ _known_gap() {
     imperial-date
     zdots-search
     zdots-draft
+    zdots-publish
   "
   for command in $commands; do
     [[ -z "$command" ]] && continue
@@ -202,7 +203,7 @@ _known_gap() {
     zmetrics zmorning zsvc ztask
     cc-home log-rotate zdots-config zdots-buffer-drain zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
     bench zdots-pattern zdots-issue imperial-date
-    zdots zdots-artifact zdots-debrief zdots-snapshot zdots-search zdots-draft
+    zdots zdots-artifact zdots-debrief zdots-snapshot zdots-search zdots-draft zdots-publish
   )
 
   local missing=()

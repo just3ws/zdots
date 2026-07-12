@@ -33,7 +33,7 @@ publisher = Zdots::AI::Publisher.new(source_id)
 
 # Try to find the timeline file
 source_dir = File.join(ENV["HOME"], ".local/state/zdots/ingest-sources", source_id)
-timeline_files = Dir.glob(File.join(source_dir, "*.timeline.json"))
+timeline_files = Dir.glob(File.join(source_dir, "*/*.timeline.json")) + Dir.glob(File.join(source_dir, "*.timeline.json"))
 
 if timeline_files.empty?
   warn "No timeline.json found for source #{source_id}. Has it passed the timeline stage?"
