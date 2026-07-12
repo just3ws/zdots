@@ -71,7 +71,7 @@ module Zdots
                        content_hash: Digest::SHA256.hexdigest(File.read(raw_path)),
                        finished_at: Sequel::CURRENT_TIMESTAMP)
 
-        Models::Job.dataset.insert_conflict(target: :fingerprint).insert(
+        Models::Job.dataset.insert_conflict(target: :fingerprint, update: { status: "pending", attempts: 0, error_message: nil, updated_at: Sequel::CURRENT_TIMESTAMP }).insert(
           type: "ingest_media",
           payload: Sequel.pg_jsonb({ "media_source_id" => mid, "profile" => profile }),
           priority: 10, fingerprint: Digest::MD5.hexdigest("ingest_media-resume-#{mid}")
@@ -97,26 +97,62 @@ module Zdots
         w.downcase.gsub(/[^a-z0-9']/, "")
       end
 
+      def self.levenshtein(a, b)
+        m = a.length
+        n = b.length
+        d = Array.new(m + 1) { Array.new(n + 1) }
+        (0..m).each { |i| d[i][0] = i }
+        (0..n).each { |j| d[0][j] = j }
+        (1..m).each do |i|
+          (1..n).each do |j|
+            cost = (a[i-1] == b[j-1] && !a[i-1].empty?) ? 0 : 1
+            d[i][j] = [d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + cost].min
+          end
+        end
+        d[m][n]
+      end
+
       # Fuzzy word-overlap splice: drop B's leading words that duplicate A's
       # trailing words at the window seam, so it reads once. Windows now decode
       # independently (--max-context 0), so the shared ~15s overlap can diverge on
       # punctuation/casing/filler — compare NORMALIZED tokens and accept the
-      # largest overlap that mismatches at most ~1 word per 10. Bias conservative:
-      # a missed overlap duplicates the seam (safe, visible); an over-eager match
-      # DROPS real words (data loss). Keeps A's casing.
+      # largest overlap using edit distance to tolerate insertions/deletions.
       def self.splice(a, b, max_words: 256)
         aw = a.split
         bw = b.split
         an = aw.map { |w| norm(w) }
         bn = bw.map { |w| norm(w) }
-        k_max = [aw.size, bw.size, max_words].min
-        best = 0
-        (1..k_max).each do |k|
-          matches = an.last(k).zip(bn.first(k)).count { |x, y| x == y && !x.empty? }
-          best = k if matches >= k - (k / 10)
+        a_prime = an.last(max_words)
+        b_prime = bn.first(max_words)
+        m = a_prime.size
+
+        best_match = nil
+
+        m.downto(1) do |k|
+          a_sub = a_prime.last(k)
+          min_j = [k - (k / 5), 1].max
+          max_j = [k + (k / 5), b_prime.length].min
+          
+          best_j_for_k = nil
+          best_dist_for_k = 9999
+          
+          (min_j..max_j).each do |j|
+            b_sub = b_prime[0...j]
+            dist = levenshtein(a_sub, b_sub)
+            if dist < best_dist_for_k
+              best_dist_for_k = dist
+              best_j_for_k = j
+            end
+          end
+          
+          if best_j_for_k && best_dist_for_k <= (k / 10)
+            best_match = best_j_for_k
+            break
+          end
         end
-        warn "splice: no overlap found at a long #{aw.size}+#{bw.size}-word seam" if best.zero? && aw.size > max_words && bw.size > max_words
-        (aw + bw.drop(best)).join(" ")
+
+        warn "splice: no overlap found at a long #{aw.size}+#{bw.size}-word seam" if best_match.nil? && aw.size > max_words && bw.size > max_words
+        (aw + bw.drop(best_match || 0)).join(" ")
       end
 
       private
