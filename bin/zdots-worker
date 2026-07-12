@@ -101,13 +101,19 @@ cmd_run() {
   export ZDOTS_DISTILL_CLOUD="${ZDOTS_DISTILL_CLOUD:-}"
   export ZDOTS_DISTILL_CLOUD_MODEL="${ZDOTS_DISTILL_CLOUD_MODEL:-}"
 
-  # The DB encryption key is needed by distill jobs (encrypted Lesson writes).
-  # Load it from Keychain at runtime so the secret never lands in the plist.
+  # Secrets the worker needs, loaded from Keychain at runtime so they never land
+  # in the plist: ZDOTS_DB_ENCRYPTION_KEY (distill jobs, encrypted Lesson writes)
+  # and HUGGINGFACE_TOKEN (ingest_media diarize stage, gated pyannote model).
   if [[ -f "$ZDOTDIR/lib/keychain.bash" ]]; then
     # shellcheck source=lib/keychain.bash
     source "$ZDOTDIR/lib/keychain.bash"
-    zdots_keychain_load ZDOTS_DB_ENCRYPTION_KEY 2>/dev/null || true
+    zdots_keychain_load ZDOTS_DB_ENCRYPTION_KEY HUGGINGFACE_TOKEN 2>/dev/null || true
   fi
+  # Keychain's HUGGINGFACE_TOKEN is authoritative; force both accepted names to
+  # it so a stale HF_TOKEN (e.g. a mock in .zdots.local) can't shadow the real
+  # one. Consumers vary: diarize takes either, ai_cloud_lane wants HF_TOKEN.
+  export HF_TOKEN="${HUGGINGFACE_TOKEN:-${HF_TOKEN:-}}"
+  export HUGGINGFACE_TOKEN="$HF_TOKEN"
 
   # Prefer `mise exec` so Ruby + gems resolve exactly as in the dev shell.
   if command -v mise >/dev/null 2>&1; then
