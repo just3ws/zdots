@@ -4,6 +4,23 @@
 require_relative "../lib/zdots"
 require_relative "../lib/zdots/ai/pipeline"
 
+if ARGV.include?("--help") || ARGV.include?("-h")
+  puts <<~HELP
+    Usage: zdots-search <query>
+
+    Semantic search across embedded transcript knowledge chunks using pgvector
+    cosine similarity. Returns the top 5 matching passages with source title,
+    timestamp, and distance score.
+
+    Requires a running local embedding server (llama-ctl start).
+
+    Examples:
+      zdots-search "What did DHH say about test-driven development?"
+      zdots-search "software craftsmanship movement history"
+  HELP
+  exit 0
+end
+
 query = ARGV.join(" ").strip
 if query.empty?
   warn "Usage: zdots-search <query>"
