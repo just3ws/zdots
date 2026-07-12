@@ -4,7 +4,7 @@ title: Add primer text / pre-context to media sources
 status: Done
 assignee: []
 created_date: '2026-07-09 08:41'
-updated_date: '2026-07-09 08:41'
+updated_date: '2026-07-12'
 labels:
   - transcription
   - context-engine
@@ -37,6 +37,8 @@ Add plain text (like song lyrics or specific domain context) when starting a tra
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
+- 2026-07-12: The pipeline was failing with `Broken pipe @ rb_sys_fail_on_write - <STDOUT>` during raw/distill stages when run under `launchd` via `zdots-worker`. This was due to `puts out` attempting to write megabytes of ffmpeg/whisper output to `STDOUT` at once, which broke the pipe that `launchd` uses to forward logs. Fixed by appending directly to the worker log file `File.open(..., "a") { |f| f.puts out }` inside `transcribe_raw`.
+- 2026-07-12: Ran a full end-to-end verification (`reprocess --transcribe`) on the DHH interview using the primer_text. Confirmed the text is properly passed through to both Whisper and Claude (`ai_distill`), successfully guiding the AI to extract insights of the back-and-forth interview exchange, even when the diarization mock returned single-speaker (`SPEAKER_00`).
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
