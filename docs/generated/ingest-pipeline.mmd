@@ -5,6 +5,8 @@ flowchart TD
   cleaned["cleaned — apply known_terms corrections"]
   cleaned --> distilled
   distilled["distilled — LLM knowledge briefing (local, or scoped cloud)"]
-  distilled --> diarized
+  distilled --> timeline
+  timeline["timeline — extract curated timeline of moments (LLM)"]
+  timeline --> diarized
   diarized["diarized — acoustic speaker turns (pyannote; opt-in ZDOTS_DIARIZE)"]
   diarized --> done([done])

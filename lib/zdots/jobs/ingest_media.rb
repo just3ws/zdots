@@ -49,6 +49,7 @@ module Zdots
         { stage: "raw",       desc: "transcribe audio (whisper; chunk fan-out if long)" },
         { stage: "cleaned",   desc: "apply known_terms corrections" },
         { stage: "distilled", desc: "LLM knowledge briefing (local, or scoped cloud)" },
+        { stage: "timeline",  desc: "extract curated timeline of moments (LLM)" },
         { stage: "diarized",  desc: "acoustic speaker turns (pyannote; opt-in ZDOTS_DIARIZE)" }
       ].freeze
 
@@ -79,6 +80,7 @@ module Zdots
         when "raw"       then @raw_txt = ensure_raw
         when "cleaned"   then stage("cleaned")   { clean_transcript(@raw_txt) }
         when "distilled" then stage("distilled") { distill(@raw_txt) }
+        when "timeline"  then stage("timeline")  { extract_timeline(@raw_txt) }
         when "diarized"  then run_diarized
         else raise "unknown pipeline stage: #{name.inspect}"
         end
@@ -353,6 +355,47 @@ module Zdots
       # fast, not hang the whole map/reduce. Env-overridable.
       DISTILL_LOCAL_TIMEOUT = (ENV["ZDOTS_DISTILL_LOCAL_TIMEOUT"] || 900).to_i
 
+      
+# Timeline stage: asks the LLM to extract a curated timeline of moments in JSON.
+def extract_timeline(raw_path)
+  source = timestamped_transcript(raw_path)
+  out = raw_path.sub(/\.txt\z/, ".timeline.json")
+  result, model = timeline_llm(source)
+  
+  json_str = result.gsub(/\A```(?:json)?\s*|\s*```\z/, "").strip
+  File.write(out, json_str)
+  { path: out, params: { "model" => model, "input_chars" => source.length } }
+end
+
+def timeline_llm(source)
+  if cloud_distill_eligible?
+    begin
+      res = cloud_distill(source, TIMELINE_TASK)
+      warn "ingest_media: timeline via cloud (#{DISTILL_CLOUD_MODEL}) source=#{@mid}"
+      return [res, "cloud:#{DISTILL_CLOUD_MODEL}"]
+    rescue StandardError => e
+      warn "ingest_media: cloud timeline failed (#{e.message}); falling back to local"
+    end
+  end
+  [ai_distill(source, TIMELINE_TASK, TIMELINE_MAP_TASK, TIMELINE_REDUCE_TASK), "local"]
+end
+
+TIMELINE_TASK =
+  "Extract a curated timeline of moments from this transcript. " \
+  "Output MUST be strict JSON in this exact format: " \
+  '{ "timeline": [ { "start_sec": 12, "end_sec": 45, "kind": "clip", "title": "...", "reason": "...", "quote": "..." } ] }'
+
+TIMELINE_MAP_TASK =
+  "Extract a curated timeline of moments from this transcript SEGMENT. " \
+  "Output MUST be strict JSON in this exact format: " \
+  '{ "timeline": [ { "start_sec": 12, "end_sec": 45, "kind": "clip", "title": "...", "reason": "...", "quote": "..." } ] }'
+
+TIMELINE_REDUCE_TASK =
+  "Below are timeline JSON snippets extracted from consecutive segments of ONE transcript. " \
+  "Merge them into a single timeline JSON. " \
+  "Output MUST be strict JSON in this exact format: " \
+  '{ "timeline": [ { "start_sec": 12, "end_sec": 45, "kind": "clip", "title": "...", "reason": "...", "quote": "..." } ] }'
+
       def distill_briefing(source)
         if cloud_distill_eligible?
           begin
@@ -392,9 +435,9 @@ module Zdots
       # `claude -p` call. The model (Haiku) has a large context, so the whole
       # transcript goes in one shot — no windowing. The task is the prompt arg;
       # the transcript is piped on stdin (the `cat file | claude -p` pattern).
-      def cloud_distill(source)
+      def cloud_distill(source, task_str = DISTILL_TASK)
         scrubbed = Zdots::AI::PhiScrubber.call(source)
-        task = DISTILL_TASK
+        task = task_str.dup
         task += "\n\nAdditional Context for this video: #{@src.primer_text}" if @src && @src.primer_text.to_s.strip != ""
         out, status = Zdots.run_bounded(
           claude_bin, "-p", "--model", DISTILL_CLOUD_MODEL,
@@ -434,24 +477,24 @@ module Zdots
       DISTILL_CEILING = (ENV["AIQ_MAX_BYTES"] || "32768").to_i
       DISTILL_WINDOW  = (DISTILL_CEILING * 0.85).to_i # headroom for normalization
 
-      def ai_distill(transcript)
+      def ai_distill(transcript, task_str = DISTILL_TASK, map_task_str = DISTILL_MAP_TASK, reduce_task_str = DISTILL_REDUCE_TASK)
         windows = split_for_distill(transcript)
-        task = DISTILL_TASK
+        task = task_str.dup
         task += "\n\nAdditional Context for this video: #{@src.primer_text}" if @src && @src.primer_text.to_s.strip != ""
         return distill_call(task, transcript) if windows.size <= 1
 
-        map_task = DISTILL_MAP_TASK
+        map_task = map_task_str.dup
         map_task += "\n\nAdditional Context for this video: #{@src.primer_text}" if @src && @src.primer_text.to_s.strip != ""
         partials = windows.map { |w| distill_call(map_task, w) }
-        reduce_partials(partials.join("\n\n"))
+        reduce_partials(partials.join("\n\n"), reduce_task_str)
       end
 
-      def reduce_partials(text)
+      def reduce_partials(text, reduce_task_str = DISTILL_REDUCE_TASK)
         windows = split_for_distill(text)
-        return distill_call(DISTILL_REDUCE_TASK, text) if windows.size <= 1
+        return distill_call(reduce_task_str, text) if windows.size <= 1
 
-        folded = windows.map { |w| distill_call(DISTILL_REDUCE_TASK, w) }
-        reduce_partials(folded.join("\n\n"))
+        folded = windows.map { |w| distill_call(reduce_task_str, w) }
+        reduce_partials(folded.join("\n\n"), reduce_task_str)
       end
 
       # Split into <DISTILL_WINDOW-byte windows on whole units — lines when the text
