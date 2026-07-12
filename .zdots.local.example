@@ -95,6 +95,16 @@ ZDOTS_AI_MODE=local
 # See the POSIX ERE + YAML format already used in that file.
 
 # ---------------------------------------------------------------------------
+# Speaker diarization (transcription pipeline — opt-in, home context)
+# Enables the ingest_media "diarized" stage: pyannote acoustic speaker turns
+# over each transcript. Off by default.
+# Requires HUGGINGFACE_TOKEN in Keychain (read-only) — see .zdots.secrets.example
+# for how to register the token and accept the gated pyannote model licenses.
+# The worker loads that token from Keychain at runtime; nothing secret goes here.
+# ---------------------------------------------------------------------------
+# ZDOTS_DIARIZE=1
+
+# ---------------------------------------------------------------------------
 # Work context overrides (only relevant when ZDOTS_CONTEXT=work)
 # Keep corporate identity and network config here, not in the shared repo.
 # ---------------------------------------------------------------------------
