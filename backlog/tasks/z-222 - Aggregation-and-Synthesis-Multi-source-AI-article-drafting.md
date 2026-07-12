@@ -20,7 +20,7 @@ Build aggregation logic that groups semantic clusters from the `knowledge_chunks
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Implemented a grouping/aggregation mechanism over `knowledge_chunks`.
+- [x] #1 Implemented a grouping/aggregation mechanism over `knowledge_chunks`.
 - [ ] #2 LLM agent successfully pulls quotes from at least two different historical videos in response to a single prompt.
 - [ ] #3 The generated article seamlessly embeds the video snippets extracted during the `timeline` stage.
 <!-- AC:END -->
