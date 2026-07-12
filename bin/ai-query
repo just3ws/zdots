@@ -513,7 +513,7 @@ $OPT_DEBUG && printf 'ai-query: debug: system_bytes=%s user_bytes=%s\n' \
 # ---------------------------------------------------------------------------
 # Health check (fast fail — do not hang waiting for an unavailable server)
 # ---------------------------------------------------------------------------
-if ! curl -sf -m 3 --connect-timeout 2 "${ENDPOINT}/health" >/dev/null 2>&1; then
+if ! curl -sf -m 60 --connect-timeout 2 "${ENDPOINT}/health" >/dev/null 2>&1; then
   printf 'ai-query: server not responding at %s\n' "$ENDPOINT" >&2
   printf 'ai-query: start with: llama-ctl start\n' >&2
   exit "${AIQ_TRANSPORT}"
