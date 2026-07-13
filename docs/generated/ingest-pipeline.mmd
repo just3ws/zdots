@@ -3,7 +3,9 @@ flowchart TD
   raw["raw — transcribe audio (whisper; chunk fan-out if long)"]
   raw --> cleaned
   cleaned["cleaned — apply known_terms corrections"]
-  cleaned --> distilled
+  cleaned --> boundaries
+  boundaries["boundaries — mark theme-song intro/outro + interview start/end (timestamped ASR)"]
+  boundaries --> distilled
   distilled["distilled — LLM knowledge briefing (local, or scoped cloud)"]
   distilled --> timeline
   timeline["timeline — extract curated timeline of moments (LLM)"]
