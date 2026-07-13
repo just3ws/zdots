@@ -1,0 +1,44 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# bin/zdots-backfill-boundaries — write .boundaries.json for existing transcripts
+# WITHOUT re-transcribing. Same detector the ingest_media `boundaries` stage uses
+# (lib/zdots/transcript_boundaries.rb), run over whole-file whisper JSONs already
+# on disk. Idempotent. Dry-run by default; --apply writes sidecars.
+#
+#   bin/zdots-backfill-boundaries            # dry-run: show detected boundaries
+#   bin/zdots-backfill-boundaries --apply    # write .boundaries.json sidecars
+
+require "json"
+require_relative "../lib/zdots/transcript_boundaries"
+
+ROOT  = File.expand_path("~/.local/state/zdots/ingest-sources")
+apply = ARGV.include?("--apply")
+
+jingles = Zdots::TranscriptBoundaries.load_jingles
+# Whole-file whisper JSONs only — skip chunk_*.json (no global offsets) and the
+# sidecars we or other stages emit.
+jsons = Dir.glob(File.join(ROOT, "**", "*.json")).reject do |f|
+  b = File.basename(f)
+  b.start_with?("chunk_") ||
+    %w[.info.json .timeline.json .boundaries.json diarization.json].any? { |suf| b.end_with?(suf) }
+end
+
+written = jingle = plain = 0
+jsons.sort.each do |json|
+  segs = Zdots::TranscriptBoundaries.segments_from_whisper(json)
+  next if segs.empty?
+  rec = Zdots::TranscriptBoundaries.detect(segs, nil, jingles)
+  rec["has_lyrics"] ? (jingle += 1) : (plain += 1)
+  tag = rec["has_lyrics"] ? "JINGLE" : "plain "
+  src = json.sub("#{ROOT}/", "").split("/").first
+  puts format("  %-6s start=%-6s end=%-7s  %s", tag, rec["interview_start_sec"], rec["interview_end_sec"], src)
+  if apply
+    File.write(json.sub(/\.json\z/, ".boundaries.json"), JSON.pretty_generate(rec))
+    written += 1
+  end
+end
+
+puts
+puts "#{jsons.size} transcripts scanned — #{jingle} with theme-song lyrics, #{plain} plain"
+puts(apply ? "wrote #{written} .boundaries.json sidecars" : "dry-run — re-run with --apply to write sidecars")
