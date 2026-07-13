@@ -1,0 +1,108 @@
+.Dd July 13, 2026
+.Dt YT-TRANSCRIBE 1
+.Os zdots
+.Sh NAME
+.Nm yt-transcribe
+.Nd high-accuracy YouTube / audio transcription pipeline
+.Sh SYNOPSIS
+.Nm
+.Ar url
+.Op Ar options
+.Nm
+.Fl -from-wav Ar wav
+.Fl -output-base Ar base
+.Op Ar options
+.Sh DESCRIPTION
+.Nm
+(invoked as
+.Ic ztranscribe )
+downloads the best audio and metadata for a YouTube
+.Ar url ,
+converts it to 16 kHz mono, and transcribes it with whisper.cpp into several
+formats under
+.Pa ~/Downloads/transcripts/<video_id>/ .
+The Z-169
+.Fl -from-wav
+mode skips the download and transcribes a window of an already-prepared 16 kHz
+wav instead.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -keep-media
+Keep the original downloaded
+.Pa .wav
+(removed by default).
+.It Fl -diarize
+Identify speakers (requires
+.Ev HUGGINGFACE_TOKEN ) .
+.It Fl -summarize
+Generate an AI summary and cleanup (requires the local llama-server).
+.It Fl -json-full
+Emit token-level confidence
+.Pq Fl -output-json-full
+instead of segment-only JSON.
+.It Fl -out-dir Ar dir
+Override the retention directory (default
+.Pa ~/Downloads/transcripts ) .
+.It Fl -prompt Ar text
+Bias whisper toward known vocabulary.
+Also disables prior-text conditioning suppression for that run.
+.It Fl -profile Ar p
+Whisper profile:
+.Ar max-accuracy
+(default),
+.Ar standard ,
+or
+.Ar light .
+.It Fl -prep-only
+Download and convert to a 16 kHz wav, report its path and duration, and stop
+before whisper (feeds windowed chunk jobs).
+.It Fl -from-wav Ar wav
+Transcribe a window of an existing 16 kHz wav; skips download and conversion.
+Requires
+.Fl -output-base .
+.It Fl -offset-sec Ar n
+Window start, in seconds, for
+.Fl -from-wav .
+.It Fl -window-sec Ar n
+Window length, in seconds, for
+.Fl -from-wav .
+.It Fl -output-base Ar base
+Whisper output-file base; required with
+.Fl -from-wav .
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width HUGGINGFACE_TOKEN
+.It Ev ZDOTDIR
+Repository root; locates
+.Xr whisper-ctl 1 ,
+.Xr diarize 1 ,
+and
+.Xr ai-query 1 .
+.It Ev HUGGINGFACE_TOKEN
+Required for
+.Fl -diarize .
+.It Ev ZDOTS_WHISPER_PROFILE , Ev ZDOTS_WHISPER_MODELS_DIR
+Override the active whisper profile and model directory.
+.El
+.Sh DIAGNOSTICS
+Any unrecognized
+.Fl -flag
+is rejected: the pipeline prints
+.Ql yt-transcribe: error: unknown flag: <flag> ,
+emits usage, and exits
+.Va 1 .
+This prevents a mistyped option (for example
+.Fl -offset
+in place of
+.Fl -offset-sec )
+from being silently swallowed as the positional
+.Ar url
+and running with the flag ignored.
+A bare, non-flag argument is still accepted as the
+.Ar url .
+.Sh SEE ALSO
+.Xr ai-query 1 ,
+.Xr diarize 1 ,
+.Xr whisper-ctl 1
