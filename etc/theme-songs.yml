@@ -1,0 +1,26 @@
+# Theme songs / jingles that bookend some recordings (intro/outro).
+#
+# CAPTURE + DETECT in one place: `detect_phrases` (distinctive, low-false-positive
+# substrings) identify the jingle in timestamped ASR; `lyrics` preserves the
+# canonical text as a historical record so it is never lost when a transcript's
+# intro/outro is marked for editing. Anchor on the DISTINCTIVE phrase, not on
+# position — ASR has [Music] tags and repetition loops that fool positional matching.
+#
+# Used by lib/zdots/transcript_boundaries.rb (ingest_media `boundaries` stage +
+# the backfill pass). Add a jingle here → both callers pick it up.
+
+- id: ugtastic
+  title: UGtastic Theme
+  performed_by: hired singer-songwriter   # historical note; fill in the name
+  has_lyrics: true
+  # Distinctive phrases — must not occur in ordinary interview speech.
+  detect_phrases:
+    - "plethora of information"
+    - "user groups with lots to say"
+    - "sharing great ideas in the tech community"
+  # The jingle's closing words; marks the tail of an intro block.
+  end_anchor: "ugtastic.com"
+  lyrics: |-
+    User groups with lots to say, interviews and more, no way!
+    Sharing great ideas in the tech community. Fascinating conversations,
+    a plethora of information. Find out for yourself today at ugtastic.com.

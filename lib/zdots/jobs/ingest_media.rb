@@ -48,6 +48,7 @@ module Zdots
       PIPELINE = [
         { stage: "raw",       desc: "transcribe audio (whisper; chunk fan-out if long)" },
         { stage: "cleaned",   desc: "apply known_terms corrections" },
+        { stage: "boundaries", desc: "mark theme-song intro/outro + interview start/end (timestamped ASR)" },
         { stage: "distilled", desc: "LLM knowledge briefing (local, or scoped cloud)" },
         { stage: "timeline",  desc: "extract curated timeline of moments (LLM)" },
         { stage: "diarized",  desc: "acoustic speaker turns (pyannote; opt-in ZDOTS_DIARIZE)" },
@@ -81,6 +82,7 @@ module Zdots
         case name
         when "raw"       then @raw_txt = ensure_raw
         when "cleaned"   then stage("cleaned")   { clean_transcript(@raw_txt) }
+        when "boundaries" then run_boundaries
         when "distilled" then stage("distilled") { distill(@raw_txt) }
         when "timeline"  then stage("timeline")  { extract_timeline(@raw_txt) }
         when "diarized"  then run_diarized
@@ -102,6 +104,30 @@ module Zdots
       rescue StandardError => e
         warn "ingest_media: diarize stage failed (#{e.message}); continuing"
         nil
+      end
+
+      # Boundaries: mark theme-song intro/outro and the real interview span from
+      # the timestamped whisper JSON (the --json-full sibling of the raw txt).
+      # Best-effort text analysis — no audio, no external toolchain; skips quietly
+      # when the whole-file JSON is absent (chunked long sources) or a jingle
+      # config is unavailable. Non-destructive: annotates, never edits the transcript.
+      def run_boundaries
+        json = @raw_txt&.sub(/\.txt\z/, ".json")
+        return nil unless json && File.exist?(json)
+        stage("boundaries") { detect_boundaries(json) }
+      rescue StandardError => e
+        warn "ingest_media: boundaries stage failed (#{e.message}); continuing"
+        nil
+      end
+
+      def detect_boundaries(json)
+        require_relative "../transcript_boundaries"
+        segs    = TranscriptBoundaries.segments_from_whisper(json)
+        jingles = TranscriptBoundaries.load_jingles
+        rec     = TranscriptBoundaries.detect(segs, @src.duration_sec, jingles)
+        out     = json.sub(/\.json\z/, ".boundaries.json")
+        File.write(out, JSON.pretty_generate(rec))
+        { path: out, params: rec }
       end
 
       # Mermaid projection of PIPELINE — the process description, generated FROM
