@@ -10,6 +10,32 @@ The pipeline is designed as an "Opaque Seam" recipe. It orchestrates several spe
 4. **Context Capture**: Generates 5 formats (`.txt`, `.json`, `.srt`, `.vtt`, `.csv`) to maximize downstream utility (e.g., RAG, search, subtitling).
 5. **Diarization**: Optional `pyannote.audio` integration (via `bin/diarize`) for speaker identification.
 
+### `ingest_media` pipeline stages (the queue path)
+The durable queue path (`ingest_media`, `lib/zdots/jobs/ingest_media.rb`) walks a
+declared `PIPELINE` — add a stage there and both the executor and the Mermaid
+diagram (`docs/generated/ingest-pipeline.mmd`, drift-tested) follow. Stages:
+`raw → cleaned → boundaries → distilled → timeline → diarized → embedded → published`.
+
+- **boundaries**: marks theme-song intro/outro + the real interview span from the
+  timestamped whisper JSON (writes `<id>.boundaries.json`). Non-destructive —
+  annotates; never edits the transcript. Jingle registry: `etc/theme-songs.yml`
+  (detect phrases + canonical lyrics). Detector: `lib/zdots/transcript_boundaries.rb`
+  (shared by the stage and `bin/zdots-backfill-boundaries`, a re-transcription-free
+  backfill over existing JSONs).
+- **diarized** (opt-in `ZDOTS_DIARIZE=1`): the speaker-count hint comes from the
+  caller as `payload["num_speakers"]` (site passes `interviewees + 1`), applied as
+  a ±1 bracket, not an exact count. **Env gotcha:** the launchd worker only sees
+  `HUGGINGFACE_TOKEN` because `bin/zdots-worker`'s `cmd_run` loads it from Keychain
+  — `env.sh` only covers interactive shells. A stale `HF_TOKEN=mock` triggers
+  `bin/diarize`'s mock mode (degenerate 1-speaker sidecar), so `cmd_run` forces
+  both names to the real Keychain value.
+
+**Sanity gate (the virtuous loop):** the site's `bin/lib/transcript_sanity.rb` is
+one shared definition of "is this output sane" — loop scoring + diarization sanity
+(rejects `engine=*mock*`, empty segments, a lone segment spanning the whole file).
+Both `report_transcript_loops.rb` (detect) and `stage_completed_transcripts.rb`
+(promote) call it, so "flagged as looping" and "refused promotion" can't drift.
+
 ## Usage
 Invoked via the `ztranscribe` alias:
 
