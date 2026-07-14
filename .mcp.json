@@ -33,8 +33,14 @@
     },
     "sequential-thinking": {
       "type": "stdio",
-      "command": "${HOME}/.local/share/mise/installs/node/26.0.0/bin/mcp-server-sequential-thinking",
-      "env": {}
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {
+        "PATH": "${HOME}/.config/zsh/bin:${HOME}/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+      }
     },
     "o2": {
       "type": "stdio",
