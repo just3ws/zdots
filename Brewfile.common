@@ -57,6 +57,7 @@ brew "eza"
 brew "fabric-ai"
 brew "fd"
 brew "fdupes"
+brew "ffmpeg"       # yt-transcribe: 16k mono conversion + ffprobe duration (was transitive via openai-whisper)
 brew "fish"
 brew "fswatch"
 brew "fx"

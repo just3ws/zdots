@@ -98,6 +98,22 @@ brew "terraform"
 # State should live in a remote backend (S3 + DynamoDB lock), never locally.
 
 # ---------------------------------------------------------------------------
+# Kubernetes — work cluster tooling
+# ---------------------------------------------------------------------------
+# Work-only: heavy day-to-day k8s here. The core three (kubectl/k9s/kubectx)
+# also live in Brewfile.home; work adds the workflow + EKS layer. All CLI/local
+# — they talk to whatever kubeconfig context is active (aws-vault + eksctl for
+# EKS auth), so credential discipline is the AWS section's, applied to clusters.
+
+brew "kubernetes-cli"   # kubectl — the base client
+brew "k9s"              # terminal UI for cluster navigation/triage
+brew "kubectx"          # fast context + namespace switching (ships kubens)
+brew "helm"             # chart install/upgrade/rollback
+brew "stern"            # multi-pod, multi-container log tailing
+brew "kustomize"        # overlay-based manifest management
+brew "eksctl"           # AWS EKS cluster lifecycle (pairs with aws-vault exec)
+
+# ---------------------------------------------------------------------------
 # Pending work approval — uncomment as cleared
 # ---------------------------------------------------------------------------
 # Cloud AI desktop apps (the service IS the cloud):
