@@ -12,6 +12,20 @@
 require "json"
 require_relative "../lib/zdots/transcript_boundaries"
 
+if ARGV.include?("--help") || ARGV.include?("-h")
+  puts <<~USAGE
+    Usage: zdots-backfill-boundaries [--apply]
+
+    Write .boundaries.json for existing transcripts WITHOUT re-transcribing,
+    using the same detector as the ingest_media `boundaries` stage. Idempotent.
+
+      (no args)    dry-run: show detected boundaries
+      --apply      write .boundaries.json sidecars
+      -h, --help   show this help
+  USAGE
+  exit 0
+end
+
 ROOT  = File.expand_path("~/.local/state/zdots/ingest-sources")
 apply = ARGV.include?("--apply")
 
