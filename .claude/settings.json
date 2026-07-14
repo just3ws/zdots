@@ -148,7 +148,9 @@
       "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git diff:*)",
       "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git rev-list:*)",
       "Bash(zdots doctor:*)",
-      "Bash(log show:*)"
+      "Bash(log show:*)",
+      "Bash(mandoc:*)",
+      "Bash(zdots-phi-scrub:*)"
     ]
   },
   "hooks": {
