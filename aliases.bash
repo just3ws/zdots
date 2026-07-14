@@ -118,6 +118,10 @@ alias path='echo $PATH | tr ":" "\n"'
 #   idate --decode 0452026.M3   decode back to Gregorian (±1d)
 alias idate='imperial-date'
 
+# Recipes (not on PATH; referenced by full path).
+#   ztranscribe <url> | --from-wav <wav> --output-base <base>   (man yt-transcribe)
+alias ztranscribe='${ZDOTDIR}/recipes/yt-transcribe'
+
 # Utility Functions
 ff() { find "${2:-.}" -type f -iname "*$1*"; }
 
