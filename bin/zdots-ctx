@@ -20,6 +20,7 @@
 #   enqueue [--force] <type> <payload_json> [priority]
 #   requeue <job_id>
 #   cancel <job_id>   Cancel a pending/failed job (marks dead; not retried)
+#   concept <slug> | concept resolve <word>  Look up / manage the concept registry
 #   reprocess <source> [--transcribe]  Re-run an ingested source (stages, or +whisper)
 #   jobs      List pending and recent jobs
 #   result <job_id>  Fetch a completed job's structured result (JSON)
@@ -90,7 +91,9 @@ Knowledge Layer Interface:
   sync-history [--dry-run] [db-path]  Sync SQLite analytics → PostgreSQL
   enqueue [--force] <type> <payload_json> [priority]
   requeue <job_id>
+  result <job_id>  Fetch a completed job's structured result (JSON)
   cancel <job_id>  Cancel a pending/failed job (marks it dead; not retried)
+  concept <slug> | concept resolve <word>  Look up / manage the concept registry
   reprocess <source> [--transcribe]  Re-run an ingested source: default re-runs
             cleaned+distilled from the existing transcript (applies current
             known_terms; no re-download). --transcribe also re-runs whisper

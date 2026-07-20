@@ -18,14 +18,25 @@ if colima status >/dev/null 2>&1; then
   log "Colima already running"
 else
   log "Starting Colima..."
+  # Kubernetes-by-default for local diagnostics work (Colima bundles k3s, a real
+  # CNCF-conformant distro → prod-parity + kubectl idioms). Toggle off with
+  # ZDOTS_COLIMA_KUBERNETES=0 in .zdots.local. IMPORTANT: --kubernetes runs k3s
+  # ALONGSIDE the docker runtime — the Docker socket stays available, so the
+  # compose / bear-* workflow and the OTel observability harness are NOT stranded.
+  # Resource defaults are k8s-tuned (app + MariaDB/Mongo/memcached + k3s); tune
+  # in .zdots.local to host capacity. Decoupled from ZDOTS_CI_* (CI has its own).
+  _k8s_args=()
+  [ "${ZDOTS_COLIMA_KUBERNETES:-1}" = "1" ] && _k8s_args+=(--kubernetes)
   colima start \
-    --cpu "${ZDOTS_CI_CPU:-2}" \
-    --memory "${ZDOTS_CI_MEMORY:-4}" \
-    --disk "${ZDOTS_CI_DISK:-60}" 2>>"$LOG" || {
+    --cpu "${ZDOTS_COLIMA_CPU:-4}" \
+    --memory "${ZDOTS_COLIMA_MEMORY:-8}" \
+    --disk "${ZDOTS_COLIMA_DISK:-60}" \
+    "${_k8s_args[@]}" 2>>"$LOG" || {
     log "ERROR: colima start failed (exit $?)"
     exit 1
   }
-  log "Colima started"
+  unset _k8s_args
+  log "Colima started (kubernetes=${ZDOTS_COLIMA_KUBERNETES:-1}, cpu=${ZDOTS_COLIMA_CPU:-4}, mem=${ZDOTS_COLIMA_MEMORY:-8})"
 fi
 
 # 2. Wait for Docker socket to be ready (up to 30s).

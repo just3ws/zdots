@@ -269,7 +269,7 @@ This is read-only and delegates to `adots-my doctor`. The current active shape i
 ~/my/
 ├── .archive/         # Inactive unmapped material, original paths preserved
 ├── config/           # Source registry and local policy
-├── context-engine/   # my.local operator console (dashboard, health, docs) + context API
+├── context-engine/   # my.localhost operator console (dashboard, health, docs) + context API
 ├── knowledge/        # Curated lessons, methodologies, references
 └── vaults/
     ├── personal/     # Private Obsidian vault

@@ -549,17 +549,17 @@ cmd_check() {
       _chk_pass "nginx TLS certs  present ($cert_file)"
     else
       _chk_warn "nginx TLS certs  missing"
-      _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.localhost embed.localhost o2.localhost zdots.localhost my.local dev.my.local localhost 127.0.0.1"
+      _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.localhost embed.localhost o2.localhost zdots.localhost gemstash.localhost my.localhost localhost 127.0.0.1"
     fi
   else
     _chk_warn "mkcert  not installed"
     _fix "brew install mkcert && mkcert -install"
   fi
 
-  # No /etc/hosts check for llama/embed/o2/zdots: they're .localhost names now
-  # (decision-011) — RFC 6761 hard-wires every resolver to loopback, so there
-  # is nothing to verify here. (my.local/dev.my.local are ~/my-owned and out
-  # of zdots' concern.)
+  # No /etc/hosts check: every vhost is a .localhost name now (decision-011/
+  # Z-205) — RFC 6761 hard-wires every resolver to loopback, so there is
+  # nothing to verify here. (my.localhost is ~/my-owned, [redacted].localhost is
+  # [redacted]-owned; both out of zdots' concern.)
 
   # ── AI router structural check (fast — no model call) ─────────────────────
   printf '\nAI router\n'

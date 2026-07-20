@@ -1,0 +1,24 @@
+.Dd July 15, 2026
+.Dt ZDOTS-SEARCH 1
+.Os zdots
+.Sh NAME
+.Nm zdots-search
+.Nd semantic search over embedded transcript knowledge chunks
+.Sh SYNOPSIS
+.Nm
+.Ar query
+.Sh DESCRIPTION
+.Nm
+searches the knowledge_chunks store by pgvector cosine similarity and
+returns the top 5 matching passages with source title, timestamp, and
+distance score.
+Requires the local embedding server
+.Pq Xr llama-ctl 8 .
+.Sh EXAMPLES
+.Dl zdots-search \(dqWhat did DHH say about test-driven development?\(dq
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr zdots-ctx 1 ,
+.Xr llama-ctl 8 ,
+.Xr zdots-ai-stack 7

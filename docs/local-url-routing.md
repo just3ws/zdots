@@ -3,8 +3,8 @@
 nginx fronts the local services behind friendly HTTPS URLs (mkcert TLS).
 Loopback-only zdots vhosts use the `*.localhost` TLD (decision-011: RFC 6761 —
 every resolver hard-wires it to loopback, no `/etc/hosts` entry needed, and no
-mDNS/Bonjour name-collision exposure the way `.local` carries). `my.local` /
-`my.localhost` are `~/my`-owned and follow the same pattern independently.
+mDNS/Bonjour name-collision exposure the way `.local` carries). `my.localhost`
+is `~/my`-owned and follows the same pattern independently.
 It is a **root LaunchDaemon** in launchd's *system* domain because it binds the
 privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launchctl`,
 **never** `sudo brew services`, see `bin/nginx-repair`), and wired into `zsvc`.
@@ -71,9 +71,9 @@ nginx-regen-certs
 touch ~/my/context-engine/tmp/restart.txt
 ```
 
-> Resolution note: `*.local` names (`my.local`) resolve via `/etc/hosts`
-> (verified: `ping my.local`). `*.localhost` names (`llama.localhost`, etc.)
-> need no entry at all — every resolver hard-wires them to loopback per RFC
+> Resolution note: every vhost is a `*.localhost` name since the Z-205 cutover
+> (2026-07-11); the legacy `*.local` `/etc/hosts` pins are pruned. `.localhost`
+> needs no entry at all — every resolver hard-wires it to loopback per RFC
 > 6761 (verified: `dscacheutil -q host -a name llama.localhost` → 127.0.0.1
 > with zero `/etc/hosts` configuration; see decision-011). A `000` from `curl`
 > in a sandboxed/non-interactive context is a resolver artifact there, not a
