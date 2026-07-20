@@ -1,6 +1,6 @@
 ---
 name: my-ingest-principles
-description: Feed contract markdown into the context-engine principle pipeline at my.local. Use when adding guidance/policy the context engine should resolve, when /api/v1/context/query returns insufficient_context for things you know are documented, or when the dashboard principle-rule count is low/zero.
+description: Feed contract markdown into the context-engine principle pipeline at my.localhost. Use when adding guidance/policy the context engine should resolve, when /api/v1/context/query returns insufficient_context for things you know are documented, or when the dashboard principle-rule count is low/zero.
 ---
 
 # /my-ingest-principles — feed the context engine
@@ -45,7 +45,7 @@ Judgment is parsed from the leading verb: `must/always`→required, `should/pref
 # 1. Validate format BEFORE ingest — MUST be strict:true or it catches nothing
 #    (strict:false always returns valid, even for missing keys/sections)
 C=$(cat ~/my/context/intake/inbox/FILE.md)
-curl -sk -X POST https://my.local/api/v1/markdown/validate \
+curl -sk -X POST https://my.localhost/api/v1/markdown/validate \
   -H "Content-Type: application/json" \
   -d "{\"markdown\": $(printf '%s' "$C" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))'), \"strict\": true}" \
   | python3 -m json.tool   # status:"valid", errors:[] → safe to ingest
@@ -57,7 +57,7 @@ cd ~/my/context-engine && RAILS_ENV=production bundle exec rails context:ingest_
 # 3. Verify rules landed + query resolves
 PGPASSWORD="$(security find-generic-password -s zdots -a ZDOTS_RO_PASSWORD -w)" \
   psql -U zdots_ro my -tAc "SELECT count(*), count(*) FILTER (WHERE triage_status='conflict') FROM markdown_principle_rules;"
-curl -sk -X POST https://my.local/api/v1/context/query \
+curl -sk -X POST https://my.localhost/api/v1/context/query \
   -H "Content-Type: application/json" \
   -d '{"question":"<something your principles cover>","response_profile":"standard"}' | python3 -m json.tool
 ```

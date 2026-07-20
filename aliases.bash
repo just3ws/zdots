@@ -33,7 +33,8 @@ if command -v btm >/dev/null 2>&1; then alias top='btm'; alias htop='btm'; fi
 if command -v hyperfine >/dev/null 2>&1; then alias bench='hyperfine'; fi
 
 # Navigation & UI
-alias k='clear'
+# k reassigned to kubectl (k8s native ergonomics, conf.d/71-shell-tools.zsh); use Ctrl-L / `clear` to clear.
+# alias k='clear'
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'

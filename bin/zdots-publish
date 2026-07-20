@@ -44,7 +44,9 @@ timeline_file = timeline_files.first
 puts "==> Reading timeline from #{timeline_file}"
 
 timeline_data = begin
-  JSON.parse(File.read(timeline_file))
+  # Force UTF-8: the launchd worker env has no LANG, so default external
+  # encoding is US-ASCII and UTF-8 transcript content raises InvalidByteSequenceError.
+  JSON.parse(File.read(timeline_file, encoding: "UTF-8"))
 rescue JSON::ParserError => e
   warn "Failed to parse timeline JSON: #{e.message}"
   exit 1

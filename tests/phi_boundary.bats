@@ -63,6 +63,23 @@ _wait_for_unified_log_marker() {
   [[ "$output" == "SELECT count(*) FROM users" ]]
 }
 
+@test "phi_scrubber (ruby adapter): UTF-8 survives a locale-less environment (Z-180)" {
+  # launchd children get no locale env, so default_external is US-ASCII —
+  # the adapter must retag capture2 output as UTF-8, not pass bytes through.
+  # \u escapes keep the -e script ASCII-clean so it parses under LC_CTYPE=C.
+  run env -u LANG -u LC_ALL LC_CTYPE=C "$REPO_ROOT/bin/zdots-ruby" -e '
+    require "'"$REPO_ROOT"'/lib/zdots/ai/phi_scrubber"
+    sample = "na\u00efve caf\u00e9 \u2014 \u2713 \u00fcber"
+    out = Zdots::AI::PhiScrubber.call(sample)
+    raise "wrong encoding: #{out.encoding}" unless out.encoding == Encoding::UTF_8
+    raise "invalid encoding" unless out.valid_encoding?
+    raise "content mangled: #{out.inspect}" unless out.include?("caf\u00e9")
+    puts "ok"
+  '
+  [ "$status" -eq 0 ]
+  [[ "$output" == *ok* ]]
+}
+
 @test "phi_scrubber: redacts multiple patterns in one pass" {
   run bash -c "printf 'SSN 123-45-6789 MRN: 99 DOB: 01/01/2000' | zdots-phi-scrub"
   [ "$status" -eq 0 ]

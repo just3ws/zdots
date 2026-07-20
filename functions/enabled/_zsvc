@@ -38,6 +38,7 @@ _zsvc() {
     'start:start a service'
     'stop:stop a service'
     'restart:restart a service'
+    'wait:block until a service is healthy (--timeout N, default 30s)'
     'reload:reload a service in place'
     'status:full status from the service ctl script'
     'health:health probe'
@@ -55,7 +56,7 @@ _zsvc() {
     cmd) _describe -t commands 'zsvc command' cmds ;;
     args)
       case "${line[1]}" in
-        start|stop|restart|reload|status|health|logs|diag|validate)
+        start|stop|restart|wait|reload|status|health|logs|diag|validate)
           _zsvc_services ;;
       esac
       ;;

@@ -14,8 +14,17 @@ The pipeline is designed as an "Opaque Seam" recipe. It orchestrates several spe
 The durable queue path (`ingest_media`, `lib/zdots/jobs/ingest_media.rb`) walks a
 declared `PIPELINE` — add a stage there and both the executor and the Mermaid
 diagram (`docs/generated/ingest-pipeline.mmd`, drift-tested) follow. Stages:
-`raw → cleaned → boundaries → distilled → timeline → diarized → embedded → published`.
+`primed → raw → cleaned → boundaries → distilled → timeline → diarized → embedded → published`.
 
+- **primed** (Z-204): fills `media_sources.primer_text` when empty — video title +
+  description (captured into `source_snapshot` by the transcriptions UI) filtered
+  through the local model (`PRIMER_TASK`) into a compact context primer; sponsor
+  blurbs/links/hashtags dropped. Consumed by whisper vocab priming
+  (`known_vocabulary`, with `media_sources.tags` selecting tagged `known_terms`)
+  and appended to the distill/timeline prompts. Operator-editable on the
+  transcription page (Primer & tags section; save empty to re-arm auto-fill;
+  "Save & re-run distill" invalidates distilled/timeline/published and requeues).
+  Best-effort: model failure falls back to the bare title; never fails the ingest.
 - **boundaries**: marks theme-song intro/outro + the real interview span from the
   timestamped whisper JSON (writes `<id>.boundaries.json`). Non-destructive —
   annotates; never edits the transcript. Jingle registry: `etc/theme-songs.yml`

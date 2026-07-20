@@ -272,7 +272,6 @@ declare -ga ZDOTS_CAPABILITIES_CODE=(
 
 declare -ga ZDOTS_CAPABILITIES_CONFIG=(
   # Configuration management
-  "config:show:zdots-config                                — Show merged configuration"
   "config:status:zdots-status                              — Platform status (services, DB, AI)"
   "config:schema:zdots-schema                              — Show schema definition"
 

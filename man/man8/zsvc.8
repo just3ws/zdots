@@ -24,7 +24,7 @@
 .Op Fl n Ar lines
 .Op Fl -no-follow
 .Nm
-.Cm start | stop | restart | reload | logs | validate
+.Cm start | stop | restart | wait | reload | logs | validate
 .Ar service
 .Sh DESCRIPTION
 .Nm
@@ -47,6 +47,14 @@ Start one service.
 Stop one service.
 .It Cm restart Ar service
 Restart one service.
+.It Cm wait Ar service Op Fl -timeout Ar seconds
+Block until the service is healthy \(em the same probe
+.Cm health
+uses \(em or exit non-zero after
+.Ar seconds
+(default 30). Composes after
+.Cm start Ns / Ns Cm restart
+in scripts.
 .It Cm reload Ar service
 Gracefully reload one service when supported. Currently used for nginx.
 .It Cm status Ar service

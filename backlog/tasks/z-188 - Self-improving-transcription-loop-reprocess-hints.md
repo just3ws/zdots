@@ -28,7 +28,7 @@ Best-practice design (agreed):
 5. Cheapest-sufficient reprocess: re-distill (no audio) < re-transcribe from retained WAV (no download) < re-fetch (--force).
 6. Diarization: pass known speaker COUNT to pyannote (biggest lever); whisper --prompt biases spelling only, not speakers — separate channels; humans map SPEAKER_xx→names post-hoc.
 7. Whisper prompt budget ~224 tokens — scope priming vocab to source domain/tags (code caps at 100 already).
-8. Capture hints in the my.local transcriptions UI (interactive); CLI as scriptable fallback; never hand-edit retention files.
+8. Capture hints in the my.localhost transcriptions UI (interactive); CLI as scriptable fallback; never hand-edit retention files.
 9. Measure improvement cheaply: track corrections-applied-per-reprocess trend; skip a WER harness (YAGNI).
 10. PHI: known_terms/speaker maps/priming stay local; honor scrub-before-cloud.
 

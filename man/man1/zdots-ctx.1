@@ -34,6 +34,21 @@ Insert knowledge records.
 Sync buffered command analytics.
 .It Cm enqueue , Cm requeue , Cm jobs , Cm worker , Cm triage , Cm clear-stale-jobs , Cm metrics-loop
 Manage async jobs and queue metrics.
+.It Cm result Ar job_id , Cm cancel Ar job_id
+Fetch a completed job's structured result (JSON), or cancel a
+pending/failed job (marks it dead; not retried).
+.It Cm concept Ar slug , Cm concept Cm resolve Ar word
+Look up or manage the live concept registry (vocabulary slugs, aliases,
+links).
+.It Cm reprocess Ar source , Cm reprocess-series Ar tag
+Re-run ingested sources \(em clean+distill from the existing transcript
+(current known_terms applied, no re-download).
+.Op Fl -transcribe
+also re-runs whisper.
+.Cm reprocess
+targets one source (id or uri/title substring);
+.Cm reprocess-series
+every source matching the tag.
 .It Cm backup , Cm restore
 Create or restore SQL dumps.
 .El

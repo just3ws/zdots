@@ -2,7 +2,7 @@
 # bin/zdots-statusd-ctl — manage the zdots.localhost control-plane status service.
 #
 # zdots-statusd is the Observable Control Plane's own health console, served at
-# zdots.localhost — deliberately separate from my.local (context-engine) so it stays
+# zdots.localhost — deliberately separate from my.localhost (context-engine) so it stays
 # up when the Rails app or Postgres is down. It is a thin viewer over zdots'
 # health tools (zdots-ctl status --json, zsvc list, service logs); the
 # intelligence lives in those CLIs, not here.

@@ -62,6 +62,7 @@ brew "fish"
 brew "fswatch"
 brew "fx"
 brew "fzf"
+brew "fzf-tab"        # zsh completion menu via fzf — conf.d/74-fzf.zsh sources it; bin/check asserts its widget
 brew "geoipupdate"
 brew "gh"
 brew "git"
@@ -103,7 +104,7 @@ brew "tree-sitter"
 brew "neovim"
 brew "ghostscript"    # nvim (vdots) doc rendering — provides `gs` for PDF preview (snacks/image.nvim)
 brew "tectonic"       # nvim (vdots) LaTeX math rendering in markdown preview
-brew "nginx"          # local reverse proxy — llama.local, embed.local, grafana.local (TLS via mkcert)
+brew "nginx"          # local reverse proxy — the *.localhost vhosts (TLS via mkcert)
 brew "nvtop"
 brew "ollama"
 brew "openai-whisper"
