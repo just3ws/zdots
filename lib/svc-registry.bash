@@ -107,6 +107,7 @@ _svc_reg "postgres|postgresql@18|homebrew.mxcl.postgresql@18|${_SVC_REG_BREW}/va
 _svc_reg "redis|redis|homebrew.mxcl.redis|${_SVC_REG_BREW}/var/log/redis.log||127.0.0.1:6379|plist|1|cache kv||start|stop|restart|status|health|||zdots_probe_redis"
 _svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.log|zdots-worker|jobs queue (my)|launchd|1|jobs brain-worker|install|start|stop|restart|status|health|logs||zdots_probe_worker"
 _svc_reg "status|zdots-statusd|com.zdots.statusd|${_SVC_REG_STATE}/zdots-statusd.log|zdots-statusd-ctl|http://127.0.0.1:${ZDOTS_STATUS_PORT:-11600}|launchd|1|statusd statusd-ctl control-plane dashboard|install|start|stop|restart|status|health|logs||zdots_probe_status"
+_svc_reg "gemstash|gemstash|com.zdots.gemstash|${_SVC_REG_STATE}/gemstash.log|gemstash-ctl|http://127.0.0.1:9292|launchd|1|gems gem-cache rubygems gem-proxy|install|start|stop|restart|status|health|logs||zdots_probe_gemstash"
 # Health-only platform services (not zsvc lifecycle-managed):
 _svc_reg "ctx|context-engine|||zdots-ctx|postgres|derived|0|intelligence|||||||||zdots_probe_ctx"
 
@@ -195,6 +196,10 @@ zdots_probe_worker() {
 
 zdots_probe_status() {
   curl -sf --max-time 3 "${ZDOTS_SVC_ENDPOINT[status]}/healthz" >/dev/null 2>&1
+}
+
+zdots_probe_gemstash() {
+  curl -sf --max-time 3 "${ZDOTS_SVC_ENDPOINT[gemstash]}/" >/dev/null 2>&1
 }
 
 zdots_probe_ctx() {

@@ -57,7 +57,9 @@ module Zdots
           c.openai_api_base        = "#{ep}/v1"
           c.openai_use_system_role = true
           c.default_model          = "local"
-          c.request_timeout        = 90
+          # 90s bombed long distills (transcription/docs_sync) with Net::ReadTimeout —
+          # local llama legitimately chews minutes on multi-thousand-token prompts.
+          c.request_timeout        = 300
         end
         Connection.new
       end

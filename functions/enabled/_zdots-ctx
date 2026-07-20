@@ -23,6 +23,9 @@ _zdots-ctx() {
     'sync-history:sync SQLite analytics into PostgreSQL'
     'enqueue:enqueue a job'
     'requeue:requeue a job by id'
+    'result:fetch a completed job'\''s structured result (JSON)'
+    'cancel:cancel a pending/failed job (marks it dead; not retried)'
+    'concept:look up / manage the concept registry'
     'jobs:list pending and recent jobs'
     'worker:run a worker to process queued jobs'
     'triage:review and resolve permanently failed (dead) jobs'
@@ -31,6 +34,8 @@ _zdots-ctx() {
     'backup:create a timestamped SQL dump in ~/my/backups'
     'restore:restore the database from a dump file'
     'stats:show system utilization statistics from traces'
+    'reprocess:re-run an ingested source (stages, or +whisper via --transcribe)'
+    'reprocess-series:re-run all ingested sources matching a tag'
   )
 
   _arguments -C \
@@ -51,6 +56,7 @@ _zdots-ctx() {
         worker)       _arguments '--type[restrict to a worker type]:type:' ;;
         restore)      _arguments '*:dump file:_files' ;;
         enqueue)      _arguments '--force[bypass dedup]' '*:type/payload/priority:' ;;
+        reprocess|reprocess-series) _arguments '--transcribe[also re-run whisper transcription]' '*:source or tag:' ;;
         hydrate)      _message 'tag (optional)' ;;
       esac
       ;;

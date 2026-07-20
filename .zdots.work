@@ -6,7 +6,7 @@
 # To activate: set ZDOTS_CONTEXT=work in .zdots.local.
 
 export ZDOTS_CONTEXT=work
-export ZDOTS_CAPTURE_ENABLED=0
+export ZDOTS_CAPTURE_ENABLED=1  # enabled 2026-07-15: §10 preconditions met — key in Keychain, enc columns 100% (lessons 363/363)
 export ZDOTS_HISTORY_REDACT=1
 export ZDOTS_CMD_ANALYTICS=0   # command args may contain PHI; never capture on work machines
 

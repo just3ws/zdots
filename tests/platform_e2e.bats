@@ -89,7 +89,8 @@ _have() { command -v "$1" >/dev/null 2>&1; }
   [[ "$output" == *postgresql@18* ]]
   [[ "$output" == *redis* ]]
   [[ "$output" == *llama.localhost* ]]
-  [[ "$output" == *my.local* ]]
+  [[ "$output" == *my.localhost* ]]
+  [[ "$output" == *gemstash.localhost* ]]
 }
 
 @test "zsvc health --json exposes service and local URL state for agents" {
@@ -99,7 +100,8 @@ _have() { command -v "$1" >/dev/null 2>&1; }
     and ([.services[].name] | index("nginx"))
     and ([.services[].name] | index("redis"))
     and ([.local_urls[].name] | index("llama.localhost"))
-    and ([.local_urls[].name] | index("my.local"))
+    and ([.local_urls[].name] | index("my.localhost"))
+    and ([.local_urls[].name] | index("gemstash.localhost"))
   ' >/dev/null
 }
 
@@ -207,15 +209,17 @@ _have() { command -v "$1" >/dev/null 2>&1; }
 
 # ── Ruby toolchain ──────────────────────────────────────────────────────────
 
-@test "active Ruby is latest stable (4.0.5)" {
+@test "active Ruby matches the etc/ruby-version pin" {
   _have mise || skip "mise not installed"
+  pin="$(tr -d '[:space:]' < "$REPO_ROOT/etc/ruby-version")"
   run mise current ruby
-  [[ "$output" == 4.0.5* ]]
+  [[ "$output" == "$pin"* ]]
 }
 
 @test "Brain runtime gems load under the active Ruby" {
   _have mise || skip "mise not installed"
-  run mise exec ruby@4.0.5 -- ruby -e 'require "sqlite3"; require "pg"; require "sequel"; puts "ok"'
+  pin="$(tr -d '[:space:]' < "$REPO_ROOT/etc/ruby-version")"
+  run mise exec "ruby@$pin" -- ruby -e 'require "sqlite3"; require "pg"; require "sequel"; puts "ok"'
   [ "$status" -eq 0 ]
   [[ "$output" == *ok* ]]
 }

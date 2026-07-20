@@ -1,5 +1,7 @@
 flowchart TD
-  queued([queued]) --> raw
+  queued([queued]) --> primed
+  primed["primed — primer_text from title+description (local LLM filter)"]
+  primed --> raw
   raw["raw — transcribe audio (whisper; chunk fan-out if long)"]
   raw --> cleaned
   cleaned["cleaned — apply known_terms corrections"]

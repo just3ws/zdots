@@ -433,7 +433,7 @@ if [[ -x "${BIN}/zsynod" ]]; then
     _fix  "zsynod init    (if first-time setup)"
   fi
 else
-  _warn "zsynod  not present (optional but recommended)"
+  _pass "zsynod  not installed (deprecated to experiments)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -577,8 +577,10 @@ _section "Peer dependencies (adots)"
 
 _adots_rc=0
 _adots_check_output=""
-if command -v adots-doctor >/dev/null 2>&1; then
-  _adots_check_output=$(adots-doctor 2>&1) || _adots_rc=$?
+if [[ -n "${_DOCTOR_PEER:-}" ]]; then
+  _skip "adots-doctor  peer check skipped (already inside a peer-health chain)"
+elif command -v adots-doctor >/dev/null 2>&1; then
+  _adots_check_output=$(_DOCTOR_PEER=1 adots-doctor 2>&1) || _adots_rc=$?
   if [[ $_adots_rc -eq 0 ]]; then
     _pass "adots-doctor  healthy"
   else

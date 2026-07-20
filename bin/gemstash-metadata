@@ -1,0 +1,90 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# bin/gemstash-metadata — extract gemspec metadata from gemstash's on-disk gem
+# cache as NDJSON (one gem per line), for analytics.
+#
+# gemstash's Postgres DB is only a thin index (what's cached); the rich per-gem
+# metadata (licenses, authors, dependencies) lives in the cached .gem files
+# under <base_path>/gem_cache. This walks those, reads each Gem::Specification,
+# and emits NDJSON on stdout — pipe it into DuckDB / sqlite-utils / jq to query.
+# Stdlib only (rubygems ships Gem::Package); no gems, no schema to maintain.
+#
+#   # license distribution across the cache (unnest must sit in a subquery)
+#   gemstash-metadata | duckdb -c \
+#     "SELECT license, count(*) n FROM \
+#      (SELECT unnest(licenses) license FROM read_json_auto('/dev/stdin')) \
+#      GROUP BY 1 ORDER BY 2 DESC"
+#
+#   # dependency edges (gem -> dependency, with requirement)
+#   gemstash-metadata | duckdb -c \
+#     "SELECT gem, dep.name depends_on, dep.requirement req FROM \
+#      (SELECT name gem, unnest(runtime_dependencies) dep FROM read_json_auto('/dev/stdin')) \
+#      ORDER BY 1,2"
+#
+# Usage: gemstash-metadata [GEM_CACHE_DIR]
+#   Default: <gemstash base_path>/gem_cache (base_path read from
+#   ~/.gemstash/config.yml, else ~/.gemstash). Per-file parse errors go to
+#   stderr and are skipped; a run summary is written to stderr at the end.
+
+require "rubygems/package"
+require "json"
+require "yaml"
+
+USAGE = <<~TXT
+  Usage: gemstash-metadata [GEM_CACHE_DIR]
+
+  Walk gemstash's on-disk gem cache and emit gemspec metadata as NDJSON on
+  stdout (one gem per line) for DuckDB / sqlite-utils / jq: name, version,
+  platform, licenses, authors, homepage, summary, required_ruby_version,
+  runtime_dependencies. Stdlib only.
+
+  GEM_CACHE_DIR defaults to <gemstash base_path>/gem_cache (base_path from
+  ~/.gemstash/config.yml, else ~/.gemstash). Parse errors are skipped to
+  stderr with an end-of-run summary. See gemstash-metadata(1).
+TXT
+
+if %w[-h --help].include?(ARGV[0])
+  puts USAGE
+  exit 0
+end
+
+def base_path
+  cfg = File.expand_path("~/.gemstash/config.yml")
+  data = (YAML.safe_load_file(cfg, permitted_classes: [Symbol]) rescue nil)
+  bp = data && (data[:base_path] || data["base_path"])
+  bp ? File.expand_path(bp) : File.expand_path("~/.gemstash")
+end
+
+dir = ARGV[0] || File.join(base_path, "gem_cache")
+Dir.exist?(dir) or abort "gemstash-metadata: no such dir: #{dir}"
+
+# Cached upstream gems are stored as files literally named `gem` (no extension);
+# also accept *.gem for private gems or other layouts.
+paths = (Dir.glob(File.join(dir, "**", "gem")) + Dir.glob(File.join(dir, "**", "*.gem"))).uniq
+
+count = 0
+errors = 0
+paths.each do |path|
+  next unless File.file?(path)
+  begin
+    spec = Gem::Package.new(path).spec
+    puts JSON.generate(
+      name: spec.name,
+      version: spec.version.to_s,
+      platform: spec.platform.to_s,
+      licenses: spec.licenses,
+      authors: spec.authors,
+      homepage: spec.homepage,
+      summary: spec.summary,
+      required_ruby_version: spec.required_ruby_version.to_s,
+      runtime_dependencies: spec.runtime_dependencies.map { |d| { name: d.name, requirement: d.requirement.to_s } },
+      path: path
+    )
+    count += 1
+  rescue StandardError => e
+    errors += 1
+    warn "gemstash-metadata: skip #{path}: #{e.class}: #{e.message}"
+  end
+end
+
+warn "gemstash-metadata: #{count} gems, #{errors} errors, from #{dir}"

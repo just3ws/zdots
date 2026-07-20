@@ -14,6 +14,10 @@ module Zdots
         @connect ||= begin
           db = Sequel.connect(Zdots.database_url)
           db.extension :pg_array, :pg_json
+          # pg_array_ops supplies Sequel.pg_array_op — the array-operator DSL
+          # (.contains/.overlaps) that media_sources.tags filtering relies on in
+          # ingest_media#known_vocabulary and zdots-brain reprocess-series.
+          Sequel.extension :pg_array_ops
           db
         end
       end

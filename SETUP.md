@@ -95,11 +95,12 @@ To verify: `curl -sk https://llama.localhost/health | head -1` (after local AI i
 
 ### 2. Local service hostnames
 
-`llama.localhost` / `embed.localhost` / `o2.localhost` / `zdots.localhost` need
-**no `/etc/hosts` entry** — `.localhost` is IANA-reserved (RFC 6761) and every
-OS resolver hard-wires it to loopback unconditionally (decision-011). `bin/bootstrap`
-still adds `/etc/hosts` entries for `my.local`/`dev.my.local` (the `~/my`-owned
-cockpit, which predates this convention and keeps `.local` for its own reasons).
+Every local vhost (`llama.localhost` / `embed.localhost` / `o2.localhost` /
+`zdots.localhost` / `gemstash.localhost` / `my.localhost`) needs **no
+`/etc/hosts` entry** — `.localhost` is IANA-reserved (RFC 6761) and every OS
+resolver hard-wires it to loopback unconditionally (decision-011/Z-205). There
+is no `/etc/hosts` step in `bin/bootstrap` anymore; the legacy `.local` pins
+were pruned in the Z-205 cutover.
 
 ---
 

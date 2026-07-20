@@ -1,6 +1,6 @@
 ---
 name: my-deploy
-description: Deploy context-engine to local production (my.local). Use when assets, gems, or Rails config changed and Puma needs a full redeploy rather than just a restart.
+description: Deploy context-engine to local production (my.localhost). Use when assets, gems, or Rails config changed and Puma needs a full redeploy rather than just a restart.
 ---
 
 # /my-deploy — Deploy context-engine to production
@@ -30,11 +30,11 @@ touch ~/my/context-engine/tmp/restart.txt
 ## Verify (operator console routes)
 
 ```bash
-curl -sk https://my.local/up                  # → 200 OK
-curl -sk https://my.local/                     # dashboard + live health badges
-curl -sk https://my.local/platform             # service health table
-curl -sk https://my.local/docs                 # zdots docs browser
-curl -sk https://my.local/docs/guide/agents    # a rendered doc
+curl -sk https://my.localhost/up                  # → 200 OK
+curl -sk https://my.localhost/                     # dashboard + live health badges
+curl -sk https://my.localhost/platform             # service health table
+curl -sk https://my.localhost/docs                 # zdots docs browser
+curl -sk https://my.localhost/docs/guide/agents    # a rendered doc
 ```
 
 ## Troubleshooting

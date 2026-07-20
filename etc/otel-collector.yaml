@@ -18,7 +18,9 @@ receivers:
             - http://127.0.0.1:3003
             - http://localhost:5173
             - http://localhost:3003
-            - http://localhost:8080      # work3 app origin (session-capture browser OTel Web SDK)
+            - http://localhost:8080      # work3 app origin — docker (legacy/rollback) session-capture browser OTel
+            - http://staging.work.localhost  # work3 on local k3s via the nginx edge — PRIMARY scenario-runner origin (k8s-primary)
+            - http://localhost:30080          # work3 k3s NodePort — alt scenario-runner origin
           # The session-capture extension wraps window.fetch to inject X-Request-Id on
           # EVERY request (injected.js), incl. the OTLP export — so the browser preflight
           # requests it. Without listing it here CORS drops ACAO and the export is blocked.

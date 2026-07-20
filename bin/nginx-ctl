@@ -24,10 +24,11 @@ LABEL="homebrew.mxcl.nginx"
 PLIST="/Library/LaunchDaemons/${LABEL}.plist"
 ERR_LOG="${BREW_PREFIX}/var/log/nginx/error.log"
 ACC_LOG="${BREW_PREFIX}/var/log/nginx/access.log"
-# Hostnames fronted by nginx (servers/*.conf). Used by `health`.
-# llama/embed/o2/zdots use .localhost (decision-011: RFC 6761, no /etc/hosts
-# needed); my.local/dev.my.local are ~/my-owned and stay on .local for now.
-HOSTS=(llama.localhost embed.localhost o2.localhost zdots.localhost my.local dev.my.local)
+# Hostnames fronted by nginx (servers/*.conf). Used by `health`, and by
+# nginx-regen-certs as part of its cert SAN union. All on .localhost
+# (decision-011/Z-205: RFC 6761, no /etc/hosts needed); my/dev.my are
+# ~/my-owned, work.localhost is Work-owned (cert SAN only, not probed).
+HOSTS=(llama.localhost embed.localhost o2.localhost zdots.localhost gemstash.localhost my.localhost)
 
 _ok()   { printf 'nginx-ctl: [ok]  %s\n' "$*" >&2; }
 _warn() { printf 'nginx-ctl: [!!]  %s\n' "$*" >&2; }

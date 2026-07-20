@@ -1,9 +1,9 @@
-.Dd June 21, 2026
+.Dd July 11, 2026
 .Dt ZDOTS-STATUSD-CTL 8
 .Os zdots
 .Sh NAME
 .Nm zdots-statusd-ctl
-.Nd manage the zdots.local control-plane status service
+.Nd manage the zdots.localhost control-plane status service
 .Sh SYNOPSIS
 .Nm
 .Ar command
@@ -12,16 +12,16 @@
 .Nm
 controls
 .Xr zdots-statusd 8 ,
-the Observable Control Plane's own health console served at zdots.local. It is
-deliberately separate from my.local (context-engine) so platform health stays
-reachable when the Rails app or Postgres is down. The service is a thin viewer
+the Observable Control Plane's own health console served at zdots.localhost.
+It is deliberately separate from my.localhost (context-engine) so platform
+health stays reachable when the Rails app or Postgres is down. The service is a thin viewer
 over the zdots health tools
 .Pq Xr zdots-ctl 8 , Xr zsvc 8 , service logs ;
 the intelligence lives in those CLIs.
 .Pp
 The service binds loopback only on 127.0.0.1:${ZDOTS_STATUS_PORT:-11600};
 .Xr nginx 8
-terminates TLS for https://zdots.local. No secrets touch the launchd plist.
+terminates TLS for https://zdots.localhost. No secrets touch the launchd plist.
 Manage it via
 .Ic zsvc Ar verb Cm status ;
 this script is the authoritative ctl backing that.
