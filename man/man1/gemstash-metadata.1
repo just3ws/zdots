@@ -1,0 +1,46 @@
+.Dd July 11, 2026
+.Dt GEMSTASH-METADATA 1
+.Os zdots
+.Sh NAME
+.Nm gemstash-metadata
+.Nd extract gemspec metadata from the gemstash cache as NDJSON
+.Sh SYNOPSIS
+.Nm
+.Op Ar gem-cache-dir
+.Op Fl -help
+.Sh DESCRIPTION
+.Nm
+walks gemstash's on-disk gem cache, reads each Gem::Specification, and emits
+NDJSON on stdout \(em one gem per line \(em for analytics with DuckDB,
+sqlite-utils, or jq. Each record carries name, version, platform, licenses,
+authors, homepage, summary, required_ruby_version, and runtime_dependencies
+(name plus requirement).
+.Pp
+This exists because gemstash's Postgres database is only a thin index of what is
+cached; the rich per-gem metadata lives in the cached .gem files, not the DB.
+Stdlib only \(em no gems, no schema to maintain.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Ar gem-cache-dir
+Directory to scan. Default: <gemstash base_path>/gem_cache, with base_path read
+from ~/.gemstash/config.yml (else ~/.gemstash).
+.It Fl -help
+Show usage.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width 1
+.It 0
+NDJSON emitted; per-file parse errors are skipped and counted on stderr.
+.It 1
+The scan directory does not exist.
+.El
+.Sh EXAMPLES
+.Bl -tag -width Ds
+.It Li gemstash-metadata | duckdb -c "SELECT ..."
+Query the cache's license distribution or dependency edges.
+.It Li gemstash-metadata ~/.gemstash/gem_cache > gems.ndjson
+Dump every cached gemspec to a file.
+.El
+.Sh SEE ALSO
+.Xr gemstash-ctl 8 ,
+.Xr zsvc 8

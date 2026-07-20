@@ -34,18 +34,20 @@ command -v zdots_trace_log >/dev/null 2>&1 && zdots_trace_log "endpoints_check" 
 declare -A HEALTH=(
   [llama.localhost]=/health  [embed.localhost]=/health  [o2.localhost]=/healthz
   [zdots.localhost]=/healthz
-  [my.local]=/up            [dev.my.local]=/up
+  [my.localhost]=/up
 )
 declare -A LABEL=(
   [llama.localhost]="Qwen3 chat inference"   [embed.localhost]="Nomic embeddings"
   [o2.localhost]="OpenObserve (logs/metrics/traces)"
   [zdots.localhost]="Observable Control Plane status console"
-  [my.local]="context-engine (prod)"     [dev.my.local]="context-engine (dev)"
+  [gemstash.localhost]="RubyGems caching proxy"
+  [my.localhost]="context-engine (prod)"
 )
 declare -A LOGCMD=(
   [llama.localhost]="zsvc logs llama"   [embed.localhost]="zsvc logs embed"
   [o2.localhost]="zsvc logs o2"         [zdots.localhost]="zsvc logs status"
-  [my.local]="tail -f $NGINX_ERR"   [dev.my.local]="tail -f $NGINX_ERR"
+  [gemstash.localhost]="zsvc logs gemstash"
+  [my.localhost]="tail -f $NGINX_ERR"
 )
 
 # ── Colors (suppressed when not a tty) ───────────────────────────────────────

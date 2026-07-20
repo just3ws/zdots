@@ -79,7 +79,7 @@ Both `bin/zsvc` (per-service control) and `bin/zdots-ctl` (full-platform orchest
 | `otel` | com.zdots.otel-collector | `~/.local/state/zsh/otel-collector.log` | http://127.0.0.1:4318 |
 | `o2` | com.zdots.openobserve | `~/.local/state/zsh/openobserve.log` | http://127.0.0.1:5080 |
 | `colima` | com.zdots.colima-autostart | `~/.local/state/zsh/colima-autostart.log` | (VM) |
-| `nginx` | homebrew.mxcl.nginx | `/opt/homebrew/var/log/nginx/error.log` | https://my.local |
+| `nginx` | homebrew.mxcl.nginx | `/opt/homebrew/var/log/nginx/error.log` | https://my.localhost |
 | `postgres` | homebrew.mxcl.postgresql@18 | `/opt/homebrew/var/log/postgresql@18.log` | :5432 |
 | `redis` | homebrew.mxcl.redis | `/opt/homebrew/var/log/redis.log` | :6379 |
 | `worker` | com.zdots.worker | `~/.local/state/zsh/zdots-worker.log` | jobs queue |

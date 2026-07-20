@@ -22,4 +22,15 @@ if command -v broot >/dev/null 2>&1; then
   alias br='broot'
 fi
 
+# k8s native ergonomics (bear-dev is the local bear3 namespace)
+if command -v kubectl >/dev/null 2>&1; then
+  alias k=kubectl
+  alias kgp='kubectl get pods'
+  alias kdp='kubectl describe pod'
+  alias kgs='kubectl get svc'
+  source <(kubectl completion zsh) 2>/dev/null
+fi
+# default namespace for the session (no-op if kubens/ctx absent)
+command -v kubens >/dev/null 2>&1 && kubens bear-dev >/dev/null 2>&1 || true
+
 return 0

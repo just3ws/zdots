@@ -165,7 +165,7 @@ slugify() {
 # Derive a short slug for the patch filename.  Prefer the remote origin URL;
 # fall back to the work-tree basename.  GIT_ARGS are the --git-dir /
 # --work-tree flags for adots, empty for normal repos.
-# -------------------------------------------[118;1:3u--------------------------------
+# ---------------------------------------------------------------------------
 repo_slug() {
   local remote
   remote="$(git "$@" remote get-url origin 2>/dev/null || true)"

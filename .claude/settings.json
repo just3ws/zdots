@@ -20,7 +20,10 @@
       "Read(**/id_rsa*)",
       "Read(**/id_ed25519*)",
       "Bash(security find-generic-password:*)",
-      "Bash(security dump-keychain:*)"
+      "Bash(security dump-keychain:*)",
+      "mcp__claude_ai_Microsoft_365__outlook_send_mail",
+      "mcp__claude_ai_Microsoft_365__outlook_send_draft",
+      "mcp__claude_ai_Microsoft_365__outlook_forward_mail"
     ],
     "allow": [
       "Bash(zsvc:*)",

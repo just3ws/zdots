@@ -6,7 +6,7 @@
 # ctl script for each service; adds no logic of its own.
 #
 # Services:  llama  embed  otel  colima  nginx  postgres  redis
-# Commands:  list  start  stop  restart  status  health  logs  diag  validate
+# Commands:  list  start  stop  restart  wait  status  health  logs  diag  validate
 
 set -euo pipefail
 trap '' PIPE
@@ -56,8 +56,8 @@ LOCAL_URLS=(
   "embed.localhost|https://embed.localhost/health"
   "o2.localhost|https://o2.localhost/healthz"
   "zdots.localhost|https://zdots.localhost/healthz"
-  "my.local|http://my.local/"
-  "dev.my.local|http://dev.my.local/"
+  "gemstash.localhost|https://gemstash.localhost/"
+  "my.localhost|https://my.localhost/up"
 )
 
 # ---------------------------------------------------------------------------
@@ -280,6 +280,32 @@ cmd_restart() {
   fi
 }
 
+# Block until a service reports healthy — same probe (zdots_svc_healthy) that
+# `health`/`status` use. Composes after start/restart:
+#   zsvc restart llama && zsvc wait llama && ai-query "…"
+# Returns 0 once healthy; exits non-zero on timeout (scriptable).
+cmd_wait() {
+  local svc="$1"; shift
+  local timeout=30 interval=1 elapsed=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --timeout)   timeout="${2:?zsvc wait: --timeout needs a value}"; shift 2 ;;
+      --timeout=*) timeout="${1#*=}"; shift ;;
+      *)           _die "wait: unknown option: $1" ;;
+    esac
+  done
+  [[ "$timeout" =~ ^[0-9]+$ && "$timeout" -gt 0 ]] || _die "wait: --timeout must be a positive integer (got: ${timeout})"
+  _svc_meta "$svc"
+  if zdots_svc_healthy "$SVC_NAME"; then _ok "${SVC_DISPLAY} already healthy"; return 0; fi
+  _info "waiting for ${SVC_DISPLAY} to become healthy (timeout ${timeout}s)..."
+  while (( elapsed < timeout )); do
+    sleep "$interval"
+    elapsed=$(( elapsed + interval ))
+    if zdots_svc_healthy "$SVC_NAME"; then _ok "${SVC_DISPLAY} healthy after ${elapsed}s"; return 0; fi
+  done
+  _die "${SVC_DISPLAY} not healthy after ${timeout}s"
+}
+
 cmd_status() {
   local svc="$1"; shift
   _svc_meta "$svc"
@@ -473,6 +499,7 @@ COMMANDS
   start   <service>     Start a service
   stop    <service>     Stop a service
   restart <service>     Restart a service (stop + start if no native restart)
+  wait    <service> [--timeout N]  Block until the service is healthy (default 30s)
   reload  <service>     Graceful zero-downtime reload (nginx)
   status  <service>     Full status from the service's ctl script
   health  [--json] [service|all] Probe service liveness and local URLs
@@ -501,6 +528,7 @@ EXAMPLES
   zsvc list
   zsvc start llama
   zsvc restart otel
+  zsvc restart llama && zsvc wait llama   # restart, then block until healthy
   zsvc logs embed
   zsvc logs all --paths
   zsvc logs all -n 100
@@ -530,6 +558,7 @@ case "$1" in
   start)    [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_start "$2" ;;
   stop)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_stop "$2" ;;
   restart)  [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_restart "$2" ;;
+  wait)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; shift; cmd_wait "$@" ;;
   reload)   [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_reload "$2" ;;
   status)   [[ $# -ge 2 ]] || { usage >&2; exit 1; }; shift; cmd_status "$@" ;;
   health)   shift; cmd_health "$@" ;;

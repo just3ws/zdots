@@ -411,6 +411,27 @@ EOF
   [ "$status" -eq 1 ]
 }
 
+# ---------------------------------------------------------------------------
+# zsvc wait — verb contract (dispatch, usage, arg validation; no live wait)
+# ---------------------------------------------------------------------------
+
+@test "zsvc: wait appears in usage" {
+  run "$BIN/zsvc" --help
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q 'wait'
+}
+
+@test "zsvc: wait with no service exits 1 (usage)" {
+  run "$BIN/zsvc" wait
+  [ "$status" -eq 1 ]
+}
+
+@test "zsvc: wait rejects a non-integer --timeout before probing" {
+  run "$BIN/zsvc" wait llama --timeout abc
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -qi 'positive integer'
+}
+
 @test "zdots-ctl: status output goes to stdout" {
   stdout=$("$BIN/zdots-ctl" status 2>/dev/null)
   [ -n "$stdout" ]

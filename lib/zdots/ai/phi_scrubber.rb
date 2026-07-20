@@ -63,7 +63,10 @@ module Zdots
         unless status.success?
           raise SuppressedError, "input matches a suppress-flagged pattern"
         end
-        output
+        # capture2 tags the pipe with default_external, which is US-ASCII under
+        # launchd (no locale env). The binary emits UTF-8 bytes — retag, and
+        # scrub any invalid sequences so downstream embed/DB ops don't raise.
+        output.force_encoding(Encoding::UTF_8).scrub
       rescue StandardError => e
         raise SuppressedError, "failed to scrub: #{e.message}"
       end

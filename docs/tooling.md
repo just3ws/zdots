@@ -29,6 +29,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | System health check | `zdots-doctor [--no-runtime] [--json]` | "brew doctor" for the workstation: env, repo, XDG, AI, services, observability |
 | Service controller | `zsvc list/health/logs/diag/restart` | Inspect, health-check, log-tail, and control registered platform components |
 | Knowledge layer CLI | `zdots-ctx query/capture/hydrate/sync-history` | Shell→PostgreSQL brain interface |
+| Semantic transcript search | `zdots-search "<question>"` | pgvector cosine search over embedded knowledge chunks; top 5 passages with source + timestamp |
 | Brain status | `zdots-brain status [--json]` | DB row counts + encryption coverage across all 8 `_enc` columns |
 | Brain rekey | `zdots-brain rekey [table]` | Re-encrypt after key rotation; covers lessons, methodologies, session_residue, source_document |
 | Task orchestrator | `ztask start/done/stop/status <id>` | Hydrate shell env to a specific task; links trace to work |
@@ -241,6 +242,8 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 | `zsvc` | `bin/zsvc health --json` / `bin/zsvc logs all --json` | Unified service registry, machine-readable health, and consolidated log sources |
 | `zdots-statusd` | `zsvc start status` | Control-plane status console at zdots.localhost (loopback :11600) — live service/launchd/log health, independent of context-engine/PG |
 | `log-rotate` | `log-rotate otel-collector` | Compress + truncate a service log in place (no restart; safe for open fds) |
+| `gemstash-ctl` | `zsvc start gemstash` | RubyGems caching proxy + private gem host on loopback :9292; Postgres-backed (dedicated `gemstash` DB), bundler mirrors through it |
+| `gemstash-metadata` | `gemstash-metadata \| duckdb -c "…"` | Extract cached gemspec metadata (licenses/authors/deps) as NDJSON for analytics |
 | `nginx` | (managed via launchctl) | TLS reverse proxy for local service hostnames |
 | `mkcert` | `mkcert -install` | Local CA + certs for `*.local` hostnames |
 | `tailscale` | `tailscale status` | Mesh VPN — secure LAN endpoint access |

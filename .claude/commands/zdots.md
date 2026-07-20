@@ -86,9 +86,9 @@ File issues with `zdots-issue "description"` — auto-attaches `agent-reported` 
 
 ---
 
-## Context Engine (my.local)
+## Context Engine (my.localhost)
 
-my.local is the **platform operator console** (see `/my-deploy`):
+my.localhost is the **platform operator console** (see `/my-deploy`):
 
 | Route | What it shows |
 |-------|---------------|
@@ -103,7 +103,7 @@ my.local is the **platform operator console** (see `/my-deploy`):
 | `cd ~/my/context-engine && bin/deploy` | Full prod deploy: bundle → assets:precompile → restart → verify |
 | `touch ~/my/context-engine/tmp/restart.txt` | Restart Puma without asset recompile |
 
-Platform URLs: `my.local` (context-engine) · `o2.local` (OpenObserve) · `llama.local` (inference) · `embed.local` (embeddings)
+Platform URLs: `my.localhost` (context-engine) · `o2.localhost` (OpenObserve) · `llama.localhost` (inference) · `embed.localhost` (embeddings) · `gemstash.localhost` (gem cache)
 
 ---
 

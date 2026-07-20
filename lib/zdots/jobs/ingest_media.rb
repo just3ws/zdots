@@ -46,6 +46,7 @@ module Zdots
       # follow; P2/P3 hooks (hint capture, diarization) attach as new stages/events
       # HERE, not as ad-hoc code in #run.
       PIPELINE = [
+        { stage: "primed",    desc: "primer_text from title+description (local LLM filter)" },
         { stage: "raw",       desc: "transcribe audio (whisper; chunk fan-out if long)" },
         { stage: "cleaned",   desc: "apply known_terms corrections" },
         { stage: "boundaries", desc: "mark theme-song intro/outro + interview start/end (timestamped ASR)" },
@@ -80,6 +81,7 @@ module Zdots
       # raises loudly, the latter simply never runs.
       def run_stage(name)
         case name
+        when "primed"    then run_primed
         when "raw"       then @raw_txt = ensure_raw
         when "cleaned"   then stage("cleaned")   { clean_transcript(@raw_txt) }
         when "boundaries" then run_boundaries
@@ -103,6 +105,39 @@ module Zdots
         stage("diarized") { diarize_audio }
       rescue StandardError => e
         warn "ingest_media: diarize stage failed (#{e.message}); continuing"
+        nil
+      end
+
+      PRIMER_TASK =
+        "From this video title and description, write a 2-4 sentence context primer: " \
+        "the topic, speakers, and any proper nouns or technical terms likely to be " \
+        "spoken aloud. Ignore sponsorships, links, hashtags, chapter lists, and " \
+        "self-promotion. Output only the primer."
+
+      # Primed: build primer_text from the captured title + description, filtered
+      # through the local model (distill_call → ai-query, PHI pipeline included).
+      # Runs FIRST so whisper vocab priming (raw) and the distill prompts see it.
+      # Best-effort and idempotent: an existing primer (operator-set or a prior
+      # run) is never overwritten; no description → plain title; a model failure
+      # falls back to the title rather than failing the ingest.
+      def run_primed
+        return nil unless @src.primer_text.to_s.strip.empty?
+        title = @src.title.to_s.strip
+        desc  = (@src.source_snapshot || {})["description"].to_s.strip
+        return nil if title.empty? && desc.empty?
+
+        primer =
+          if desc.empty?
+            title
+          else
+            begin
+              distill_call(PRIMER_TASK, "Title: #{title}\n\nDescription: #{desc}")
+            rescue StandardError => e
+              warn "ingest_media: primer filter failed (#{e.message}); using title"
+              title
+            end
+          end
+        @src.update(primer_text: primer) unless primer.to_s.strip.empty?
         nil
       end
 
@@ -282,7 +317,7 @@ module Zdots
         # (a wedged download/whisper can't hang the worker) without a second
         # subprocess path. Restore streaming only if progress visibility matters.
         out, status = Zdots.run_bounded(*cmd, timeout: RECIPE_TIMEOUT, merge_err: true)
-        File.open("/Users/mike/.local/state/zsh/zdots-worker.log", "a") { |f| f.puts out } rescue nil
+        File.open(File.join(Dir.home, ".local/state/zsh/zdots-worker.log"), "a") { |f| f.puts out } rescue nil
         raise "yt-transcribe failed (exit #{status.exitstatus})" unless status.success?
         # raw whisper text — exclude the cleaned sibling we may have written before
         txt = Dir.glob(File.join(@out_base, "*", "*.txt")).reject { |f| f.end_with?(".cleaned.txt") }.max_by { |f| File.size(f) }

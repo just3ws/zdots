@@ -482,7 +482,7 @@ if command -v mkcert >/dev/null 2>&1; then
     mkcert \
       -cert-file "$_NGINX_PREFIX/certs/zdots-local.pem" \
       -key-file  "$_NGINX_PREFIX/certs/zdots-local-key.pem" \
-      llama.localhost embed.localhost o2.localhost zdots.localhost just3ws.localhost my.local dev.my.local localhost 127.0.0.1 \
+      llama.localhost embed.localhost o2.localhost zdots.localhost just3ws.localhost gemstash.localhost my.localhost localhost 127.0.0.1 \
       || echo "bootstrap: WARNING: cert generation failed — run mkcert manually."
   else
     echo "bootstrap: TLS certs already present ($_CERT_PEM)"
@@ -539,26 +539,9 @@ else
 fi
 unset _NGINX_PREFIX
 
-# 6e. /etc/hosts — local service hostnames
-# nginx routes requests by Host header; /etc/hosts maps hostnames to 127.0.0.1.
-# These entries require sudo — bootstrap prints the commands.
-# llama/embed/o2/zdots use .localhost (decision-011) — RFC 6761 hard-wires
-# every resolver to loopback, so no /etc/hosts entry is needed for them.
-_NEEDED_HOSTS="my.local dev.my.local"
-_MISSING_HOSTS=""
-for _HOST in $_NEEDED_HOSTS; do
-  grep -qF "$_HOST" /etc/hosts 2>/dev/null || _MISSING_HOSTS="$_MISSING_HOSTS $_HOST"
-done
-if [ -n "$_MISSING_HOSTS" ]; then
-  echo ""
-  echo "bootstrap: MANUAL STEP REQUIRED: /etc/hosts entries missing for:$_MISSING_HOSTS"
-  echo "           Run the following (one-time, requires sudo):"
-  for _HOST in $_MISSING_HOSTS; do
-    echo "             sudo sh -c 'echo \"127.0.0.1 ${_HOST}\" >> /etc/hosts'"
-  done
-  echo ""
-fi
-unset _NEEDED_HOSTS _MISSING_HOSTS _HOST
+# 6e. /etc/hosts — nothing to do since the .localhost cutover (decision-011/Z-205):
+# every vhost is a .localhost name, and RFC 6761 hard-wires those to loopback in
+# every resolver, so no /etc/hosts entries (and no sudo step) are needed.
 
 _bootstrap_phase "ruby: gems and pg native extension wiring"
 
