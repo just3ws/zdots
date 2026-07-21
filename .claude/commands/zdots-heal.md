@@ -180,13 +180,19 @@ grep -hoE '(^|[^/[:alnum:].-])(zsvc|colima-status|capabilities|agent-guide|cc-do
 ```
 
 ```bash
-# Check: every bin/ command has a CC allowlist entry
+# Check: every bin/ command is either allowlisted OR registered as internal.
+# EXPECTED_MISSING is the canonical registry of deliberate omissions —
+# /zdots-integrate Layer 4 adds new internal commands here. A name in
+# neither place is the actual finding.
+EXPECTED_MISSING='^(cc-hook-.*|secret-scan|zdots-ruby-bump)$'
 for cmd in bin/*; do
   name="${cmd##*/}"
-  grep -q "\"Bash(${name}:" .claude/settings.json || printf 'NO-ALLOWLIST: %s\n' "$name"
+  [[ "$name" =~ $EXPECTED_MISSING ]] && continue
+  grep -q "\"Bash(${name}:" .claude/settings.json || printf 'UNCLASSIFIED: %s\n' "$name"
 done
-# PASS: no output (or only expected internal scripts)
-# Expected missing (internal, not invoked by agents): cc-hook-*, secret-scan, zdots-ruby-bump
+# PASS: no output
+# FAIL: each UNCLASSIFIED command needs Layer 4 triage (/zdots-integrate):
+#       agent-facing → settings.json entry; internal → add to EXPECTED_MISSING above
 ```
 
 ```bash
@@ -223,6 +229,7 @@ GATE 4 Deep check:    PASS | FAIL | PARTIAL
 GATE 5 Knowledge:     PASS | FAIL | PARTIAL
 GATE 6 Skills:        PASS | FAIL | PARTIAL
 GATE 7 Worker logs:   PASS | FAIL | PARTIAL (stuck jobs: ...)
+GATE 8 Event stream:  PASS | FAIL | PARTIAL (invalid: N, failing types: ...)
 
 ── HEALED (automated) ──────────────────────
 - <command run> → <what changed>
@@ -269,6 +276,57 @@ tail -200 ~/.local/state/zsh/zdots-worker.log \
 | Stuck job — `phi_suppressed` | content hit deny-list; file issue to review pattern or truncate |
 | High failure count (historical) | confirm `zsvc status embed` healthy; failures are self-clearing once service recovers |
 | Any other stuck pattern | `/zdots-log-triage` for full root-cause trace |
+| ≥6 FAILED or unclear clusters | delegate to the `zdots-local-analyst` agent: hand it the FAILED lines (or the Gate 8 event stream) and ask for a failure taxonomy — it clusters via the local model, keeping content on-box. Do NOT read bulk failure text into cloud context. |
+
+---
+
+## Gate 8 — Pipeline Event Stream (Z-247 contract)
+
+```bash
+EV="${ZDOTS_PIPELINE_EVENTS_FILE:-$HOME/.local/state/zdots/pipeline-events.jsonl}"
+SCHEMA="$ZDOTDIR/etc/pipeline-events.schema.json"
+
+# Missing file is PASS only if the worker hasn't processed a job since Z-247
+# landed; otherwise investigate (emitter warns to the worker log on failure).
+[ -f "$EV" ] || echo "NO EVENT FILE — check worker log for 'pipeline-event emit failed'"
+
+# 8-A: schema drift — every line must validate against the shipped contract
+python3 -c "
+import json, os, jsonschema
+schema = json.load(open(os.path.expanduser('~/.config/zsh/etc/pipeline-events.schema.json')))
+bad = n = 0
+for line in open(os.path.expanduser('~/.local/state/zdots/pipeline-events.jsonl')):
+    if not line.strip(): continue
+    n += 1
+    try: jsonschema.validate(json.loads(line), schema)
+    except Exception: bad += 1; print('INVALID:', line[:120])
+print(f'{n} events, {bad} invalid')
+"
+# PASS: 0 invalid
+# FAIL: any invalid line is a CONTRACT BREAK — file zdots-issue --type question
+#       (either the emitter drifted or the schema must be versioned; never
+#       widen the schema just to make the gate pass)
+
+# 8-B: structured failure rate (replaces log-grep archaeology)
+jq -rs '
+  group_by(.job_type)[] |
+  {type: .[0].job_type,
+   started: map(select(.event=="started"))|length,
+   failed:  map(select(.event=="failed"))|length,
+   errors: [.[] | select(.event=="failed") | .error_class] | unique}
+' "$EV"
+# PASS: failed==0, or failures confined to job types already tracked in backlog
+# FAIL: a job type failing that has no backlog issue → classify via the Gate 7
+#       fix table (per-job view: jq -c 'select(.job_id=="<uuid>")' "$EV")
+```
+
+**Fix table:**
+
+| Symptom | Fix |
+|---------|-----|
+| Invalid event lines | contract break — file `zdots-issue`; do not edit the schema to suppress |
+| Failure spike in one job_type | per-job view via jq, then Gate 7 fix table |
+| Event file absent but jobs ran | emitter failing silently — check worker log for `pipeline-event emit failed`, file `zdots-issue --high` |
 
 ---
 
