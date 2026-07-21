@@ -1,5 +1,5 @@
 ---
-id: Z-236
+id: Z-241
 title: >-
   [agent-issue] Schema drift: policy-engine columns never migrated —
   context-engine app code + specs use columns abs
