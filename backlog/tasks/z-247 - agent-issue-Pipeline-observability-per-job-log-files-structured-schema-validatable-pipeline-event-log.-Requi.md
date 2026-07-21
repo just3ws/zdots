@@ -3,10 +3,10 @@ id: Z-247
 title: >-
   [agent-issue] Pipeline observability: per-job log files + structured,
   schema-validatable pipeline event log. Requi
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-21 17:07'
-updated_date: '2026-07-21 17:20'
+updated_date: '2026-07-21 17:26'
 labels:
   - agent-reported
   - request
@@ -32,5 +32,5 @@ Pipeline observability: per-job log files + structured, schema-validatable pipel
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Direction (operator + agent, 2026-07-21): build #2 only — schema-validated JSONL event stream is primary; per-job 'log files' become a derived view (jq by job_id or a zdots-ctx jobs log <id> wrapper), not a storage layout. Design pins: (a) JSONL file, NOT a Postgres events table — the event log must survive DB/worker failure and append-only files have no interesting failure modes; rotate via existing log-rotate. (b) PHI-safe by construction: structural fields only (job_id, media_source_id, stage, event, ts, attempt, error_class enum, artifact paths) — no free-text content field, so nothing to scrub. Raw tool output stays in artifacts referenced by events. (c) Draft 7 schema in etc/ + contract test (validate-at-the-seam, same principle as Z-234). (d) OTel collector tails the JSONL — closes Z-229 with the same emit point.
+Implemented on work machine: lib/zdots/pipeline_events.rb (emitter, never-raises), etc/pipeline-events.schema.json (Draft 7, additionalProperties:false, error_class = exception class name only — message never emitted), wired at the single seam Jobs::Base#perform_with_otel (started/succeeded/failed), tests/pipeline_events.bats (4 contract tests incl. drift-rejection + content-leak guard) all passing. Follow-up (scoped out deliberately): collector filelog receiver for the JSONL — the existing logs pipeline stamps service.name=work3 and is phi-compile-gated, so the receiver needs its own pipeline + a zdots-otel-phi-compile run; belongs with Z-229.
 <!-- SECTION:NOTES:END -->
