@@ -108,7 +108,8 @@ Both machines allocate the next sequential Z-nnn independently; concurrent
 filings collide (happened twice: Z-235/236 on 07-20, Z-240 on 07-21).
 
 ```bash
-ls ~/.config/zsh/backlog/tasks/ | grep -oE '^z-[0-9]+' | sort | uniq -d
+# Full ID token only — z-172 and its subtask z-172.03 are distinct IDs, not a dup.
+ls ~/.config/zsh/backlog/tasks/ | sed -E 's/^(z-[0-9]+(\.[0-9]+)?) - .*/\1/' | sort | uniq -d
 # PASS: no output
 # FAIL: upstream's ID is canonical (already in main's history). Renumber the
 #       LOCAL task to the next free ID: update `id:` frontmatter, `git mv` the
