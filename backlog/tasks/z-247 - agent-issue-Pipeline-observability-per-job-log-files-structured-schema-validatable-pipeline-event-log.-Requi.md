@@ -3,10 +3,10 @@ id: Z-247
 title: >-
   [agent-issue] Pipeline observability: per-job log files + structured,
   schema-validatable pipeline event log. Requi
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-07-21 17:07'
-updated_date: '2026-07-21 17:26'
+updated_date: '2026-07-21 17:36'
 labels:
   - agent-reported
   - request
@@ -32,5 +32,5 @@ Pipeline observability: per-job log files + structured, schema-validatable pipel
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Implemented on work machine: lib/zdots/pipeline_events.rb (emitter, never-raises), etc/pipeline-events.schema.json (Draft 7, additionalProperties:false, error_class = exception class name only — message never emitted), wired at the single seam Jobs::Base#perform_with_otel (started/succeeded/failed), tests/pipeline_events.bats (4 contract tests incl. drift-rejection + content-leak guard) all passing. Follow-up (scoped out deliberately): collector filelog receiver for the JSONL — the existing logs pipeline stamps service.name=app and is phi-compile-gated, so the receiver needs its own pipeline + a zdots-otel-phi-compile run; belongs with Z-229.
+Verified end-to-end: ingest_media retry (4537c4e1) emitted started+failed events on the live worker, schema-valid — both job classes proven through the Base seam. Landed as e6f5d31.
 <!-- SECTION:NOTES:END -->
