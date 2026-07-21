@@ -61,6 +61,7 @@
       "Bash(zdots-ingest-media:*)",
       "Bash(zdots-otel-phi-compile:*)",
       "Bash(zdots-pages:*)",
+      "Bash(zdots-platform:*)",
       "Bash(zdots-publish:*)",
       "Bash(zdots-ruby-clone:*)",
       "Bash(zdots-ruby-default-gems:*)",
