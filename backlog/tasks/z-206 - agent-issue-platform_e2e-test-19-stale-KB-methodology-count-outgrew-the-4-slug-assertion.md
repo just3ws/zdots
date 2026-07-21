@@ -3,9 +3,10 @@ id: Z-206
 title: >-
   [agent-issue] platform_e2e test 19 stale: KB methodology count outgrew the ==4
   slug assertion
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-11 16:08'
+updated_date: '2026-07-21 16:15'
 labels:
   - agent-reported
   - error
