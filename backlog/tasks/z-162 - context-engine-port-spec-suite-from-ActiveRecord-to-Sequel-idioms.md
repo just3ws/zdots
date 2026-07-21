@@ -1,9 +1,10 @@
 ---
 id: Z-162
 title: 'context-engine: port spec suite from ActiveRecord to Sequel idioms'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-06-20 03:33'
+updated_date: '2026-07-21 02:51'
 labels: []
 dependencies: []
 priority: medium
@@ -22,3 +23,9 @@ Full RSpec suite is 95 examples / 59 failures — all pre-existing, from specs w
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Phase 1 landed (my@9812fae): test isolation (my_test + _test-name guards in ContextEngine::Db/rails_helper), per-example table cleanup, create!/find_by! port (45 sites), extractor pg_jsonb fix. Suite: 65→58 failures. Remainder blocked on policy-engine schema drift (Z-236) + home-side WIP specs (dashboard cockpit, prime_and_reprocess Open3 mocks). Prod spec-residue cleanup SQL handed to operator.
+<!-- SECTION:NOTES:END -->
