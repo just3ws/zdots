@@ -3,9 +3,10 @@ id: Z-237
 title: >-
   [agent-issue] zdots-ingest-media: bare yt-dlp fetch has no cookie strategy —
   bot-gated YouTube fails with 'Sign in
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-21 13:20'
+updated_date: '2026-07-21 16:24'
 labels:
   - agent-reported
   - error

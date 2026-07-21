@@ -20,6 +20,11 @@ DIARIZE="${ZDOTDIR}/bin/diarize"
 AI_QUERY="${ZDOTDIR}/bin/ai-query"
 OUT_BASE="${HOME}/Downloads/transcripts"
 
+# Z-237: opt-in cookie args for bot-gated sources (YouTube). Empty unless
+# ZDOTS_YTDLP_COOKIES_FROM_BROWSER / _FILE is set. See lib/ytdlp.bash.
+source "${ZDOTDIR}/lib/ytdlp.bash"
+_ytdlp_cookies=(); zdots_ytdlp_load_cookies
+
 usage() {
   cat <<EOF
 Usage: ztranscribe <youtube_url> [options]
@@ -154,7 +159,7 @@ if [[ -f "$URL" ]]; then
   RAW_WAV="$URL"
 else
   # Get video ID for unique naming
-  VIDEO_ID=$(yt-dlp --get-id "$URL" 2>/dev/null || echo "unknown_$(date +%s)")
+  VIDEO_ID=$(yt-dlp "${_ytdlp_cookies[@]+"${_ytdlp_cookies[@]}"}" --get-id "$URL" 2>/dev/null || echo "unknown_$(date +%s)")
   OUT_DIR="${OUT_BASE}/${VIDEO_ID}"
   mkdir -p "$OUT_DIR"
 
@@ -164,6 +169,7 @@ else
   # Download metadata and best audio
   printf '── Downloading audio and metadata ...\n' >&2
   yt-dlp \
+    "${_ytdlp_cookies[@]+"${_ytdlp_cookies[@]}"}" \
     --extract-audio \
     --audio-format wav \
     --audio-quality 0 \

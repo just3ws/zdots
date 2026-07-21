@@ -19,6 +19,10 @@ Usage: zdots-ingest-media <url|file> [options]
   --num-speakers <n>      Diarization speaker-count hint (e.g. interviewees + 1)
   --force                 Reprocess an already-ingested source
   -h, --help              Show this help
+
+Bot-gated sources (e.g. YouTube) need cookies. Set one of (opt-in):
+  ZDOTS_YTDLP_COOKIES_FROM_BROWSER=firefox   # or chrome/safari/brave/edge[:profile]
+  ZDOTS_YTDLP_COOKIES_FILE=/path/to/cookies.txt
 EOF
 }
 
@@ -40,9 +44,17 @@ FORCE_BOOL=$([[ -n "$FORCE" ]] && echo true || echo false)
 # null when unset → zdots-brain omits the hint; a bare int otherwise.
 SPEAKERS_JSON=$([[ -n "$NUM_SPEAKERS" ]] && echo "$NUM_SPEAKERS" || echo null)
 
+# Z-237: opt-in cookie args for bot-gated sources (YouTube). Empty array unless
+# ZDOTS_YTDLP_COOKIES_FROM_BROWSER / _FILE is set. See lib/ytdlp.bash.
+source "${ZDOTDIR:-$HOME/.config/zsh}/lib/ytdlp.bash"
+_ytdlp_cookies=(); zdots_ytdlp_load_cookies
+
 if [[ "$SRC" =~ ^https?:// ]]; then
   # Public source — metadata only, no download. Public data, stored in full.
-  info="$(yt-dlp --dump-json --skip-download "$SRC")"
+  if ! info="$(yt-dlp "${_ytdlp_cookies[@]+"${_ytdlp_cookies[@]}"}" --dump-json --skip-download "$SRC")"; then
+    zdots_ytdlp_cookie_hint
+    exit 1
+  fi
   meta="$(jq -n --argjson i "$info" --arg cb "$captured_by" \
               --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" \
               --argjson speakers "$SPEAKERS_JSON" '{
