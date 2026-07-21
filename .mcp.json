@@ -48,6 +48,20 @@
       "env": {
         "ZDOTDIR": "${HOME}/.config/zsh"
       }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--headless",
+        "--allowed-origins",
+        "https://my.localhost;https://o2.localhost;https://llama.localhost;https://zdots.localhost;http://127.0.0.1;http://localhost"
+      ],
+      "env": {
+        "PATH": "${HOME}/.config/zsh/bin:${HOME}/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+      }
     }
   }
 }
