@@ -3,9 +3,10 @@ id: Z-241
 title: >-
   [agent-issue] Schema drift: policy-engine columns never migrated —
   context-engine app code + specs use columns abs
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-21 02:50'
+updated_date: '2026-07-21 21:39'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ Schema drift: policy-engine columns never migrated — context-engine app code +
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Migration 20260721000000_add_policy_engine_columns applied via zdots-ctx migrate; mirrored to my_test. Unblocked approve/rollback endpoints + 25 specs.
+<!-- SECTION:NOTES:END -->

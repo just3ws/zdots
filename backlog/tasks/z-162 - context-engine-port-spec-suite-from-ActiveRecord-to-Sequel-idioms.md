@@ -4,7 +4,7 @@ title: 'context-engine: port spec suite from ActiveRecord to Sequel idioms'
 status: In Progress
 assignee: []
 created_date: '2026-06-20 03:33'
-updated_date: '2026-07-21 02:51'
+updated_date: '2026-07-21 21:39'
 labels: []
 dependencies: []
 priority: medium
@@ -27,5 +27,5 @@ Full RSpec suite is 95 examples / 59 failures — all pre-existing, from specs w
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Phase 1 landed (my@9812fae): test isolation (my_test + _test-name guards in ContextEngine::Db/rails_helper), per-example table cleanup, create!/find_by! port (45 sites), extractor pg_jsonb fix. Suite: 65→58 failures. Remainder blocked on policy-engine schema drift (Z-236) + home-side WIP specs (dashboard cockpit, prime_and_reprocess Open3 mocks). Prod spec-residue cleanup SQL handed to operator.
+Phase 2 (my@3c2be7e + zdots migration 20260721000000): Z-241 columns migrated (my + my_test); resolver singular-alias bug fixed (every policy query 500'd in prod); spec /v1->/api/v1 rot swept. Suite 58->22. Remaining: 5 prime_and_reprocess Open3-mock (home WIP), 1 dashboard cockpit (home WIP), ~4 clusters: gaps_controller 'if gap.save' assumes AR false-on-invalid but Sequel raises (unreachable 422 branch), an 'AND requires 1 argument' validation issue, policy_rule model validations, parity leftovers.
 <!-- SECTION:NOTES:END -->
