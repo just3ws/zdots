@@ -3,9 +3,10 @@ id: Z-236
 title: >-
   [agent-issue] zdots-heal Gate 6: 37 agent-facing bin/ commands lack a CC
   allowlist entry in settings.json or setti
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-21 01:24'
+updated_date: '2026-07-21 13:41'
 labels:
   - agent-reported
   - error
