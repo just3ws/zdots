@@ -1,0 +1,21 @@
+.TH CC-DOCTOR 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+cc-doctor \- # bin/cc\-doctor — Claude Code health check ("brew doctor" for the CC setup).
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBcc-doctor --help\fR).
+.SH OPTIONS
+.nf
+# bin/cc-doctor — Claude Code health check ("brew doctor" for the CC setup).
+#
+# Audits this workstation's Claude Code integration against current best
+# practice: config validity, the PHI/secrets deny-list, MCP reproducibility,
+# hooks + statusline wiring, and the recommended CLI toolchain. Run it
+# periodically (or from zdots-doctor) to keep the setup from drifting.
+#
+# Usage: cc-doctor [-q|--quiet] [-h|--help]
+#   -q, --quiet   Only print warnings and failures
+#
+# Exit: 0 when no failures, 1 on any [FAIL].
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

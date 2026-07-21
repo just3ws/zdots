@@ -1,0 +1,90 @@
+.TH CHECK 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+check \- check: compaudit flagged system\-managed paths (ignored): /opt/homebrew/share 
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBcheck --help\fR).
+.SH OPTIONS
+.nf
+check: compaudit flagged system-managed paths (ignored): /opt/homebrew/share 
+]1337;RemoteHost=mike.hall@Mike-Hall-MacBook-Pro.local]1337;CurrentDir=/Users/mike.hall/.config/zsh]1337;ShellIntegrationVersion=14;shell=zshbrew bundle can't satisfy your Brewfile's dependencies.
+Run `brew bundle check --verbose` to list unmet dependencies.
+Satisfy missing dependencies with `brew bundle install`.
+check: warning: brew bundle check failed (non-blocking)
+check: running Bats tests...
+1..774
+not ok 1 adots-my prepare dry-run reports the planned skeleton without mutating
+# (in test file tests/adots_my_structure.bats, line 31)
+#   `[ "$my_status" -eq 0 ]' failed
+not ok 2 adots-my prepare apply creates the safe skeleton and sources template
+# (in test file tests/adots_my_structure.bats, line 51)
+#   `[ "$my_status" -eq 0 ]' failed
+not ok 3 adots-my migrate apply archives legacy roots and writes a migration note
+# (in test file tests/adots_my_structure.bats, line 81)
+#   `[ "$my_status" -eq 0 ]' failed
+ok 4 95-ai exposes zpi without sourcing Pi provider at startup
+ok 5 95-ai exposes zaider and laid without sourcing Aider provider at startup
+ok 6 95-ai exposes zai without sourcing the router provider at startup
+ok 7 cloud-lane: refused on work machines (exit 3)
+ok 8 cloud-lane: refused without phi_scrub present (exit 1)
+ok 9 cloud-lane: refused when key absent from Keychain (exit 1)
+ok 10 cloud-lane: success resolves key from Keychain and exports it
+ok 11 cloud-lane: native mode succeeds without resolving any key
+ok 12 cloud-lane: notice is honest that interactive traffic is not scrubbed
+ok 13 ai_invoke: infer_raw exits 2 when ZDOTS_AI_MODE=none
+ok 14 ai_invoke: infer_raw exits 2 with empty prompt
+ok 15 ai_invoke: infer_raw exits 1 when ai-query not found
+ok 16 ai_invoke: infer_raw runs hygiene — PHI stripped before delegation
+ok 17 ai_invoke: infer_raw passes system prompt to ai-query
+ok 18 ai_invoke: infer_raw omits --system when no system prompt given
+ok 19 ai_invoke: infer_raw forwards --temperature and --thinking flags to ai-query
+ok 20 ai_invoke: distill returns valid JSON on success
+ok 21 ai_invoke: distill exits 2 when model returns non-JSON
+ok 22 ai_invoke: distill exits 1 when inference fails
+ok 23 ai_invoke: distill exits 2 with empty prompt
+ok 24 ai_invoke: distill extracts JSON from prose-wrapped response
+ok 25 A1: --help exits 0
+ok 26 A2: --help output goes to stdout
+ok 27 A3: --help lists all modes
+ok 28 A4: --help lists all exit codes
+ok 29 A5: --help mentions limitations
+ok 30 A6: no arguments exits 2 (usage error)
+ok 31 A7: unknown option exits 2
+ok 32 A8: no broken pipe when help output truncated
+ok 33 B1: normalization strips null bytes
+ok 34 B2: normalization converts CRLF to LF
+ok 35 B3: normalization strips ANSI escape sequences
+ok 36 B4: normalization preserves plain text content
+ok 37 B5: normalization preserves newlines
+ok 38 B6: normalization detects ANSI in metadata
+ok 39 B7: normalization detects null bytes in metadata
+ok 40 B8: normalization strips C0 control chars except HT and LF
+ok 41 B9: normalization preserves tab characters
+ok 42 C1: rejects input exceeding max-bytes
+ok 43 C2: size rejection message goes to stderr
+ok 44 C3: input at exactly max-bytes is accepted (no server needed — exits at health check)
+ok 45 C4: aiq_check_size exits 3 above limit
+ok 46 C5: aiq_check_size succeeds at limit
+ok 47 D1: plain text scores low risk
+ok 48 D2: obvious injection scores high risk
+ok 49 D3: obvious injection scan lists findings
+ok 50 D4: ANSI escape content raises score
+ok 51 D5: scan output always ends with SCORE:N LEVEL:X line
+ok 52 D6: scan returns 0 for low-risk content
+ok 53 D7: --show-risk prints findings to stderr
+ok 54 D8: --block-high exits 4 on high-risk input
+ok 55 D9: without --block-high, high-risk input is not auto-blocked
+ok 56 D10: academic injection-discussion is dampened to medium (not high)
+ok 57 D11: dampener is not an evasion vector — academic-wrapped imperative stays high
+ok 58 D12: obvious injection is never dampened (genuine attack)
+ok 59 D13: --show-risk field shape (SCORE/LEVEL line) is unchanged by calibration
+ok 60 D14: classify-risk mode raises the --block-high threshold (60-89 not blocked)
+ok 61 E1: safe-extract system prompt contains SECURITY POLICY
+ok 62 E2: safe-extract wraps content in USER_DATA tags
+ok 63 E3: safe-extract places TASK outside USER_DATA tags
+ok 64 E4: raw mode does NOT include SECURITY POLICY in system prompt
+ok 65 E5: classify-risk system prompt does not follow instructions
+ok 66 E6: user data content survives with quotes intact
+ok 67 E7: user data content survives with backslashes intact
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

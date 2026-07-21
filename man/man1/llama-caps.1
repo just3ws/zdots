@@ -1,0 +1,20 @@
+.TH LLAMA-CAPS 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+llama-caps \- (no flag)   Human\-readable terminal report
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBllama-caps --help\fR).
+.SH OPTIONS
+.nf
+Usage: llama-caps [--json | --md]
+
+  (no flag)   Human-readable terminal report
+  --json      Machine-readable JSON capability document
+  --md        Markdown — copy to any AI chat (pbcopy, etc.)
+
+Examples:
+  llama-caps                # terminal
+  llama-caps --md | pbcopy  # brief Gemini/ChatGPT/Claude about this stack
+  llama-caps --json | jq .capabilities
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

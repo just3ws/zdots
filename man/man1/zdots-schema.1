@@ -1,0 +1,27 @@
+.TH ZDOTS-SCHEMA 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-schema \- Commands:
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-schema --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-schema <command> [options]
+
+Commands:
+  status                  Show current schema version
+  history                 Show migration history
+  list-migrations         List available migrations
+  migrate [--to VERSION]  Apply pending migrations
+  rollback --to VERSION   Rollback to previous version
+  validate                Validate schema consistency
+
+Examples:
+  zdots-schema status
+  zdots-schema history
+  zdots-schema migrate
+  zdots-schema migrate --to 2026-06-01
+  zdots-schema rollback --to 2026-05-15
+    -h, --help                       Show help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

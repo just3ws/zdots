@@ -1,0 +1,30 @@
+.TH NGINX-REPAIR 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+nginx-repair \- Repair file ownership damaged by: sudo brew services start nginx
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBnginx-repair --help\fR).
+.SH OPTIONS
+.nf
+Usage: nginx-repair [--dry-run] [--help]
+
+Repair file ownership damaged by: sudo brew services start nginx
+
+\&'sudo brew services start nginx' installs nginx as a root-owned system
+service. This leaves two classes of damage:
+
+  1. Log files owned by root — you cannot tail, rotate, or read them
+     without sudo.
+  2. LaunchAgent plist owned by root — launchctl start/stop requires sudo.
+     Worse, brew may promote the service to /Library/LaunchDaemons/ (a
+     system daemon), removing it from your user session entirely.
+
+nginx's master process runs as root to bind privileged ports — that is
+correct and is not changed by this script. Only log files and the plist
+are repaired.
+
+Options:
+  --dry-run   Show what would change without making any changes
+  --help      Show this help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

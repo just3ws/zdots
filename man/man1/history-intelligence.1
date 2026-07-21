@@ -1,0 +1,32 @@
+.TH HISTORY-INTELLIGENCE 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+history-intelligence \- [\-\-scan N] [\-\-slow\-ms MS] [\-\-phi] [\-\-quiet]
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBhistory-intelligence --help\fR).
+.SH OPTIONS
+.nf
+usage: history-intelligence [-h] [--json] [--window DAYS] [--limit N]
+                            [--scan N] [--slow-ms MS] [--phi] [--quiet]
+                            [--gate] [--no-atuin] [--no-color] [--db PATH]
+
+Synthesize zdots runtime history (command_runs + shell_hook_metrics + atuin)
+into an interface report.
+
+options:
+  -h, --help     show this help message and exit
+  --json         emit machine-readable JSON
+  --window DAYS  analysis window in days (default: 7)
+  --limit N      rows per section (default: 12)
+  --scan N       atuin entries to scan for frequency (default: 1000)
+  --slow-ms MS   hook elapsed floor counted as a performance concern (default:
+                 50)
+  --phi          PHI accountability + signals only
+  --quiet        signals only (suppress detail sections)
+  --gate         exit non-zero if any high-severity signal is present (for
+                 hooks/CI)
+  --no-atuin     skip atuin frequency
+  --no-color     disable ANSI color
+  --db PATH      history.sqlite3 path (default: XDG state)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

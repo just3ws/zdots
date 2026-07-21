@@ -1,0 +1,90 @@
+.TH GEMINI-INVOKE 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+gemini-invoke \- platform: starting observable agent session [trace:255372c5]...
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBgemini-invoke --help\fR).
+.SH OPTIONS
+.nf
+platform: starting observable agent session [trace:255372c5]...
+The following context has been retrieved from the Knowledge Layer:
+
+### PREFERRED METHODOLOGIES
+#### zdots: common scenarios and task-to-tool recipes
+# zdots Platform Scenarios
+
+Use these recipes when deciding which tool to reach for.
+The wrong-tool antipatterns are listed so semantic search surfaces the
+right answer even when an agent is already thinking about the wrong tool.
+
+---
+
+## Service lifecycle
+
+**Start, stop, or restart any service**
+```
+zsvc start  <svc>    # never: brew services start / launchctl load directly
+zsvc stop   <svc>
+zsvc restart <svc>
+zsvc reload <svc>    # SIGHUP (config reload without full restart)
+```
+Services: `llama`, `embed`, `otel`, `o2`, `colima`
+Aliases: `ai`=llama, `telemetry`=otel, `vm`=colima
+
+**Check which services are running**
+```
+zsvc list            # table of state + pid + endpoint — never: ps aux | grep
+zsvc status <svc>    # detailed status from the service's own ctl script
+zsvc diag   <svc>    # status + health + launchd state + last 50 log lines
+```
+
+**Tail a service log**
+```
+zsvc logs <svc>      # never: tail ~/.local/state/zsh/<svc>.log directly
+```
+
+**Full platform health check (run this first when anything is wrong)**
+```
+zdots-doctor         # env, repo, XDG, AI tools, services, runtime
+zdots-ctl check      # deep: FileVault/SIP, AI mode, capture, schema, model provenance
+```
+
+**Bring everything up / tear everything down**
+```
+zdots-ctl up
+zdots-ctl down
+zdots-ctl reset      # full restart in dependency order
+```
+
+---
+
+## AI & local LLM inference
+
+**Send a one-shot prompt to the local model**
+```
+ai-query "prompt"
+cmd | ai-query "summarize this"   # never: curl the llama.cpp HTTP API directly
+```
+
+**Interactive AI with zdots domain context**
+```
+zdots-ask "prompt"                # routes through zdots_ai_gate, adds context
+zdots-ask --domain ruby "..."     # domain-aware routing
+```
+
+**Check what the local model can actually do**
+```
+zdots-quiz --quick    # 3-case capability probe
+zdots-quiz            # full 14-case probe
+capabilities --json   # structured environment contract
+agent-guide           # full service usage guide for agents
+```
+
+**Use a specific AI tool for a specific task**
+```
+cl / cc / claude      # Claude Code — architecture, review, planning
+zaider / aider        # Aider wired to local llama.cpp — file edits, commits
+laid                  # Low-priority Aider (nice +19) — background edits
+zdots-ask             # Domain-aware local LLM prompt router
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

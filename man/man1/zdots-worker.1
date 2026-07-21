@@ -1,0 +1,30 @@
+.TH ZDOTS-WORKER 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-worker \- Service Lifecycle:
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-worker --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-worker <command> [--json]
+
+Service Lifecycle:
+  install   Register the macOS launchd worker (KeepAlive, RunAtLoad)
+  start     Load and start the worker
+  stop      Unload and stop the worker
+  restart   stop then start
+  status    Show worker state and process info
+  health    Exit 0 if the worker process is alive, exit 1 otherwise
+  logs      Tail the worker log
+  run       launchd entry point — set up env + secrets, exec the worker loop
+            (internal; do not run by hand)
+
+Options:
+  --json      Output status/health as JSON (valid for status, health)
+  -h, --help  Show this help
+
+The worker drains the async job queue (embed, distill, docs_sync) for the
+`my` database. Manage it via `zsvc <verb> worker`; this script is the
+authoritative ctl backing that.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

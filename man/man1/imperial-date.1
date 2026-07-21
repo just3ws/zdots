@@ -1,0 +1,24 @@
+.TH IMPERIAL-DATE 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+imperial-date \- Emit a date in the Imperial Dating System (default: today).
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBimperial-date --help\fR).
+.SH OPTIONS
+.nf
+Usage: imperial-date [YYYY-MM-DD] [-c N] [--decode] [-h|--help]
+
+Emit a date in the Imperial Dating System (default: today).
+
+Options:
+  YYYY-MM-DD   Gregorian date to convert (default: today)
+  -c, --check N  Check Number 0-9 (default: 0 — verified at source)
+  --decode STR   Decode an Imperial date (CFFFYYY.M#) back to Gregorian (approx)
+  -h, --help     Show this help
+
+Examples:
+  imperial-date                 # today, e.g. 0452026.M3
+  imperial-date 2026-06-14      # 0452026.M3
+  imperial-date --decode 0452026.M3
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

@@ -1,0 +1,34 @@
+.TH COLIMA-STATUS 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+colima-status \- bin/colima\-status — Authoritative Colima + Docker status interface for zdots.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBcolima-status --help\fR).
+.SH OPTIONS
+.nf
+bin/colima-status — Authoritative Colima + Docker status interface for zdots.
+
+STOP — do not call `colima status` or search for the docker socket yourself.
+Use this command. Colima's own runtime hardcodes homedir config (~/.colima)
+whenever that directory exists and silently ignores XDG_CONFIG_HOME — this is
+colima upstream behavior, not a zdots bug, and not worth fighting (decided
+2026-07-04, see Z-195/Z-181). zdots treats ~/.colima as canonical and does
+not probe XDG_CONFIG_HOME/colima at all.
+
+Commands:
+  socket           Print the live docker socket path; exit 1 if not present
+  health           Exit 0 = running + socket present; exit 1 otherwise
+  status           Human-readable status (default)
+  logs             Tail the colima autostart log
+
+Flags:
+  --json           Machine-readable JSON (with any command or alone)
+  --profile <p>    Colima profile name (default: $COLIMA_PROFILE or "default")
+  -h, --help       Show this help
+
+Agent pattern:
+  colima-status --json            single authoritative JSON blob
+  DOCKER_HOST=$(colima-status socket) docker ps
+  colima-status health && docker ps
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

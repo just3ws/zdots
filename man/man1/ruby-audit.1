@@ -1,0 +1,30 @@
+.TH RUBY-AUDIT 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+ruby-audit \- bin/ruby\-audit — Static analysis + AI context builder for Ruby/Rails codebases.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBruby-audit --help\fR).
+.SH OPTIONS
+.nf
+bin/ruby-audit — Static analysis + AI context builder for Ruby/Rails codebases.
+
+Runs from its own isolated Gemfile (etc/ruby-audit/Gemfile). Works with any
+Ruby: brew install ruby, mise, rbenv, or system. Run `ruby-audit --setup` once
+to install the audit gems before first use.
+
+Usage: ruby-audit <directory> [options]
+
+Options:
+  --ruby VERSION      Override detected Ruby version (e.g. 2.6, 3.2)
+  --rails VERSION     Override detected Rails version (e.g. 5.2, 7.1)
+  --out DIR           Output directory (default: ~/.local/state/zsh/ruby-audits/<slug>)
+  --skip TOOL         Skip a tool: bundler-audit, brakeman, rubocop, reek, flog, flay
+  --only TOOL         Run only this tool (repeatable)
+  --interrogate       After report, launch an AI session with codebase + audit context
+  --no-repomix        Skip repomix context build (faster)
+  --no-slices         Skip context slice generation
+  --budget TOKENS     Token budget per slice (default: 32000)
+  --setup             Install the audit gem bundle and exit
+  --help              Show this help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

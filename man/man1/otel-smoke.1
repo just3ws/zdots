@@ -1,0 +1,30 @@
+.TH OTEL-SMOKE 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+otel-smoke \- bin/otel\-smoke — exercise the full OpenTelemetry pipeline end to end.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBotel-smoke --help\fR).
+.SH OPTIONS
+.nf
+bin/otel-smoke — exercise the full OpenTelemetry pipeline end to end.
+
+Emits one coherent, trace-correlated scenario covering all three OTel pillars
+to the local collector (:4318), which forwards to OpenObserve:
+
+  TRACES   a multi-span "GET /checkout" trace: auth → db → cache → payment,
+           with span attributes, span events, an error span, and a span link.
+  METRICS  a gauge, a monotonic counter (sum), and a histogram (RED-style
+           request duration) — the three core metric shapes.
+  LOGS     wide structured events (the canonical-log-line pattern): each record
+           carries a rich attribute set and is correlated to the trace via
+           traceId/spanId, across DEBUG/INFO/WARN/ERROR/FATAL severities.
+
+Usage:
+  otel-smoke                 # send one scenario (service=zdots-smoke)
+  otel-smoke --verify        # send, then confirm it landed in OpenObserve
+  otel-smoke --service NAME  # custom service.name
+  otel-smoke --endpoint URL  # collector OTLP HTTP base (default :4318)
+
+Exit 0 on success (and, with --verify, when the data is found in OpenObserve).
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

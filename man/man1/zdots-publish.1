@@ -1,0 +1,25 @@
+.TH ZDOTS-PUBLISH 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-publish \- /Users/mike.hall/.config/zsh/bin/zdots\-ruby: fork: retry: Resource temporarily unavailable
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-publish --help\fR).
+.SH OPTIONS
+.nf
+/Users/mike.hall/.config/zsh/bin/zdots-ruby: fork: retry: Resource temporarily unavailable
+/Users/mike.hall/.config/zsh/bin/zdots-ruby: fork: retry: Resource temporarily unavailable
+/Users/mike.hall/.config/zsh/bin/zdots-ruby: fork: retry: Resource temporarily unavailable
+Usage: zdots-publish <media_source_id> [options]
+
+Automated publishing engine. Reads the extracted timeline for a given source,
+extracts video clips using FFmpeg, burns in subtitles, and pushes them to
+social distribution channels.
+
+Options:
+  --mock     Mock social pushing (default)
+  --real     Actually execute external API pushes
+
+Examples:
+  zdots-publish c99e6698-ff84-4488-8b70-2d413dd65457
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

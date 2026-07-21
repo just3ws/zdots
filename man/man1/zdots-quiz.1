@@ -1,0 +1,23 @@
+.TH ZDOTS-QUIZ 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-quiz \- # bin/zdots\-quiz — Probe local model capability on zdots\-specific tasks.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-quiz --help\fR).
+.SH OPTIONS
+.nf
+# bin/zdots-quiz — Probe local model capability on zdots-specific tasks.
+#
+# Runs a curated suite of prompts against the local Qwen2.5-Coder model via
+# zdots-ask and scores responses by keyword presence. Use to calibrate what
+# the local model knows about zdots conventions before trusting it with real
+# work, and to detect regressions after model swaps.
+#
+# Usage:
+#   zdots-quiz              # run all cases
+#   zdots-quiz --domain shell   # run only shell domain cases
+#   zdots-quiz --verbose    # print model responses alongside scores
+#   zdots-quiz --list       # list test case IDs
+#   zdots-quiz TC-01 TC-05  # run specific cases by ID
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

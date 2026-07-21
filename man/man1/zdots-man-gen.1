@@ -1,0 +1,17 @@
+.TH ZDOTS-MAN-GEN 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-man-gen \- Generate man(1) pages for bin/ commands from their \-\-help output.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-man-gen --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-man-gen [--check]
+
+Generate man(1) pages for bin/ commands from their --help output.
+Curated pages in man/man1 + man/man8 are never overwritten — this fills gaps.
+
+  --check     List commands with no man page and exit 1 (CI mode; writes nothing)
+  -h, --help  Show this help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

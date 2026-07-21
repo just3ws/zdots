@@ -1,0 +1,23 @@
+.TH ZDOTS-GRAPH-AUDIT 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-graph-audit \- bin/zdots\-graph\-audit — assert zdots' code\-graph security invariants hold.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-graph-audit --help\fR).
+.SH OPTIONS
+.nf
+bin/zdots-graph-audit — assert zdots' code-graph security invariants hold.
+
+A graph-based contract test over the Ruby in lib/zdots/ (the part of zdots that
+graphify reads accurately): the local-AI/PHI gate and the encryption key store.
+It encodes "every inference path routes through assert_local!" and "encrypted
+attributes go through the key store" as queries against graphify's graph, so a
+refactor that quietly bypasses a boundary fails the check. Also summarizes the
+exposed capability surface (bin/ entrypoints + env requirements).
+
+Local-only, no LLM. Exit 0 if all invariants hold; exit 1 on any violation.
+CI-friendly: run after changes under lib/zdots/.
+
+Usage: zdots-graph-audit [--no-build] [-h|--help]
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

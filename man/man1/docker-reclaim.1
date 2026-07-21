@@ -1,0 +1,18 @@
+.TH DOCKER-RECLAIM 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+docker-reclaim \- (no flag)   Dry run — show what would be reclaimed (safe)
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBdocker-reclaim --help\fR).
+.SH OPTIONS
+.nf
+Usage: docker-reclaim [-f]
+
+  (no flag)   Dry run — show what would be reclaimed (safe)
+  -f          Execute — DESTRUCTIVE: prunes containers, images, volumes,
+              build cache, then runs fstrim inside the Colima VM.
+              Without fstrim, freed VM space does not return to the macOS host.
+
+  -h, --help  Show this help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)
