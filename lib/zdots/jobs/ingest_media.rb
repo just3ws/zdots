@@ -253,7 +253,7 @@ module Zdots
         return wav if wav && File.file?(wav)
 
         recipe = File.join(Zdots::ZDOTDIR, "recipes", "yt-transcribe")
-        out, status = Zdots.run_bounded(recipe, @src.source_uri, "--prep-only", "--out-dir", @out_base,
+        out, status = Zdots.run_bounded(recipe, source_input, "--prep-only", "--out-dir", @out_base,
                                         timeout: RECIPE_TIMEOUT, merge_err: true)
         raise "prep-only failed: #{out}" unless status.success?
         (out[/^WAV=(.+)$/, 1] || raise("prep-only did not report WAV path")).strip
@@ -301,14 +301,30 @@ module Zdots
       # ingest-time retention copy — not yet implemented.
       def require_fetchable!
         return unless @src.source_type == "local"
-        raise "local sources need a retention-store copy at ingest time (not yet implemented)"
+        source_input # raises with a clear message if the retention copy is gone
+      end
+
+      # Z-238: what the recipe transcribes — a re-fetchable URL for remote sources,
+      # or the on-box, sha-keyed retention copy for a local:sha256 source (PHI policy
+      # Z-163: local paths aren't stored, so the file is stashed at ingest time).
+      def source_input
+        return @src.source_uri unless @src.source_type == "local"
+        retained_local or raise(
+          "local retention copy missing for #{@src.source_id} — the sha-keyed file under " \
+          "#{RETENTION_ROOT}/_local was not found; re-run zdots-ingest-media on the original"
+        )
+      end
+
+      def retained_local
+        Dir.glob(File.join(RETENTION_ROOT, "_local", "#{@src.source_id}.*"))
+           .find { |f| File.file?(f) }
       end
 
       # Re-fetch + whisper into the retention store.
       def transcribe_raw
         require_fetchable!
         recipe = File.join(Zdots::ZDOTDIR, "recipes", "yt-transcribe")
-        cmd = [recipe, @src.source_uri, "--profile", @profile, "--json-full", "--out-dir", @out_base]
+        cmd = [recipe, source_input, "--profile", @profile, "--json-full", "--out-dir", @out_base]
         vocab = self.class.known_vocabulary(@src.tags, @src.primer_text)
         cmd += ["--prompt", vocab] unless vocab.empty?
         puts "  --> #{cmd.join(' ')}"
