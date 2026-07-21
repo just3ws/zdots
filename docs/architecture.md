@@ -390,7 +390,7 @@ host    all   zdots_ro,zdots_rw   ::1/128        scram-sha-256
 ```
 
 A passwordless connection as these users now fails; the OS superuser keeps `trust`
-via the catch-all, so migrations (`ZDOTS_MIGRATION_URL`) and `rotate-creds`'
+via the catch-all, so migrations (`ZDOTS_MIGRATION_URL`) and `rotate-creds`
 `ALTER ROLE` are unaffected. All app paths inject the Keychain password:
 `bin/zdots-ctx` (`_inject_db_password`), the brain (`lib/zdots/db.rb`), and the
 context-engine Rails bridge (`zdots_bridge.rb`) all resolve the URL through
