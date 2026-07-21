@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "opentelemetry"
+require_relative "../pipeline_events"
 
 module Zdots
   module Jobs
@@ -39,13 +40,16 @@ module Zdots
                          "job.id" => job.id.to_s,
                          "job.type" => job.type
                        }) do |span|
+          Zdots::PipelineEvents.emit(:started, job)
           result = run
           job.complete!(result)
+          Zdots::PipelineEvents.emit(:succeeded, job)
           result
         rescue StandardError => e
           span.record_exception(e)
           span.status = OpenTelemetry::Trace::Status.error(e.message)
           job.fail!(e.message)
+          Zdots::PipelineEvents.emit(:failed, job, error: e)
           raise e
         end
       end

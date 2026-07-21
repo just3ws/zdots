@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://zdots.local/schemas/pipeline-events.schema.json",
+  "title": "zdots pipeline event",
+  "description": "One JSONL line per worker-job lifecycle event (Z-247). Structural fields only — no free-text content field exists, so the stream is PHI-safe by construction. additionalProperties is false on purpose: a field not named here is a contract change, not a convenience.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ts", "job_id", "job_type", "event"],
+  "properties": {
+    "ts": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+      "description": "UTC, millisecond precision"
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "job_type": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "event": {
+      "enum": ["started", "succeeded", "failed"]
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "media_source_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "error_class": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_:]+$",
+      "description": "Ruby exception class name only — never the message (messages can carry content)"
+    }
+  }
+}
