@@ -3,9 +3,10 @@ id: Z-239
 title: >-
   [agent-issue] tests/platform_e2e.bats:165 'methodologies present by slug'
   asserts 4 hardcoded seed slugs (zsh-no-r
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-21 13:29'
+updated_date: '2026-07-21 16:15'
 labels:
   - agent-reported
   - error
