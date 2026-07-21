@@ -25,6 +25,12 @@ fixed.
 | **zdots-worker** (`com.zdots.worker`) | Persistent launchd service draining the job queue | yes |
 | **llama-embed** (`:11501`) | Embedding model — turns the embed job into a vector | yes |
 
+> **Bot-gated URL sources** (notably YouTube) reject anonymous `yt-dlp` fetches
+> with "Sign in to confirm you're not a bot". Supply cookies via the opt-in
+> `ZDOTS_YTDLP_COOKIES_FROM_BROWSER` or `ZDOTS_YTDLP_COOKIES_FILE` knobs
+> ([configuration.md](configuration.md)); non-gated sources (Vimeo, archive.org)
+> need none.
+
 ## Dataflow
 
 ```mermaid
