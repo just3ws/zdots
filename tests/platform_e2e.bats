@@ -162,10 +162,17 @@ _have() { command -v "$1" >/dev/null 2>&1; }
   [ "$output" -ge 1 ]
 }
 
-@test "captured best-practice methodologies are present by slug" {
+@test "core tooling methodologies are present by slug" {
+  # The methodologies table is populated from the tooling catalog, so assert a
+  # few core, always-present tool slugs rather than hand-authored best-practice
+  # slugs that rotate. The original 4 (zsh-no-reserved-vars, …) were captured
+  # dynamically and are long gone; these anchor on THE core platform commands, so
+  # a miss is a real regression (catalog not ingested / a core command removed).
+  # See Z-206 / Z-239.
   run "${PSQL_OSUSER[@]}" -c \
-    "select count(*) from methodologies where slug in ('zsh-no-reserved-vars','ruby-declare-runtime-gems','tools-zsvc-service-control','docs-gap-register');"
-  [ "$output" -eq 4 ]
+    "select count(*) from methodologies where slug in ('tooling:zsvc','tooling:capabilities','tooling:zdots-ctl','tooling:zdots-ctx','tooling:zdots-doctor');"
+  [ "$status" -eq 0 ]
+  [ "$output" -eq 5 ]
 }
 
 # ── Credential fence (scram-sha-256 at the zdots_rw boundary) ───────────────
