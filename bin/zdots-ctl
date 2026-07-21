@@ -806,8 +806,11 @@ cmd_check() {
     fi
     if [[ "${ZDOTS_CAPTURE_ENABLED:-0}" == "0" ]]; then
       _chk_pass "Capture  disabled (ZDOTS_CAPTURE_ENABLED=0)"
+    elif [[ -n "${ZDOTS_DB_ENCRYPTION_KEY:-}" ]]; then
+      # §10 precondition: capture may be enabled once the encryption key is provisioned.
+      _chk_pass "Capture  enabled with DB encryption key provisioned (§10 preconditions met)"
     else
-      _chk_warn "Capture  ENABLED on work machine — ensure PHI scrubber and DB encryption are active"
+      _chk_warn "Capture  ENABLED on work machine WITHOUT encryption key — set ZDOTS_CAPTURE_ENABLED=0 or provision ZDOTS_DB_ENCRYPTION_KEY"
     fi
     if [[ "${ZDOTS_HISTORY_REDACT:-1}" == "1" ]]; then
       _chk_pass "History redaction  enabled"
