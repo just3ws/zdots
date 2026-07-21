@@ -74,14 +74,14 @@ patterns:
             {"key":"db.statement","value":{"stringValue":"mysqldump --password hunter2 --single-transaction emr"}}],
           "events":[{"name":"exception","timeUnixNano":"1750000000050000000","attributes":[
             {"key":"exception.message","value":{"stringValue":"auth failed token=abc123xyz"}}]}]}]}]}]}
-    expect_absent:   ["hunter2", "abc123xyz"]
+    expect_absent: ["hunter2", "abc123xyz"]
     # SAFETY property = the secret is GONE (expect_absent). The semantic marker
     # "--password [REDACTED]" is NOT achievable on traces: transform/phi/traces emits
     # it, then redaction/phi (the all-signal backstop) re-matches "--password <token>"
     # and masks it to **** (verified live 2026-06-20). **** is equally safe. SSN/MRN/DOB
     # markers DO survive (their markers have no digits to re-match). Credentials end ****.
     expect_redacted: ["****"]
-    expect_kept:     ["--single-transaction"]
+    expect_kept: ["--single-transaction"]
 
   - name: inline_credentials
     regex: '(password|passwd|token|secret|api[._-]?key|access[._-]?token|auth)=[^[:space:];]+'
@@ -106,9 +106,9 @@ patterns:
             {"key":"work.state.to","value":{"stringValue":"checked_in"}}],
           "events":[{"name":"exception","timeUnixNano":"1750000000050000000","attributes":[
             {"key":"exception.message","value":{"stringValue":"RecordInvalid SSN 987-65-4321"}}]}]}]}]}]}
-    expect_absent:   ["123-45-6789", "987-65-4321"]
+    expect_absent: ["123-45-6789", "987-65-4321"]
     expect_redacted: ["[REDACTED-SSN]"]
-    expect_kept:     ["checked_in"]
+    expect_kept: ["checked_in"]
 
   - name: mrn
     regex: 'MRN[[:space:]]*:?[[:space:]]*[0-9]+'
