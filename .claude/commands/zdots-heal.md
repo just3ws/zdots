@@ -87,8 +87,8 @@ zsvc diag <svc>   # captures last 50 log lines + launchd state
 # → paste diagnosis into NEEDS OPERATOR; file zdots-issue --high
 ```
 
-Managed services: `llama embed otel o2 nginx postgres redis worker`
-(colima is handled in Gate 2)
+Managed services: `llama embed otel o2 nginx postgres redis worker status gemstash`
+(colima is handled in Gate 2; ctx is derived, not lifecycle-managed)
 
 Do NOT start any service more than once per heal run.
 
@@ -190,10 +190,14 @@ done
 ```
 
 ```bash
-# Check: Gate 3 service list in this file matches zsvc
-zdots_services=$(zsvc list 2>/dev/null | awk 'NR>1 {print $1}' | sort)
-heal_services=$(grep 'Managed services' .claude/commands/zdots-heal.md | grep -oE '[a-z]+' | sort)
-diff <(echo "$zdots_services") <(echo "$heal_services") && echo "PASS" || echo "DIFF above — update Gate 3 service list"
+# Check: Gate 3 service list matches the managed short-aliases in the service registry
+# (the registry is the source of truth; colima is Gate 2, ctx is derived/managed=0 — both excluded).
+# Compares short aliases on both sides; the doc list is the backtick-quoted "Managed services" tokens.
+reg_services=$(grep -E '_svc_reg "' lib/svc-registry.bash | grep -vE 'name\|display\|label' \
+  | sed -E 's/.*_svc_reg "([a-z0-9]+)\|.*/\1/' | grep -vE '^(colima|ctx)$' | sort -u)
+heal_services=$(sed -n 's/^Managed services: `\([^`]*\)`.*/\1/p' .claude/commands/zdots-heal.md \
+  | tr ' ' '\n' | grep . | sort -u)
+diff <(echo "$reg_services") <(echo "$heal_services") && echo "PASS" || echo "DIFF above — update Gate 3 service list"
 ```
 
 **Fix table:**
