@@ -1,5 +1,5 @@
 ---
-id: Z-240
+id: Z-244
 title: >-
   [agent-issue] adots-my doctor: origin remote check rejects
   git@work.github.com:just3ws/my.git — the work.github.co
