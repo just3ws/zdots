@@ -141,29 +141,42 @@ if [[ -z "$URL" ]]; then
 fi
 
 # 1. Staging & Metadata
-# Get video ID for unique naming
-VIDEO_ID=$(yt-dlp --get-id "$URL" 2>/dev/null || echo "unknown_$(date +%s)")
-OUT_DIR="${OUT_BASE}/${VIDEO_ID}"
-mkdir -p "$OUT_DIR"
+# Z-238: a positional arg that is an existing file is a local retention-store copy
+# (PHI policy Z-163: local sources aren't re-fetchable). Transcribe it directly —
+# no yt-dlp fetch. Otherwise it's a URL and the fetcher acquires the audio.
+LOCAL_INPUT=false
+if [[ -f "$URL" ]]; then
+  LOCAL_INPUT=true
+  VIDEO_ID="$(basename "${URL%.*}")"
+  OUT_DIR="${OUT_BASE}/${VIDEO_ID}"
+  mkdir -p "$OUT_DIR"
+  printf '── Local source: %s\n' "$VIDEO_ID" >&2
+  RAW_WAV="$URL"
+else
+  # Get video ID for unique naming
+  VIDEO_ID=$(yt-dlp --get-id "$URL" 2>/dev/null || echo "unknown_$(date +%s)")
+  OUT_DIR="${OUT_BASE}/${VIDEO_ID}"
+  mkdir -p "$OUT_DIR"
 
-printf '── Initializing pipeline for video: %s\n' "$VIDEO_ID" >&2
-printf '── Output directory: %s\n' "$OUT_DIR" >&2
+  printf '── Initializing pipeline for video: %s\n' "$VIDEO_ID" >&2
+  printf '── Output directory: %s\n' "$OUT_DIR" >&2
 
-# Download metadata and best audio
-printf '── Downloading audio and metadata ...\n' >&2
-yt-dlp \
-  --extract-audio \
-  --audio-format wav \
-  --audio-quality 0 \
-  --write-info-json \
-  --output "${OUT_DIR}/%(id)s.%(ext)s" \
-  "$URL" > /dev/null
+  # Download metadata and best audio
+  printf '── Downloading audio and metadata ...\n' >&2
+  yt-dlp \
+    --extract-audio \
+    --audio-format wav \
+    --audio-quality 0 \
+    --write-info-json \
+    --output "${OUT_DIR}/%(id)s.%(ext)s" \
+    "$URL" > /dev/null
 
-RAW_WAV="${OUT_DIR}/${VIDEO_ID}.wav"
+  RAW_WAV="${OUT_DIR}/${VIDEO_ID}.wav"
 
-if [[ ! -f "$RAW_WAV" ]]; then
-  printf 'yt-transcribe: error: download failed.\n' >&2
-  exit 1
+  if [[ ! -f "$RAW_WAV" ]]; then
+    printf 'yt-transcribe: error: download failed.\n' >&2
+    exit 1
+  fi
 fi
 
 # 2. Preparation (16kHz Mono WAV required by whisper.cpp)
@@ -175,7 +188,9 @@ ffmpeg -y -i "$RAW_WAV" -ar 16000 -ac 1 -c:a pcm_s16le "$CONVERTED_WAV" > /dev/n
 # before whisper. The original download is removed to save space.
 if [[ "$PREP_ONLY" == true ]]; then
   DURATION_SEC=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$CONVERTED_WAV" 2>/dev/null | cut -d. -f1)
-  rm -f "$RAW_WAV"
+  # Z-238: only the downloaded temp wav is disposable; never delete a local
+  # retention-store source (it is the sole on-box copy of the input).
+  [[ "$LOCAL_INPUT" == true ]] || rm -f "$RAW_WAV"
   printf 'WAV=%s\n' "$CONVERTED_WAV"
   printf 'DURATION_SEC=%s\n' "${DURATION_SEC:-0}"
   exit 0
@@ -234,7 +249,8 @@ fi
 # 5. Cleanup
 rm -f "$CONVERTED_WAV"
 
-if [[ "$KEEP_MEDIA" == "false" ]]; then
+if [[ "$KEEP_MEDIA" == "false" && "$LOCAL_INPUT" != true ]]; then
+  # Z-238: never delete a local retention-store source; only downloaded temps.
   printf '── Cleaning up media files ...\n' >&2
   rm -f "$RAW_WAV"
 fi

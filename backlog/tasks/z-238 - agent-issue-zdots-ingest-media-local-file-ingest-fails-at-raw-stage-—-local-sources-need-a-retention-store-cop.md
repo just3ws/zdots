@@ -3,9 +3,10 @@ id: Z-238
 title: >-
   [agent-issue] zdots-ingest-media: local-file ingest fails at raw stage —
   'local sources need a retention-store cop
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-21 13:20'
+updated_date: '2026-07-21 16:00'
 labels:
   - agent-reported
   - error
