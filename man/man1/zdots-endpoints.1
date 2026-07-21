@@ -1,0 +1,26 @@
+.TH ZDOTS-ENDPOINTS 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-endpoints \- bin/zdots\-endpoints — verify the nginx\-proxied web endpoints (.localhost / .local)
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-endpoints --help\fR).
+.SH OPTIONS
+.nf
+bin/zdots-endpoints — verify the nginx-proxied web endpoints (.localhost / .local)
+
+Discovers every endpoint from two sources — *.localhost names from the
+deployed nginx server_names (RFC 6761: always loopback, never in /etc/hosts)
+and *.local names from /etc/hosts (the mDNS namespace: needs an explicit
+pinned entry, see decision-011) — probes each through the full chain
+(resolution → nginx → TLS → upstream), and prints a status table with
+clickable links to open each interface and the command to tail its log.
+Cross-checks against the deployed nginx vhosts to flag hosts that resolve but
+have no server block, and flags any *.local host not pointed at loopback.
+
+Usage:
+  zdots-endpoints            Status table (default)
+  zdots-endpoints logs HOST  Tail the log for HOST (e.g. llama.localhost)
+  zdots-endpoints open HOST  Open HOST's interface in the browser
+  zdots-endpoints -q         Quiet: only non-healthy rows
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

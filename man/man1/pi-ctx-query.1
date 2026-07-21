@@ -1,0 +1,22 @@
+.TH PI-CTX-QUERY 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+pi-ctx-query \- PHI\-safe knowledge\-base search for Pi sessions. Scrubs the query term,
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBpi-ctx-query --help\fR).
+.SH OPTIONS
+.nf
+Usage: pi-ctx-query <term> [--semantic]
+
+PHI-safe knowledge-base search for Pi sessions. Scrubs the query term,
+strips diagnostic noise, and caps output at 40 lines (~600 tokens).
+
+Options:
+  --semantic   Vector search (finds related concepts, not just keywords)
+  --help, -h   Show this help
+
+Examples:
+  pi-ctx-query "phi scrubber"
+  pi-ctx-query "database migration" --semantic
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

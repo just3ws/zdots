@@ -1,0 +1,21 @@
+.TH ALIAS-SUGGEST 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+alias-suggest \- Scan command history for repeated long commands and suggest zsh aliases.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBalias-suggest --help\fR).
+.SH OPTIONS
+.nf
+Usage: alias-suggest [--limit N] [--min-count N] [--min-len N] [--dry-run] [--help]
+
+Scan command history for repeated long commands and suggest zsh aliases.
+Output is formatted for direct inclusion in aliases.zsh.
+
+Options:
+  --limit N       History entries to scan (default: 1000)
+  --min-count N   Minimum repetitions to qualify (default: 3)
+  --min-len N     Minimum command length to qualify (default: 30)
+  --dry-run       Print raw candidates (count + command) without AI inference
+  --help          Show this message
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

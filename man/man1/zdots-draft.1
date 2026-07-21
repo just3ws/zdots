@@ -1,0 +1,20 @@
+.TH ZDOTS-DRAFT 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-draft \- Multi\-source AI article drafting. Uses semantic search across the
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-draft --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-draft <prompt>
+
+Multi-source AI article drafting. Uses semantic search across the
+knowledge_chunks database to retrieve relevant quotes and timelines from
+multiple videos, then synthesizes a cohesive article using an LLM.
+
+Requires local embedding and chat servers to be running (llama-ctl start).
+
+Examples:
+  zdots-draft "The evolution of the Agile manifesto based on historical interviews"
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

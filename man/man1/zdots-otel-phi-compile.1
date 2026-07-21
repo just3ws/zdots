@@ -1,0 +1,48 @@
+.TH ZDOTS-OTEL-PHI-COMPILE 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-otel-phi-compile \- bin/zdots\-otel\-phi\-compile — compile the OTel collector's PHI scrub layer from
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-otel-phi-compile --help\fR).
+.SH OPTIONS
+.nf
+bin/zdots-otel-phi-compile — compile the OTel collector's PHI scrub layer from
+the single pattern registry (etc/phi-patterns.yaml).
+
+This is the "scrub at the edge" cornerstone: rather than re-scrubbing telemetry
+every time a session reads it back, the collector masks/drops sensitive values
+on the way INTO OpenObserve, so the intelligence layer reads already-clean data.
+Per AGENTS.md §10 the collector must never hand-author patterns — it is a
+compiled consumer of the registry, exactly like phi_scrubber.bash/.rb.
+
+Reads:  etc/otel-collector.yaml      (base pipeline config — source of truth)
+        etc/phi-patterns.yaml        (the only place patterns are defined)
+Writes: etc/otel-collector.generated.yaml  (gitignored; what `serve` runs)
+
+It injects these processors, sourced entirely from the registry:
+  redaction/phi        — masks any ATTRIBUTE value matching a pattern (all signals)
+  transform/phi        — redacts log BODIES via OTTL replace_pattern (logs only)
+  transform/phi/traces — redacts span + spanevent attribute VALUES (traces).
+                         Emitted only for patterns carrying `trace_targets:`
+                         plus any `structural:` URL-path rules. RE2 (Go) regex,
+                         passed VERBATIM (RE2 supports POSIX classes natively —
+                         no translation; same escaped regex as the log path).
+                         Replacement capture refs are DOUBLE-$ ($$1 / $${1}):
+                         a bare ${1} HARD-ERRORS at collector config load
+                         ("environment variable \\"1\\" has invalid name"), and the
+                         Go scrubber doubles $ too (registry.go:94). The log path
+                         keeps its existing single-$ string ($1 renders correctly).
+  filter/phi           — DROPS logs/spans whose body matches a suppress pattern
+and prepends them (scrub-first) into each pipeline's processor chain.
+
+A live golden PHI-probe (--probe) boots the just-compiled config, pushes one
+synthetic span/spanevent per `probe:` entry through the trace scrub, and asserts
+each probe value is GONE and the marker present. `_compile_phi` runs it on every
+start/restart/validate — a pattern that PARSES but SCRUBS NOTHING fails closed.
+
+Usage: zdots-otel-phi-compile [--check] [-o OUT]
+  --check   compile to a temp file and validate it parses; don't overwrite OUT
+  -o OUT    output path (default etc/otel-collector.generated.yaml)
+Exit non-zero on any error so `serve` can fail closed (no unscrubbed flow).
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

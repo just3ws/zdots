@@ -1,0 +1,18 @@
+.TH ZDOTS-SNAPSHOT 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-snapshot \- zdots\-snapshot list
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-snapshot --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-snapshot <name> -- <command...>
+       zdots-snapshot list
+       zdots-snapshot show <name>
+
+Capture a command's stdout under <name> and diff it against the previous
+capture — an evolution timeline for any re-runnable report.
+
+Exit status: the captured command's (capture is kept either way).
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

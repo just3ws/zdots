@@ -1,0 +1,44 @@
+.TH ZDOTS-PAGES 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-pages \- /Users/mike.hall/.config/zsh/bin/zdots\-pages: fork: retry: Resource temporarily unavailable
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-pages --help\fR).
+.SH OPTIONS
+.nf
+/Users/mike.hall/.config/zsh/bin/zdots-pages: fork: retry: Resource temporarily unavailable
+/Users/mike.hall/.config/zsh/bin/zdots-pages: fork: retry: Resource temporarily unavailable
+/Users/mike.hall/.config/zsh/bin/zdots-pages: fork: retry: Resource temporarily unavailable
+/Users/mike.hall/.config/zsh/bin/zdots-pages: fork: retry: Resource temporarily unavailable
+/Users/mike.hall/.config/zsh/bin/zdots-pages: fork: retry: Resource temporarily unavailable
+zdots-pages — reusable GitHub Pages + Wiki publisher for the just3ws systems.
+
+One framework, every repo: renders a repo's curated docs (docs/wiki/*.md) into
+a Jekyll site on a gh-pages worktree with a SHARED theme/nav (etc/pages/), and
+optionally syncs the same pages to the repo's GitHub Wiki. Proven on zdots,
+then applied to adots / vdots / my / phalanxduel / wwworkremote.
+
+Fail-closed, outward-action discipline (mirrors zdots PHI doctrine):
+  - Visibility guard: refuses to publish a PRIVATE repo to a PUBLIC Pages site
+    unless --allow-private is passed explicitly. Public exposure is one-way.
+  - `build`/`status` are local and reversible. `publish`/`wiki` only push the
+    outward branch when --push is given; without it they stage and report.
+
+Usage:
+  zdots-pages status              # repo, visibility, page count, wiki state
+  zdots-pages build               # render site into the gh-pages worktree (local)
+  zdots-pages publish [--push]    # commit gh-pages; push only with --push
+  zdots-pages wiki    [--push]    # sync docs/wiki → <repo>.wiki.git; push w/ --push
+  zdots-pages init                # create the orphan gh-pages branch + worktree
+
+Options:
+  --repo DIR        operate on another repo (default: current git toplevel)
+  --git-dir DIR     operate on a BARE repo by its git dir (e.g. ~/.homegit);
+                    requires --wiki-src (no working tree to infer docs from)
+  --wiki-src DIR    override the docs source dir (default <root>/docs/wiki)
+  --worktree DIR    override the gh-pages worktree path
+  --allow-private   permit publishing a private repo (you accept the exposure)
+  --push            perform the outward push (publish/wiki)
+  -h, --help        this help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

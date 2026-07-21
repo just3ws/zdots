@@ -1,0 +1,26 @@
+.TH CC-HOOK-SESSION 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+cc-hook-session \- ## zdots session brief (Claude Code)
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBcc-hook-session --help\fR).
+.SH OPTIONS
+.nf
+## zdots session brief (Claude Code)
+CONTEXT: WORK machine (PHI-adjacent). Fix-forward here: make focused,
+  limited changes and COMMIT them. Do NOT git push — the guard blocks it;
+  the principal alone pushes to the zdots repo (charter §0.1 perimeter).
+  - local-only AI is enforced (ZDOTS_AI_MODE=local via .zdots.work).
+  - PHI deny-list + cc-hook-guard (push/nginx/rm-rf) remain active.
+ai-boundary: mode=local — Claude Code is a CLOUD tool; it bypasses the local
+  phi_scrub/ai_boundary pipeline. Do NOT read .zdots.secrets, .env, keys,
+  or paste PHI/credentials into prompts. See CLAUDE.md + AGENTS.md (PHI mode).
+## zdots brief
+kb: methodologies:113 lessons:379 lessons.content_enc:rows lessons.context_enc:rows methodologies.content_enc:rows
+ai: mode=local endpoint=http://127.0.0.1:11500
+peers: zdots 115/121 adots 26/32 capabilities attested (gap = declared, not installed)
+tools: pi-ctx-query <term> | pi-ctx-hydrate [tag] | pi-ctx-status
+graphify: code graph is stale (built 2cc232dc, HEAD 9bbc340d) — run /graphify to refresh.
+runtime (last 6h, OpenObserve): clean — 0 error logs, 0 failed spans.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

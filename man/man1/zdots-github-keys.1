@@ -1,0 +1,46 @@
+.TH ZDOTS-GITHUB-KEYS 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-github-keys \- zdots\-github\-keys \- explicit home/work GitHub SSH key management
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-github-keys --help\fR).
+.SH OPTIONS
+.nf
+zdots-github-keys - explicit home/work GitHub SSH key management
+
+Commands:
+  plan                 show accounts, paths, aliases, and github-keygen command
+  apply --yes          create/update home/work github-keygen SSH config
+  status               show configured key paths and file presence
+  rotate-stage PROFILE create PROFILE_next key/config without changing PROFILE
+  rotate-promote PROFILE --yes
+                       switch PROFILE to staged key and remove PROFILE_next alias
+  public-key PROFILE   print the public key for PROFILE or PROFILE_next
+
+Profiles:
+  home, work
+
+Required account options:
+  --home-user USER     GitHub username for the home account
+  --work-user USER     GitHub username for the work account
+
+Options:
+  --default PROFILE    default github.com identity: home, work, or none
+  --key-type TYPE      key type passed to github-keygen (default: ed25519)
+  --passphrase PASS    passphrase for new keys (default: prompt)
+  --yes               required for commands that change ~/.ssh/config
+
+Environment equivalents:
+  ZDOTS_GITHUB_HOME_USER, ZDOTS_GITHUB_WORK_USER
+  ZDOTS_GITHUB_DEFAULT, ZDOTS_GITHUB_KEY_TYPE, ZDOTS_GITHUB_PASSPHRASE
+  GITHUB_KEYGEN
+
+Aliases and paths are fixed:
+  home.github.com maps to ~/.ssh/id_home@github
+  work.github.com maps to ~/.ssh/id_work@github
+  staged rotation maps to ~/.ssh/id_<profile>@github.next
+
+Generated public keys must be added to the matching GitHub account:
+  https://github.com/settings/keys
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

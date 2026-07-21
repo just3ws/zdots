@@ -1,0 +1,18 @@
+.TH ZDOTS-BACKFILL-BOUNDARIES 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-backfill-boundaries \- Write .boundaries.json for existing transcripts WITHOUT re\-transcribing,
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-backfill-boundaries --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-backfill-boundaries [--apply]
+
+Write .boundaries.json for existing transcripts WITHOUT re-transcribing,
+using the same detector as the ingest_media `boundaries` stage. Idempotent.
+
+  (no args)    dry-run: show detected boundaries
+  --apply      write .boundaries.json sidecars
+  -h, --help   show this help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)
