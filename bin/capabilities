@@ -338,12 +338,12 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
     fi
   done
 
-  # Check zsynod
+  # Check zsynod (parked experiment — lives in experiments/, not a core contract).
+  # Absence is expected, not a violation; report for visibility without failing health.
   if [ -x "${ZDOTDIR}/bin/zsynod" ]; then
     printf "  %-15s : %bonline%b\n" "zsynod" "$GREEN" "$RESET"
   else
-    printf "  %-15s : %bmissing/not executable%b\n" "zsynod" "$RED" "$RESET"
-    errors=$((errors + 1))
+    printf "  %-15s : %bparked (experiments)%b\n" "zsynod" "$YELLOW" "$RESET"
   fi
 fi
 
