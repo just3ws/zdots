@@ -201,7 +201,7 @@ _known_gap() {
     zdots-worker zdots-eval zsynod zsynod-migrate
     zmetrics zmorning zsvc ztask
     cc-home log-rotate gemstash-ctl gemstash-metadata zdots-buffer-drain zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
-    bench zdots-pattern zdots-issue imperial-date zdots-man-gen
+    bench zdots-pattern zdots-issue imperial-date zdots-man-gen zdots-platform
     zdots zdots-artifact zdots-debrief zdots-snapshot zdots-search zdots-draft zdots-publish
   )
 
