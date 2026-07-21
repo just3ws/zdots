@@ -1,0 +1,30 @@
+.TH ZDOTS-KEYCHAIN 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-keychain \- zdots\-keychain — manage zdots secrets in macOS Keychain
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-keychain --help\fR).
+.SH OPTIONS
+.nf
+zdots-keychain — manage zdots secrets in macOS Keychain
+
+Commands:
+  add VARNAME VALUE    store or update a secret
+  get VARNAME          print a secret value
+  delete VARNAME       remove a secret entry
+  list                 list all stored variable names
+  migrate              import .zdots.secrets literal values into Keychain
+  verify               confirm all .zdots.secrets vars resolve to non-empty values
+
+Secrets are stored under service "zdots" in your login Keychain.
+Variable names are used as the account name (e.g., MAXMIND_LICENSE_KEY).
+
+On a fresh machine:
+  1. zdots-keychain add VARNAME VALUE   (for each secret)
+  OR
+  1. Restore from Keychain backup / 1Password / etc.
+
+Then verify:
+  zdots-keychain verify
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

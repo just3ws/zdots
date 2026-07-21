@@ -1,0 +1,40 @@
+.TH ZDOTS-ISSUE 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-issue \- zdots\-issue — Agent help desk
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-issue --help\fR).
+.SH OPTIONS
+.nf
+zdots-issue — Agent help desk
+
+RULE: When zdots behaves unexpectedly, file an issue here. Do not modify
+      zdots scripts, libraries, or config to work around the problem.
+      The operator maintains zdots. Your job is to use it.
+
+Usage:
+  zdots-issue [options] "description"
+  zdots-issue --type error|request|friction [--severity high|medium|low] "description"
+
+Types:
+  error     Tool or service does not behave as documented (default)
+  request   You need a new zdots capability to complete your task
+  friction  Confusing, hard to use, or unclear documentation
+
+Options:
+  --severity LEVEL       Priority: critical, high, medium, low (default: medium)
+  --from-trace ID        Link to existing OTEL trace ID
+  --title TITLE          Explicit title (otherwise uses first 50 chars of description)
+
+What to put in the description:
+  - What you were trying to do
+  - What command you ran
+  - What happened vs. what you expected
+
+Examples:
+  zdots-issue "zdots-ask exits 1 even with llama.cpp healthy"
+  zdots-issue --type request --severity high "Need zdots-ask --domain sql"
+  zdots-issue --type friction "Alert system confusing, hard to silence"
+  zdots-issue --from-trace abc123 "PHI scrubber timeout on large inputs"
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

@@ -1,0 +1,23 @@
+.TH NGINX-REGEN-CERTS 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+nginx-regen-certs \- Deploy the tracked nginx vhosts to the dir nginx loads, regenerate the local
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBnginx-regen-certs --help\fR).
+.SH OPTIONS
+.nf
+Usage: nginx-regen-certs [--dry-run]
+
+Deploy the tracked nginx vhosts to the dir nginx loads, regenerate the local
+mkcert TLS cert so it covers every hostname nginx serves (plus zdots.localhost),
+then validate and graceful-reload nginx. Backs up the old cert and restores it
+if anything fails; deployed-only vhosts are preserved.
+
+Options:
+  --dry-run   Show the resolved SAN set and planned actions; change nothing
+  -h, --help  Show this help
+
+Prereqs: mkcert installed with its CA trusted (`mkcert -install` once).
+validate/reload prompt for sudo.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

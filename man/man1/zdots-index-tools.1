@@ -1,0 +1,34 @@
+.TH ZDOTS-INDEX-TOOLS 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-index-tools \- bin/zdots\-index\-tools — Index all bin/ commands and usage scenarios into
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-index-tools --help\fR).
+.SH OPTIONS
+.nf
+bin/zdots-index-tools — Index all bin/ commands and usage scenarios into
+the context engine so AI agents can always find the right zdots tool.
+
+CHANGE DETECTION:
+  Uses the git tree hash of bin/ as the manifest key. If the hash and the
+  stored state are unchanged AND the last index is within TTL, the run is
+  a cheap no-op. Re-indexes when bin/ changes (new/modified command) or
+  when TTL expires (default 7 days), whichever comes first.
+
+WHAT GETS INDEXED:
+  tooling:<name>     — full --help output for every executable in bin/
+  tooling:catalog    — compact one-liner listing of all commands
+  tooling:scenarios  — task-to-tool recipes for common agent workflows
+
+QUERY PATTERNS (for agents and humans):
+  zdots-ctx hydrate tooling-catalog        # catalog + scenarios
+  zdots-ctx query tooling:<name>           # full --help for one command
+  zdots-ctx query --semantic "start svc"  # natural-language lookup
+
+Usage:
+  zdots-index-tools              # normal run (hash + TTL guard)
+  zdots-index-tools --force      # re-index regardless of state
+  zdots-index-tools --dry-run    # show plan without writing
+  zdots-index-tools --install    # write + load launchd plist (daily 04:00)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

@@ -1,0 +1,24 @@
+.TH HISTORY-ANALYZE 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+history-analyze \- Analyze shell command history for patterns, inefficiencies, and alias candidates.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBhistory-analyze --help\fR).
+.SH OPTIONS
+.nf
+Usage: history-analyze [--ai] [--aliases] [--failures] [--limit N] [--help]
+
+Analyze shell command history for patterns, inefficiencies, and alias candidates.
+
+Options:
+  --ai        AI-generated optimization suggestions (requires llama.cpp running)
+  --aliases   Suggest aliases for long, frequently-typed commands
+  --failures  Show commands that exit non-zero most often (from OTel trace file)
+  --limit N   History entries to analyze (default: 500; applies to atuin queries)
+  --help      Show this message
+
+Data sources:
+  atuin       Full command history (used for frequency, alias, and AI analysis)
+  OTel traces /Users/mike.hall/.local/state/zsh/traces.jsonl (used for --failures; requires active OTel pipeline)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

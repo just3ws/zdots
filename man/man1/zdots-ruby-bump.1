@@ -1,0 +1,42 @@
+.TH ZDOTS-RUBY-BUMP 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-ruby-bump \- !/usr/bin/env bash
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-ruby-bump --help\fR).
+.SH OPTIONS
+.nf
+!/usr/bin/env bash
+---
+id: zdots-ruby-bump
+title: "Zdots Ruby Latest-Stable Bumper"
+purpose: Keep the pinned Ruby at the latest STABLE release and rebuild its gem world.
+rationale: The repo deliberately pins Ruby (mise.toml + etc/ruby-version + global
+           mise config) for CI/bootstrap reproducibility. "Always run latest Ruby"
+           is therefore implemented as an automated bump of those pins — not a
+           floating spec — so CI still sees a concrete version.
+---
+bin/zdots-ruby-bump — Resolve latest stable Ruby, rewrite the three pin sites in
+lockstep, then reconcile that Ruby's gem world: default-gems + the project bundle.
+
+Why the bundle step matters: a Ruby version bump gives the new version an empty
+bundle. Without `bundle install`, every Bundler-backed command (zdots-ctx migrate,
+sync-history) dies with Bundler::GemNotFound. This script closes that gap so a bump
+is never left half-done.
+
+Usage:
+  zdots-ruby-bump            # bump to latest stable if newer, then reconcile gems
+  zdots-ruby-bump --check    # report current vs latest, exit 0 if current, 10 if behind
+  zdots-ruby-bump --dry-run  # show what would change, make no changes
+
+Exit codes: 0 = up to date / bumped OK · 10 = (--check only) a newer stable exists
+            1 = error
+Latest STABLE = highest X.Y.Z with no pre-release suffix. sort -V for correct
+semantic ordering (4.0.10 > 4.0.5); never trust lexical sort here.
+Current pin as recorded in the repo mise.toml (the source of truth for CI).
+--- Reconcile the gem world for the (now-pinned) Ruby --------------------------
+Default (global) gems — the list that sbin/zdots-brain requires at runtime.
+Project bundle — required by every Bundler-backed brain command. This is the
+step whose absence leaves `zdots-ctx migrate` dead after a Ruby bump.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

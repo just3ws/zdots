@@ -1,0 +1,25 @@
+.TH ZDOTS-MY-SYNC 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-my-sync \- zdots\-my\-sync doctor [OPTIONS]
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-my-sync --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-my-sync [OPTIONS]
+       zdots-my-sync doctor [OPTIONS]
+
+Validate the ~/my directory structure by delegating to 'adots-my doctor'.
+This command is read-only; zdots no longer creates ~/my directories directly.
+
+Think of this as the Rails-style migration-status check for ~/my. Future
+structure creation belongs in an explicit adots generator/prepare command.
+
+Options:
+  --my-root PATH          Validate PATH instead of $ZDOTS_MY_ROOT or $HOME/my
+  --strict-public-vault   Treat a missing vaults/public directory as a failure
+  --json                  Emit machine-readable JSON from adots-my
+  -q, --quiet             Suppress passing checks
+  -h, --help              Show this help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

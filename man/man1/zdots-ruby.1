@@ -1,0 +1,90 @@
+.TH ZDOTS-RUBY 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-ruby \- \-0[octal]       Set input record separator ($/):
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-ruby --help\fR).
+.SH OPTIONS
+.nf
+Usage: /Users/mike.hall/.local/share/mise/installs/ruby/4.0.6/bin/ruby [options] [--] [filepath] [arguments]
+  -0[octal]       Set input record separator ($/):
+                  -0 for \\0; -00 for paragraph mode; -0777 for slurp mode.
+  -a              Split each input line ($_) into fields ($F).
+  -c              Check syntax (no execution).
+  -Cdirpath       Execute program in specified directory.
+  -d, --debug     Set debugging flag ($DEBUG) and $VERBOSE to true.
+  -e 'code'       Execute given Ruby code; multiple -e allowed.
+  -Eex[:in], --encoding=ex[:in]
+                  Set default external and internal encodings.
+  -Fpattern       Set input field separator ($;); used with -a.
+  -i[extension]   Set ARGF in-place mode;
+                  create backup files with given extension.
+  -Idirpath       Prepend specified directory to load paths ($LOAD_PATH);
+                  relative paths are expanded; multiple -I are allowed.
+  -l              Set output record separator ($\\) to $/;
+                  used for line-oriented output.
+  -n              Run program in gets loop.
+  -p              Like -n, with printing added.
+  -rlibrary       Require the given library.
+  -s              Define global variables using switches following program path.
+  -S              Search directories found in the PATH environment variable.
+  -v              Print version; set $VERBOSE to true.
+  -w              Synonym for -W1.
+  -W[level=2|:category]
+                  Set warning flag ($-W):
+                  0 for silent; 1 for moderate; 2 for verbose.
+  -x[dirpath]     Execute Ruby code starting from a #!ruby line.
+  --jit           Enable the default JIT for the build; same as --yjit.
+  --yjit          Enable in-process JIT compiler.
+  --backtrace-limit=num
+                  Set backtrace limit.
+  --copyright     Print Ruby copyright.
+  --crash-report=template
+                  Set template for crash report file.
+  --disable=features
+                  Disable features; see list below.
+  --dump=items    Dump items; see list below.
+  --enable=features
+                  Enable features; see list below.
+  --external-encoding=encoding
+                  Set default external encoding.
+  --help          Print long help message; use -h for short message.
+  --internal-encoding=encoding
+                  Set default internal encoding.
+  --parser=parser Set Ruby parser: parse.y or prism.
+  --verbose       Set $VERBOSE to true; ignore input from $stdin.
+  --version       Print Ruby version.
+  -y, --yydebug   Print parser log; backward compatibility not guaranteed.
+Dump List:
+  insns           Instruction sequences.
+  yydebug         yydebug of yacc parser generator.
+  parsetree       Abstract syntax tree (AST).
+  -optimize       Disable optimization (affects insns).
+  +error-tolerant Error-tolerant parsing (affects yydebug, parsetree).
+  +comment        Add comments to AST (affects parsetree with --parser=parse.y).
+Features:
+  gems            Rubygems (only for debugging, default: enabled).
+  error_highlight error_highlight (default: enabled).
+  did_you_mean    did_you_mean (default: enabled).
+  syntax_suggest  syntax_suggest (default: enabled).
+  rubyopt         RUBYOPT environment variable (default: enabled).
+  frozen-string-literal
+                  Freeze all string literals (default: disabled).
+  yjit            In-process JIT compiler (default: disabled).
+Warning categories:
+  deprecated      Deprecated features.
+  experimental    Experimental features.
+  performance     Performance issues.
+  strict_unused_block
+                  Warning unused block strictly
+YJIT options:
+  --yjit-mem-size=num
+                  Soft limit on YJIT memory usage in MiB (default: 128).
+  --yjit-exec-mem-size=num
+                  Hard limit on executable memory block in MiB.
+  --yjit-call-threshold=num
+                  Number of calls to trigger JIT.
+  --yjit-cold-threshold=num
+                  Global calls after which ISEQs not compiled (default: 200K).
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)
