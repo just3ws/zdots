@@ -84,6 +84,11 @@ module Zdots
         name: "ctx_jobs",
         description: "List pending and in-flight background jobs in the Knowledge Layer.",
         mcp: true
+      },
+      {
+        name: "ctx_pipeline_events",
+        description: "Summarize the structured pipeline event stream (Z-247): per-job_type started/succeeded/failed counts with error classes, plus the last 20 events. Reads the schema-validated JSONL — structural fields only, content-free by contract.",
+        mcp: true
       }
     ].freeze
 

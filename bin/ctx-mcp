@@ -124,6 +124,25 @@ def tool_ctx_living_docs(_args)
   res[:exit_code] == 0 ? "✅ Living Docs sync triggered." : "❌ Error: #{res[:stderr]}"
 end
 
+# Z-247 event stream — read the JSONL directly (a file, not a zdots-ctx verb).
+def tool_ctx_pipeline_events(_args)
+  path = ENV["ZDOTS_PIPELINE_EVENTS_FILE"] ||
+         File.join(ENV.fetch("XDG_STATE_HOME", File.expand_path("~/.local/state")),
+                   "zdots", "pipeline-events.jsonl")
+  return "No pipeline events yet (#{path} absent)." unless File.exist?(path)
+
+  events = File.readlines(path).filter_map { |l| JSON.parse(l) rescue nil }
+  summary = events.group_by { |e| e["job_type"] }.transform_values do |es|
+    {
+      started: es.count { |e| e["event"] == "started" },
+      succeeded: es.count { |e| e["event"] == "succeeded" },
+      failed: es.count { |e| e["event"] == "failed" },
+      error_classes: es.filter_map { |e| e["error_class"] }.uniq
+    }
+  end
+  JSON.pretty_generate({ summary: summary, recent: events.last(20) })
+end
+
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
@@ -149,6 +168,7 @@ def call_tool(name, args)
   when "ctx_semantic_search" then tool_ctx_semantic_search(args)
   when "ctx_enqueue"         then tool_ctx_enqueue(args)
   when "ctx_jobs"            then tool_ctx_jobs(args)
+  when "ctx_pipeline_events" then tool_ctx_pipeline_events(args)
   when "living_docs"         then tool_ctx_living_docs(args)
   else raise "Unknown tool: #{name}"
   end
