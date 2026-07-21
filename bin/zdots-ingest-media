@@ -73,6 +73,15 @@ else
   sha="$(shasum -a 256 "$SRC" | awk '{print $1}')"
   bytes="$(stat -f %z "$SRC")"
   mtime="$(stat -f %Sm -t %FT%TZ "$SRC")"
+  # Z-238: retention-store copy. A local:sha256 source isn't re-fetchable (PHI
+  # policy Z-163 keeps the path out of the DB), so the worker can't reach the
+  # original later. Stash a sha-keyed copy now — on-box only, never uploaded —
+  # for the pipeline to transcribe. Idempotent; the sha is the content identity.
+  retention_dir="${ZDOTS_INGEST_SOURCES_DIR:-$HOME/.local/state/zdots/ingest-sources}/_local"
+  ext="${SRC##*.}"; [[ "$ext" == "$SRC" ]] && ext="dat"
+  retained="${retention_dir}/${sha}.${ext}"
+  mkdir -p "$retention_dir"
+  [[ -f "$retained" ]] || cp "$SRC" "$retained"
   # ffprobe can emit partial output AND exit nonzero on a non-media file, so
   # normalize through jq: valid JSON passes through compact, anything else → {}.
   probe="$(ffprobe -v quiet -print_format json -show_format -show_streams "$SRC" 2>/dev/null || true)"
