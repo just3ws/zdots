@@ -61,6 +61,14 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(transform)* Transcript cleanup/insights/seo profiles
 - *(ingest)* Opt-in acoustic diarization stage in ingest_media
 - *(zdots)* Add bulk reprocess-series by tag
+- Add timeline extraction stage to ingest pipeline
+- *(Z-222)* Implement semantic retrieval and article drafting agent
+- *(Z-223)* Implement publishing engine for auto-subtitle rendering
+- *(ingest)* Thread num_speakers hint into ingest_media payload
+- *(ingest)* Boundaries stage — mark theme-song intro/outro + interview span
+- *(aliases)* Wire ztranscribe alias to yt-transcribe recipe
+- *(ingest)* Implement local-file retention store (Z-238)
+- *(ingest)* Opt-in yt-dlp cookie strategy for bot-gated sources (Z-237)
 
 ### 🐛 Bug Fixes
 
@@ -105,6 +113,13 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(gh,pages)* Bound outward gh/git calls that ignore ~/.curlrc
 - *(openobserve)* Serve crash-loops under launchd — "${@}" empty + set -u
 - *(brain)* Self-heal Ruby toolchain so direct callers stop LoadError-ing
+- *(Z-221)* Make embed_chunks idempotent on reprocess
+- *(Z-221)* Add --help to zdots-search, regenerate pipeline Mermaid
+- *(worker)* Load HUGGINGFACE_TOKEN from Keychain; mirror HF_TOKEN
+- *(transcribe)* Reject unknown flags instead of swallowing as URL
+- *(mcp)* Run sequential-thinking via npx to survive node bumps
+- *(capabilities)* Decouple parked zsynod from the health contract (Z-235)
+- *(zdots-heal)* Sync Gate 3 service list + repair its drift check (Z-236)
 
 ### 💼 Other
 
@@ -114,6 +129,11 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - Fix pipeline run race condition on manual restart
 - Allow whisper --prompt to work by conditionally dropping --max-context 0
 - Mark task as Done
+- Implement speaker registry and update backlog tasks
+- Mark Video Timeline as complete
+- Use --max-len 60 in whisper to improve back-and-forth diarization resolution
+- Task out the Autonomous Knowledge System implementation plan (Phases 2-4)
+- Implement Semantic Memory pgvector integration and Knowledge Chunking
 
 ### 🚜 Refactor
 
@@ -139,6 +159,12 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(nginx)* Note my.conf is ~/my-owned, not zdots' (Z-198 follow-up)
 - *(agent-guide)* Fix stale colima GUARD text, add Job Queue section
 - *(ponytail)* Add upgrade triggers to 3 no-trigger shortcut markers
+- *(secrets)* Document HUGGINGFACE_TOKEN setup + ZDOTS_DIARIZE flag
+- *(transcription)* Document boundaries, num_speakers, sanity gate
+- *(transcribe)* Add yt-transcribe(1) man page
+- *(transcribe)* Sync usage block with full flag surface
+- *(boundaries)* Add --help to zdots-backfill-boundaries
+- *(ingest)* Document yt-dlp cookie env knobs (Z-237 docs-sync)
 
 ### ⚡ Performance
 
@@ -148,6 +174,8 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 
 - *(docs-contract)* Fictional-reference linting + register new binaries (Z-153 AC#2)
 - *(z-188)* Reprocess CLI wiring/guard smoke test; record P1 verification
+- *(Z-221)* Register zdots-search in docs contract test suite
+- *(e2e)* Fix stale methodology-slug assertion (Z-239, dup Z-206)
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -186,6 +214,16 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(backlog)* Reconcile z-199 against landed transform mechanism
 - *(backlog)* Track transcribe stitch validation + deferred cuts
 - *(backlog)* Z-202 done — zdots-brain Ruby self-heal (fixed in 0b5ab68)
+- *(bootstrap)* Add just3ws.localhost to mkcert SAN list
+- *(cc)* Allowlist zdots doctor + log show read-only commands
+- *(cc)* Promote mandoc + zdots-phi-scrub read-only wildcards
+- *(brew)* Add explicit ffmpeg + work kubernetes toolchain
+- *(backlog)* File Z-224 — adots git/config safe.directory append-loop
+- *(work-session)* Gemstash + Z-205 cutover + k8s toolkit + ruby 4.0.6 + ingest primed stage + model-bench registry
+- *(backlog)* File Z-235 (done) + Z-236 from zdots-heal run
+- *(backlog)* File Z-237/238/239 from pipeline validation
+- *(cc)* Wire 27 agent-facing bin/ commands into the tracked allowlist (Z-236)
+- *(backlog)* File Z-240 — retention-store GC follow-up
 ## [0463026.M3] - 2026-06-19
 
 ### 🚀 Features
