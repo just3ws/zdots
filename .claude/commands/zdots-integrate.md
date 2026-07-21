@@ -77,11 +77,26 @@ zdots-ctx query "tooling:<name>" 2>/dev/null | grep -q '<name>' && echo PASS || 
 
 ## Layer 4 — CC Allowlist
 
+**Classify first — every `bin/` command is exactly one of:**
+
+- **Agent-facing**: an agent would legitimately invoke it during a task
+  (status probes, ctl verbs, query tools, doctors). → allowlist entry REQUIRED.
+- **Internal**: hooks, git plumbing, launchd entry points, things only other
+  scripts call (`cc-hook-*`, `commit-msg`, `*-mcp` server entry points,
+  `bootstrap`). → NO allowlist entry; instead add the name to the
+  **expected-missing list in `/zdots-heal` Gate 6**, which is the canonical
+  registry of deliberate omissions. An unclassified command is what makes
+  Gate 6 gaps unactionable — never leave a command in neither list.
+
 ```bash
-# L4-A: allowlist entry exists
+# L4-A: agent-facing → allowlist entry exists
 grep -q '"Bash(<name>:\*)' .claude/settings.json && echo PASS || echo FAIL
 # FIX: add "Bash(<name>:*)" to permissions.allow in .claude/settings.json
 #      Place it alphabetically within the zdots group.
+
+# L4-B: internal → recorded as deliberate
+grep -q '<name>' .claude/commands/zdots-heal.md && echo PASS || echo FAIL
+# FIX: add <name> to the "Expected missing" list in zdots-heal.md Gate 6.
 ```
 
 ---
