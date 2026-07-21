@@ -1,0 +1,29 @@
+.TH IDIOT-TEST 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+idiot-test \- idiot\-test — an advisory gate for destructive commands.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBidiot-test --help\fR).
+.SH OPTIONS
+.nf
+idiot-test — an advisory gate for destructive commands.
+
+Applies the Idiot Test ("would an idiot do this?") to a proposed command and
+screens it for catastrophic filesystem operations — the class that wiped this
+machine on 2026-05-25 (an agent ran `rm -rf ~/`). See: agent-guide, the
+"Filesystem Doctrine" section.
+
+This is a BACKSTOP, not a substitute for thinking. It is heuristic: it can miss
+things and it can be bypassed. A "pass" is not permission to skip resolving and
+reading your targets. The doctrine ("think first") stays primary.
+
+Usage:
+  idiot-test <command...>     screen argv         (exit 0 ok · 1 warn · 2 block)
+  echo "<cmd>" | idiot-test   screen stdin
+  idiot-test --hook           Claude Code PreToolUse hook: read the tool JSON on
+                              stdin, screen Bash commands, exit 2 to BLOCK on a
+                              catastrophic pattern, 0 otherwise (never blocks
+                              non-destructive commands).
+  idiot-test -h | --help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

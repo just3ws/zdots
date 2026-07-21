@@ -1,0 +1,22 @@
+.TH ZDOTS-STATUSD 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-statusd \- The zdots.localhost status console — a no\-dep loopback HTTP server rendering live
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-statusd --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-statusd            # serve the control-plane console (foreground)
+
+The zdots.localhost status console — a no-dep loopback HTTP server rendering live
+platform health (zdots-ctl status, zsvc, service logs). Binds
+127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /healthz.
+
+Don't run this by hand for normal use — manage it as a Platform Service:
+  zsvc start|stop|restart|status|logs status
+
+Env:
+  ZDOTS_STATUS_PORT   listen port (default 11600)
+  ZDOTDIR             zdots root (for shelling out to zdots-ctl / zsvc)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

@@ -1,0 +1,40 @@
+.TH ZDOTS-LOGS 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-logs \- bin/zdots\-logs — Centralized log operations for all zdots\-managed services.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-logs --help\fR).
+.SH OPTIONS
+.nf
+bin/zdots-logs — Centralized log operations for all zdots-managed services.
+
+Every log source registered in svc-registry.bash is available by its service
+name. Use "all" (or no service argument) to operate across all sources.
+
+Commands:
+  list   [--json]              Table of all log sources: path, size, status
+  check  [--json]              Size health check; warns ≥100M, fails ≥500M
+  tail   [<svc>] [-n N]       Follow logs (default: all, -n 50)
+  show   [<svc>] [-n N]       Last N lines, no follow (default: all, -n 100)
+  head   [<svc>] [-n N]       First N lines (default: all, -n 50)
+  grep   <pattern> [<svc>]    Search across log files
+
+Service names match zsvc identifiers: llama embed otel o2 colima nginx
+  postgres redis worker — or any registered alias.
+Use "all" or omit the service to target every registered log source.
+
+Options:
+  -n, --lines N    Number of lines (default varies by command)
+  --json           Machine-readable output (list, check commands)
+  -h, --help       Show this help
+
+Examples:
+  zdots-logs list
+  zdots-logs check
+  zdots-logs check --json
+  zdots-logs tail
+  zdots-logs tail llama -n 200
+  zdots-logs show otel -n 30
+  zdots-logs head worker
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

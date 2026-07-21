@@ -1,0 +1,25 @@
+.TH DIFF-REVIEW 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+diff-review \- <command producing diff> | diff\-review
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBdiff-review --help\fR).
+.SH OPTIONS
+.nf
+Usage: diff-review [<rev-range>] [--help]
+       <command producing diff> | diff-review
+
+Review a diff for bugs, risks, and issues using the local AI model.
+
+Arguments:
+  <rev-range>   Any valid git revision range passed to git diff (e.g. HEAD~1,
+                main..feature). Defaults to staged changes (git diff --staged).
+
+Stdin mode: if stdin is not a terminal, reads the diff from stdin.
+
+Options:
+  --help    Show this message
+
+The diff is compressed with rtk before inference if rtk is available.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

@@ -1,0 +1,46 @@
+.TH DIARIZE 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+diarize \- Matplotlib is building the font cache; this may take a moment.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBdiarize --help\fR).
+.SH OPTIONS
+.nf
+Matplotlib is building the font cache; this may take a moment.
+/Users/mike.hall/.cache/uv/environments-v2/diarize-7f62685a5b39d0c8/lib/python3.12/site-packages/pyannote/database/util.py:182: SyntaxWarning: invalid escape sequence '\\s'
+  sep="\\s+",
+/Users/mike.hall/.cache/uv/environments-v2/diarize-7f62685a5b39d0c8/lib/python3.12/site-packages/pyannote/database/util.py:216: SyntaxWarning: invalid escape sequence '\\s'
+  sep="\\s+",
+/Users/mike.hall/.cache/uv/environments-v2/diarize-7f62685a5b39d0c8/lib/python3.12/site-packages/pyannote/database/util.py:253: SyntaxWarning: invalid escape sequence '\\s'
+  sep="\\s+",
+/Users/mike.hall/.cache/uv/environments-v2/diarize-7f62685a5b39d0c8/lib/python3.12/site-packages/pyannote/database/util.py:284: SyntaxWarning: invalid escape sequence '\\s'
+  data = pd.read_csv(file_uem, names=names, dtype=dtype, sep="\\s+")
+/Users/mike.hall/.cache/uv/environments-v2/diarize-7f62685a5b39d0c8/lib/python3.12/site-packages/pyannote/database/util.py:309: SyntaxWarning: invalid escape sequence '\\s'
+  data = pd.read_csv(path, names=names, dtype=dtype, sep="\\s+")
+/Users/mike.hall/.cache/uv/environments-v2/diarize-7f62685a5b39d0c8/lib/python3.12/site-packages/pyannote/database/loader.py:93: SyntaxWarning: invalid escape sequence '\\s'
+  file_trial, sep="\\s+", names=["reference", "uri1", "uri2"]
+/Users/mike.hall/.cache/uv/environments-v2/diarize-7f62685a5b39d0c8/lib/python3.12/site-packages/pyannote/database/loader.py:292: SyntaxWarning: invalid escape sequence '\\s'
+  ctm, names=names, dtype=dtype, sep="\\s+"
+/Users/mike.hall/.cache/uv/environments-v2/diarize-7f62685a5b39d0c8/lib/python3.12/site-packages/pyannote/database/loader.py:357: SyntaxWarning: invalid escape sequence '\\s'
+  mapping, names=names, dtype=dtype, sep="\\s+"
+usage: diarize [-h] [--output OUTPUT] [--sidecar SIDECAR]
+               [--num-speakers NUM_SPEAKERS]
+               audio [whisper_json]
+
+Diarize audio (pyannote 3.1).
+
+positional arguments:
+  audio                 Path to 16kHz WAV audio file
+  whisper_json          Whisper JSON to merge speakers onto (legacy merge
+                        mode)
+
+options:
+  -h, --help            show this help message and exit
+  --output OUTPUT       Merge-mode output path (default:
+                        <whisper_json>.speaker.json)
+  --sidecar SIDECAR     Write a self-contained diarization.json to this path
+  --num-speakers NUM_SPEAKERS
+                        Speaker-count hint (e.g. interviewees + 1); used as a
+                        min/max bracket, not an exact count
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

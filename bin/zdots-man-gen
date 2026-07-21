@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# bin/zdots-man-gen — generate man(1) pages from --help output.
+#
+# Every bin/ command is --help-tested (docs-contract check 12), so --help is a
+# reliable source. Curated mdoc pages are never overwritten: this fills gaps.
+# ponytail: verbatim help body in a .nf block — honest and zero parsing
+# fragility; hand-promote a page to full mdoc when a command deserves it.
+#
+# Usage:
+#   zdots-man-gen            # generate pages for bin commands lacking one
+#   zdots-man-gen --check    # exit 1 listing commands with no man page (CI)
+
+set -euo pipefail
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+MAN1="$ZDOTDIR/man/man1"
+MAN8="$ZDOTDIR/man/man8"
+mkdir -p "$MAN1"
+
+usage() {
+  cat <<EOF
+Usage: zdots-man-gen [--check]
+
+Generate man(1) pages for bin/ commands from their --help output.
+Curated pages in man/man1 + man/man8 are never overwritten — this fills gaps.
+
+  --check     List commands with no man page and exit 1 (CI mode; writes nothing)
+  -h, --help  Show this help
+EOF
+}
+
+check_only=false
+case "${1:-}" in
+  --check) check_only=true ;;
+  -h|--help) usage; exit 0 ;;
+  "") ;;
+  *) printf 'zdots-man-gen: unknown option: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+esac
+
+missing=0
+for cmd in "$ZDOTDIR"/bin/*; do
+  [[ -x "$cmd" && -f "$cmd" ]] || continue
+  name="${cmd##*/}"
+  [[ -f "$MAN1/$name.1" || -f "$MAN8/$name.8" ]] && continue
+
+  if $check_only; then
+    printf 'NO-MAN: %s\n' "$name"
+    missing=$((missing + 1))
+    continue
+  fi
+
+  # timeout + closed stdin: a --help that serves, prompts, or forks must not hang the sweep.
+  help_text="$(timeout 10 "$cmd" --help </dev/null 2>&1 | head -80 || true)"
+  [[ -n "$help_text" ]] || help_text="See the source: bin/$name"
+
+  # Description: first non-empty line that isn't the Usage line.
+  desc="$(printf '%s\n' "$help_text" | grep -vE '^[[:space:]]*($|[Uu]sage)' | head -1 | sed 's/^[[:space:]]*//' || true)"
+  [[ -n "$desc" ]] || desc="zdots command"
+
+  {
+    printf '.TH %s 1 "%s" "zdots" "zdots manual"\n' "$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')" "$(date +%Y-%m-%d)"
+    printf '.SH NAME\n%s \\- %s\n' "$name" "$(printf '%s' "$desc" | sed 's/[\\-]/\\&/g')"
+    printf '.SH SYNOPSIS\nSee OPTIONS below (generated from \\fB%s --help\\fR).\n' "$name"
+    printf '.SH OPTIONS\n.nf\n'
+    # Escape roff control characters in verbatim help.
+    printf '%s\n' "$help_text" | sed -e 's/\\/\\\\/g' -e "s/^[.']/\\\\\\&&/"
+    printf '.fi\n.SH SEE ALSO\nagent-guide(1), zdots-doctor(1)\n'
+  } > "$MAN1/$name.1"
+  printf 'generated: %s.1\n' "$name"
+done
+
+if $check_only; then
+  [[ $missing -eq 0 ]] && echo "man coverage: complete"
+  exit $((missing > 0 ? 1 : 0))
+fi

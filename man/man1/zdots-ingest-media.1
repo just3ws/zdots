@@ -1,0 +1,20 @@
+.TH ZDOTS-INGEST-MEDIA 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-ingest-media \- \-\-label <text>          Non\-PHI display label (REQUIRED for local files)
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-ingest-media --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-ingest-media <url|file> [options]
+  --label <text>          Non-PHI display label (REQUIRED for local files)
+  --profile <p>           Whisper profile (default: standard)
+  --num-speakers <n>      Diarization speaker-count hint (e.g. interviewees + 1)
+  --force                 Reprocess an already-ingested source
+  -h, --help              Show this help
+
+Bot-gated sources (e.g. YouTube) need cookies. Set one of (opt-in):
+  ZDOTS_YTDLP_COOKIES_FROM_BROWSER=firefox   # or chrome/safari/brave/edge[:profile]
+  ZDOTS_YTDLP_COOKIES_FILE=/path/to/cookies.txt
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

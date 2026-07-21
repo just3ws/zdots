@@ -1,0 +1,39 @@
+.TH SESSION-DEBRIEF 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+session-debrief \- Synthesize the session's interface signals (via history\-intelligence) into
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBsession-debrief --help\fR).
+.SH OPTIONS
+.nf
+Usage: session-debrief [OPTIONS]
+
+Synthesize the session's interface signals (via history-intelligence) into
+durable Lessons in the Knowledge Layer. Closes the Infer → Curate step of the
+Virtuous Loop.
+
+Options:
+  --window DAYS      Analysis window passed to history-intelligence (default: 1)
+  --min-severity S   Lowest severity to curate: high|medium|info (default: medium)
+  --dry-run          Show proposed Lessons without writing
+  --yes              Write without interactive confirmation
+  --json             Emit proposed Lessons as JSON (implies --dry-run unless --yes)
+  --no-dedup         Curate even signals already debriefed before
+  --input FILE       Read history-intelligence JSON from FILE ('-' for stdin)
+                     instead of invoking history-intelligence
+  --db PATH          history.sqlite3 path (passed through to history-intelligence)
+  -h, --help         Show this message
+
+Behavior:
+  Each actionable signal becomes one atomic Lesson (content = signal message,
+  context = "session-debrief DATE", tags = kind + session-debrief). Signals seen
+  in a previous debrief are skipped unless --no-dedup. High-severity signals are
+  flagged as candidates for 'zdots-issue' but never auto-filed.
+
+Examples:
+  session-debrief --dry-run            # preview today's Lessons
+  session-debrief --yes                # curate today's signals, no prompt
+  session-debrief --window 7           # debrief the week
+  history-intelligence --json | session-debrief --input -
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

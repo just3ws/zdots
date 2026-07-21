@@ -1,0 +1,51 @@
+.TH ZDOTS-UPDATE-LOCAL 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-update-local \- Reconcile machine\-local generated state after pulling zdots updates.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-update-local --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-update-local [OPTIONS]
+
+Reconcile machine-local generated state after pulling zdots updates.
+This is intentionally narrower than bin/bootstrap: it does not restore adots,
+rewrite home dotfiles, install certs, edit nginx, or initialize databases.
+
+Steps:
+  1. brew bundle --file Brewfile.home|Brewfile.work
+  2. mise install --cd ZDOTDIR
+  3. gem install default gems from etc/mise/default-gems (idempotent)
+  4. llama-ctl install + install-embed (launchd plists)
+  4. fabric-ai --updatepatterns
+  5. pi: reconcile ~/.pi/agent/settings.json + models.json
+  6. aider: write ~/.aider.model.metadata.json (context window for openai/local)
+  7. gemini-mcp: idempotent gemini-mcp-register (skipped if gemini not installed)
+  8. otel-collector validate
+  9. make check-fast
+
+Options:
+  -n, --dry-run     Print commands without running them
+  --skip-brew       Skip brew bundle
+  --skip-mise       Skip mise install
+  --skip-gems       Skip default gem installation
+  --skip-llama      Skip llama plist regeneration
+  --skip-fabric     Skip fabric-ai pattern update
+  --skip-aider      Skip Aider model metadata reconciliation
+  --skip-gemini     Skip Gemini MCP registration
+  --skip-python     Skip Python deps (uv pip install -r requirements.txt)
+  --skip-index-tools Skip platform command catalog indexing
+  --skip-otel       Skip otel-collector validation
+  --skip-check      Skip make check-fast
+  -h, --help        Show this help
+
+Logs:
+  /Users/mike.hall/.local/state/zsh/zdots-update-local-*.log
+  /Users/mike.hall/.local/state/zsh/zdots-update-local-*.summary.md
+  Override directory with ZDOTS_LOG_DIR.
+
+Diagnostics:
+  zdots-log-analyze update
+  zdots-log-analyze update --ai
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

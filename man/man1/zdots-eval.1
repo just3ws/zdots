@@ -1,0 +1,23 @@
+.TH ZDOTS-EVAL 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+zdots-eval \- zdots\-eval — run the promptfoo eval suite against the local llama.cpp endpoint.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-eval --help\fR).
+.SH OPTIONS
+.nf
+zdots-eval — run the promptfoo eval suite against the local llama.cpp endpoint.
+
+LOCAL-ONLY: inference targets 127.0.0.1:11500 (loopback); no cloud keys.
+
+Usage:
+  zdots-eval                        # full suite
+  zdots-eval --filter-first-n N     # first N tests only
+  zdots-eval --filter-pattern PHI   # tests matching pattern
+  zdots-eval --no-cache             # bypass promptfoo cache
+  zdots-eval -h | --help            # this message
+
+All other flags pass through to `promptfoo eval`. See `npx promptfoo eval --help`.
+Override endpoint: ZDOTS_AI_ENDPOINT=http://192.168.1.10:11500 zdots-eval
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

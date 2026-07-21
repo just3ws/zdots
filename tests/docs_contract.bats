@@ -201,7 +201,7 @@ _known_gap() {
     zdots-worker zdots-eval zsynod zsynod-migrate
     zmetrics zmorning zsvc ztask
     cc-home log-rotate gemstash-ctl gemstash-metadata zdots-buffer-drain zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
-    bench zdots-pattern zdots-issue imperial-date
+    bench zdots-pattern zdots-issue imperial-date zdots-man-gen
     zdots zdots-artifact zdots-debrief zdots-snapshot zdots-search zdots-draft zdots-publish
   )
 
@@ -286,6 +286,14 @@ _known_gap() {
     printf 'Phantom zdots-* references (cited in docs but not in bin/):\n' >&2
     printf '  %s\n' "${phantom[@]}" >&2
     printf 'Either add the script to bin/ or add an entry to docs-contract-known-gaps.txt\n' >&2
+    return 1
+  fi
+}
+
+@test "docs: every bin command has a man page (zdots-man-gen --check)" {
+  run "$REPO_ROOT/bin/zdots-man-gen" --check
+  if [[ "$status" -ne 0 ]]; then
+    printf 'Commands without man pages (run: zdots-man-gen):\n%s\n' "$output" >&2
     return 1
   fi
 }

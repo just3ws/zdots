@@ -1,0 +1,20 @@
+.TH COMMIT-MSG 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+commit-msg \- Drafts a conventional commit message from the current staged diff.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBcommit-msg --help\fR).
+.SH OPTIONS
+.nf
+Usage: commit-msg [--copy] [--commit] [--help]
+
+Drafts a conventional commit message from the current staged diff.
+
+Options:
+  --copy    Copy the generated message to the clipboard (pbcopy)
+  --commit  Run: git commit -m "<generated message>"
+  --help    Show this message
+
+The diff is compressed with rtk before inference if rtk is available.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

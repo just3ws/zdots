@@ -1,0 +1,25 @@
+.TH GEMINI-MCP-REGISTER 1 "2026-07-21" "zdots" "zdots manual"
+.SH NAME
+gemini-mcp-register \- Register zdots MCP servers with Gemini CLI at user scope.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBgemini-mcp-register --help\fR).
+.SH OPTIONS
+.nf
+Usage: gemini-mcp-register [--force]
+
+Register zdots MCP servers with Gemini CLI at user scope.
+
+Servers registered:
+  ctx    ctx-mcp — knowledge base (lessons, methodologies, session residue)
+  llama  llama-mcp — llama.cpp inference stack management
+
+Safe to run multiple times — exits 0 without changes if already registered.
+Use --force to overwrite existing registrations (updates command path / env).
+
+Options:
+  --force   Re-register even if already present
+
+After registration, restart your Gemini CLI session.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)
