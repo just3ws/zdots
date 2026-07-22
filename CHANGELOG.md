@@ -69,6 +69,13 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(aliases)* Wire ztranscribe alias to yt-transcribe recipe
 - *(ingest)* Implement local-file retention store (Z-238)
 - *(ingest)* Opt-in yt-dlp cookie strategy for bot-gated sources (Z-237)
+- *(pipeline)* Schema-validated JSONL event stream for worker jobs (Z-247)
+- *(skills)* /platform-integrate + heal Gate 8 + allowlist classification loop
+- *(skills)* Vendor 5 anthropic/skills — webapp-testing, mcp-builder, docx, xlsx, pdf
+- *(mcp)* Register Playwright MCP — headless, loopback-origins only
+- *(ctx-mcp)* Ctx_pipeline_events tool — Z-247 stream over MCP
+- *(man)* 100% man coverage — zdots-man-gen + contract enforcement
+- *(platform)* Zdots-platform — one command for the four-repo platform
 
 ### 🐛 Bug Fixes
 
@@ -120,6 +127,8 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(mcp)* Run sequential-thinking via npx to survive node bumps
 - *(capabilities)* Decouple parked zsynod from the health contract (Z-235)
 - *(zdots-heal)* Sync Gate 3 service list + repair its drift check (Z-236)
+- *(zdots-ctl)* Capture check verifies §10 precondition instead of blanket-warning
+- *(platform-integrate)* Collision scan matches full task ID — z-172.03 subtask is not a z-172 dup
 
 ### 💼 Other
 
@@ -165,10 +174,15 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(transcribe)* Sync usage block with full flag surface
 - *(boundaries)* Add --help to zdots-backfill-boundaries
 - *(ingest)* Document yt-dlp cookie env knobs (Z-237 docs-sync)
+- *(architecture)* Drop stray quote after rotate-creds, restore trailing newline
 
 ### ⚡ Performance
 
 - *(phi-history)* Single scrub spawn per command (Z-173)
+
+### 🎨 Styling
+
+- *(phi-patterns)* Yamllint colon spacing — 4 alignment colons, zero pattern changes
 
 ### 🧪 Testing
 
@@ -224,6 +238,19 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(backlog)* File Z-237/238/239 from pipeline validation
 - *(cc)* Wire 27 agent-facing bin/ commands into the tracked allowlist (Z-236)
 - *(backlog)* File Z-240 — retention-store GC follow-up
+- *(changelog)* Regenerate (Z-237 docs-sync)
+- *(backlog)* Z-235 filed+done (adots-my alias check), Z-236 filed (policy-engine schema drift), Z-162 phase-1 notes
+- *(backlog)* Renumber work-machine Z-235/Z-236 -> Z-240/Z-241 (ID collision with upstream zdots-heal filings)
+- *(backlog)* File Z-242/Z-243 from zdots-heal — phi_suppressed + unavailable-video retry loops
+- *(backlog)* Renumber work-machine Z-240 -> Z-244 (second ID collision with upstream)
+- *(backlog)* File Z-245 — cross-machine backlog ID allocation races
+- *(backlog)* File agent-issue — llama-mcp health probe false-negative under CC
+- *(backlog)* File request — per-job logs + schema-validated pipeline event log
+- *(backlog)* Z-247 — pin design direction: schema-validated JSONL stream primary, per-job logs as derived view
+- *(backlog)* Z-247 Done — event stream verified live on both job classes
+- *(backlog+db)* Z-241 migration, tenant-lesson-harvest + non-interactive-safety issues, Z-162/Z-241 notes
+- *(backlog)* File recurring embed-model disappearance + model-download embed-skip gap
+- *(beacon)* Re-stamp 0556026.M3
 ## [0463026.M3] - 2026-06-19
 
 ### 🚀 Features
