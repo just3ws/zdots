@@ -314,6 +314,57 @@ if [[ -f "${ZDOTDIR}/CLAUDE.md" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+_sec "Work-data boundary (no other-machine data in git)"
+# The recurring leak: CC per-project memory (~/.claude/projects/) swept into the
+# $HOME-tracked repo (adots) by a broad `git add`, publishing work-confidential
+# content on a public repo. The DURABLE guard is the tracked .gitignore — it
+# travels on every clone/pull. These checks catch drift; disk residue is NOT a
+# leak (untracked+ignored files reach no remote) but is surfaced as hygiene.
+if [[ -d "$HOME/.homegit" ]]; then
+  _hg=("--git-dir=$HOME/.homegit")
+  if [[ -z "$(git "${_hg[@]}" ls-files -- '.claude/projects/' 2>/dev/null | head -1)" ]]; then
+    _pass "adots tracks no .claude/projects/ (CC memory out of git)"
+  else
+    _fail "adots is TRACKING .claude/projects/ — CC memory in git (active leak vector)"
+    _fix "git --git-dir=\$HOME/.homegit rm -r --cached .claude/projects/ && commit"
+  fi
+  if git "${_hg[@]}" cat-file -p main:.gitignore 2>/dev/null | grep -q '^\.claude/projects/'; then
+    _pass "adots .gitignore ignores .claude/projects/ (guard travels on clone)"
+  else
+    _fail ".claude/projects/ missing from adots tracked .gitignore (the portable guard)"
+    _fix "add '.claude/projects/' to \$HOME/.gitignore and commit it"
+  fi
+  if command -v gh >/dev/null 2>&1; then
+    case "$(gh repo view just3ws/adots --json visibility -q .visibility 2>/dev/null)" in
+      PRIVATE) _pass "adots repo is private" ;;
+      PUBLIC)  _fail "adots (\$HOME-tracked) is PUBLIC — work-data exposure risk"
+               _fix "gh repo edit just3ws/adots --visibility private" ;;
+      *)       _warn "adots visibility undetermined (gh unauthed?) — verify it is private" ;;
+    esac
+  fi
+else
+  _warn "no \$HOME/.homegit — adots (home-dir repo) not found; skipping boundary checks"
+fi
+# Best-effort hygiene: another machine's CC memory on this box. Not a leak, but
+# worth surfacing. Foreign = project dir keyed to a user other than $USER whose
+# first path token doesn't resolve under $HOME. Loose by design (report-only).
+_uenc="${USER//./-}"; _foreign=""
+for _p in "$HOME/.claude/projects/"-Users-*/; do
+  [[ -d "$_p" ]] || continue
+  _b="$(basename "$_p")"; _rest="${_b#-Users-${_uenc}}"
+  [[ "$_rest" == "$_b" ]] && { _foreign+="$_b "; continue; }   # different user entirely
+  [[ -z "$_rest" ]] && continue                                 # exactly $USER home root
+  _tok="$(printf '%s' "$_rest" | sed -E 's/^-+//; s/-.*//')"
+  compgen -G "$HOME/${_tok}*" >/dev/null 2>&1 || compgen -G "$HOME/.${_tok}*" >/dev/null 2>&1 || _foreign+="$_b "
+done
+if [[ -n "$_foreign" ]]; then
+  _warn "foreign/stale CC-memory dir(s) on disk (another machine's user): $_foreign"
+  _fix "verify then remove the exact path(s): rm -rf \$HOME/.claude/projects/<dir>"
+else
+  _pass "no foreign-user CC memory on disk"
+fi
+
+# ---------------------------------------------------------------------------
 printf '\n━━━ Summary\n'
 printf "  ${_OK}%d ok${_RS}  ${_WN}%d warn${_RS}  ${_ER}%d fail${_RS}\n" "$_PASS" "$_WARN" "$_FAIL"
 [[ $_FAIL -gt 0 ]] && exit 1 || exit 0
