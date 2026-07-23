@@ -10,6 +10,28 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 
 ### 🚀 Features
 
+- *(cc-doctor)* Work-data boundary audit — catch CC-memory-in-git drift
+- *(theme)* Wire Kanagawa Wave through LS_COLORS/LSCOLORS
+
+### 🐛 Bug Fixes
+
+- *(phi-scrub)* Bump grpc-go to 1.82.1, closes GHSA-hrxh-6v49-42gf
+
+### 🚜 Refactor
+
+- *(doctor)* Fold work-data boundary check into zdots-doctor
+
+### 🎨 Styling
+
+- *(theme)* Hand-tune Kanagawa Wave bg bluer (#1F1F28 -> #1A1B2F)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(backlog)* Close Z-194 — adots-doctor .tmux.conf crash not reproducible
+## [0556026.M3] - 2026-07-22
+
+### 🚀 Features
+
 - *(zclaude)* Tuned Claude Code launcher for zdots platform work
 - *(zclaude)* Continuity, effort, tmux + iTerm2 decoration
 - *(db)* Add context-engine tables migration
@@ -175,6 +197,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(boundaries)* Add --help to zdots-backfill-boundaries
 - *(ingest)* Document yt-dlp cookie env knobs (Z-237 docs-sync)
 - *(architecture)* Drop stray quote after rotate-creds, restore trailing newline
+- *(changelog)* Regenerate for 0556026.M3
 
 ### ⚡ Performance
 
