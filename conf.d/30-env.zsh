@@ -25,7 +25,6 @@ elif command -v vivid >/dev/null 2>&1; then
     export LS_COLORS="$(<"$_zdots_lsc_cache")"
   else
     _zdots_vivid_theme="$ZDOTS_THEME"
-    [[ "$_zdots_vivid_theme" == dracula-* ]] && _zdots_vivid_theme="dracula"
     if [[ -r "${ZDOTDIR}/assets/${ZDOTS_THEME}/vivid-theme.yml" ]]; then
       _zdots_vivid_theme="${ZDOTDIR}/assets/${ZDOTS_THEME}/vivid-theme.yml"
     fi

@@ -26,8 +26,6 @@ unset conf
 if [[ "${ZDOTS_SAFE_MODE:-0}" != "1" ]]; then
   if [[ -r "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh" ]]; then
     zdefer source "$ZDOTDIR/assets/$ZDOTS_THEME/syntax-highlighting.zsh"
-  elif [[ "$ZDOTS_THEME" == dracula-* && -r "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh" ]]; then
-    zdefer source "$ZDOTDIR/assets/dracula/syntax-highlighting-${ZDOTS_THEME#dracula-}.zsh"
   fi
 
   # Prefer Homebrew installed version.
