@@ -78,8 +78,7 @@ alias zwisdom='fabric -p extract_wisdom'              # extract wisdom/key point
 alias zexplain='fabric -p explain_code'               # explain code blocks
 alias zfp='fabric --listpatterns | fzf --header "Select Fabric Pattern" | xargs -I {} fabric --pattern {}'
 
-# Visual & Theme (Dracula Pro)
-command -v vivid >/dev/null 2>&1 && export LS_COLORS="$(vivid generate dracula)"
+# Visual & Theme — LS_COLORS set per $ZDOTS_THEME in conf.d/30-env.zsh
 alias ls='eza --color=always --icons --group-directories-first'
 alias ll='eza -lh --color=always --icons --group-directories-first'
 alias la='eza -lah --color=always --icons --group-directories-first'
