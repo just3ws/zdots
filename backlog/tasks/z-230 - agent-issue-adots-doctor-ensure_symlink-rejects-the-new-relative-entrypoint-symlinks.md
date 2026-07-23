@@ -3,10 +3,10 @@ id: Z-230
 title: >-
   [agent-issue] adots-doctor ensure_symlink rejects the new relative entrypoint
   symlinks
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-15 18:50'
-updated_date: '2026-07-23 12:18'
+updated_date: '2026-07-23 12:28'
 labels:
   - agent-reported
   - error
@@ -32,5 +32,5 @@ zdots doctor closes the session with adots-doctor exit 1: '.bash_profile is not 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Reproduced again 2026-07-23: adots-doctor still FAILs on .bash_profile symlink check. Confirmed not a real issue — readlink shows valid relative symlink (.config/zsh/bash_profile), target resolves and is readable. Same stale absolute-path comparison in ensure_symlink. No fix applied (not zdots'/agent's to patch per filed-issue note).
+Fixed 2026-07-23: ensure_symlink in bin/adots-doctor now compares realpath(actual) to realpath(target) instead of raw readlink string match, so relative and absolute spellings of the same target both pass. Verified in isolation: absolute-target link matches, relative-target link matches, genuinely broken/dangling link still correctly fails (empty realpath output, no false match). adots-doctor now runs clean, exit 0.
 <!-- SECTION:NOTES:END -->
