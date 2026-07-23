@@ -21,6 +21,7 @@ from textual.widgets import (
 from textual.containers import Container, Horizontal, Vertical
 from textual.binding import Binding
 from textual.reactive import reactive
+from textual.theme import Theme
 
 sys.path.append(str(Path(__file__).parent.parent / "lib"))
 from zsynod_core import (
@@ -538,8 +539,26 @@ class MentorshipScreen(Screen):
 
 # ── Main App ──────────────────────────────────────────────────────────────────
 
+# Kanagawa Wave — custom Textual theme (no kanagawa builtin exists).
+# Palette from rebelot/kanagawa.nvim wave; bg tuned to the platform #1A1B2F.
+KANAGAWA_WAVE = Theme(
+    name="kanagawa-wave",
+    primary="#7E9CD8",     # crystalBlue
+    secondary="#957FB8",   # oniViolet
+    accent="#7AA89F",      # waveAqua2
+    foreground="#DCD7BA",  # fujiWhite
+    background="#1A1B2F",  # platform-tuned bg
+    surface="#16161D",     # sumiInk0
+    panel="#223249",       # waveBlue1
+    success="#98BB6C",     # springGreen
+    warning="#E6C384",     # carpYellow
+    error="#E82424",       # samuraiRed
+    dark=True,
+)
+
+
 class ZsynodApp(App):
-    THEME = "dracula"
+    THEME = "kanagawa-wave"
 
     CSS = """
     Screen { layers: base; }
@@ -640,6 +659,8 @@ class ZsynodApp(App):
                 pass
 
     def on_mount(self) -> None:
+        self.register_theme(KANAGAWA_WAVE)
+        self.theme = self.THEME
         self._acquire_pid_lock()
         self.tracer = setup_otel("zsynod-py-tui")
         self.ledger = LedgerManager(self.args.ledger)
