@@ -1,6 +1,12 @@
 # vim:ft=zsh
 # .zshenv — Zsh-specific environment entry point
 
+# 0. Bootstrap Zdots — establish ZDOTDIR as the source-of-truth before anything
+# reads it, so zsh resolves $ZDOTDIR/.zshrc rather than falling back to ~/.zshrc
+# on a fresh login with no inherited ZDOTDIR. The :- default respects an
+# intentional external override.
+export ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
 # 1. Source POSIX-compatible core environment
 if [[ -r "${ZDOTDIR:-$HOME/.config/zsh}/env.sh" ]]; then
   source "${ZDOTDIR:-$HOME/.config/zsh}/env.sh"
