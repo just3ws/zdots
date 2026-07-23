@@ -2,9 +2,11 @@
 # Palette verified against iTerm2-Color-Schemes/schemes/Kanagawa Wave.itermcolors
 # and cross-checked with kanagawa.nvim's named colors.
 # Structure mirrors vivid's bundled nord.yml.
+# ponytail: sumiInk3 hand-tuned bluer/more saturated (#1F1F28 -> #1A1B2F); all
+# other values are unmodified upstream Wave.
 
 colors:
-  sumiInk3:     '1F1F28'  # background
+  sumiInk3:     '1A1B2F'  # background
   sumiInk4:     '2A2A37'  # selection
   fujiGray:     '727169'  # brightblack / muted
   fujiWhite:    'DCD7BA'  # foreground / brightwhite
