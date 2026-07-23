@@ -353,9 +353,9 @@ def render_page(live:)
 end
 
 CSS = <<~CSS
-  :root { --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a; --text:#e2e8f0;
-    --dim:#8892a4; --accent:#5b8dee; --green:#3ecf8e; --red:#e84040; --yellow:#f5a623;
-    --mono:"SF Mono","Fira Code",ui-monospace,monospace; }
+  :root { --bg:#1A1B2F; --surface:#2A2A37; --border:#363646; --text:#DCD7BA;
+    --dim:#727169; --accent:#7E9CD8; --green:#98BB6C; --red:#C34043; --yellow:#E6C384;
+    --mono:"FiraCode Nerd Font Mono Ret","FiraCode Nerd Font Mono","SF Mono",ui-monospace,monospace; }
   * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--text);
     font:15px/1.5 system-ui,-apple-system,sans-serif; }
   header { padding:1.5rem 2rem; border-bottom:1px solid var(--border); }
@@ -372,9 +372,9 @@ CSS = <<~CSS
     padding:.75rem .9rem; display:flex; justify-content:space-between; align-items:center; }
   .card .lbl { font-size:.85rem; }
   .pill { font-size:.72rem; font-weight:700; padding:.12rem .5rem; border-radius:99px; }
-  .pill.ok { background:rgba(62,207,142,.15); color:var(--green); }
-  .pill.down { background:rgba(232,64,64,.15); color:var(--red); }
-  .pill.warn { background:rgba(245,166,35,.15); color:var(--yellow); }
+  .pill.ok { background:rgba(152,187,108,.15); color:var(--green); }
+  .pill.down { background:rgba(195,64,67,.15); color:var(--red); }
+  .pill.warn { background:rgba(230,195,132,.15); color:var(--yellow); }
   table { width:100%; border-collapse:collapse; font-size:.85rem; }
   th { text-align:left; padding:.45rem .6rem; font-size:.7rem; text-transform:uppercase;
     letter-spacing:.06em; color:var(--dim); border-bottom:1px solid var(--border); }
