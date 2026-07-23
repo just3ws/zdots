@@ -1,13 +1,16 @@
-# assets/dracula/p10k-overrides.zsh
-# This file contains user-owned color overrides for Powerlevel10k.
-# These will be loaded AFTER the main p10k.zsh to ensure they take precedence.
+# assets/kanagawa-wave/p10k-overrides.zsh
+# User-owned Powerlevel10k color overrides, loaded AFTER the base .p10k.zsh.
+# Colors are ANSI palette indices (0-15) so they follow the terminal's Kanagawa
+# Wave palette — same source of truth as the iTerm preset and CC's dark-ansi.
+# (Ported from the retired Dracula overrides; the three 256-cube values there —
+# 255/84/196 — are swapped to ANSI 15/10/9 so they too track the palette.)
 
 # OS Icon
-typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=255
+typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=15
 
 # Prompt Character (Success/Error colors)
-typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=84
-typeset -g POWERLEVEL9K_PROMPT_CHAR_ERROR_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=196
+typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=10
+typeset -g POWERLEVEL9K_PROMPT_CHAR_ERROR_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=9
 
 # Directory Colors
 typeset -g POWERLEVEL9K_DIR_FOREGROUND=0
