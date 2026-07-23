@@ -6,7 +6,7 @@ typeset -gA ZSH_HIGHLIGHT_STYLES
 
 # Core Palette (Kanagawa Wave)
 # Foreground:  #DCD7BA (fujiWhite)
-# Background:  #1F1F28 (sumiInk3)
+# Background:  #1A1B2F (sumiInk3, platform-tuned bluer)
 # Selection:   #2D4F67 (waveBlue2)
 # Comment:     #727169 (fujiGray)
 # Aqua/Cyan:   #7AA89F (waveAqua2)
