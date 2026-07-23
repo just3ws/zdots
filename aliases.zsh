@@ -78,7 +78,8 @@ alias zwisdom='fabric -p extract_wisdom'              # extract wisdom/key point
 alias zexplain='fabric -p explain_code'               # explain code blocks
 alias zfp='fabric --listpatterns | fzf --header "Select Fabric Pattern" | xargs -I {} fabric --pattern {}'
 
-# Visual & Theme — LS_COLORS set per $ZDOTS_THEME in conf.d/30-env.zsh
+# Visual & Theme
+# LS_COLORS is owned by conf.d/30-env.zsh (Kanagawa dircolors → vivid fallback).
 alias ls='eza --color=always --icons --group-directories-first'
 alias ll='eza -lh --color=always --icons --group-directories-first'
 alias la='eza -lah --color=always --icons --group-directories-first'
