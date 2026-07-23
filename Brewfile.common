@@ -9,7 +9,6 @@
 # ── Taps ──
 tap "arimxyer/tap"
 tap "bysiber/cleardisk"
-tap "dracula/install"
 tap "romkatv/powerlevel10k"
 
 # ── Formulae ──
@@ -198,8 +197,6 @@ cask "cmux"
 cask "daisydisk"
 cask "dash"
 cask "dbeaver-community"
-cask "dracula/install/dracula-terminal"
-cask "dracula/install/dracula-xcode"
 cask "firefox"
 cask "font-fira-code-nerd-font"
 cask "font-meslo-lg-nerd-font"
