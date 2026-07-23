@@ -1,0 +1,93 @@
+# Kanagawa Wave dircolors database (LS_COLORS / eza)
+# Derived from rebelot/kanagawa.nvim wave palette. Truecolor (24-bit).
+# Consumed by conf.d/30-env.zsh via `gdircolors -b`.
+
+# Match all terminals.
+TERM *
+
+# Core file types
+NORMAL              38;2;220;215;186   # fujiWhite
+FILE                38;2;220;215;186   # fujiWhite
+RESET               0
+DIR                 01;38;2;126;156;216   # crystalBlue, bold
+LINK                38;2;122;168;159      # waveAqua2
+MULTIHARDLINK       38;2;122;168;159
+FIFO                38;2;210;126;153      # sakuraPink
+SOCK                38;2;149;127;184      # oniViolet
+DOOR                38;2;149;127;184
+BLK                 38;2;230;195;132      # carpYellow
+CHR                 38;2;230;195;132
+ORPHAN              01;38;2;255;93;98     # peachRed, bold
+MISSING             01;38;2;255;93;98
+SETUID              38;2;255;93;98
+SETGID              38;2;31;31;40;48;2;230;195;132
+CAPABILITY          38;2;255;93;98
+STICKY_OTHER_WRITABLE  38;2;31;31;40;48;2;152;187;108
+OTHER_WRITABLE      38;2;126;156;216;48;2;42;42;55
+STICKY              38;2;220;215;186;48;2;126;156;216
+EXEC                01;38;2;152;187;108   # springGreen, bold
+
+# Archives -> peachRed
+.tar   38;2;255;93;98
+.tgz   38;2;255;93;98
+.tbz   38;2;255;93;98
+.gz    38;2;255;93;98
+.bz2   38;2;255;93;98
+.xz    38;2;255;93;98
+.zst   38;2;255;93;98
+.zip   38;2;255;93;98
+.7z    38;2;255;93;98
+.rar   38;2;255;93;98
+.deb   38;2;255;93;98
+.rpm   38;2;255;93;98
+.dmg   38;2;255;93;98
+
+# Images / media -> sakuraPink
+.jpg   38;2;210;126;153
+.jpeg  38;2;210;126;153
+.png   38;2;210;126;153
+.gif   38;2;210;126;153
+.webp  38;2;210;126;153
+.svg   38;2;210;126;153
+.heic  38;2;210;126;153
+.mp4   38;2;210;126;153
+.mov   38;2;210;126;153
+.mkv   38;2;210;126;153
+.mp3   38;2;210;126;153
+.flac  38;2;210;126;153
+.wav   38;2;210;126;153
+
+# Documents -> carpYellow
+.pdf   38;2;230;195;132
+.md    38;2;230;195;132
+.txt   38;2;230;195;132
+.doc   38;2;230;195;132
+.docx  38;2;230;195;132
+.xls   38;2;230;195;132
+.xlsx  38;2;230;195;132
+.csv   38;2;230;195;132
+
+# Code / config -> crystalBlue
+.rb    38;2;126;156;216
+.py    38;2;126;156;216
+.js    38;2;126;156;216
+.ts    38;2;126;156;216
+.go    38;2;126;156;216
+.rs    38;2;126;156;216
+.c     38;2;126;156;216
+.h     38;2;126;156;216
+.sh    38;2;126;156;216
+.zsh   38;2;126;156;216
+.bash  38;2;126;156;216
+.lua   38;2;126;156;216
+.json  38;2;126;156;216
+.yaml  38;2;126;156;216
+.yml   38;2;126;156;216
+.toml  38;2;126;156;216
+
+# Noise -> fujiGray (dim)
+.log   38;2;114;113;105
+.bak   38;2;114;113;105
+.tmp   38;2;114;113;105
+.swp   38;2;114;113;105
+.lock  38;2;114;113;105

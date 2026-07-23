@@ -11,6 +11,8 @@ export HOMEBREW_BAT=1
 export CLICOLOR=1
 if [[ "$ZDOTS_THEME" == "nord" ]]; then
   _zdots_theme_dircolors_file="${ZDOTDIR}/assets/nord/dir_colors"
+elif [[ "$ZDOTS_THEME" == "kanagawa" ]]; then
+  _zdots_theme_dircolors_file="${ZDOTDIR}/assets/kanagawa/dir_colors"
 fi
 
 if [[ -r "${_zdots_theme_dircolors_file}" ]]; then
