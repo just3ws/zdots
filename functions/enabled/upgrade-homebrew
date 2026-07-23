@@ -116,8 +116,6 @@ trust_declared_homebrew_targets() {
   brewfile_has 'brew "powerlevel10k"' && formulae+=(romkatv/powerlevel10k/powerlevel10k)
 
   brewfile_has 'cask "bysiber/cleardisk/cleardisk"' && casks+=(bysiber/cleardisk/cleardisk)
-  brewfile_has 'cask "dracula/install/dracula-terminal"' && casks+=(dracula/install/dracula-terminal)
-  brewfile_has 'cask "dracula/install/dracula-xcode"' && casks+=(dracula/install/dracula-xcode)
 
   (( $#formulae )) && run_cmd brew trust --formula "${formulae[@]}"
   (( $#casks )) && run_cmd brew trust --cask "${casks[@]}"
