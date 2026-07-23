@@ -1,0 +1,65 @@
+{
+  "alfredtheme" : {
+    "result" : {
+      "textSpacing" : 8,
+      "subtext" : {
+        "size" : 16,
+        "colorSelected" : "#957FB8A8",
+        "font" : "System Light",
+        "color" : "#727169BF"
+      },
+      "shortcut" : {
+        "size" : 32,
+        "colorSelected" : "#98BB6CFF",
+        "font" : "System Bold",
+        "color" : "#7AA89F4C"
+      },
+      "backgroundSelected" : "#2D4F67E4",
+      "text" : {
+        "size" : 40,
+        "colorSelected" : "#DCD7BAFF",
+        "font" : "System",
+        "color" : "#DCD7BA7F"
+      },
+      "iconPaddingHorizontal" : 8,
+      "roundness" : 0,
+      "paddingVertical" : 8,
+      "iconSize" : 88
+    },
+    "search" : {
+      "backgroundSelected" : "#7E9CD8FF",
+      "paddingHorizontal" : 8,
+      "spacing" : 16,
+      "text" : {
+        "size" : 64,
+        "colorSelected" : "#16161DFF",
+        "font" : "System Bold",
+        "color" : "#DCD7BAFF"
+      },
+      "background" : "#1F1F283F",
+      "roundness" : 0,
+      "paddingVertical" : 0
+    },
+    "window" : {
+      "color" : "#1F1F28BF",
+      "paddingHorizontal" : 16,
+      "width" : 768,
+      "borderPadding" : 0,
+      "borderColor" : "#0000007F",
+      "blur" : 0,
+      "roundness" : -42,
+      "paddingVertical" : 16
+    },
+    "credit" : "Mike Hall",
+    "visualEffectMode" : 2,
+    "separator" : {
+      "color" : "#54546DF3",
+      "thickness" : 0
+    },
+    "scrollbar" : {
+      "color" : "#D27E99FF",
+      "thickness" : 8
+    },
+    "name" : "Kanagawa Wave Mike Mod"
+  }
+}
