@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-07-15 18:50'
+updated_date: '2026-07-23 12:18'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ zdots doctor closes the session with adots-doctor exit 1: '.bash_profile is not 
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Reproduced again 2026-07-23: adots-doctor still FAILs on .bash_profile symlink check. Confirmed not a real issue — readlink shows valid relative symlink (.config/zsh/bash_profile), target resolves and is readable. Same stale absolute-path comparison in ensure_symlink. No fix applied (not zdots'/agent's to patch per filed-issue note).
+<!-- SECTION:NOTES:END -->
