@@ -3,9 +3,10 @@ id: Z-194
 title: >-
   [agent-issue] adots-doctor --fix crashes on '.tmux.conf' pathspec — file never
   existed/tracked in adots; check-lis
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-02 01:11'
+updated_date: '2026-07-23 02:31'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ adots-doctor --fix crashes on '.tmux.conf' pathspec — file never existed/track
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Re-tested 2026-07-22: adots-doctor --fix ran clean, exit 0, no crash on .tmux.conf pathspec. Not reproducible — closing.
+<!-- SECTION:NOTES:END -->
