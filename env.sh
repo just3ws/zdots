@@ -239,7 +239,7 @@ export VISUAL="$EDITOR"
 export PGPASSFILE="$XDG_CONFIG_HOME/pgpass"
 export DOCKER_CLI_HINTS=false
 export ENABLE_LSP_TOOL=1
-export ZDOTS_THEME="${ZDOTS_THEME:-kanagawa}"
+export ZDOTS_THEME="${ZDOTS_THEME:-kanagawa-wave}"
 
 # 6. Language-Specific XDG Alignment
 export PNPM_HOME="$XDG_DATA_HOME/pnpm"
