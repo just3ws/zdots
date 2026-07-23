@@ -217,11 +217,11 @@
 		<key>Alpha Component</key>
 		<real>1</real>
 		<key>Blue Component</key>
-		<real>0.156863</real>
+		<real>0.184314</real>
 		<key>Green Component</key>
-		<real>0.121569</real>
+		<real>0.105882</real>
 		<key>Red Component</key>
-		<real>0.121569</real>
+		<real>0.101961</real>
 	</dict>
 	<key>Badge Color</key>
 	<dict>

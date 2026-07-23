@@ -36,12 +36,12 @@
         "font" : "System Bold",
         "color" : "#DCD7BAFF"
       },
-      "background" : "#1F1F283F",
+      "background" : "#1A1B2F3F",
       "roundness" : 0,
       "paddingVertical" : 0
     },
     "window" : {
-      "color" : "#1F1F28BF",
+      "color" : "#1A1B2FBF",
       "paddingHorizontal" : 16,
       "width" : 768,
       "borderPadding" : 0,
