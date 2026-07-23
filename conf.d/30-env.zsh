@@ -26,6 +26,9 @@ elif command -v vivid >/dev/null 2>&1; then
   else
     _zdots_vivid_theme="$ZDOTS_THEME"
     [[ "$_zdots_vivid_theme" == dracula-* ]] && _zdots_vivid_theme="dracula"
+    if [[ -r "${ZDOTDIR}/assets/${ZDOTS_THEME}/vivid-theme.yml" ]]; then
+      _zdots_vivid_theme="${ZDOTDIR}/assets/${ZDOTS_THEME}/vivid-theme.yml"
+    fi
     export LS_COLORS="$(vivid generate "$_zdots_vivid_theme")"
     mkdir -p "$_zdots_lsc_cache:h"
     echo "$LS_COLORS" > "$_zdots_lsc_cache"
@@ -34,6 +37,15 @@ elif command -v vivid >/dev/null 2>&1; then
   unset _zdots_lsc_cache
 fi
 unset _zdots_theme_dircolors_file
+
+# BSD LSCOLORS (native /bin/ls, e.g. from scripts that don't use eza).
+# ponytail: only the 4 commonly-seen categories are re-themed (dir/symlink/
+# pipe/executable -> blue/cyan/yellow); the 8-letter BSD palette can't
+# represent the full Kanagawa hex set, and the permission-bit corner cases
+# (setuid/setgid/sticky) are left at macOS defaults since they're rarely seen.
+if [[ "$ZDOTS_THEME" == kanagawa-* ]]; then
+  export LSCOLORS="ExGxDxGxGxegedabagacad"
+fi
 # Correctness and behavior
 export DISABLE_SPRING=true
 export CORRECT_IGNORE='_*'
