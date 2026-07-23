@@ -39,14 +39,18 @@
 #
 # LABELED LOCATIONS
 # -----------------
-# Three short labels resolve to the dots repos without needing full paths:
+# Four short labels resolve to the platform repos without needing full paths:
 #
 #   zdots  →  ~/.config/zsh               (git dir: .git inside work tree)
 #   adots  →  $HOME, git dir ~/.homegit   (bare repo with separate work tree)
 #   vdots  →  ~/.config/nvim              (git dir: .git inside work tree)
+#   my     →  ~/my                        (git dir: .git inside work tree)
 #
 # adots is special: the git dir and work tree are separate, so all git
 # commands for it are run with --git-dir and --work-tree explicitly.
+# my is the same repo (just3ws/my) on every machine — work reaches it via a
+# work.github.com SSH host-alias, not a different remote, so patches
+# generated on one machine apply cleanly on another, same as the dots repos.
 #
 # PATH ARGUMENT
 # -------------
@@ -68,12 +72,13 @@
 #
 # This ordering allows ls -t and ls to both show files in chronological order.
 #
-# ADOTS RELATIONSHIP
-# ------------------
-# This tool lives in zdots (bin/zdots-patch-export) but operates on all three
-# dots repos.  adots is a configuration-facilitating layer; it does not
-# contain tooling.  ZDOTS_PATCH_OUTBOX may be set in the adots shell
-# environment to redirect the outbox globally without a per-call flag.
+# PLATFORM RELATIONSHIP
+# ----------------------
+# This tool lives in zdots (bin/zdots-patch-export) but operates on all four
+# platform repos (zdots, adots, vdots, my).  adots is a configuration-
+# facilitating layer; it does not contain tooling.  ZDOTS_PATCH_OUTBOX may be
+# set in the adots shell environment to redirect the outbox globally without
+# a per-call flag.
 #
 # ENVIRONMENT VARIABLES
 #   ZDOTS_PATCH_OUTBOX  override outbox directory (default: ~/Desktop/outbox)
@@ -96,6 +101,7 @@ ZDOTS_DIR="${HOME}/.config/zsh"
 ADOTS_WORK="${HOME}"
 ADOTS_GIT="${HOME}/.homegit"
 VDOTS_DIR="${HOME}/.config/nvim"
+MY_DIR="${HOME}/my"
 
 usage() {
   cat <<'HELP'
@@ -108,6 +114,7 @@ Targets (optional, default: current directory):
   zdots             ~/.config/zsh
   adots             $HOME tracked via ~/.homegit
   vdots             ~/.config/nvim
+  my                ~/my
   <path>            any directory inside a git repo
 
 Ref (optional, default: uncommitted changes):
@@ -134,6 +141,7 @@ Outbox naming:
 Examples:
   zdots-patch-export zdots
   zdots-patch-export adots
+  zdots-patch-export my
   zdots-patch-export zdots HEAD~1
   zdots-patch-export vdots abc1234..def5678
   zdots-patch-export /path/to/repo --name myfix
@@ -314,6 +322,9 @@ resolve_target() {
     vdots)
       printf '%s\n%s\nvdots\n' "$VDOTS_DIR" ""
       ;;
+    my)
+      printf '%s\n%s\nmy\n' "$MY_DIR" ""
+      ;;
     *)
       # Treat as a filesystem path; resolve the git root.
       [[ -e "$target" ]] || die "path not found: ${target}"
@@ -380,7 +391,7 @@ fi
 # Derive the slug: prefer --name, then remote-derived slug, then label.
 if [[ -n "$NAME_OVERRIDE" ]]; then
   SLUG="$(slugify "$NAME_OVERRIDE")"
-elif [[ "$LABEL" == zdots || "$LABEL" == adots || "$LABEL" == vdots ]]; then
+elif [[ "$LABEL" == zdots || "$LABEL" == adots || "$LABEL" == vdots || "$LABEL" == my ]]; then
   SLUG="$LABEL"
 else
   SLUG="$(repo_slug "${GIT_ARGS[@]}")"

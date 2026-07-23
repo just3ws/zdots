@@ -1,14 +1,14 @@
 ---
 name: zdots-update
-description: Guide for safely pulling and applying zdots, adots, and vdots repo updates. Verifies system readiness, applies zdots/adots/vdots patches or pulls, runs zdots-update-local, and validates the result across all three. Haiku-friendly — every step is a concrete runnable command.
+description: Guide for safely pulling and applying zdots, adots, vdots, and my repo updates. Verifies system readiness, applies zdots/adots/vdots/my patches or pulls, runs zdots-update-local, and validates the result across all four. Haiku-friendly — every step is a concrete runnable command.
 ---
 
-# /zdots-update — Pull and Apply zdots + adots + vdots Updates
+# /zdots-update — Pull and Apply zdots + adots + vdots + my Updates
 
-Run this skill when pulling changes into zdots, adots, and/or vdots — whether
-via direct pull or a patch file from `/zdots-patch-cycle` on the work machine.
-Companion of that skill: it exports per-repo patches, this applies them.
-Not every session touches all three — check each independently.
+Run this skill when pulling changes into zdots, adots, vdots, and/or my —
+whether via direct pull or a patch file from `/zdots-patch-cycle` on the
+work machine. Companion of that skill: it exports per-repo patches, this
+applies them. Not every session touches all four — check each independently.
 
 **Repo invocations** (adots is BARE — never check it like a normal repo):
 
@@ -16,6 +16,7 @@ Not every session touches all three — check each independently.
 |---|---|
 | zdots | `git -C "$ZDOTDIR" …` |
 | vdots | `git -C ~/.config/nvim …` |
+| my | `git -C ~/my …` |
 | adots | `env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git …` |
 
 ---
@@ -23,12 +24,13 @@ Not every session touches all three — check each independently.
 ## Phase 0 — Pre-flight (run before any pull/am)
 
 ```bash
-# P0-A: confirm all three working trees are clean (no uncommitted work to lose)
+# P0-A: confirm all four working trees are clean (no uncommitted work to lose)
 git -C "$ZDOTDIR" status --short
 git -C ~/.config/nvim status --short
+git -C ~/my status --short
 env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git status --short
 # PASS: no output (adots may show dirty rc/memory files — normal, not blocking)
-# FAIL (zdots/vdots dirty): stash or commit first — git -C <repo> stash
+# FAIL (zdots/vdots/my dirty): stash or commit first — git -C <repo> stash
 
 # P0-B: services are healthy (don't update a broken machine)
 zdots-ctl status --json 2>/dev/null | python3 -c "
@@ -42,6 +44,7 @@ print('PASS' if not failed else 'FAIL: ' + str(failed))
 # P0-C: note current HEAD for diff after pull, for each repo you'll update
 git -C "$ZDOTDIR" rev-parse HEAD
 git -C ~/.config/nvim rev-parse HEAD
+git -C ~/my rev-parse HEAD
 env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git rev-parse HEAD
 # Save these — you'll use them in later phases
 ```
@@ -51,12 +54,13 @@ env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git rev-parse HEAD
 ## Phase 1 — Pull (per repo — do the ones that actually have incoming changes)
 
 Two paths per repo — use whichever applies. Only run the block for a repo
-that changed; not every session touches all three.
+that changed; not every session touches all four.
 
 **A. Direct pull (origin has the changes):**
 ```bash
 git -C "$ZDOTDIR" pull --ff-only origin main
 git -C ~/.config/nvim pull --ff-only origin main
+git -C ~/my pull --ff-only origin main
 env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git pull --ff-only origin main
 # PASS: "Fast-forward" or "Already up to date."
 # FAIL: non-fast-forward → investigate; do NOT force-merge without operator approval
@@ -66,6 +70,7 @@ env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git pull --ff-only origin main
 ```bash
 git -C "$ZDOTDIR" am ~/path/to/<timestamp>-zdots-origin-main.patch
 git -C ~/.config/nvim am ~/path/to/<timestamp>-vdots-origin-main.patch
+git -C ~/my am ~/path/to/<timestamp>-my-origin-main.patch
 env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git am ~/path/to/<timestamp>-adots-origin-main.patch
 # PASS: "Applied: chore(work-session): ..."
 # FAIL: git am --abort (same invocation as the failing repo); ask operator to re-export a clean patch
@@ -75,6 +80,7 @@ env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git am ~/path/to/<timestamp>-adot
 # What changed? (run for each repo you updated)
 git -C "$ZDOTDIR" log --oneline ORIG_HEAD..HEAD
 git -C ~/.config/nvim log --oneline ORIG_HEAD..HEAD
+git -C ~/my log --oneline ORIG_HEAD..HEAD
 env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git log --oneline ORIG_HEAD..HEAD
 # Read the commit list. If you see changes to:
 #   lib/svc-registry.bash  → service catalog changed; services may need restart
@@ -201,6 +207,11 @@ adots-doctor 2>&1 | tail -5
 # PASS: "adots=healthy zdots=healthy" / "ok with 0 warning(s)"
 # FAIL: read the failing check; do not run --fix blind — read what it would
 #   change first (it backs up before overwriting, but confirm scope)
+
+# P4-G: my health (only meaningful if you applied a my update)
+adots-my doctor 2>&1 | tail -12
+# PASS: "summary: N passed, 0 warning(s), 0 failure(s)"
+# FAIL: read-only by default — re-run with --apply only on operator instruction
 ```
 
 ---
@@ -232,6 +243,7 @@ git -C "$ZDOTDIR" diff ORIG_HEAD..HEAD --name-only | grep -q 'otel-collector.yam
 === zdots-update report — <timestamp> ===
 zdots:  <old-HEAD>..<new-HEAD> (<N> commits, or "unchanged")
 vdots:  <old-HEAD>..<new-HEAD> (<N> commits, or "unchanged")
+my:     <old-HEAD>..<new-HEAD> (<N> commits, or "unchanged")
 adots:  <old-HEAD>..<new-HEAD> (<N> commits, or "unchanged")
 Phases: <N>/14 completed (list any skipped)
 
