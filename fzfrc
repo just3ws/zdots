@@ -4,8 +4,8 @@
 # Base FZF initialization is handled in $ZDOTDIR/.fzf.zsh.
 [[ -o interactive ]] || return 0
 
-if [[ "$ZDOTS_THEME" == "kanagawa" ]]; then
-  export FZF_DEFAULT_OPTS='--tiebreak=begin,length --color=fg:#DCD7BA,bg:#1F1F28,hl:#7E9CD8 --color=fg+:#DCD7BA,bg+:#2D4F67,hl+:#7FB4CA --color=info:#E6C384,prompt:#98BB6C,pointer:#D27E99 --color=marker:#D27E99,spinner:#E6C384,header:#957FB8,border:#54546D'
+if [[ "$ZDOTS_THEME" == kanagawa-* ]]; then
+  export FZF_DEFAULT_OPTS='--tiebreak=begin,length --color=fg:#DCD7BA,bg:#1A1B2F,hl:#7E9CD8 --color=fg+:#DCD7BA,bg+:#2D4F67,hl+:#7FB4CA --color=info:#E6C384,prompt:#98BB6C,pointer:#D27E99 --color=marker:#D27E99,spinner:#E6C384,header:#957FB8,border:#54546D'
 elif [[ "$ZDOTS_THEME" == "dracula" ]]; then
   export FZF_DEFAULT_OPTS='--tiebreak=begin,length --color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9 --color=fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9 --color=info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6 --color=marker:#ff79c6,spinner:#ffb86c,header:#6272a4'
 elif [[ "$ZDOTS_THEME" == dracula-pro* ]]; then
