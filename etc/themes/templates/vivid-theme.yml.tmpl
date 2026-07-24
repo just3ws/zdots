@@ -1,0 +1,144 @@
+# Kanagawa Wave dircolors theme for vivid (no bundled vivid theme exists yet).
+# Palette verified against iTerm2-Color-Schemes/schemes/Kanagawa Wave.itermcolors
+# and cross-checked with kanagawa.nvim's named colors.
+# Structure mirrors vivid's bundled nord.yml.
+# ponytail: sumiInk3 hand-tuned bluer/more saturated (#1F1F28 -> #{{sumiInk3}}); all
+# other values are unmodified upstream Wave.
+
+colors:
+  sumiInk3:     '{{sumiInk3}}'  # background
+  sumiInk4:     '{{sumiInk4}}'  # selection
+  fujiGray:     '{{fujiGray}}'  # brightblack / muted
+  fujiWhite:    '{{fujiWhite}}'  # foreground / brightwhite
+  oldWhite:     '{{oldWhite}}'  # white
+  waveAqua1:    '{{waveAqua1}}'  # cyan
+  waveAqua2:    '{{waveAqua2}}'  # brightcyan
+  crystalBlue:  '{{crystalBlue}}'  # blue / directory accent
+  autumnRed:    '{{autumnRed}}'  # red
+  carpYellow:   '{{carpYellow}}'  # yellow
+  springGreen:  '{{springGreen}}'  # green
+  oniViolet:    '{{oniViolet}}'  # magenta
+
+core:
+  normal_text:
+    foreground: fujiGray
+
+  reset_to_normal:
+    background: sumiInk3
+    foreground: fujiWhite
+    font-style: regular
+
+  regular_file:
+    foreground: fujiWhite
+
+  directory:
+    foreground: crystalBlue
+    font-style: bold
+
+  multi_hard_link:
+    foreground: waveAqua1
+    font-style: underline
+
+  symlink:
+    foreground: waveAqua1
+
+  broken_symlink:
+    foreground: autumnRed
+
+  missing_symlink_target:
+    background: autumnRed
+    foreground: oldWhite
+    font-style: bold
+
+  fifo:
+    foreground: waveAqua2
+    font-style:
+      - bold
+      - underline
+
+  character_device:
+    foreground: carpYellow
+
+  block_device:
+    foreground: carpYellow
+    font-style: underline
+
+  door:
+    foreground: carpYellow
+    font-style: italic
+
+  socket:
+    foreground: carpYellow
+    font-style: bold
+
+  executable_file:
+    foreground: waveAqua2
+    font-style: bold
+
+  file_with_capability:
+    foreground: fujiWhite
+    font-style:
+      - bold
+      - underline
+
+  setuid:
+    foreground: fujiWhite
+    font-style:
+      - bold
+      - underline
+
+  setgid:
+    foreground: fujiWhite
+    font-style:
+      - bold
+      - underline
+
+  sticky:
+    background: crystalBlue
+    foreground: oldWhite
+    font-style: underline
+
+  other_writable:
+    background: crystalBlue
+    foreground: oldWhite
+    font-style: bold
+
+  sticky_other_writable:
+    background: crystalBlue
+    foreground: oldWhite
+    font-style:
+      - bold
+      - underline
+
+archives:
+  foreground: oldWhite
+  font-style: bold
+
+executable:
+  foreground: waveAqua2
+  font-style: bold
+
+markup:
+  foreground: fujiWhite
+  web:
+    foreground: fujiWhite
+
+media:
+  foreground: oniViolet
+  fonts:
+    foreground: fujiWhite
+
+office:
+  foreground: springGreen
+
+programming:
+  source:
+    foreground: waveAqua2
+  tooling:
+    foreground: fujiWhite
+
+text:
+  foreground: fujiWhite
+
+unimportant:
+  foreground: fujiGray

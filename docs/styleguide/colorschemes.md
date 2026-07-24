@@ -12,8 +12,10 @@ To reference or extend a scheme, start here.
 
 ## 1. Kanagawa Wave — palette
 
-Source: [rebelot/kanagawa.nvim](https://github.com/rebelot/kanagawa.nvim) `wave`.
-The platform **hand-tunes the background** bluer than canonical (`#1F1F28` → `#1A1B2F`).
+Palette by **rebelot (Tommaso Laurenzi)** — [rebelot/kanagawa.nvim](https://github.com/rebelot/kanagawa.nvim)
+`wave` variant, **MIT License, Copyright (c) 2021 Tommaso Laurenzi**. The named
+hex values are that work; the platform **hand-tunes only the background** bluer
+than canonical (`#1F1F28` → `#1A1B2F`).
 
 | Name | Hex | Role |
 |---|---|---|
@@ -124,10 +126,17 @@ Color must never be the sole signal — pills/badges pair tint with a text label
 
 ## 6. Adding a new colorscheme
 
-1. Create `assets/<scheme>/` with `syntax-highlighting.zsh`, `vivid-theme.yml`, `p10k-overrides.zsh`.
-2. Add the `<scheme>-*` branches to `fzfrc` and `conf.d/30-env.zsh` (LSCOLORS).
-3. Author the app-level assets (itermcolors, tmTheme, ghostty, etc.) from the palette.
-4. Bind the dashboard `:root` tokens (§2) — keep AA (§5).
+Surfaces are **generated from one palette source** — do not hand-author them.
+
+1. Copy `etc/themes/kanagawa-wave.yaml` → `etc/themes/<scheme>.yaml`; edit the
+   `palette:` hexes and the `title`/`source`/`slug`. The role bindings (`ansi`,
+   `iterm_slots`, `tokens`, `mermaid`, `outputs`) stay as-is — that's the point.
+2. Run `zdots-theme-gen <scheme>` → writes every surface into `assets/<scheme>/`.
+3. Add the `<scheme>-*` branches to `fzfrc` and `conf.d/30-env.zsh` (LSCOLORS),
+   which are palette-derived but not yet generated (follow-up).
+4. `p10k-overrides.zsh` is palette-independent (rides ANSI indices) — reuse it.
 5. Set `ZDOTS_THEME=<scheme>` in `env.sh`.
 
-Keep the semantic tokens stable; only the palette binding changes.
+`zdots-theme-gen <scheme> --check` fails if any generated artifact drifts from
+its source; it is enforced by `tests/theme_gen.bats`. Keep the semantic tokens
+stable; only the palette binding changes.
