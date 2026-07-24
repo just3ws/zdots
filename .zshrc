@@ -43,7 +43,9 @@ if [[ -o interactive && -o zle ]]; then
   bindkey '^Y' yank
 fi
 
-# iTerm2 shell integration is only useful in a real ZLE session.
-if [[ -o interactive && -o zle && -r "${ZDOTDIR}/.iterm2_shell_integration.zsh" ]]; then
+# iTerm2 shell integration is only useful in a real ZLE session under iTerm2.
+# Must live here (not conf.d): iTerm2's installer greps .zshrc for this string
+# and appends an unguarded source line if it's missing.
+if [[ "$TERM_PROGRAM" == "iTerm.app" && -o interactive && -o zle && -r "${ZDOTDIR}/.iterm2_shell_integration.zsh" ]]; then
   source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
 fi
