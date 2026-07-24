@@ -11,7 +11,8 @@ module Zdots
 
       def self.text_match?(record, term)
         record.content.to_s.downcase.include?(term.downcase) ||
-          record[:title].to_s.downcase.include?(term.downcase)
+          record[:title].to_s.downcase.include?(term.downcase) ||
+          record[:slug].to_s.downcase.include?(term.downcase)
       end
     end
   end
