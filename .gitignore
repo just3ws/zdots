@@ -65,3 +65,4 @@ ONBOARDING.md
 
 # Playwright MCP session artifacts (browser verification screenshots/snapshots/logs)
 .playwright-mcp/
+coverage/
