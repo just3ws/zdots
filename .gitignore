@@ -62,3 +62,6 @@ tmp/
 
 # /team-onboarding artifact — regenerable, holds personal usage analytics; share via link, not git
 ONBOARDING.md
+
+# Playwright MCP session artifacts (browser verification screenshots/snapshots/logs)
+.playwright-mcp/
