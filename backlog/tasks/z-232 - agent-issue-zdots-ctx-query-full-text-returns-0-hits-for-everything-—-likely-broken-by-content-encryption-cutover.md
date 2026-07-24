@@ -3,9 +3,10 @@ id: Z-232
 title: >-
   [agent-issue] zdots-ctx query (full-text) returns 0 hits for everything —
   likely broken by content encryption cutover
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-15 22:38'
+updated_date: '2026-07-24 18:09'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ Found during /command-qc audit. 'zdots-ctx query zsvc' and 'zdots-ctx query tool
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Root cause narrowed: the blanket '0 hits for everything' was fixed earlier by the decrypt-scan cutover (b01b4dbba, 2026-06-29). The surviving gap was slug matching: Methodology.text_match? scanned content+title but not slug, so 'zdots-ctx query tooling:<name>' (rule-zero contract) missed catalog entries whose identity lives in the slug. Fixed in a0a79af (+ regression spec spec/zdots/models/methodology_search_spec.rb). Verified: 'zdots-ctx query tooling:zsvc' now returns the methodology; lessons text search confirmed working (77 hits for 'token').
+<!-- SECTION:NOTES:END -->
