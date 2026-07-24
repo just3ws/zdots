@@ -124,7 +124,23 @@ def render_template(t, tmpl)
 end
 
 # --- driver ----------------------------------------------------------------
-args  = ARGV.dup
+args = ARGV.dup
+
+if args.include?("-h") || args.include?("--help")
+  puts <<~USAGE
+    zdots-theme-gen — generate every surface theme artifact from one palette source.
+
+    Usage:
+      zdots-theme-gen [slug]            generate all surfaces (default: kanagawa-wave)
+      zdots-theme-gen [slug] --check    exit 1 if any artifact is stale vs source
+      zdots-theme-gen [slug] --only F   generate only the output whose out: is F
+      zdots-theme-gen --list            list configured schemes
+
+    Source of truth: etc/themes/<slug>.yaml. See docs/styleguide/colorschemes.md.
+  USAGE
+  exit 0
+end
+
 check = args.delete("--check")
 list  = args.delete("--list")
 only  = (i = args.index("--only")) ? args.delete_at(i + 1).tap { args.delete_at(i) } : nil
