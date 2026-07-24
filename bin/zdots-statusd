@@ -41,6 +41,12 @@ ZDOTS  = ENV["ZDOTDIR"] || File.expand_path("#{__dir__}/..")
 BIN    = File.join(ZDOTS, "bin")
 STATE  = ENV["XDG_STATE_HOME"] ? File.join(ENV["XDG_STATE_HOME"], "zsh") :
          File.expand_path("~/.local/state/zsh")
+# Hokusai's Great Wave, served faint behind /theme. Read once (110KB); nil if absent.
+WAVE_IMG = begin
+  File.binread(File.join(ZDOTS, "assets", "kanagawa-wave", "great-wave.jpg"))
+rescue StandardError
+  nil
+end
 
 # --- data sources -----------------------------------------------------------
 
@@ -441,6 +447,34 @@ CSS
 # colours markdown can't.
 ANSI_ROLES = %w[black red green yellow blue magenta cyan white].freeze
 
+# Downloadable Great Wave wallpapers (public domain: Hokusai, c. 1831). The
+# large tiers live in ~/Pictures (too big for the config repo); /theme lists and
+# serves whatever is present on this machine. key -> file + metadata.
+PICTURES_WAVE = File.expand_path("~/Pictures/kanagawa-wave")
+WAVE_TIERS = [
+  { key: "fullhd",   label: "Full HD",   dims: "1920×1080", file: "great-wave-fullhd-1920x1080-fill.png" },
+  { key: "retina",   label: "Retina",    dims: "2560×1600", file: "great-wave-retina-2560x1600-fill.png" },
+  { key: "uhd4k",    label: "4K UHD",    dims: "3840×2160", file: "great-wave-4k-3840x2160-fill.png" },
+  { key: "retina5k", label: "Retina 5K", dims: "5120×2880", file: "great-wave-retina5k-5120x2880-fill.png" },
+].freeze
+
+def wave_tier_path(key)
+  tier = WAVE_TIERS.find { |x| x[:key] == key }
+  return nil unless tier
+
+  path = File.join(PICTURES_WAVE, tier[:file])
+  File.file?(path) ? path : nil
+end
+
+# Machine-readable palette — the living reference any tool on the system can pull
+# (curl https://zdots.localhost/theme/palette.json). Straight from the source YAML.
+def theme_json
+  t = YAML.safe_load_file(File.join(ZDOTS, "etc", "themes", "#{ENV['ZDOTS_THEME'] || 'kanagawa-wave'}.yaml"))
+  JSON.pretty_generate(t.slice("slug", "title", "source", "palette", "ansi", "tokens")) + "\n"
+rescue StandardError => e
+  JSON.generate("error" => e.message)
+end
+
 def swatch(name, hex, sub)
   %(<figure class="sw"><div class="chip" style="background:##{h(hex)}"></div>) +
     %(<figcaption><span class="nm">#{h(name)}</span>) +
@@ -460,18 +494,62 @@ def theme_page
     swatch("#{i} · #{role}", pal.fetch(name), name)
   end.join
 
+  wallpapers = WAVE_TIERS.map do |x|
+    path = File.join(PICTURES_WAVE, x[:file])
+    if File.file?(path)
+      mb = (File.size(path) / 1_048_576.0).round(1)
+      %(<li><a href="/theme/download/#{x[:key]}">#{h(x[:label])}</a> ) +
+        %(<span class="dim">#{h(x[:dims])} · #{mb}&nbsp;MB PNG</span></li>)
+    else
+      %(<li class="dim">#{h(x[:label])} <span>#{h(x[:dims])} — not generated on this machine</span></li>)
+    end
+  end.join
+
   inner = <<~HTML
-    <section aria-labelledby="th-h">
-      <h2 id="th-h">#{h(t['title'])} <span class="dim">— #{h(t['source'])}</span></h2>
-      <p class="lede">Named for Hokusai's woodblock print <i>The Great Wave off Kanagawa</i>
-      (神奈川沖浪裏, c.&nbsp;1831). Its blues descend from Prussian blue (<i>bero-ai</i>);
-      the palette names read as an inventory of the print — sumi (ink), Fuji, wave, koi,
-      boat, sakura. Palette by rebelot (Tommaso Laurenzi), MIT. Full prose:
-      <a href="/docs/docs:styleguide:colorschemes">styleguide</a>.</p>
+    <style>
+      /* The Great Wave, faint and fixed beneath the page (this page only). */
+      body::before{content:"";position:fixed;inset:0;z-index:-2;
+        background:url('/theme/great-wave.jpg') center 22%/cover no-repeat;opacity:.38;}
+      body::after{content:"";position:fixed;inset:0;z-index:-1;
+        background:linear-gradient(180deg,rgba(26,27,47,.55) 0%,rgba(26,27,47,.72) 45%,rgba(26,27,47,.9) 100%);}
+      .hero{padding:.5rem 0 .25rem;}
+      .hero h1{font-family:Georgia,"Hoefler Text","Iowan Old Style",serif;font-size:2.3rem;
+        font-weight:600;letter-spacing:.01em;margin:0;color:var(--text);}
+      .hero .src{color:var(--text-dim);font-size:.82rem;font-family:var(--mono);}
+      .lede{font-family:Georgia,"Iowan Old Style",serif;font-size:1.1rem;line-height:1.75;
+        max-width:44rem;color:var(--text);}
+      .lede i{color:var(--accent);font-style:italic;} .lede b{color:var(--yellow);font-weight:600;}
+      section.doc h2{font-family:Georgia,serif;text-transform:none;letter-spacing:0;font-size:1.15rem;color:var(--text);}
+      .swatches{grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));}
+      figure.sw{background:rgba(42,42,55,.72);backdrop-filter:blur(3px);}
+      figure.sw .chip{height:60px;}
+    </style>
+    <section class="doc">
+    <div class="hero"><h1>#{h(t['title'])}</h1>
+      <p class="src">#{h(t['source'])} · palette by rebelot (Tommaso Laurenzi), MIT</p></div>
+    <p class="lede">Named for Hokusai's woodblock print <i>The Great Wave off Kanagawa</i>
+    (神奈川沖浪裏, c.&nbsp;1831), the opening image of <i>Thirty-Six Views of Mount&nbsp;Fuji</i>.
+    Its blues descend from <b>Prussian blue</b> (<i>bero-ai</i>), a pigment newly imported to
+    Japan in Hokusai's day. The palette names read as an inventory of the print — sumi (ink),
+    Fuji, the wave, koi, the boats, sakura. Full prose:
+    <a href="/docs/docs:styleguide:colorschemes">the styleguide</a>.</p>
     </section>
     <section aria-labelledby="pal-h"><h2 id="pal-h">Palette <span class="dim">(#{pal.size})</span></h2><div class="swatches">#{palette_sw}</div></section>
     <section aria-labelledby="tok-h"><h2 id="tok-h">Semantic tokens</h2><div class="swatches">#{token_sw}</div></section>
     <section aria-labelledby="ansi-h"><h2 id="ansi-h">Terminal ANSI 0–15</h2><div class="swatches">#{ansi_sw}</div></section>
+    <section aria-labelledby="wp-h">
+      <h2 id="wp-h">Wallpapers <span class="dim">— The Great Wave (public domain)</span></h2>
+      <p class="dim">Hokusai's print, cropped full-bleed for desktop. Public domain.</p>
+      <ul class="eps">#{wallpapers}</ul>
+    </section>
+    <section aria-labelledby="ref-h">
+      <h2 id="ref-h">Reference</h2>
+      <ul class="eps">
+        <li><a href="/theme/palette.json">palette.json</a> <span class="dim">— machine-readable, for any tool on the system</span></li>
+        <li><a href="/docs/docs:styleguide:colorschemes">styleguide</a> <span class="dim">— full prose, tokens, a11y</span></li>
+        <li><span class="mono dim">zdots-theme-gen</span> <span class="dim">— regenerates every surface from the source</span></li>
+      </ul>
+    </section>
   HTML
   wrap("theme — #{t['title']}", inner)
 rescue StandardError => e
@@ -481,6 +559,15 @@ end
 def respond(client, body, status: "200 OK", type: "text/html; charset=utf-8")
   client.print "HTTP/1.1 #{status}\r\nContent-Type: #{type}\r\n" \
                "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+end
+
+# Binary responder — header printed, then raw bytes written (avoids mixing the
+# UTF-8 header with ASCII-8BIT image data in one interpolated string).
+def respond_bytes(client, bytes, type, filename: nil)
+  disp = filename ? "\r\nContent-Disposition: attachment; filename=\"#{filename}\"" : ""
+  client.print "HTTP/1.1 200 OK\r\nContent-Type: #{type}#{disp}\r\n" \
+               "Content-Length: #{bytes.bytesize}\r\nCache-Control: max-age=86400\r\nConnection: close\r\n\r\n"
+  client.write bytes
 end
 
 server = TCPServer.new("127.0.0.1", PORT)
@@ -498,6 +585,12 @@ loop do
     when %r{\A/man/([a-z0-9-]+)\z}
       page = render_man($1)
       page ? respond(client, page) : respond(client, "no such man page", status: "404 Not Found", type: "text/plain")
+    when %r{\A/theme/great-wave\.jpg\z}
+      WAVE_IMG ? respond_bytes(client, WAVE_IMG, "image/jpeg") : respond(client, "no image", status: "404 Not Found", type: "text/plain")
+    when %r{\A/theme/palette\.json\z} then respond(client, theme_json, type: "application/json")
+    when %r{\A/theme/download/([a-z0-9]+)\z}
+      p = wave_tier_path($1)
+      p ? respond_bytes(client, File.binread(p), "image/png", filename: File.basename(p)) : respond(client, "no such wallpaper", status: "404 Not Found", type: "text/plain")
     when %r{\A/theme/?(\?.*)?\z}    then respond(client, theme_page)
     when %r{\A/docs/?(\?.*)?\z}     then respond(client, docs_index)
     when %r{\A/docs/([A-Za-z0-9:._-]+)\z}
