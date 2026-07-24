@@ -1,9 +1,10 @@
 ---
 id: Z-256
 title: 'Patch context-engine sanitizer-gem CVEs (loofah, rails-html-sanitizer)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-24 12:54'
+updated_date: '2026-07-24 14:01'
 labels:
   - security
   - context-engine
@@ -43,3 +44,15 @@ NOTE: bundler-audit reports 4 gem advisories; Dependabot counts 6 — reconcile 
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+bundle update loofah rails-html-sanitizer -> 2.25.2 / 1.7.1. bundler-audit clean. Gemfile.lock committed c9358b5 on ~/my work branch. The 6-vs-4 Dependabot gap tracked in Z-259; pre-existing health_spec failure tracked in Z-258.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+All 4 gem CVEs patched, audit clean. Discovered a pre-existing, unrelated failure (spec/requests/health_spec.rb — /health returns HTML not JSON); verified it predates the bump; filed as Z-258. Dependabot 6-vs-4 reconciliation filed as Z-259.
+<!-- SECTION:FINAL_SUMMARY:END -->
