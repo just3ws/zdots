@@ -1,9 +1,10 @@
 ---
 id: Z-251
 title: 'Theme generator: one palette source → all surface theme files'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-24 12:51'
+updated_date: '2026-07-24 13:12'
 labels:
   - platform-dynamism
   - kanagawa
@@ -40,3 +41,15 @@ This makes theming (and re-theming, and adding a scheme) a single edit + one com
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Built bin/zdots-theme-gen (Ruby): one palette source etc/themes/kanagawa-wave.yaml -> all surfaces. Builtins compute the deterministic ones (iterm float RGB, ghostty lc hex, dashboard :root tokens.css, mermaid-theme.json); templates (etc/themes/templates/) render the role-structured ones (tmTheme, syntax-highlighting, vivid, lazygit, alfred). p10k rides ANSI indices = palette-independent, left static. Parity proven: regenerating the 7 committed assets is a zero-diff no-op. --check gate enforced by tests/theme_gen.bats (green). Attribution recorded: Kanagawa by rebelot (Tommaso Laurenzi), MIT (c) 2021. Commits 6a1e525f4, 09e427b66.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+theme-gen delivers all 4 ACs. Deferred (not in ACs, filed as follow-up): wiring the dashboards to CONSUME the generated tokens.css/mermaid-theme.json instead of hardcoding hex (app.css/zdots-statusd/application.js in ~/my + bin), and generating the fzfrc/LSCOLORS scheme branches.
+<!-- SECTION:FINAL_SUMMARY:END -->
