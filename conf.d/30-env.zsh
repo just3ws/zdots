@@ -37,13 +37,11 @@ elif command -v vivid >/dev/null 2>&1; then
 fi
 unset _zdots_theme_dircolors_file
 
-# BSD LSCOLORS (native /bin/ls, e.g. from scripts that don't use eza).
-# ponytail: only the 4 commonly-seen categories are re-themed (dir/symlink/
-# pipe/executable -> blue/cyan/yellow); the 8-letter BSD palette can't
-# represent the full Kanagawa hex set, and the permission-bit corner cases
-# (setuid/setgid/sticky) are left at macOS defaults since they're rarely seen.
-if [[ "$ZDOTS_THEME" == kanagawa-* ]]; then
-  export LSCOLORS="ExGxDxGxGxegedabagacad"
+# Theme shell colors (BSD LSCOLORS + fzf palette) come from the generated
+# artifact (zdots-theme-gen → assets/<scheme>/shell-colors.zsh) so a palette
+# regen propagates here without hand edits (Z-257).
+if [[ -n "${ZDOTS_THEME:-}" && -r "$ZDOTDIR/assets/$ZDOTS_THEME/shell-colors.zsh" ]]; then
+  source "$ZDOTDIR/assets/$ZDOTS_THEME/shell-colors.zsh"
 fi
 # Correctness and behavior
 export DISABLE_SPRING=true
