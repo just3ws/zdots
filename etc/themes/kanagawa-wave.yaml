@@ -4,6 +4,12 @@
 # surface artifact under assets/kanagawa-wave/ (+ dashboard token partials) from
 # this file. Change a hex here, regenerate, and every surface follows.
 #
+# HERITAGE
+#   Named for Hokusai's woodblock print "The Great Wave off Kanagawa"
+#   (神奈川沖浪裏, c. 1831). Its blues descend from Prussian blue (bero-ai); the
+#   palette names read as an inventory of the print — sumi (ink), Fuji, wave,
+#   koi, boat, sakura. See docs/styleguide/colorschemes.md.
+#
 # ATTRIBUTION
 #   Palette: Kanagawa (`wave` variant) by rebelot (Tommaso Laurenzi).
 #   Upstream: https://github.com/rebelot/kanagawa.nvim
