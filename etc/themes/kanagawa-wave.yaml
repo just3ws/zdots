@@ -123,12 +123,34 @@ mermaid_literals:
   darkMode: true
   fontFamily: "FiraCode Nerd Font Mono Ret, monospace"
 
+# fzf --color slots (consumed via ZDOTS_FZF_COLORS in fzfrc). slot -> palette name.
+fzf:
+  fg: fujiWhite
+  bg: sumiInk3
+  hl: crystalBlue
+  fg+: fujiWhite
+  bg+: waveBlue2
+  hl+: springBlue
+  info: carpYellow
+  prompt: springGreen
+  pointer: sakuraPink
+  marker: sakuraPink
+  spinner: carpYellow
+  header: oniViolet
+  border: sumiInk6
+
+# BSD LSCOLORS for native /bin/ls. A literal, not derived: the 8-letter BSD
+# palette can't represent hex; only dir/symlink/pipe/executable are re-themed
+# (blue/cyan/yellow), permission-bit corners stay at macOS defaults.
+lscolors: "ExGxDxGxGxegedabagacad"
+
 # What to emit. type: builtin (generator computes) | template (render tmpl).
 outputs:
   - {type: builtin, emit: itermcolors, out: "Kanagawa-Wave.itermcolors"}
   - {type: builtin, emit: ghostty, out: "ghostty-kanagawa-wave"}
   - {type: builtin, emit: css_tokens, out: "tokens.css"}
   - {type: builtin, emit: mermaid, out: "mermaid-theme.json"}
+  - {type: builtin, emit: shell_colors, out: "shell-colors.zsh"}
   - {type: template, tmpl: "tmTheme.tmpl", out: "Kanagawa-Wave.tmTheme"}
   - {type: template, tmpl: "syntax-highlighting.zsh.tmpl", out: "syntax-highlighting.zsh"}
   - {type: template, tmpl: "vivid-theme.yml.tmpl", out: "vivid-theme.yml"}
