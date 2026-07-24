@@ -4,6 +4,7 @@ title: Wire dashboards to consume generated theme tokens
 status: To Do
 assignee: []
 created_date: '2026-07-24 13:12'
+updated_date: '2026-07-24 14:37'
 labels:
   - platform-dynamism
   - kanagawa
@@ -38,3 +39,9 @@ Then 'zdots-theme-gen <scheme> && restart' re-themes literally everything.
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+AC#1 DONE + verified live: both dashboards consume the generated tokens.css. zdots-statusd reads assets/<scheme>/tokens.css for its :root (commit 53ef5e814, zdots.localhost 200); context-engine links tokens.css as its own Propshaft stylesheet, app.css uses only var() (commit ~/my 2b4e539, my.localhost computed bg #1A1B2F/text #DCD7BA/dim #C8C093 identical). AC#2 (mermaid from generated json) + AC#3 (theme-gen emits fzf/LSCOLORS branches + conf.d consumption) NOT done — deferred to keep focus on the colorscheme + styleguide (operator redirect 2026-07-24). The conf.d/30-env.zsh + fzfrc consumption is a shared-seam change worth coordinating. Follow-up smell: context-engine .highlight prose code-theme is base16, not Kanagawa — separate Rouge-theme surface.
+<!-- SECTION:NOTES:END -->
