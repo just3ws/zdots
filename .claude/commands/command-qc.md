@@ -60,7 +60,11 @@ in the verb's `_arguments`. Cautionary tale: `ui`/`keys`/`say`/`reply`
 shipped in `bin/zsynod` while `_zsynod` still ended at `version` — found by
 the operator, not the process. Never again.
 
-Verify: `zsh -fc 'autoload -Uz compinit; compinit -C; source functions/enabled/_<cmd>'` exits 0.
+Verify: `zsh -n functions/enabled/_<cmd>` exits 0 and line 1 is a `#compdef` header.
+(Do NOT source the file as a gate: completion files end with `_<cmd> "$@"`, so
+sourcing executes `_arguments` outside compsys — it always errors, and the exit
+code just reflects whichever statement happens to run last. Z-233's "10 of 20
+failures" were exactly this noise; all 20 files parse clean.)
 
 ### 4. Documentation
 
