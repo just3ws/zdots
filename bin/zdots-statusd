@@ -11,6 +11,7 @@
 
 require "socket"
 require "json"
+require "yaml"
 require "erb"
 require "shellwords"
 
@@ -163,7 +164,7 @@ def burn_section(b)
   SEC
 end
 
-ROOT_NAV = %(<a href="/">← console</a> · <a href="/man">man index</a>).freeze
+ROOT_NAV = %(<a href="/">← console</a> · <a href="/man">man index</a> · <a href="/theme">theme</a>).freeze
 
 # Shared page chrome so /man pages match the console (cross-linked back).
 def wrap(title, inner)
@@ -209,8 +210,9 @@ end
 # --- docs (markdown) --------------------------------------------------------
 
 def doc_files
-  top = %w[README.md AGENTS.md CLAUDE.md SETUP.md GEMINI.md].map { |f| "#{ZDOTS}/#{f}" }
-  (top + Dir["#{ZDOTS}/docs/**/*.md"]).select { |p| File.file?(p) }.uniq
+  # All root-level docs (AGENTS, CLAUDE, CONTEXT, PI, AIDER, README, …) plus the
+  # docs/ tree. Root glob keeps every top-level doc browsable and cross-linkable.
+  (Dir["#{ZDOTS}/*.md"] + Dir["#{ZDOTS}/docs/**/*.md"]).select { |p| File.file?(p) }.uniq
 end
 
 def doc_key(path) = path.sub("#{ZDOTS}/", "").sub(/\.md\z/, "").gsub("/", ":")
@@ -233,10 +235,18 @@ def render_doc(key)
       out = IO.popen(["pandoc", "-f", "gfm", "-t", "html"], "r+") do |io|
         io.write(md); io.close_write; io.read
       end
-      # Interlink: relative *.md links → /docs/<key>.
-      out.to_s.gsub(/href="([^":]+?)\.md(#[^"]*)?"/) do
-        tgt, frag = Regexp.last_match(1), Regexp.last_match(2)
-        %(href="/docs/#{tgt.sub(%r{\A\./}, '').gsub('/', ':')}#{frag}")
+      # Interlink: rewrite relative *.md links to /docs/<key>, resolved against
+      # THIS doc's directory (so docs/wiki/Foo.md's `Bar.md` → docs:wiki:Bar, and
+      # `../tooling.md` → docs:tooling). Links that don't resolve to a doc under
+      # ZDOTS (external URLs, off-tree paths like backlog/docs/…) are left as-is.
+      base = File.dirname(path)
+      servable = doc_files
+      out.to_s.gsub(/href="([^"]+?)\.md(#[^"]*)?"/) do
+        whole, tgt, frag = Regexp.last_match(0), Regexp.last_match(1), Regexp.last_match(2)
+        next whole if tgt.include?("://")
+
+        abs = File.expand_path("#{tgt}.md", base)
+        servable.include?(abs) ? %(href="/docs/#{doc_key(abs)}#{frag}") : whole
       end
     else
       "<pre>#{h(md)}</pre>"
@@ -413,9 +423,60 @@ CSS = <<~CSS
   .doc table { width:auto; } .doc th,.doc td { border:1px solid var(--border); padding:.3rem .6rem; }
   .doc blockquote { border-left:3px solid var(--border); margin:.5rem 0; padding-left:.8rem; color:var(--text-dim); }
   .doc img { max-width:100%; }
+  .lede { color:var(--text-dim); max-width:46rem; line-height:1.6; }
+  .swatches { display:grid; grid-template-columns:repeat(auto-fill,minmax(9rem,1fr)); gap:.6rem; }
+  figure.sw { margin:0; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--surface); }
+  figure.sw .chip { height:52px; }
+  figure.sw figcaption { padding:.4rem .55rem; display:flex; flex-direction:column; gap:.1rem; font-size:.75rem; }
+  figure.sw .nm { font-weight:600; }
+  figure.sw .rl, figure.sw .hx { color:var(--text-dim); }
+  figure.sw .hx { font-family:var(--mono); text-transform:uppercase; }
 CSS
 
 # --- minimal HTTP server ----------------------------------------------------
+
+# /theme — live swatch gallery for the active colorscheme, read straight from
+# the theme source (etc/themes/<scheme>.yaml) that zdots-theme-gen renders from.
+# The prose styleguide lives at /docs/styleguide:colorschemes; this shows the
+# colours markdown can't.
+ANSI_ROLES = %w[black red green yellow blue magenta cyan white].freeze
+
+def swatch(name, hex, sub)
+  %(<figure class="sw"><div class="chip" style="background:##{h(hex)}"></div>) +
+    %(<figcaption><span class="nm">#{h(name)}</span>) +
+    (sub ? %(<span class="rl">#{h(sub)}</span>) : "") +
+    %(<span class="hx">##{h(hex)}</span></figcaption></figure>)
+end
+
+def theme_page
+  src = File.join(ZDOTS, "etc", "themes", "#{ENV['ZDOTS_THEME'] || 'kanagawa-wave'}.yaml")
+  t = YAML.safe_load_file(src)
+  pal = t.fetch("palette")
+
+  palette_sw = pal.map { |name, hex| swatch(name, hex, nil) }.join
+  token_sw = t.fetch("tokens").map { |var, name| swatch("--#{var}", pal.fetch(name), name) }.join
+  ansi_sw = t.fetch("ansi").each_with_index.map do |name, i|
+    role = i < 8 ? ANSI_ROLES[i] : "br #{ANSI_ROLES[i - 8]}"
+    swatch("#{i} · #{role}", pal.fetch(name), name)
+  end.join
+
+  inner = <<~HTML
+    <section aria-labelledby="th-h">
+      <h2 id="th-h">#{h(t['title'])} <span class="dim">— #{h(t['source'])}</span></h2>
+      <p class="lede">Named for Hokusai's woodblock print <i>The Great Wave off Kanagawa</i>
+      (神奈川沖浪裏, c.&nbsp;1831). Its blues descend from Prussian blue (<i>bero-ai</i>);
+      the palette names read as an inventory of the print — sumi (ink), Fuji, wave, koi,
+      boat, sakura. Palette by rebelot (Tommaso Laurenzi), MIT. Full prose:
+      <a href="/docs/docs:styleguide:colorschemes">styleguide</a>.</p>
+    </section>
+    <section aria-labelledby="pal-h"><h2 id="pal-h">Palette <span class="dim">(#{pal.size})</span></h2><div class="swatches">#{palette_sw}</div></section>
+    <section aria-labelledby="tok-h"><h2 id="tok-h">Semantic tokens</h2><div class="swatches">#{token_sw}</div></section>
+    <section aria-labelledby="ansi-h"><h2 id="ansi-h">Terminal ANSI 0–15</h2><div class="swatches">#{ansi_sw}</div></section>
+  HTML
+  wrap("theme — #{t['title']}", inner)
+rescue StandardError => e
+  wrap("theme", %(<section><h2>theme</h2><p class="lede">could not load palette: #{h(e.message)}</p></section>))
+end
 
 def respond(client, body, status: "200 OK", type: "text/html; charset=utf-8")
   client.print "HTTP/1.1 #{status}\r\nContent-Type: #{type}\r\n" \
@@ -437,6 +498,7 @@ loop do
     when %r{\A/man/([a-z0-9-]+)\z}
       page = render_man($1)
       page ? respond(client, page) : respond(client, "no such man page", status: "404 Not Found", type: "text/plain")
+    when %r{\A/theme/?(\?.*)?\z}    then respond(client, theme_page)
     when %r{\A/docs/?(\?.*)?\z}     then respond(client, docs_index)
     when %r{\A/docs/([A-Za-z0-9:._-]+)\z}
       page = render_doc($1)
