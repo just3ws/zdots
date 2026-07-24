@@ -3,9 +3,10 @@ id: Z-233
 title: >-
   [agent-issue] 10 of 20 completion files fail the command-qc source gate (exit
   non-zero under zsh -fc compinit)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-15 22:39'
+updated_date: '2026-07-24 19:46'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ command-qc step 3 verify — zsh -fc 'autoload -Uz compinit; compinit -C; source
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Root cause: gate defect, not file defects. Sourcing a completion file executes the trailing '_<cmd> "$@"'; _arguments always errors outside compsys and the exit code merely reflected the last statement (case-ending files exited 0, _arguments-ending files exited 1). All 20 files pass zsh -n and carry #compdef headers. Fixed the documented gate in .claude/commands/command-qc.md (parse + header check) and added tests/completions.bats so the gate is machine-enforced. Commit bd8d432^..: see fix(command-qc).
+<!-- SECTION:NOTES:END -->
