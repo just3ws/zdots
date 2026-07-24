@@ -3,10 +3,41 @@
 Canonical reference for the platform's colorschemes. The platform themes through a
 **semantic token model**: surfaces reference tokens (`--bg`, `--accent`, …), and a
 scheme binds those tokens to palette values. Swapping the binding re-themes every
-surface. **Kanagawa Wave** is the default scheme; **nord** is the sole alternate;
-**Dracula** was retired 2026-07-23.
+surface. **Kanagawa Wave** is the default scheme, with **nord** as an alternate.
 
 To reference or extend a scheme, start here.
+
+---
+
+## Heritage — *The Great Wave off Kanagawa*
+
+Kanagawa Wave is named for **Katsushika Hokusai's** woodblock print *The Great
+Wave off Kanagawa* (神奈川沖浪裏, *Kanagawa-oki Nami Ura*, c. 1831) — the opening
+image of his *ukiyo-e* series *Thirty-Six Views of Mount Fuji*. A towering wave
+of clawing foam rears over three fast boats while Mount Fuji sits small and
+still on the horizon, framed by the very wave that seems poised to swallow it.
+Its deep blues are **Prussian blue** (*bero-ai*), a synthetic pigment newly
+imported to Japan in Hokusai's day — the colour that gives the print, and this
+palette, its cool depth.
+
+The palette (rebelot's `wave` variant) reads like an inventory of that world —
+which is why the token names are worth keeping literally:
+
+| Palette name | 日本語 | In the print |
+|---|---|---|
+| **sumiInk** | 墨 *sumi* — ink stick | the dark grounds; the deepest ink of the block-print line |
+| **fujiWhite / fujiGray** | 富士 *Fuji* | the snow-capped mountain and its mist |
+| **waveBlue / waveAqua / crystalBlue** | 波 *nami* — wave | the Great Wave itself; crystalBlue is "the wave" accent |
+| **springGreen / autumnRed / autumnGreen** | 春・秋 seasons | the seasonal *Views of Mount Fuji* |
+| **carpYellow** | 鯉 *koi* — carp | koi gold |
+| **boatYellow** | 舟 *fune* — boat | the *oshiokuri-bune* boats fighting the wave |
+| **sakuraPink** | 桜 *sakura* | cherry blossom |
+| **oniViolet** | 鬼 *oni* — demon | the ogre's violet |
+| **samuraiRed / peachRed** | 侍・桃 | samurai lacquer; peach |
+
+The background is the one deliberate departure: hand-tuned bluer than canonical
+(`#1F1F28` → `#1A1B2F`) to pull the whole platform a shade further into the
+wave's Prussian depth. Everything else is upstream.
 
 ---
 
