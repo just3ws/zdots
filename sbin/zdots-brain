@@ -27,6 +27,10 @@ unless ENV["ZDOTS_BRAIN_PINNED"]
   end
 end
 
+# Under launchd stdout is a file, so Ruby block-buffers it — `zsvc logs worker`
+# lags reality by minutes during diagnosis. Line-buffer instead.
+$stdout.sync = true
+
 require_relative "../lib/zdots"
 require_relative "../lib/zdots/models/job"
 require_relative "../lib/zdots/models/media_source"
