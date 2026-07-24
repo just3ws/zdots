@@ -1,0 +1,130 @@
+# Kanagawa Wave — theme source of truth.
+#
+# ONE palette + role bindings. `zdots-theme-gen kanagawa-wave` renders every
+# surface artifact under assets/kanagawa-wave/ (+ dashboard token partials) from
+# this file. Change a hex here, regenerate, and every surface follows.
+#
+# ATTRIBUTION
+#   Palette: Kanagawa (`wave` variant) by rebelot (Tommaso Laurenzi).
+#   Upstream: https://github.com/rebelot/kanagawa.nvim
+#   License: MIT — Copyright (c) 2021 Tommaso Laurenzi.
+#   The named hex values below are that work. The platform hand-tunes only the
+#   background bluer than canonical (#1F1F28 -> #1A1B2F); all else is upstream.
+#   See docs/styleguide/colorschemes.md.
+slug: kanagawa-wave
+title: Kanagawa Wave
+source: rebelot/kanagawa.nvim wave
+
+# Named palette — the sole place a hex literal lives. name -> HEX (no '#').
+palette:
+  sumiInk0: "16161D"       # deepest ink
+  sumiInk3: "1A1B2F"       # platform ground / bg (tuned bluer)
+  sumiInk4: "2A2A37"       # raised surface
+  sumiInk5: "363646"       # borders
+  sumiInk6: "54546D"       # hairlines / invisibles
+  waveBlue1: "223249"      # panels
+  waveBlue2: "2D4F67"      # selection
+  fujiWhite: "DCD7BA"      # foreground text
+  fujiGray: "727169"       # muted text (fails AA on bg — not for body)
+  oldWhite: "C8C093"       # AA-safe muted text
+  crystalBlue: "7E9CD8"    # primary accent (the wave)
+  springBlue: "7FB4CA"     # bright blue
+  waveAqua1: "6A9589"      # cyan
+  waveAqua2: "7AA89F"      # bright cyan / types
+  springGreen: "98BB6C"    # success / additions
+  autumnGreen: "76946A"    # ansi green
+  carpYellow: "E6C384"     # highlight / warning
+  boatYellow2: "C0A36E"    # ansi yellow / operators
+  surimiOrange: "FFA066"   # numbers / options
+  oniViolet: "957FB8"      # keywords / headings
+  springViolet1: "938AA9"  # bright magenta
+  springViolet2: "9CABCA"  # punctuation (editor)
+  sakuraPink: "D27E99"     # punctuation (shell)
+  autumnRed: "C34043"      # error / deletions
+  samuraiRed: "E82424"     # bright red / invalid bg
+  peachRed: "FF5D62"       # unclosed / danger
+  lightRed: "F29B9B"       # AA-safe red text on red tint
+
+# Terminal ANSI 0-15 (styleguide section 3). index -> palette name.
+ansi:
+  - sumiInk0       # 0  black
+  - autumnRed      # 1  red
+  - autumnGreen    # 2  green
+  - boatYellow2    # 3  yellow
+  - crystalBlue    # 4  blue
+  - oniViolet      # 5  magenta
+  - waveAqua1      # 6  cyan
+  - oldWhite       # 7  white
+  - fujiGray       # 8  br black
+  - samuraiRed     # 9  br red
+  - springGreen    # 10 br green
+  - carpYellow     # 11 br yellow
+  - springBlue     # 12 br blue
+  - springViolet1  # 13 br magenta
+  - waveAqua2      # 14 br cyan
+  - fujiWhite      # 15 br white
+
+# iTerm2 preset non-ANSI slots. iTerm key -> palette name.
+iterm_slots:
+  Background: sumiInk3
+  Badge: samuraiRed
+  Bold: fujiWhite
+  Cursor: oldWhite
+  Cursor Guide: waveBlue1
+  Cursor Text: sumiInk0
+  Foreground: fujiWhite
+  Selected Text: fujiWhite
+  Selection: waveBlue2
+  Link: springBlue
+
+# Ghostty non-ANSI slots. ghostty key -> palette name.
+ghostty_slots:
+  background: sumiInk3
+  foreground: fujiWhite
+  cursor-color: oldWhite
+  cursor-text: sumiInk0
+  selection-background: waveBlue2
+  selection-foreground: fujiWhite
+
+# Dashboard semantic tokens (styleguide section 2). css var -> palette name.
+tokens:
+  bg: sumiInk3
+  surface: sumiInk4
+  border: sumiInk5
+  text: fujiWhite
+  text-dim: oldWhite       # AA fix: oldWhite 9.2:1 (fujiGray 3.45:1 fails)
+  accent: crystalBlue
+  accent-dim: waveBlue2
+  green: springGreen
+  yellow: carpYellow
+  red: autumnRed
+  red-text: lightRed       # AA fix: red text on red tint
+token_literals:
+  mono: "'FiraCode Nerd Font Mono Ret', 'FiraCode Nerd Font Mono', ui-monospace, monospace"
+
+# mermaid.js themeVariables (application.js). mermaid key -> palette name.
+mermaid:
+  background: sumiInk3
+  mainBkg: waveBlue1
+  primaryColor: waveBlue1
+  primaryBorderColor: crystalBlue
+  primaryTextColor: fujiWhite
+  secondaryColor: waveBlue2
+  tertiaryColor: sumiInk0
+  lineColor: waveAqua2
+  nodeBorder: crystalBlue
+mermaid_literals:
+  darkMode: true
+  fontFamily: "FiraCode Nerd Font Mono Ret, monospace"
+
+# What to emit. type: builtin (generator computes) | template (render tmpl).
+outputs:
+  - {type: builtin, emit: itermcolors, out: "Kanagawa-Wave.itermcolors"}
+  - {type: builtin, emit: ghostty, out: "ghostty-kanagawa-wave"}
+  - {type: builtin, emit: css_tokens, out: "tokens.css"}
+  - {type: builtin, emit: mermaid, out: "mermaid-theme.json"}
+  - {type: template, tmpl: "tmTheme.tmpl", out: "Kanagawa-Wave.tmTheme"}
+  - {type: template, tmpl: "syntax-highlighting.zsh.tmpl", out: "syntax-highlighting.zsh"}
+  - {type: template, tmpl: "vivid-theme.yml.tmpl", out: "vivid-theme.yml"}
+  - {type: template, tmpl: "lazygit.yml.tmpl", out: "lazygit-kanagawa-wave.yml"}
+  - {type: template, tmpl: "alfred.json.tmpl", out: "alfred-kanagawa-wave.json"}

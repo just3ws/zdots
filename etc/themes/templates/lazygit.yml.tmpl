@@ -1,0 +1,29 @@
+# Kanagawa Wave theme for lazygit.
+# Install: replace the `gui.theme` block in ~/.config/lazygit/config.yml with the
+# block below, and (optional) add --syntax-theme to the delta pager so diffs use
+# the Kanagawa Wave bat theme:
+#   git:
+#     paging:
+#       pager: delta --dark --syntax-theme "Kanagawa Wave" --paging=never
+# Palette from rebelot/kanagawa.nvim wave (bg tuned #{{sumiInk3}}).
+gui:
+  theme:
+    activeBorderColor:
+      - "#{{oniViolet}}" # oniViolet
+      - bold
+    inactiveBorderColor:
+      - "#{{sumiInk6}}" # sumiInk6
+    optionsTextColor:
+      - "#{{waveAqua2}}" # waveAqua2
+    selectedLineBgColor:
+      - "#{{waveBlue2}}" # waveBlue2
+    selectedRangeBgColor:
+      - "#{{waveBlue2}}" # waveBlue2
+    cherryPickedCommitBgColor:
+      - "#{{springGreen}}" # springGreen
+    cherryPickedCommitFgColor:
+      - "#{{sumiInk3}}" # bg (contrast on green)
+    unstagedChangesColor:
+      - "#{{autumnRed}}" # autumnRed
+    defaultFgColor:
+      - "#{{fujiWhite}}" # fujiWhite
