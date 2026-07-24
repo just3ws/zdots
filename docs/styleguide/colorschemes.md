@@ -7,6 +7,15 @@ surface. **Kanagawa Wave** is the default scheme, with **nord** as an alternate.
 
 To reference or extend a scheme, start here.
 
+**Living reference** — the colorscheme is served, not just documented:
+
+| Where | What |
+|---|---|
+| [`zdots.localhost/theme`](https://zdots.localhost/theme) | live swatch gallery (palette · tokens · ANSI), read from the source YAML, over Hokusai's Great Wave |
+| `zdots.localhost/theme/palette.json` | machine-readable palette — `curl` it from any tool on the system |
+| `zdots.localhost/theme/download/<tier>` | the public-domain Great Wave wallpapers (fullhd · retina · 4k · retina5k) |
+| `zdots-theme-gen [scheme]` | regenerate every surface artifact from the source |
+
 ---
 
 ## Heritage — *The Great Wave off Kanagawa*
