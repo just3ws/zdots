@@ -145,7 +145,9 @@ module Zdots
     end
 
     def cmd_worker(_args)
-      # Zdots.init_otel("zdots-worker")
+      # Z-229: without this the tracer provider is the no-op API default and
+      # every job.perform span (incl. failures) silently evaporates — O2 blind.
+      Zdots.init_otel("zdots-worker")
 
       puts "zdots-brain: starting worker..."
       puts "  filter by type: #{@options[:type]}" if @options[:type]

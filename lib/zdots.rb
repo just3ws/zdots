@@ -13,6 +13,11 @@ module Zdots
 
   class << self
     def init_otel(service_name = "zdots-brain")
+      # Lazy: callers require only the opentelemetry API; the SDK + exporter
+      # load here so non-telemetry CLI paths don't pay the startup cost.
+      require "opentelemetry-sdk"
+      require "opentelemetry-exporter-otlp"
+
       # Silence OTel diagnostic logging unless debug mode is active
       OpenTelemetry.logger = Logger.new(nil) unless ENV["ZDOTS_DEBUG"] == "1"
 
