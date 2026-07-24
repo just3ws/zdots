@@ -352,19 +352,29 @@ def render_page(live:)
   HTML
 end
 
+# Semantic tokens come from the generated theme partial (zdots-theme-gen ->
+# assets/<scheme>/tokens.css) so a palette change propagates here on regen.
+# Fallback keeps the daemon alive if the asset is ever absent.
+TOKENS_ROOT = begin
+  File.read(File.join(ZDOTS, "assets", ENV["ZDOTS_THEME"] || "kanagawa-wave", "tokens.css"))
+rescue StandardError
+  ":root { --bg:#1A1B2F; --surface:#2A2A37; --border:#363646; --text:#DCD7BA; " \
+  "--text-dim:#C8C093; --accent:#7E9CD8; --accent-dim:#2D4F67; --green:#98BB6C; " \
+  "--yellow:#E6C384; --red:#C34043; --red-text:#F29B9B; " \
+  "--mono:'FiraCode Nerd Font Mono Ret','FiraCode Nerd Font Mono',ui-monospace,monospace; }"
+end
+
 CSS = <<~CSS
-  :root { --bg:#1A1B2F; --surface:#2A2A37; --border:#363646; --text:#DCD7BA;
-    --dim:#C8C093; --accent:#7E9CD8; --green:#98BB6C; --red:#C34043; --yellow:#E6C384;
-    --mono:"FiraCode Nerd Font Mono Ret","FiraCode Nerd Font Mono","SF Mono",ui-monospace,monospace; }
+  #{TOKENS_ROOT}
   * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--text);
     font:15px/1.5 system-ui,-apple-system,sans-serif; }
   header { padding:1.5rem 2rem; border-bottom:1px solid var(--border); }
   h1 { margin:0; font-size:1.2rem; } h1 .mark { color:var(--accent); }
-  .sub { margin:.35rem 0 0; color:var(--dim); font-size:.85rem; }
+  .sub { margin:.35rem 0 0; color:var(--text-dim); font-size:.85rem; }
   .live a { color:var(--accent); }
   main { padding:1.5rem 2rem; max-width:60rem; }
   section { margin-bottom:2rem; }
-  h2 { font-size:.75rem; text-transform:uppercase; letter-spacing:.07em; color:var(--dim);
+  h2 { font-size:.75rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-dim);
     border-bottom:1px solid var(--border); padding-bottom:.4rem; }
   h2 .dim { text-transform:none; letter-spacing:0; font-weight:400; }
   .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(13rem,1fr)); gap:.6rem; }
@@ -373,13 +383,13 @@ CSS = <<~CSS
   .card .lbl { font-size:.85rem; }
   .pill { font-size:.72rem; font-weight:700; padding:.12rem .5rem; border-radius:99px; }
   .pill.ok { background:rgba(152,187,108,.15); color:var(--green); }
-  .pill.down { background:rgba(195,64,67,.15); color:#F29B9B; }
+  .pill.down { background:rgba(195,64,67,.15); color:var(--red-text); }
   .pill.warn { background:rgba(230,195,132,.15); color:var(--yellow); }
   table { width:100%; border-collapse:collapse; font-size:.85rem; }
   th { text-align:left; padding:.45rem .6rem; font-size:.7rem; text-transform:uppercase;
-    letter-spacing:.06em; color:var(--dim); border-bottom:1px solid var(--border); }
+    letter-spacing:.06em; color:var(--text-dim); border-bottom:1px solid var(--border); }
   td { padding:.45rem .6rem; border-bottom:1px solid var(--border); }
-  .mono { font-family:var(--mono); color:var(--dim); }
+  .mono { font-family:var(--mono); color:var(--text-dim); }
   .eps { list-style:none; padding:0; margin:0; } .eps li { padding:.25rem 0; font-size:.82rem; }
   .eps.cols { columns:3; } @media (max-width:48rem){ .eps.cols { columns:2; } }
   a { color:var(--accent); }
@@ -401,7 +411,7 @@ CSS = <<~CSS
   .doc pre { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:.75rem; overflow-x:auto; }
   .doc pre code { background:none; padding:0; }
   .doc table { width:auto; } .doc th,.doc td { border:1px solid var(--border); padding:.3rem .6rem; }
-  .doc blockquote { border-left:3px solid var(--border); margin:.5rem 0; padding-left:.8rem; color:var(--dim); }
+  .doc blockquote { border-left:3px solid var(--border); margin:.5rem 0; padding-left:.8rem; color:var(--text-dim); }
   .doc img { max-width:100%; }
 CSS
 
