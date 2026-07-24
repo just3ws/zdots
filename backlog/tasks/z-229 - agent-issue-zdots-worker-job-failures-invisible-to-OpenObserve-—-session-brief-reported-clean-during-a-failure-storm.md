@@ -3,9 +3,10 @@ id: Z-229
 title: >-
   [agent-issue] zdots-worker job failures invisible to OpenObserve — session
   brief reported 'clean' during a failure storm
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-15 18:32'
+updated_date: '2026-07-24 19:54'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ This morning's session brief said 'runtime (last 6h, OpenObserve): clean — 0 e
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Root cause: Zdots.init_otel commented out in zdots-brain cmd_worker → no-op tracer provider → all job.perform spans (incl. failure spans with recorded exceptions) dropped before export. Why it was disabled: init_otel crashed with 'uninitialized constant OpenTelemetry::SDK' because zdots-brain requires only the opentelemetry API gem. Fix bd66fbb: lazy-require opentelemetry-sdk + otlp exporter inside init_otel; re-enabled in cmd_worker (cmd_status left un-instrumented deliberately — one-shot CLI). Verified: induced failing embed job; o2_failures shows zdots-worker job.perform error spans. Session briefs' runtime line is trustworthy for worker failures again.
+<!-- SECTION:NOTES:END -->
