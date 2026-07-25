@@ -6,6 +6,7 @@ require_relative "../models/pipeline_run"
 require_relative "../models/job"
 require_relative "../ai/phi_scrubber"
 require_relative "../bounded_run"
+require_relative "../bus"
 require "open3"
 require "digest"
 require "fileutils"
@@ -64,12 +65,16 @@ module Zdots
         @out_base = File.join(RETENTION_ROOT, @mid.to_s)
         FileUtils.mkdir_p(@out_base)
 
+        check_directives
+        narrate("starting ingest (profile=#{@profile})")
+
         @src.update(ingest_status: "running")
         # Thin executor: walk the declared graph. The raw stage may fan out into
         # chunk jobs and defer (:pending) — stop; the fan-in re-enqueues this job
         # to finish the remaining stages.
         PIPELINE.each { |step| return true if run_stage(step[:stage]) == :pending }
         @src.update(ingest_status: "done")
+        narrate("ingest complete")
         true
       rescue StandardError => e
         @src&.update(ingest_status: "failed")
@@ -80,6 +85,11 @@ module Zdots
       # binding here (or an orphan binding not in PIPELINE) is a bug — the former
       # raises loudly, the latter simply never runs.
       def run_stage(name)
+        if @skip_stages&.include?(name)
+          narrate("⏭ #{name} skipped (directive)")
+          return nil
+        end
+
         case name
         when "primed"    then run_primed
         when "raw"       then @raw_txt = ensure_raw
@@ -137,7 +147,10 @@ module Zdots
               title
             end
           end
-        @src.update(primer_text: primer) unless primer.to_s.strip.empty?
+        unless primer.to_s.strip.empty?
+          @src.update(primer_text: primer)
+          narrate("primer: #{primer}")
+        end
         nil
       end
 
@@ -209,6 +222,51 @@ module Zdots
 
       private
 
+      def pipeline_channel_name
+        @pipeline_channel_name ||= "ingest-#{@src.source_id || @mid}"
+      end
+
+      # Best-effort narration into this ingest's own bus channel. Never raises —
+      # mirrors PipelineEvents' "emission must never take a job down" rule.
+      # Content here must stay structural/vetted (stage names, title/primer_text,
+      # counts, error CLASS never message) — same PHI discipline as
+      # PipelineEvents, just for a human/agent-readable medium instead of a
+      # machine telemetry stream.
+      def narrate(body, thread: nil)
+        Zdots::Bus.create_channel(pipeline_channel_name, topic: @src.title)
+        Zdots::Bus.post(pipeline_channel_name, "pipeline", body, thread: thread)
+      rescue StandardError => e
+        warn "ingest_media: bus narrate failed (#{e.class}): #{e.message}"
+      end
+
+      DIRECTIVE_SKIP    = /\Askip:(\S+)\z/i
+      DIRECTIVE_PROFILE = /\Aprofile:(\S+)\z/i
+
+      # The two-way half of "conversations with itself": read whatever a human
+      # or the context-engine bot posted into this ingest's channel since the
+      # pipeline last looked, and apply a small allow-list of directives.
+      # Postgres is durable across runs, so nothing here resets on resume/retry
+      # — a directive posted between runs changes exactly the next run, once.
+      def check_directives
+        Zdots::Bus.create_channel(pipeline_channel_name, topic: @src.title)
+        Zdots::Bus.unread(pipeline_channel_name, "pipeline").each do |msg|
+          body = msg.body.to_s.strip
+          case body
+          when DIRECTIVE_SKIP
+            stage_name = Regexp.last_match(1).downcase
+            (@skip_stages ||= []) << stage_name
+            narrate("ok — skipping #{stage_name}", thread: msg.id)
+          when DIRECTIVE_PROFILE
+            @profile = Regexp.last_match(1)
+            narrate("ok — profile=#{@profile}", thread: msg.id)
+          else
+            narrate(%(didn't understand "#{body}" — try: skip:<stage>, profile:<name>), thread: msg.id)
+          end
+        end
+      rescue StandardError => e
+        warn "ingest_media: bus check_directives failed (#{e.class}): #{e.message}"
+      end
+
       # Raw stage, chunk-aware + resumable. A done whole-stage summary row
       # short-circuits (resume). Short sources transcribe inline; long sources
       # (> CHUNK_THRESHOLD_SEC) fan out and return :pending — TranscribeChunk
@@ -229,6 +287,7 @@ module Zdots
         wav  = prep_audio
         step = CHUNK_WINDOW_SEC - CHUNK_OVERLAP_SEC
         n    = [((dur - CHUNK_OVERLAP_SEC).to_f / step).ceil, 1].max
+        narrate("long source (#{dur}s) → #{n} chunks (window=#{CHUNK_WINDOW_SEC}s overlap=#{CHUNK_OVERLAP_SEC}s)")
         pending = 0
         (0...n).each do |i|
           next if upsert_run(@mid, "raw", chunk_index: i).status == "done"
@@ -274,17 +333,20 @@ module Zdots
       def stage(name)
         pr = upsert_run(@mid, name)
         pr.update(status: "running", started_at: Sequel::CURRENT_TIMESTAMP, error_message: nil)
+        narrate("▶ #{name} started")
         result = yield
         pr.update(status: "done", finished_at: Sequel::CURRENT_TIMESTAMP,
                   artifact_path: result[:path],
                   content_hash: result[:path] ? Digest::SHA256.hexdigest(File.read(result[:path])) : nil,
                   run_params: Sequel.pg_jsonb(result[:params] || {}))
+        narrate("✓ #{name} done")
         result[:path]
       rescue Sequel::NoExistingObject => e
         warn "pipeline_run was deleted, assuming restart/cancel"
         raise e
       rescue StandardError => e
         pr.update(status: "failed", error_message: e.message, finished_at: Sequel::CURRENT_TIMESTAMP) rescue nil if defined?(pr) && pr
+        narrate("✗ #{name} failed (#{e.class})")
         raise e
       end
 
