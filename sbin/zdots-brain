@@ -52,6 +52,7 @@ require_relative "../lib/zdots/jobs/embed"
 require_relative "../lib/zdots/jobs/docs_sync"
 require_relative "../lib/zdots/jobs/extract_moment"
 require_relative "../lib/zdots/bus"
+require_relative "../lib/zdots/context_bot"
 
 require "optparse"
 require "json"
@@ -136,6 +137,8 @@ module Zdots
         cmd_bus_read(args)
       when "bus-watch"
         cmd_bus_watch(args)
+      when "bus-bot"
+        cmd_bus_bot(args)
       when "bus-whoami"
         cmd_bus_whoami(args)
       when "bus-register"
@@ -777,6 +780,14 @@ module Zdots
     rescue Zdots::Models::BusChannel::NotFound => e
       puts "zdots-brain: #{e.message}"
       exit 1
+    end
+
+    def cmd_bus_bot(args)
+      patterns = args.empty? ? nil : args
+      puts "zdots-brain: context-bot watching #{(patterns || %w[general ingest-*]).join(', ')} (Ctrl-C to stop)..."
+      Signal.trap("TERM") { exit }
+      Signal.trap("INT") { exit }
+      patterns ? Zdots::ContextBot.run(patterns) : Zdots::ContextBot.run
     end
 
     def cmd_bus_whoami(_args)
