@@ -132,6 +132,13 @@ capabilities --json  # environment contract validation
 agent-guide          # detailed usage guide for all services
 ```
 
+**The platform** = `zdots` (`~/.config/zsh`) + `adots` (bare repo `~/.homegit`,
+work-tree `$HOME`) + `my` (`~/my`) + `vdots` (`~/.config/nvim`). This is
+binding: when the operator says "the platform" or "platform-wide" without
+further qualification, it means all four repos, using the per-repo
+invocation table in `.claude/commands/platform-sync.md`. Never assume
+"zdots" alone unless the operator names it specifically.
+
 ## 2. Token Optimization (RTK)
 
 **Rule:** Always proxy high-output commands through `rtk`.
