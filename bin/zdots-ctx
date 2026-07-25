@@ -30,6 +30,7 @@
 #   bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]
 #   bus-read <channel> [--since ID | --unread] [--thread ID] [--as PARTICIPANT]
 #   bus-watch <channel> [--as PARTICIPANT]  Live tail (Ctrl-C to stop)
+#   bus-bot [channel-pattern...]  Run the context-engine bot (Ctrl-C to stop)
 #   bus-whoami [--as PARTICIPANT]  Show resolved bus identity
 #   bus-register <name> [--kind agent|human]  Register a bus participant
 #   triage    Review and resolve permanently failed 'dead' jobs
@@ -113,6 +114,7 @@ Knowledge Layer Interface:
   bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]
   bus-read <channel> [--since ID | --unread] [--thread ID] [--as PARTICIPANT]
   bus-watch <channel> [--as PARTICIPANT]  Live tail (unread history, then follows; Ctrl-C to stop)
+  bus-bot [channel-pattern...]  Run the context-engine bot (default: general, ingest-*; Ctrl-C to stop)
   bus-whoami [--as PARTICIPANT]  Show resolved bus identity
   bus-register <name> [--kind agent|human]  Register (or re-kind) a bus participant
   triage    Review and resolve permanently failed 'dead' jobs
@@ -575,6 +577,10 @@ cmd_bus_watch() {
   "${ZDOTDIR}/sbin/zdots-brain" bus-watch "$@"
 }
 
+cmd_bus_bot() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-bot "$@"
+}
+
 cmd_bus_whoami() {
   "${ZDOTDIR}/sbin/zdots-brain" bus-whoami "$@"
 }
@@ -890,6 +896,7 @@ case "${1:-}" in
   bus-post)            shift; cmd_bus_post "$@" ;;
   bus-read)             shift; cmd_bus_read "$@" ;;
   bus-watch)            shift; cmd_bus_watch "$@" ;;
+  bus-bot)              shift; cmd_bus_bot "$@" ;;
   bus-whoami)           shift; cmd_bus_whoami "$@" ;;
   bus-register)         shift; cmd_bus_register "$@" ;;
   triage)          shift; cmd_triage "$@" ;;
