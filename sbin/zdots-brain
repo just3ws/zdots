@@ -51,12 +51,14 @@ require_relative "../lib/zdots/jobs/transform"
 require_relative "../lib/zdots/jobs/embed"
 require_relative "../lib/zdots/jobs/docs_sync"
 require_relative "../lib/zdots/jobs/extract_moment"
+require_relative "../lib/zdots/bus"
 
 require "optparse"
 require "json"
 require "digest"
 require "yaml"
 require "date"
+require "time"
 
 module Zdots
   class CLI
@@ -124,6 +126,20 @@ module Zdots
         cmd_sync_history(args)
       when "rekey"
         cmd_rekey(args)
+      when "bus-channels"
+        cmd_bus_channels(args)
+      when "bus-create-channel"
+        cmd_bus_create_channel(args)
+      when "bus-post"
+        cmd_bus_post(args)
+      when "bus-read"
+        cmd_bus_read(args)
+      when "bus-watch"
+        cmd_bus_watch(args)
+      when "bus-whoami"
+        cmd_bus_whoami(args)
+      when "bus-register"
+        cmd_bus_register(args)
       else
         puts "Unknown command: #{command}"
         exit 1
@@ -143,6 +159,11 @@ module Zdots
         opts.on("--dry-run", "Scan without writing changes") { @options[:dry_run] = true }
         opts.on("--all", "Ingest full Knowledge Vault") { @options[:all] = true }
         opts.on("--transcribe", "reprocess: also re-run transcription (not just downstream stages)") { @options[:transcribe] = true }
+        opts.on("--as PARTICIPANT", "bus-*: participant identity") { |v| @options[:as] = v }
+        opts.on("--thread ID", "bus-post/bus-read: thread root message id") { |v| @options[:thread] = v unless v.empty? }
+        opts.on("--since ID", "bus-read: only messages after this message id") { |v| @options[:since] = v unless v.empty? }
+        opts.on("--unread", "bus-read: only unread messages for the resolved participant") { @options[:unread] = true }
+        opts.on("--kind KIND", "bus-register: agent|human") { |v| @options[:kind] = v }
       end.parse!
     rescue OptionParser::InvalidOption => e
       e.recover(ARGV) # leave unrecognized flags in ARGV for subcommands
@@ -639,6 +660,143 @@ module Zdots
           printf "%-38s | %-13s | %-9s | %-8d | %-8d\n", j.id, j.type, j.status, j.priority, j.attempts
         end
       end
+    end
+
+    def bus_identity!
+      name = @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", nil)
+      if name.nil? || name.empty?
+        puts "zdots-brain: no bus identity — pass --as <name> or set ZDOTS_BUS_PARTICIPANT " \
+             "(register first with: zdots-ctx bus-register <name> [--kind agent|human])"
+        exit 1
+      end
+      name
+    end
+
+    def cmd_bus_channels(_args)
+      channels = Zdots::Bus.channels
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(channels.map(&:values))
+        return
+      end
+      if channels.empty?
+        puts "zdots-brain: no bus channels yet — create one with: zdots-ctx bus-create-channel <name>"
+        return
+      end
+      name = @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", nil)
+      printf "%-20s | %-7s | %s\n", "CHANNEL", "UNREAD", "TOPIC"
+      channels.each do |c|
+        unread = name ? Zdots::Bus.unread(c.name, name).size : "?"
+        printf "%-20s | %-7s | %s\n", c.name, unread, c.topic
+      end
+    end
+
+    def cmd_bus_create_channel(args)
+      name = args.shift
+      if name.nil?
+        puts "usage: zdots-brain bus-create-channel <name> [topic...]"
+        exit 1
+      end
+      topic = args.join(" ")
+      channel = Zdots::Bus.create_channel(name, topic: topic.empty? ? nil : topic)
+      puts "zdots-brain: channel #{channel.name.inspect} ready (#{channel.topic || 'no topic'})."
+    end
+
+    def cmd_bus_post(args)
+      channel = args.shift
+      body = args.join(" ")
+      if channel.nil? || body.empty?
+        puts "usage: zdots-brain bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]"
+        exit 1
+      end
+      who = bus_identity!
+      msg = Zdots::Bus.post(channel, who, body, thread: @options[:thread])
+      thread_note = @options[:thread] ? " (reply in thread #{@options[:thread]})" : ""
+      puts "zdots-brain: posted #{msg.id} to #{channel.inspect} as #{who}#{thread_note}."
+    rescue Zdots::Models::BusChannel::NotFound => e
+      puts "zdots-brain: #{e.message}"
+      exit 1
+    end
+
+    def bus_print_message(msg, indent: false)
+      who = Zdots::Bus.participant_name(msg.participant_id)
+      ts = msg.created_at.strftime("%H:%M")
+      prefix = indent ? "    ↳ " : ""
+      printf "%s[%s] %s (%s): %s\n", prefix, ts, who, msg.id[0, 8], msg.body
+    end
+
+    def cmd_bus_read(args)
+      channel = args.shift
+      if channel.nil?
+        puts "usage: zdots-brain bus-read <channel> [--since ID | --unread] [--thread ID] [--as PARTICIPANT]"
+        exit 1
+      end
+
+      msgs = if @options[:unread]
+               Zdots::Bus.unread(channel, bus_identity!)
+             else
+               Zdots::Bus.read(channel, since: @options[:since], thread: @options[:thread])
+             end
+
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(msgs.map(&:values))
+        return
+      end
+
+      if msgs.empty?
+        puts "zdots-brain: no messages."
+        return
+      end
+      msgs.each { |msg| bus_print_message(msg, indent: !msg.thread_root?) }
+    rescue Zdots::Models::BusChannel::NotFound => e
+      puts "zdots-brain: #{e.message}"
+      exit 1
+    end
+
+    def cmd_bus_watch(args)
+      channel = args.shift
+      if channel.nil?
+        puts "usage: zdots-brain bus-watch <channel> [--as PARTICIPANT]"
+        exit 1
+      end
+      who = bus_identity!
+
+      Zdots::Bus.unread(channel, who).each { |msg| bus_print_message(msg, indent: !msg.thread_root?) }
+      last = Zdots::Bus.read(channel, limit: 1).last
+      Zdots::Bus.mark_read(channel, who, last.id) if last
+
+      puts "zdots-brain: watching #{channel.inspect} as #{who} (Ctrl-C to stop)..."
+      stop = false
+      %w[TERM INT].each { |sig| Signal.trap(sig) { stop = true } }
+
+      Zdots::Bus.subscribe(channel) do |event|
+        break if stop
+
+        printf "[%s] %s: %s\n", Time.parse(event[:created_at]).strftime("%H:%M"), event[:participant], event[:body]
+        Zdots::Bus.mark_read(channel, who, event[:id])
+      end
+    rescue Zdots::Models::BusChannel::NotFound => e
+      puts "zdots-brain: #{e.message}"
+      exit 1
+    end
+
+    def cmd_bus_whoami(_args)
+      name = @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", nil)
+      if name.nil?
+        puts "zdots-brain: no identity set (pass --as <name> or export ZDOTS_BUS_PARTICIPANT)"
+        exit 1
+      end
+      puts name
+    end
+
+    def cmd_bus_register(args)
+      name = args.shift
+      if name.nil?
+        puts "usage: zdots-brain bus-register <name> [--kind agent|human]"
+        exit 1
+      end
+      kind = @options[:kind] || "agent"
+      p = Zdots::Bus.register_participant(name, kind: kind)
+      puts "zdots-brain: participant #{p.name.inspect} registered as #{p.kind}."
     end
 
     # reindex-embeddings — enqueue embed jobs for lessons and methodologies that

@@ -497,6 +497,23 @@ instead of hand-rolling direct-LLM calls. Add a profile by dropping a prompt
 at etc/prompts/jobs/transform/<name>.txt — no code change needed.
 EOF
 
+_head "Message Bus — zdots-ctx"
+
+cat <<'EOF'
+Local channels + threaded persistent messages for agent (and human)
+collaboration on this machine. Postgres is the source of truth; Redis
+pub/sub gives live delivery to whatever is actively watching. See
+docs/message-bus.md for the full model.
+
+  zdots-ctx bus-register <name> [--kind agent|human]  once per identity
+  zdots-ctx bus-create-channel <name> [topic...]
+  zdots-ctx bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]
+  zdots-ctx bus-read <channel> [--since ID | --unread] [--thread ID]
+  zdots-ctx bus-watch <channel>   unread history, then live tail (Ctrl-C to stop)
+
+Set ZDOTS_BUS_PARTICIPANT once per session instead of passing --as every call.
+EOF
+
 _head "Deliberation — zsynod"
 
 cat <<'EOF'

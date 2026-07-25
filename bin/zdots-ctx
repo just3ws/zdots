@@ -25,6 +25,13 @@
 #   jobs      List pending and recent jobs
 #   result <job_id>  Fetch a completed job's structured result (JSON)
 #   worker    [--type T] Run a worker to process queued jobs
+#   bus-channels  List message-bus channels (+ unread count)
+#   bus-create-channel <name> [topic...]
+#   bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]
+#   bus-read <channel> [--since ID | --unread] [--thread ID] [--as PARTICIPANT]
+#   bus-watch <channel> [--as PARTICIPANT]  Live tail (Ctrl-C to stop)
+#   bus-whoami [--as PARTICIPANT]  Show resolved bus identity
+#   bus-register <name> [--kind agent|human]  Register a bus participant
 #   triage    Review and resolve permanently failed 'dead' jobs
 #   clear-stale-jobs Reset 'running' jobs that have timed out
 #   metrics-loop Export queue depth metrics to OTel continuously
@@ -101,6 +108,13 @@ Knowledge Layer Interface:
   reprocess-series <tag> [--transcribe] Re-run all ingested sources matching <tag>
   jobs      List pending and recent jobs
   worker    [--type T] Run a worker to process queued jobs
+  bus-channels  List message-bus channels (+ unread count for --as/ZDOTS_BUS_PARTICIPANT)
+  bus-create-channel <name> [topic...]
+  bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]
+  bus-read <channel> [--since ID | --unread] [--thread ID] [--as PARTICIPANT]
+  bus-watch <channel> [--as PARTICIPANT]  Live tail (unread history, then follows; Ctrl-C to stop)
+  bus-whoami [--as PARTICIPANT]  Show resolved bus identity
+  bus-register <name> [--kind agent|human]  Register (or re-kind) a bus participant
   triage    Review and resolve permanently failed 'dead' jobs
   clear-stale-jobs Reset 'running' jobs that have timed out
   metrics-loop Export queue depth metrics to OTel continuously
@@ -123,6 +137,8 @@ Environment:
                        shell_hook_metrics from 55-phi-history.zsh shares the same buffer
                        sync-history pushes buffered rows to PostgreSQL (auto-fires on capture)
                        Default: 0; enable in .zdots.local; enforced 0 on work machines
+  ZDOTS_BUS_PARTICIPANT  Default identity for bus-* commands; --as overrides.
+                       Register first: zdots-ctx bus-register <name> [--kind agent|human]
 
 Database access levels:
   zdots_rw   INSERT/UPDATE/DELETE/SELECT + stored procedures — app user (this tool)
@@ -539,6 +555,34 @@ cmd_worker() {
   "${ZDOTDIR}/sbin/zdots-brain" worker "$@"
 }
 
+cmd_bus_channels() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-channels "$@"
+}
+
+cmd_bus_create_channel() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-create-channel "$@"
+}
+
+cmd_bus_post() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-post "$@"
+}
+
+cmd_bus_read() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-read "$@"
+}
+
+cmd_bus_watch() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-watch "$@"
+}
+
+cmd_bus_whoami() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-whoami "$@"
+}
+
+cmd_bus_register() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-register "$@"
+}
+
 cmd_triage() {
   _require_psql
   _svc_log "checking for dead jobs..."
@@ -841,6 +885,13 @@ case "${1:-}" in
   reprocess)       shift; cmd_reprocess "$@" ;;
   reprocess-series) shift; cmd_reprocess_series "$@" ;;
   worker)          shift; cmd_worker "$@" ;;
+  bus-channels)        shift; cmd_bus_channels "$@" ;;
+  bus-create-channel)  shift; cmd_bus_create_channel "$@" ;;
+  bus-post)            shift; cmd_bus_post "$@" ;;
+  bus-read)             shift; cmd_bus_read "$@" ;;
+  bus-watch)            shift; cmd_bus_watch "$@" ;;
+  bus-whoami)           shift; cmd_bus_whoami "$@" ;;
+  bus-register)         shift; cmd_bus_register "$@" ;;
   triage)          shift; cmd_triage "$@" ;;
   clear-stale-jobs) shift; cmd_clear_stale_jobs "$@" ;;
   metrics-loop)    shift; cmd_metrics_loop "$@" ;;
