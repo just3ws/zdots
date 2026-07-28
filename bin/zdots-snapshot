@@ -3,7 +3,7 @@
 #
 # Turns any changing report into an evolution timeline: each run captures stdout
 # under the snapshot's name and prints the diff against the previous capture.
-# Generic observability primitive (Z-191; concept consolidated from the work
+# Generic observability primitive (Z-191; concept consolidated from a tenant
 # work-snapshot). Pairs with the self-improvement trend metrics — point it at any
 # report you want to watch drift.
 #

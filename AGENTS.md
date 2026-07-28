@@ -403,7 +403,7 @@ This codebase operates near protected health information. The following rules ar
 - All AI calls pass through `lib/phi_scrubber.bash` before sending. The scrubber is the **first** gate, not the last — do not send raw patient records.
 - All shell commands pass through `_zca_redact` (suppress + scrub) before reaching the analytics store. Suppress-flagged commands (connection strings) are dropped entirely — not redacted. This is enforced in `conf.d/56-cmd-analytics.zsh`.
 - `lib/ai_boundary.bash` enforces locality: exits 2 if `ZDOTS_AI_MODE=none`, exits 1 if endpoint is not loopback/RFC-1918 in local mode.
-- To add a PHI or credential pattern, edit `etc/phi-patterns.yaml` **only**. No other file may define patterns. The registry auto-compiles at shell startup and applies to all layers.
+- To add a PHI or credential pattern, edit `etc/phi-patterns.yaml` **only**. The single sanctioned extension is the work-extension layer (`${ZDOTS_WORK_EXT:-~/.config/zdots-work}/phi-patterns.d/*.yaml`, Z-262): tenant fragments that `zdots-otel-phi-compile` merges at compile time. A fragment may add whole patterns, or add tenant-verified non-PHI route exemptions to a `redact_all_except` structural rule — it cannot edit or remove a base pattern, and the live `--probe` gate must still pass. No other file may define patterns. The registry auto-compiles at shell startup and applies to all layers.
 
 **Audit trail:**
 - Every PHI-adjacent operation emits to macOS Unified Logging: `subsystem=com.zdots category=phi-boundary`

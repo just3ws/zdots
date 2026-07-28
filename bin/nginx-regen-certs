@@ -33,7 +33,7 @@ _ok()   { printf 'nginx-regen-certs: [ok] %s\n' "$*" >&2; }
 # copies nginx actually loads. bin/bootstrap installs them once and never
 # updates, so edits to the tracked vhosts (e.g. a new server_name) otherwise
 # never reach nginx. Overwrites only tracked-managed files; deployed-only vhosts
-# (e.g. work.conf) are left untouched.
+# (e.g. a tenant's vhost conf) are left untouched.
 sync_configs() {
   local src dst rel n=0
   mkdir -p "$CONF_DIR/servers"

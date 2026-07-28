@@ -82,7 +82,7 @@ to **quit + relaunch** Claude Code (env is read only at startup).
 
 ## Gate 3 — Scope cloud plugins to the project that needs them
 
-For each cloud plugin a project legitimately uses (e.g. Sentry for `~/github.com/work`):
+For each cloud plugin a project legitimately uses (e.g. Sentry for the tenant app repo):
 
 ```bash
 # 1. disable globally

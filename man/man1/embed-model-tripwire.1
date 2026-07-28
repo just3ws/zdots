@@ -1,0 +1,21 @@
+.TH EMBED-MODEL-TRIPWIRE 1 "2026-07-28" "zdots" "zdots manual"
+.SH NAME
+embed-model-tripwire \- bin/embed\-model\-tripwire — catch the recurring embed\-model deleter (Z\-250/Z\-260).
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBembed-model-tripwire --help\fR).
+.SH OPTIONS
+.nf
+bin/embed-model-tripwire — catch the recurring embed-model deleter (Z-250/Z-260).
+
+Fired by launchd WatchPaths whenever the models dir changes. If the embed
+GGUF is present, exit silently. If it is missing, snapshot the process table
+and the dir's open file handles the moment of deletion — the evidence the
+ephemeral (scratchpad) tripwire from 2026-07-24 was supposed to capture
+before it died with its session.
+
+Install (machine-local LaunchAgent, not a Platform Service — no lifecycle):
+  embed-model-tripwire --install
+Evidence lands in $XDG_STATE_HOME/zsh/embed-model-tripwire.log
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

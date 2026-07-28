@@ -23,7 +23,7 @@ else
   # ZDOTS_COLIMA_KUBERNETES=0 in .zdots.local. IMPORTANT: --kubernetes runs k3s
   # ALONGSIDE the docker runtime — the Docker socket stays available, so the
   # compose / work-* workflow and the OTel observability harness are NOT stranded.
-  # Resource defaults are k8s-tuned (work3 + MariaDB/Mongo/memcached + k3s); tune
+  # Resource defaults are k8s-tuned (tenant app + MariaDB/Mongo/memcached + k3s); tune
   # in .zdots.local to host capacity. Decoupled from ZDOTS_CI_* (CI has its own).
   _k8s_args=()
   [ "${ZDOTS_COLIMA_KUBERNETES:-1}" = "1" ] && _k8s_args+=(--kubernetes)

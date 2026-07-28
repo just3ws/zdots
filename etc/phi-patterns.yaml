@@ -65,7 +65,7 @@ patterns:
     trace_targets: [db.statement, exception.message, exception.stacktrace]
     probe: |
       {"resourceSpans":[{"resource":{"attributes":[
-        {"key":"service.name","value":{"stringValue":"work3"}}]},
+        {"key":"service.name","value":{"stringValue":"app"}}]},
         "scopeSpans":[{"spans":[{
           "traceId":"000000000000000000000000000000c3","spanId":"00000000000000c3",
           "name":"shellout","kind":3,
@@ -96,14 +96,14 @@ patterns:
     trace_targets: [http.target, http.url, url.full, name, db.statement, exception.message, exception.stacktrace]
     probe: |
       {"resourceSpans":[{"resource":{"attributes":[
-        {"key":"service.name","value":{"stringValue":"work3"}}]},
+        {"key":"service.name","value":{"stringValue":"app"}}]},
         "scopeSpans":[{"spans":[{
           "traceId":"000000000000000000000000000000b2","spanId":"00000000000000b2",
           "name":"db.query","kind":3,
           "startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000",
           "attributes":[
             {"key":"db.statement","value":{"stringValue":"SELECT * FROM clients WHERE ssn='123-45-6789'"}},
-            {"key":"work.state.to","value":{"stringValue":"checked_in"}}],
+            {"key":"app.state.to","value":{"stringValue":"checked_in"}}],
           "events":[{"name":"exception","timeUnixNano":"1750000000050000000","attributes":[
             {"key":"exception.message","value":{"stringValue":"RecordInvalid SSN 987-65-4321"}}]}]}]}]}]}
     expect_absent: ["123-45-6789", "987-65-4321"]
@@ -130,14 +130,11 @@ patterns:
 
   # STRUCTURAL: bare record ids in URL path segments are PHI by POSITION, not token
   # shape — unreachable by value redaction (12345/<uuid> match no SSN/MRN/DOB pattern,
-  # and [0-9]+ would nuke every integer attribute). Provenance: live ./bin/work-routes
-  # dump (2026-06-20) = 831 /<resource>/:id member prefixes, ~819 clinical incl.
-  # /clients/:id. Adversarial-review fan-out (2026-06-20) additionally confirmed FOUR
-  # non-numeric clinical id routes (survey/:uuid srv/petitions#apply routes.rb:3433;
-  # copay-request/:uuid copay_requests#apply :3434; and three /twilio/:id/* callbacks
-  # :376/377/379 where :id secretly carries a ReminderMessage/SmsMessage UUID) — all
-  # dashed lowercase SecureRandom.uuid. ALL 12 exempt prefixes use NUMERIC ids
-  # (verified), so the digits-only keep/restore sentinel is safe.
+  # and [0-9]+ would nuke every integer attribute). The exempt list is EMPTY here:
+  # tenant route inventories are employer data and live in the work-extension layer
+  # ($ZDOTS_WORK_EXT/phi-patterns.d/, merged at compile — Z-262), which may only ADD
+  # exemptions. Exempt prefixes must use NUMERIC ids only — the digits-only
+  # keep/restore sentinel depends on it; verify before adding one.
   #
   # DESIGN (redact-all + NON-PHI exemption, fail-closed: a new clinical route is
   # redacted automatically). id-class = numeric OR case-insensitive dashed UUID
@@ -147,13 +144,13 @@ patterns:
   # anchor: the id-class alternatives are self-bounding ([0-9]+ stops at non-digit; the
   # UUID alt is fixed-length), which avoids a `$` confmap-expansion hazard at load.
   #
-  # RESIDUALS (accepted, no real route emits them): (a) an id as the FIRST path segment
-  # with no preceding name (/12345 or /<uuid>) is not matched — every work3 route is
-  # /<resource>/<id>, so http.target always has a leading name segment; (b) an exempt
-  # prefix appearing MID-path (/x/agencies/42) is keep-exempted — benign for the
-  # all-numeric exempt set (round-trips byte-intact). The keep sentinel is NONCE-scoped
-  # (compiler-generated per compile) so a caller-injected literal __KD_<n>__ on
-  # http.target/url cannot be restored into a clinical position.
+  # RESIDUALS (accepted, verified against the tenant route table — re-verify per
+  # tenant): (a) an id as the FIRST path segment (/12345 or /<uuid>) is not matched —
+  # Rails-style apps route /<resource>/<id>, so a leading name segment is always
+  # present; (b) an exempt prefix appearing MID-path (/x/exempt/42) is keep-exempted —
+  # benign while the exempt set is all-numeric (round-trips byte-intact). The keep
+  # sentinel is NONCE-scoped (compiler-generated per compile) so a caller-injected
+  # literal __KD_<n>__ on http.target/url cannot be restored into a clinical position.
   - name: url_path_client_id
     structural:
       field: [http.target, http.url, url.full]
@@ -163,54 +160,38 @@ patterns:
       # operation_name was /clients/8675309 while http.target was /clients/{id}.
       span_name: true
       mode: redact_all_except
-      exempt:
-        - agencies
-        - admin/invoices
-        - admin/dischargers
-        - saas/billing_notices
-        - saas/billing_policies
-        - billing_policies
-        - billing_levels
-        - dashboard/fax_configurations
-        - diagnostic_labs
-        - diagnostic_severities
-        - lab_history_favorites
-        - outside_referral/service_agreements
+      # Tenant exemptions merge in from $ZDOTS_WORK_EXT/phi-patterns.d/ (Z-262).
+      exempt: []
       # UUID-FIRST alternation is REQUIRED (RE2 leftmost-first): a leading-digit UUID
       # like 4f9a... would otherwise have [0-9]+ match just the "4" and leave "f9a..."
       # to LEAK (caught by the live probe gate 2026-06-20). UUID alt is fixed-length so
       # it cleanly fails on a pure-numeric id and falls through to [0-9]+.
       match: '([A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)?)/(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[0-9]+)'
       replace: '${1}/{id}'
+    # Generic probe (no exemptions). A work-extension fragment that merges into
+    # this rule replaces it with a tenant superset asserting the exempt keeps too.
     probe: |
       {"resourceSpans":[{"resource":{"attributes":[
-        {"key":"service.name","value":{"stringValue":"work3"}}]},
+        {"key":"service.name","value":{"stringValue":"app"}}]},
         "scopeSpans":[{"spans":[
-          {"traceId":"000000000000000000000000000000a1","spanId":"00000000000000a1","name":"p1","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/survey/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d"}}]},
-          {"traceId":"000000000000000000000000000000a2","spanId":"00000000000000a2","name":"p2","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/clients/12345"}}]},
-          {"traceId":"000000000000000000000000000000a3","spanId":"00000000000000a3","name":"p3","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/admin/invoices/9"}}]},
-          {"traceId":"000000000000000000000000000000a4","spanId":"00000000000000a4","name":"p4","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/survey/4F9A2B1C-3D4E-5A6B-7C8D-9E0F1A2B3C4D"}}]},
-          {"traceId":"000000000000000000000000000000a5","spanId":"00000000000000a5","name":"p5","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/twilio/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d/status"}}]},
+          {"traceId":"000000000000000000000000000000a1","spanId":"00000000000000a1","name":"p1","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/records/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d"}}]},
+          {"traceId":"000000000000000000000000000000a2","spanId":"00000000000000a2","name":"p2","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/records/12345"}}]},
+          {"traceId":"000000000000000000000000000000a4","spanId":"00000000000000a4","name":"p4","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/records/4F9A2B1C-3D4E-5A6B-7C8D-9E0F1A2B3C4D"}}]},
+          {"traceId":"000000000000000000000000000000a5","spanId":"00000000000000a5","name":"p5","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/callbacks/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d/status"}}]},
           {"traceId":"000000000000000000000000000000a6","spanId":"00000000000000a6","name":"p6","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/status/decade"}}]},
-          {"traceId":"000000000000000000000000000000a7","spanId":"00000000000000a7","name":"p7","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/clients/__KD_12345__"}}]},
-          {"traceId":"000000000000000000000000000000a8","spanId":"00000000000000a8","name":"p8","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/agencies/42/survey/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d"}}]},
-          {"traceId":"000000000000000000000000000000a9","spanId":"00000000000000a9","name":"p9","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.url","value":{"stringValue":"https://app.work.com/copay-request/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d?x=1"}}]},
-          {"traceId":"000000000000000000000000000000b0","spanId":"00000000000000b0","name":"/clients/55555","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[]},
-          {"traceId":"000000000000000000000000000000b1","spanId":"00000000000000b1","name":"/admin/invoices/77","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[]}
+          {"traceId":"000000000000000000000000000000a7","spanId":"00000000000000a7","name":"p7","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.target","value":{"stringValue":"/records/__KD_12345__"}}]},
+          {"traceId":"000000000000000000000000000000a9","spanId":"00000000000000a9","name":"p9","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[{"key":"http.url","value":{"stringValue":"https://app.example.com/forms/4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d?x=1"}}]},
+          {"traceId":"000000000000000000000000000000b0","spanId":"00000000000000b0","name":"/records/55555","kind":2,"startTimeUnixNano":"1750000000000000000","endTimeUnixNano":"1750000000100000000","attributes":[]}
         ]}]}]}
     expect_absent:
       - "4f9a2b1c-3d4e-5a6b-7c8d-9e0f1a2b3c4d"
       - "4F9A2B1C-3D4E-5A6B-7C8D-9E0F1A2B3C4D"
-      - "/clients/12345"
-      - "/clients/55555"          # span NAME surface (b0) — must be scrubbed, not just http.target
+      - "/records/12345"
+      - "/records/55555"          # span NAME surface (b0) — must be scrubbed, not just http.target
     expect_redacted:
-      - "/survey/{id}"
-      - "/clients/{id}"
-      - "/twilio/{id}/status"
-      - "/copay-request/{id}"
+      - "/records/{id}"
+      - "/callbacks/{id}/status"
+      - "/forms/{id}"
     expect_kept:
-      - "/admin/invoices/9"
       - "/status/decade"
       - "__KD_12345__"
-      - "/agencies/42"
-      - "/admin/invoices/77"      # span NAME exempt-prefix (b1) — keep/restore sentinel must round-trip on name
