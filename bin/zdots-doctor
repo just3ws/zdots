@@ -476,6 +476,18 @@ else
 fi
 unset _ai_ep _ai_log _infer_resp
 
+# Embed-model tripwire (Z-250/Z-260): the LaunchAgent snapshots the process
+# table the moment the recurring deleter strikes — a non-empty log IS the
+# evidence the investigation has been waiting for. Surface it loudly.
+_tw_log="${STATE}/embed-model-tripwire.log"
+if [[ -s "$_tw_log" ]]; then
+  _warn "embed-model tripwire  FIRED — deleter evidence captured ($(grep -c '^=== ' "$_tw_log" 2>/dev/null || echo '?') snapshot(s))"
+  _fix  "read it: less $_tw_log   then attach findings to backlog Z-260"
+else
+  _pass "embed-model tripwire  quiet (no deletion since armed)"
+fi
+unset _tw_log
+
 # ---------------------------------------------------------------------------
 # Observability (OpenObserve — native; LGTM retired, Z-134)
 # ---------------------------------------------------------------------------
