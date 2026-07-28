@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-07-15 18:32'
+updated_date: '2026-07-28 17:01'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ Audit of the unexplained README.md working-tree modification (mtime 2026-07-15 0
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-07-28: fresh evidence on this machine — docs_sync left docs/architecture.md dirty with a hallucinated 'SSH Service Contract' (zdots_ssh_connect/zdots_ssh_inventory, tests/ssh.bats — none exist anywhere in the repo). Discarded during weekly /platform-integrate.
+<!-- SECTION:NOTES:END -->

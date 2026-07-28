@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-07-24 18:04'
-updated_date: '2026-07-24 22:06'
+updated_date: '2026-07-28 17:39'
 labels:
   - agent-reported
   - error
@@ -32,5 +32,5 @@ llama-ctl model lifecycle can silently strand the embed model: model-prune treat
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-ESCALATION 2026-07-24 (2nd + 3rd deletion same day): the embed GGUF was re-downloaded (sha256 verified) at 14:44 and deleted again by ~15:05 (zdots doctor at 15:05 warned 'not downloaded' while the embed server held the dead inode; models dir mtime showed 15:43). Re-downloaded 17:02 and experimentally exonerated: zdots doctor --quiet, zsvc restart worker, graphify update, llama-ctl model-list — file survives all four. Deleter unidentified; candidates in the deletion window: context-engine bin/deploy, bats/rspec runs, backlog CLI. A tripwire watcher now logs the process table + recent command_runs the moment the file vanishes (session scratchpad). Embed restarted onto the live inode at 17:0x; doctor fully clean (0 warnings, hash OK). Treat as active recurring deletion, not one-time prune accident.
+2026-07-28: 4th deletion found during weekly integration — model gone since 2026-07-27 12:29:32 (models-dir mtime), embed server surviving on the dead inode. Investigated: llama-ctl model-prune EXONERATED (protect loop covers .profiles.embed.model_file — verified live); brew cleanup EXONERATED (only Homebrew caches, finished 12:29:03); ClearDisk.app EXONERATED (never launched — no prefs/container/last-used); canary .gguf files survive, so no live file-watcher deleter. Deleter still unidentified. Restored: HF re-download (transient HTTP/2 CANCEL errors on first two attempts), sha256 matches lib/llama-models.sha256, embed restarted onto the real file, health ok. Durable tripwire installed: bin/embed-model-tripwire (--install arms com.zdots.embed-tripwire LaunchAgent, WatchPaths on models dir → ps/lsof snapshot to state log). Next deletion will be captured.
 <!-- SECTION:NOTES:END -->
