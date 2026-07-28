@@ -6,7 +6,7 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-07-02 19:28'
-updated_date: '2026-07-28 19:08'
+updated_date: '2026-07-28 19:17'
 labels:
   - agent-reported
   - error
@@ -32,5 +32,5 @@ adots capabilities.sh uses 'declare -a' (no -g) for ADOTS_ALL_CAPABILITIES and c
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Fixed in adots d98b357: declare -a → declare -ga at capabilities.sh:172. Category arrays use bare assignment (already global). Verified ADOTS_ALL_CAPABILITIES survives function-scoped sourcing: 32/32 in bash and zsh. Peer attestation should now report 32/32.
+Follow-up (zdots 12ce294): -ga alone wasn't enough — non-interactive shells never had ~/bin on PATH, so attestation still read 0/32. peer-bootstrap now appends ADOTS_BIN_DIR to PATH before attesting. Verified 26/32 in bash, zsh, and pi-ctx-brief; the 6-gap is the metadata: VAR=value entries (not commands by design).
 <!-- SECTION:NOTES:END -->
