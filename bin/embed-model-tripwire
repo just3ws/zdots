@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# bin/embed-model-tripwire — catch the recurring embed-model deleter (Z-250/Z-260).
+#
+# Fired by launchd WatchPaths whenever the models dir changes. If the embed
+# GGUF is present, exit silently. If it is missing, snapshot the process table
+# and the dir's open file handles the moment of deletion — the evidence the
+# ephemeral (scratchpad) tripwire from 2026-07-24 was supposed to capture
+# before it died with its session.
+#
+# Install (machine-local LaunchAgent, not a Platform Service — no lifecycle):
+#   embed-model-tripwire --install
+# Evidence lands in $XDG_STATE_HOME/zsh/embed-model-tripwire.log
+
+set -uo pipefail
+
+MODELS_DIR="${ZDOTS_AI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/llama-cpp/models}"
+MODEL="$MODELS_DIR/nomic-embed-text-v2-moe.Q8_0.gguf"
+LOG="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/embed-model-tripwire.log"
+LABEL="com.zdots.embed-tripwire"
+PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+
+if [[ "${1:-}" == "--install" ]]; then
+  cat > "$PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>${LABEL}</string>
+  <key>ProgramArguments</key><array>
+    <string>${BASH_SOURCE[0]}</string>
+  </array>
+  <key>WatchPaths</key><array><string>${MODELS_DIR}</string></array>
+  <key>RunAtLoad</key><true/>
+</dict></plist>
+EOF
+  launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "$PLIST"
+  echo "embed-model-tripwire: armed (WatchPaths=$MODELS_DIR, log=$LOG)"
+  exit 0
+fi
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  exit 0
+fi
+
+[[ -f "$MODEL" ]] && exit 0
+
+{
+  echo "=== $(date '+%Y-%m-%dT%H:%M:%S%z') embed model MISSING: $MODEL ==="
+  echo "--- dir listing ---"
+  ls -la "$MODELS_DIR" 2>/dev/null
+  echo "--- open handles on models dir ---"
+  lsof +D "$MODELS_DIR" 2>/dev/null
+  echo "--- process table ---"
+  ps auxww
+  echo "=== end snapshot ==="
+} >> "$LOG"
