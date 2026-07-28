@@ -97,7 +97,20 @@ if command -v fly >/dev/null 2>&1; then
 fi
 
 # AI Workflow
-if command -v claude >/dev/null 2>&1; then alias cl='claude'; fi
+# Z-178: cc-burn --assert-ceiling gates the launch — alert (exit 2) blocks,
+# warn (1) prints and proceeds, monitor unavailable (3) proceeds.
+if command -v claude >/dev/null 2>&1; then
+  cl() {
+    if command -v cc-burn >/dev/null 2>&1; then
+      cc-burn --assert-ceiling
+      if [ $? -eq 2 ]; then
+        echo "cl: blocked at alert ceiling — ZDOTS_CC_ALLOW_OVERRUN=1 cl to override" >&2
+        return 2
+      fi
+    fi
+    claude "$@"
+  }
+fi
 if command -v gemini >/dev/null 2>&1; then alias gm='gemini-invoke gemini'; fi
 
 # Colima / Docker storage hygiene (256GB primary — prune aggressively)
