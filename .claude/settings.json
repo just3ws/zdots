@@ -181,7 +181,17 @@
       "Bash(zdots doctor:*)",
       "Bash(log show:*)",
       "Bash(mandoc:*)",
-      "Bash(zdots-phi-scrub:*)"
+      "Bash(zdots-phi-scrub:*)",
+      "Bash(psql -U zdots_ro:*)",
+      "Bash(backlog task list:*)",
+      "Bash(ruby -c:*)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -sk https://my.localhost:*)",
+      "Bash(git fetch origin:*)",
+      "Bash(duckdb -readonly:*)",
+      "Bash(backlog task view:*)",
+      "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git rev-parse:*)",
+      "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git merge-base:*)"
     ]
   },
   "hooks": {
