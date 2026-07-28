@@ -205,10 +205,8 @@ def tool_llama_health(_args)
     status = JSON.parse(status_result[:stdout])
     lines << "**launchd:** #{status["launchd"] ? "✅ running" : "⚠️ not running"}"
     lines << "**PID:** #{status["pid"] || "—"}"
-    lines << "**Model ID:** `#{status["model_id"] || "—"}`"
     lines << "**Profile:** `#{status["profile"] || "—"}`"
-    lines << "**Model file:** `#{status["model_file"] || "—"}`"
-    lines << "**Model size:** #{status["model_size"] || "—"}"
+    lines << "**Model:** `#{status["active_model"] || "—"}`"
   rescue JSON::ParserError
     lines << strip_ansi(status_result[:stdout]).strip
   end
