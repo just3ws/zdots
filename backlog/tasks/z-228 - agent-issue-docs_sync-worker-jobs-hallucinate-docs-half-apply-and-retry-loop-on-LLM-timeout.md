@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-07-15 18:32'
-updated_date: '2026-07-28 17:01'
+updated_date: '2026-07-28 18:47'
 labels:
   - agent-reported
   - error
@@ -32,5 +32,5 @@ Audit of the unexplained README.md working-tree modification (mtime 2026-07-15 0
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-2026-07-28: fresh evidence on this machine — docs_sync left docs/architecture.md dirty with a hallucinated 'SSH Service Contract' (zdots_ssh_connect/zdots_ssh_inventory, tests/ssh.bats — none exist anywhere in the repo). Discarded during weekly /platform-integrate.
+2026-07-28: mitigations landed — (1) fictional-path gate: generated docs referencing repo paths that don't exist are REJECTED, not written (would have caught the SSH-contract hallucination); (2) two-phase apply ends half-applies; (3) phi_suppressed docs skip instead of retry-looping; (4) LLM-timeout loops now bounded by the global 5-attempt dead-letter. Remaining: hallucinations that invent no paths still pass — semantic validation is out of scope for now.
 <!-- SECTION:NOTES:END -->

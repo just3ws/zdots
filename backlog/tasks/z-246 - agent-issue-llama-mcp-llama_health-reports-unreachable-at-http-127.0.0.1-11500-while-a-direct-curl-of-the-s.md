@@ -6,7 +6,7 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-07-21 16:59'
-updated_date: '2026-07-28 17:20'
+updated_date: '2026-07-28 18:52'
 labels:
   - agent-reported
   - error
@@ -32,5 +32,5 @@ llama-mcp: llama_health reports 'unreachable at http://127.0.0.1:11500' while a 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-2026-07-28: root cause — run_cmd passed timeout: to Open3.capture3; unknown options forward to spawn → ArgumentError → blanket rescue → exit 1 for EVERY llama-mcp tool call. Fixed in commit 5770440 (Timeout.timeout wrapper). Verified via stdio tools/call: llama_health now reports reachable.
+2026-07-28 follow-up: llama_health 'Model ID: —' fixed too — llama-ctl status --json emits active_model, mcp read stale model_id/model_file keys.
 <!-- SECTION:NOTES:END -->
