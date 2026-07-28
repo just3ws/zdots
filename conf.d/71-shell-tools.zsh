@@ -30,7 +30,10 @@ if command -v kubectl >/dev/null 2>&1; then
   alias kgs='kubectl get svc'
   source <(kubectl completion zsh) 2>/dev/null
 fi
-# default namespace for the session (no-op if kubens/ctx absent)
-command -v kubens >/dev/null 2>&1 && kubens work-dev >/dev/null 2>&1 || true
+# default namespace for the session — tenant-specific, so it lives in
+# .zdots.local (ZDOTS_K8S_DEFAULT_NS), never in tracked config
+if [[ -n "${ZDOTS_K8S_DEFAULT_NS:-}" ]] && command -v kubens >/dev/null 2>&1; then
+  kubens "$ZDOTS_K8S_DEFAULT_NS" >/dev/null 2>&1 || true
+fi
 
 return 0
