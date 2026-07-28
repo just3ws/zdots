@@ -22,7 +22,7 @@ if command -v broot >/dev/null 2>&1; then
   alias br='broot'
 fi
 
-# k8s native ergonomics (work-dev is the local app namespace)
+# k8s native ergonomics
 if command -v kubectl >/dev/null 2>&1; then
   alias k=kubectl
   alias kgp='kubectl get pods'

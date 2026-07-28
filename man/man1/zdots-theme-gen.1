@@ -1,0 +1,19 @@
+.TH ZDOTS-THEME-GEN 1 "2026-07-28" "zdots" "zdots manual"
+.SH NAME
+zdots-theme-gen \- zdots\-theme\-gen — generate every surface theme artifact from one palette source.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-theme-gen --help\fR).
+.SH OPTIONS
+.nf
+zdots-theme-gen — generate every surface theme artifact from one palette source.
+
+Usage:
+  zdots-theme-gen [slug]            generate all surfaces (default: kanagawa-wave)
+  zdots-theme-gen [slug] --check    exit 1 if any artifact is stale vs source
+  zdots-theme-gen [slug] --only F   generate only the output whose out: is F
+  zdots-theme-gen --list            list configured schemes
+
+Source of truth: etc/themes/<slug>.yaml. See docs/styleguide/colorschemes.md.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

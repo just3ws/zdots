@@ -462,7 +462,7 @@ cmd_status() {
 # ── delivery metrics (Z-190) ─────────────────────────────────────────────────
 # dora / standup / rollup: SQL computes (window filters, medians, tier bands) in
 # one duckdb -json call per verb; jq renders md and --json from the SAME rows, so
-# the two outputs can't diverge. Per work-dora's honesty standard every DORA
+# the two outputs can't diverge. Per the tenant DORA tool's honesty standard every DORA
 # metric carries a source label: solid (warehouse-native), proxy (a stand-in the
 # reader must know about), gap (not instrumented — reported, not invented).
 

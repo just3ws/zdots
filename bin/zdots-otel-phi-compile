@@ -72,6 +72,56 @@ end
 config   = YAML.load_file(base_path)
 registry = YAML.load_file(patterns_path).fetch("patterns")
 
+# ── Work-extension overlay (Z-262) ──────────────────────────────────────────
+# Tenant fragments live OUTSIDE the platform repos, at a fixed conventional
+# path (env-overridable) so launchd/headless compiles find them without a
+# shell environment. Two fragment kinds:
+#   phi-patterns.d/*.yaml — `merge: <name>` deep-merges exempt/probe into a
+#     base rule (exempt is a union — the overlay can only ADD exemptions to a
+#     redact_all_except rule, tightening nothing); entries without `merge:`
+#     append as full patterns and flow through every normal path incl. probes.
+#   otel.d/*.yaml — cors_origins appended, app_service_name stamped on
+#     resource/applogs. Anything else in a fragment is rejected loudly.
+work_ext = ENV["ZDOTS_WORK_EXT"] || File.join(Dir.home, ".config", "zdots-work")
+
+Dir.glob(File.join(work_ext, "phi-patterns.d", "*.yaml")).sort.each do |frag_path|
+  Array((YAML.load_file(frag_path) || {})["patterns"]).each do |ov|
+    if (target = ov["merge"])
+      base_pat = registry.find { |p| p["name"] == target } or
+        abort("zdots-otel-phi-compile: #{frag_path} merges unknown pattern '#{target}'")
+      if ov["exempt"]
+        base_pat.dig("structural", "mode") == "redact_all_except" or
+          abort("zdots-otel-phi-compile: #{frag_path}: exempt merge needs a redact_all_except rule ('#{target}')")
+        base_pat["structural"]["exempt"] =
+          Array(base_pat["structural"]["exempt"]) | Array(ov["exempt"])
+      end
+      %w[probe expect_absent expect_redacted expect_kept].each do |k|
+        base_pat[k] = ov[k] if ov.key?(k)
+      end
+    else
+      ov["name"] or abort("zdots-otel-phi-compile: #{frag_path}: pattern needs name: or merge:")
+      registry << ov
+    end
+  end
+end
+
+Dir.glob(File.join(work_ext, "otel.d", "*.yaml")).sort.each do |frag_path|
+  frag = YAML.load_file(frag_path) || {}
+  (frag.keys - %w[cors_origins app_service_name]).empty? or
+    abort("zdots-otel-phi-compile: #{frag_path}: unknown otel fragment keys: #{(frag.keys - %w[cors_origins app_service_name]).join(', ')}")
+  if frag["cors_origins"]
+    origins = config.dig("receivers", "otlp", "protocols", "http", "cors", "allowed_origins") or
+      abort("zdots-otel-phi-compile: base config has no otlp http cors allowed_origins to extend")
+    Array(frag["cors_origins"]).each { |o| origins << o unless origins.include?(o) }
+  end
+  if (svc = frag["app_service_name"])
+    proc_def = config.dig("processors", "resource/applogs") or
+      abort("zdots-otel-phi-compile: base config has no resource/applogs processor to stamp")
+    proc_def["attributes"][0]["value"] = svc
+  end
+end
+# ── end work-extension overlay ──────────────────────────────────────────────
+
 # `redact` drives the value scrubs (logs transform/phi body + traces value path).
 # EXCLUDE structural-only patterns: they carry no regex/replace (positional PHI is
 # handled by the dedicated structural branch below), so mapping p.fetch("regex")

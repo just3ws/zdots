@@ -18,9 +18,8 @@ receivers:
             - http://127.0.0.1:3003
             - http://localhost:5173
             - http://localhost:3003
-            - http://localhost:8080      # app app origin — docker (legacy/rollback) session-capture browser OTel
-            - http://staging.work.localhost  # app on local k3s via the nginx edge — PRIMARY scenario-runner origin (k8s-primary)
-            - http://localhost:30080          # app k3s NodePort — alt scenario-runner origin
+          # Tenant app origins (browser-OTel session capture) are appended at
+          # compile time from $ZDOTS_WORK_EXT/otel.d/*.yaml cors_origins (Z-262).
           # The session-capture extension wraps window.fetch to inject X-Request-Id on
           # EVERY request (injected.js), incl. the OTLP export — so the browser preflight
           # requests it. Without listing it here CORS drops ACAO and the export is blocked.
@@ -53,13 +52,12 @@ receivers:
   # Colima docker.sock just produced connection errors when the VM is stopped.
   # Re-add it on a box that genuinely runs container workloads worth monitoring.
 
-  # app lograge request log -> OTLP log records (TASK-XXX log spine).
-  # app runs in Colima and writes /work/log/lograge.json; /work is the repo
-  # bind-mount (.:/work in docker-compose.override.yml), so the file is visible
-  # on the host. The host collector tails it directly. (filelog + trace_parser
+  # App request log (lograge JSON) -> OTLP log records (TASK-XXX log spine).
+  # The tenant app runs in Colima and writes its lograge JSON under a repo
+  # bind-mount, so the file is visible on the host. The host collector tails it directly. (filelog + trace_parser
   # both confirmed present in otelcol-contrib 0.148.0.)
-  # Path is generic — not baked to one app. ZDOTS_APP_LOG defaults to the app
-  # dev log (set in bin/otel-collector); override it to tail a different app.
+  # Path is generic — not baked to one app. Set ZDOTS_APP_LOG in the
+  # work-extension init.zsh (or .zdots.local) to tail an app's log.
   # A missing file is fine — filelog just tails nothing until it appears.
   filelog/app:
     include:
@@ -102,9 +100,9 @@ processors:
           enabled: true
 
   # Stamp service.name onto filelog-sourced log records so they group under the
-  # same service as app's OTLP traces in O2. work.tenant is carried per-record
-  # by the lograge custom_options (kept as a record attribute — its value is
-  # dynamic, do not hardcode "local").
+  # same service as the app's OTLP traces in O2. The tenant's real name is
+  # stamped at compile time from $ZDOTS_WORK_EXT/otel.d app_service_name (Z-262);
+  # per-record tenant attributes stay dynamic — do not hardcode values here.
   resource/applogs:
     attributes:
       - key: service.name
@@ -138,8 +136,8 @@ exporters:
       max_megabytes: 10
       max_backups: 3
   # Raw per-run diagnostic tap. Full-fidelity, NO phi scrub (see the */diag pipelines).
-  # LOCAL diagnostic-exercise-runner only; work-scenario-run slices per-run windows out
-  # of this file by byte offset. Generous rotation so a serial run never rotates mid-flight.
+  # LOCAL diagnostic-exercise-runner only; the tenant's scenario runner slices per-run
+  # windows out of this file by byte offset. Generous rotation so a serial run never rotates mid-flight.
   file/diag:
     path: "${env:HOME}/.local/state/zsh/collector-diag.jsonl"
     rotation:

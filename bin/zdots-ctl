@@ -558,8 +558,8 @@ cmd_check() {
 
   # No /etc/hosts check: every vhost is a .localhost name now (decision-011/
   # Z-205) — RFC 6761 hard-wires every resolver to loopback, so there is
-  # nothing to verify here. (my.localhost is ~/my-owned, work.localhost is
-  # Work-owned; both out of zdots' concern.)
+  # nothing to verify here. (my.localhost is ~/my-owned; tenant vhosts belong
+  # to the work-extension layer; both out of zdots' concern.)
 
   # ── AI router structural check (fast — no model call) ─────────────────────
   printf '\nAI router\n'
