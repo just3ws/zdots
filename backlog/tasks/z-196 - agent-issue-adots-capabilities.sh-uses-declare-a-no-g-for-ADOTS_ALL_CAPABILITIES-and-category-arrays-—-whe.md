@@ -3,9 +3,10 @@ id: Z-196
 title: >-
   [agent-issue] adots capabilities.sh uses 'declare -a' (no -g) for
   ADOTS_ALL_CAPABILITIES and category arrays — whe
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-02 19:28'
+updated_date: '2026-07-28 19:08'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ adots capabilities.sh uses 'declare -a' (no -g) for ADOTS_ALL_CAPABILITIES and c
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Fixed in adots d98b357: declare -a → declare -ga at capabilities.sh:172. Category arrays use bare assignment (already global). Verified ADOTS_ALL_CAPABILITIES survives function-scoped sourcing: 32/32 in bash and zsh. Peer attestation should now report 32/32.
+<!-- SECTION:NOTES:END -->
