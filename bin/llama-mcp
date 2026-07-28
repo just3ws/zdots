@@ -17,6 +17,7 @@
 
 require "json"
 require "open3"
+require "timeout"
 
 ZDOTDIR = ENV.fetch("ZDOTDIR", File.expand_path("~/.config/zsh"))
 AI_ENDPOINT = ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")
@@ -124,9 +125,17 @@ TOOLS = [
 # ---------------------------------------------------------------------------
 # Tool implementations
 # ---------------------------------------------------------------------------
+# capture3 has no timeout: option — it reaches spawn and raises ArgumentError,
+# which made every tool report failure (Z-246). Timeout.timeout is the guard.
 def run_cmd(*args, timeout: 120)
-  stdout, stderr, status = Open3.capture3(*args, stdin_data: "", timeout: timeout)
+  stdout, stderr, status = Timeout.timeout(timeout) do
+    Open3.capture3(*args, stdin_data: "")
+  end
   { stdout: stdout, stderr: stderr, exit_code: status.exitstatus || 1 }
+rescue Timeout::Error
+  # ponytail: the timed-out child is orphaned, not killed — acceptable for
+  # curl/llama-ctl probes; switch to popen3 + Process.kill if that changes.
+  { stdout: "", stderr: "timed out after #{timeout}s", exit_code: 124 }
 rescue Errno::ENOENT => e
   { stdout: "", stderr: "command not found: #{e.message}", exit_code: 127 }
 rescue => e
