@@ -62,6 +62,17 @@ zdots_peer_bootstrap() {
     set +e +u 2>/dev/null; set +o pipefail 2>/dev/null
   fi
 
+  # adots publishes ADOTS_BIN_DIR but only interactive shells put it on PATH;
+  # without this, non-interactive attestation reads 0/32 and the banner
+  # promises commands the agent can't run (Z-196). Appended, never prepended —
+  # peer bins must not shadow zdots bin/.
+  if [ -n "${ADOTS_BIN_DIR:-}" ] && [ -d "$ADOTS_BIN_DIR" ]; then
+    case ":$PATH:" in
+      *":$ADOTS_BIN_DIR:"*) ;;
+      *) export PATH="$PATH:$ADOTS_BIN_DIR" ;;
+    esac
+  fi
+
   # Attest: entry format "category:operation:command [args] — description";
   # the first word of the third field is the invocable command.
   local _entry _cmd _att _dec
