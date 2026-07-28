@@ -1,9 +1,10 @@
 ---
 id: Z-262
 title: 'Work-extension layer: extract tenant (Work) concerns from platform repos'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-28 17:43'
+updated_date: '2026-07-28 18:34'
 labels:
   - agent-reported
 dependencies: []
@@ -42,3 +43,9 @@ Result: platform repos are employer-agnostic; the work extension is tracked in i
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-07-28: EXECUTED on this machine (zdots commit: work-extension layer; zdots-work d0b5b43). ~/.config/zdots-work repo live: phi-patterns.d + otel.d fragments, init.zsh (k8s ns), tenant graphify docs. Compiler merges fragments; probe gate passes WITH overlay (work3 superset probe) and WITHOUT (generic, zero tenant strings). AGENTS.md §10 updated. Tracked zdots is now tenant-string-free outside backlog/CHANGELOG history. REMAINING (operator): create private work-side remote for ~/.config/zdots-work and push; review §10 contract wording; home machine needs nothing (generic path verified).
+<!-- SECTION:NOTES:END -->
