@@ -3,9 +3,10 @@ id: Z-182
 title: >-
   [agent-issue] zdots-ctx migrate ignores --help and runs ALL pending migrations
   — 'zdots-ctx migrate --help' applie
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-30 12:14'
+updated_date: '2026-07-28 17:20'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ zdots-ctx migrate ignores --help and runs ALL pending migrations — 'zdots-ctx 
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-07-28: verified fixed on this machine — cmd_migrate short-circuits via zdots_cli_wants_help before the migrator (bin/zdots-ctx:219-227); 'zdots-ctx migrate --help' prints usage, exit 0, no migrations applied. Unknown flags are rejected. (--to <version> targeted apply was not implemented; file separately if still wanted.)
+<!-- SECTION:NOTES:END -->

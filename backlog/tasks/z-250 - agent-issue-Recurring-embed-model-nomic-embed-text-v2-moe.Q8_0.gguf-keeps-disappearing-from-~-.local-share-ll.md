@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-07-22 12:34'
+updated_date: '2026-07-28 17:39'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ Recurring: embed model (nomic-embed-text-v2-moe.Q8_0.gguf) keeps disappearing fr
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-07-28: recurred again (4th time, 2026-07-27 12:29:32). See Z-260 notes — model restored + sha256-verified, durable tripwire armed (bin/embed-model-tripwire). Scratchpad tripwire from 07-24 died with its session; this one survives reboots.
+<!-- SECTION:NOTES:END -->
