@@ -3,9 +3,10 @@ id: Z-225
 title: >-
   [agent-issue] docs_sync jobs die with 'invalid byte sequence in US-ASCII' —
   worker AI pipeline needs encoding norm
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-15 04:53'
+updated_date: '2026-07-28 18:47'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ docs_sync jobs die with 'invalid byte sequence in US-ASCII' — worker AI pipeli
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-07-28: fixed — docs_sync normalizes residue and doc text to UTF-8 (invalid/undef → replacement) at the job boundary; launchd's US-ASCII default was the trigger. Spec covers the dirty-byte case. Worker restarted onto new code.
+<!-- SECTION:NOTES:END -->
