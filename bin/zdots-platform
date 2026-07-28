@@ -23,6 +23,10 @@ Verbs:
   push --run      execute the pushes (refused inside Claude Code — the
                   principal pushes; cc-hook-guard is the enforced boundary)
   exec <git args> run a git command across all four repos (e.g. exec log -1)
+  integrate       mechanical phases of /platform-integrate: record tips,
+                  fetch, lineage-continuity gate, fast-forward-only merge.
+                  Diverged history or a rewrite is reported, never merged.
+  idscan          backlog ID collision scan (both machines allocate Z-nnn)
   -h, --help      this help
 
 Repos: zdots(~/.config/zsh)  my(~/my)  vdots(~/.config/nvim)  adots(bare ~/.homegit)
@@ -117,12 +121,64 @@ cmd_exec() {
   done
 }
 
+# Backlog IDs are allocated sequentially on BOTH machines (Z-245) — scan for
+# collisions after every integration. Full ID token only: z-172 vs z-172.03
+# are distinct IDs, not duplicates.
+cmd_idscan() {
+  local dups
+  dups=$(ls "$HOME/.config/zsh/backlog/tasks/" | sed -E 's/^(z-[0-9]+(\.[0-9]+)?) - .*/\1/' | sort | uniq -d)
+  if [[ -n "$dups" ]]; then
+    printf 'backlog ID collision(s) — upstream ID is canonical, renumber the LOCAL task:\n%s\n' "$dups"
+    return 1
+  fi
+  echo "idscan: no backlog ID collisions"
+}
+
+# Phases 0-3 of /platform-integrate, mechanical parts only. Anything that
+# needs judgment (conflict policy, rewrite protocol) is reported, not done:
+# git's own fast-forward/clobber checks are the safety rail.
+cmd_integrate() {
+  local rc=0 r
+  for r in "${_repos[@]}"; do
+    local old new branch behind
+    old=$(_git "$r" rev-parse origin/main 2>/dev/null) || { printf '%-6s no origin/main\n' "$r"; rc=1; continue; }
+    if ! _git "$r" fetch origin >/dev/null 2>&1; then
+      printf '%-6s fetch FAILED\n' "$r"; rc=1; continue
+    fi
+    new=$(_git "$r" rev-parse origin/main)
+    if ! _git "$r" merge-base --is-ancestor "$old" "$new"; then
+      printf '%-6s HISTORY REWRITE (%s -> %s) — rewrite protocol required, do NOT merge\n' \
+        "$r" "${old:0:12}" "${new:0:12}"
+      rc=1; continue
+    fi
+    branch=$(_git "$r" branch --show-current 2>/dev/null || true)
+    if [[ "$branch" != work ]]; then
+      printf '%-6s on %s, not work — skipped\n' "$r" "${branch:-detached}"; rc=1; continue
+    fi
+    behind=$(_git "$r" rev-list --count HEAD..origin/main)
+    if [[ "$behind" == 0 ]]; then
+      printf '%-6s up to date\n' "$r"
+    elif _git "$r" merge --ff-only origin/main >/dev/null 2>&1; then
+      printf '%-6s fast-forwarded %s commit(s) to %s\n' "$r" "$behind" "${new:0:12}"
+      _git "$r" branch -f main origin/main >/dev/null 2>&1 || true
+    else
+      # ponytail: true merges stay manual — conflict policy lives in /platform-integrate
+      printf '%-6s behind %s, not fast-forwardable — manual merge per /platform-integrate\n' "$r" "$behind"
+      rc=1
+    fi
+  done
+  cmd_idscan || rc=1
+  return $rc
+}
+
 case "${1:-}" in
   status)  cmd_status ;;
   fetch)   cmd_fetch ;;
   verify)  shift; cmd_verify "$@" ;;
   push)    shift; cmd_push "$@" ;;
   exec)    shift; cmd_exec "$@" ;;
+  integrate) cmd_integrate ;;
+  idscan)  cmd_idscan ;;
   -h|--help|"") usage; [[ "${1:-}" ]] || exit 1; exit 0 ;;
   *) printf 'zdots-platform: unknown verb: %s\n' "$1" >&2; usage >&2; exit 1 ;;
 esac

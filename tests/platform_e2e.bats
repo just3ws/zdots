@@ -236,3 +236,16 @@ _have() { command -v "$1" >/dev/null 2>&1; }
   [ "$status" -eq 0 ]
   [[ "$output" == *"already at latest"* ]]
 }
+
+@test "zdots-platform usage lists the integrate and idscan verbs" {
+  run "$REPO_ROOT/bin/zdots-platform" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *integrate* ]]
+  [[ "$output" == *idscan* ]]
+}
+
+@test "zdots-platform idscan finds no backlog ID collisions" {
+  run "$REPO_ROOT/bin/zdots-platform" idscan
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no backlog ID collisions"* ]]
+}
