@@ -113,3 +113,23 @@ ZDOTS_AI_MODE=local
 # HTTP_PROXY=http://corporate-proxy:8080
 # HTTPS_PROXY=http://corporate-proxy:8080
 # NO_PROXY=localhost,127.0.0.1,.internal,.corp
+
+# ---------------------------------------------------------------------------
+# Work-extension layer (Z-262, AGENTS.md §10) — the ONLY sanctioned place a
+# tenant/employer's own identity, PHI patterns, and app wiring enter the
+# platform. Everything else stays employer-agnostic and tracked here.
+#
+# ZDOTS_WORK_EXT points at a SEPARATE repo (own history, own remote, never
+# a submodule) that conf.d/31-work-ext.zsh sources if present:
+#   $ZDOTS_WORK_EXT/init.zsh              — sourced at shell startup
+#   $ZDOTS_WORK_EXT/phi-patterns.d/*.yaml — PHI pattern overlay (merged by
+#                                            zdots-otel-phi-compile; can only
+#                                            ADD patterns/exemptions, never
+#                                            edit or remove a base rule)
+#   $ZDOTS_WORK_EXT/otel.d/*.yaml         — cors_origins / app_service_name
+#                                            overlay for etc/otel-collector.yaml
+# Absent dir = personal machine = every line below is a silent no-op.
+# ---------------------------------------------------------------------------
+# ZDOTS_WORK_EXT=~/.config/zdots-work
+# ZDOTS_K8S_DEFAULT_NS=
+# ZDOTS_APP_LOG=

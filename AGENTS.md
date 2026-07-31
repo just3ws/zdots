@@ -139,6 +139,16 @@ further qualification, it means all four repos, using the per-repo
 invocation table in `.claude/commands/platform-sync.md`. Never assume
 "zdots" alone unless the operator names it specifically.
 
+**Work-extension hook surface (Z-262).** None of the four platform repos
+carries any tenant/employer identity — that lives entirely in a separate,
+untracked repo at `${ZDOTS_WORK_EXT:-~/.config/zdots-work}` (own history, own
+remote, never a submodule), loaded by `conf.d/31-work-ext.zsh` if present.
+See §10 for the PHI-pattern overlay contract and `.zdots.local.example` for
+the full env-var hook list (`ZDOTS_WORK_EXT`, `ZDOTS_K8S_DEFAULT_NS`,
+`ZDOTS_APP_LOG`). adots/my/vdots have no work-extension touchpoints as of
+this writing; if one is ever needed there, give it the same
+gitignored-local-override treatment, never a tracked identifier.
+
 ## 2. Token Optimization (RTK)
 
 **Rule:** Always proxy high-output commands through `rtk`.
