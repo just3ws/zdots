@@ -4,12 +4,6 @@
 setopt localoptions errexit pipefail
 dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
 
-run_cmd() {
-  print -r -- "+ $*"
-  [[ "$dry_run" == "1" ]] && return 0
-  "$@"
-}
-
 if command -v rustup >/dev/null 2>&1; then
   echo "Updating Rust toolchain..."
   run_cmd rustup update
