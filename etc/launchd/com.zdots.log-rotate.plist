@@ -8,7 +8,7 @@
     <array>
         <string>/bin/zsh</string>
         <string>-c</string>
-        <string>log-rotate otel-collector; log-rotate openobserve; log-rotate llama-server; log-rotate llama-embed</string>
+        <string>log-rotate otel-collector; log-rotate openobserve; log-rotate llama-server; log-rotate llama-embed; log-rotate gemstash</string>
     </array>
     <!-- Weekly: Sunday 03:15 — after index-tools (03:00) to avoid I/O contention -->
     <key>StartCalendarInterval</key>
