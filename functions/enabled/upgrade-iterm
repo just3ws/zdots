@@ -4,12 +4,6 @@
 setopt localoptions errexit pipefail
 dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
 
-run_cmd() {
-  print -r -- "+ $*"
-  [[ "$dry_run" == "1" ]] && return 0
-  "$@"
-}
-
 echo "Updating iTerm2 shell integration..."
 # The standard installer handles downloading and linking
 if [[ "$dry_run" == "0" ]]; then

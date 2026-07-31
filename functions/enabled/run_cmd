@@ -1,0 +1,5 @@
+#!/usr/bin/env zsh
+# run_cmd — shared dry-run-aware command runner for upgrade-* modules.
+print -r -- "+ $*"
+[[ "${ZDOTS_UPGRADE_DRY_RUN:-0}" == "1" ]] && return 0
+"$@"

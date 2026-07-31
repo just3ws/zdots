@@ -69,20 +69,25 @@ _zdots_zle_ai_load() {
   fi
 }
 
-_zdots_zle_ai_explain() {
-  local cmd="$BUFFER"
-  [[ -z "$cmd" ]] && return
+_zdots_zle_ai_ask() {
+  local prompt="$1" busy_msg="$2"
 
   _zdots_zle_ai_load || return
-  zle -M "ai: explaining..."
-
-  local prompt
-  prompt=$(printf 'Explain this shell command concisely (2-3 sentences max):\n\n%s' "$cmd")
+  zle -M "$busy_msg"
 
   local response
   response=$(zdots_ai_infer_raw --temperature 0.1 "$prompt" "${_ZLE_SYS_PROMPT:-}" 2>/dev/null) || true
 
   zle -M "${response:-ai: no response}"
+}
+
+_zdots_zle_ai_explain() {
+  local cmd="$BUFFER"
+  [[ -z "$cmd" ]] && return
+
+  _zdots_zle_ai_ask \
+    "$(printf 'Explain this shell command concisely (2-3 sentences max):\n\n%s' "$cmd")" \
+    "ai: explaining..."
 }
 
 _zdots_zle_ai_fix() {
@@ -94,16 +99,9 @@ _zdots_zle_ai_fix() {
     return
   fi
 
-  _zdots_zle_ai_load || return
-  zle -M "ai: diagnosing..."
-
-  local prompt
-  prompt=$(printf 'This shell command failed with exit code %s:\n\n%s\n\nSuggest a corrected version and one-line explanation.' "$last_exit" "$last_cmd")
-
-  local response
-  response=$(zdots_ai_infer_raw --temperature 0.1 "$prompt" "${_ZLE_SYS_PROMPT:-}" 2>/dev/null) || true
-
-  zle -M "${response:-ai: no response}"
+  _zdots_zle_ai_ask \
+    "$(printf 'This shell command failed with exit code %s:\n\n%s\n\nSuggest a corrected version and one-line explanation.' "$last_exit" "$last_cmd")" \
+    "ai: diagnosing..."
 }
 
 _zdots_zle_zdash() {
