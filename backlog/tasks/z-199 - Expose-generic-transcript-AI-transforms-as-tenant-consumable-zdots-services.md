@@ -1,10 +1,10 @@
 ---
 id: Z-199
 title: Expose generic transcript-AI transforms as tenant-consumable zdots services
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-04 14:57'
-updated_date: '2026-07-05 00:44'
+updated_date: '2026-08-01 09:55'
 labels:
   - request
   - agent-ready
@@ -45,6 +45,12 @@ Related but tracked separately: acoustic diarization (pyannote) inside the trans
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit: Delivered — generic transform job type (15b162dca), cleanup/insights/seo profiles (0d61445ef), opt-in pyannote diarization stage (5b4ee9388, c954fcd16). All 5 ACs checked; commits verified present.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 

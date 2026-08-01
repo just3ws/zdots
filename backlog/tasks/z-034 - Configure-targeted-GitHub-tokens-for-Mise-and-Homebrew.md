@@ -4,7 +4,7 @@ title: Configure targeted GitHub tokens for Mise and Homebrew
 status: To Do
 assignee: []
 created_date: '2026-04-04 22:30'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-08-01 09:55'
 labels:
   - setup
   - security
@@ -45,3 +45,9 @@ Following the architectural update to support targeted GitHub tokens, the user n
 - [ ] #4 make check passes with output captured in task notes or commit message
 - [ ] #5 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit: Mechanism stale — secrets moved to Keychain (zdots-keychain add/migrate; rotate-creds). Rewrite ACs: store HOMEBREW_GITHUB_API_TOKEN / MISE_GITHUB_TOKEN via zdots-keychain add, verify pickup in new shell; drop the .zdots.secrets step.
+<!-- SECTION:NOTES:END -->

@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-06-30 14:19'
+updated_date: '2026-08-01 09:55'
 labels:
   - agent-reported
   - request
@@ -27,3 +28,9 @@ Consolidated follow-up to the bin/ flag-handling static audit (the 11 CRITICAL h
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit: findings artifacts lost with expired session scratchpad (weij51wks/we9totjks .output gone). Surviving summary: 22 HIGH no-dry-run/destructive, 22 MEDIUM drift, 22 LOW cosmetic; key fix = shared pre-dispatch -h/--help + unknown-flag rejection helper. Re-run audit to regenerate, or work from this summary. Overlaps Z-249 help-without-execution slice.
+<!-- SECTION:NOTES:END -->

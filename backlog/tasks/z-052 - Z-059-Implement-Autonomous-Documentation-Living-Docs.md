@@ -5,7 +5,7 @@ status: To Do
 assignee:
   - '@gemini-cli'
 created_date: '2026-05-12 19:07'
-updated_date: '2026-06-14 18:37'
+updated_date: '2026-08-01 09:55'
 labels:
   - sentient-workbench
   - documentation
@@ -36,3 +36,9 @@ Use the residue of successful work (OTel traces and command history) to automati
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit: Partially live — docs_sync job (lib/zdots/jobs/docs_sync.rb, hardened 001f5d5a0) + living_docs ctx tool already auto-rewrite docs from residue. Remaining scope: make-check-success trigger + OTel-trace-driven Mermaid updates. Reconcile ACs or close in favor of smaller tasks.
+<!-- SECTION:NOTES:END -->
