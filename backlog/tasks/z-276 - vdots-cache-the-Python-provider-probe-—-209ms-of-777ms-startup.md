@@ -1,9 +1,10 @@
 ---
 id: Z-276
 title: 'vdots: cache the Python provider probe — 209ms of 777ms startup'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-01 09:57'
+updated_date: '2026-08-01 16:20'
 labels:
   - audit-filed
   - enhancement
@@ -26,3 +27,9 @@ Fix in vdots: cache the resolved python path to stdpath('cache') keyed on shim m
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DONE vdots 7ffbe6c: python provider probe cached at stdpath(cache)/python3_host_prog keyed exepath@mtime per candidate; hit = 0 spawns (was 4), ~125ms -> ~2.6ms. Negative result cached too. Known gap in-code: pip install pynvim doesn't bump mtime — delete cache file to re-probe. Remaining ~450-600ms nvim startup lives elsewhere.
+<!-- SECTION:NOTES:END -->

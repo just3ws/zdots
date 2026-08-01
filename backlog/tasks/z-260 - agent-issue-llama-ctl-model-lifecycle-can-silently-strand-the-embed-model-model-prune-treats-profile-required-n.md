@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-07-24 18:04'
-updated_date: '2026-08-01 09:55'
+updated_date: '2026-08-01 16:20'
 labels:
   - agent-reported
   - error
@@ -39,4 +39,6 @@ llama-ctl model lifecycle can silently strand the embed model: model-prune treat
 2026-08-01: Fail-safe added (e1cef96f2) — empty protect list now falls back to the validated active model_file, so the rm -f loop can never run unprotected. Z-250 closed as duplicate; its model-download-ensures-all-required-models ask stays open here.
 
 2026-08-01 audit: description now materially wrong (blames exonerated llama-ctl model-prune). Open scope narrowed to: (1) model-download should fetch ALL profile-required models by default; (2) 'embed install' must verify model file exists before restart. Deleter chapter closed (upgrade-ai 3f1935727 + fail-safe e1cef96f2; tripwire armed). Tripwire self-repair increment folded into Z-269.
+
+llama-ctl hardening landed 2402f8a: model-download --all (fetch missing, sha256-verify present, per-profile loop matching model-prune's protect contract) + _require_embed_model guard on install/start — refuses to bootout/bootstrap embed onto a missing GGUF (latent failure stays latent, no crash-loop). flag-audit 10/10. Agent was spend-limit-killed mid-task; guard wiring finished in main loop (install_embed + start_embed; stop needs none; restart = stop+start).
 <!-- SECTION:NOTES:END -->

@@ -3,9 +3,10 @@ id: Z-268
 title: >-
   zdots-watch: scheduled doctor loop with transition-only notify (cc-burn-watch
   pattern)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-01 09:56'
+updated_date: '2026-08-01 16:20'
 labels:
   - enhancement
   - audit-filed
@@ -28,3 +29,9 @@ Build: launchd agent running zdots-doctor --quiet + capabilities --json daily, d
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DONE b009a0f: bin/zdots-watch (run/status/--install/--uninstall) + man page. Daily LaunchAgent, transition-only notify (new FAIL/warn identity or higher caps health_errors). Installed and seeded on this machine: 44 pass / 2 warn / 0 fail / caps=0. Identity dedup drops volatile tails (runs=N).
+<!-- SECTION:NOTES:END -->
