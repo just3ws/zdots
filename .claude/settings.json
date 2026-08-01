@@ -148,6 +148,7 @@
       "mcp__backlog__task_search",
       "mcp__ctx__ctx_query",
       "mcp__ctx__ctx_status",
+      "mcp__llama__llama_health",
       "Read(~/.local/state/zsh/**)",
       "Read(~/.local/share/llama-cpp/models/**)",
       "Read(~/Library/LaunchAgents/**)",
