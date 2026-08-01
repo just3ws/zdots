@@ -67,6 +67,8 @@ if command -v yq >/dev/null 2>&1 && [[ -f "$CONFIG_FILE" ]]; then
     # pruning around only the active chat profile serially deleted the
     # embed model (nomic) while the embed server held the dead inode.
     protect=$(yq '.profiles[].model_file' "$CONFIG_FILE" 2>/dev/null | grep -v '^null$')
+    # Fail-safe: an empty protect list would make the loop delete EVERY gguf.
+    [[ -n "$protect" ]] || protect="$model_file"
     pruned=0
     for f in "$MODELS_DIR"/*.gguf(N); do
       grep -qxF "$(basename "$f")" <<<"$protect" && continue
