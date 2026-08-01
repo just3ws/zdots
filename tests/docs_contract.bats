@@ -227,6 +227,38 @@ _known_gap() {
   fi
 }
 
+@test "docs: Z-249 sweep — every bin executable answers --help fast, rc=0, with usage text" {
+  # Non-interactive safety (Z-249): every executable in bin/ not in the
+  # known-gaps ledger must answer --help within 5s, exit 0, and print
+  # usage-ish text — WITHOUT executing its action. `timeout 5` catches hangs
+  # and real launches (rc=124); `</dev/null` catches TTY prompts.
+  local -a failed=()
+  local script name out rc
+  for script in "$BIN"/*; do
+    name="$(basename "$script")"
+    [[ -f "$script" && -x "$script" ]] || continue
+    if _known_gap "$name"; then
+      continue
+    fi
+    rc=0
+    out="$(timeout 5 "$script" --help </dev/null 2>&1)" || rc=$?
+    if [[ "$rc" -ne 0 ]]; then
+      failed+=("$name (rc=$rc)")
+      continue
+    fi
+    case "$out" in
+      *"Usage:"*|*"Commands:"*|*"Options:"*|*"usage:"*|*"Usage of"*) ;;
+      *) failed+=("$name (rc=0, no usage text)") ;;
+    esac
+  done
+
+  if [[ ${#failed[@]} -gt 0 ]]; then
+    printf -- '--help contract violations (fix the command or ledger it in docs-contract-known-gaps.txt):\n' >&2
+    printf '  %s\n' "${failed[@]}" >&2
+    return 1
+  fi
+}
+
 @test "docs: fictional-reference linting — backtick commands in tracked docs exist in bin/ or allowlist" {
   # R2 invariant (Z-153 AC#2+AC#3): docs must not cite zdots-* commands that don't exist.
   # Tier file list comes from etc/docs-sync-manifest.yaml (AC#3 single source of truth).
