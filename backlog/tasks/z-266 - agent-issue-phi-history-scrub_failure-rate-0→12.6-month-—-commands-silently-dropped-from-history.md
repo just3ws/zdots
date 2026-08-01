@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-01 09:56'
+updated_date: '2026-08-01 16:20'
 labels:
   - agent-reported
   - error
@@ -29,3 +30,9 @@ Diagnose: what input class makes zdots-phi-scrub exit 1 — reproduce via audit 
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Diagnosis agent spend-limit-killed mid-investigation 2026-08-01. Partial finding preserved: scrub_failure entries BEGIN 2026-06-16 — next step is dating the suspect phi-pattern/hook commits around that date and checking burst-vs-steady session patterns. Re-run diagnosis when budget resets; treat as PHI-pipeline incident per L5.
+<!-- SECTION:NOTES:END -->

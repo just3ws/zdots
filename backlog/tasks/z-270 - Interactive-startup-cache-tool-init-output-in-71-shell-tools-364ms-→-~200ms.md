@@ -1,9 +1,10 @@
 ---
 id: Z-270
 title: 'Interactive startup: cache tool-init output in 71-shell-tools (364ms → ~200ms)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-01 09:57'
+updated_date: '2026-08-01 16:20'
 labels:
   - enhancement
   - audit-filed
@@ -26,3 +27,9 @@ Fix: (1) cache kubectl completion to XDG_CACHE keyed on kubectl version, source 
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DONE 79b7d91: _zdots_init_cache (binary path+mtime key via zstat, zcompiled, stale-prune, corrupt-regen, degrades to eval). zoxide/direnv/kubectl converted; atuin cmd-subst moved inside named zdefer'd fn (was expanding synchronously). Warm A/B hyperfine: 345.4->314.5ms; module 219->18ms; ~200ms win applies to COLD shells (original 223ms attribution was cold-cache). 782/782 bats. Warm floor ~315ms now dominated by compinit/p10k — separate audit if target stands.
+<!-- SECTION:NOTES:END -->
