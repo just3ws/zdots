@@ -1,0 +1,27 @@
+.TH ZDOTS-HELP 1 "2026-08-01" "zdots" "zdots manual"
+.SH NAME
+zdots-help \- Unified help router: man page, else <cmd> \-\-help, else the knowledge layer.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-help --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots help [<cmd>]
+
+Unified help router: man page, else <cmd> --help, else the knowledge layer.
+
+Resolution order for <cmd> (the zdots-<cmd> noun expansion is also tried):
+  1. repo man page        man/man{1,8,5,7}/<cmd>.<sec>
+  2. <cmd> --help         timeout-guarded, stdin closed
+  3. knowledge layer      zdots-ctx query tooling:<cmd>
+
+With no argument: list dispatcher nouns with one-line NAME descriptions.
+
+  -h, --help  show this help
+
+Examples:
+  zdots help              # noun catalog
+  zdots help zsvc         # zsvc(8) man page
+  zdots help ctx          # zdots-ctx(1) man page via noun expansion
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

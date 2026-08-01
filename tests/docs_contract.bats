@@ -204,6 +204,7 @@ _known_gap() {
     bench zdots-pattern zdots-issue imperial-date zdots-man-gen zdots-platform
     embed-model-tripwire zdots-theme-gen
     zdots zdots-artifact zdots-debrief zdots-snapshot zdots-search zdots-draft zdots-publish
+    zdots-help
   )
 
   local missing=()

@@ -1,0 +1,69 @@
+#compdef zdots
+# Completion for zdots — the DSL dispatcher (Z-264). The first argument
+# completes nouns derived from bin/zdots-* filenames; one-line descriptions
+# come from the man NAME sections (mdoc .Nd or generated .TH), parsed by a
+# single awk per shell and cached in a global. After the noun, completion
+# re-dispatches to the zdots-<noun> command's own compdef (e.g. _zdots-ctx),
+# so verbs keep completing; 'zdots help <TAB>' offers every bin/ command.
+
+typeset -ga _zdots_noun_cache
+
+_zdots__nouns() {
+  (( ${#_zdots_noun_cache} )) && return 0
+  local zdotdir="${ZDOTDIR:-$HOME/.config/zsh}"
+  local -A desc
+  local n d bin noun
+  local -a pages
+  pages=("$zdotdir"/man/man1/zdots-*.1(N) "$zdotdir"/man/man8/zdots-*.8(N))
+  if (( ${#pages} )); then
+    while IFS=$'\t' read -r n d; do desc[$n]="$d"; done < <(
+      command awk '
+        FNR == 1 { n = FILENAME; sub(/^.*\//, "", n); sub(/\.[0-9]$/, "", n); f = 0 }
+        /^\.S[Hh] NAME/ { f = 1; next }
+        f && /^\.Nd / { print n "\t" substr($0, 5); f = 0 }
+        f && /\\-/ {
+          d = $0; sub(/^[^\\]*\\- */, "", d); gsub(/\\-/, "-", d)
+          p = n " — "
+          if (index(d, p) == 1) d = substr(d, length(p) + 1)
+          print n "\t" d; f = 0
+        }
+      ' "${pages[@]}"
+    )
+  fi
+  for bin in "$zdotdir"/bin/zdots-*(N-*); do
+    noun="${${bin:t}#zdots-}"
+    _zdots_noun_cache+=("${noun}:${desc[zdots-$noun]:-run zdots-$noun}")
+  done
+  (( ${#_zdots_noun_cache} )) || _zdots_noun_cache=('help:unified help router')
+}
+
+_zdots() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[show usage]' \
+    '1:noun:->noun' \
+    '*::arg:->args'
+
+  case "$state" in
+    noun)
+      _zdots__nouns
+      _describe -t nouns 'zdots noun' _zdots_noun_cache
+      ;;
+    args)
+      if [[ "${line[1]}" == help ]]; then
+        local zdotdir="${ZDOTDIR:-$HOME/.config/zsh}"
+        local -a cmds
+        cmds=("$zdotdir"/bin/*(N-*:t))
+        _describe -t commands 'zdots command' cmds
+      else
+        # Re-dispatch to the noun's own completion (the _sudo pattern).
+        words[1]="zdots-${words[1]}"
+        _normal
+      fi
+      ;;
+  esac
+}
+
+_zdots "$@"
