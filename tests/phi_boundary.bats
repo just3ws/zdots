@@ -246,7 +246,9 @@ _wait_for_unified_log_marker() {
     shell_hook_metrics_record "phi-history" "clean" 18 1 1700000000000
     result=""
     for _ in 1 2 3 4 5; do
-      result=$(sqlite3 "$XDG_STATE_HOME/zdots/history.sqlite3" "SELECT hook, status, elapsed_ms, threshold_ms FROM shell_hook_metrics;" 2>/dev/null || true)
+      # -init /dev/null -batch: user .sqliterc modes must not decorate the
+      # pipe-delimited row this test matches on.
+      result=$(sqlite3 -init /dev/null -batch "$XDG_STATE_HOME/zdots/history.sqlite3" "SELECT hook, status, elapsed_ms, threshold_ms FROM shell_hook_metrics;" 2>/dev/null || true)
       [[ -n "$result" ]] && break
       sleep 0.2
     done

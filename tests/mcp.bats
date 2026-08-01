@@ -258,16 +258,16 @@ _call_tool_fail() {
   ' >/dev/null
 }
 
-@test "E3: tools/list advertises exactly 10 tools" {
+@test "E3: tools/list advertises exactly 11 tools" {
   response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
   count=$(printf '%s\n' "$response" | jq '.result.tools | length')
-  [ "$count" -eq 10 ]
+  [ "$count" -eq 11 ]
 }
 
 @test "E4: advertised tool names match expected set" {
   response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
   names=$(printf '%s\n' "$response" | jq -r '.result.tools[].name' | sort | tr '\n' ',')
-  [ "$names" = "ctx_add_lesson,ctx_add_methodology,ctx_capture,ctx_enqueue,ctx_hydrate,ctx_jobs,ctx_query,ctx_semantic_search,ctx_status,living_docs," ]
+  [ "$names" = "ctx_add_lesson,ctx_add_methodology,ctx_capture,ctx_enqueue,ctx_hydrate,ctx_jobs,ctx_pipeline_events,ctx_query,ctx_semantic_search,ctx_status,living_docs," ]
 }
 
 @test "E5: every dispatched tool is advertised (no silent dispatch)" {

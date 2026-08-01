@@ -43,8 +43,12 @@ setup() {
   [[ "$output" == *"Imperial Dating System"* ]]
 }
 
-@test "imperial-date: the VERSION beacon matches the release stamp" {
+@test "imperial-date: the VERSION beacon is a well-formed imperial stamp" {
+  # The beacon re-stamps at every release (decision-007 §5) — a hardcoded
+  # value here failed on every re-stamp (0452026 -> 0526026 -> 0556026).
+  # Assert the imperial-CalVer shape instead; drift across peers is
+  # zdots-doctor's job, not this suite's.
   run cat "$REPO_ROOT/VERSION"
   [ "$status" -eq 0 ]
-  [ "$output" = "0452026.M3" ]
+  [[ "$output" =~ ^[0-9]{7}\.M[0-9]$ ]]
 }
