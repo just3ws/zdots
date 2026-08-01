@@ -37,5 +37,7 @@ setup() {
     end
     puts missing.empty? ? "all-bound" : "orphans:#{missing.join(",")}"
   ' 2>/dev/null
-  [ "$output" = "all-bound" ]
+  # bats run merges stderr into $output; bus-narrate diagnostics on an
+  # allocate'd (uninitialized) job are expected noise — assert the verdict line.
+  [ "${lines[${#lines[@]}-1]}" = "all-bound" ]
 }
