@@ -3,9 +3,10 @@ id: Z-175
 title: >-
   Transcription pipeline: speaker loop — diarization + voice-doubt + speaker
   registry + voiceprint enrollment
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-28 16:54'
+updated_date: '2026-08-01 09:55'
 labels:
   - transcription-pipeline
   - dream
@@ -36,3 +37,9 @@ The speaker-identity twin of the shipped term loop (Z-167). Same shape, pointed 
 - [x] #2 make check passes with output captured in task notes or commit message
 - [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit: Shipped — speaker registry (2c44f760d), diarization stage (5b4ee9388), pyannote 3.1 pin (c954fcd16), num_speakers hint (37280c67f). All 8 AC/DoD boxes checked in-file; status flipped to match.
+<!-- SECTION:NOTES:END -->

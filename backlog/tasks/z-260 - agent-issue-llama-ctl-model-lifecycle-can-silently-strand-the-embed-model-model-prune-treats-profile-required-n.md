@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-07-24 18:04'
-updated_date: '2026-08-01 06:08'
+updated_date: '2026-08-01 09:55'
 labels:
   - agent-reported
   - error
@@ -37,4 +37,6 @@ llama-ctl model lifecycle can silently strand the embed model: model-prune treat
 2026-07-31: DELETER IDENTIFIED — tripwire caught the 5th deletion (fired 2026-07-29 09:00:55; second firing 16:28:32 was the already-missing re-check). Snapshot 1 shows `fabric-ai --updatepatterns` (PID 24788, foreground tty s000) starting at 9:00AM in a fresh 08:57 login shell: that is step 4 of `functions/enabled/upgrade-ai`, whose step-3 prune (lines 64-78) deletes EVERY .gguf except the ACTIVE chat profile's model_file — the embed model is permanently "stale" to it. The morning upgrade ritual was the serial killer; llama-ctl model-prune was correctly exonerated on 07-28 (it protects all profiles). FIXED (operator-authorized fix-forward session): upgrade-ai now builds its protect list from `yq '.profiles[].model_file'` — same contract as llama-ctl model_prune. Verified with a scratch models dir: Qwen + nomic protected, true stray pruned. Model restored via `ZDOTS_AI_PROFILE=embed llama-ctl model-download` (sha256 verified), embed restarted onto the live inode (PID 86167), health ok. Remaining upstream ask (original scope): model-download without profile still skips embed; `embed install` still doesn't verify the model file exists before restart.
 
 2026-08-01: Fail-safe added (e1cef96f2) — empty protect list now falls back to the validated active model_file, so the rm -f loop can never run unprotected. Z-250 closed as duplicate; its model-download-ensures-all-required-models ask stays open here.
+
+2026-08-01 audit: description now materially wrong (blames exonerated llama-ctl model-prune). Open scope narrowed to: (1) model-download should fetch ALL profile-required models by default; (2) 'embed install' must verify model file exists before restart. Deleter chapter closed (upgrade-ai 3f1935727 + fail-safe e1cef96f2; tripwire armed). Tripwire self-repair increment folded into Z-269.
 <!-- SECTION:NOTES:END -->

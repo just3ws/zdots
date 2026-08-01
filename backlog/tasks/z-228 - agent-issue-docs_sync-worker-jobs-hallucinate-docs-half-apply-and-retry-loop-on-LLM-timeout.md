@@ -3,10 +3,10 @@ id: Z-228
 title: >-
   [agent-issue] docs_sync worker jobs hallucinate docs, half-apply, and
   retry-loop on LLM timeout
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-15 18:32'
-updated_date: '2026-07-28 18:47'
+updated_date: '2026-08-01 09:55'
 labels:
   - agent-reported
   - error
@@ -33,4 +33,6 @@ Audit of the unexplained README.md working-tree modification (mtime 2026-07-15 0
 
 <!-- SECTION:NOTES:BEGIN -->
 2026-07-28: mitigations landed — (1) fictional-path gate: generated docs referencing repo paths that don't exist are REJECTED, not written (would have caught the SSH-contract hallucination); (2) two-phase apply ends half-applies; (3) phi_suppressed docs skip instead of retry-looping; (4) LLM-timeout loops now bounded by the global 5-attempt dead-letter. Remaining: hallucinations that invent no paths still pass — semantic validation is out of scope for now.
+
+2026-08-01 audit: Fixed by 001f5d5a0 (hallucination gate, two-phase atomic apply, phi_suppressed skip + 5-attempt dead-letter). Residual semantic-validation idea declared out of scope 2026-07-28; file fresh if wanted.
 <!-- SECTION:NOTES:END -->
