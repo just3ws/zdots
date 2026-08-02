@@ -1,9 +1,10 @@
 ---
 id: Z-286
 title: zdots-usage — native CLI usage intelligence verb (the missing lens)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-02 16:43'
+updated_date: '2026-08-02 17:11'
 labels:
   - agent-ready
 dependencies: []
@@ -32,3 +33,9 @@ Implementation: single bin/zdots-usage reading traces.jsonl with jq -R fromjson?
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DONE: bin/zdots-usage (summary/top/errors/sessions/candidates/health), 130-abort correction, tty= session tagging live (05-observability), fixture bats 5/5, man + docs-contract. First real-data run produced the operator's requested intelligence same-day.
+<!-- SECTION:NOTES:END -->
