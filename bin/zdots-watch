@@ -43,6 +43,8 @@ CHECK_STATE_FILE="$STATE_DIR/zdots-watch-check.state"
 CHECK_LABEL="com.zdots.zdots-watch-check"
 CHECK_PLIST="$HOME/Library/LaunchAgents/${CHECK_LABEL}.plist"
 CHECK_HOUR="${ZDOTS_WATCH_CHECK_HOUR:-3}"
+RUNS_DIR="$STATE_DIR/zdots-watch-runs"
+KEEP="${ZDOTS_WATCH_KEEP:-7}"
 
 usage() {
   cat <<EOF
@@ -65,7 +67,9 @@ Commands:
   -h, --help        show this help
 
 Knobs: ZDOTS_WATCH_INTERVAL (seconds, default 86400),
-       ZDOTS_WATCH_CHECK_HOUR (default 3), ZDOTS_WATCH_CHECK_CMD (test seam).
+       ZDOTS_WATCH_CHECK_HOUR (default 3), ZDOTS_WATCH_CHECK_CMD (test seam),
+       ZDOTS_WATCH_KEEP (evidence files kept per detector, default 7).
+Evidence: full run output persisted under $RUNS_DIR
 EOF
 }
 
@@ -100,12 +104,31 @@ _identities() {
     }' | sort -u
 }
 
+# Persist a run's full output (Z-284): every worsening transition ships with
+# its evidence instead of just identity lines — the launchd false-positive
+# hunt of 2026-08-02 needed live reproduction because the raw output was gone.
+# Keeps the newest $KEEP per prefix; filenames are timestamp-derived, no spaces.
+_persist_run_output() {
+  local prefix="$1" content="$2"
+  mkdir -p "$RUNS_DIR" 2>/dev/null || return 0
+  local stamp
+  # pid suffix: same-second runs are distinct processes — never overwrite evidence
+  stamp="$(date '+%Y%m%dT%H%M%S').$$"
+  printf '%s\n' "$content" >"$RUNS_DIR/${prefix}-${stamp}.log" 2>/dev/null || return 0
+  local old
+  ls -t "$RUNS_DIR/${prefix}"-*.log 2>/dev/null | tail -n +$((KEEP + 1)) | while IFS= read -r old; do
+    rm -f -- "$old"
+  done
+  return 0
+}
+
 cmd_run() {
   mkdir -p "$STATE_DIR"
   local esc out clean rc=0
   esc=$(printf '\033')
   out="$("$ZDOTDIR/bin/zdots-doctor" --quiet 2>&1)" || rc=$?
   clean="$(printf '%s\n' "$out" | sed "s/${esc}\[[0-9;]*m//g")"
+  _persist_run_output "doctor" "$clean"
 
   # Counts from the authoritative summary line (two forms).
   local pass=0 warnc=0 failc=0
@@ -194,6 +217,7 @@ cmd_run_check() {
   local out rc=0 ts
   ts="$(date '+%Y-%m-%dT%H:%M:%S%z')"
   out="$(cd "$ZDOTDIR" && $check_cmd 2>&1)" || rc=$?
+  _persist_run_output "check" "$out"
 
   local new_ids=""
   if (( rc != 0 )); then
@@ -273,6 +297,10 @@ cmd_status() {
       "$(sed -n 's/^rc=//p' "$CHECK_STATE_FILE" | head -1)"
     grep -E '^(fail|suite)\|' "$CHECK_STATE_FILE" 2>/dev/null | tr '|' ' ' | sed 's/^/  failing: /' || true
   fi
+  local ev
+  for ev in doctor check; do
+    ls -t "$RUNS_DIR/${ev}"-*.log 2>/dev/null | head -1 | sed "s/^/evidence (${ev}): /"
+  done
 }
 
 cmd_install() {
