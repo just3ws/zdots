@@ -101,8 +101,10 @@ _pg_up() {
 
 @test "database: zdots_ro cannot INSERT into lessons" {
   if ! _pg_up; then skip "PostgreSQL not available"; fi
-  run _psql zdots_ro -c \
-    "INSERT INTO lessons (context) VALUES ('test-permission-check')"
+  # DEFAULT VALUES keeps this schema-proof: naming a column (the old
+  # plaintext 'context') broke at parse when encryption renamed it, so the
+  # ACL check was never exercised. Privilege errors fire before constraints.
+  run _psql zdots_ro -c "INSERT INTO lessons DEFAULT VALUES"
   [ "$status" -ne 0 ]
   [[ "$output" == *"permission denied"* ]]
 }

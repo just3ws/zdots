@@ -148,6 +148,7 @@
       "mcp__backlog__task_search",
       "mcp__ctx__ctx_query",
       "mcp__ctx__ctx_status",
+      "mcp__llama__llama_health",
       "Read(~/.local/state/zsh/**)",
       "Read(~/.local/share/llama-cpp/models/**)",
       "Read(~/Library/LaunchAgents/**)",
@@ -192,7 +193,10 @@
       "Bash(backlog task view:*)",
       "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git rev-parse:*)",
       "Bash(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git merge-base:*)",
-      "Bash(bats tests/:*)"
+      "Bash(bats tests/:*)",
+      "Bash(make docs-contract)",
+      "Bash(zdots-usage:*)",
+      "Bash(zdots-watch status:*)"
     ]
   },
   "hooks": {

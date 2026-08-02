@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# bin/zdots-swiftbar — platform pulse in SwiftBar dialect (Z-288).
+#
+# Emits the menu-bar standing state the detectors already maintain: one
+# glyph (green/amber/red) from the zdots-watch doctor state, with a dropdown
+# of open warns/fails, the nightly suite state, capability errors, a usage
+# headline, and click-through to the evidence files (Z-284). Pure
+# consumption: reads state files zdots-watch writes; the only subprocess is
+# zdots-usage for the headline. Detectors notify on WORSENING; this shows
+# what IS — the two halves of ambient observability.
+#
+# Install: a thin shim in $HOME/.swiftbar execs this script (SwiftBar wants
+# name.refreshtime.ext there; logic stays in the repo where it is tracked,
+# tested, and man-paged).
+#
+# Usage: zdots-swiftbar [--help]
+#   No arguments: emit SwiftBar-format pulse to stdout.
+
+set -uo pipefail
+
+case "${1:-}" in
+  -h|--help)
+    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  ?*)
+    echo "zdots-swiftbar: unknown argument: $1" >&2
+    exit 2
+    ;;
+esac
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+DOCTOR_STATE="$STATE_DIR/zdots-watch.state"
+CHECK_STATE="$STATE_DIR/zdots-watch-check.state"
+RUNS_DIR="$STATE_DIR/zdots-watch-runs"
+
+_field() { sed -n "s/^$2=//p" "$1" 2>/dev/null | head -1; }
+
+# ── Menu bar glyph ───────────────────────────────────────────────────────────
+pass=0 warn=0 fail=0 caps="?" doctor_ts="never"
+if [[ -r "$DOCTOR_STATE" ]]; then
+  pass="$(_field "$DOCTOR_STATE" pass)"; warn="$(_field "$DOCTOR_STATE" warn)"
+  fail="$(_field "$DOCTOR_STATE" fail)"; caps="$(_field "$DOCTOR_STATE" caps_errors)"
+  doctor_ts="$(_field "$DOCTOR_STATE" ts)"
+fi
+check_rc="?" check_ts="never"
+if [[ -r "$CHECK_STATE" ]]; then
+  check_rc="$(_field "$CHECK_STATE" rc)"
+  check_ts="$(_field "$CHECK_STATE" ts)"
+fi
+
+glyph="🟢"
+[[ "${warn:-0}" != "0" || "${caps:-0}" == "?" ]] && glyph="🟡"
+[[ "${fail:-0}" != "0" || "${check_rc:-0}" == "1" ]] && glyph="🔴"
+[[ ! -r "$DOCTOR_STATE" ]] && glyph="⚪"
+
+echo "$glyph"
+echo "---"
+
+# ── Doctor ───────────────────────────────────────────────────────────────────
+dc="green"; [[ "${warn:-0}" != "0" ]] && dc="orange"; [[ "${fail:-0}" != "0" ]] && dc="red"
+echo "Doctor: ${pass:-?} pass · ${warn:-?} warn · ${fail:-?} fail | color=$dc"
+echo "-- last run ${doctor_ts} | size=11 color=gray"
+grep -E '^(warn|fail)\|' "$DOCTOR_STATE" 2>/dev/null | tr '|' ' ' | head -6 | while IFS= read -r line; do
+  lc="orange"; [[ "$line" == fail* ]] && lc="red"
+  echo "-- ${line} | size=12 color=$lc"
+done
+ev_doctor="$(ls -t "$RUNS_DIR"/doctor-*.log 2>/dev/null | head -1)"
+[[ -n "$ev_doctor" ]] && echo "-- open evidence | bash=/usr/bin/open param0=-t param1=\"$ev_doctor\" terminal=false"
+
+# ── Nightly suite ────────────────────────────────────────────────────────────
+if [[ "$check_rc" == "0" ]]; then
+  echo "Suite: green | color=green"
+elif [[ "$check_rc" == "?" ]]; then
+  echo "Suite: no state yet (next nightly re-seeds) | color=gray"
+else
+  nfail="$(grep -cE '^(fail|suite)\|' "$CHECK_STATE" 2>/dev/null || echo '?')"
+  echo "Suite: rc=${check_rc} (${nfail} failing) | color=red"
+  grep -E '^(fail|suite)\|' "$CHECK_STATE" 2>/dev/null | tr '|' ' ' | head -4 | sed 's/^/-- /;s/$/ | size=12 color=red/'
+fi
+echo "-- last run ${check_ts} · nightly 03:17 | size=11 color=gray"
+ev_check="$(ls -t "$RUNS_DIR"/check-*.log 2>/dev/null | head -1)"
+[[ -n "$ev_check" ]] && echo "-- open evidence | bash=/usr/bin/open param0=-t param1=\"$ev_check\" terminal=false"
+
+echo "Capabilities: ${caps:-?} contract error(s) | color=$([[ "${caps:-1}" == "0" ]] && echo green || echo orange)"
+echo "---"
+
+# ── Usage headline (zdots-usage, ~0.3s) ─────────────────────────────────────
+if command -v "$ZDOTDIR/bin/zdots-usage" >/dev/null 2>&1; then
+  top_line="$("$ZDOTDIR/bin/zdots-usage" top --top 1 2>/dev/null | sed -n 's/^ *\([0-9][0-9]*\)  *\(.*\)/top: \2 (\1x)/p' | head -1)"
+  [[ -n "$top_line" ]] && echo "Usage — ${top_line} | size=12"
+  echo "-- full report: zdots-usage | bash=$ZDOTDIR/bin/zdots-usage param0=summary terminal=true size=11"
+fi
+# ── CC burn + north star ────────────────────────────────────────────────────
+burn_state="$(head -1 "$STATE_DIR/cc-burn-watch.state" 2>/dev/null)"
+if [[ -n "$burn_state" ]]; then
+  bc="green"; [[ "$burn_state" == "warn" ]] && bc="orange"; [[ "$burn_state" == "alert" ]] && bc="red"
+  echo "CC burn: ${burn_state} | color=$bc bash=$ZDOTDIR/bin/cc-burn terminal=true"
+fi
+# The NSM on the menu bar until the loop feeds itself (doc-004; flip when Z-289 lands).
+echo "Loop velocity: dormant — first domino Z-289 | color=gray size=12"
+echo "---"
+echo "Run doctor now | bash=$ZDOTDIR/bin/zdots-doctor terminal=true"
+echo "Refresh | refresh=true"

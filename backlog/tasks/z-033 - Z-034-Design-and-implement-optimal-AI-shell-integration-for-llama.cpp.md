@@ -5,6 +5,7 @@ status: To Do
 assignee:
   - mike
 created_date: '2026-04-04 15:23'
+updated_date: '2026-08-01 09:55'
 labels: []
 dependencies: []
 priority: medium
@@ -33,3 +34,9 @@ The goal is to determine and implement the most effective way for the AI (`llama
 - [ ] #4 make check passes with output captured in task notes or commit message
 - [ ] #5 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit: ACs 1/2/4/5 effectively delivered — conf.d/97-zle-ai.zsh ZLE widgets (Alt-e explain buffer, Alt-f fix last failed cmd, refactored 56a44accd) + zdots-ask/ai-query. Remaining scope = AC#3 only (history-based next-command suggestion); narrow or close as YAGNI.
+<!-- SECTION:NOTES:END -->

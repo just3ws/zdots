@@ -17,6 +17,13 @@
 
 set -euo pipefail
 
+# usage() prints the leading header comment block (after the shebang).
+usage() { awk 'NR==1{next} /^#/{sub(/^# ?/,"");print;next} {exit}' "$0"; }
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+esac
+
 # Ensure we're in $HOME
 cd "$HOME" || exit 1
 

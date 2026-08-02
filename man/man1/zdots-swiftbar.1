@@ -1,0 +1,26 @@
+.TH ZDOTS-SWIFTBAR 1 "2026-08-02" "zdots" "zdots manual"
+.SH NAME
+zdots-swiftbar \- bin/zdots\-swiftbar — platform pulse in SwiftBar dialect (Z\-288).
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-swiftbar --help\fR).
+.SH OPTIONS
+.nf
+bin/zdots-swiftbar — platform pulse in SwiftBar dialect (Z-288).
+
+Emits the menu-bar standing state the detectors already maintain: one
+glyph (green/amber/red) from the zdots-watch doctor state, with a dropdown
+of open warns/fails, the nightly suite state, capability errors, a usage
+headline, and click-through to the evidence files (Z-284). Pure
+consumption: reads state files zdots-watch writes; the only subprocess is
+zdots-usage for the headline. Detectors notify on WORSENING; this shows
+what IS — the two halves of ambient observability.
+
+Install: a thin shim in $HOME/.swiftbar execs this script (SwiftBar wants
+name.refreshtime.ext there; logic stays in the repo where it is tracked,
+tested, and man-paged).
+
+Usage: zdots-swiftbar [--help]
+  No arguments: emit SwiftBar-format pulse to stdout.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

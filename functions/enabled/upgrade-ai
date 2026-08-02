@@ -63,9 +63,15 @@ if command -v yq >/dev/null 2>&1 && [[ -f "$CONFIG_FILE" ]]; then
 
     # Prune: remove any other GGUFs in the models dir to reclaim space.
     # On a 256GB drive, stale 4-5GB files matter.
+    # Z-260: protect EVERY profile's model_file, not just the active one —
+    # pruning around only the active chat profile serially deleted the
+    # embed model (nomic) while the embed server held the dead inode.
+    protect=$(yq '.profiles[].model_file' "$CONFIG_FILE" 2>/dev/null | grep -v '^null$')
+    # Fail-safe: an empty protect list would make the loop delete EVERY gguf.
+    [[ -n "$protect" ]] || protect="$model_file"
     pruned=0
     for f in "$MODELS_DIR"/*.gguf(N); do
-      [[ "$(basename "$f")" != "$model_file" ]] || continue
+      grep -qxF "$(basename "$f")" <<<"$protect" && continue
       sz=$(du -sh "$f" | cut -f1)
       echo "Pruning stale model: $(basename "$f") ($sz)"
       if [[ "$dry_run" != "1" ]]; then

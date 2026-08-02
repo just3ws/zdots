@@ -1,0 +1,106 @@
+#!/usr/bin/env zsh
+# bin/zdots-help — unified help router for the zdots dispatcher (Z-264).
+#
+# 'zdots help <cmd>' resolves, in order: repo man page (man/man1..man8, also
+# trying the zdots-<cmd> noun expansion), then '<cmd> --help' (timeout-guarded,
+# stdin closed), then the knowledge-layer tooling index (zdots-ctx query
+# tooling:<cmd>). With no argument it lists dispatcher nouns with one-line
+# descriptions from each man page's NAME section.
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+MAN_DIR="$ZDOTDIR/man"
+
+usage() {
+  cat <<'EOF'
+Usage: zdots help [<cmd>]
+
+Unified help router: man page, else <cmd> --help, else the knowledge layer.
+
+Resolution order for <cmd> (the zdots-<cmd> noun expansion is also tried):
+  1. repo man page        man/man{1,8,5,7}/<cmd>.<sec>
+  2. <cmd> --help         timeout-guarded, stdin closed
+  3. knowledge layer      zdots-ctx query tooling:<cmd>
+
+With no argument: list dispatcher nouns with one-line NAME descriptions.
+
+  -h, --help  show this help
+
+Examples:
+  zdots help              # noun catalog
+  zdots help zsvc         # zsvc(8) man page
+  zdots help ctx          # zdots-ctx(1) man page via noun expansion
+EOF
+}
+
+# Emit "name<TAB>description" from man NAME sections. Handles both curated
+# mdoc pages (.Nd line) and zdots-man-gen .TH pages ("name \- desc" line,
+# whose desc sometimes repeats "name — " — stripped for the catalog).
+_name_lines() {
+  awk '
+    FNR == 1 { n = FILENAME; sub(/^.*\//, "", n); sub(/\.[0-9]$/, "", n); f = 0 }
+    /^\.S[Hh] NAME/ { f = 1; next }
+    f && /^\.Nd / { print n "\t" substr($0, 5); f = 0 }
+    f && /\\-/ {
+      d = $0; sub(/^[^\\]*\\- */, "", d); gsub(/\\-/, "-", d)
+      p = n " — "
+      if (index(d, p) == 1) d = substr(d, length(p) + 1)
+      print n "\t" d; f = 0
+    }
+  ' "$@"
+}
+
+list_nouns() {
+  typeset -A desc
+  local n d noun
+  local -a pages
+  pages=("$MAN_DIR"/man1/zdots-*.1(N) "$MAN_DIR"/man8/zdots-*.8(N))
+  if (( ${#pages} )); then
+    while IFS=$'\t' read -r n d; do desc[$n]="$d"; done < <(_name_lines "${pages[@]}")
+  fi
+  printf 'usage: zdots <noun> [verb] [args...]\n\nnouns:\n'
+  for bin in "$ZDOTDIR"/bin/zdots-*(N-*); do
+    noun="${${bin:t}#zdots-}"
+    printf '  %-20s %s\n' "$noun" "${desc[zdots-$noun]:-}"
+  done
+  printf '\nzdots help <noun> shows the full page.\n'
+}
+
+show_help() {
+  local cmd="$1" cand sec page target out
+
+  for cand in "$cmd" "zdots-$cmd"; do
+    for sec in 1 8 5 7; do
+      page="$MAN_DIR/man$sec/$cand.$sec"
+      [[ -f "$page" ]] && exec man "$page"
+    done
+  done
+
+  # No repo man page — fall back to the command's own --help.
+  target=""
+  if command -v -- "$cmd" >/dev/null 2>&1; then
+    target="$cmd"
+  elif command -v -- "zdots-$cmd" >/dev/null 2>&1; then
+    target="zdots-$cmd"
+  fi
+  if [[ -n "$target" ]]; then
+    # timeout + closed stdin: a --help that serves or prompts must not hang
+    # (same guard as zdots-man-gen).
+    out="$(timeout 10 "$target" --help </dev/null 2>&1 || true)"
+    if [[ -n "$out" ]]; then
+      printf '%s\n' "$out"
+      return 0
+    fi
+  fi
+
+  # Last resort: the knowledge-layer tooling index.
+  printf 'zdots-help: no man page or --help for "%s" — trying the knowledge layer\n' "$cmd" >&2
+  exec zdots-ctx query "tooling:$cmd"
+}
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  "")        list_nouns; exit 0 ;;
+  *)         show_help "$1" ;;
+esac

@@ -3,9 +3,10 @@ id: Z-197
 title: >-
   [agent-issue] tests/ztask_e2e.bats 'ztask health --json reports orchestration
   dependencies' fails on main (exit !=
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-02 23:05'
+updated_date: '2026-08-01 09:55'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ tests/ztask_e2e.bats 'ztask health --json reports orchestration dependencies' fa
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit: No longer reproduces — bats tests/ztask_e2e.bats --filter 'orchestration dependencies' → ok 1 (re-verified this session); ztask health --json exits 0. Referenced SHAs predate the 2026-07-31 tenant-scrub rewrite.
+<!-- SECTION:NOTES:END -->

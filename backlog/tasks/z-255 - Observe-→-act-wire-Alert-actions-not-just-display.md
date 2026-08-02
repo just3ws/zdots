@@ -4,6 +4,7 @@ title: 'Observe → act: wire Alert actions (not just display)'
 status: To Do
 assignee: []
 created_date: '2026-07-24 12:51'
+updated_date: '2026-08-01 09:55'
 labels:
   - platform-dynamism
   - observability
@@ -37,3 +38,9 @@ Bounded and idempotent: an action fires once per condition-window, logs to the p
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit: greenfield — no Alert model/table/routes anywhere in context-engine (only flash-message :alert). my DB has no alerts/pipeline_events tables (only pipeline_runs, policy_resolution_events). Scope must first decide where Alert definitions live (zdots side vs new context-engine table); if context-engine hosts, schema goes through ~/.config/zsh/db/migrations/ (owner zdots-brain), NOT a Rails migration.
+<!-- SECTION:NOTES:END -->
