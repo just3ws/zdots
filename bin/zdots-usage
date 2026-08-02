@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+# bin/zdots-usage — CLI usage intelligence from the shell's own trace stream (Z-286).
+#
+# Reads the local trace file (traces.jsonl — every exec/error/chdir/session_start
+# the observability hooks record) and answers "what is actually being used, what
+# fails, and what's worth optimizing" — the lens the stores were missing. No new
+# data stores, no daemon: jq tolerant-parse over what already exists.
+#
+# Analytics-quality corrections built in (discovered 2026-08-02):
+#   - status-130 errors are counted separately as prompt aborts: Ctrl-C at an
+#     empty prompt fires precmd with 130 and blames the PREVIOUS command via
+#     ZDOTS_LAST_COMMAND, faking error rates for instant commands.
+#   - session counts segment agent (non-tty / short-lived) from human shells;
+#     unsegmented counts are dominated by AI-tool zsh -ic invocations.
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+TRACE_FILE="${ZDOTS_USAGE_TRACE_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh/traces.jsonl}"
+DAYS="${ZDOTS_USAGE_DAYS:-0}" # 0 = all history
+TOP_N=20
+
+usage() {
+  cat <<EOF
+Usage: zdots-usage [report] [--days N] [--top N]
+
+CLI usage intelligence from the local trace stream ($TRACE_FILE).
+
+Reports:
+  summary     headline numbers from every report (default)
+  top         most-used commands (first word of each exec)
+  errors      per-command failure rates; prompt aborts (status 130) counted
+              separately — they blame the previous command, not the failed one
+  sessions    human vs agent shells (tty= flag when present, heuristic before)
+  candidates  optimization candidates: repeated patterns, heavy hitters,
+              bin/ tools with zero recorded use
+  health      module source_failure counts (which conf.d modules fail, where)
+
+Options:
+  --days N    only consider events from the last N days (default: all)
+  --top N     rows per table (default: $TOP_N)
+  -h, --help  show this help
+EOF
+}
+
+REPORT="summary"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    summary|top|errors|sessions|candidates|health) REPORT="$1" ;;
+    --days) DAYS="${2:-0}"; shift ;;
+    --top)  TOP_N="${2:-20}"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) printf 'zdots-usage: unknown argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+command -v jq >/dev/null 2>&1 || { echo "zdots-usage: jq required" >&2; exit 1; }
+[[ -r "$TRACE_FILE" ]] || { echo "zdots-usage: no trace file at $TRACE_FILE" >&2; exit 1; }
+
+# Tolerant parse once into a working file: pre-escaping-era lines are skipped.
+WORK="$(mktemp -t zdots-usage)"
+trap 'rm -f "$WORK"' EXIT
+if [[ "$DAYS" != "0" ]]; then
+  CUTOFF="$(date -v -"${DAYS}"d '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || date -d "-${DAYS} days" '+%Y-%m-%dT%H:%M:%S')"
+  jq -Rc --arg c "$CUTOFF" 'fromjson? | select(.ts >= $c)' "$TRACE_FILE" >"$WORK"
+else
+  jq -Rc 'fromjson?' "$TRACE_FILE" >"$WORK"
+fi
+
+_hdr() { printf '\n\033[1m%s\033[0m\n' "$1"; }
+
+report_top() {
+  local window="all history"
+  [[ "$DAYS" != "0" ]] && window="last ${DAYS}d"
+  _hdr "Top commands (exec first-word, $window)"
+  jq -r 'select(.event=="exec") | .data' "$WORK" | awk '{print $1}' \
+    | sort | uniq -c | sort -rn | head -"$TOP_N" \
+    | awk '{printf "  %6d  %s\n", $1, $2}'
+}
+
+report_errors() {
+  _hdr "Error rates (real failures; 130 prompt-aborts excluded and shown separately)"
+  jq -r 'select(.event=="exec") | .data' "$WORK" | awk '{print $1}' | sort | uniq -c \
+    | awk '{print $2, $1}' >"$WORK.exec"
+  jq -r 'select(.event=="error") | .data' "$WORK" \
+    | sed -En 's/^status=([0-9]+), cmd=([^ ]*).*/\1 \2/p' >"$WORK.err"
+  awk '$1 != 130 {print $2}' "$WORK.err" | sort | uniq -c | awk '{print $2, $1}' >"$WORK.real"
+  awk '$1 == 130 {print $2}' "$WORK.err" | sort | uniq -c | sort -rn >"$WORK.abort"
+  awk -v top="$TOP_N" '
+    NR==FNR { e[$1]=$2; next }
+    e[$1] >= 10 { printf "  %-22s %4d/%-5d %3.0f%%\n", $1, $2, e[$1], 100*$2/e[$1] }
+  ' "$WORK.exec" "$WORK.real" | sort -k3 -rn | head -"$TOP_N"
+  printf '  (min 10 recorded execs per command)\n'
+  _hdr "Prompt aborts attributed to prior command (analytics artifact, not failures)"
+  head -5 "$WORK.abort" | awk '{printf "  %6d  after %s\n", $1, $2}'
+  rm -f "$WORK.exec" "$WORK.err" "$WORK.real" "$WORK.abort"
+}
+
+report_sessions() {
+  _hdr "Sessions: human vs agent"
+  # Exact when session_start carries tty=; heuristic (exec count per sid) before.
+  local tagged
+  tagged="$(jq -r 'select(.event=="session_start") | .data' "$WORK" | grep -c 'tty=' || true)"
+  if [[ "$tagged" -gt 0 ]]; then
+    jq -r 'select(.event=="session_start") | .data' "$WORK" \
+      | grep -o 'tty=[a-z]*' | sort | uniq -c \
+      | awk '{printf "  %6d  %s sessions (exact)\n", $1, ($2=="tty=yes" ? "human " : "agent ")}'
+  fi
+  # Heuristic for untagged history: a sid with >=3 exec events looks human.
+  jq -r 'select(.event=="exec") | .sid' "$WORK" | sort | uniq -c >"$WORK.sid"
+  local total human
+  total="$(jq -r 'select(.event=="session_start") | .sid' "$WORK" | sort -u | wc -l | tr -d ' ')"
+  human="$(awk '$1 >= 3' "$WORK.sid" | wc -l | tr -d ' ')"
+  printf '  %6d  unique session ids\n  %6d  with >=3 execs (human-ish, heuristic)\n' "$total" "$human"
+  _hdr "Sessions per day (last 10)"
+  jq -r 'select(.event=="session_start") | .ts[0:10]' "$WORK" | sort | uniq -c | tail -10 \
+    | awk '{printf "  %6d  %s\n", $1, $2}'
+  rm -f "$WORK.sid"
+}
+
+report_candidates() {
+  _hdr "Repeated multi-word invocations (alias candidates, >=15 uses)"
+  jq -r 'select(.event=="exec") | .data' "$WORK" | awk 'NF>=2 {print}' \
+    | sort | uniq -c | sort -rn | awk -v top="$TOP_N" '$1 >= 15 && n < top {n++; c=$1; $1=""; printf "  %6d %s\n", c, $0}'
+  _hdr "bin/ tools with zero recorded use (dead or alias-hidden)"
+  jq -r 'select(.event=="exec") | .data' "$WORK" | awk '{print $1}' | sort -u >"$WORK.used"
+  local dead=0 name
+  for f in "$ZDOTDIR"/bin/*; do
+    [[ -x "$f" && -f "$f" ]] || continue
+    name="$(basename "$f")"
+    if ! grep -qx "$name" "$WORK.used"; then
+      printf '  %s\n' "$name"
+      dead=$((dead + 1))
+    fi
+  done | head -"$TOP_N"
+  printf '  (%d total; caveat: use through aliases/wrappers is not visible here)\n' "$dead"
+  rm -f "$WORK.used"
+}
+
+report_health() {
+  _hdr "Module source failures (zdots_safe_source events)"
+  jq -r 'select(.event=="error") | .data' "$WORK" | grep -o 'source_failure=[^,]*' \
+    | sort | uniq -c | sort -rn | head -"$TOP_N" \
+    | sed 's/source_failure=//' | awk '{printf "  %6d  %s\n", $1, $2}'
+}
+
+report_summary() {
+  local events execs errors sessions
+  events="$(wc -l <"$WORK" | tr -d ' ')"
+  execs="$(jq -r 'select(.event=="exec") | 1' "$WORK" | wc -l | tr -d ' ')"
+  errors="$(jq -r 'select(.event=="error") | 1' "$WORK" | wc -l | tr -d ' ')"
+  sessions="$(jq -r 'select(.event=="session_start") | 1' "$WORK" | wc -l | tr -d ' ')"
+  printf 'zdots-usage: %s events (%s execs, %s errors, %s sessions) from %s\n' \
+    "$events" "$execs" "$errors" "$sessions" "$TRACE_FILE"
+  report_top
+  report_errors
+  report_sessions
+  report_candidates
+  report_health
+}
+
+case "$REPORT" in
+  summary)    report_summary ;;
+  top)        report_top ;;
+  errors)     report_errors ;;
+  sessions)   report_sessions ;;
+  candidates) report_candidates ;;
+  health)     report_health ;;
+esac

@@ -6,7 +6,11 @@
 if [[ -n "$(command -v zdots_trace_init)" ]]; then
   if [[ -z "${_ZDOTS_TRACE_INITIALIZED:-}" ]]; then
     zdots_trace_init
-    zdots_trace_log "session_start" "profile=${ZDOTS_ENV_PROFILE:-unknown}, shell=$SHELL"
+    # tty= makes human-vs-agent session segmentation exact (Z-286): AI-tool
+    # zsh -ic shells have no controlling terminal and dominate raw counts
+    # (392 of 398 session_starts on 2026-08-01 were agent shells).
+    local _tty=no; [[ -t 0 || -t 1 ]] && _tty=yes
+    zdots_trace_log "session_start" "profile=${ZDOTS_ENV_PROFILE:-unknown}, shell=$SHELL, tty=${_tty}"
   fi
 
   # Cache otel-cli availability once at startup — avoids command -v fork per hook call.
