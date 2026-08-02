@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-01 09:57'
+updated_date: '2026-08-02 17:20'
 labels:
   - enhancement
   - audit-filed
@@ -28,3 +29,9 @@ Fix: (1) extend cc-hook rewrite rules to flagged single-binary invocations: git 
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+ADOPTION STORY CORRECTED (2026-08-02): rtk gain reports 96.2% aggregate savings over 39k commands — the hook path does the heavy lifting (rtk grep 7,719 calls / 1.0GB tokens saved; rtk read 4,003 / 505MB). The earlier 5.2% figure measured explicit interactive rtk usage only. Remaining real gaps: rtk proxy git (411) = hook fallback for git subcommands without native handlers (upstream handler wishlist), and agent-habit rtk proxy rg — now obsolete since the 'mangling' was the rg -r flag error (Z-285). Re-scope this task to: file the git-subcommand handler wishlist upstream; drop the adoption-drive framing.
+<!-- SECTION:NOTES:END -->
