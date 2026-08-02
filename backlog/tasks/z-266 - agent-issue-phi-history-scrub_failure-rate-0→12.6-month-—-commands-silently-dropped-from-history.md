@@ -3,10 +3,10 @@ id: Z-266
 title: >-
   [agent-issue] phi-history scrub_failure rate 0→12.6%/month — commands silently
   dropped from history
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-01 09:56'
-updated_date: '2026-08-01 19:12'
+updated_date: '2026-08-02 14:49'
 labels:
   - agent-reported
   - error
@@ -37,4 +37,6 @@ Diagnose: what input class makes zdots-phi-scrub exit 1 — reproduce via audit 
 Diagnosis agent spend-limit-killed mid-investigation 2026-08-01. Partial finding preserved: scrub_failure entries BEGIN 2026-06-16 — next step is dating the suspect phi-pattern/hook commits around that date and checking burst-vs-steady session patterns. Re-run diagnosis when budget resets; treat as PHI-pipeline incident per L5.
 
 DIAGNOSIS COMPLETE (2026-08-01, inline). scrub_failure = REGISTRY LOAD FAILURE at invocation time, empirically confirmed: a missing or truncated etc/phi-patterns.yaml reproduces exit 1 in ~6ms — dead center of the observed failure band (2.3-11.8ms, avg 5.4) and impossibly fast for a successful run (clean min 7.0ms, avg 28.9). Evidence chain: (1) metrics recording live since 05-28 with ZERO failures for 19 days -> real regression, not new visibility; (2) onset 06-16 = first shell restarts after the 06-13 scrubber batch (09a0f07af re2registry unification, b23905d56 stdin-reader fix, 56414786e); (3) failures interleave with clean rows in the SAME session -> per-invocation transient, not broken shells; (4) binary untouched since 06-23 while failures continue to 07-30 -> not rebuild windows; (5) seconds-apart bursts on work-heavy days -> transient unreadable/invalid registry file states (git checkout/merge rewrite windows are the leading candidate). ROOT OBSTACLE: 56414786e silences the scrubber's stderr in the hook (2>/dev/null), discarding the exact error string. PROPOSED FIX (operator nod required — PHI hook change, Z-271 precedent): capture stderr and forward it into zdots_audit_log detail, e.g. redacted="$(echo "$line" | zdots-phi-scrub 2>$err_tmp)" and log reason=scrub_failure detail=$(head -c200 $err_tmp) — the next failure then names itself in unified logging. Optional hardening: retry-once-after-10ms in the hook before suppressing (a transient load failure self-heals), keeping fail-safe semantics.
+
+FIXED: retry-once + stderr-to-audit-detail in conf.d/55-phi-history.zsh (operator-directed 2026-08-02). Transient registry failures now self-heal (entry kept); persistent failures audit their own error string. Next occurrence names itself in: log show --predicate 'subsystem == "com.zdots"'. Root prevention of the transient window (git rewrite of phi-patterns.yaml) not pursued — retry makes it a non-event; reopen only if scrub_failure rate persists post-fix.
 <!-- SECTION:NOTES:END -->
