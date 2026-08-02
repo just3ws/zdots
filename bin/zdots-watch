@@ -178,7 +178,7 @@ EOF
     printf 'warn=%s\n'        "$warnc"
     printf 'fail=%s\n'        "$failc"
     printf 'caps_errors=%s\n' "$caps"
-    [[ -n "$new_ids" ]] && printf '%s\n' "$new_ids"
+    if [[ -n "$new_ids" ]]; then printf '%s\n' "$new_ids"; fi
   } >"$tmp" && mv -f "$tmp" "$STATE_FILE"
 
   if (( seeded )); then
@@ -243,7 +243,7 @@ cmd_run_check() {
     printf '# zdots-watch check state — written by `zdots-watch run-check`; do not edit\n'
     printf 'ts=%s\n' "$ts"
     printf 'rc=%s\n' "$rc"
-    [[ -n "$new_ids" ]] && printf '%s\n' "$new_ids"
+    if [[ -n "$new_ids" ]]; then printf '%s\n' "$new_ids"; fi
   } >"$tmp" && mv -f "$tmp" "$CHECK_STATE_FILE"
 
   local nfail
