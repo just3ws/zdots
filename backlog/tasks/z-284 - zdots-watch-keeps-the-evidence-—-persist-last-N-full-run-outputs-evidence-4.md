@@ -1,9 +1,10 @@
 ---
 id: Z-284
 title: 'zdots-watch keeps the evidence — persist last N full run outputs (evidence #4)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-02 14:57'
+updated_date: '2026-08-02 15:04'
 labels:
   - agent-ready
 dependencies: []
@@ -25,3 +26,9 @@ CHANGE: cmd_run and cmd_run-check write the full captured output to $XDG_STATE_H
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DONE: _persist_run_output in bin/zdots-watch, wired into run + run-check; ZDOTS_WATCH_KEEP knob (default 7); status shows evidence paths. Prune + collision behavior test-verified.
+<!-- SECTION:NOTES:END -->

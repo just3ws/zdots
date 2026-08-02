@@ -1,9 +1,10 @@
 ---
 id: Z-283
 title: 'Resident PHI scrubber — eliminate the per-command spawn (hot path #1)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-02 14:56'
+updated_date: '2026-08-02 15:18'
 labels:
   - agent-ready
 dependencies: []
@@ -27,3 +28,9 @@ REQUIREMENTS: (a) fail-safe unchanged — coproc dead/unresponsive -> fall back 
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DONE 694a8a277 (2026-08-02). --serve mode in Go (NUL-framed, one registry load, 300s idle self-exit) + coproc layer in the hook (fds off the coproc slot, lazy start, zstat-mtime respawn, 1s read timeout, fallback = untouched one-shot path, ZDOTS_PHI_COPROC=0 kill switch). BENCH: 16.42 -> 0.081 ms/cmd (203x). Byte parity verified; user-coproc coexistence verified; 56/56 phi_boundary + Go serve tests. Note: clean commands now run under the 1ms metrics threshold — shell_hook_metrics clean rows stop accumulating by design; failures/redactions still record.
+<!-- SECTION:NOTES:END -->
