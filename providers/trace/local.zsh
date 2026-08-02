@@ -25,6 +25,16 @@ _zdots_trace_file_init() {
     touch "$_zdots_trace_file"
   fi
   chmod 600 "$_zdots_trace_file" 2>/dev/null || true
+
+  # Hold ONE append fd for the shell's lifetime. A per-event `>>` open/close
+  # pays a content-proportional scan on managed machines (measured: 14.6ms at
+  # 1.7MB, 4.3ms at 500K, linear — endpoint security scans on write-close); a
+  # held fd writes in ~0.15ms at any size. Rotation stays init-time: after mv,
+  # already-open shells keep appending to the .old inode until they restart —
+  # the pre-existing tradeoff, unchanged.
+  if [[ -z "${_zdots_trace_fd:-}" ]]; then
+    exec {_zdots_trace_fd}>>"$_zdots_trace_file" 2>/dev/null || _zdots_trace_fd=""
+  fi
 }
 
 zdots_trace_init() {
@@ -32,6 +42,26 @@ zdots_trace_init() {
   zmodload zsh/datetime 2>/dev/null || true
   _zdots_trace_file_init
   _ZDOTS_TRACE_INITIALIZED=1
+}
+
+# _zdots_trace_redact_var DATA — sets $_zdots_redacted without a fork when
+# the resident scrubber (Z-283) is up. This path runs in preexec for EVERY
+# command; the old $(echo | sed) cost 3 forks + 1 exec per command and was a
+# drifting hand-copy of the registry — the exact 3-engine problem ADR-0002
+# unified the Go binary to end. env.sh's zdots_trace_redact stays as the
+# POSIX/coproc-less fallback. A suppress-match ('2') conservatively replaces
+# the WHOLE payload, a superset of the old conn-substring redaction.
+_zdots_trace_redact_var() {
+  if (( ${+functions[_phi_srv_scrub]} )) && [[ "${ZDOTS_PHI_COPROC:-1}" == "1" ]] \
+     && _phi_srv_scrub "$1"; then
+    if [[ "$_phi_srv_status" == "2" ]]; then
+      _zdots_redacted="[REDACTED-CONN]"
+    else
+      _zdots_redacted="$_phi_srv_payload"
+    fi
+    return 0
+  fi
+  _zdots_redacted="$(zdots_trace_redact "$1")"
 }
 
 # zdots_trace_log EVENT_TYPE DATA
@@ -44,11 +74,18 @@ zdots_trace_log() {
   # strftime from zsh/datetime — no fork
   local timestamp; strftime -s timestamp '%Y-%m-%dT%H:%M:%S%z' $EPOCHSECONDS
 
-  local redacted_data=$(zdots_trace_redact "$data")
+  _zdots_trace_redact_var "$data"
+  local redacted_data="$_zdots_redacted"
   # Escape double quotes via parameter expansion — no fork
   local escaped_data="${redacted_data//\"/\\\"}"
 
-  printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
-    "$timestamp" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$event_type" "$escaped_data" \
-    >> "$_zdots_trace_file"
+  if [[ -n "${_zdots_trace_fd:-}" ]]; then
+    printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
+      "$timestamp" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$event_type" "$escaped_data" \
+      >&"$_zdots_trace_fd"
+  else
+    printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
+      "$timestamp" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$event_type" "$escaped_data" \
+      >> "$_zdots_trace_file"
+  fi
 }
