@@ -1,4 +1,4 @@
-.TH ZDOTS-WATCH 1 "2026-08-01" "zdots" "zdots manual"
+.TH ZDOTS-WATCH 1 "2026-08-02" "zdots" "zdots manual"
 .SH NAME
 zdots-watch \- Scheduled health detectors. Notifies (macOS) ONLY on worsening transitions;
 .SH SYNOPSIS
@@ -24,7 +24,9 @@ Commands:
   -h, --help        show this help
 
 Knobs: ZDOTS_WATCH_INTERVAL (seconds, default 86400),
-       ZDOTS_WATCH_CHECK_HOUR (default 3), ZDOTS_WATCH_CHECK_CMD (test seam).
+       ZDOTS_WATCH_CHECK_HOUR (default 3), ZDOTS_WATCH_CHECK_CMD (test seam),
+       ZDOTS_WATCH_KEEP (evidence files kept per detector, default 7).
+Evidence: full run output persisted under /Users/mike.hall/.local/state/zsh/zdots-watch-runs
 .fi
 .SH SEE ALSO
 agent-guide(1), zdots-doctor(1)
