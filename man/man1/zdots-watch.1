@@ -1,0 +1,32 @@
+.TH ZDOTS-WATCH 1 "2026-08-02" "zdots" "zdots manual"
+.SH NAME
+zdots-watch \- Scheduled health detectors. Notifies (macOS) ONLY on worsening transitions;
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-watch --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-watch [run|run-check|status|--install|--uninstall|--install-check|--uninstall-check]
+
+Scheduled health detectors. Notifies (macOS) ONLY on worsening transitions;
+improvements and steady state update the state files silently.
+  doctor loop : new [FAIL]/[warn] or more capability contract errors (/Users/mike.hall/.local/state/zsh/zdots-watch.state)
+  suite loop  : new failing bin/check test, by NAME (/Users/mike.hall/.local/state/zsh/zdots-watch-check.state)
+
+Commands:
+  run               one doctor cycle + notify-on-worsening (what launchd calls)
+  run-check         one bin/check cycle + notify-on-new-failure (nightly launchd)
+  status            show last recorded state + LaunchAgent load status (default)
+  --install         render + load the doctor LaunchAgent (every 86400s; plist
+                    rendered with live paths at install time — never tracked)
+  --uninstall       unload + remove the doctor LaunchAgent
+  --install-check   render + load the nightly suite LaunchAgent (daily at 3:17)
+  --uninstall-check unload + remove the suite LaunchAgent
+  -h, --help        show this help
+
+Knobs: ZDOTS_WATCH_INTERVAL (seconds, default 86400),
+       ZDOTS_WATCH_CHECK_HOUR (default 3), ZDOTS_WATCH_CHECK_CMD (test seam),
+       ZDOTS_WATCH_KEEP (evidence files kept per detector, default 7).
+Evidence: full run output persisted under /Users/mike.hall/.local/state/zsh/zdots-watch-runs
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

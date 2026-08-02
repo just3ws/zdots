@@ -4,7 +4,10 @@
 setup() {
   load "setup.bash"
   setup_environment
-  ADOTS_MY="/Users/mike/bin/adots-my"
+  # adots ships this to ~/bin on every machine — never a /Users/<name> literal
+  # (usernames differ across machines: the hardcoded home-machine path failed
+  # everywhere else).
+  ADOTS_MY="${ADOTS_MY:-$HOME/bin/adots-my}"
 }
 
 setup_my_repo() {

@@ -1,0 +1,391 @@
+#!/usr/bin/env bash
+# bin/zdots-watch — scheduled doctor loop with transition-only notify (Z-268).
+#
+# A LaunchAgent runs `run` daily; it executes `zdots-doctor --quiet` (plus
+# `capabilities --json` for the contract-error count), parses the
+# pass/warn/fail counts and the [warn]/[FAIL] line identities, and diffs them
+# against the previous run's state in $XDG_STATE_HOME/zsh/zdots-watch.state.
+# A macOS notification fires ONLY when health WORSENS — a new [FAIL], a new
+# [warn] (incl. pass→warn/fail), or a higher capability contract error count.
+# Improvements and steady state update the file silently. Local-only: no
+# cloud, no repair verbs — continuous detection first (cc-burn-watch pattern).
+#
+# A second detector (Z-281) covers the test suite the same way: `run-check`
+# executes bin/check nightly (own calendar-scheduled LaunchAgent — a 7-minute
+# suite must not run at every login) and notifies only on NEW failing-test
+# identities. Identity = the bats test NAME, never its number: numbers
+# renumber whenever a suite grows, names are stable.
+#
+# Usage:
+#   zdots-watch run              one doctor cycle + notify-on-worsening (launchd calls this)
+#   zdots-watch run-check        one bin/check cycle + notify-on-new-failure (launchd calls this)
+#   zdots-watch status           last recorded state + LaunchAgent load status (default)
+#   zdots-watch --install        render + load the daily doctor LaunchAgent (live paths — Z-263)
+#   zdots-watch --uninstall      unload + remove it
+#   zdots-watch --install-check  render + load the nightly bin/check LaunchAgent
+#   zdots-watch --uninstall-check unload + remove it
+#
+# Knobs: ZDOTS_WATCH_INTERVAL (seconds, default 86400 = daily),
+#        ZDOTS_WATCH_CHECK_HOUR (local hour for the nightly suite, default 3),
+#        ZDOTS_WATCH_CHECK_CMD (suite command, default "$ZDOTDIR/bin/check" — test seam).
+
+set -uo pipefail
+trap '' PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+STATE_FILE="$STATE_DIR/zdots-watch.state"
+LOG_FILE="$STATE_DIR/zdots-watch.log"
+LABEL="com.zdots.zdots-watch"
+PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+INTERVAL="${ZDOTS_WATCH_INTERVAL:-86400}"
+CHECK_STATE_FILE="$STATE_DIR/zdots-watch-check.state"
+CHECK_LABEL="com.zdots.zdots-watch-check"
+CHECK_PLIST="$HOME/Library/LaunchAgents/${CHECK_LABEL}.plist"
+CHECK_HOUR="${ZDOTS_WATCH_CHECK_HOUR:-3}"
+RUNS_DIR="$STATE_DIR/zdots-watch-runs"
+KEEP="${ZDOTS_WATCH_KEEP:-7}"
+
+usage() {
+  cat <<EOF
+Usage: zdots-watch [run|run-check|status|--install|--uninstall|--install-check|--uninstall-check]
+
+Scheduled health detectors. Notifies (macOS) ONLY on worsening transitions;
+improvements and steady state update the state files silently.
+  doctor loop : new [FAIL]/[warn] or more capability contract errors ($STATE_FILE)
+  suite loop  : new failing bin/check test, by NAME ($CHECK_STATE_FILE)
+
+Commands:
+  run               one doctor cycle + notify-on-worsening (what launchd calls)
+  run-check         one bin/check cycle + notify-on-new-failure (nightly launchd)
+  status            show last recorded state + LaunchAgent load status (default)
+  --install         render + load the doctor LaunchAgent (every ${INTERVAL}s; plist
+                    rendered with live paths at install time — never tracked)
+  --uninstall       unload + remove the doctor LaunchAgent
+  --install-check   render + load the nightly suite LaunchAgent (daily at ${CHECK_HOUR}:17)
+  --uninstall-check unload + remove the suite LaunchAgent
+  -h, --help        show this help
+
+Knobs: ZDOTS_WATCH_INTERVAL (seconds, default 86400),
+       ZDOTS_WATCH_CHECK_HOUR (default 3), ZDOTS_WATCH_CHECK_CMD (test seam),
+       ZDOTS_WATCH_KEEP (evidence files kept per detector, default 7).
+Evidence: full run output persisted under $RUNS_DIR
+EOF
+}
+
+_notify() {
+  local title="$1" msg="$2"
+  if command -v terminal-notifier >/dev/null 2>&1; then
+    terminal-notifier -title "$title" -message "$msg" -group "$LABEL" -sound default >/dev/null 2>&1 || true
+  else
+    osascript -e "display notification \"${msg//\"/}\" with title \"${title//\"/}\"" >/dev/null 2>&1 || true
+  fi
+}
+
+# Normalize doctor output (ANSI already stripped) into stable identity lines:
+#   sev|label|first-word-of-message
+# label = text before the first double-space (doctor's "label  message" form);
+# first message word pins the subject (e.g. which launchd service flaps) while
+# dropping volatile tails like "(runs=17)" that would cause notify churn.
+_identities() {
+  awk '
+    /^[[:space:]]*\[(warn|WARN|FAIL)\]/ {
+      sev = ($0 ~ /\[FAIL\]/) ? "fail" : "warn"
+      line = $0
+      sub(/^[[:space:]]*\[(warn|WARN|FAIL)\][[:space:]]*/, "", line)
+      n = index(line, "  ")
+      if (n > 0) { label = substr(line, 1, n - 1); rest = substr(line, n) } \
+      else       { label = line; rest = "" }
+      gsub(/^[[:space:]]+/, "", rest)
+      split(rest, w, /[[:space:]]+/)
+      id = sev "|" label
+      if (w[1] != "") id = id "|" w[1]
+      print id
+    }' | sort -u
+}
+
+# Persist a run's full output (Z-284): every worsening transition ships with
+# its evidence instead of just identity lines — the launchd false-positive
+# hunt of 2026-08-02 needed live reproduction because the raw output was gone.
+# Keeps the newest $KEEP per prefix; filenames are timestamp-derived, no spaces.
+_persist_run_output() {
+  local prefix="$1" content="$2"
+  mkdir -p "$RUNS_DIR" 2>/dev/null || return 0
+  local stamp
+  # pid suffix: same-second runs are distinct processes — never overwrite evidence
+  stamp="$(date '+%Y%m%dT%H%M%S').$$"
+  printf '%s\n' "$content" >"$RUNS_DIR/${prefix}-${stamp}.log" 2>/dev/null || return 0
+  local old
+  ls -t "$RUNS_DIR/${prefix}"-*.log 2>/dev/null | tail -n +$((KEEP + 1)) | while IFS= read -r old; do
+    rm -f -- "$old"
+  done
+  return 0
+}
+
+cmd_run() {
+  mkdir -p "$STATE_DIR"
+  local esc out clean rc=0
+  esc=$(printf '\033')
+  out="$("$ZDOTDIR/bin/zdots-doctor" --quiet 2>&1)" || rc=$?
+  clean="$(printf '%s\n' "$out" | sed "s/${esc}\[[0-9;]*m//g")"
+  _persist_run_output "doctor" "$clean"
+
+  # Counts from the authoritative summary line (two forms).
+  local pass=0 warnc=0 failc=0
+  read -r pass warnc failc <<EOF
+$(printf '%s\n' "$clean" | awk '
+  /^zdots doctor:/ {
+    line = $0; n = 0
+    while (match(line, /[0-9]+/)) { n++; v[n] = substr(line, RSTART, RLENGTH); line = substr(line, RSTART + RLENGTH) }
+    if ($0 ~ /all .* checks passed/) { print v[1], 0, 0 } else { print v[1], v[2], v[3] }
+    found = 1
+  }
+  END { if (!found) print 0, 0, 0 }')
+EOF
+
+  local new_ids
+  new_ids="$(printf '%s\n' "$clean" | _identities)"
+
+  # Capability contract errors (cheap peer signal; "?" = unavailable, skipped).
+  local caps
+  caps="$("$ZDOTDIR/bin/capabilities" --json 2>/dev/null | jq -r '.health_errors // 0' 2>/dev/null)" || caps="?"
+  [[ "$caps" =~ ^[0-9]+$ ]] || caps="?"
+
+  local ts seeded=0 old_ids="" old_caps="?"
+  ts="$(date '+%Y-%m-%dT%H:%M:%S%z')"
+  if [[ -r "$STATE_FILE" ]]; then
+    old_ids="$(grep -E '^(warn|fail)\|' "$STATE_FILE" 2>/dev/null || true)"
+    old_caps="$(sed -n 's/^caps_errors=//p' "$STATE_FILE" | head -1)"
+  else
+    seeded=1
+  fi
+
+  # Worsening = identity present now but not last run (covers pass→warn,
+  # pass→fail, warn→fail since severity is part of the identity).
+  local appeared=""
+  appeared="$(comm -13 <(printf '%s\n' "$old_ids" | sort -u) <(printf '%s\n' "$new_ids" | sort -u) | grep -v '^$' || true)"
+
+  local caps_worse=0
+  [[ "$caps" =~ ^[0-9]+$ && "$old_caps" =~ ^[0-9]+$ ]] && (( caps > old_caps )) && caps_worse=1
+
+  # Persist new state atomically before any notification.
+  local tmp="$STATE_FILE.tmp.$$"
+  {
+    printf '# zdots-watch state — written by `zdots-watch run`; do not edit\n'
+    printf 'ts=%s\n'          "$ts"
+    printf 'rc=%s\n'          "$rc"
+    printf 'pass=%s\n'        "$pass"
+    printf 'warn=%s\n'        "$warnc"
+    printf 'fail=%s\n'        "$failc"
+    printf 'caps_errors=%s\n' "$caps"
+    if [[ -n "$new_ids" ]]; then printf '%s\n' "$new_ids"; fi
+  } >"$tmp" && mv -f "$tmp" "$STATE_FILE"
+
+  if (( seeded )); then
+    printf '[%s] seeded pass=%s warn=%s fail=%s caps=%s\n' "$ts" "$pass" "$warnc" "$failc" "$caps" >>"$LOG_FILE" 2>/dev/null || true
+    printf 'zdots-watch: state seeded (%s passed · %s warn · %s fail · caps_errors=%s) — no notification on first run\n' \
+      "$pass" "$warnc" "$failc" "$caps"
+    return 0
+  fi
+
+  if [[ -n "$appeared" || "$caps_worse" -eq 1 ]]; then
+    local n shown msg=""
+    n="$(printf '%s\n' "$appeared" | grep -c . || true)"
+    if [[ -n "$appeared" ]]; then
+      shown="$(printf '%s\n' "$appeared" | head -3 | tr '|' ' ' | paste -sd ';' -)"
+      msg="${n} new: ${shown}"
+      (( n > 3 )) && msg="$msg (+$((n - 3)) more)"
+    fi
+    (( caps_worse )) && msg="${msg:+$msg — }capability errors ${old_caps}→${caps}"
+    _notify "zdots watch · health worsened" "${msg} — run: zdots-doctor"
+    printf '[%s] worsened: %s (pass=%s warn=%s fail=%s caps=%s)\n' "$ts" "$msg" "$pass" "$warnc" "$failc" "$caps" >>"$LOG_FILE" 2>/dev/null || true
+    printf 'zdots-watch: worsened — %s\n' "$msg"
+  else
+    printf '[%s] steady pass=%s warn=%s fail=%s caps=%s\n' "$ts" "$pass" "$warnc" "$failc" "$caps" >>"$LOG_FILE" 2>/dev/null || true
+    printf 'zdots-watch: no worsening transitions (%s passed · %s warn · %s fail · caps_errors=%s)\n' \
+      "$pass" "$warnc" "$failc" "$caps"
+  fi
+}
+
+# One bin/check cycle (Z-281). Failure identity = the bats test NAME with its
+# leading number stripped — numbers renumber whenever any suite grows; names
+# are stable. Non-bats failures (a check step dying without a `not ok` line)
+# get the synthetic identity "suite|<last output line>".
+cmd_run_check() {
+  mkdir -p "$STATE_DIR"
+  rm -f "$CHECK_STATE_FILE".tmp.* 2>/dev/null # orphans from runs killed mid-cycle (unload during catch-up)
+  local check_cmd="${ZDOTS_WATCH_CHECK_CMD:-$ZDOTDIR/bin/check}"
+  local out rc=0 ts
+  ts="$(date '+%Y-%m-%dT%H:%M:%S%z')"
+  out="$(cd "$ZDOTDIR" && $check_cmd 2>&1)" || rc=$?
+  _persist_run_output "check" "$out"
+
+  local new_ids=""
+  if (( rc != 0 )); then
+    new_ids="$(printf '%s\n' "$out" | sed -n 's/^not ok [0-9][0-9]* /fail|/p' | sort -u)"
+    if [[ -z "$new_ids" ]]; then
+      new_ids="suite|$(printf '%s\n' "$out" | grep -v '^$' | tail -1 | cut -c1-120)"
+    fi
+  fi
+
+  local seeded=0 old_ids=""
+  if [[ -r "$CHECK_STATE_FILE" ]]; then
+    old_ids="$(grep -E '^(fail|suite)\|' "$CHECK_STATE_FILE" 2>/dev/null || true)"
+  else
+    seeded=1
+  fi
+
+  local appeared=""
+  appeared="$(comm -13 <(printf '%s\n' "$old_ids" | sort -u) <(printf '%s\n' "$new_ids" | sort -u) | grep -v '^$' || true)"
+
+  local tmp="$CHECK_STATE_FILE.tmp.$$"
+  {
+    printf '# zdots-watch check state — written by `zdots-watch run-check`; do not edit\n'
+    printf 'ts=%s\n' "$ts"
+    printf 'rc=%s\n' "$rc"
+    if [[ -n "$new_ids" ]]; then printf '%s\n' "$new_ids"; fi
+  } >"$tmp" && mv -f "$tmp" "$CHECK_STATE_FILE"
+
+  local nfail
+  nfail="$(printf '%s\n' "$new_ids" | grep -c . || true)"
+  if (( seeded )); then
+    printf '[%s] check seeded rc=%s failing=%s\n' "$ts" "$rc" "$nfail" >>"$LOG_FILE" 2>/dev/null || true
+    printf 'zdots-watch: check state seeded (rc=%s, %s failing) — no notification on first run\n' "$rc" "$nfail"
+    return 0
+  fi
+
+  if [[ -n "$appeared" ]]; then
+    local n shown
+    n="$(printf '%s\n' "$appeared" | grep -c . || true)"
+    shown="$(printf '%s\n' "$appeared" | head -2 | sed 's/^fail|//; s/^suite|//' | cut -c1-60 | paste -sd ';' -)"
+    local msg="${n} new failing: ${shown}"
+    (( n > 2 )) && msg="$msg (+$((n - 2)) more)"
+    _notify "zdots watch · test suite worsened" "${msg} — run: make check"
+    printf '[%s] check worsened: %s (rc=%s failing=%s)\n' "$ts" "$msg" "$rc" "$nfail" >>"$LOG_FILE" 2>/dev/null || true
+    printf 'zdots-watch: check worsened — %s\n' "$msg"
+  else
+    printf '[%s] check steady rc=%s failing=%s\n' "$ts" "$rc" "$nfail" >>"$LOG_FILE" 2>/dev/null || true
+    printf 'zdots-watch: check — no new failures (rc=%s, %s failing)\n' "$rc" "$nfail"
+  fi
+}
+
+cmd_status() {
+  if launchctl list 2>/dev/null | grep -q "$LABEL"; then
+    printf 'zdots-watch: loaded (interval %ss)\n' "$INTERVAL"
+  else
+    printf 'zdots-watch: not loaded. Run: zdots-watch --install\n'
+  fi
+  if [[ -r "$STATE_FILE" ]]; then
+    printf 'last run: %s\n' "$(sed -n 's/^ts=//p' "$STATE_FILE" | head -1)"
+    printf '  %s passed · %s warn · %s fail · caps_errors=%s (doctor rc=%s)\n' \
+      "$(sed -n 's/^pass=//p' "$STATE_FILE" | head -1)" \
+      "$(sed -n 's/^warn=//p' "$STATE_FILE" | head -1)" \
+      "$(sed -n 's/^fail=//p' "$STATE_FILE" | head -1)" \
+      "$(sed -n 's/^caps_errors=//p' "$STATE_FILE" | head -1)" \
+      "$(sed -n 's/^rc=//p' "$STATE_FILE" | head -1)"
+    grep -E '^(warn|fail)\|' "$STATE_FILE" 2>/dev/null | tr '|' ' ' | sed 's/^/  open: /' || true
+  else
+    printf 'no state yet. Run: zdots-watch run\n'
+  fi
+  if launchctl list 2>/dev/null | grep -q "$CHECK_LABEL"; then
+    printf 'check suite: loaded (daily %02d:17)\n' "$CHECK_HOUR"
+  else
+    printf 'check suite: not loaded. Run: zdots-watch --install-check\n'
+  fi
+  if [[ -r "$CHECK_STATE_FILE" ]]; then
+    printf 'last check: %s (rc=%s)\n' \
+      "$(sed -n 's/^ts=//p' "$CHECK_STATE_FILE" | head -1)" \
+      "$(sed -n 's/^rc=//p' "$CHECK_STATE_FILE" | head -1)"
+    grep -E '^(fail|suite)\|' "$CHECK_STATE_FILE" 2>/dev/null | tr '|' ' ' | sed 's/^/  failing: /' || true
+  fi
+  local ev
+  for ev in doctor check; do
+    ls -t "$RUNS_DIR/${ev}"-*.log 2>/dev/null | head -1 | sed "s/^/evidence (${ev}): /"
+  done
+}
+
+cmd_install() {
+  mkdir -p "$HOME/Library/LaunchAgents" "$STATE_DIR"
+  # Z-263: render the plist HERE with the live \$HOME-derived paths expanded —
+  # never a tracked plist with a hardcoded /Users path.
+  local extra_env=""
+  [[ -n "${ZDOTS_CONTEXT:-}" ]] && extra_env="<key>ZDOTS_CONTEXT</key><string>${ZDOTS_CONTEXT}</string>"
+  cat >"$PLIST" <<PLIST_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>${LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lic</string>
+    <string>"\${ZDOTDIR:-\$HOME/.config/zsh}/bin/zdots-watch" run</string>
+  </array>
+  <key>StartInterval</key><integer>${INTERVAL}</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>${LOG_FILE}</string>
+  <key>StandardErrorPath</key><string>${LOG_FILE}</string>
+  <key>WorkingDirectory</key><string>${ZDOTDIR}</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>ZDOTDIR</key><string>${ZDOTDIR}</string>${extra_env}</dict>
+</dict>
+</plist>
+PLIST_EOF
+  launchctl unload "$PLIST" 2>/dev/null || true
+  launchctl load "$PLIST" && printf 'zdots-watch: installed (every %ss). Notifies only on worsening doctor transitions.\n' "$INTERVAL"
+}
+
+cmd_uninstall() {
+  launchctl unload "$PLIST" 2>/dev/null || true
+  rm -f "$PLIST" && printf 'zdots-watch: uninstalled.\n'
+}
+
+cmd_install_check() {
+  mkdir -p "$HOME/Library/LaunchAgents" "$STATE_DIR"
+  # Z-263: live paths rendered at install time. Calendar-scheduled (not
+  # StartInterval, no RunAtLoad): a 7-minute suite runs nightly, never at login.
+  local extra_env=""
+  [[ -n "${ZDOTS_CONTEXT:-}" ]] && extra_env="<key>ZDOTS_CONTEXT</key><string>${ZDOTS_CONTEXT}</string>"
+  cat >"$CHECK_PLIST" <<PLIST_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>${CHECK_LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lic</string>
+    <string>"\${ZDOTDIR:-\$HOME/.config/zsh}/bin/zdots-watch" run-check</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>${CHECK_HOUR}</integer><key>Minute</key><integer>17</integer></dict>
+  <key>StandardOutPath</key><string>${LOG_FILE}</string>
+  <key>StandardErrorPath</key><string>${LOG_FILE}</string>
+  <key>WorkingDirectory</key><string>${ZDOTDIR}</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>ZDOTDIR</key><string>${ZDOTDIR}</string>${extra_env}</dict>
+</dict>
+</plist>
+PLIST_EOF
+  launchctl unload "$CHECK_PLIST" 2>/dev/null || true
+  launchctl load "$CHECK_PLIST" && printf 'zdots-watch: check suite installed (daily %02d:17). Notifies only on NEW failing tests.\n' "$CHECK_HOUR"
+}
+
+cmd_uninstall_check() {
+  launchctl unload "$CHECK_PLIST" 2>/dev/null || true
+  rm -f "$CHECK_PLIST" && printf 'zdots-watch: check suite uninstalled.\n'
+}
+
+case "${1:-}" in
+  run)                   cmd_run ;;
+  run-check)             cmd_run_check ;;
+  status|"")             cmd_status ;;
+  install|--install)     cmd_install ;;
+  uninstall|--uninstall) cmd_uninstall ;;
+  install-check|--install-check)     cmd_install_check ;;
+  uninstall-check|--uninstall-check) cmd_uninstall_check ;;
+  -h|--help)             usage; exit 0 ;;
+  *)                     printf 'zdots-watch: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+esac

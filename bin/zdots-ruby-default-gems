@@ -3,6 +3,20 @@
 
 set -euo pipefail
 
+usage() {
+  cat <<'EOF'
+Usage: zdots-ruby-default-gems [ruby-version]
+
+Install zdots' global Ruby tool gems (etc/mise/default-gems) into the
+active gem env, or into a specific mise Ruby when a version is given.
+EOF
+}
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  -*) usage >&2; exit 2 ;;
+esac
+
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 GEMS_FILE="${ZDOTS_RUBY_DEFAULT_GEMS:-$ZDOTDIR/etc/mise/default-gems}"
 TARGET_RUBY="${1:-}"

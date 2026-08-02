@@ -20,9 +20,11 @@ zdots_trace_init() {
   local shell_name="${SHELL:t}"
   local is_interactive="false"; [[ -o interactive ]] && is_interactive="true"
 
-  # Construct Resource JSON once
-  export _ZDOTS_OTEL_RESOURCE_JSON=$(printf '{"attributes":[{"key":"service.name","value":{"stringValue":"%s"}},{"key":"process.pid","value":{"intValue":%d}},{"key":"process.owner","value":{"stringValue":"%s"}},{"key":"process.executable.name","value":{"stringValue":"%s"}},{"key":"process.interactive","value":{"boolValue":%s}},{"key":"os.type","value":{"stringValue":"%s"}},{"key":"host.name","value":{"stringValue":"%s"}}]}' \
-    "$OTEL_SERVICE_NAME" "$$" "$USER" "$shell_name" "$is_interactive" "$os_type" "$(hostname)")
+  # Construct Resource JSON once — printf -v and $HOST: no forks at startup
+  # (was a $(printf) command substitution plus a hostname exec).
+  printf -v _ZDOTS_OTEL_RESOURCE_JSON '{"attributes":[{"key":"service.name","value":{"stringValue":"%s"}},{"key":"process.pid","value":{"intValue":%d}},{"key":"process.owner","value":{"stringValue":"%s"}},{"key":"process.executable.name","value":{"stringValue":"%s"}},{"key":"process.interactive","value":{"boolValue":%s}},{"key":"os.type","value":{"stringValue":"%s"}},{"key":"host.name","value":{"stringValue":"%s"}}]}' \
+    "$OTEL_SERVICE_NAME" "$$" "$USER" "$shell_name" "$is_interactive" "$os_type" "${HOST:-$(hostname)}"
+  export _ZDOTS_OTEL_RESOURCE_JSON
 
   # Initialize local trace file (reuses _zdots_trace_file_init from local.zsh)
   _zdots_trace_file_init
@@ -36,8 +38,9 @@ zdots_trace_log() {
   local event_type="$1"
   local data="$2"
 
-  # Perform redaction once
-  local redacted_data=$(zdots_trace_redact "$data")
+  # Perform redaction once — fork-free via the resident scrubber when up
+  _zdots_trace_redact_var "$data"
+  local redacted_data="$_zdots_redacted"
 
   # 1. Local logging (JSONL)
   _zdots_trace_log_local "$event_type" "$redacted_data"
@@ -58,9 +61,17 @@ _zdots_trace_log_local() {
   local timestamp; strftime -s timestamp '%Y-%m-%dT%H:%M:%S%z' $EPOCHSECONDS
   # Escape double quotes via parameter expansion — no fork
   local escaped_data="${redacted_data//\"/\\\"}"
-  printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
-    "$timestamp" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$event_type" "$escaped_data" \
-    >> "$_zdots_trace_file"
+  if [[ -n "${_zdots_trace_fd:-}" ]]; then
+    # Held fd (see _zdots_trace_file_init): per-event open/close pays a
+    # content-proportional write-close scan on managed machines.
+    printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
+      "$timestamp" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$event_type" "$escaped_data" \
+      >&"$_zdots_trace_fd"
+  else
+    printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
+      "$timestamp" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$event_type" "$escaped_data" \
+      >> "$_zdots_trace_file"
+  fi
 }
 
 # _zdots_trace_send_otlp EVENT_TYPE DATA

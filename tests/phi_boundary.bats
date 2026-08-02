@@ -246,7 +246,9 @@ _wait_for_unified_log_marker() {
     shell_hook_metrics_record "phi-history" "clean" 18 1 1700000000000
     result=""
     for _ in 1 2 3 4 5; do
-      result=$(sqlite3 "$XDG_STATE_HOME/zdots/history.sqlite3" "SELECT hook, status, elapsed_ms, threshold_ms FROM shell_hook_metrics;" 2>/dev/null || true)
+      # -init /dev/null -batch: user .sqliterc modes must not decorate the
+      # pipe-delimited row this test matches on.
+      result=$(sqlite3 -init /dev/null -batch "$XDG_STATE_HOME/zdots/history.sqlite3" "SELECT hook, status, elapsed_ms, threshold_ms FROM shell_hook_metrics;" 2>/dev/null || true)
       [[ -n "$result" ]] && break
       sleep 0.2
     done
@@ -534,4 +536,31 @@ _wait_for_unified_log_marker() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"[REDACTED]"* ]]
   [[ "$output" != *"abc123"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# Resident scrubber (Z-283)
+# ---------------------------------------------------------------------------
+
+@test "phi-history: resident scrubber round-trips, survives death, honors kill switch" {
+  run zsh -ic '
+    zshaddhistory "echo resident-one" || exit 10
+    p1=$_phi_srv_pid
+    zshaddhistory "echo resident-two" || exit 11
+    [[ -n "$p1" && "$p1" == "$_phi_srv_pid" ]] || exit 12   # one process, reused
+    zshaddhistory "postgresql://u:s@db.internal/x" && exit 13 # suppress via resident
+    kill "$_phi_srv_pid" 2>/dev/null; sleep 0.1
+    zshaddhistory "echo after-death" || exit 14              # fallback + respawn
+    line="deploy --token sekret123"
+    zshaddhistory "$line" >/dev/null 2>&1
+    oneshot="$(print -r -- "$line" | zdots-phi-scrub 2>/dev/null)"
+    [[ "$_phi_srv_payload" == "$oneshot" ]] || exit 15       # byte parity
+    ZDOTS_PHI_COPROC=0
+    _phi_srv_stop
+    zshaddhistory "echo disabled" || exit 16
+    [[ -z "$_phi_srv_pid" ]] || exit 17                      # kill switch: no server
+    echo RESIDENT-OK
+  '
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"RESIDENT-OK"* ]]
 }

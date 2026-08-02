@@ -173,6 +173,23 @@ module Zdots
     end
 
     def cmd_worker(_args)
+      # Z-280: refuse to run against a schema behind the shipped code. Every
+      # loaded model must find its table (zdots_rw cannot read the migration
+      # table, so ask about the tables the worker actually needs). Exit 78
+      # (EX_CONFIG) is distinct from a crash's exit 1, so the doctor flap check
+      # can name the fix instead of reporting an anonymous crash loop.
+      missing = Sequel::Model.subclasses.filter_map do |m|
+        t = m.table_name
+        t unless Zdots.db.table_exists?(t)
+      rescue StandardError
+        nil # abstract/dataset-less models have no table to check
+      end.uniq
+      unless missing.empty?
+        warn "zdots-brain: schema behind code — missing tables: #{missing.join(', ')} — " \
+             "run: zdots-ctx migrate (worker refusing to start)"
+        exit 78
+      end
+
       # Z-229: without this the tracer provider is the no-op API default and
       # every job.perform span (incl. failures) silently evaporates — O2 blind.
       Zdots.init_otel("zdots-worker")

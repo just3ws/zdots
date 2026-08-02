@@ -1,9 +1,10 @@
 ---
 id: Z-179
 title: '[agent-issue] Z-172.03: Add Presidio NER as second PHI layer (shadow-mode)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-29 12:48'
+updated_date: '2026-08-01 09:55'
 labels:
   - agent-reported
   - request
@@ -25,3 +26,9 @@ Add Microsoft Presidio (spaCy NER) as a second PHI detection layer behind the re
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit: Consolidated into Z-172.03 — this was the deliberate zdots-issue coordination ticket its AC#3 required (filed 2026-06-29). One work item, one open task; Z-172.03 remains the live handle.
+<!-- SECTION:NOTES:END -->

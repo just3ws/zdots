@@ -94,11 +94,13 @@ Usage: llama-ctl <subcommand> [args] [--json]
 Subcommands:
   server <command>  Manage inference server (install, start, stop, restart,
                     status, health, logs, validate, config)
-  embed <command>   Manage embedding server (install, start, stop, status)
+  embed <command>   Manage embedding server (install, start, stop, status;
+                    refuses to (re)start onto a missing embed model file)
 
 Model Management:
   model-list        List downloaded GGUFs
-  model-download [--draft] Download models
+  model-download [--all|--draft] Download models (--all: every profile's model;
+                    missing are fetched, present are verified and skipped)
   model-switch <p>  Print switch instructions
   model-prune       DESTRUCTIVE: remove orphaned models
   model-df          Disk usage summary
@@ -471,6 +473,7 @@ model_list() {
 
 model_download() {
   _require_yq
+  [[ "${1:-}" == "--all" ]] && { model_download_all; return; }
   local also_draft=false
   [[ "${1:-}" == "--draft" ]] && also_draft=true
 
@@ -497,6 +500,39 @@ model_download() {
       exit 1
     fi
   fi
+}
+
+# model_download_all — fetch every profile-required model (Z-260).
+#
+# Recovery path after model loss: iterates .profiles[] in etc/ai-models.yaml
+# (same contract as model_prune's protect loop) and ensures each profile's
+# model_file is on disk — no per-profile ZDOTS_AI_PROFILE incantation needed.
+# Present files are skipped, never re-downloaded, and re-verified against
+# lib/llama-models.sha256 where a hash exists; missing files are downloaded
+# (zdots_model_download verifies after download). Profiles without a
+# model_file + hf_repo are noted and skipped. Returns non-zero if any
+# download or verification fails.
+model_download_all() {
+  _require_yq
+  local rc=0 p
+  while IFS= read -r p; do
+    [[ -z "$p" ]] && continue
+    local file repo
+    file=$(_yq_get ".profiles.${p}.model_file")
+    repo=$(_yq_get ".profiles.${p}.hf_repo")
+    if [[ -z "$file" || "$file" == "null" || -z "$repo" || "$repo" == "null" ]]; then
+      printf 'llama-ctl: profile %s: no model_file/hf_repo — skipping\n' "$p" >&2
+      continue
+    fi
+    if [[ -f "$MODELS_DIR/$file" ]]; then
+      printf 'llama-ctl: profile %s: %s already downloaded — skipping\n' "$p" "$file" >&2
+      zdots_model_verify "$MODELS_DIR/$file" "$file" || rc=1
+    else
+      printf 'llama-ctl: profile %s: downloading %s\n' "$p" "$file" >&2
+      zdots_model_download "$repo" "$file" "$MODELS_DIR" || rc=1
+    fi
+  done < <(_yq_get ".profiles | keys | .[]")
+  return $rc
 }
 
 model_switch() {
@@ -760,6 +796,26 @@ _register_embed_plist() {
   fi
 }
 
+# _require_embed_model — refuse any embed service action on a missing model
+# file (Z-260). (Re)starting onto an absent GGUF turns a latent missing-model
+# into an outage: bootout kills a server still serving from the deleted inode
+# and launchd crash-loops on the missing path. Call BEFORE any launchctl
+# action so a running service is never touched.
+_require_embed_model() {
+  local model_file; model_file=$(_yq_get ".profiles.${EMBED_PROFILE}.model_file")
+  if [[ -z "$model_file" || "$model_file" == "null" ]]; then
+    printf 'llama-ctl: error: embed profile missing in %s\n' "$CONFIG_FILE" >&2; exit 1
+  fi
+  local model_path="${MODELS_DIR}/${model_file}"
+  if [[ ! -f "$model_path" ]]; then
+    printf 'llama-ctl: error: embed model not found: %s\n' "$model_path" >&2
+    printf '  Refusing to (re)start embed on a missing model — service left untouched.\n' >&2
+    printf '  Run: llama-ctl model-download --all\n' >&2
+    printf '  Or:  ZDOTS_AI_PROFILE=embed llama-ctl model-download\n' >&2
+    exit 1
+  fi
+}
+
 install_embed() {
   # Download model if needed.
   # _meta_get cannot reach profiles.* (flat JSON); use _yq_get for embed profile fields.
@@ -776,6 +832,11 @@ install_embed() {
     fi
     zdots_model_download "$hf_repo" "$model_file" "$MODELS_DIR"
   fi
+
+  # Guard (Z-260): model must exist on disk before the running service is
+  # booted out — a failed/skipped download must stay a latent failure, not
+  # become an outage.
+  _require_embed_model
 
   # (Re-)register plist; unload first if already loaded.
   if [[ -f "$EMBED_PLIST_FILE" ]]; then
@@ -832,6 +893,9 @@ _wait_embed() {
 }
 
 start_embed()  {
+  # Guard (Z-260): also covers restart (zsvc restart embed = stop + start) and
+  # the legacy start-embed alias — never bootstrap onto a missing model file.
+  _require_embed_model
   zdots_svc_launchd_start "$EMBED_PLIST_LABEL" "$EMBED_PLIST_FILE" || return $?
   _wait_embed "$EMBED_ENDPOINT" "$EMBED_LOG_FILE"
 }

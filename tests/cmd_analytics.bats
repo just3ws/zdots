@@ -120,7 +120,9 @@ _drain_setup() {
   mkdir -p "$_DRAIN_STATE/zdots"
   _DRAIN_DB="$_DRAIN_STATE/zdots/history.sqlite3"
 
-  sqlite3 "$_DRAIN_DB" "
+  # -init /dev/null -batch: a user .sqliterc (e.g. .mode box) must not
+  # decorate output these tests parse as integers.
+  sqlite3 -init /dev/null -batch "$_DRAIN_DB" "
     PRAGMA journal_mode=WAL;
     CREATE TABLE IF NOT EXISTS command_runs (
       id          INTEGER PRIMARY KEY,
@@ -164,7 +166,7 @@ _drain_setup() {
     XDG_STATE_HOME='$_DRAIN_STATE'
     eval \"\$(sed -n '/^_drain_redis_to_sqlite/,/^}/p' '$ZDOTDIR/bin/zdots-ctx')\"
     _drain_redis_to_sqlite
-    sqlite3 '$_DRAIN_DB' 'SELECT count(*) FROM command_runs;'
+    sqlite3 -init /dev/null -batch '$_DRAIN_DB' 'SELECT count(*) FROM command_runs;'
   "
   # Cleanup in case test fails
   redis-cli DEL "$session_key" >/dev/null 2>&1 || true
@@ -203,7 +205,7 @@ _drain_setup() {
     XDG_STATE_HOME='$_DRAIN_STATE'
     eval \"\$(sed -n '/^_drain_redis_to_sqlite/,/^}/p' '$ZDOTDIR/bin/zdots-ctx')\"
     _drain_redis_to_sqlite
-    sqlite3 '$_DRAIN_DB' 'SELECT count(*) FROM command_runs;'
+    sqlite3 -init /dev/null -batch '$_DRAIN_DB' 'SELECT count(*) FROM command_runs;'
   "
   rm -rf "$_DRAIN_STATE"
   [ "$status" -eq 0 ]

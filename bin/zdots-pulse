@@ -4,6 +4,7 @@ bin/zdots-pulse - A high-signal, one-line-per-system status overview.
 Designed for quick discovery and orientation in a complex environment.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -52,4 +53,10 @@ def get_status():
     print(f"\n{color('Discovery:', '1')} Run {color('agent-guide', '33')} for full connection details and man pages.")
 
 if __name__ == "__main__":
+    # Parse args (and answer -h/--help) BEFORE any probe runs (Z-249).
+    parser = argparse.ArgumentParser(
+        prog="zdots-pulse",
+        description="High-signal, one-line-per-system zdots status overview.",
+    )
+    parser.parse_args()
     get_status()

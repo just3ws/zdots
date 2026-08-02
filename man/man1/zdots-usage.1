@@ -1,0 +1,28 @@
+.TH ZDOTS-USAGE 1 "2026-08-02" "zdots" "zdots manual"
+.SH NAME
+zdots-usage \- CLI usage intelligence from the local trace stream (/Users/mike.hall/.local/state/zsh/traces.jsonl).
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-usage --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-usage [report] [--days N] [--top N]
+
+CLI usage intelligence from the local trace stream (/Users/mike.hall/.local/state/zsh/traces.jsonl).
+
+Reports:
+  summary     headline numbers from every report (default)
+  top         most-used commands (first word of each exec)
+  errors      per-command failure rates; prompt aborts (status 130) counted
+              separately — they blame the previous command, not the failed one
+  sessions    human vs agent shells (tty= flag when present, heuristic before)
+  candidates  optimization candidates: repeated patterns, heavy hitters,
+              bin/ tools with zero recorded use
+  health      module source_failure counts (which conf.d modules fail, where)
+
+Options:
+  --days N    only consider events from the last N days (default: all)
+  --top N     rows per table (default: 20)
+  -h, --help  show this help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

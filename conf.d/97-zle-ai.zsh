@@ -14,7 +14,10 @@
 #
 # Requires: lib/ai-invoke.bash (loaded lazily on first widget use).
 
-[[ -o interactive ]] || return
+# return 0, not bare return: a deliberate skip must not propagate the test's
+# exit 1 — zdots_safe_source logged every non-interactive .zshrc source (each
+# bin/check assert_zle_guard run) as a source_failure, 108 noise events.
+[[ -o interactive ]] || return 0
 
 # Shell domain system prompt for ZLE widgets — loaded once on first use.
 # Empty string means "not yet loaded"; widgets pass it to zdots_ai_infer_raw.

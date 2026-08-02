@@ -269,10 +269,17 @@ _head "Core Guides"
 cat <<'EOF'
 Refer to these for architectural and workflow standards:
 
-  docs/lifecycle.md         Project lifecycle, setup, and tutorial (NEW)
+  docs/lifecycle.md         Project lifecycle, setup, and tutorial
   AGENTS.md                 Agent mandates, RTK optimization, PHI rules
   CONTEXT.md                Domain language and active project state
   docs/tooling.md           Full CLI reference table
+  backlog/docs/doc-003      Roadmap + vision (learns faster than it decays)
+  backlog/docs/doc-004      North star, alignment levers, KPIs, OKRs
+
+Command discovery, always available:
+  zdots help                list every platform command with one-liners
+  zdots help <cmd>          man page -> --help -> catalog, first hit wins
+  man <cmd>                 every bin/ command has a man page (contract-tested)
 EOF
 
 _head "Service Control — zsvc"
@@ -288,7 +295,8 @@ Use zsvc for per-service diagnostics and consolidated logs.
   zsvc logs all             tail all registered logs from one terminal
   zsvc diag <service>       status + health + launchd state + recent logs
 
-Registered services: llama, embed, otel, colima, nginx, postgres, redis, zdots-statusd.
+Registered services (11 managed): llama, embed, otel, o2, colima, nginx,
+postgres, redis, worker, status (zdots-statusd), gemstash.
 
 Log rotation (when a service log grows large):
   log-rotate <service>          compress + truncate in-place (safe with open FDs)
@@ -420,6 +428,8 @@ SERVICE MANAGEMENT:
   llama-ctl logs            tail server log
   llama-ctl install         install + register launchd plist (first-time setup)
   llama-ctl model-download  download active profile GGUF from HuggingFace
+  llama-ctl model-download --all  fetch every profile's model (recovery verb;
+                            present files verified + skipped)
   llama-ctl validate        validate etc/ai-models.yaml
 
 HARDWARE LIMITS (M4 MBA, 16GB RAM, 256GB disk):
@@ -676,6 +686,65 @@ COLIMA STATUS JSON FIELDS (for scripts/agents):
 itself ignores $XDG_CONFIG_HOME whenever ~/.colima exists, so zdots stopped
 fighting it. colima-status/colima-autostart no longer probe or migrate to
 $XDG_CONFIG_HOME/colima; if you see that path, something outside zdots created it.
+EOF
+
+_head "Health Detectors & Usage Intelligence"
+
+cat <<'EOF'
+Two standing detectors notify ONLY on worsening; ambient state lives in the
+menu bar. Agents: READ their state, do not re-run the heavy cycles casually.
+
+  zdots-watch status        doctor + nightly-suite state, evidence paths
+  zdots-watch run           one doctor cycle (daily LaunchAgent's job)
+  zdots-watch run-check     full bin/check cycle (~5 min; nightly 03:17 job)
+  Evidence: last 7 full run outputs per detector under
+  ~/.local/state/zsh/zdots-watch-runs/ — read these before re-diagnosing.
+
+  zdots-usage               CLI usage intelligence from the trace stream
+  zdots-usage errors        real failure rates (130 prompt-aborts separated)
+  zdots-usage candidates    alias candidates + dead tools
+  Caveat: raw session counts mix agent shells with human ones — sessions
+  report segments by tty; trust the segmented numbers only.
+
+  zdots-swiftbar            menu-bar pulse emitter (SwiftBar shim in ~/.swiftbar)
+
+  make check                two-lane bats (~4:40; ZDOTS_CHECK_JOBS=1 for serial)
+  make docs-contract        docs/help/man contract only (fast)
+
+The operating adage (doc-004): if you do something exactly the same twice,
+automate it — as a self-describing tool that names its check, its finding,
+why it matters, and the exact fix line (see zdots-doctor's _fix pattern).
+EOF
+
+_head "Operator Chat — Conventions for Cloud Agents"
+
+cat <<'EOF'
+For Claude Code / Codex / Gemini sessions talking to the operator here:
+
+  PUSHES ARE THE OPERATOR'S. cc-hook-guard blocks git push from agent
+  sessions by design — do not retry or route around it. Hand the exact
+  command and ask the operator to run it in chat with a leading "!":
+    ! git -C ~/.config/zsh push -u origin work
+  One command per prompt (multi-line pastes arrive as chat text, not
+  commands). The "!" output lands in the conversation for verification.
+
+  COMMIT LOCALLY AND OFTEN — committing is not pushing. Stage exact paths,
+  never add -A. bin/secret-scan before every commit.
+
+  ZDOTS IS NOT YOURS TO FIX (AGENTS.md section 5) — infrastructure surprises
+  become `zdots-issue "..."`, not patches. Exception: zclaude sessions are
+  operator-authorized maintenance.
+
+  LOCAL AI FIRST for anything PHI-adjacent: ai-query / zdots-ask keep
+  inference on-box. Claude Code itself is a CLOUD tool — never paste
+  secrets, keys, or PHI into the chat; the deny-list and guard are the
+  backstop, not the policy.
+
+  NAME YOUR LEVER (doc-004): every task states whether it serves DETECT,
+  LEARN, COMPOUND, or OPERATE. Work that serves none gets questioned.
+
+  BEFORE CLAIMING MISSING CONTEXT: zdots-ctx query / hydrate, zdots help,
+  man <cmd>, and the newest ~/.config/adots/handoffs/ file — in that order.
 EOF
 
 _head "Destructive Commands — Confirm Before Running"

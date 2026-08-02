@@ -4,6 +4,7 @@ title: 'Push, don''t poll: Turbo Streams for pipeline events'
 status: To Do
 assignee: []
 created_date: '2026-07-24 12:51'
+updated_date: '2026-08-01 09:55'
 labels:
   - platform-dynamism
   - agent-ready
@@ -34,3 +35,9 @@ Depends on the structured pipeline event log (Z-247) as the broadcast source. Ke
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-01 audit (context-engine seams): turbo-rails wired (Gemfile:8, importmap:4, morph layout) but ZERO broadcasting exists and cable.yml is async in all envs — async cable cannot see pipeline_runs writes from out-of-process zdots workers (ingest_media.rb, context_bot.rb). Transport decision first: PG LISTEN/NOTIFY bridge (fits Sequel/PG stack, covers both writers) > Redis adapter > HTTP endpoint. TRAP: solid_cable in Gemfile is inert (Sequel app, no AR) — flipping cable.yml to it ships silent no-op broadcasts; remove or annotate. Quick win now: show.html.erb:2 still hard-reloads via meta refresh — migrate to the live-refresh-ms morph pattern index uses.
+<!-- SECTION:NOTES:END -->

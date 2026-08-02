@@ -3,10 +3,10 @@ id: Z-250
 title: >-
   [agent-issue] Recurring: embed model (nomic-embed-text-v2-moe.Q8_0.gguf) keeps
   disappearing from ~/.local/share/ll
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-22 12:34'
-updated_date: '2026-07-28 17:39'
+updated_date: '2026-08-01 06:08'
 labels:
   - agent-reported
   - error
@@ -33,4 +33,6 @@ Recurring: embed model (nomic-embed-text-v2-moe.Q8_0.gguf) keeps disappearing fr
 
 <!-- SECTION:NOTES:BEGIN -->
 2026-07-28: recurred again (4th time, 2026-07-27 12:29:32). See Z-260 notes — model restored + sha256-verified, durable tripwire armed (bin/embed-model-tripwire). Scratchpad tripwire from 07-24 died with its session; this one survives reboots.
+
+2026-08-01: Closed as duplicate of Z-260 — deleter identified and fixed there (functions/enabled/upgrade-ai step-3 prune protected only the active chat profile; tripwire caught fabric-ai/upgrade-ai at deletion time). Fix 3f1935727 + fail-safe e1cef96f2. The adjacent model-download-skips-embed ask remains tracked as Z-260's open scope.
 <!-- SECTION:NOTES:END -->
