@@ -60,6 +60,20 @@ zshaddhistory() {
   local redacted
   redacted="$(echo "$line" | zdots-phi-scrub 2>/dev/null)"
   local scrub_status=$?
+
+  if (( scrub_status != 0 && scrub_status != 2 )); then
+    # Z-266: operational failure (not a suppress-match). The dominant cause is
+    # a transient registry read (~6ms exit-1 while git rewrites
+    # phi-patterns.yaml), which self-heals — retry once, keeping stderr this
+    # time so the audit trail names the error instead of a bare
+    # reason=scrub_failure. Cold path only: 188 events in 2.5 months.
+    local _scrub_errf="${TMPDIR:-/tmp}/.zdots-phi-err.$$" _scrub_err=""
+    redacted="$(echo "$line" | zdots-phi-scrub 2>"$_scrub_errf")"
+    scrub_status=$?
+    [[ -s "$_scrub_errf" ]] && _scrub_err="$(tr '\n' ' ' <"$_scrub_errf" | head -c 200)"
+    rm -f -- "$_scrub_errf"
+  fi
+
   elapsed=$(( (EPOCHREALTIME - t0) * 1000 ))
   ts_ms=$(( EPOCHREALTIME * 1000 ))
 
@@ -71,10 +85,12 @@ zshaddhistory() {
   fi
 
   if (( scrub_status != 0 )); then
-    # zdots-phi-scrub failed (registry/stdin error). Suppress the entry rather
-    # than risk writing sensitive data.
+    # zdots-phi-scrub failed twice (registry/stdin error). Suppress the entry
+    # rather than risk writing sensitive data. The detail carries the
+    # scrubber's own stderr (error text only — the Go binary never echoes
+    # input), so the audit trail names the cause (Z-266).
     _phi_history_maybe_record_overhead "scrub_failure" "$elapsed" "$threshold_ms" "$ts_ms"
-    zdots_audit_log "history_suppressed" "reason=scrub_failure"
+    zdots_audit_log "history_suppressed" "reason=scrub_failure rc=${scrub_status} detail=${_scrub_err:-empty-stderr}"
     return 1
   fi
 
