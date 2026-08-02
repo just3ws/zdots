@@ -1,9 +1,10 @@
 ---
 id: Z-288
 title: Menu-bar platform pulse widget (SwiftBar) — ambient standing state
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-02 17:25'
+updated_date: '2026-08-02 18:29'
 labels:
   - agent-ready
 dependencies: []
@@ -23,3 +24,9 @@ Native-app pick from 2026-08-02 session: detectors notify on WORSENING; nothing 
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DONE: bin/zdots-swiftbar (0.5s, state-file reads + one zdots-usage call) + ~/.swiftbar/zdots-pulse.1m.sh shim. Suite-state 'no state yet' handling; orphan-tmp cleanup hardening in zdots-watch. Man + contract green.
+<!-- SECTION:NOTES:END -->
