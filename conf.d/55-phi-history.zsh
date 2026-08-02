@@ -38,6 +38,63 @@ if ! zdots-phi-scrub --init >/dev/null 2>&1; then
   exit 1
 fi
 
+# ─── Resident scrubber (Z-283) ───────────────────────────────────────────────
+# One `zdots-phi-scrub --serve` per shell instead of one spawn per command
+# (spawn measured at 7-29ms/command). Protocol: request = <line>NUL, response
+# = <status '0'|'2'><payload>NUL. Lazy start on first history add; respawns
+# when phi-patterns.yaml changes (zstat mtime, no fork) or after the server's
+# idle self-exit. EVERY failure here returns non-zero and the caller falls
+# back to the one-shot spawn below — semantics identical, fail-safe unchanged.
+# Kill switch: ZDOTS_PHI_COPROC=0.
+zmodload -F zsh/stat b:zstat 2>/dev/null
+typeset -g _phi_srv_pid= _phi_srv_in= _phi_srv_out= _phi_srv_mtime=
+typeset -g _phi_srv_status= _phi_srv_payload=
+
+_phi_srv_stop() {
+  [[ -n "$_phi_srv_in"  ]] && exec {_phi_srv_in}<&- 2>/dev/null
+  [[ -n "$_phi_srv_out" ]] && exec {_phi_srv_out}>&- 2>/dev/null
+  [[ -n "$_phi_srv_pid" ]] && kill -- "$_phi_srv_pid" 2>/dev/null
+  _phi_srv_pid= _phi_srv_in= _phi_srv_out=
+}
+
+_phi_srv_start() {
+  setopt localoptions nomonitor nonotify
+  local -a _st
+  if zstat -A _st +mtime "${ZDOTDIR}/etc/phi-patterns.yaml" 2>/dev/null; then
+    _phi_srv_mtime="${_st[1]}"
+  else
+    _phi_srv_mtime=0
+  fi
+  coproc zdots-phi-scrub --serve 2>/dev/null
+  _phi_srv_pid=$!
+  # Move the coproc fds to plain descriptors: frees the shell's only coproc
+  # slot for user code and pins our pipes against any later coproc.
+  { exec {_phi_srv_in}<&p {_phi_srv_out}>&p; } 2>/dev/null || { _phi_srv_stop; return 1; }
+  disown %% 2>/dev/null
+  return 0
+}
+
+# Round-trip $1 through the resident server; sets _phi_srv_status and
+# _phi_srv_payload. Non-zero return = resident path unavailable this command.
+_phi_srv_scrub() {
+  local -a _st
+  if [[ -n "$_phi_srv_pid" ]] && zstat -A _st +mtime "${ZDOTDIR}/etc/phi-patterns.yaml" 2>/dev/null \
+     && [[ "${_st[1]}" != "$_phi_srv_mtime" ]]; then
+    _phi_srv_stop # registry changed — respawn to load fresh patterns
+  fi
+  if [[ -z "$_phi_srv_pid" ]] || ! kill -0 "$_phi_srv_pid" 2>/dev/null; then
+    _phi_srv_stop
+    _phi_srv_start || return 1
+  fi
+  printf '%s\0' "$1" >&"$_phi_srv_out" 2>/dev/null || { _phi_srv_stop; return 1; }
+  local _resp=
+  IFS= read -r -u "$_phi_srv_in" -d "" -t 1 _resp 2>/dev/null || { _phi_srv_stop; return 1; }
+  _phi_srv_status="${_resp[1]}"
+  _phi_srv_payload="${_resp:1}"
+  [[ "$_phi_srv_status" == (0|2) ]] || { _phi_srv_stop; return 1; }
+  return 0
+}
+
 _phi_history_maybe_record_overhead() {
   local metric_status="$1"
   local elapsed="$2"
@@ -57,9 +114,17 @@ zshaddhistory() {
   #   exit 0 → clean/redacted (stdout holds the result)
   #   exit 2 → suppress-flagged pattern (connection string) — drop entry
   #   exit 1 → scrub failure — drop entry (fail safe)
-  local redacted
-  redacted="$(echo "$line" | zdots-phi-scrub 2>/dev/null)"
-  local scrub_status=$?
+  local redacted scrub_status
+  if [[ "${ZDOTS_PHI_COPROC:-1}" == "1" ]] && _phi_srv_scrub "$line"; then
+    # Resident path (Z-283): no subshell, no fork.
+    redacted="$_phi_srv_payload"
+    scrub_status=$(( _phi_srv_status == 2 ? 2 : 0 ))
+  else
+    # One-shot spawn: the pre-Z-283 path, also the fallback when the resident
+    # server is disabled, dead, or answered malformed.
+    redacted="$(echo "$line" | zdots-phi-scrub 2>/dev/null)"
+    scrub_status=$?
+  fi
 
   if (( scrub_status != 0 && scrub_status != 2 )); then
     # Z-266: operational failure (not a suppress-match). The dominant cause is

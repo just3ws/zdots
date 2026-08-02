@@ -537,3 +537,30 @@ _wait_for_unified_log_marker() {
   [[ "$output" == *"[REDACTED]"* ]]
   [[ "$output" != *"abc123"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# Resident scrubber (Z-283)
+# ---------------------------------------------------------------------------
+
+@test "phi-history: resident scrubber round-trips, survives death, honors kill switch" {
+  run zsh -ic '
+    zshaddhistory "echo resident-one" || exit 10
+    p1=$_phi_srv_pid
+    zshaddhistory "echo resident-two" || exit 11
+    [[ -n "$p1" && "$p1" == "$_phi_srv_pid" ]] || exit 12   # one process, reused
+    zshaddhistory "postgresql://u:s@db.internal/x" && exit 13 # suppress via resident
+    kill "$_phi_srv_pid" 2>/dev/null; sleep 0.1
+    zshaddhistory "echo after-death" || exit 14              # fallback + respawn
+    line="deploy --token sekret123"
+    zshaddhistory "$line" >/dev/null 2>&1
+    oneshot="$(print -r -- "$line" | zdots-phi-scrub 2>/dev/null)"
+    [[ "$_phi_srv_payload" == "$oneshot" ]] || exit 15       # byte parity
+    ZDOTS_PHI_COPROC=0
+    _phi_srv_stop
+    zshaddhistory "echo disabled" || exit 16
+    [[ -z "$_phi_srv_pid" ]] || exit 17                      # kill switch: no server
+    echo RESIDENT-OK
+  '
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"RESIDENT-OK"* ]]
+}
