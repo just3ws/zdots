@@ -601,9 +601,18 @@ if command -v zdots-logs >/dev/null 2>&1; then
   _log_check_out=$(zdots-logs check 2>&1) || _log_check_rc=$?
   printf '%s\n' "$_log_check_out"
   if [[ "$_log_check_rc" -ne 0 ]]; then
-    _fail "log files exceed 500M threshold — consider log rotation (logrotate or truncation)"
-    _fix  "zdots-logs list  (see sizes and growth estimates)"
-    _fix  "zdots-logs check --json  (machine-readable with projections)"
+    # rc alone doesn't mean oversized logs: require the crit marker, otherwise
+    # the tool itself failed (seen: bash-3.2 resolution from cwd=/ under
+    # launchd) and reporting "500M exceeded" would send the operator to the
+    # wrong fix entirely.
+    if printf '%s\n' "$_log_check_out" | grep -q 'CRITICAL'; then
+      _fail "log files exceed 500M threshold — consider log rotation (logrotate or truncation)"
+      _fix  "zdots-logs list  (see sizes and growth estimates)"
+      _fix  "zdots-logs check --json  (machine-readable with projections)"
+    else
+      _fail "zdots-logs check errored (rc=${_log_check_rc}) — log sizes UNVERIFIED"
+      _fix  "run: zdots-logs check  (inspect the error; see also Z-282 cwd-dependent PATH)"
+    fi
   elif printf '%s\n' "$_log_check_out" | grep -q '\*\* WARNING'; then
     _warn "log files approaching size threshold — monitor for growth"
   else

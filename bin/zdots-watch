@@ -289,15 +289,17 @@ cmd_install() {
   <key>Label</key><string>${LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${ZDOTDIR}/bin/zdots-watch</string>
-    <string>run</string>
+    <string>/bin/zsh</string>
+    <string>-lic</string>
+    <string>"\${ZDOTDIR:-\$HOME/.config/zsh}/bin/zdots-watch" run</string>
   </array>
   <key>StartInterval</key><integer>${INTERVAL}</integer>
   <key>RunAtLoad</key><true/>
   <key>StandardOutPath</key><string>${LOG_FILE}</string>
   <key>StandardErrorPath</key><string>${LOG_FILE}</string>
+  <key>WorkingDirectory</key><string>${ZDOTDIR}</string>
   <key>EnvironmentVariables</key>
-  <dict><key>ZDOTDIR</key><string>${ZDOTDIR}</string><key>PATH</key><string>${ZDOTDIR}/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>${extra_env}</dict>
+  <dict><key>ZDOTDIR</key><string>${ZDOTDIR}</string>${extra_env}</dict>
 </dict>
 </plist>
 PLIST_EOF
@@ -324,15 +326,17 @@ cmd_install_check() {
   <key>Label</key><string>${CHECK_LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${ZDOTDIR}/bin/zdots-watch</string>
-    <string>run-check</string>
+    <string>/bin/zsh</string>
+    <string>-lic</string>
+    <string>"\${ZDOTDIR:-\$HOME/.config/zsh}/bin/zdots-watch" run-check</string>
   </array>
   <key>StartCalendarInterval</key>
   <dict><key>Hour</key><integer>${CHECK_HOUR}</integer><key>Minute</key><integer>17</integer></dict>
   <key>StandardOutPath</key><string>${LOG_FILE}</string>
   <key>StandardErrorPath</key><string>${LOG_FILE}</string>
+  <key>WorkingDirectory</key><string>${ZDOTDIR}</string>
   <key>EnvironmentVariables</key>
-  <dict><key>ZDOTDIR</key><string>${ZDOTDIR}</string><key>PATH</key><string>${ZDOTDIR}/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>${extra_env}</dict>
+  <dict><key>ZDOTDIR</key><string>${ZDOTDIR}</string>${extra_env}</dict>
 </dict>
 </plist>
 PLIST_EOF
