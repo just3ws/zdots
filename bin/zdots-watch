@@ -213,6 +213,7 @@ EOF
 # get the synthetic identity "suite|<last output line>".
 cmd_run_check() {
   mkdir -p "$STATE_DIR"
+  rm -f "$CHECK_STATE_FILE".tmp.* 2>/dev/null # orphans from runs killed mid-cycle (unload during catch-up)
   local check_cmd="${ZDOTS_WATCH_CHECK_CMD:-$ZDOTDIR/bin/check}"
   local out rc=0 ts
   ts="$(date '+%Y-%m-%dT%H:%M:%S%z')"
