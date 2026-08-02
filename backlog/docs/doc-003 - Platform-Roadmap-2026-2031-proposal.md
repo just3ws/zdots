@@ -10,6 +10,27 @@ created_date: '2026-08-02'
 Drafted by the maintenance agent from the 2026-08-01/02 maximum-effort audit;
 operator edits/blesses. Grounded in measured state, not aspiration.
 
+## Vision
+
+A personal operating system that **learns faster than it decays**.
+
+Everything else is derived from that sentence. The platform is four repos of
+replaceable machinery wrapped around two assets that compound: a **Knowledge
+Layer** of curated judgment, and a set of **contracts (Seams)** that let every
+engine be swapped without breaking a caller. The operator's role trends from
+mechanic toward editor: detectors watch, agents propose, usage teaches, the
+loop curates — and the human blesses what becomes canon.
+
+The test of the vision at any horizon is the same three questions:
+1. Did the system notice its own regressions before a human did?
+2. Did this quarter's work leave Lessons the next quarter actually consumed?
+3. Could every implementation be replaced without rewriting its callers?
+
+When all three stay yes, the 5-year state arrives by accumulation — no
+heroics required. The sequencing rule that follows: **the learning loop closes
+first**, because a dormant loop is the only gap that costs more the longer it
+waits — every unclosed quarter is a quarter of unlearned lessons.
+
 ## Baseline (2026-08-02)
 
 Four repos synced and clean. Standing detectors: doctor daily + suite nightly,
