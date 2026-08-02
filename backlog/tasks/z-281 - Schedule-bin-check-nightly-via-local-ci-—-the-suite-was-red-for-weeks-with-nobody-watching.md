@@ -3,9 +3,10 @@ id: Z-281
 title: >-
   Schedule bin/check nightly via local-ci — the suite was red for weeks with
   nobody watching
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-01 18:12'
+updated_date: '2026-08-02 01:38'
 labels:
   - agent-reported
 dependencies: []
@@ -29,3 +30,9 @@ Fixed instances: 32ecc2491 + 9e2b18ecd repaired all 13; this task is the detecto
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DONE (zdots-watch extension, committed with man page): run-check verb + com.zdots.zdots-watch-check LaunchAgent (calendar 03:17, no RunAtLoad). Failure identity = bats test NAME (renumber-proof, verified); non-bats step deaths get suite|<last-line> identity. Notify only on NEW failing identity; recovery/steady silent. ZDOTS_WATCH_CHECK_CMD test seam; 6-transition stub matrix verified. Installed + seeding on this machine.
+<!-- SECTION:NOTES:END -->
