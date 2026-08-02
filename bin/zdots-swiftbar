@@ -92,6 +92,14 @@ if command -v "$ZDOTDIR/bin/zdots-usage" >/dev/null 2>&1; then
   [[ -n "$top_line" ]] && echo "Usage — ${top_line} | size=12"
   echo "-- full report: zdots-usage | bash=$ZDOTDIR/bin/zdots-usage param0=summary terminal=true size=11"
 fi
+# ── CC burn + north star ────────────────────────────────────────────────────
+burn_state="$(head -1 "$STATE_DIR/cc-burn-watch.state" 2>/dev/null)"
+if [[ -n "$burn_state" ]]; then
+  bc="green"; [[ "$burn_state" == "warn" ]] && bc="orange"; [[ "$burn_state" == "alert" ]] && bc="red"
+  echo "CC burn: ${burn_state} | color=$bc bash=$ZDOTDIR/bin/cc-burn terminal=true"
+fi
+# The NSM on the menu bar until the loop feeds itself (doc-004; flip when Z-289 lands).
+echo "Loop velocity: dormant — first domino Z-289 | color=gray size=12"
 echo "---"
 echo "Run doctor now | bash=$ZDOTDIR/bin/zdots-doctor terminal=true"
 echo "Refresh | refresh=true"
