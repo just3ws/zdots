@@ -3,9 +3,10 @@ id: Z-280
 title: >-
   worker boots crash-loop when a new-table migration is pending — Sequel models
   query schema at require time
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-01 16:21'
+updated_date: '2026-08-02 14:44'
 labels:
   - agent-reported
 dependencies: []
@@ -32,3 +33,9 @@ Current state verified: worker pid up 3d15h, queue 0 pending/failed, 716 complet
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+FIXED: require_valid_table=false in lib/zdots/db.rb + model-table boot guard in cmd_worker (exit 78, names missing tables). Migration-table read denied to zdots_rw, so guard checks model tables directly — also avoids Sequel::Migrator.is_current? CREATE side effect. Verified healthy + simulated-pending + live restart; flap fossil cleared.
+<!-- SECTION:NOTES:END -->
