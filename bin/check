@@ -533,8 +533,47 @@ if [[ "$SKIP_EXTERNAL" != "1" ]]; then
   unset _zdots_brewfile
   
   if command -v bats >/dev/null 2>&1; then
-    echo "check: running Bats tests..."
-    bats tests/
+    # Z-287: two-lane bats. Suites touching live services (redis/pg/launchd/
+    # unified log/sqlite/llama) run serially; the rest fan out across
+    # ZDOTS_CHECK_JOBS background bats processes (no GNU parallel dependency).
+    # ZDOTS_CHECK_JOBS=1 restores the old single-run behavior.
+    typeset -a _serial_suites _par_files _lane_pids
+    typeset -A _lane_files
+    typeset _jobs="${ZDOTS_CHECK_JOBS:-4}" _f _i _lane_rc=0 _tmpd
+    _serial_suites=(
+      cli_contracts.bats cmd_analytics.bats database.bats docs_contract.bats
+      flag_audit.bats history_intelligence.bats lifecycle.bats
+      phase-3-peer-discovery.bats phi_boundary.bats platform_e2e.bats
+      svc_registry_dispatch.bats svc_registry.bats utilization_analytics.bats
+      zdots_ask.bats zdots_worker.bats ztask_e2e.bats
+    )
+    if (( _jobs <= 1 )); then
+      echo "check: running Bats tests..."
+      bats tests/
+    else
+      # Largest files first, greedily assigned round-robin for rough balance.
+      for _f in $(ls -S tests/*.bats); do
+        if (( ${_serial_suites[(Ie)${_f:t}]} )); then continue; fi
+        _par_files+=("$_f")
+      done
+      echo "check: running Bats tests (${#_par_files} files across ${_jobs} lanes + ${#_serial_suites} stateful serial)..."
+      _tmpd="$(mktemp -d)"
+      for (( _i = 1; _i <= ${#_par_files}; _i++ )); do
+        _lane_files[$(( _i % _jobs ))]+=" ${_par_files[$_i]}"
+      done
+      for _i in ${(k)_lane_files}; do
+        ( bats ${(z)_lane_files[$_i]} >"$_tmpd/lane$_i.out" 2>&1 ) &
+        _lane_pids+=($!)
+      done
+      for _i in ${_lane_pids[@]}; do
+        wait "$_i" || _lane_rc=1
+      done
+      cat "$_tmpd"/lane*.out
+      rm -rf "$_tmpd"
+      echo "check: running stateful suites serially..."
+      bats "${_serial_suites[@]/#/tests/}" || _lane_rc=1
+      (( _lane_rc == 0 )) || { echo "check: bats failures (see above)" >&2; exit 1; }
+    fi
   else
     echo "check: warning: bats not found — skipping Bats tests (install via: brew install bats-core)" >&2
   fi
