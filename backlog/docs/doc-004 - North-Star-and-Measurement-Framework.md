@@ -23,6 +23,14 @@ hydrated sessions). Today it is **zero** (loop dormant, Z-289–291). The NSM is
 deliberately not a performance or uptime number: speed and health are
 *conditions* for learning, not the goal.
 
+**The operating adage (operator-stated, 2026-08-02): if you have to do
+something exactly the same twice, automate it.** Complex or specific checks
+that can be forgotten become tools, never habits — and every such tool is
+self-describing: it says what it checked, what it found, why it matters, and
+the exact remediation command (the doctor `_fix`-line pattern; zdots-watch's
+"run: zdots-ctx migrate" exit). Manual-once is fine; manual-twice is a filed
+task. This is the DETECT and OPERATE levers stated as a reflex.
+
 ## The alignment test
 
 Every task, before it is taken, names which lever it pulls — one line in the
