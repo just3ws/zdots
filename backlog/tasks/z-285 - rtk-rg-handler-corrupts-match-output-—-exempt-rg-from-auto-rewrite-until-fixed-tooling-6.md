@@ -3,9 +3,10 @@ id: Z-285
 title: >-
   rtk rg handler corrupts match output — exempt rg from auto-rewrite until fixed
   (tooling #6)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-02 14:57'
+updated_date: '2026-08-02 15:00'
 labels:
   - agent-ready
 dependencies: []
@@ -27,3 +28,9 @@ ACTIONS: (1) locate the CC auto-rewrite hook (not in tracked .claude/settings.js
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+CLOSED — PREMISE WRONG, rtk exonerated (2026-08-02). Controlled repro: direct 'rtk rg -n scrub_failure <file>' is byte-faithful to raw rg. The two 'corruptions' both used a bundled -r flag (rg -rn, rg -rln): rg's -r is --replace and consumed the following letters as the replacement string ('n', 'ln') — outputs match that exactly. Operator/agent flag error (grep muscle memory; rg is recursive by default), not a handler bug. No exemption made, no golden test needed; [hooks].exclude_commands documented as the knob if a real handler bug ever appears.
+<!-- SECTION:NOTES:END -->
