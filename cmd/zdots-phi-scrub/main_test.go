@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestBinaryRedactMode tests the default redact mode (stdin → stdout).
@@ -112,4 +113,114 @@ func buildTestBinary(t *testing.T) string {
 	}
 
 	return binaryPath
+}
+
+// TestBinaryServeMode exercises the resident protocol (Z-283): NUL-framed
+// requests over stdin, status-byte + payload + NUL responses, multiple
+// round-trips through one process, clean exit on stdin EOF.
+func TestBinaryServeMode(t *testing.T) {
+	binaryPath := buildTestBinary(t)
+	defer os.Remove(binaryPath)
+
+	if _, err := os.Stat(filepath.Join(os.Getenv("HOME"), ".config", "zsh", "etc", "phi-patterns.yaml")); err != nil {
+		t.Skipf("registry not found")
+	}
+
+	cmd := exec.Command(binaryPath, "--serve")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatalf("stdin pipe: %v", err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatalf("stdout pipe: %v", err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	readResp := func() (byte, string) {
+		t.Helper()
+		buf := make([]byte, 0, 256)
+		one := make([]byte, 1)
+		for {
+			if _, err := stdout.Read(one); err != nil {
+				t.Fatalf("read response: %v", err)
+			}
+			if one[0] == 0 {
+				break
+			}
+			buf = append(buf, one[0])
+		}
+		if len(buf) == 0 {
+			t.Fatal("empty response frame")
+		}
+		return buf[0], string(buf[1:])
+	}
+
+	// Round-trip 1: clean input passes through unchanged, status '0'.
+	if _, err := stdin.Write([]byte("echo hello world\x00")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	status, payload := readResp()
+	if status != '0' || payload != "echo hello world" {
+		t.Errorf("clean: status=%c payload=%q", status, payload)
+	}
+
+	// Round-trip 2 (same process): multiline input survives NUL framing.
+	if _, err := stdin.Write([]byte("line one\nline two\x00")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	status, payload = readResp()
+	if status != '0' || payload != "line one\nline two" {
+		t.Errorf("multiline: status=%c payload=%q", status, payload)
+	}
+
+	// Round-trip 3: suppress-flagged input answers '2' with empty payload.
+	if _, err := stdin.Write([]byte("postgresql://user:secret@db.internal/mydb\x00")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	status, payload = readResp()
+	if status != '2' || payload != "" {
+		t.Errorf("suppress: status=%c payload=%q", status, payload)
+	}
+
+	// EOF: server exits 0 without noise.
+	stdin.Close()
+	if err := cmd.Wait(); err != nil {
+		t.Errorf("serve exit on EOF: %v", err)
+	}
+}
+
+// TestBinaryServeIdleTimeout verifies the server exits on its own when idle.
+func TestBinaryServeIdleTimeout(t *testing.T) {
+	binaryPath := buildTestBinary(t)
+	defer os.Remove(binaryPath)
+
+	if _, err := os.Stat(filepath.Join(os.Getenv("HOME"), ".config", "zsh", "etc", "phi-patterns.yaml")); err != nil {
+		t.Skipf("registry not found")
+	}
+
+	cmd := exec.Command(binaryPath, "--serve")
+	cmd.Env = append(os.Environ(), "ZDOTS_PHI_SERVE_IDLE=1")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatalf("stdin pipe: %v", err)
+	}
+	defer stdin.Close()
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("idle exit: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		cmd.Process.Kill()
+		t.Fatal("server did not exit after idle timeout")
+	}
 }
