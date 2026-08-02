@@ -4,6 +4,15 @@ require "sequel"
 require "dotenv"
 require_relative "db_url"
 
+# Z-280: model classes bind their tables at require time
+# (Sequel::Model(Zdots.db[:t]) issues a probe SELECT when the class is
+# defined). With this true (the default), code shipped ahead of its migration
+# crash-loops every consumer at BOOT — pre-telemetry, visible only to launchd
+# (the 2026-07-28 worker storm). False defers the failure to first USE, inside
+# the worker's per-job rescue. The cmd_worker boot guard names the pending
+# migration explicitly.
+Sequel::Model.require_valid_table = false
+
 # Load environment variables if not already loaded
 Dotenv.load(File.expand_path("../../.env.shared", __dir__))
 
