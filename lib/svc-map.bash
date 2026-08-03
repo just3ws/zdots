@@ -42,9 +42,9 @@ _svc_map() {
 # ── The map ──────────────────────────────────────────────────────────────
 _svc_map "llama|OpenAI-compatible chat completions, local inference only|openai-chat|none (loopback-trusted)|/health|curl -s http://127.0.0.1:11500/v1/chat/completions -d '{\"model\":\"local\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}'||docs/llama-cpp.md"
 _svc_map "embed|Text embeddings for vector search|openai-embeddings|none (loopback-trusted)|/health|curl -s http://127.0.0.1:11501/v1/embeddings -d '{\"model\":\"local\",\"input\":\"hi\"}'||docs/llama-cpp.md"
-_svc_map "otel|OTLP ingestion for traces/metrics/logs|otlp-http|none (loopback-trusted)|(health subcommand)|curl -s http://127.0.0.1:4318/v1/traces -d '{}'||docs/otel-collector-guide.md"
+_svc_map "otel|OTLP ingestion for traces/metrics/logs|otlp-http|none (loopback-trusted)|(health subcommand)|curl -s -H 'Content-Type: application/json' http://127.0.0.1:4318/v1/traces -d '{\"resourceSpans\":[]}'||docs/otel-collector-guide.md"
 _svc_map "o2|Trace/log/metric storage and query UI|http+sql|root creds via openobserve-ctl creds|/healthz|curl -s http://127.0.0.1:5080/healthz||otel|docs/openobserve.md"
-_svc_map "colima|Docker/container runtime VM|docker-socket|none (local user)|colima status|DOCKER_HOST=\$(colima-status socket) docker ps||"
+_svc_map "colima|Docker/container runtime VM|docker-socket|none (local user)|colima status|DOCKER_HOST=\"unix://\$(colima-status socket)\" docker ps||"
 _svc_map "nginx|TLS-terminating reverse proxy fronting the .localhost services|https|none (loopback-trusted)|/|curl -sk https://my.localhost/up|postgres redis|"
 _svc_map "postgres|Knowledge-layer store — database 'my'|sql|zdots_ro (read) / zdots_rw (write) via scram-sha-256|pg_isready|psql -U zdots_ro my||docs/wiki/AI-and-Knowledge-Layer.md"
 _svc_map "redis|Command-analytics cache buffer|redis|none (loopback-trusted)|PING|redis-cli -h 127.0.0.1 -p 6379 KEYS 'zdots:cmds:*'||"
