@@ -18,6 +18,10 @@
 .Op Fl -json
 .Op Ar service | all
 .Nm
+.Cm map
+.Op Fl -json
+.Op Ar service
+.Nm
 .Cm logs
 .Cm all
 .Op Fl -json | Fl -paths
@@ -64,6 +68,30 @@ Probe service liveness. With no service, prints every registered service plus
 the local nginx-fronted URLs. With
 .Fl -json ,
 emits a machine-readable document for AI tools and automation.
+.It Cm map Op Fl -json Op Ar service
+The discovery card for one or every service: purpose, API kind, auth
+requirement, health-check path, a runnable example call, prerequisite
+services, and a docs pointer. This is the "you are here" surface for an
+external, non-zdots tool or AI deciding what to call and in what order \(em
+.Cm health
+and
+.Cm list
+answer where a service is;
+.Cm map
+answers what it is for and how to use it. With
+.Fl -json ,
+each entry also carries a
+.Qq depends_on
+array (e.g.
+.Cm o2
+depends on
+.Cm otel ;
+.Cm ctx
+depends on
+.Cm postgres )
+so a caller can resolve prerequisites before adopting a service. Pairs with
+.Xr agent-guide 1
+for the full platform command index beyond just services.
 .It Cm logs Ar service
 Tail the service log.
 .It Cm logs Cm all Op Fl -json | Fl -paths Op Fl n Ar lines Op Fl -no-follow
@@ -158,13 +186,20 @@ zsvc logs all --paths
 zsvc diag llama
 zsvc restart redis
 zsvc reload nginx
+zsvc map
+zsvc map llama --json
 .Ed
 .Sh SEE ALSO
 .Xr zdots-ctl 8 ,
 .Xr llama-ctl 8 ,
 .Xr otel-collector 8 ,
 .Xr local-ci 8 ,
+.Xr agent-guide 1 ,
 .Xr zdots 7
 .Pp
 Detailed diagrams and E2E coverage live in
 .Pa docs/platform-service-plane.md .
+For the full platform command index, not just services, run
+.Nm agent-guide
+or
+.Nm agent-guide Fl -json .

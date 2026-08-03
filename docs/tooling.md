@@ -242,6 +242,7 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 | `openobserve-ctl` | `zsvc start o2` | Native OpenObserve backend (logs/metrics/traces) |
 | `zdots-o2-query` | `zdots-o2-query errors --since 1h` | Read runtime insight back from OpenObserve (errors/slow/failures/trace); read-only, local, scrubbed |
 | `zsvc` | `bin/zsvc health --json` / `bin/zsvc logs all --json` | Unified service registry, machine-readable health, and consolidated log sources |
+| `zsvc map` | `bin/zsvc map --json` | "You are here" discovery card per service — purpose, API kind, auth, health path, runnable example, dependencies; for external tools/AI adopting a service |
 | `zdots-statusd` | `zsvc start status` | Control-plane status console at zdots.localhost (loopback :11600) — live service/launchd/log health, independent of context-engine/PG |
 | `log-rotate` | `log-rotate otel-collector` | Compress + truncate a service log in place (no restart; safe for open fds) |
 | `gemstash-ctl` | `zsvc start gemstash` | RubyGems caching proxy + private gem host on loopback :9292; Postgres-backed (dedicated `gemstash` DB), bundler mirrors through it |

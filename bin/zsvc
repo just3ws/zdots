@@ -18,6 +18,9 @@ _LAUNCHD_UID="$(id -u)"
 # Single source of truth for the service catalog + health/state probes.
 # shellcheck source=lib/svc-registry.bash
 source "$ZDOTDIR/lib/svc-registry.bash"
+# Discovery layer: purpose, API kind, auth, example call — for `zsvc map`.
+# shellcheck source=lib/svc-map.bash
+source "$ZDOTDIR/lib/svc-map.bash"
 
 # ---------------------------------------------------------------------------
 # Service registry
@@ -159,6 +162,64 @@ cmd_list() {
     pid="${state_pid##*$'\t'}"
     printf '%-16s  %-18s  %-8s  %s\n' "$SVC_DISPLAY" "$state" "$pid" "${SVC_ENDPOINT:--}"
   done
+}
+
+cmd_map() {
+  local json=false target=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --json) json=true; shift ;;
+      *) target="$1"; shift ;;
+    esac
+  done
+
+  local -a svcs
+  if [[ -n "$target" ]]; then
+    _svc_meta "$target"
+    svcs=("$SVC_NAME")
+  else
+    svcs=("${ALL_SVCS[@]}")
+  fi
+
+  if $json; then
+    local svc entry="" first=true depends dep dep_json
+    for svc in "${svcs[@]}"; do
+      _svc_meta "$svc"
+      dep_json=""
+      local dfirst=true
+      for dep in $(zdots_svc_depends_on "$svc"); do
+        $dfirst || dep_json+=","
+        dfirst=false
+        dep_json+="\"$(_json_escape "$dep")\""
+      done
+      $first || entry+=","
+      first=false
+      entry+=$(printf '{"name":"%s","display":"%s","endpoint":"%s","purpose":"%s","api_kind":"%s","auth":"%s","health_path":"%s","example":"%s","depends_on":[%s],"docs":"%s"}' \
+        "$(_json_escape "$SVC_NAME")" "$(_json_escape "$SVC_DISPLAY")" "$(_json_escape "${SVC_ENDPOINT:-}")" \
+        "$(_json_escape "$(zdots_svc_purpose "$svc")")" "$(_json_escape "$(zdots_svc_api_kind "$svc")")" \
+        "$(_json_escape "$(zdots_svc_auth "$svc")")" "$(_json_escape "$(zdots_svc_health_path "$svc")")" \
+        "$(_json_escape "$(zdots_svc_example "$svc")")" "$dep_json" "$(_json_escape "$(zdots_svc_docs "$svc")")")
+    done
+    printf '{"agent_guide":"agent-guide --json","services":[%s]}\n' "$entry"
+    return 0
+  fi
+
+  local svc depends
+  for svc in "${svcs[@]}"; do
+    _svc_meta "$svc"
+    printf '%s (%s)\n' "$SVC_DISPLAY" "$SVC_NAME"
+    printf '  endpoint:    %s\n' "${SVC_ENDPOINT:--}"
+    printf '  purpose:     %s\n' "$(zdots_svc_purpose "$svc")"
+    printf '  api kind:    %s\n' "$(zdots_svc_api_kind "$svc")"
+    printf '  auth:        %s\n' "$(zdots_svc_auth "$svc")"
+    printf '  health:      %s\n' "$(zdots_svc_health_path "$svc")"
+    printf '  example:     %s\n' "$(zdots_svc_example "$svc")"
+    depends="$(zdots_svc_depends_on "$svc")"
+    [[ -n "$depends" ]] && printf '  depends on:  %s\n' "$depends"
+    [[ -n "$(zdots_svc_docs "$svc")" ]] && printf '  docs:        %s\n' "$(zdots_svc_docs "$svc")"
+    printf '\n'
+  done
+  printf 'Full platform command index: agent-guide (agent-guide --json for machine-readable)\n'
 }
 
 cmd_health_all() {
@@ -503,6 +564,9 @@ COMMANDS
   reload  <service>     Graceful zero-downtime reload (nginx)
   status  <service>     Full status from the service's ctl script
   health  [--json] [service|all] Probe service liveness and local URLs
+  map     [--json] [service]     "You are here": purpose, API kind, auth,
+                                  a runnable example, and dependencies — for
+                                  external tools/AI discovering what to call
   logs    <service>     Tail the service log (Ctrl+C to stop)
   logs    all [--paths|--json] [options] Tail all registered service logs
   diag    <service>     Status + health + launchd state + last 50 log lines
@@ -533,6 +597,8 @@ EXAMPLES
   zsvc logs all --paths
   zsvc logs all -n 100
   zsvc health
+  zsvc map                   # discovery card for every service (name/purpose/auth/example)
+  zsvc map llama --json      # one service, machine-readable, for an external AI/tool
   zsvc status postgres
   zsvc reload nginx          # graceful config reload (after editing servers/*.conf)
   zsvc diag llama
@@ -544,6 +610,7 @@ NOTES
     zdots-ctl down    stop everything
     zdots-ctl check   deep health diagnostic
   Lifecycle diagrams: docs/platform-service-plane.md
+  Full command index (all bin/, not just services): agent-guide, agent-guide --json
 EOF
 }
 
@@ -562,6 +629,7 @@ case "$1" in
   reload)   [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_reload "$2" ;;
   status)   [[ $# -ge 2 ]] || { usage >&2; exit 1; }; shift; cmd_status "$@" ;;
   health)   shift; cmd_health "$@" ;;
+  map)      shift; cmd_map "$@" ;;
   logs)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; shift; cmd_logs "$@" ;;
   diag)     [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_diag "$2" ;;
   validate) [[ $# -ge 2 ]] || { usage >&2; exit 1; }; cmd_validate "$2" ;;
