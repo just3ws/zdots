@@ -29,6 +29,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | System health check | `zdots-doctor [--no-runtime] [--json]` | "brew doctor" for the workstation: env, repo, XDG, AI, services, observability |
 | Service controller | `zsvc list/health/logs/diag/restart` | Inspect, health-check, log-tail, and control registered platform components |
 | Knowledge layer CLI | `zdots-ctx query/capture/hydrate/sync-history` | Shell→PostgreSQL brain interface |
+| Vault curation | `zdots-ctx vault-doctor [PATH...] [--json\|--llm]` | Rules-first, local-LLM-last asset catalog over any markdown corpus — staleness/broken-links/orphans, durable per-asset history + disposition (`--ack`/`--history`) |
 | Semantic transcript search | `zdots-search "<question>"` | pgvector cosine search over embedded knowledge chunks; top 5 passages with source + timestamp |
 | Brain status | `zdots-brain status [--json]` | DB row counts + encryption coverage across all 8 `_enc` columns |
 | Brain rekey | `zdots-brain rekey [table]` | Re-encrypt after key rotation; covers lessons, methodologies, session_residue, source_document |

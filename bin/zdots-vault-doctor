@@ -1,0 +1,340 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# bin/zdots-vault-doctor — Knowledge Layer curation (Z-192): an asset catalog over
+# any markdown corpus, RULES-FIRST and LOCAL-LLM-LAST.
+#
+# Not a stateless rescan. Every doc is an ASSET with an identifier (its relative
+# path) and a durable history: every run that changes a score, an action band, or
+# the content itself appends one event to events.ndjson. A human can ACKNOWLEDGE a
+# finding — silenced until the content actually changes — and that disposition is
+# itself an event. This is the asset-catalog shape (identifier + context +
+# evaluation/disposition history), scaled down to a single JSON registry + an
+# append-only event log — no database, no config file, no server.
+#
+# Rules pass (cheap, no deep parsing — frontmatter + a link scan + a word count):
+#   stale        mtime (or frontmatter updated/last_verified) older than --cadence-days
+#   broken-link  relative markdown links to a .md file that doesn't resolve
+#   unverified   TODO / FIXME / TBD / [unverified] / ??? markers
+#   thin/oversized  word count below/above a floor/ceiling — read/split candidates
+#   orphan       no other asset in the corpus links to it (excluding index files)
+# Scores band into ok / watch / review / address.
+#
+# The local LLM is OFF by default and LAST: --llm escalates only the top-N
+# already-flagged assets to `ai-query` for a one-sentence clue, cached by
+# path::content_hash so unchanged assets never re-spend tokens.
+#
+# Usage:
+#   zdots-vault-doctor [PATH...]              rules pass (default: zdots' own doc corpus)
+#   zdots-vault-doctor [PATH...] --json       emit the queue as JSON
+#   zdots-vault-doctor [PATH...] --llm [--top-n N]   add local-LLM clues to the top-N
+#   zdots-vault-doctor --ack <id> [--note TEXT]      acknowledge current findings for one asset
+#   zdots-vault-doctor --history <id>                one asset's full event history
+#   zdots-vault-doctor --self-check                   offline assertions on inline fixtures
+#
+# State: ${XDG_STATE_HOME:-~/.local/state}/zsh/vault-doctor/{registry.json,events.ndjson,clues.json}
+# ponytail: thresholds are inline constants, not a YAML config — pull them out if a
+# second corpus ever needs different bands.
+
+require "yaml"
+require "json"
+require "date"
+require "digest"
+require "time"
+require "fileutils"
+require "open3"
+
+if ARGV.first =~ /\A(-h|--help)\z/
+  puts <<~USAGE
+    Usage: zdots-vault-doctor [PATH...] [options]
+
+    Knowledge Layer curation: scores every markdown asset in PATH (default: this
+    repo's own doc corpus) on cheap structural signals, bands into ok/watch/review/
+    address, and keeps a durable per-asset history. Local LLM is opt-in and last.
+
+    Options:
+      --json             emit the current queue as JSON
+      --llm               escalate the top-N flagged assets to ai-query for a clue
+      --top-n N           how many to escalate with --llm (default 12)
+      --cadence-days N    staleness threshold in days (default 180)
+      --ack ID            acknowledge current findings for one asset
+      --note TEXT         note to attach to --ack
+      --history ID        print one asset's full event history
+      --self-check        offline assertions on inline fixtures
+      -h, --help          show this help
+  USAGE
+  exit 0
+end
+
+ZDOTDIR = ENV["ZDOTDIR"] || File.expand_path("#{__dir__}/..")
+STATE_DIR = File.join(ENV["XDG_STATE_HOME"] || "#{Dir.home}/.local/state", "zsh", "vault-doctor")
+REGISTRY = File.join(STATE_DIR, "registry.json")
+EVENTS   = File.join(STATE_DIR, "events.ndjson")
+CLUES    = File.join(STATE_DIR, "clues.json")
+
+MARKERS  = /\[unverified\]|\bTODO\b|\bFIXME\b|\bTBD\b|\?\?\?/i
+MD_LINK  = /\[([^\]]+)\]\(([^)#]+\.md)(#[^)]*)?\)/
+THIN_WORDS = 40
+OVERSIZED_WORDS = 4000
+WEIGHTS = { stale: 20, broken_link: 15, unverified: 5, thin: 10, oversized: 8, orphan: 12 }.freeze
+CAPS    = { broken_link: 45, unverified: 20 }.freeze
+BANDS   = [[50, "address"], [25, "review"], [10, "watch"], [0, "ok"]].freeze
+INDEX_LIKE = %w[README AGENTS CLAUDE INDEX CONTEXT].freeze
+
+def band_for(score)
+  BANDS.find { |min, _| score >= min }[1]
+end
+
+def load_json(path, default)
+  File.exist?(path) ? JSON.parse(File.read(path)) : default
+rescue StandardError
+  default
+end
+
+def save_json(path, data)
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, JSON.pretty_generate(data))
+end
+
+def append_event(kind, id, extra = {})
+  FileUtils.mkdir_p(File.dirname(EVENTS))
+  row = { at: Time.now.utc.iso8601, id: id, kind: kind }.merge(extra)
+  File.open(EVENTS, "a") { |f| f.puts(JSON.generate(row)) }
+end
+
+# ── self-check ───────────────────────────────────────────────────────────────
+if ARGV.include?("--self-check")
+  raise "band" unless band_for(60) == "address" && band_for(0) == "ok" && band_for(12) == "watch"
+
+  body = "hi [link](nowhere.md) TODO"
+  links = body.scan(MD_LINK)
+  raise "link scan" unless links.size == 1 && links.first[1] == "nowhere.md"
+  raise "marker scan" unless body.scan(MARKERS).size == 1
+
+  puts "zdots-vault-doctor self-check OK"
+  exit 0
+end
+
+# ── frontmatter + word count ─────────────────────────────────────────────────
+def parse_doc(path)
+  text = File.read(path, encoding: "UTF-8")
+  fm, body = {}, text
+  if text.start_with?("---")
+    if (idx = text.index("\n---", 3))
+      fm = YAML.safe_load(text[3...idx], permitted_classes: [Date, Time]) || {}
+      fm = {} unless fm.is_a?(Hash)
+      body = text[(idx + 4)..] || ""
+    end
+  end
+  [fm, body]
+rescue StandardError
+  [{}, ""]
+end
+
+def age_days(fm, path)
+  lv = fm["updated"] || fm["last_verified"] || fm["updated_date"]
+  if lv
+    begin
+      return (Date.today - Date.parse(lv.to_s)).to_i
+    rescue StandardError
+      nil
+    end
+  end
+  (Date.today - Date.parse(File.mtime(path).to_s)).to_i
+rescue StandardError
+  nil
+end
+
+def score_doc(id, path, inbound, cadence_days)
+  fm, body = parse_doc(path)
+  words = body.split.size
+  fired = []
+  score = 0
+
+  ad = age_days(fm, path)
+  if ad && ad > cadence_days
+    score += WEIGHTS[:stale]; fired << { rule: "stale", detail: "#{ad}d old > #{cadence_days}d cadence" }
+  end
+
+  broken = body.scan(MD_LINK).map { |_t, target,| target }.uniq.reject do |target|
+    File.exist?(File.expand_path(target, File.dirname(path)))
+  end
+  unless broken.empty?
+    pts = [broken.size * WEIGHTS[:broken_link], CAPS[:broken_link]].min
+    score += pts; fired << { rule: "broken-link", detail: "#{broken.size} dangling: #{broken.first(3).join(', ')}" }
+  end
+
+  m = body.scan(MARKERS).size
+  if m.positive?
+    pts = [m * WEIGHTS[:unverified], CAPS[:unverified]].min
+    score += pts; fired << { rule: "unverified", detail: "#{m} markers" }
+  end
+
+  if words < THIN_WORDS
+    score += WEIGHTS[:thin]; fired << { rule: "thin", detail: "#{words} words" }
+  elsif words > OVERSIZED_WORDS
+    score += WEIGHTS[:oversized]; fired << { rule: "oversized", detail: "#{words} words — split candidate" }
+  end
+
+  base = File.basename(id, ".md")
+  if inbound[base].to_i.zero? && !INDEX_LIKE.include?(base)
+    score += WEIGHTS[:orphan]; fired << { rule: "orphan", detail: "no inbound links" }
+  end
+
+  { id: id, score: score, words: words, age_days: ad, fired: fired,
+    action: band_for(score), content_hash: Digest::SHA256.hexdigest(body) }
+end
+
+# ── corpus discovery ─────────────────────────────────────────────────────────
+# Returns {relative_or_home_id => absolute_path}. Default corpus is zdots' own
+# doc surface (top-level *.md + docs/** + backlog/docs/**) — NOT the whole repo
+# (backlog/tasks/* alone is 280+ files and isn't "documentation" to curate).
+def collect_docs(paths_given)
+  files =
+    if paths_given.empty?
+      Dir.glob("#{ZDOTDIR}/*.md") + Dir.glob("#{ZDOTDIR}/docs/**/*.md") + Dir.glob("#{ZDOTDIR}/backlog/docs/**/*.md")
+    else
+      paths_given.flat_map { |p| File.directory?(p) ? Dir.glob("#{File.expand_path(p)}/**/*.md") : Dir.glob(File.expand_path(p)) }
+    end
+  files = files.map { |p| File.expand_path(p) }.uniq.reject { |p| p.include?("/node_modules/") || p.include?("/.git/") }
+  files.to_h do |p|
+    id = p.start_with?("#{ZDOTDIR}/") ? p.sub("#{ZDOTDIR}/", "") : p.sub(Dir.home, "~")
+    [id, p]
+  end
+end
+
+def inbound_counts(docs)
+  inbound = Hash.new(0)
+  docs.each_value do |path|
+    _fm, body = parse_doc(path)
+    body.scan(MD_LINK).each { |_t, target,| inbound[File.basename(target, ".md")] += 1 }
+  end
+  inbound
+end
+
+# ── dispatch: --ack / --history ──────────────────────────────────────────────
+if (i = ARGV.index("--ack"))
+  id = ARGV[i + 1] or abort "usage: --ack <id> [--note TEXT]"
+  note = ARGV[ARGV.index("--note") + 1] if ARGV.include?("--note")
+  registry = load_json(REGISTRY, {})
+  asset = registry[id] or abort "zdots-vault-doctor: unknown asset id: #{id} (run a scan first)"
+  asset["disposition"] = { "status" => "acknowledged", "note" => note, "at" => Time.now.utc.iso8601 }
+  save_json(REGISTRY, registry)
+  append_event("disposition", id, note: note, status: "acknowledged")
+  puts "acknowledged #{id}"
+  exit 0
+end
+
+if (i = ARGV.index("--history"))
+  id = ARGV[i + 1] or abort "usage: --history <id>"
+  abort "no event log yet" unless File.exist?(EVENTS)
+  File.readlines(EVENTS).each do |line|
+    row = (JSON.parse(line) rescue next)
+    next unless row["id"] == id
+
+    puts "#{row['at']}  #{row['kind']}  #{row.reject { |k, _| %w[at kind id].include?(k) }.to_json}"
+  end
+  exit 0
+end
+
+# ── run ───────────────────────────────────────────────────────────────────────
+json_out = ARGV.include?("--json")
+use_llm  = ARGV.include?("--llm")
+top_n    = (ARGV[ARGV.index("--top-n") + 1] if ARGV.include?("--top-n"))&.to_i || 12
+cadence  = (ARGV[ARGV.index("--cadence-days") + 1] if ARGV.include?("--cadence-days"))&.to_i || 180
+value_flags = %w[--top-n --cadence-days]
+skip_next = false
+paths = ARGV.reject do |a|
+  if skip_next
+    skip_next = false
+    true
+  elsif a.start_with?("--")
+    skip_next = true if value_flags.include?(a)
+    true
+  else
+    false
+  end
+end
+
+docs = collect_docs(paths)
+inbound = inbound_counts(docs)
+registry = load_json(REGISTRY, {})
+now = Time.now.utc.iso8601
+
+scored = docs.map { |id, path| score_doc(id, path, inbound, cadence) }
+
+scored.each do |d|
+  id = d[:id]
+  prev = registry[id]
+  disp = prev && prev["disposition"]
+  content_changed = !prev || prev["content_hash"] != d[:content_hash]
+  disp = nil if disp && content_changed # a real content change clears a stale acknowledgment
+
+  if prev.nil?
+    append_event("new-asset", id, score: d[:score], action: d[:action])
+  elsif prev["last_score"] != d[:score] || prev["last_action"] != d[:action] || content_changed
+    append_event("scored", id,
+                  from: { score: prev["last_score"], action: prev["last_action"] },
+                  to: { score: d[:score], action: d[:action] },
+                  fired: d[:fired].map { |f| f[:rule] }, content_changed: content_changed)
+  end
+
+  registry[id] = {
+    "id" => id, "content_hash" => d[:content_hash],
+    "first_seen" => prev&.fetch("first_seen", now) || now,
+    "last_scored_at" => now, "last_score" => d[:score], "last_action" => d[:action],
+    "fired" => d[:fired], "disposition" => disp
+  }
+  d[:disposition] = disp
+end
+save_json(REGISTRY, registry)
+
+active = scored.reject { |d| d[:action] == "ok" || d[:disposition] }
+active.sort_by! { |d| -d[:score] }
+
+# ── optional LLM last-step ───────────────────────────────────────────────────
+if use_llm
+  if system("command -v ai-query >/dev/null 2>&1")
+    clue_cache = load_json(CLUES, {})
+    active.first(top_n).each do |d|
+      key = "#{d[:id]}::#{d[:content_hash]}"
+      if clue_cache[key]
+        d[:llm_clue] = clue_cache[key]
+        next
+      end
+      _fm, body = parse_doc(docs[d[:id]])
+      chunk = body.split.first(150).join(" ")
+      fired = d[:fired].map { |f| "#{f[:rule]} (#{f[:detail]})" }.join("; ")
+      prompt = "You are triaging a knowledge-base document for a review queue. " \
+               "In ONE sentence, give a context clue: what this doc is and whether it most needs " \
+               "REVIEW, UPDATE, PRUNE, or SPLIT, and why. Be terse. Do not invent facts.\n\n" \
+               "Path: #{d[:id]}\nRules fired: #{fired}\nOpening: #{chunk}\n"
+      out, _err, status = Open3.capture3("ai-query", prompt)
+      if status.success? && !out.strip.empty?
+        clue = out.strip.gsub("\n", " ")[0, 280]
+        d[:llm_clue] = clue
+        clue_cache[key] = clue
+      end
+    end
+    save_json(CLUES, clue_cache)
+  else
+    warn "[zdots-vault-doctor] ai-query not found — LLM step skipped (rules-only)"
+  end
+end
+
+if json_out
+  puts JSON.pretty_generate(generated_at: now, queue: active,
+                             summary: scored.group_by { |d| d[:action] }.transform_values(&:size))
+  exit 0
+end
+
+by_action = scored.group_by { |d| d[:action] }.transform_values(&:size)
+puts "[zdots-vault-doctor] #{now}  scored #{scored.size} assets · " \
+     "queued #{active.size}  (#{by_action['address'] || 0} address · #{by_action['review'] || 0} review · #{by_action['watch'] || 0} watch)"
+active.first(20).each do |d|
+  clue = d[:llm_clue] ? "  \u{1F4A1} #{d[:llm_clue]}" : ""
+  fired = d[:fired].map { |f| f[:rule] }.join(", ")
+  puts "  [#{d[:action]}] score=#{d[:score]}  #{d[:id]}"
+  puts "        #{fired}#{clue}"
+end
+puts "  ... +#{active.size - 20} more (see --json)" if active.size > 20
