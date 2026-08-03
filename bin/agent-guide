@@ -195,9 +195,29 @@ if $JSON; then
             name:  "ctx-mcp",
             tools: ["ctx_status","ctx_query","ctx_hydrate","ctx_add_methodology","ctx_add_lesson","ctx_capture","ctx_enqueue","ctx_jobs"],
             note:  "Knowledge Layer — second brain (lessons, methodologies, session residue)"
+          },
+          {
+            name:  "o2-mcp",
+            tools: ["o2_logs","o2_errors","o2_failures","o2_slow","o2_service","o2_trace"],
+            note:  "Read-only OpenObserve queries — logs/metrics/traces"
+          },
+          {
+            name:  "backlog",
+            tools: ["task_list","task_view","task_create","task_edit","milestone_list","document_search"],
+            note:  "Backlog.md task tracker — see also https://zdots.localhost/backlog for a read-only view"
           }
         ],
-        note: "Registered in ~/.claude.json; available natively in Claude Code sessions"
+        note: "Registered in .mcp.json; available natively in Claude Code sessions"
+      },
+      discovery: {
+        man:                  "https://zdots.localhost/man (or: man <cmd> locally)",
+        docs:                 "https://zdots.localhost/docs (or: docs/*.md)",
+        help:                 "https://zdots.localhost/help (or: zdots help <cmd>)",
+        backlog:              "https://zdots.localhost/backlog (read-only board)",
+        theme:                "https://zdots.localhost/theme/palette.json (Kanagawa Wave)",
+        services:             "zsvc map --json (purpose/auth/example per service)",
+        vocabulary:           "zdots-ctx concept <slug> | concept resolve <word>",
+        external_agents_note: "Tenant/corporate AI sessions on this machine: reads above are free (loopback-trusted, no PHI). Route requests/questions through ${ZDOTS_WORK_EXT:-~/.config/zdots-work}/handoffs/, not the Message Bus or zdots-issue directly."
       },
       database: {
         name:           "my",
@@ -280,6 +300,18 @@ Command discovery, always available:
   zdots help                list every platform command with one-liners
   zdots help <cmd>          man page -> --help -> catalog, first hit wins
   man <cmd>                 every bin/ command has a man page (contract-tested)
+
+Vocabulary — canonical terms (Seam, Platform Service, Actor, ...), not prose:
+  zdots-ctx concept <slug>              look up a term
+  zdots-ctx concept resolve <word>      resolve an alias -> canonical term
+
+Same content, browsable over HTTP (zdots.localhost, loopback-trusted, no auth) —
+useful for any local agent that would rather GET than shell out:
+  https://zdots.localhost/man       every man page, cross-linked
+  https://zdots.localhost/docs      every tracked *.md doc
+  https://zdots.localhost/help      every command's --help
+  https://zdots.localhost/backlog   read-only Backlog.md board
+  https://zdots.localhost/theme     platform theme (Kanagawa Wave) + palette.json
 EOF
 
 _head "Service Control — zsvc"
@@ -294,6 +326,9 @@ Use zsvc for per-service diagnostics and consolidated logs.
   zsvc logs all --json      machine-readable log source inventory
   zsvc logs all             tail all registered logs from one terminal
   zsvc diag <service>       status + health + launchd state + recent logs
+  zsvc map [--json] [svc]   "you are here": purpose, API kind, auth, a
+                            runnable example, and dependencies per service —
+                            for any tool/agent deciding what to call and how
 
 Registered services (11 managed): llama, embed, otel, o2, colima, nginx,
 postgres, redis, worker, status (zdots-statusd), gemstash.
@@ -745,6 +780,30 @@ For Claude Code / Codex / Gemini sessions talking to the operator here:
 
   BEFORE CLAIMING MISSING CONTEXT: zdots-ctx query / hydrate, zdots help,
   man <cmd>, and the newest ~/.config/adots/handoffs/ file — in that order.
+EOF
+
+_head "External / Tenant Agents — Discovery Without a Boundary Crossing"
+
+cat <<'EOF'
+For an AI session running OUTSIDE this platform (a tenant/corporate app on
+the same machine, e.g. a dashboard at some-other.localhost) that wants to
+learn zdots' capabilities, adapt to changes, or borrow the theme:
+
+  READS are free — same trust level as a public style guide, no creds, no PHI:
+    https://zdots.localhost/{man,docs,help,backlog,theme}   browse directly
+    zsvc map --json          purpose/auth/example per service
+    capabilities --json      environment contract, live
+    agent-guide --json       this guide, machine-readable
+    zdots-ctx concept <slug> | concept resolve <word>       canonical vocabulary
+
+  REQUESTS / QUESTIONS go through a relay, never straight into zdots' own
+  state — the Message Bus (zdots-ctx bus-*) and zdots-issue are backed by
+  personal platform infra (the `my` Postgres DB / backlog tracker); an
+  external app writing there directly is the same boundary problem the
+  work-extension layer (Z-262) exists to prevent:
+    ${ZDOTS_WORK_EXT:-~/.config/zdots-work}/handoffs/YYYY-MM-DD.md
+    Same intent/result/summary shape as the adots handoff files. A zdots-side
+    agent or the operator triages these into a real zdots-issue if warranted.
 EOF
 
 _head "Destructive Commands — Confirm Before Running"
