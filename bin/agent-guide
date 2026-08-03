@@ -785,6 +785,13 @@ EOF
 _head "External / Tenant Agents — Discovery Without a Boundary Crossing"
 
 cat <<'EOF'
+Charter: zdots is the GENERIC platform/control-plane — enabling services,
+"how to do things best on this workstation," capabilities any local app can
+use. Tenant/corporate-specific work (business logic, org data, customer
+content) belongs in that tenant's own app, never here. Inspiration flows
+both ways at the pattern level (a UI approach, a discovery-endpoint shape)
+without either side absorbing the other's domain-specific capabilities.
+
 For an AI session running OUTSIDE this platform (a tenant/corporate app on
 the same machine, e.g. a dashboard at some-other.localhost) that wants to
 learn zdots' capabilities, adapt to changes, or borrow the theme:

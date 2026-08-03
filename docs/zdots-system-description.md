@@ -16,6 +16,7 @@ The repository lives at `~/.config/zsh/` and is tracked in git. The operator (th
 - **Composable:** Services are registered in a single catalog (`lib/svc-registry.bash`). Tools are discovered via the knowledge base (`zdots-ctx hydrate tooling-catalog`). Configuration is injected through providers (SOLID dependency inversion).
 - **Local-first:** AI inference runs on a local llama.cpp server. No cloud API keys are required by default. PHI-adjacent workloads never leave the machine unless explicitly authorized.
 - **Self-healing:** The `/zdots-heal` skill (Claude Code) runs five sequential gates (Foundation → Colima → Services → Deep check → Knowledge base), remediates safe issues automatically, and surfaces operator-required actions as filed backlog issues.
+- **Generic, not tenant-specific:** zdots is the platform/control-plane — enabling services and "how to do things best on this workstation," usable by any local app. Tenant or corporate-specific work (business logic, org data, customer content — e.g. the operator's [redacted] dashboard at `[redacted].localhost`) belongs in that app, never here; see the work-extension layer (AGENTS.md §1, Z-262) for the one sanctioned exception (tenant identity hooks). Inspiration flows both ways at the *pattern* level — a UI approach, a discovery-endpoint shape — without either side absorbing the other's domain-specific capabilities. `agent-guide`'s "External / Tenant Agents" section is the concrete contract for how another local app should read from and request things of zdots.
 
 ---
 
