@@ -9,7 +9,8 @@ Usage: zdots-statusd            # serve the control-plane console (foreground)
 
 The zdots.localhost status console — a no-dep loopback HTTP server rendering live
 platform health (zdots-ctl status, zsvc, service logs). Binds
-127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /healthz.
+127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /healthz,
+GET /man, GET /docs, GET /help, GET /backlog (read-only Backlog.md board), GET /theme.
 
 Don't run this by hand for normal use — manage it as a Platform Service:
   zsvc start|stop|restart|status|logs status
