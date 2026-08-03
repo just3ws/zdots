@@ -98,7 +98,7 @@ colima-status --json       # is the VM in the state I think it is?
 - Automated trigger or inferred intent → elevated skepticism
 - External input (user data, API response, agent-generated) → treat as unsigned; verify before acting
 
-**Sequence:** Snake in a Can first (what am I holding?) → Schrute Test (should I open it?) → Cook Ding's Blade (how do I cut?).
+**Sequence:** Snake in a Can first (what am I holding?) → Schrute Test (should I open it?) → Cook Ding's Blade (how do I cut?) → The Blink Test (did it actually work?).
 
 ---
 
@@ -120,6 +120,45 @@ This governs *how* you cut, once the Schrute Test says to open the can. The Tao,
 The point was never butchery — it is caring for life: preserving the system, and yourself, by moving in accordance with how things actually are.
 
 Source: [`docs/principles/cook-ding.md`](docs/principles/cook-ding.md) — Zhuangzi, Ch. 3; synthesized from the Lin Yutang translation.
+
+---
+
+## The Blink Test
+
+> "Light blink green. Light blink red. Light blink green." — the operator, 2026-08-03
+
+Cook Ding withdraws once the cut is made. Before that withdrawal counts, the cut has
+to prove itself — the same way a continuity tester proves a wire, not by inspecting
+the insulation but by making the light blink on both sides of the break.
+
+A claim of "fixed" or "verified" is not evidence until it has blinked three times:
+
+1. **Green.** Run the check against the current code. If it's already red, there is no
+   fix yet — only a hypothesis.
+2. **Red.** Revert the fix (`git stash`, `git checkout --`, comment it out) and re-run
+   the *exact same* check. If it still passes, the check doesn't test what you think it
+   tests — the fix was never load-bearing, or the check is checking the wrong thing.
+   Stop and fix the check before trusting it again.
+3. **Green.** Reapply the fix, re-run once more. Only now is the causal link — this
+   change caused this outcome — demonstrated instead of assumed.
+
+This is red-green-refactor's discipline run backwards: not test-first development, but
+fix-then-prove. Reach for it whenever a claim needs to survive more than a plausible
+read of a diff:
+
+- **A "fixed" claim, before it's trusted.** The zdots-worker OTel instrumentation fix
+  (2026-08-03): reverted `lib/zdots.rb`, confirmed the regression test failed red,
+  reapplied, confirmed it passed green. Not "the `require` looks right" — demonstrated.
+- **A tool's output contradicting a documented claim.** Don't stop at "the tool must be
+  broken" — trace past the tool, past the doc, to the actual cause, the way the o2-mcp
+  "blind spot" traced to a missing `require` three commits deep, not a query bug.
+- **Any generated example in new documentation.** Run it against the live system before
+  publishing it. Two `zsvc map` examples both failed on first real execution — a missing
+  `Content-Type` header, a missing `unix://` scheme — neither would have been caught by
+  reading the diff.
+
+A green check that was never red is not proof. A fix without a failing-then-passing
+demonstration is a guess with good grammar.
 
 ---
 
