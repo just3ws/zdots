@@ -275,9 +275,49 @@ def backlog_task(path, bucket)
   fm = YAML.safe_load(raw.split("---", 3)[1], permitted_classes: [Date, Time]) || {}
   { id: fm["id"], title: fm["title"].to_s.strip, status: fm["status"] || bucket,
     priority: fm["priority"], type: fm["type"], labels: Array(fm["labels"]),
-    created: fm["created_date"].to_s[0, 10] }
+    created: fm["created_date"].to_s[0, 10], path: path }
 rescue StandardError
   nil
+end
+
+# /backlog/<id> — one task's full content (frontmatter summary + rendered body).
+def find_backlog_task(id)
+  BACKLOG_DIRS.each_value do |dir|
+    Dir["#{ZDOTS}/backlog/#{dir}/*.md"].each do |p|
+      raw = File.read(p)
+      next unless raw.start_with?("---")
+
+      fm = YAML.safe_load(raw.split("---", 3)[1], permitted_classes: [Date, Time]) || {}
+      return [fm, raw.split("---", 3)[2].to_s, p] if fm["id"].to_s.casecmp(id) == 0
+    end
+  end
+  nil
+rescue StandardError
+  nil
+end
+
+def render_backlog_task(id)
+  return nil unless id =~ /\A[A-Za-z][A-Za-z0-9._-]*\z/
+
+  fm, body, path = find_backlog_task(id)
+  return nil unless fm
+
+  meta = %w[status priority type].filter_map { |k| fm[k] ? %(<span class="lb">#{h(k)}: #{h(fm[k])}</span>) : nil }.join
+  labels = Array(fm["labels"]).map { |l| %(<span class="lb">#{h(l)}</span>) }.join
+  rendered =
+    if system("command -v pandoc >/dev/null 2>&1")
+      IO.popen(["pandoc", "-f", "gfm", "-t", "html"], "r+") { |io| io.write(body); io.close_write; io.read }
+    else
+      "<pre>#{h(body)}</pre>"
+    end
+  wrap("#{fm['id']} (task)", <<~HTML)
+    <section class="doc">
+      <p class="dim"><a href="/backlog">↩ backlog</a> · #{h(File.basename(path.to_s))}</p>
+      <h2>#{h(fm["id"])} — #{h(fm["title"].to_s.strip)}</h2>
+      <p>#{meta}#{labels}</p>
+      #{rendered}
+    </section>
+  HTML
 end
 
 def backlog_board
@@ -299,7 +339,8 @@ def backlog_index
              .map do |t|
                pr = t[:priority] ? %(<span class="pr #{h(t[:priority])}">#{h(t[:priority])}</span>) : ""
                labels = t[:labels].first(4).map { |l| %(<span class="lb">#{h(l)}</span>) }.join
-               %(<tr><td class="mono">#{h(t[:id])}</td><td>#{pr}</td><td>#{h(t[:type])}</td>
+               id_cell = t[:id] ? %(<a href="/backlog/#{h(t[:id])}">#{h(t[:id])}</a>) : ""
+               %(<tr><td class="mono">#{id_cell}</td><td>#{pr}</td><td>#{h(t[:type])}</td>
                  <td>#{h(t[:title])}</td><td>#{labels}</td><td class="mono">#{h(t[:created])}</td></tr>)
              end.join
     %(<h2>#{h(status)} (#{b[:by_status][status].size})</h2>
@@ -660,6 +701,9 @@ loop do
       p ? respond_bytes(client, File.binread(p), "image/png", filename: File.basename(p)) : respond(client, "no such wallpaper", status: "404 Not Found", type: "text/plain")
     when %r{\A/theme/?(\?.*)?\z}    then respond(client, theme_page)
     when %r{\A/backlog/?(\?.*)?\z}  then respond(client, backlog_index)
+    when %r{\A/backlog/([A-Za-z][A-Za-z0-9._-]*)\z}
+      page = render_backlog_task($1)
+      page ? respond(client, page) : respond(client, "no such task", status: "404 Not Found", type: "text/plain")
     when %r{\A/docs/?(\?.*)?\z}     then respond(client, docs_index)
     when %r{\A/docs/([A-Za-z0-9:._-]+)\z}
       page = render_doc($1)
