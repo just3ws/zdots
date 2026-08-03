@@ -3,10 +3,10 @@ id: Z-192
 title: >-
   Knowledge Layer curation: vault-doctor + knowledge-at-risk detection in
   zdots-ctx
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-01 23:21'
-updated_date: '2026-08-03 16:11'
+updated_date: '2026-08-03 16:45'
 labels:
   - feature
   - platform-service
@@ -23,15 +23,15 @@ work-vault-doctor (Obsidian vault structural health) and work-knowledge-map (kno
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Vault structural health check runs against any vault path (links, orphans, structure)
-- [ ] #2 Knowledge-at-risk detection surfaces stale/undocumented areas as review candidates
+- [x] #1 Vault structural health check runs against any vault path (links, orphans, structure)
+- [x] #2 Knowledge-at-risk detection surfaces stale/undocumented areas as review candidates
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
-- [ ] #3 All related changes committed — git status clean for files touched by this task
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
+- [x] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
 
 ## Implementation Plan
@@ -63,3 +63,17 @@ Land as `zdots-ctx vault-doctor [path] [--json] [--llm]` (verb on the existing
 tool) rather than a new standalone binary, matching how `zdots-ctx concept`/`hydrate`
 already extend the same command family.
 <!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Built `zdots-ctx vault-doctor` (bin/zdots-vault-doctor, delegated via zdots-ctx) — rules-first, local-LLM-last asset catalog over any markdown corpus.
+
+Rules: stale (mtime/frontmatter vs cadence), broken relative markdown links, unverified markers, thin/oversized word count, orphan (no inbound links) — banded into ok/watch/review/address.
+
+Beyond the original scope: a durable per-asset registry (identifier + content hash + score/action history) and an append-only event log, so re-runs only record what actually changed, not a stateless rescan. `--ack <id> [--note]` records a human disposition that silences a finding until the content itself changes; `--history <id>` replays an asset's full evaluation/disposition trail. This is the asset-catalog shape (identifier + context + history of evaluations/dispositions), scaled to a JSON registry + ndjson log — no new database.
+
+`--llm` escalates only the top-N already-flagged assets to `ai-query` for a one-sentence clue, cached by path+content-hash so unchanged assets never re-spend tokens.
+
+Verified live against zdots' own doc corpus (99 assets, 62 flagged, LLM clues generated correctly, --ack/--history round-tripped). Full quality gate: --help, man page (zdots-man-gen), zsh completion, docs/tooling.md, bats self-check + 6 contract tests, docs-contract (15/15 passing).
+<!-- SECTION:FINAL_SUMMARY:END -->

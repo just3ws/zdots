@@ -21,6 +21,7 @@
 #   requeue <job_id>
 #   cancel <job_id>   Cancel a pending/failed job (marks dead; not retried)
 #   concept <slug> | concept resolve <word>  Look up / manage the concept registry
+#   vault-doctor [PATH...] [--json|--llm]     Knowledge Layer curation: asset scan + history (Z-192)
 #   reprocess <source> [--transcribe]  Re-run an ingested source (stages, or +whisper)
 #   jobs      List pending and recent jobs
 #   result <job_id>  Fetch a completed job's structured result (JSON)
@@ -102,6 +103,7 @@ Knowledge Layer Interface:
   result <job_id>  Fetch a completed job's structured result (JSON)
   cancel <job_id>  Cancel a pending/failed job (marks it dead; not retried)
   concept <slug> | concept resolve <word>  Look up / manage the concept registry
+  vault-doctor [PATH...] [--json|--llm]     Knowledge Layer curation: asset scan + history (Z-192)
   reprocess <source> [--transcribe]  Re-run an ingested source: default re-runs
             cleaned+distilled from the existing transcript (applies current
             known_terms; no re-download). --transcribe also re-runs whisper
@@ -479,6 +481,10 @@ cmd_ingest() {
 
 cmd_concept() {
   "${ZDOTDIR}/sbin/zdots-brain" concept "$@"
+}
+
+cmd_vault_doctor() {
+  "${ZDOTDIR}/bin/zdots-vault-doctor" "$@"
 }
 
 # _drain_redis_to_sqlite — move Redis-buffered command_runs into SQLite so
@@ -882,6 +888,7 @@ case "${1:-}" in
   add-lesson)      shift; cmd_add_lesson "$@" ;;
   ingest)          shift; cmd_ingest "$@" ;;
   concept)         shift; cmd_concept "$@" ;;
+  vault-doctor)    shift; cmd_vault_doctor "$@" ;;
   sync-history)    shift; cmd_sync_history "$@" ;;
   enqueue)         shift; cmd_enqueue "$@" ;;
   requeue)         shift; cmd_requeue "$@" ;;
