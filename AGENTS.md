@@ -183,7 +183,8 @@ Full tool reference with usage examples: [docs/tooling.md](docs/tooling.md)
 
 ```bash
 colima-status --json       # authoritative JSON: healthy, socket path, docker_host
-colima-status socket       # just the socket path — DOCKER_HOST=$(colima-status socket)
+colima-status socket       # just the socket path — DOCKER_HOST="unix://$(colima-status socket)"
+colima-status --json | jq -r .docker_host   # same value, already unix://-prefixed
 colima-status health       # exit 0 = up; exit 1 = down
 ```
 

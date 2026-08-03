@@ -58,7 +58,7 @@ for k in ('running','healthy','socket_exists','docker_reachable'):
 |---------------|-----|----------|
 | `running` | `zsvc start colima` | wait 15s, re-run gate |
 | `socket_exists` (after start) | `colima stop && colima start` (once only) | wait 15s, re-run gate |
-| `docker_reachable` | `DOCKER_HOST=$(colima-status socket) docker info` | fix DOCKER_HOST env |
+| `docker_reachable` | `DOCKER_HOST="unix://$(colima-status socket)" docker info` | fix DOCKER_HOST env |
 | Guard message on stderr | note in DEFERRED; file `zdots-issue "colima-status: legacy path guard fired in <script>"` | N/A |
 
 ---

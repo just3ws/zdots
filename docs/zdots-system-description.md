@@ -130,7 +130,7 @@ colima-status status           # human-readable
 # Set DOCKER_HOST for any docker call:
 export DOCKER_HOST="unix://$(colima-status socket)"
 # or inline:
-DOCKER_HOST=$(colima-status socket) docker ps
+DOCKER_HOST="unix://$(colima-status socket)" docker ps
 ```
 
 The JSON output schema:
