@@ -12,8 +12,8 @@ module Zdots
 
       # FTS index removed after encryption — filter in app after decrypting.
       # Revisit if row counts grow significantly.
-      def self.text_match?(record, term)
-        record.content.to_s.downcase.include?(term.downcase)
+      def self.search_fields(record)
+        [[record.content.to_s, 1]]
       end
     end
   end
