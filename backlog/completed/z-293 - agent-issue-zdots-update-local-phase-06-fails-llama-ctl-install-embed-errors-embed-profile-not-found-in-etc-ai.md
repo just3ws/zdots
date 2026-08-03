@@ -1,5 +1,5 @@
 ---
-id: Z-155
+id: Z-293
 title: >-
   [agent-issue] zdots-update-local phase 06 fails: llama-ctl install-embed
   errors 'embed profile not found in etc/ai
