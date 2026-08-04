@@ -17,6 +17,12 @@ module Zdots
       # load here so non-telemetry CLI paths don't pay the startup cost.
       require "opentelemetry-sdk"
       require "opentelemetry-exporter-otlp"
+      # c.use_all only installs instrumentations already registered in
+      # OpenTelemetry::Instrumentation.registry — without this require, the
+      # registry is empty and use_all silently no-ops (confirmed 2026-08-03:
+      # zdots-worker processed 311 jobs/30d with zero spans reaching
+      # OpenObserve; this was the actual cause, not a missing OTEL_* env var).
+      require "opentelemetry/instrumentation/all"
 
       # Silence OTel diagnostic logging unless debug mode is active
       OpenTelemetry.logger = Logger.new(nil) unless ENV["ZDOTS_DEBUG"] == "1"

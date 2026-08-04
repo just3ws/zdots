@@ -24,7 +24,8 @@ if ARGV.first =~ /\A(-h|--help)\z/
 
     The zdots.localhost status console — a no-dep loopback HTTP server rendering live
     platform health (zdots-ctl status, zsvc, service logs). Binds
-    127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /healthz.
+    127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /healthz,
+    GET /man, GET /docs, GET /help, GET /backlog (read-only Backlog.md board), GET /theme.
 
     Don't run this by hand for normal use — manage it as a Platform Service:
       zsvc start|stop|restart|status|logs status
@@ -170,7 +171,7 @@ def burn_section(b)
   SEC
 end
 
-ROOT_NAV = %(<a href="/">← console</a> · <a href="/man">man index</a> · <a href="/theme">theme</a>).freeze
+ROOT_NAV = %(<a href="/">← console</a> · <a href="/man">man index</a> · <a href="/backlog">backlog</a> · <a href="/theme">theme</a>).freeze
 
 # Shared page chrome so /man pages match the console (cross-linked back).
 def wrap(title, inner)
@@ -260,6 +261,104 @@ def render_doc(key)
   wrap("#{key} (doc)", %(<section class="doc"><p class="dim"><a href="/docs">↩ all docs</a></p>#{body}</section>))
 end
 
+# /backlog — read-only board over backlog/ (Backlog.md's plan of record).
+# Parses task frontmatter directly, same approach as the [redacted] dashboard's
+# BacklogBoard: never writes; task edits go through the backlog CLI/MCP only.
+BACKLOG_DIRS  = { "active" => "tasks", "completed" => "completed", "draft" => "drafts" }.freeze
+PRIORITY_RANK = { "high" => 0, "medium" => 1, "low" => 2 }.freeze
+STATUS_RANK   = ["In Progress", "To Do", "Draft", "Done"].freeze
+
+def backlog_task(path, bucket)
+  raw = File.read(path)
+  return nil unless raw.start_with?("---")
+
+  fm = YAML.safe_load(raw.split("---", 3)[1], permitted_classes: [Date, Time]) || {}
+  { id: fm["id"], title: fm["title"].to_s.strip, status: fm["status"] || bucket,
+    priority: fm["priority"], type: fm["type"], labels: Array(fm["labels"]),
+    created: fm["created_date"].to_s[0, 10], path: path }
+rescue StandardError
+  nil
+end
+
+# /backlog/<id> — one task's full content (frontmatter summary + rendered body).
+def find_backlog_task(id)
+  BACKLOG_DIRS.each_value do |dir|
+    Dir["#{ZDOTS}/backlog/#{dir}/*.md"].each do |p|
+      raw = File.read(p)
+      next unless raw.start_with?("---")
+
+      fm = YAML.safe_load(raw.split("---", 3)[1], permitted_classes: [Date, Time]) || {}
+      return [fm, raw.split("---", 3)[2].to_s, p] if fm["id"].to_s.casecmp(id) == 0
+    end
+  end
+  nil
+rescue StandardError
+  nil
+end
+
+def render_backlog_task(id)
+  return nil unless id =~ /\A[A-Za-z][A-Za-z0-9._-]*\z/
+
+  fm, body, path = find_backlog_task(id)
+  return nil unless fm
+
+  meta = %w[status priority type].filter_map { |k| fm[k] ? %(<span class="lb">#{h(k)}: #{h(fm[k])}</span>) : nil }.join
+  labels = Array(fm["labels"]).map { |l| %(<span class="lb">#{h(l)}</span>) }.join
+  rendered =
+    if system("command -v pandoc >/dev/null 2>&1")
+      IO.popen(["pandoc", "-f", "gfm", "-t", "html"], "r+") { |io| io.write(body); io.close_write; io.read }
+    else
+      "<pre>#{h(body)}</pre>"
+    end
+  wrap("#{fm['id']} (task)", <<~HTML)
+    <section class="doc">
+      <p class="dim"><a href="/backlog">↩ backlog</a> · #{h(File.basename(path.to_s))}</p>
+      <h2>#{h(fm["id"])} — #{h(fm["title"].to_s.strip)}</h2>
+      <p>#{meta}#{labels}</p>
+      #{rendered}
+    </section>
+  HTML
+end
+
+def backlog_board
+  tasks = BACKLOG_DIRS.flat_map do |bucket, dir|
+    Dir["#{ZDOTS}/backlog/#{dir}/*.md"].map { |p| backlog_task(p, bucket) }.compact
+  end
+  docs = Dir["#{ZDOTS}/backlog/docs/*.md"].map { |p| File.basename(p, ".md") }.sort
+  by_status = tasks.group_by { |t| t[:status] }
+  { by_status: by_status, docs: docs, counts: by_status.transform_values(&:size).merge("total" => tasks.size) }
+end
+
+def backlog_index
+  b = backlog_board
+  statuses = b[:by_status].keys.sort_by { |s| STATUS_RANK.index(s) || 9 }
+  kpis = statuses.map { |s| %(<div class="kpi"><b>#{b[:counts][s]}</b> #{h(s)}</div>) }.join
+  sections = statuses.map do |status|
+    rows = b[:by_status][status]
+             .sort_by { |t| [PRIORITY_RANK.fetch(t[:priority].to_s, 3), t[:id].to_s] }
+             .map do |t|
+               pr = t[:priority] ? %(<span class="pr #{h(t[:priority])}">#{h(t[:priority])}</span>) : ""
+               labels = t[:labels].first(4).map { |l| %(<span class="lb">#{h(l)}</span>) }.join
+               id_cell = t[:id] ? %(<a href="/backlog/#{h(t[:id])}">#{h(t[:id])}</a>) : ""
+               %(<tr><td class="mono">#{id_cell}</td><td>#{pr}</td><td>#{h(t[:type])}</td>
+                 <td>#{h(t[:title])}</td><td>#{labels}</td><td class="mono">#{h(t[:created])}</td></tr>)
+             end.join
+    %(<h2>#{h(status)} (#{b[:by_status][status].size})</h2>
+      <table><thead><tr><th>ID</th><th>Pri</th><th>Type</th><th>Title</th><th>Labels</th><th>Created</th></tr></thead>
+      <tbody>#{rows}</tbody></table>)
+  end.join
+  docs = b[:docs].map { |d| h(d) }.join(" · ")
+  wrap("backlog", <<~HTML)
+    <section aria-labelledby="bl-h">
+      <h2 id="bl-h">Backlog — the plan of record</h2>
+      <p class="dim">Read-only over backlog/ (Backlog.md). Edits go through the backlog CLI/MCP, never by hand.
+      Docs: #{docs}.</p>
+      <div class="kpis">#{kpis}</div>
+      #{sections}
+    </section>
+  HTML
+end
+
 # --- live --help ------------------------------------------------------------
 
 def help_index
@@ -324,7 +423,7 @@ def render_page(live:)
       <header>
         <h1><span class="mark">zdots</span>.localhost</h1>
         <p class="sub">Observable Control Plane · #{up}/#{cards.size} services up · #{now}
-          · <a href="/man">man</a> · <a href="/docs">docs</a> · <a href="/help">help</a> · <span class="live">#{toggle}</span></p>
+          · <a href="/man">man</a> · <a href="/docs">docs</a> · <a href="/help">help</a> · <a href="/backlog">backlog</a> · <span class="live">#{toggle}</span></p>
       </header>
       <main>
         <section aria-labelledby="svc-h">
@@ -437,6 +536,15 @@ CSS = <<~CSS
   figure.sw .nm { font-weight:600; }
   figure.sw .rl, figure.sw .hx { color:var(--text-dim); }
   figure.sw .hx { font-family:var(--mono); text-transform:uppercase; }
+  .kpis { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1.2rem; }
+  .kpi { border:1px solid var(--border); border-radius:8px; padding:.4rem .8rem; background:var(--surface); font-size:.85rem; }
+  .kpi b { font-size:1.15rem; color:var(--accent); margin-right:.3rem; }
+  .pr { display:inline-block; border-radius:6px; padding:0 .4rem; font-size:.72rem; font-weight:700; }
+  .pr.high { background:rgba(195,64,67,.15); color:var(--red-text); }
+  .pr.medium { background:rgba(230,195,132,.15); color:var(--yellow); }
+  .pr.low { background:var(--surface); color:var(--text-dim); }
+  .lb { display:inline-block; background:var(--surface); border:1px solid var(--border); border-radius:6px;
+    padding:0 .35rem; font-size:.7rem; margin-right:.2rem; }
 CSS
 
 # --- minimal HTTP server ----------------------------------------------------
@@ -592,6 +700,10 @@ loop do
       p = wave_tier_path($1)
       p ? respond_bytes(client, File.binread(p), "image/png", filename: File.basename(p)) : respond(client, "no such wallpaper", status: "404 Not Found", type: "text/plain")
     when %r{\A/theme/?(\?.*)?\z}    then respond(client, theme_page)
+    when %r{\A/backlog/?(\?.*)?\z}  then respond(client, backlog_index)
+    when %r{\A/backlog/([A-Za-z][A-Za-z0-9._-]*)\z}
+      page = render_backlog_task($1)
+      page ? respond(client, page) : respond(client, "no such task", status: "404 Not Found", type: "text/plain")
     when %r{\A/docs/?(\?.*)?\z}     then respond(client, docs_index)
     when %r{\A/docs/([A-Za-z0-9:._-]+)\z}
       page = render_doc($1)

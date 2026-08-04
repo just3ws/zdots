@@ -42,6 +42,7 @@ _zsvc() {
     'reload:reload a service in place'
     'status:full status from the service ctl script'
     'health:health probe'
+    'map:discovery card — purpose, API kind, auth, example, dependencies'
     'logs:tail the service log (Ctrl+C to stop)'
     'diag:status + health + launchd state + last 50 log lines'
     'validate:validate the service configuration'
@@ -56,7 +57,7 @@ _zsvc() {
     cmd) _describe -t commands 'zsvc command' cmds ;;
     args)
       case "${line[1]}" in
-        start|stop|restart|wait|reload|status|health|logs|diag|validate)
+        start|stop|restart|wait|reload|status|health|map|logs|diag|validate)
           _zsvc_services ;;
       esac
       ;;

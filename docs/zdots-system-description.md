@@ -12,10 +12,11 @@ The repository lives at `~/.config/zsh/` and is tracked in git. The operator (th
 
 ### Design Philosophy
 
-- **Observable:** Every service emits OpenTelemetry spans. Every shell command is logged (with PHI scrubbing). Every AI invocation is metered. The system can explain its own state.
+- **Observable:** `otelcol-contrib` runs as a working OTLP receiver; every shell command is logged (with PHI scrubbing) and every AI invocation is metered. `zdots-worker` self-instruments via `Zdots.init_otel` (Z-229) — `c.use_all` auto-instruments pg/net_http/etc. spans tagged `service_name=zdots-worker`, verified live 2026-08-03 (`SELECT DISTINCT service_name` showed it after a real job run). That require was silently a no-op for a while: `use_all` only installs instrumentations already loaded, and `opentelemetry-instrumentation-all` was never required — fixed in `lib/zdots.rb`, with a regression test (`tests/zdots_otel_init.bats`) so it can't drop out silently again. Most other zdots services (llama-server, otel-collector itself, nginx, redis, postgres) are health-probed directly (curl/pg_isready/launchctl), not OTel-instrumented — that's a deliberate simplicity choice for external binaries zdots doesn't own the source of, not a gap to close.
 - **Composable:** Services are registered in a single catalog (`lib/svc-registry.bash`). Tools are discovered via the knowledge base (`zdots-ctx hydrate tooling-catalog`). Configuration is injected through providers (SOLID dependency inversion).
 - **Local-first:** AI inference runs on a local llama.cpp server. No cloud API keys are required by default. PHI-adjacent workloads never leave the machine unless explicitly authorized.
 - **Self-healing:** The `/zdots-heal` skill (Claude Code) runs five sequential gates (Foundation → Colima → Services → Deep check → Knowledge base), remediates safe issues automatically, and surfaces operator-required actions as filed backlog issues.
+- **Generic, not tenant-specific:** zdots is the platform/control-plane — enabling services and "how to do things best on this workstation," usable by any local app. Tenant or corporate-specific work (business logic, org data, customer content — e.g. a tenant/corporate app's own dashboard on this machine) belongs in that app, never here; see the work-extension layer (AGENTS.md §1, Z-262) for the one sanctioned exception (tenant identity hooks). Inspiration flows both ways at the *pattern* level — a UI approach, a discovery-endpoint shape — without either side absorbing the other's domain-specific capabilities. `agent-guide`'s "External / Tenant Agents" section is the concrete contract for how another local app should read from and request things of zdots.
 
 ---
 
@@ -130,7 +131,7 @@ colima-status status           # human-readable
 # Set DOCKER_HOST for any docker call:
 export DOCKER_HOST="unix://$(colima-status socket)"
 # or inline:
-DOCKER_HOST=$(colima-status socket) docker ps
+DOCKER_HOST="unix://$(colima-status socket)" docker ps
 ```
 
 The JSON output schema:
