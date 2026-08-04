@@ -44,6 +44,37 @@ env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git status --short --untracked-fi
 
 **Report format** — 4-row table: repo · sync (ahead/behind) · dirty count · what's dirty.
 
+## CI health (don't stop at "the runs exist")
+
+`ahead=0 behind=0` only proves the repo is pushed — it says nothing about whether
+main is green. Check the actual `conclusion` of the latest run on each repo's
+real test/lint/build workflow, not just that runs exist:
+
+```bash
+gh -R <owner>/<repo> run list --branch main --limit 5
+```
+
+A feed of `Dependabot Updates` / scheduled-bot runs is not evidence of green —
+those workflows don't exercise the repo's own tests. Find the workflow that
+actually lints/builds/tests (check `.github/workflows/`) and read *its*
+conclusion. adots typically has no CI configured — that's expected, not a gap.
+
+## Fixing a CI failure found during this check
+
+adots/my/vdots are not covered by the zdots-specific "not yours to fix" carve-out
+(AGENTS.md §5 — that rule is about zdots' shared infrastructure and its unknown
+callers, not the whole platform). A quick, well-understood, verified fix to one
+of the other three repos' own config is in scope to make directly, same as any
+other repo you maintain — no `zdots-issue` needed.
+
+**But CI fixes cascade — don't declare green after one commit.** A dependency
+install bug can mask a formatting bug can mask a missing plugin-install step.
+After every push, re-poll `gh run view <id> --json status,conclusion` until
+`status=completed`, and only report "fixed" when `conclusion=success`. If a new
+failure surfaces after a fix that's a *different class* of problem (not more
+CI plumbing but a real environment/architecture gap), stop and flag it instead
+of continuing to patch — that's a scope call for the operator, not a quick fix.
+
 ## Post-pull checklist (after pulling zdots)
 
 After a `git pull --ff-only origin main` on zdots, check for pending work:
@@ -86,5 +117,5 @@ peers; vdots having no VERSION = "rollout pending" (forward-compat, not an error
 - **Don't reach across boundaries.** A change one repo needs from another is an
   issue to file, not a cross-repo edit (peer architecture; AGENTS.md §5).
 - `bin/secret-scan` before any commit (these repos touch `$HOME` — the PHI/secret surface).
-- Report a 4-row table: repo · sync · pushed · dirty. Anything dirty gets a
-  one-line "whose / what", not silence.
+- Report a 4-row table: repo · sync · dirty · CI. Anything dirty gets a
+  one-line "whose / what", not silence; CI gets success/failure, not just "ran".
