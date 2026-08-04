@@ -29,6 +29,32 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"Usage: zdots-statusd"* ]]
   [[ "$output" == *"/healthz"* ]]
+  [[ "$output" == *"/backlog"* ]]
+}
+
+# ── Live route (only when the service is up) ────────────────────────────────
+
+@test "zdots-statusd: /backlog renders the Backlog.md board when the service is up" {
+  curl -sf --max-time 2 http://127.0.0.1:"${ZDOTS_STATUS_PORT:-11600}"/healthz >/dev/null 2>&1 \
+    || skip "status service not running"
+  run curl -sf --max-time 3 http://127.0.0.1:"${ZDOTS_STATUS_PORT:-11600}"/backlog
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the plan of record"* ]]
+}
+
+@test "zdots-statusd: /backlog/<id> renders one task's content when the service is up" {
+  curl -sf --max-time 2 http://127.0.0.1:"${ZDOTS_STATUS_PORT:-11600}"/healthz >/dev/null 2>&1 \
+    || skip "status service not running"
+  run curl -sf --max-time 3 "http://127.0.0.1:${ZDOTS_STATUS_PORT:-11600}/backlog/Z-192"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Knowledge Layer curation"* ]]
+}
+
+@test "zdots-statusd: /backlog/<unknown-id> is a 404, not a crash" {
+  curl -sf --max-time 2 http://127.0.0.1:"${ZDOTS_STATUS_PORT:-11600}"/healthz >/dev/null 2>&1 \
+    || skip "status service not running"
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:${ZDOTS_STATUS_PORT:-11600}/backlog/Z-99999999")"
+  [ "$code" -eq 404 ]
 }
 
 @test "zdots-statusd-ctl: --help documents the lifecycle grammar" {

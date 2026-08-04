@@ -1,0 +1,26 @@
+.TH ZDOTS-VAULT-DOCTOR 1 "2026-08-03" "zdots" "zdots manual"
+.SH NAME
+zdots-vault-doctor \- Knowledge Layer curation: scores every markdown asset in PATH (default: this
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-vault-doctor --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-vault-doctor [PATH...] [options]
+
+Knowledge Layer curation: scores every markdown asset in PATH (default: this
+repo's own doc corpus) on cheap structural signals, bands into ok/watch/review/
+address, and keeps a durable per-asset history. Local LLM is opt-in and last.
+
+Options:
+  --json             emit the current queue as JSON
+  --llm               escalate the top-N flagged assets to ai-query for a clue
+  --top-n N           how many to escalate with --llm (default 12)
+  --cadence-days N    staleness threshold in days (default 180)
+  --ack ID            acknowledge current findings for one asset
+  --note TEXT         note to attach to --ack
+  --history ID        print one asset's full event history
+  --self-check        offline assertions on inline fixtures
+  -h, --help          show this help
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

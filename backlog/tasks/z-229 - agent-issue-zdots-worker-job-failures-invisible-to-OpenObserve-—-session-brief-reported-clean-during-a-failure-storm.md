@@ -6,7 +6,7 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-07-15 18:32'
-updated_date: '2026-07-24 19:54'
+updated_date: '2026-08-03 17:28'
 labels:
   - agent-reported
   - error
@@ -34,3 +34,15 @@ This morning's session brief said 'runtime (last 6h, OpenObserve): clean — 0 e
 <!-- SECTION:NOTES:BEGIN -->
 Root cause: Zdots.init_otel commented out in zdots-brain cmd_worker → no-op tracer provider → all job.perform spans (incl. failure spans with recorded exceptions) dropped before export. Why it was disabled: init_otel crashed with 'uninitialized constant OpenTelemetry::SDK' because zdots-brain requires only the opentelemetry API gem. Fix bd66fbb: lazy-require opentelemetry-sdk + otlp exporter inside init_otel; re-enabled in cmd_worker (cmd_status left un-instrumented deliberately — one-shot CLI). Verified: induced failing embed job; o2_failures shows zdots-worker job.perform error spans. Session briefs' runtime line is trustworthy for worker failures again.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: claude
+created: 2026-08-03 17:28
+---
+Regression found 2026-08-03 while chasing an unrelated o2-mcp gap: despite this fix, zdots-worker processed 311 jobs over 30 days with zero spans ever reaching OpenObserve (SELECT DISTINCT service_name returned nothing for zdots-worker). Root cause: c.use_all in Zdots.init_otel (lib/zdots.rb) only installs instrumentations already registered in OpenTelemetry::Instrumentation.registry — opentelemetry-instrumentation-all was never required, so the registry was empty and use_all silently no-op'd. This was true from the original fix in bd66fbb, not a later regression — the original verification (an induced failing job) likely only checked o2_failures right after the fix without confirming days later that spans kept flowing.
+
+Fixed: added `require "opentelemetry/instrumentation/all"` before c.use_all in lib/zdots.rb. Verified live: enqueued a real job, zdots-worker now appears in SELECT DISTINCT service_name FROM "default" within the traces stream. Added tests/zdots_otel_init.bats as a regression guard (confirmed it fails on the pre-fix code, passes on the fix).
+---
+<!-- COMMENTS:END -->

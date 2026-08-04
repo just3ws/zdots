@@ -13,6 +13,16 @@ This project uses `backlog-md` for task management. It is the Source of Truth fo
 
 Always use the `--plain` flag for AI-friendly text output.
 
+**Known limitation (upstream, confirmed 2026-08-03):** `backlog task <id>` and the
+`backlog` MCP server's `task_view`/`task_list` do not resolve anything under
+`backlog/completed/` — reproduces even on `Z-001`, so it's not specific to any one
+task. `backlog doctor`'s cross-folder duplicate-ID scan and `backlog search <id>`
+(fuzzy full-text) both DO reach completed tasks; exact-ID lookup does not. For a
+reliable exact-ID lookup that includes completed tasks, use
+`https://zdots.localhost/backlog/<id>` (zdots-statusd's own board, built to glob
+all three folders — see `agent-guide`'s discovery section). This is a Backlog.md
+CLI/MCP behavior, not a zdots bug — nothing to patch here.
+
 ## 1.1 Repo Configuration
 
 Backlog is configured for local, agent-safe operation in this repo:

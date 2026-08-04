@@ -26,6 +26,7 @@ _zdots-ctx() {
     'result:fetch a completed job'\''s structured result (JSON)'
     'cancel:cancel a pending/failed job (marks it dead; not retried)'
     'concept:look up / manage the concept registry'
+    'vault-doctor:Knowledge Layer curation — asset scan + history (Z-192)'
     'jobs:list pending and recent jobs'
     'worker:run a worker to process queued jobs'
     'triage:review and resolve permanently failed (dead) jobs'

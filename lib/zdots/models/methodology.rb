@@ -9,10 +9,14 @@ module Zdots
 
       encrypted_attribute :content
 
-      def self.text_match?(record, term)
-        record.content.to_s.downcase.include?(term.downcase) ||
-          record[:title].to_s.downcase.include?(term.downcase) ||
-          record[:slug].to_s.downcase.include?(term.downcase)
+      # title/slug carry identity (Z-232: tooling:<name> lookups key on slug) —
+      # weighted higher so an identity match outranks an incidental body match.
+      def self.search_fields(record)
+        [
+          [record.content.to_s, 1],
+          [record[:title].to_s, 3],
+          [record[:slug].to_s, 3]
+        ]
       end
     end
   end
