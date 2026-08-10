@@ -58,7 +58,7 @@ _call_tool() {
 
 @test "A5: ping returns empty result" {
   response=$(_mcp '{"jsonrpc":"2.0","id":3,"method":"ping"}')
-  printf '%s\n' "$response" | jq -e '.result == {}' >/dev/null
+  printf '%s\n' "$response" | jq -e '.result.resultType == "complete"' >/dev/null
 }
 
 @test "A6: unknown method with id returns result (not error)" {
@@ -173,4 +173,34 @@ _call_tool() {
   response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
   names=$(printf '%s\n' "$response" | jq -r '.result.tools[].name' | sort | tr '\n' ',')
   [ "$names" = "llama_capabilities,llama_config,llama_health,llama_integration_snippet,llama_run_test," ]
+}
+
+@test "E5: every dispatched tool is advertised (no silent dispatch)" {
+  response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
+  advertised=$(printf '%s\n' "$response" | jq -r '.result.tools[].name' | sort)
+  dispatched="llama_capabilities llama_config llama_health llama_integration_snippet llama_run_test"
+  for tool in $dispatched; do
+    printf '%s\n' "$advertised" | grep -qx "$tool" || { echo "DISPATCH GAP: $tool not in tools/list"; false; }
+  done
+}
+
+# ===========================================================================
+# F. Spec 2026-07-28
+# ===========================================================================
+
+@test "F1: server/discover returns supported protocol versions including 2026-07-28" {
+  response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}')
+  printf '%s\n' "$response" | jq -e '.result.protocolVersions | index("2026-07-28") != null' >/dev/null
+}
+
+@test "F2: every result includes resultType complete" {
+  response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
+  printf '%s\n' "$response" | jq -e '.result.resultType == "complete"' >/dev/null
+}
+
+@test "F3: tools/list is deterministically ordered by name" {
+  response=$(_mcp '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
+  names=$(printf '%s\n' "$response" | jq -r '.result.tools[].name')
+  sorted=$(printf '%s\n' "$names" | sort)
+  [ "$names" = "$sorted" ]
 }

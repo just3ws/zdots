@@ -159,15 +159,15 @@ zdots-ctx query tooling:catalog 2>/dev/null | grep -c 'tooling:' | \
 ## Gate 6 — Skill Audit
 
 ```bash
-# Scan all skills for command references that no longer exist in bin/.
-# Anchor on the zdots command shapes (zsvc, colima-status, capabilities,
+# Scan all skills AND agents for command references that no longer exist in
+# bin/. Anchor on the zdots command shapes (zsvc, colima-status, capabilities,
 # agent-guide, cc-doctor, zdots-*) so the scan extracts real invocations,
 # not arbitrary prose words. The surrounding [^/[:alnum:].-] guards reject
 # path/filename embeddings (audit/zdots-audit-foo.md, /tmp/zdots-update-run.log)
 # so only standalone command tokens match. Skip tokens that are themselves
 # skills (.claude/commands/*.md) — those are /slash commands, not bin/ orphans.
 grep -hoE '(^|[^/[:alnum:].-])(zsvc|colima-status|capabilities|agent-guide|cc-doctor|zdots-[a-z0-9-]+)([^./[:alnum:]-]|$)' \
-  .claude/commands/*.md \
+  .claude/commands/*.md .claude/agents/*.md \
   | grep -oE '(zsvc|colima-status|capabilities|agent-guide|cc-doctor|zdots-[a-z0-9-]+)' \
   | sort -u \
   | while read -r cmd; do
@@ -230,6 +230,7 @@ GATE 5 Knowledge:     PASS | FAIL | PARTIAL
 GATE 6 Skills:        PASS | FAIL | PARTIAL
 GATE 7 Worker logs:   PASS | FAIL | PARTIAL (stuck jobs: ...)
 GATE 8 Event stream:  PASS | FAIL | PARTIAL (invalid: N, failing types: ...)
+GATE 9 Self-describe: PASS | FAIL | PARTIAL (skills/agents missing name/tool gaps: ...)
 
 ── HEALED (automated) ──────────────────────
 - <command run> → <what changed>
@@ -327,6 +328,54 @@ jq -rs '
 | Invalid event lines | contract break — file `zdots-issue`; do not edit the schema to suppress |
 | Failure spike in one job_type | per-job view via jq, then Gate 7 fix table |
 | Event file absent but jobs ran | emitter failing silently — check worker log for `pipeline-event emit failed`, file `zdots-issue --high` |
+
+---
+
+## Gate 9 — Self-Describing Skills & Agents
+
+Skills and agents must be independently verifiable the same way services are
+(`capabilities --json`) and the way ctx-mcp's tool surface already is
+(`tests/mcp.bats` E1–E5: schema shape, name/count parity, dispatch/advertise
+parity). Gate 6 above already extends the orphaned-command-reference check to
+`.claude/agents/*.md`; this gate covers what Gate 6 doesn't.
+
+```bash
+# 9-A: every skill and agent must declare a name in its YAML frontmatter.
+for f in .claude/commands/*.md .claude/agents/*.md; do
+  head -1 "$f" | grep -qx -- '---' || { printf 'NO-FRONTMATTER: %s\n' "$f"; continue; }
+  awk '/^---$/{c++; if (c==2) exit} c==1' "$f" | grep -q '^name:' \
+    || printf 'NO-NAME: %s\n' "$f"
+done
+# PASS: no output
+# FAIL: each line is a skill/agent that can't self-identify to tooling
+```
+
+```bash
+# 9-B: if an agent frontmatter declares a tools: allowlist, every named tool
+# must be a real Claude Code tool (built-in or mcp__<server>__<tool>) — a
+# typo'd name silently grants nothing. No-op today (no agent declares
+# tools: yet); guards against a future silent typo.
+for f in .claude/agents/*.md; do
+  awk '/^---$/{c++; if (c==2) exit} c==1' "$f" | sed -n 's/^tools:[[:space:]]*//p' \
+    | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep . \
+    | while read -r tool; do
+        case "$tool" in
+          mcp__*) continue ;;  # MCP tool names aren't locally enumerable; trust the declaration
+          Bash|Read|Edit|Write|Grep|Glob|Agent|Artifact|AskUserQuestion|ExitPlanMode|EnterPlanMode|NotebookEdit|TaskCreate|TaskUpdate|TaskGet|TaskList|WebFetch|WebSearch) continue ;;
+          *) printf 'UNKNOWN-TOOL: %s declares %s\n' "$f" "$tool" ;;
+        esac
+      done
+done
+# PASS: no output
+# FAIL: each line names an agent with a tool that doesn't resolve
+```
+
+**Fix table:**
+
+| Symptom | Fix |
+|---------|-----|
+| `NO-FRONTMATTER` / `NO-NAME` | add a YAML frontmatter block with at least `name:` |
+| `UNKNOWN-TOOL` | fix the typo, or if it's a newly added built-in tool, add it to the allowlist in this gate |
 
 ---
 

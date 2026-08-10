@@ -158,8 +158,10 @@ end
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
+SUPPORTED_PROTOCOL_VERSIONS = ["2024-11-05", "2026-07-28"].freeze
+
 def respond(id, result)
-  $stdout.puts JSON.generate({ jsonrpc: "2.0", id: id, result: result })
+  $stdout.puts JSON.generate({ jsonrpc: "2.0", id: id, result: result.merge(resultType: "complete") })
 end
 
 def error_response(id, code, message)
@@ -199,8 +201,14 @@ $stdin.each_line do |line|
       capabilities: { tools: {} },
       serverInfo: { name: "o2-mcp", version: "1.0.0" }
     })
+  when "server/discover"
+    respond(id, {
+      protocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
+      capabilities: { tools: {} },
+      serverInfo: { name: "o2-mcp", version: "1.0.0" }
+    })
   when "tools/list"
-    respond(id, { tools: TOOLS })
+    respond(id, { tools: TOOLS.sort_by { |t| t[:name] }, ttlMs: 300_000, cacheScope: "private" })
   when "tools/call"
     begin
       result_text = call_tool(params["name"], params.fetch("arguments", {}))
