@@ -85,12 +85,20 @@ cmd_init() {
 :base_path: "${BASE_PATH}"
 :bind: tcp://127.0.0.1:${PORT}
 :rubygems_url: https://rubygems.org
+# Single-process Puma (no cluster/fork): gemstash's own default is 1, but
+# Puma treats any workers > 0 as clustered and forks a worker via
+# Process.fork. On macOS that fork crashes instantly against the ObjC
+# runtime's fork-safety check (NSCharacterSet init race), which the master
+# then retries in a tight loop — observed filling gemstash.log at ~1GB/2min
+# (Z-296). workers: 0 runs Puma::Single in-process: no fork, no crash, and
+# it matches the design intent below (one coherent in-memory cache).
+:puma_workers: 0
 # In-memory index/dependency cache. Default max_size is 500 entries. Bumped 4x
 # for a higher hit rate (fewer upstream fetches), but kept modest on purpose:
 # this box also runs llama.cpp, a Colima VM, Postgres, context-engine, and O2,
 # and cached /info blobs can be tens of KB — so not thousands of entries.
-# Single Puma worker → one coherent in-memory cache (Redis would add coupling
-# for no gain here: the TTL makes cross-restart persistence moot).
+# Single Puma process → one coherent in-memory cache (Redis would add
+# coupling for no gain here: the TTL makes cross-restart persistence moot).
 :cache_max_size: 2000
 # Cache TTL (seconds). Default 1800 (30 min). Extended to 2h: fewer upstream
 # index re-checks for a personal cache. Downside is bounded — only newly

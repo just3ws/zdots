@@ -135,6 +135,16 @@ zsvc list 2>/dev/null | grep -q '<name>' && echo PASS || echo FAIL
 zsvc health <name> >/dev/null 2>&1 && echo PASS || echo "FAIL — check health endpoint"
 ```
 
+**L6-D: fork-safety, if the service is a Ruby/Python app server (macOS-only risk, Z-296).**
+Puma (or any preforking server) with `workers`/process-count > 0 forks on
+startup; on macOS this can crash instantly against the ObjC runtime's
+fork-safety check (`NSCharacterSet initialize... Crashing instead`), and the
+launchd-supervised master survives and retries forever — reads as "healthy"
+while the log fills the disk. Default new services to single-process mode
+(Puma: `workers: 0`) unless there's a real need for multiple OS processes.
+See `bin/gemstash-ctl cmd_init` for the pattern, and
+`zdots-ctx query --semantic "puma fork crash macOS"` for the full incident.
+
 ---
 
 ## Layer 7 — Shell Module (conf.d)

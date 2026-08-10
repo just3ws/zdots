@@ -1,6 +1,6 @@
 ---
 name: zdots-log-triage
-description: Scan zdots service logs for errors, identify stuck jobs, trace root causes through config and source, and produce a prioritized remediation summary. Use when user asks to "look at logs", "check errors", "what's failing", or reports unexplained zdots behaviour. Covers zdots-worker, zdots-update-local, llama-embed, and llama-server logs.
+description: Scan zdots service logs for errors, identify stuck jobs, trace root causes through config and source, and produce a prioritized remediation summary. Use when user asks to "look at logs", "check errors", "what's failing", or reports unexplained zdots behaviour. Covers zdots-worker, zdots-update-local, llama-embed, llama-server, and gemstash logs.
 ---
 
 # /zdots-log-triage — Log Scan + Root Cause
@@ -27,6 +27,9 @@ tail -30 $LOG_DIR/llama-embed.log
 
 # Inference server  
 tail -30 $LOG_DIR/llama-server.log
+
+# gemstash — check size first; a crash-looped log can be gigabytes (see below)
+ls -la $LOG_DIR/gemstash.log && tail -30 $LOG_DIR/gemstash.log
 ```
 
 ## Step 2 — Categorize
@@ -40,6 +43,7 @@ tail -30 $LOG_DIR/llama-server.log
 | `LocalityError.*not local` | ai-boundary | `ZDOTS_AI_ENDPOINT` points off-loopback |
 | `migration.*failed` | db-schema | `zdots-ctx migrate` |
 | `Queue.*overflow\|backed up` | worker-overload | `zsvc restart worker` |
+| `NSCharacterSet initialize.*fork` | puma-fork-crash | service's `workers` config > 0 — see Step 4 |
 
 ## Step 3 — Identify stuck jobs
 
@@ -79,6 +83,23 @@ These are historical — check whether service is now healthy before acting.
 ```bash
 zsvc status embed
 ```
+
+**puma-fork-crash jobs (Z-296):**
+A launchd-managed Ruby/Puma service can show `running`/`healthy` via its own
+ctl status while its log grows explosively (gigabytes in minutes) — the
+master process survives, but every worker fork crashes instantly against
+macOS's ObjC fork-safety check and the master just retries in a tight loop.
+Confirm with a repeat count on a *fresh* slice of the log (not the whole
+gigabytes-large file):
+```bash
+tail -c 2M "$LOG_DIR/<service>.log" | grep -c 'NSCharacterSet initialize'
+```
+Fix at the config layer, not with an env-var workaround: the app's Puma
+config almost certainly sets `workers` > 0 (even `workers: 1` triggers
+Puma's clustered/fork mode — see `puma/launcher.rb`'s `clustered?`). Set
+`workers: 0` (Puma single-process mode — no fork) wherever that service's
+config is generated; see `bin/gemstash-ctl`'s `cmd_init` for the pattern.
+Full writeup: `zdots-ctx query --semantic "puma fork crash macOS"`, Z-296.
 
 **OptionParser crash:**
 Find which script feeds command output directly to zdots-brain as arguments.
