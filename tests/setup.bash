@@ -6,7 +6,14 @@ setup_environment() {
   REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   export REPO_ROOT
   export ZDOTDIR="$REPO_ROOT"
-  
+
+  # mise's trust store lives under $XDG_STATE_HOME (mise/trusted-configs). Tests
+  # that redirect XDG_STATE_HOME for state isolation otherwise make every
+  # mise-shimmed interpreter (ruby, node, ...) see mise.toml as untrusted.
+  # Declaring the path directly bypasses that lookup regardless of where
+  # XDG_STATE_HOME points.
+  export MISE_TRUSTED_CONFIG_PATHS="$REPO_ROOT${MISE_TRUSTED_CONFIG_PATHS:+:$MISE_TRUSTED_CONFIG_PATHS}"
+
   # Load Bats helpers if they are installed in standard Homebrew paths
   # (Fallback to assuming they are in the PATH if not found in /opt/homebrew)
   local brew_prefix="${HOMEBREW_PREFIX:-/opt/homebrew}"
