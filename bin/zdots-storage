@@ -77,7 +77,6 @@ _file_bytes() {
 
 # 1. Root Volume
 avail_kb=$(df -k / 2>/dev/null | tail -1 | awk '{print $4}')
-avail_bytes=$(( avail_kb * 1024 ))
 avail_gb=$(( avail_kb / 1024 / 1024 ))
 root_status="ok"
 (( avail_gb < 15 )) && root_status="warn"
