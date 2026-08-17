@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""
+zdots-gen — Subagent Scaffold Generator for zdots Platform
+Emits a Claude Code subagent definition matching .claude/agents/*.md's
+real frontmatter contract (name, description, model, color).
+Usage:
+  zdots-gen agent my-agent --description "Does X for Y" --out .claude/agents/my-agent.md
+"""
+
+import sys
+import os
+import argparse
+
+AGENT_TEMPLATE = """---
+name: {name}
+description: {description}{model_line}{color_line}
+---
+
+{body}
+"""
+
+def main():
+    parser = argparse.ArgumentParser(description="zdots-gen — Subagent Scaffold Generator")
+    subparsers = parser.add_subparsers(dest="command", help="Subcommand to run")
+
+    agent_parser = subparsers.add_parser("agent", help="Generate a subagent definition")
+    agent_parser.add_argument("name", help="Subagent name")
+    agent_parser.add_argument("--description", required=True, help="One-line summary used to route to this agent")
+    agent_parser.add_argument("--model", default=None, help="Model override (e.g. haiku, sonnet, opus); omit to inherit")
+    agent_parser.add_argument("--color", default=None, help="UI color tag (e.g. blue, green)")
+    agent_parser.add_argument("--out", required=True, help="Output markdown file path")
+
+    args = parser.parse_args()
+
+    if args.command == "agent":
+        model_line = f"\nmodel: {args.model}" if args.model else ""
+        color_line = f"\ncolor: {args.color}" if args.color else ""
+        content = AGENT_TEMPLATE.format(
+            name=args.name,
+            description=args.description,
+            model_line=model_line,
+            color_line=color_line,
+            body=f"You are {args.name}. Fill in the system prompt."
+        )
+        os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"✅ Generated subagent definition at {args.out}")
+
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()

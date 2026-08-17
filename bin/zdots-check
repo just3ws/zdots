@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""
+zdots-check — Wikilink Integrity Probe for zdots
+Validates [[wikilink]] targets resolve to a markdown file in the target tree.
+Usage:
+  zdots-check
+  zdots-check --path ~/my
+"""
+
+import sys
+import os
+import argparse
+import re
+import glob
+
+def check_wikilinks(target_dir):
+    md_files = glob.glob(os.path.join(target_dir, "**/*.md"), recursive=True)
+    all_slugs = {os.path.splitext(os.path.basename(f))[0].lower() for f in md_files}
+    
+    broken_links = []
+    wikilink_pattern = re.compile(r'\[\[([^\]\|]+)(?:\|[^\]]+)?\]\]')
+
+    for filepath in md_files:
+        try:
+            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                for idx, line in enumerate(f, 1):
+                    for match in wikilink_pattern.findall(line):
+                        target_slug = match.strip().lower()
+                        if target_slug not in all_slugs and not target_slug.startswith("http"):
+                            broken_links.append((os.path.relpath(filepath, target_dir), idx, match))
+        except Exception:
+            pass
+
+    return broken_links
+
+def main():
+    parser = argparse.ArgumentParser(description="zdots-check — Wikilink Integrity Probe")
+    parser.add_argument("--path", default=".", help="Path to validate")
+    args = parser.parse_args()
+
+    target = os.path.abspath(args.path)
+    print(f"🔍 Running zdots-check wikilink integrity probe on {target}...")
+
+    broken = check_wikilinks(target)
+
+    if broken:
+        print(f"⚠️ Found {len(broken)} broken wikilinks:")
+        for rel_file, line_no, link in broken[:10]:
+            print(f"   {rel_file}:{line_no} -> [[{link}]]")
+        sys.exit(1)
+    else:
+        print("✅ PASS: Wikilink integrity verified.")
+        sys.exit(0)
+
+if __name__ == "__main__":
+    main()
