@@ -109,10 +109,15 @@ cmd_status() {
 }
 
 cmd_health() {
-  local h code
+  local h code max_time
   for h in "${HOSTS[@]}"; do
+    # zdots.localhost's homepage aggregates live health across ~9 real
+    # services synchronously (~5s observed) — a flat 3s budget read it as
+    # "unreachable" on every check even though it always answered.
+    max_time=3
+    [[ "$h" == "zdots.localhost" ]] && max_time=8
     # -w already yields "000" on failure; do not append another via ||.
-    code=$(curl -sk --max-time 3 -o /dev/null -w '%{http_code}' "https://${h}/" 2>/dev/null) || true
+    code=$(curl -sk --max-time "$max_time" -o /dev/null -w '%{http_code}' "https://${h}/" 2>/dev/null) || true
     code="${code:-000}"
     case "$code" in
       000) printf '  %-14s  unreachable (DNS/listen/backend down)\n' "$h" ;;
