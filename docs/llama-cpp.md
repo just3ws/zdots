@@ -214,6 +214,11 @@ The server exposes an OpenAI-compatible API. All endpoints are on
 This survives profile switches — the underlying GGUF filename changes, but
 `"local"` always resolves to whatever is loaded.
 
+**Known external consumer:** wwworkremote/core's background job worker calls
+`POST /v1/chat/completions` directly (confirmed via O2 trace, 2026-08-17) —
+don't kill/restart llama-server without checking `zsvc status` for in-flight
+callers outside this repo.
+
 ---
 
 ## Embeddings
