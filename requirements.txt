@@ -1,3 +1,5 @@
+# After editing, regenerate the pinned lock:
+#   uv pip compile requirements.txt -o requirements-lock.txt
 pydantic>=2.7.0
 jsonschema>=4.0.0
 textual>=0.50.0
@@ -7,3 +9,5 @@ pyyaml>=6.0.0
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-exporter-otlp
+duckdb>=1.0.0
+sqlglot>=25.0.0

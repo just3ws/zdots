@@ -371,18 +371,28 @@ else
   warn "skipping ruby-gems phase (--skip-gems)"
 fi
 
-phase "python: install deps from requirements.txt"
+phase "python: install deps from requirements-lock.txt"
 if [[ "$SKIP_PYTHON" -eq 0 ]]; then
+  _lock_file="$ZDOTDIR/requirements-lock.txt"
   _req_file="$ZDOTDIR/requirements.txt"
-  if [[ ! -f "$_req_file" ]]; then
-    warn "requirements.txt not found at $_req_file; skipping"
-  elif ! command -v uv >/dev/null 2>&1; then
-    warn "uv not found; skipping Python deps (install uv via brew)"
+  if [[ -f "$_lock_file" ]]; then
+    _install_file="$_lock_file"
+  elif [[ -f "$_req_file" ]]; then
+    warn "requirements-lock.txt not found; falling back to unpinned requirements.txt"
+    _install_file="$_req_file"
   else
-    step "uv pip install -r requirements.txt"
-    run uv pip install --python "$(command -v python3)" -r "$_req_file"
+    warn "no requirements.txt or requirements-lock.txt at $ZDOTDIR; skipping"
+    _install_file=""
   fi
-  unset _req_file
+  if [[ -n "$_install_file" ]]; then
+    if ! command -v uv >/dev/null 2>&1; then
+      warn "uv not found; skipping Python deps (install uv via brew)"
+    else
+      step "uv pip install -r ${_install_file##*/}"
+      run uv pip install --python "$(command -v python3)" -r "$_install_file"
+    fi
+  fi
+  unset _lock_file _req_file _install_file
 else
   warn "skipping python phase (--skip-python)"
 fi
