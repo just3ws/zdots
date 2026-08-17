@@ -26,10 +26,15 @@ privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launch
 | `https://just3ws.localhost` | *(none — static files)* | prebuilt Jekyll `_site/`, synced to `/opt/homebrew/var/www/just3ws.github.io` by `bin/install-localhost` | — |
 
 `just3ws.localhost` has **no backend process** — nginx serves the last
-`jekyll build` output directly off disk (`try_files`). It cannot participate
-in any request/response integration with the other three without a backend
-being built first; that would be new application work in
-`just3ws.github.io`, not a routing or documentation change here.
+`jekyll build` output directly off disk (`try_files`). It cannot *receive* a
+request-time query or run any logic. It already *sends*, though: Jekyll's
+build emits static data exports (`resume.json`, `exports/resume.md`,
+`exports/portfolio.md`) that `wwworkremote/core` fetches by plain GET — see
+`docs/just3ws-interop-protocol.md` in that repo. Confirmed via O2 trace:
+`wwworkremote` fetched `https://just3ws.github.io/resume.json` (the published
+GitHub Pages copy, not the local vhost, in the traced call). Any two-way or
+request-time integration would still need a real backend built first; the
+static-export path already works today and needs nothing further here.
 
 ## Deploy workflow (context-engine)
 
