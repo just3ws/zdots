@@ -3,8 +3,12 @@
 nginx fronts the local services behind friendly HTTPS URLs (mkcert TLS).
 Loopback-only zdots vhosts use the `*.localhost` TLD (decision-011: RFC 6761 —
 every resolver hard-wires it to loopback, no `/etc/hosts` entry needed, and no
-mDNS/Bonjour name-collision exposure the way `.local` carries). `my.localhost`
-is `~/my`-owned and follows the same pattern independently.
+mDNS/Bonjour name-collision exposure the way `.local` carries). `my.localhost`,
+`wwworkremote.localhost`, and `just3ws.localhost` are each owned by their own
+project (`~/my`, `~/github.com/wwworkremote/core`, `~/github.com/just3ws/
+just3ws.github.io` respectively) and follow the same pattern independently —
+none of the three are zdots platform services; nginx just fronts them on this
+machine alongside the ones zdots does own.
 It is a **root LaunchDaemon** in launchd's *system* domain because it binds the
 privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launchctl`,
 **never** `sudo brew services`, see `bin/nginx-repair`), and wired into `zsvc`.
@@ -18,6 +22,14 @@ privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launch
 | `https://o2.localhost`    | `127.0.0.1:5080`  | OpenObserve (logs/metrics/traces) | `zsvc o2` |
 | `https://zdots.localhost` | `127.0.0.1:11600` | zdots-statusd (Observable Control Plane) | `zsvc status` |
 | `https://my.localhost`    | `127.0.0.1:7010`  | context-engine (Rails, prod) | — |
+| `https://wwworkremote.localhost` (alias `wwwr.localhost`) | `127.0.0.1:31000` | wwworkremote/core (Rails/Falcon or Puma, dev) | — |
+| `https://just3ws.localhost` | *(none — static files)* | prebuilt Jekyll `_site/`, synced to `/opt/homebrew/var/www/just3ws.github.io` by `bin/install-localhost` | — |
+
+`just3ws.localhost` has **no backend process** — nginx serves the last
+`jekyll build` output directly off disk (`try_files`). It cannot participate
+in any request/response integration with the other three without a backend
+being built first; that would be new application work in
+`just3ws.github.io`, not a routing or documentation change here.
 
 ## Deploy workflow (context-engine)
 
