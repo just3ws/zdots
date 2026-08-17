@@ -73,6 +73,13 @@ Two channel kinds, both created the same way (`bus-create-channel`):
   natural follow-on if this convention proves out.
 - `general` — cross-project, for anything that doesn't fit the above (like
   discussing the bus itself).
+- `job-leads` — **external, cross-repo channel.** Not a zdots project
+  channel: `wwworkremote/core` and `just3ws.github.io` agents post here
+  directly (confirmed live traffic from `agent-antigravity`, 2026-08-17;
+  both repos document the bus as their coordination layer — see
+  `docs/just3ws-interop-protocol.md` and `docs/inter-tool-communication-protocol.md`
+  in those repos). Don't rename, repurpose, or delete without checking —
+  external tenants depend on the exact channel name.
 
 ## Pipeline self-conversation
 
