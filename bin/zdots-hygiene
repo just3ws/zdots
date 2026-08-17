@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# bin/zdots-hygiene — Unified system storage hygiene & eviction routine
+#
+# Usage:
+#   zdots-hygiene          # Dry run — preview safe evictions and space to recover
+#   zdots-hygiene -f       # Execute non-destructive cleanup actions
+#   zdots-hygiene --apply  # Same as -f
+#   zdots-hygiene --help   # Show help
+
+set -euo pipefail
+
+_ZDOTS_LIB_DIR="${ZDOTDIR:-$HOME/.config/zsh}/lib"
+if [[ -f "$_ZDOTS_LIB_DIR/cli-help.bash" ]]; then
+  source "$_ZDOTS_LIB_DIR/cli-help.bash"
+  zdots_cli_wants_help "$@" && {
+    cat << 'EOF'
+zdots-hygiene — Unified system storage hygiene & eviction routine
+
+Usage:
+  zdots-hygiene [options]
+
+Options:
+  (no flag)     Dry run mode — preview reclaimable space and actions
+  -f, --apply   Execute non-destructive cleanup sweeps
+  -h, --help    Show this help message
+
+Actions Executed on --apply:
+  1. Docker/Colima VM: Prune unused images/volumes & run fstrim inside Colima
+  2. Python uv Cache: Clear package/build caches (uv cache clean)
+  3. Homebrew: Remove old formula bottles & clear brew download cache
+  4. Ingestion Buffer: Evict staged media/docs in ingest-sources > 7 days old
+  5. Diagnostic Logs: Remove stale trace dumps (collector-diag-*.jsonl) > 14 days old
+  6. Agent Runtimes: Purge obsolete codex-runtimes cache
+EOF
+    exit 0
+  }
+fi
+
+apply=false
+for arg in "$@"; do
+  case "$arg" in
+    -f|--apply) apply=true ;;
+    -h|--help) exit 0 ;;
+    *) printf 'zdots-hygiene: unknown option: %s\n' "$arg" >&2; exit 1 ;;
+  esac
+done
+
+_fmt_bytes() {
+  local bytes="${1:-0}"
+  if (( bytes >= 1073741824 )); then
+    awk -v b="$bytes" 'BEGIN { printf "%.1fGB", b/1073741824 }'
+  elif (( bytes >= 1048576 )); then
+    awk -v b="$bytes" 'BEGIN { printf "%.1fMB", b/1048576 }'
+  elif (( bytes >= 1024 )); then
+    awk -v b="$bytes" 'BEGIN { printf "%.1fKB", b/1024 }'
+  else
+    printf '%dB' "$bytes"
+  fi
+}
+
+_file_bytes() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    wc -c < "$file" 2>/dev/null | tr -d ' ' || echo "0"
+  else
+    echo "0"
+  fi
+}
+
+_dir_bytes() {
+  local dir="$1"
+  if [[ -d "$dir" ]]; then
+    du -sk "$dir" 2>/dev/null | awk '{print $1 * 1024}' || echo "0"
+  else
+    echo "0"
+  fi
+}
+
+# Measure candidate evictions
+ingest_dir="$HOME/.local/state/zdots/ingest-sources"
+stale_ingest_bytes=0
+stale_ingest_count=0
+if [[ -d "$ingest_dir" ]]; then
+  while IFS= read -r -d '' f; do
+    sz=$(_file_bytes "$f")
+    stale_ingest_bytes=$(( stale_ingest_bytes + sz ))
+    stale_ingest_count=$(( stale_ingest_count + 1 ))
+  done < <(find "$ingest_dir" -type f -mtime +7 -print0 2>/dev/null)
+fi
+
+log_state_dir="$HOME/.local/state/zsh"
+stale_diag_bytes=0
+stale_diag_count=0
+if [[ -d "$log_state_dir" ]]; then
+  while IFS= read -r -d '' f; do
+    sz=$(_file_bytes "$f")
+    stale_diag_bytes=$(( stale_diag_bytes + sz ))
+    stale_diag_count=$(( stale_diag_count + 1 ))
+  done < <(find "$log_state_dir" -maxdepth 1 -name "collector-diag-*.jsonl" -mtime +14 -print0 2>/dev/null)
+fi
+
+uv_cache_bytes=$(_dir_bytes "$HOME/.cache/uv")
+codex_cache_bytes=$(_dir_bytes "$HOME/.cache/codex-runtimes")
+
+brew_cache_bytes=0
+if command -v brew >/dev/null 2>&1; then
+  bcache=$(brew --cache 2>/dev/null || echo "")
+  [[ -n "$bcache" ]] && brew_cache_bytes=$(_dir_bytes "$bcache")
+fi
+
+total_reclaimable=$(( stale_ingest_bytes + stale_diag_bytes + uv_cache_bytes + codex_cache_bytes + brew_cache_bytes ))
+
+if ! $apply; then
+  printf 'zdots-hygiene: dry run — pass -f or --apply to execute sweeps.\n\n'
+  printf 'Candidate Evictions:\n'
+  printf '  1. Stale Ingestion Buffers (>7d): %-8s  (%d files in %s)\n' \
+    "$(_fmt_bytes "$stale_ingest_bytes")" "$stale_ingest_count" "$ingest_dir"
+  printf '  2. Stale Diagnostic Logs (>14d): %-8s  (%d files in %s)\n' \
+    "$(_fmt_bytes "$stale_diag_bytes")" "$stale_diag_count" "$log_state_dir"
+  printf '  3. Python uv Cache:              %-8s\n' "$(_fmt_bytes "$uv_cache_bytes")"
+  printf '  4. Codex Runtimes Cache:          %-8s\n' "$(_fmt_bytes "$codex_cache_bytes")"
+  printf '  5. Homebrew Download Cache:       %-8s\n' "$(_fmt_bytes "$brew_cache_bytes")"
+  printf '  ─────────────────────────────────────────────────────────────\n'
+  printf '  Total Estimated Reclaimable:      %-8s  (+ Docker/Colima VM fstrim)\n\n' "$(_fmt_bytes "$total_reclaimable")"
+  printf 'To execute, run:\n  zdots-hygiene -f\n'
+  exit 0
+fi
+
+printf 'zdots-hygiene: executing storage hygiene sweeps...\n'
+
+# 1. Stale Ingestion Buffers (>7d)
+if (( stale_ingest_count > 0 )); then
+  printf '  [hygiene] purging %d stale ingestion files (>7d)...\n' "$stale_ingest_count"
+  find "$ingest_dir" -type f -mtime +7 -delete 2>/dev/null || true
+  printf '  [hygiene] freed %s from ingestion buffer\n' "$(_fmt_bytes "$stale_ingest_bytes")"
+else
+  printf '  [hygiene] ingestion buffer clean (no files >7d)\n'
+fi
+
+# 2. Stale Diagnostic Logs (>14d)
+if (( stale_diag_count > 0 )); then
+  printf '  [hygiene] purging %d stale diagnostic dumps (>14d)...\n' "$stale_diag_count"
+  find "$log_state_dir" -maxdepth 1 -name "collector-diag-*.jsonl" -mtime +14 -delete 2>/dev/null || true
+  printf '  [hygiene] freed %s from diagnostic logs\n' "$(_fmt_bytes "$stale_diag_bytes")"
+else
+  printf '  [hygiene] diagnostic dumps clean\n'
+fi
+
+# 3. Docker / Colima VM
+if command -v docker-reclaim >/dev/null 2>&1; then
+  printf '  [hygiene] running docker-reclaim -f...\n'
+  docker-reclaim -f >/dev/null 2>&1 || true
+fi
+
+# 4. Python uv Cache
+if command -v uv >/dev/null 2>&1; then
+  printf '  [hygiene] cleaning uv cache...\n'
+  uv cache clean >/dev/null 2>&1 || true
+fi
+
+# 5. Codex Runtimes
+if [[ -d "$HOME/.cache/codex-runtimes" ]]; then
+  printf '  [hygiene] removing codex-runtimes cache...\n'
+  rm -rf "$HOME/.cache/codex-runtimes"
+fi
+
+# 6. Homebrew
+if command -v brew >/dev/null 2>&1; then
+  printf '  [hygiene] running brew cleanup...\n'
+  brew cleanup --prune=all >/dev/null 2>&1 || true
+  rm -rf "$(brew --cache 2>/dev/null)" 2>/dev/null || true
+fi
+
+printf '\nzdots-hygiene: sweep complete. Current status:\n'
+zdots-storage

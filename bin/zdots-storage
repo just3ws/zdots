@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+# bin/zdots-storage — Multi-bucket system storage monitoring & budget attestation
+#
+# Usage:
+#   zdots-storage           # Human-readable breakdown of storage buckets
+#   zdots-storage --json    # Machine-readable JSON for capabilities & metrics
+#   zdots-storage --help    # Show help
+
+set -euo pipefail
+
+_ZDOTS_LIB_DIR="${ZDOTDIR:-$HOME/.config/zsh}/lib"
+if [[ -f "$_ZDOTS_LIB_DIR/cli-help.bash" ]]; then
+  source "$_ZDOTS_LIB_DIR/cli-help.bash"
+  zdots_cli_wants_help "$@" && {
+    cat << 'EOF'
+zdots-storage — Multi-bucket system storage monitoring & budget attestation
+
+Usage:
+  zdots-storage [options]
+
+Options:
+  --json      Output machine-readable JSON format
+  -h, --help  Show this help message
+
+Context Buckets Monitored:
+  root          Main macOS filesystem capacity and available space
+  models        Local LLM/audio weights (~/.local/share/llama-cpp, whisper-cpp)
+  docker        Docker containers/images/volumes & Colima VM footprint
+  ingest        Staged media & document ingestion sources (~/.local/state/zdots/ingest-sources)
+  caches        Tool & package manager caches (uv, codex-runtimes, pnpm, brew)
+  logs          Diagnostic trace dumps & archived service logs (~/.local/state/zsh)
+  backups       Stale migration & snapshot backups (colima-xdg-backup, adots-backups)
+EOF
+    exit 0
+  }
+fi
+
+json=false
+for arg in "$@"; do
+  case "$arg" in
+    --json) json=true ;;
+    -h|--help) exit 0 ;;
+    *) printf 'zdots-storage: unknown option: %s\n' "$arg" >&2; exit 1 ;;
+  esac
+done
+
+_fmt_bytes() {
+  local bytes="${1:-0}"
+  if (( bytes >= 1073741824 )); then
+    awk -v b="$bytes" 'BEGIN { printf "%.1fGB", b/1073741824 }'
+  elif (( bytes >= 1048576 )); then
+    awk -v b="$bytes" 'BEGIN { printf "%.1fMB", b/1048576 }'
+  elif (( bytes >= 1024 )); then
+    awk -v b="$bytes" 'BEGIN { printf "%.1fKB", b/1024 }'
+  else
+    printf '%dB' "$bytes"
+  fi
+}
+
+_dir_bytes() {
+  local dir="$1"
+  if [[ -d "$dir" ]]; then
+    du -sk "$dir" 2>/dev/null | awk '{print $1 * 1024}' || echo "0"
+  else
+    echo "0"
+  fi
+}
+
+_file_bytes() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    wc -c < "$file" 2>/dev/null | tr -d ' ' || echo "0"
+  else
+    echo "0"
+  fi
+}
+
+# 1. Root Volume
+avail_kb=$(df -k / 2>/dev/null | tail -1 | awk '{print $4}')
+avail_bytes=$(( avail_kb * 1024 ))
+avail_gb=$(( avail_kb / 1024 / 1024 ))
+root_status="ok"
+(( avail_gb < 15 )) && root_status="warn"
+(( avail_gb < 5 )) && root_status="crit"
+
+# 2. Models Bucket
+llama_dir="$HOME/.local/share/llama-cpp/models"
+whisper_dir="$HOME/.local/share/whisper-cpp"
+llama_bytes=$(_dir_bytes "$llama_dir")
+whisper_bytes=$(_dir_bytes "$whisper_dir")
+models_bytes=$(( llama_bytes + whisper_bytes ))
+
+active_model=""
+if [[ -f "${ZDOTDIR:-$HOME/.config/zsh}/etc/ai-models.yaml" ]] && command -v yq >/dev/null 2>&1; then
+  active_profile=$(yq '.default_profile // "qwen3-8b"' "${ZDOTDIR:-$HOME/.config/zsh}/etc/ai-models.yaml" 2>/dev/null || echo "qwen3-8b")
+  active_model=$(yq ".profiles.${active_profile}.model_file // \"\"" "${ZDOTDIR:-$HOME/.config/zsh}/etc/ai-models.yaml" 2>/dev/null || echo "")
+fi
+
+inactive_model_bytes=0
+inactive_model_count=0
+if [[ -d "$llama_dir" ]]; then
+  while IFS= read -r -d '' f; do
+    name=$(basename "$f")
+    if [[ "$name" != "$active_model" && "$name" != "nomic-embed-text-v2-moe.Q8_0.gguf" && "$name" != "embed.gguf" ]]; then
+      sz=$(_file_bytes "$f")
+      inactive_model_bytes=$(( inactive_model_bytes + sz ))
+      inactive_model_count=$(( inactive_model_count + 1 ))
+    fi
+  done < <(find "$llama_dir" -maxdepth 1 -name "*.gguf" -print0 2>/dev/null)
+fi
+models_status="ok"
+(( inactive_model_bytes > 5368709120 )) && models_status="warn" # > 5GB inactive
+
+# 3. Docker Bucket
+colima_dir="$HOME/.colima"
+colima_bytes=$(_dir_bytes "$colima_dir")
+docker_status="ok"
+
+# 4. Ingest Bucket
+ingest_dir="$HOME/.local/state/zdots/ingest-sources"
+ingest_bytes=$(_dir_bytes "$ingest_dir")
+stale_ingest_bytes=0
+stale_ingest_count=0
+if [[ -d "$ingest_dir" ]]; then
+  while IFS= read -r -d '' f; do
+    sz=$(_file_bytes "$f")
+    stale_ingest_bytes=$(( stale_ingest_bytes + sz ))
+    stale_ingest_count=$(( stale_ingest_count + 1 ))
+  done < <(find "$ingest_dir" -type f -mtime +7 -print0 2>/dev/null)
+fi
+ingest_status="ok"
+(( stale_ingest_bytes > 1073741824 || ingest_bytes > 5368709120 )) && ingest_status="warn"
+
+# 5. Caches Bucket
+uv_bytes=$(_dir_bytes "$HOME/.cache/uv")
+codex_bytes=$(_dir_bytes "$HOME/.cache/codex-runtimes")
+pnpm_bytes=$(_dir_bytes "$HOME/.local/share/pnpm")
+brew_cache_bytes=0
+if command -v brew >/dev/null 2>&1; then
+  bcache=$(brew --cache 2>/dev/null || echo "")
+  [[ -n "$bcache" ]] && brew_cache_bytes=$(_dir_bytes "$bcache")
+fi
+caches_bytes=$(( uv_bytes + codex_bytes + pnpm_bytes + brew_cache_bytes ))
+caches_status="ok"
+(( caches_bytes > 10737418240 )) && caches_status="warn" # > 10GB total caches
+
+# 6. Logs & Diags Bucket
+log_state_dir="$HOME/.local/state/zsh"
+diag_bytes=0
+diag_count=0
+if [[ -d "$log_state_dir" ]]; then
+  while IFS= read -r -d '' f; do
+    sz=$(_file_bytes "$f")
+    diag_bytes=$(( diag_bytes + sz ))
+    diag_count=$(( diag_count + 1 ))
+  done < <(find "$log_state_dir" -maxdepth 1 -name "collector-diag-*.jsonl" -mtime +14 -print0 2>/dev/null)
+fi
+o2_bytes=$(_dir_bytes "$HOME/.local/share/openobserve")
+logs_bytes=$(( diag_bytes + o2_bytes ))
+logs_status="ok"
+
+# 7. Migration Backups
+colima_bak_bytes=$(_dir_bytes "$HOME/.local/state/zsh/colima-xdg-backup")
+adots_bak_bytes=$(_dir_bytes "$HOME/.adots-backups")
+backups_bytes=$(( colima_bak_bytes + adots_bak_bytes ))
+backups_status="ok"
+(( backups_bytes > 1073741824 )) && backups_status="warn"
+
+if $json; then
+  cat << EOF
+{
+  "disk_available_gb": $avail_gb,
+  "root_status": "$root_status",
+  "buckets": {
+    "models": {
+      "total_bytes": $models_bytes,
+      "inactive_bytes": $inactive_model_bytes,
+      "inactive_count": $inactive_model_count,
+      "status": "$models_status"
+    },
+    "docker": {
+      "colima_bytes": $colima_bytes,
+      "status": "$docker_status"
+    },
+    "ingest": {
+      "total_bytes": $ingest_bytes,
+      "stale_bytes": $stale_ingest_bytes,
+      "stale_count": $stale_ingest_count,
+      "status": "$ingest_status"
+    },
+    "caches": {
+      "total_bytes": $caches_bytes,
+      "uv_bytes": $uv_bytes,
+      "codex_runtimes_bytes": $codex_bytes,
+      "pnpm_bytes": $pnpm_bytes,
+      "brew_cache_bytes": $brew_cache_bytes,
+      "status": "$caches_status"
+    },
+    "logs": {
+      "stale_diags_bytes": $diag_bytes,
+      "stale_diags_count": $diag_count,
+      "openobserve_bytes": $o2_bytes,
+      "status": "$logs_status"
+    },
+    "backups": {
+      "total_bytes": $backups_bytes,
+      "status": "$backups_status"
+    }
+  }
+}
+EOF
+else
+  printf '━━━ System Storage Buckets ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+  printf '  Root Avail:     %-8s  [%s]\n' "${avail_gb}GB" "$root_status"
+  printf '  Models:         %-8s  (inactive GGUFs: %s in %d files) [%s]\n' \
+    "$(_fmt_bytes "$models_bytes")" "$(_fmt_bytes "$inactive_model_bytes")" "$inactive_model_count" "$models_status"
+  printf '  Docker/Colima:  %-8s  [%s]\n' "$(_fmt_bytes "$colima_bytes")" "$docker_status"
+  printf '  Ingest Buffer:  %-8s  (stale >7d: %s in %d files) [%s]\n' \
+    "$(_fmt_bytes "$ingest_bytes")" "$(_fmt_bytes "$stale_ingest_bytes")" "$stale_ingest_count" "$ingest_status"
+  printf '  Tool Caches:    %-8s  (uv: %s, codex: %s, brew: %s) [%s]\n' \
+    "$(_fmt_bytes "$caches_bytes")" "$(_fmt_bytes "$uv_bytes")" "$(_fmt_bytes "$codex_bytes")" "$(_fmt_bytes "$brew_cache_bytes")" "$caches_status"
+  printf '  Logs/Diags:     %-8s  (stale diags >14d: %s) [%s]\n' \
+    "$(_fmt_bytes "$logs_bytes")" "$(_fmt_bytes "$diag_bytes")" "$logs_status"
+  printf '  Backups:        %-8s  [%s]\n' "$(_fmt_bytes "$backups_bytes")" "$backups_status"
+  printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+  printf 'Run '"'"'zdots-hygiene'"'"' to preview or execute safe cleanup actions.\n'
+fi

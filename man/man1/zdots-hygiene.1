@@ -1,0 +1,27 @@
+.TH ZDOTS-HYGIENE 1 "2026-08-12" "zdots" "zdots manual"
+.SH NAME
+zdots-hygiene \- zdots\-hygiene — Unified system storage hygiene & eviction routine
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-hygiene --help\fR).
+.SH OPTIONS
+.nf
+zdots-hygiene — Unified system storage hygiene & eviction routine
+
+Usage:
+  zdots-hygiene [options]
+
+Options:
+  (no flag)     Dry run mode — preview reclaimable space and actions
+  -f, --apply   Execute non-destructive cleanup sweeps
+  -h, --help    Show this help message
+
+Actions Executed on --apply:
+  1. Docker/Colima VM: Prune unused images/volumes & run fstrim inside Colima
+  2. Python uv Cache: Clear package/build caches (uv cache clean)
+  3. Homebrew: Remove old formula bottles & clear brew download cache
+  4. Ingestion Buffer: Evict staged media/docs in ingest-sources > 7 days old
+  5. Diagnostic Logs: Remove stale trace dumps (collector-diag-*.jsonl) > 14 days old
+  6. Agent Runtimes: Purge obsolete codex-runtimes cache
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

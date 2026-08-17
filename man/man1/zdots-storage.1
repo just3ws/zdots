@@ -1,0 +1,27 @@
+.TH ZDOTS-STORAGE 1 "2026-08-12" "zdots" "zdots manual"
+.SH NAME
+zdots-storage \- zdots\-storage — Multi\-bucket system storage monitoring & budget attestation
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-storage --help\fR).
+.SH OPTIONS
+.nf
+zdots-storage — Multi-bucket system storage monitoring & budget attestation
+
+Usage:
+  zdots-storage [options]
+
+Options:
+  --json      Output machine-readable JSON format
+  -h, --help  Show this help message
+
+Context Buckets Monitored:
+  root          Main macOS filesystem capacity and available space
+  models        Local LLM/audio weights (~/.local/share/llama-cpp, whisper-cpp)
+  docker        Docker containers/images/volumes & Colima VM footprint
+  ingest        Staged media & document ingestion sources (~/.local/state/zdots/ingest-sources)
+  caches        Tool & package manager caches (uv, codex-runtimes, pnpm, brew)
+  logs          Diagnostic trace dumps & archived service logs (~/.local/state/zsh)
+  backups       Stale migration & snapshot backups (colima-xdg-backup, adots-backups)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)
