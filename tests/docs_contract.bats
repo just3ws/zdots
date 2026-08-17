@@ -205,12 +205,13 @@ _known_gap() {
     embed-model-tripwire zdots-theme-gen
     zdots zdots-artifact zdots-debrief zdots-snapshot zdots-search zdots-draft zdots-publish
     zdots-help zdots-watch zdots-usage zdots-swiftbar zdots-vault-doctor
+    zdots-storage zdots-hygiene zdots-check zdots-gen zdots-lake zdots-sql-lint
   )
 
   local missing=()
   for script in "$BIN"/*; do
     name="$(basename "$script")"
-    [[ -x "$script" ]] || continue
+    [[ -f "$script" && -x "$script" ]] || continue
     # Must be in the tested list OR explicitly gaped.
     if _known_gap "$name"; then
       continue
