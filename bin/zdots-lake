@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""
+zdots-lake — Embedded DuckDB Analytical SQL Lake Engine for zdots
+Executes zero-overhead SQL queries over flat TSV, CSV, and NDJSON log files.
+Usage:
+  zdots-lake "SELECT * FROM read_ndjson_auto('data/lake/*.ndjson') LIMIT 10"
+  zdots-lake -f query.sql
+  zdots-lake --file-path data/logs/events.ndjson "SELECT count(*) FROM read_ndjson_auto(?)"
+"""
+
+import sys
+import os
+import subprocess
+import argparse
+
+try:
+    import duckdb
+except ImportError:
+    print("Error: duckdb library not found. Install via 'pip install --user --break-system-packages duckdb'.", file=sys.stderr)
+    sys.exit(2)
+
+def check_readonly(sql_content):
+    """Shell out to zdots-sql-lint (same bin/ dir) to enforce read-only SQL."""
+    lint_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zdots-sql-lint")
+    result = subprocess.run(
+        [lint_path, "-d", "duckdb", sql_content],
+        capture_output=True, text=True
+    )
+    return result.returncode == 0, (result.stderr or result.stdout).strip()
+
+def main():
+    parser = argparse.ArgumentParser(description="zdots-lake — Zero-Overhead DuckDB Analytical SQL Engine")
+    parser.add_argument("query", nargs="?", help="SQL query string to execute over data lake")
+    parser.add_argument("-f", "--file", help="File containing SQL query")
+    parser.add_argument("-o", "--format", choices=["tsv", "json", "csv", "table"], default="table", help="Output format")
+    parser.add_argument("--unsafe", action="store_true", help="Skip the read-only guard (allow writes/DDL/attach)")
+    args = parser.parse_args()
+
+    sql_content = ""
+    if args.file:
+        with open(args.file, "r", encoding="utf-8") as f:
+            sql_content = f.read()
+    elif args.query:
+        sql_content = args.query
+    else:
+        if not sys.stdin.isatty():
+            sql_content = sys.stdin.read()
+
+    if not sql_content.strip():
+        parser.print_help()
+        sys.exit(1)
+
+    if not args.unsafe:
+        is_readonly, msg = check_readonly(sql_content)
+        if not is_readonly:
+            print(f"❌ Blocked by read-only guard: {msg}", file=sys.stderr)
+            print("   Pass --unsafe to run write/DDL queries anyway.", file=sys.stderr)
+            sys.exit(1)
+
+    try:
+        con = duckdb.connect(database=":memory:")
+        cur = con.execute(sql_content)
+        columns = [d[0] for d in cur.description] if cur.description else []
+        rows = cur.fetchall()
+
+        if args.format in ("tsv", "csv"):
+            import csv
+            writer = csv.writer(sys.stdout, delimiter="\t" if args.format == "tsv" else ",")
+            writer.writerow(columns)
+            writer.writerows(rows)
+        elif args.format == "json":
+            import json
+            print(json.dumps([dict(zip(columns, row)) for row in rows], indent=2, default=str))
+        else:
+            widths = [
+                max(len(str(c)), max((len(str(r[i])) for r in rows), default=0))
+                for i, c in enumerate(columns)
+            ]
+            print("  ".join(str(c).ljust(w) for c, w in zip(columns, widths)))
+            for row in rows:
+                print("  ".join(str(v).ljust(w) for v, w in zip(row, widths)))
+
+    except Exception as e:
+        print(f"❌ DuckDB Execution Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

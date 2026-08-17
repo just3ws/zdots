@@ -1,0 +1,23 @@
+.TH ZDOTS-LAKE 1 "2026-08-17" "zdots" "zdots manual"
+.SH NAME
+zdots-lake \- zdots\-lake — Zero\-Overhead DuckDB Analytical SQL Engine
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-lake --help\fR).
+.SH OPTIONS
+.nf
+usage: zdots-lake [-h] [-f FILE] [-o {tsv,json,csv,table}] [--unsafe] [query]
+
+zdots-lake — Zero-Overhead DuckDB Analytical SQL Engine
+
+positional arguments:
+  query                 SQL query string to execute over data lake
+
+options:
+  -h, --help            show this help message and exit
+  -f, --file FILE       File containing SQL query
+  -o, --format {tsv,json,csv,table}
+                        Output format
+  --unsafe              Skip the read-only guard (allow writes/DDL/attach)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

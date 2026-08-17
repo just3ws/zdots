@@ -1,0 +1,22 @@
+.TH ZDOTS-SQL-LINT 1 "2026-08-17" "zdots" "zdots manual"
+.SH NAME
+zdots-sql-lint \- AST\-Based Read\-Only SQL Query Validator for zdots
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-sql-lint --help\fR).
+.SH OPTIONS
+.nf
+usage: zdots-sql-lint [-h] [-f FILE] [-d DIALECT] [query]
+
+AST-Based Read-Only SQL Query Validator for zdots
+
+positional arguments:
+  query                 SQL query string to validate
+
+options:
+  -h, --help            show this help message and exit
+  -f, --file FILE       File containing SQL query to validate
+  -d, --dialect DIALECT
+                        SQL dialect (mysql, postgres, sqlite, duckdb)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""
+zdots-sql-lint — AST-based Read-Only SQL Query Validator for zdots
+Enforces strictly read-only execution for AI agents and CLI tools.
+Permits: SELECT, SHOW, EXPLAIN, DESCRIBE.
+Fails on: UPDATE, DELETE, INSERT, DROP, ALTER, TRUNCATE, FOR UPDATE, etc.
+"""
+
+import sys
+import argparse
+
+try:
+    import sqlglot
+    from sqlglot import exp
+    HAS_SQLGLOT = True
+except ImportError:
+    HAS_SQLGLOT = False
+
+ALLOWED_KEYS = {"select", "show", "describe", "explain"}
+
+
+if HAS_SQLGLOT:
+    FORBIDDEN_EXPRESSIONS = (
+        exp.Insert,
+        exp.Update,
+        exp.Delete,
+        exp.Drop,
+        exp.Alter,
+    )
+else:
+    FORBIDDEN_EXPRESSIONS = ()
+
+def validate_sql(sql_text, dialect=None):
+    if not HAS_SQLGLOT:
+        return False, "sqlglot library not found. Install via 'pip install --user --break-system-packages sqlglot'."
+
+    try:
+        parsed_statements = sqlglot.parse(sql_text, read=dialect)
+    except Exception as e:
+        return False, f"SQL Syntax Error: {e}"
+
+    if not parsed_statements:
+        return False, "Empty SQL input."
+
+    for stmt in parsed_statements:
+        if stmt is None:
+            continue
+
+        stmt_key = stmt.key.lower() if hasattr(stmt, "key") else ""
+
+        # exp.Query covers Select and set operations (UNION/INTERSECT/EXCEPT) alike;
+        # Show/Describe/Explain aren't Query subclasses so they're checked separately.
+        if stmt_key not in ALLOWED_KEYS and not isinstance(stmt, (exp.Query, exp.Show, exp.Describe)):
+            return False, f"Forbidden statement type: '{stmt_key.upper()}'. Only SELECT, SHOW, EXPLAIN, and DESCRIBE are permitted."
+
+        for node in stmt.walk():
+            if isinstance(node, FORBIDDEN_EXPRESSIONS):
+                return False, f"Forbidden nested operation: '{node.key.upper()}'."
+
+            if isinstance(node, exp.Lock):
+                return False, "Forbidden locking clause found (FOR UPDATE / FOR SHARE)."
+
+    return True, "SQL is clean and read-only."
+
+
+def main():
+    parser = argparse.ArgumentParser(description="AST-Based Read-Only SQL Query Validator for zdots")
+    parser.add_argument("query", nargs="?", help="SQL query string to validate")
+    parser.add_argument("-f", "--file", help="File containing SQL query to validate")
+    parser.add_argument("-d", "--dialect", default="mysql", help="SQL dialect (mysql, postgres, sqlite, duckdb)")
+    args = parser.parse_args()
+
+    sql_content = ""
+    if args.file:
+        with open(args.file, "r", encoding="utf-8") as f:
+            sql_content = f.read()
+    elif args.query:
+        sql_content = args.query
+    else:
+        if not sys.stdin.isatty():
+            sql_content = sys.stdin.read()
+
+    if not sql_content.strip():
+        parser.print_help()
+        sys.exit(1)
+
+    is_valid, message = validate_sql(sql_content, dialect=args.dialect)
+    if is_valid:
+        print(f"✅ PASS: {message}")
+        sys.exit(0)
+    else:
+        print(f"❌ FAIL: {message}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
