@@ -1,9 +1,10 @@
 ---
 id: Z-295
 title: '[agent-issue] llama.cpp server up but not responding to inference requests'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-07 18:13'
+updated_date: '2026-08-20 13:55'
 labels:
   - agent-reported
   - error
@@ -31,3 +32,9 @@ Evidence: /Users/mike/.local/state/zsh/zdots-watch-runs/doctor-20260807T130846.1
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Verified resolved 2026-08-20: live curl to /v1/chat/completions returned a proper completion. llama-server answering inference normally.
+<!-- SECTION:NOTES:END -->

@@ -3,9 +3,10 @@ id: Z-298
 title: >-
   [agent-issue] redis crash-loops on startup: redis.conf loads
   modules/redisbloom/redisbloom.so which doesn't exist
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-08 18:25'
+updated_date: '2026-08-20 13:55'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ redis crash-loops on startup: redis.conf loads modules/redisbloom/redisbloom.so 
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Verified resolved 2026-08-20: redis stable, uptime 3215s, launchd exit=0, PID 806 matches zsvc. redisbloom loadmodule line in redis.conf is commented out — fix already applied since filing.
+<!-- SECTION:NOTES:END -->
