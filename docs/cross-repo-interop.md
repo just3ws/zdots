@@ -7,17 +7,22 @@ routed through it). "The platform" (`zdots`/`adots`/`vdots`/`my`, see
 *outside* that set which still talks to zdots.
 
 Every row here was added because of **found evidence** (an O2 trace, a
-documented protocol in the other repo, live bus traffic) — never because a
-relationship seemed plausible. See `/interop-registry` for the audit and
-change procedure.
+documented protocol in the other repo) — never because a relationship seemed
+plausible. See `/interop-registry` for the audit and change procedure.
+
+**Bus traffic is not evidence.** It was treated as such here until 2026-08-22.
+Participant identity on the message bus is unauthenticated — any caller can post
+under any name (Z-310) — so a message proves content, not authorship. O2 traces
+and the other repo's own committed docs are the admissible kinds. Rows that
+rested on bus traffic have been retracted below rather than quietly deleted.
 
 ## Members
 
 | Repo | Path | Relationship | Evidence | Documented on their side |
 |---|---|---|---|---|
 | `wwworkremote/core` | `~/github.com/wwworkremote/core` | Calls zdots' `llama-server` (`POST :11500/v1/chat/completions`) as its LLM backend | O2 trace `c86ecb0429740c07c3f1053378b18cbe`, 200 OK, 2026-08-17 | `docs/architecture/ruby_llm.md`, `docs/configuration.md`, `docs/troubleshooting.md` |
-| `wwworkremote/core` | (same) | Posts to the `zdots-ctx` message bus, `job-leads` channel, for cross-agent job-lead coordination | Live bus traffic (`agent-antigravity`, 2026-08-17); `zdots-ctx bus-channels` shows real message count | `docs/just3ws-interop-protocol.md`, `docs/agents/interop.md` |
-| `just3ws.github.io` | `~/github.com/just3ws/just3ws.github.io` | Same `job-leads` bus channel | Documented in their own protocol doc (not yet independently confirmed via bus traffic from this side — wwworkremote's traffic is the only observed sender so far) | `docs/inter-tool-communication-protocol.md` |
+| `wwworkremote/core` | (same) | **Claimed only.** Documented on their side as posting to the `job-leads` channel; not verified from this side | ~~Live bus traffic (`agent-antigravity`, 2026-08-17)~~ — **retracted 2026-08-22**: that message was posted by `agent-antigravity`, a different participant, so it never evidenced wwworkremote at all. Messages under `agent-wwworkremote` (2026-08-22) were posted by another actor, and the live wwworkremote session states it has never registered or posted. Bus attribution is unauthenticated (Z-310) and cannot serve as evidence here | `docs/just3ws-interop-protocol.md`, `docs/agents/interop.md` |
+| `just3ws.github.io` | `~/github.com/just3ws/just3ws.github.io` | Same `job-leads` bus channel | Documented in their own protocol doc. Bus traffic exists under `agent-just3ws` but proves only that *something* posted using that name — see Z-310 | `docs/inter-tool-communication-protocol.md` |
 | `just3ws.github.io` | (same) | Exports static `resume.json` / `exports/*.md`; `wwworkremote` fetches by plain GET | O2 trace: `wwworkremote` → `https://just3ws.github.io/resume.json` | `docs/inter-tool-communication-protocol.md` (their side); `docs/just3ws-interop-protocol.md` (wwworkremote's side) |
 
 ## Explicitly NOT members (checked, no evidence found)

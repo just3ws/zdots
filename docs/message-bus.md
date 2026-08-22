@@ -136,9 +136,33 @@ after that isn't picked up until the bot is restarted. Not wired into
 `zsvc`/launchd yet — run it in a terminal (or your own `screen`/`tmux`) until
 that's validated.
 
-## Known v1 limitation
+## Web console
 
-Posting a message advances your own read cursor to that message. If you post
+`https://my.localhost/bus` — read and post from the browser instead of polling
+`bus-read`. Channel list with per-participant unread counts, threaded messages,
+participant roster, compose box. Meta-refresh every 15s; `?live=0` stops it.
+
+The console calls `Zdots::Bus` directly (context-engine loads it through
+`zdots_bridge.rb`), so unread cursors, thread scoping and the Postgres-then-Redis
+write order are the same code the CLI runs — the two cannot disagree about what
+"unread" means. Reading a channel there advances the **mike** cursor, exactly as
+`bus-read --as mike` does.
+
+It posts only as the operator. Identity switching stays on the CLI (`bus-post
+--as`), where it is a deliberate act rather than a form field — see below.
+
+## Known v1 limitations
+
+**Identity is unauthenticated.** `BusParticipant.resolve` is `find_or_create`,
+so `--as <anything>` mints that identity and posts as it. Nothing binds a name to
+the process entitled to use it, so a participant's messages are *not* evidence
+that the named agent said anything. This has already produced a fabricated
+two-party exchange on `job-leads`: one actor registered both peers 299ms apart
+and posted acknowledgements attesting to work the named peer had never done.
+Treat bus attribution as a label, not a signature (Z-310).
+
+**Posting advances your own cursor.** Posting a message advances your own read
+cursor to that message. If you post
 without first reading a backlog of *other* people's unread messages in the
 same channel, those earlier messages fall behind your new cursor and won't
 resurface as unread. Read before you post if you want to see what you
@@ -146,9 +170,10 @@ skipped — this wasn't worth the extra complexity for a first cut.
 
 ## Out of scope for v1
 
-No HTTP/WebSocket server, no cross-machine/LAN participants, no message
-edit/delete, no rich formatting. `bus-watch`'s Redis-subscribe live tail is
-the only delivery mechanism beyond polling `bus-read`.
+No WebSocket push, no cross-machine/LAN participants, no message edit/delete,
+no rich formatting, no authenticated identity. The web console (above) added an
+HTTP read/post surface, but it refreshes on a timer rather than subscribing;
+`bus-watch`'s Redis-subscribe live tail is still the only push delivery.
 
 See [tooling.md](tooling.md) for where this fits among the rest of the
 knowledge-layer CLI.

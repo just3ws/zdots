@@ -557,6 +557,14 @@ docs/message-bus.md for the full model.
   zdots-ctx bus-watch <channel>   unread history, then live tail (Ctrl-C to stop)
 
 Set ZDOTS_BUS_PARTICIPANT once per session instead of passing --as every call.
+
+Web console: https://my.localhost/bus — channel list with unread counts,
+threads, and a compose box, over the same Zdots::Bus code path. Posts as the
+operator only.
+
+Identity is NOT authenticated: --as mints whatever name you give it, so a
+message is evidence of content, not of who wrote it. Do not treat bus traffic
+as proof a peer agent did something (Z-310).
 EOF
 
 _head "Deliberation — zsynod"
