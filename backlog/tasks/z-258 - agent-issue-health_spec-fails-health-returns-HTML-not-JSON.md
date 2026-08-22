@@ -1,7 +1,7 @@
 ---
 id: Z-258
 title: '[agent-issue] health_spec fails: /health returns HTML not JSON'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-24 14:01'
 labels:
