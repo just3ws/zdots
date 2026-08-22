@@ -108,10 +108,14 @@ TOOLS = [
 # Implementations
 # ---------------------------------------------------------------------------
 def run_o2(*args)
+  # Args go through "$@", never interpolated into the script — same defect and
+  # same fix as ctx-mcp (Z-297/Z-309): the old hand-rolled gsub("'", "'\\''")
+  # escape used \' , which Ruby treats as the post-match backreference, so an
+  # apostrophe in any argument broke out of the quoting and bash executed the
+  # remainder.
   env_sh = File.join(ZDOTDIR, "env.sh")
-  escaped = args.map { |a| "'" + a.to_s.gsub("'", "'\\''") + "'" }.join(" ")
-  cmd = "source #{env_sh} 2>/dev/null; #{O2_BIN} #{escaped}"
-  stdout, stderr, status = Open3.capture3("bash", "-c", cmd)
+  script = %(source "#{env_sh}" 2>/dev/null; exec "#{O2_BIN}" "$@")
+  stdout, stderr, status = Open3.capture3("bash", "-c", script, "o2-mcp", *args.map(&:to_s))
   status.success? ? stdout : "Error: #{stderr.strip}"
 end
 

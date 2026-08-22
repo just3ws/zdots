@@ -42,14 +42,18 @@ end.freeze
 # Implementations
 # ---------------------------------------------------------------------------
 def run_ctx(*args)
-  # We source env.sh first to ensure DATABASE_URL and ZDOTS_MY_ROOT are set
+  # We source env.sh first to ensure DATABASE_URL and ZDOTS_MY_ROOT are set,
+  # which is the only reason a shell is involved at all.
+  #
+  # Arguments are passed as positional parameters ("$@") rather than
+  # interpolated into the command string. Nothing derived from tool input is
+  # ever parsed by bash as source. The previous version escaped by hand with
+  # gsub("'", "'\\''"), but \' in a gsub *string* replacement is the post-match
+  # backreference, not a literal — so every apostrophe closed the quoted string
+  # and content after it was executed. See Z-297/Z-309.
   env_sh = File.join(ZDOTDIR, "env.sh")
-  
-  # Escape arguments for safe shell execution
-  escaped_args = args.map { |arg| "'" + arg.to_s.gsub("'", "'\\''") + "'" }.join(" ")
-  
-  cmd = "source #{env_sh} && #{CTX_BIN} #{escaped_args}"
-  stdout, stderr, status = Open3.capture3("bash", "-c", cmd)
+  script = %(source "#{env_sh}" && exec "#{CTX_BIN}" "$@")
+  stdout, stderr, status = Open3.capture3("bash", "-c", script, "ctx-mcp", *args.map(&:to_s))
   { stdout: stdout, stderr: stderr, exit_code: status.exitstatus }
 end
 
