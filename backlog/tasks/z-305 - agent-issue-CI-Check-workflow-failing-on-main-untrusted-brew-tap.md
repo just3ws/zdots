@@ -1,7 +1,7 @@
 ---
 id: Z-305
 title: '[agent-issue] CI Check workflow failing on main: untrusted brew tap'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-20 13:53'
 labels:
@@ -25,3 +25,17 @@ GitHub Actions 'Check' workflow on zdots main has failed on the last 3 pushes (s
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Fixed 2026-08-22 in commit 3c9eb99d. Removed `tap "arimxyer/tap"` and
+`brew "arimxyer/tap/models"` from Brewfile.common rather than adding a `brew trust`
+step: nothing in zdots references the formula, so trusting an unaudited third-party
+tap on a PHI-adjacent machine to install an unused binary was the wrong trade. The
+already-installed local binary is untouched — if it is wanted interactively it can
+be reinstalled explicitly.
+
+Note the ticket understated the age: Check has been red since at least 2026-08-10
+(5 consecutive failures), not 2026-08-17.
+<!-- SECTION:NOTES:END -->

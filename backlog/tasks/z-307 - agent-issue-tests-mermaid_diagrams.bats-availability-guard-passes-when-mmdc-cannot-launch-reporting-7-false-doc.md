@@ -3,7 +3,7 @@ id: Z-307
 title: >-
   [agent-issue] tests/mermaid_diagrams.bats availability guard passes when mmdc
   cannot launch, reporting 7 false doc
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-21 20:17'
 labels:
@@ -60,3 +60,15 @@ indistinguishable from this failure mode.
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Fixed 2026-08-22 in commit 3c9eb99d. Replaced the `command -v mmdc` guard in all
+8 tests with `_require_mmdc`, which renders a two-node graph to a temp file and
+skips with the remediation command when that fails.
+
+Verified both legs: chromium present -> 8/8 ok; `~/.cache/puppeteer` moved aside ->
+8 skips and zero failures, where the old guard produced 7 failures naming innocent
+documents.
+<!-- SECTION:NOTES:END -->
