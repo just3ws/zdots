@@ -105,6 +105,17 @@ ZDOTS_AI_MODE=local
 # ZDOTS_DIARIZE=1
 
 # ---------------------------------------------------------------------------
+# yt-dlp cookies (Z-237) — bot-gated fetches (recipes/yt-transcribe,
+# bin/zdots-ingest-media). YouTube rejects some anonymous fetches with
+# "Sign in to confirm you're not a bot" or a bare HTTP 403 on the media URL.
+# Default is no cookies (fine for non-gated sources: Vimeo, archive.org).
+# File wins if both are set. See lib/ytdlp.bash for the two knobs.
+# Cookies are passed to yt-dlp only — never written to DB, analytics, or logs.
+# ---------------------------------------------------------------------------
+# ZDOTS_YTDLP_COOKIES_FROM_BROWSER=chrome   # firefox|chrome|safari|brave|edge[:profile]
+# ZDOTS_YTDLP_COOKIES_FILE=/path/to/cookies.txt
+
+# ---------------------------------------------------------------------------
 # Work context overrides (only relevant when ZDOTS_CONTEXT=work)
 # Keep corporate identity and network config here, not in the shared repo.
 # ---------------------------------------------------------------------------
