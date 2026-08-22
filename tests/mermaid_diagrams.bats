@@ -10,6 +10,19 @@ setup() {
   setup_environment
 }
 
+# A binary on PATH is not a working renderer. mermaid-cli shells out to a
+# puppeteer chromium that goes missing on every mermaid-cli upgrade, and the
+# old `command -v mmdc` guard passed anyway — so a dead toolchain reported as
+# seven broken documents instead of a skip (Z-307). Prove it can render.
+# ponytail: one probe render per test (~1s). Cache it if the suite drags.
+_require_mmdc() {
+  command -v mmdc >/dev/null 2>&1 || skip "mmdc not found — install mermaid-cli to validate diagrams"
+  local probe="${BATS_TEST_TMPDIR:-/tmp}/mmdc_probe"
+  printf 'graph TD\n  A-->B\n' > "$probe.mmd"
+  mmdc -i "$probe.mmd" -o "$probe.svg" >/dev/null 2>&1 || \
+    skip "mmdc present but cannot render — chromium missing. Fix: npx puppeteer browsers install chrome-headless-shell"
+}
+
 # Collect all *.md files that contain at least one mermaid code block.
 _mermaid_files() {
   grep -rl '```mermaid' "$REPO_ROOT" \
@@ -20,15 +33,11 @@ _mermaid_files() {
 }
 
 @test "mmdc is available (skip entire suite if not)" {
-  if ! command -v mmdc >/dev/null 2>&1; then
-    skip "mmdc not found — install mermaid-cli to validate diagrams"
-  fi
+  _require_mmdc
 }
 
 @test "docs/architecture.md — all Mermaid diagrams parse" {
-  if ! command -v mmdc >/dev/null 2>&1; then
-    skip "mmdc not found"
-  fi
+  _require_mmdc
   local out
   out=$(mmdc -i "$REPO_ROOT/docs/architecture.md" -o /tmp/mermaid_arch_test.svg 2>&1)
   local rc=$?
@@ -36,9 +45,7 @@ _mermaid_files() {
 }
 
 @test "docs/local-ai.md — all Mermaid diagrams parse" {
-  if ! command -v mmdc >/dev/null 2>&1; then
-    skip "mmdc not found"
-  fi
+  _require_mmdc
   local out
   out=$(mmdc -i "$REPO_ROOT/docs/local-ai.md" -o /tmp/mermaid_local_ai_test.svg 2>&1)
   local rc=$?
@@ -46,9 +53,7 @@ _mermaid_files() {
 }
 
 @test "docs/repository-evolution.md — all Mermaid diagrams parse" {
-  if ! command -v mmdc >/dev/null 2>&1; then
-    skip "mmdc not found"
-  fi
+  _require_mmdc
   local out
   out=$(mmdc -i "$REPO_ROOT/docs/repository-evolution.md" -o /tmp/mermaid_repo_evo_test.svg 2>&1)
   local rc=$?
@@ -56,9 +61,7 @@ _mermaid_files() {
 }
 
 @test "README.md — all Mermaid diagrams parse" {
-  if ! command -v mmdc >/dev/null 2>&1; then
-    skip "mmdc not found"
-  fi
+  _require_mmdc
   local out
   out=$(mmdc -i "$REPO_ROOT/README.md" -o /tmp/mermaid_readme_test.svg 2>&1)
   local rc=$?
@@ -66,9 +69,7 @@ _mermaid_files() {
 }
 
 @test "docs/lifecycle.md — all Mermaid diagrams parse" {
-  if ! command -v mmdc >/dev/null 2>&1; then
-    skip "mmdc not found"
-  fi
+  _require_mmdc
   local out
   out=$(mmdc -i "$REPO_ROOT/docs/lifecycle.md" -o /tmp/mermaid_lifecycle_test.svg 2>&1)
   local rc=$?
@@ -76,9 +77,7 @@ _mermaid_files() {
 }
 
 @test "docs/platform-dependency-graph.md — all Mermaid diagrams parse" {
-  if ! command -v mmdc >/dev/null 2>&1; then
-    skip "mmdc not found"
-  fi
+  _require_mmdc
   local out
   out=$(mmdc -i "$REPO_ROOT/docs/platform-dependency-graph.md" -o /tmp/mermaid_dep_graph_test.svg 2>&1)
   local rc=$?
@@ -88,9 +87,7 @@ _mermaid_files() {
 # Catch-all: every other *.md in the repo that contains a mermaid block.
 # New diagram-bearing docs are picked up automatically — no test change needed.
 @test "all other repo Mermaid diagrams parse" {
-  if ! command -v mmdc >/dev/null 2>&1; then
-    skip "mmdc not found"
-  fi
+  _require_mmdc
 
   # Already covered individually above — exclude them from the sweep.
   local covered=(
