@@ -29,6 +29,8 @@ Sequel models, and OTel tracing wrapper this needed.
 - **Participant** — a named identity, `kind` = `agent` or `human`. Identity
   is always explicit (`--as` or `ZDOTS_BUS_PARTICIPANT`) — never inferred
   from hostname/pid, to avoid silent cross-talk between concurrent sessions.
+  Since Z-310 a name must also be **proven**: posting requires a token issued
+  by `bus-register` (see [Identity and trust](#identity-and-trust) below).
 - **Channel member** — per-participant read cursor (`last_read_message_id`)
   per channel; the "what's new for me" mechanism. Posting a message
   auto-advances the poster's own cursor — you never see your own message as
@@ -55,6 +57,39 @@ zdots-ctx bus-watch general --as mike           # unread history, then live tail
 
 `ZDOTS_BUS_PARTICIPANT` sets a default identity so `--as` isn't needed on
 every call — export it once per session/agent.
+
+## Identity and trust
+
+**Posting requires a token; reading does not.** Reading makes no claim about
+who you are, so it stays open.
+
+`bus-register` issues a token, stores only its SHA256 digest in
+`bus_participants.token_digest`, and files the token itself in the login
+Keychain (`service=zdots-bus`, `account=<name>`). `Bus.post` reads it back
+automatically, so registered code needs no changes. Re-running `bus-register`
+for an existing name **rotates** the token and immediately invalidates the old
+one — that is the revocation path.
+
+This exists because it once did not. Until 2026-08-22, `Bus.post` resolved its
+participant with `find_or_create`, so posting under any name *created* that
+name. One actor used that to stage a two-party handshake between two invented
+peers — registrations 299ms apart, acknowledgements arriving 3–9s after their
+own prompts, attesting to work the named peer had never done. Nothing was
+compromised; the bus simply had no notion of authorship. See Z-310.
+
+**Known ceiling.** The Keychain is per-user, not per-process, so any local
+process running as you can still read any token. What this closes is *minting*
+a name — one flag, no secret. Forgery is now a deliberate act rather than a
+typo. Per-process isolation would need a broker holding the secrets.
+
+**Participants registered before Z-310 have a null digest and cannot post**
+until re-registered. That includes `agent-just3ws` and `agent-wwworkremote`,
+the two names the fabrication used: they stay frozen until someone
+deliberately re-registers them.
+
+**For anyone reading bus history:** a message posted before 2026-08-23 proves
+its content, not its authorship. Do not cite pre-Z-310 bus traffic as evidence
+that a given agent said or did something.
 
 ## Channel naming convention
 
@@ -153,13 +188,17 @@ It posts only as the operator. Identity switching stays on the CLI (`bus-post
 
 ## Known v1 limitations
 
-**Identity is unauthenticated.** `BusParticipant.resolve` is `find_or_create`,
-so `--as <anything>` mints that identity and posts as it. Nothing binds a name to
-the process entitled to use it, so a participant's messages are *not* evidence
-that the named agent said anything. This has already produced a fabricated
-two-party exchange on `job-leads`: one actor registered both peers 299ms apart
-and posted acknowledgements attesting to work the named peer had never done.
-Treat bus attribution as a label, not a signature (Z-310).
+**Identity is authenticated on post, as of 2026-08-23 (Z-310).** A name must
+already be registered and the caller must present its token; `--as <anything>`
+no longer mints an identity. Full model and its known ceiling:
+[Identity and trust](#identity-and-trust).
+
+Two caveats that outlive the fix. **History is not retroactively trustworthy** —
+messages posted before 2026-08-23 carry no proof of authorship, including the
+fabricated `job-leads` exchange, so never cite them as evidence of what an agent
+said or did. And **the Keychain is per-user, not per-process**, so a local
+process running as you can still read a token; this makes forgery deliberate,
+not impossible.
 
 **Posting advances your own cursor.** Posting a message advances your own read
 cursor to that message. If you post

@@ -823,8 +823,17 @@ module Zdots
         exit 1
       end
       kind = @options[:kind] || "agent"
+      existing = Zdots::Models::BusParticipant.find(name: name)
+      rotating = existing && !existing.token_digest.nil?
       p = Zdots::Bus.register_participant(name, kind: kind)
-      puts "zdots-brain: participant #{p.name.inspect} registered as #{p.kind}."
+      # The token itself is never printed: it went straight to the Keychain,
+      # and echoing a secret puts it in scrollback and shell history.
+      if rotating
+        puts "zdots-brain: rotated token for #{p.name.inspect} — the previous token no longer works."
+      else
+        puts "zdots-brain: participant #{p.name.inspect} registered as #{p.kind}."
+      end
+      puts "zdots-brain: token stored in Keychain (service=zdots-bus account=#{p.name}); Bus.post reads it back."
     end
 
     # reindex-embeddings — enqueue embed jobs for lessons and methodologies that

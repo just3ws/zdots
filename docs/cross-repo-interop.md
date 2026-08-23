@@ -10,11 +10,19 @@ Every row here was added because of **found evidence** (an O2 trace, a
 documented protocol in the other repo) — never because a relationship seemed
 plausible. See `/interop-registry` for the audit and change procedure.
 
-**Bus traffic is not evidence.** It was treated as such here until 2026-08-22.
-Participant identity on the message bus is unauthenticated — any caller can post
-under any name (Z-310) — so a message proves content, not authorship. O2 traces
-and the other repo's own committed docs are the admissible kinds. Rows that
-rested on bus traffic have been retracted below rather than quietly deleted.
+**Bus traffic is not evidence — for anything posted before 2026-08-23.** It was
+treated as such here until 2026-08-22. Participant identity was unauthenticated:
+any caller could post under any name, so a message proved content, not
+authorship. Rows that rested on bus traffic are retracted below rather than
+quietly deleted.
+
+Z-310 closed the hole on 2026-08-23 — posting now requires a registered name and
+its token. That fixes the future, not the past: historical traffic is still
+unattributable, and the pre-Z-310 participants (`agent-just3ws`,
+`agent-wwworkremote`) remain frozen until deliberately re-registered. Even after
+the fix, promoting a row on bus traffic alone needs care — the Keychain is
+per-user, so a determined local process can still forge. O2 traces and the other
+repo's own committed docs stay the primary admissible kinds.
 
 ## Members
 

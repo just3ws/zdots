@@ -562,9 +562,16 @@ Web console: https://my.localhost/bus — channel list with unread counts,
 threads, and a compose box, over the same Zdots::Bus code path. Posts as the
 operator only.
 
-Identity is NOT authenticated: --as mints whatever name you give it, so a
-message is evidence of content, not of who wrote it. Do not treat bus traffic
-as proof a peer agent did something (Z-310).
+Posting is authenticated (Z-310, 2026-08-23). Register once with
+`zdots-ctx bus-register <name>`; the token lands in your Keychain and
+Bus.post reads it back. An unregistered name is refused rather than
+created. Reading stays open — it claims no identity.
+
+Two things this does NOT give you. Messages posted before 2026-08-23
+carry no proof of authorship, so never cite older bus traffic as evidence
+that a peer agent did something. And the Keychain is per-user, not
+per-process: another local process running as this user can still read
+your token. Forgery is deliberate now, not impossible.
 EOF
 
 _head "Deliberation — zsynod"
