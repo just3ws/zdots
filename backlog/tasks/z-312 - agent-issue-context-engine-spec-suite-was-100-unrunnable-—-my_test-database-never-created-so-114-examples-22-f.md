@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-22 20:05'
+updated_date: '2026-08-23 18:40'
 labels:
   - agent-reported
   - error
@@ -65,3 +66,9 @@ silently unrunnable on the next machine.
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Partially addressed 2026-08-23. Suite went 22 -> 16 failures. Two REAL production defects found and fixed, both in my@12077cb and my@fca5f6b: (1) POST /api/v1/gaps/report returned 500 for any scope_hint — a varchar column handed a bare Ruby Hash, which Sequel literalized as a boolean expression; the MCP path was always correct, only REST diverged, exactly what mcp_rest_parity_spec exists to catch. (2) Platform::DocsLibrary hardcoded DEFAULT_ZDOTS_ROOT to /Users/mike.hall/.config/zsh — another machine's username — so every glob matched nothing and /docs served an empty catalog with a 200 while /docs/guide/agents 404'd in production. Also fixed 8 spec call sites using ActiveRecord Model.find(id) in a Sequel app. Remaining 16 triaged: prime_and_reprocess (5, stale mocks), policy_* (8, fixtures not persisting — likely one root cause, the cluster worth chasing), dashboard (1, stale view assertion), context_query + mcp_rest_parity (2, untraced). None of the remaining 16 is a known production risk.
+<!-- SECTION:NOTES:END -->

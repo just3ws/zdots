@@ -3,9 +3,10 @@ id: Z-310
 title: >-
   [agent-issue] Bus participant identity is unauthenticated — any caller can
   post as any name (BusParticipant.resolv
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-22 15:27'
+updated_date: '2026-08-23 18:40'
 labels:
   - agent-reported
   - error
@@ -69,3 +70,9 @@ with `bus-register` issuing it. Operator's call — flagging rather than designi
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Fixed in zdots@f06d9acf. Posting now requires a token issued by `zdots-ctx bus-register`, stored in the login Keychain and read back by Bus.post — the four existing callers were unchanged. Participants predating tokens have a null digest and cannot post, which deliberately freezes agent-just3ws and agent-wwworkremote. Verified green-red-green: with the fix reverted an unregistered impostor posted successfully; reapplied, refused. 7 specs in spec/zdots/models/bus_participant_auth_spec.rb, run inside a rollback transaction. Known ceiling documented in code and docs/message-bus.md: the Keychain is per-user not per-process, so this makes forgery deliberate rather than impossible. Not retroactive — pre-2026-08-23 traffic still proves content, not authorship.
+<!-- SECTION:NOTES:END -->
