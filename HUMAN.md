@@ -4,9 +4,9 @@ Everything here needs **you**. Nothing on this list can be derived, inferred, or
 looked up by an agent; each item is either a fact only you hold, a decision only
 you can authorize, or an action blocked on your permission.
 
-**How to use this file:** answer inline on the `ANSWER:` lines. Partial is fine —
-answer what you know, leave the rest. Then tell your agent "read HUMAN.md" and it
-will pick up from your answers.
+**How to use this file:** type your answer after the `> **A:**` marker under each
+question. Partial is fine — answer what you know, leave the rest. Then tell your
+agent "read HUMAN.md" and it will pick up from your answers.
 
 Raised: 2026-08-23, zdots kernel session.
 Status key: `[ ]` unanswered · `[x]` answered · `[-]` declined/skip
@@ -21,22 +21,43 @@ These block real work downstream. A1–A3 and A5 are about eleven minutes total.
 
 12 of 29 files in `just3ws.github.io/_data/resume/positions/` have no `type:` key,
 so `employment_type` is null and the resume cannot distinguish contract from
-full-time. Mark each `contract` or `full-time`:
+full-time. Each needs `contract` or `full-time`.
 
-```
-bdi                   ANSWER:
-brightstar            ANSWER:
-ch-robinson           ANSWER:
-groupon               ANSWER:
-ips                   ANSWER:
-jpmc                  ANSWER:
-klobomedia            ANSWER:
-new-labor-strategies  ANSWER:
-sentinel              ANSWER:
-ticketsnow            ANSWER:
-upcity                ANSWER:
-viewpoints            ANSWER:
-```
+**bdi**
+> **A:**
+
+**brightstar**
+> **A:**
+
+**ch-robinson**
+> **A:**
+
+**groupon**
+> **A:**
+
+**ips**
+> **A:**
+
+**jpmc**
+> **A:**
+
+**klobomedia**
+> **A:**
+
+**new-labor-strategies**
+> **A:**
+
+**sentinel**
+> **A:**
+
+**ticketsnow**
+> **A:**
+
+**upcity**
+> **A:**
+
+**viewpoints**
+> **A:**
 
 ### [ ] A2 — The 2009 collision
 
@@ -59,7 +80,7 @@ that way?
 > Worth weighing (d) seriously. That commit tells a tidy story, and tidy stories
 > written by agents are exactly what went wrong elsewhere this week.
 
-ANSWER:
+> **A:**
 
 ### [ ] A3 — Selected Current Work: 2 entries or 4?
 
@@ -73,7 +94,7 @@ on a resume — better as a link than a bullet.
 
 Keep 4, or cut to 2? If keeping 4, what's the reason?
 
-ANSWER:
+> **A:**
 
 ### [ ] A4 — `case_study` blocks (the big one, 30–60 min)
 
@@ -88,7 +109,7 @@ Use `work.yml` as the template. For each role that had a quantified outcome,
 write the outcome. This is the item that actually changes output quality; the
 rest of section A only unblocks.
 
-ANSWER (or: "done, see the files"):
+> **A:**
 
 ### [ ] A5 — Was the Antigravity session running on 2026-08-22, roughly 10:04–10:18?
 
@@ -103,7 +124,7 @@ posted the only genuine 08-17 message on that channel as `agent-antigravity`.
 
 If it was an automation, it will do it again after the auth fix unless found.
 
-ANSWER (yes / no / something else was running):
+> **A:**
 
 ---
 
@@ -114,7 +135,7 @@ ANSWER (yes / no / something else was running):
 You hit the monthly cap mid-session (`/compact` failed). Raise it, or stop agent
 work here? Everything in sections C and D costs tokens.
 
-ANSWER:
+> **A:**
 
 ### [ ] B2 — Should wwworkremote route prose generation to a hosted model?
 
@@ -130,7 +151,7 @@ This costs spend and moves career prose off-box.
 **Regardless of the answer: do not send anything to an employer that came out of
 that model unreviewed.**
 
-ANSWER:
+> **A:**
 
 ### [ ] B3 — Authorize an audit of what the just3ws session published publicly?
 
@@ -147,7 +168,7 @@ timeline). These are public and about your professional identity.
 Estimate: about an hour — `gh api` the bios and org READMEs, diff numeric claims
 against `_data/video_assets.yml` and the database.
 
-ANSWER (yes / no / later):
+> **A:**
 
 ### [ ] B4 — The capability exchange with just3ws
 
@@ -165,7 +186,7 @@ It also wants to stop reading your just3ws working tree off disk and consume
 How do you want this routed — start a just3ws session, have wwworkremote proceed
 unilaterally, or park it?
 
-ANSWER:
+> **A:**
 
 ---
 
@@ -191,7 +212,9 @@ DELETE FROM bus_messages WHERE id IN (SELECT id FROM doomed);
 COMMIT;
 ```
 
-ANSWER (I'll run it / add the permission rule / leave them):
+I'll run it / add the permission rule / leave them?
+
+> **A:**
 
 ### [ ] C2 — Keep the `my_test` database?
 
@@ -199,7 +222,7 @@ I created it to make context-engine's spec suite runnable at all. It should stay
 without it the suite cannot run — but you own the machine. Drop with
 `dropdb my_test`.
 
-ANSWER (keep / drop):
+> **A:**
 
 ---
 
@@ -207,17 +230,45 @@ ANSWER (keep / drop):
 
 Each of these is flagged, unowned, and waiting on a single word.
 
-| # | Item | Detail |
-|---|---|---|
-| [ ] D1 | **11 Dependabot vulns on `my`** | 1 critical, 4 high, 5 moderate, 1 low. Surfaced on push. Nobody has looked. |
-| [ ] D2 | **OpenObserve at 107M** | Over your 100M threshold; it is what turned the doctor warning amber. `/telemetry-volume` fixes volume at the source. |
-| [ ] D3 | **`adots-doctor` rc=1** | `~/.docker` coexisting with canonical `~/.config/docker`. It ships a `--fix`. |
-| [ ] D4 | **Code graph stale** | Built at `3ebb4491`, HEAD is far past it. `/graphify` refreshes. |
-| [ ] D5 | **Z-312 — triage the 22 spec failures** | context-engine is 114 examples / 22 failures. Several look seed-dependent (empty test DB has no policy rules), so 22 is an upper bound on real defects. Needs triage, not a blanket fix. |
-| [ ] D6 | **Z-310 — bus authentication** | Per-participant token in Keychain, checked on post, issued by `bus-register`. This is the fix that makes bus attribution mean something. |
-| [ ] D7 | **Z-311 — `publisher.rb:29`** | Same `\'` gsub trap as Z-297 but argv-form, no shell. Mangles VTT paths containing an apostrophe. Low. |
+### [ ] D1 — 11 Dependabot vulnerabilities on `my`
+1 critical, 4 high, 5 moderate, 1 low. Surfaced on push. Nobody has looked.
 
-ANSWER (list the numbers you want done):
+> **A:**
+
+### [ ] D2 — OpenObserve at 107M
+Over your 100M threshold; it is what turned the doctor warning amber.
+`/telemetry-volume` fixes volume at the source rather than just retention.
+
+> **A:**
+
+### [ ] D3 — `adots-doctor` exits 1
+`~/.docker` coexisting with the canonical `~/.config/docker`. It ships a `--fix`.
+
+> **A:**
+
+### [ ] D4 — Code graph stale
+Built at `3ebb4491`, HEAD is far past it. `/graphify` refreshes it.
+
+> **A:**
+
+### [ ] D5 — Z-312: triage the 22 spec failures
+context-engine is 114 examples / 22 failures. Several look seed-dependent (a
+freshly-migrated test DB has no policy rules), so 22 is an upper bound on real
+defects, not a defect count. Needs triage, not a blanket fix.
+
+> **A:**
+
+### [ ] D6 — Z-310: bus authentication
+Per-participant token in Keychain, checked on post, issued by `bus-register`.
+This is the fix that makes bus attribution mean something.
+
+> **A:**
+
+### [ ] D7 — Z-311: `publisher.rb:29`
+Same `\'` gsub trap as Z-297 but argv-form, no shell. Mangles VTT paths containing
+an apostrophe. Low severity.
+
+> **A:**
 
 ---
 
