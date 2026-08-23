@@ -9,8 +9,18 @@ require "zdots/bus"
 RSpec.describe "Message bus E2E", :integration do
   before(:all) do
     @db = Zdots.db
+    # Z-310: posting now requires proving the name. issue_token! hands the
+    # token back directly, unlike Bus.register_participant, which files it in
+    # the real login Keychain — a side effect a spec has no business causing.
+    @tokens = %w[agent-a agent-b].to_h do |n|
+      [n, Zdots::Models::BusParticipant.issue_token!(n).last]
+    end
   rescue Sequel::DatabaseConnectionError => e
     skip "PostgreSQL unavailable (#{e.message})"
+  end
+
+  def post_as(name, channel, body, thread: nil)
+    Zdots::Bus.post(channel, name, body, thread: thread, token: @tokens.fetch(name))
   end
 
   # A uniquely-named channel per example, never a real name like "general".
@@ -55,8 +65,8 @@ RSpec.describe "Message bus E2E", :integration do
   it "round-trips post + read, oldest first" do
     Zdots::Bus.create_channel(channel)
 
-    Zdots::Bus.post(channel, "agent-a", "first")
-    Zdots::Bus.post(channel, "agent-b", "second")
+    post_as("agent-a", channel, "first")
+    post_as("agent-b", channel, "second")
 
     msgs = Zdots::Bus.read(channel)
     expect(msgs.map(&:body)).to eq(%w[first second])
@@ -66,9 +76,9 @@ RSpec.describe "Message bus E2E", :integration do
   it "threads a reply under its root and scopes --thread reads to root+replies" do
     Zdots::Bus.create_channel(channel)
 
-    root = Zdots::Bus.post(channel, "agent-a", "root message")
-    Zdots::Bus.post(channel, "agent-b", "unrelated top-level")
-    reply = Zdots::Bus.post(channel, "agent-b", "a reply", thread: root.id)
+    root = post_as("agent-a", channel, "root message")
+    post_as("agent-b", channel, "unrelated top-level")
+    reply = post_as("agent-b", channel, "a reply", thread: root.id)
 
     expect(reply.thread_root?).to be false
     expect(root.thread_root?).to be true
@@ -80,7 +90,7 @@ RSpec.describe "Message bus E2E", :integration do
   it "tracks unread per participant and a poster never sees their own message as unread" do
     Zdots::Bus.create_channel(channel)
 
-    Zdots::Bus.post(channel, "agent-a", "hello")
+    post_as("agent-a", channel, "hello")
     expect(Zdots::Bus.unread(channel, "agent-a")).to be_empty
 
     unread_for_b = Zdots::Bus.unread(channel, "agent-b")
@@ -89,7 +99,7 @@ RSpec.describe "Message bus E2E", :integration do
     Zdots::Bus.mark_read(channel, "agent-b", unread_for_b.last.id)
     expect(Zdots::Bus.unread(channel, "agent-b")).to be_empty
 
-    Zdots::Bus.post(channel, "agent-a", "second message")
+    post_as("agent-a", channel, "second message")
     expect(Zdots::Bus.unread(channel, "agent-b").map(&:body)).to eq(["second message"])
   end
 

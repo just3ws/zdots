@@ -27,18 +27,48 @@ module Zdots
         Models::BusChannel.order(:name).all
       end
 
+      KEYCHAIN_SERVICE = "zdots-bus"
+
+      # Issues a token, stores it in the login Keychain, returns the
+      # participant. The token is never returned to the caller and never
+      # logged — post() reads it back from the Keychain on demand.
+      #
+      # ponytail: Keychain is per-user, not per-process, so any local process
+      # running as this user can read any participant's token. That is a real
+      # ceiling and it is deliberate: the failure this closes is *minting* a
+      # name (one flag, no secret), not *stealing* one. Forgery is now a
+      # deliberate act instead of a typo. Per-process isolation would need a
+      # broker holding the secrets, which is a much bigger cut.
       def register_participant(name, kind: "agent")
-        p = Models::BusParticipant.resolve(name)
-        p.update(kind: kind) if kind && p.kind != kind
+        p, token = Models::BusParticipant.issue_token!(name, kind: kind)
+        store_token(name, token)
         p
+      end
+
+      def store_token(name, token)
+        system("security", "add-generic-password", "-U",
+               "-s", KEYCHAIN_SERVICE, "-a", name, "-w", token,
+               out: File::NULL, err: File::NULL) ||
+          raise("bus: could not store token for #{name.inspect} in the Keychain")
+      end
+
+      def token_for(name)
+        out, _err, status = Open3.capture3("security", "find-generic-password",
+                                           "-s", KEYCHAIN_SERVICE, "-a", name, "-w")
+        status.success? ? out.chomp : nil
       end
 
       # Writes to Postgres first (source of truth), then best-effort
       # publishes to Redis for live watchers. A publish failure never loses
       # the message — it's already durably stored.
-      def post(channel_name, participant_name, body, thread: nil)
+      def post(channel_name, participant_name, body, thread: nil, token: nil)
         channel = Models::BusChannel.resolve(channel_name)
-        participant = Models::BusParticipant.resolve(participant_name)
+        # Z-310: prove the name before writing it. token: is here so a caller
+        # that already holds one (a remote agent, a test) can pass it directly;
+        # everything local falls back to the Keychain.
+        participant = Models::BusParticipant.authenticate!(
+          participant_name, token || token_for(participant_name)
+        )
         participant.touch_seen!
 
         msg = Models::BusMessage.create(
