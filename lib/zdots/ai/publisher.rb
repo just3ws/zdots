@@ -26,7 +26,15 @@ module Zdots
         # FFmpeg command to extract and burn subtitles
         # We use a complex filter to burn the subtitles. 
         # Note: the subtitles filter requires the path to be escaped properly if it contains colons, etc.
-        vtt_escaped = vtt_file.gsub("'", "\\'").gsub(":", "\\:")
+        # Z-311: block form, not string form. In a gsub *string* replacement
+        # \' is the post-match backreference, so the string version silently
+        # dropped the apostrophe and appended everything after it — a path like
+        # /tmp/Mike's Talk/a.vtt came out as /tmp/Mikes Talk/a.vtts Talk/a.vtt.
+        # A block's return value is used literally, so \' stays \'.
+        # Same trap as Z-297 in bin/ctx-mcp, which was shell-injectable; this
+        # one is argv-form (Open3.capture3(*cmd)) so it only ever corrupted the
+        # filter argument.
+        vtt_escaped = vtt_file.gsub("'") { "\\'" }.gsub(":") { "\\:" }
         
         cmd = [
           "ffmpeg", "-y",
