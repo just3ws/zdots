@@ -66,7 +66,7 @@ curl -sk -X POST https://my.localhost/api/v1/context/query \
 
 - **`skipped=N` means unchanged** — ingest dedupes on file hash + mtime. To force
   re-ingest after a code (not file) change, clear rows as superuser:
-  `psql -U mike.hall my -c "DELETE FROM markdown_inbox_chunks; DELETE FROM markdown_inbox_sources;"`
+  `psql -U "$USER" my -c "DELETE FROM markdown_inbox_chunks; DELETE FROM markdown_inbox_sources;"`
 - **`failed=N`** — the rake loop swallows errors. Surface the real one with
   `rails runner` calling `MarkdownInboxIngestor.new.send(:ingest_file!, Pathname.new(path))`.
 - A new column the parser/extractor expects but the DB lacks → file a `zdots-issue`
