@@ -9,13 +9,29 @@ Issues for this repo live as markdown files in `backlog/tasks/`, managed by the 
 backlog task create "Title" --priority medium
 
 # Agent-filed issues (use this when you need operator attention)
-zdots-issue "Short description"                        # bug
-zdots-issue --type question "Does zdots support X?"
+zdots-issue "Short description"                        # type defaults to error
 zdots-issue --type request  "I need zdots to do Y"
-zdots-issue --high          "Blocking my current task"
+zdots-issue --type friction "Confusing, hard to use, or unclear docs"
+zdots-issue --severity high "Blocking my current task"
 ```
 
+Types: `error` (default), `request`, `friction`. Severity: `critical`, `high`, `medium` (default), `low`.
+
 `zdots-issue` auto-attaches `agent-reported` + type label and the current `ZDOTS_TRACE_ID`.
+
+## Resuming a filed ticket
+
+`zdots-issue` prints the exact resume command and posts a `TICKET` announcement
+(with a `#<type>` tag) to the `zdots` bus channel — think of it as the
+"ready to work" signal in a ticketing system, without auto-spawning anything:
+
+```bash
+zdots-ctx bus-read zdots --tag request --as mike   # see open tickets by type
+ztask start Z-NNN && zclaude                        # resume the one you want
+```
+
+The bus post is best-effort (a bus outage never blocks filing) and posts as
+the dedicated `zdots-issue` bus identity, not the reporting agent's own.
 
 ## Fetching a ticket
 

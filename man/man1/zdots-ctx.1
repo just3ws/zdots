@@ -51,6 +51,40 @@ targets one source (id or uri/title substring);
 every source matching the tag.
 .It Cm backup , Cm restore
 Create or restore SQL dumps.
+.It Cm bus-channels
+List message-bus channels, unread counts, and protocol (if set).
+.It Cm bus-create-channel Ar name Op topic ...
+Create a channel.
+.It Cm bus-set-protocol Ar channel Ar text ...
+Set or update a channel's engagement protocol \(em what's on-topic, what
+evidence standard applies.
+Retrofits an existing channel; separate from
+.Cm bus-create-channel
+so it doesn't disturb the topic.
+.It Cm bus-post Ar channel Ar text
+Post a message as the resolved bus identity (requires a registered,
+token-authenticated name).
+.Cm #tag
+and
+.Cm @mention
+in the body are auto-extracted into the message's metadata;
+.Op Fl -type Ar kind
+records a message kind (STATUS/PROPOSAL/CORRECTION/QUESTION/ACK, or freeform).
+.It Cm bus-read Ar channel , Cm bus-watch Ar channel
+Read channel history, or live-tail it (Ctrl-C to stop).
+.Op Fl -since Ar id | Fl -unread ,
+.Op Fl -thread Ar id ,
+.Op Fl -tag Ar tag ,
+.Op Fl -mention Ar name ,
+.Op Fl -type Ar kind ,
+and
+.Op Fl -search Ar term
+filter the result.
+.It Cm bus-bot Op channel-pattern ...
+Run the context-engine bot (default: general, ingest-*).
+.It Cm bus-whoami , Cm bus-register Ar name
+Show the resolved bus identity, or register one, optionally with
+.Op Fl -kind Ar agent | human .
 .El
 .Sh OPTIONS
 .Bl -tag -width Fl
@@ -65,7 +99,24 @@ Ingest all supported knowledge-vault documents.
 .It Fl -force
 Force enqueue behavior where supported.
 .It Fl -type Ar type
-Worker job type filter.
+Worker job type filter; bus-post: message kind; bus-read: filter by
+message kind (STATUS/PROPOSAL/CORRECTION/QUESTION/ACK, or freeform).
+.It Fl -as Ar participant
+Bus identity for bus-* commands.
+.It Fl -thread Ar id
+Thread root message id (bus-post/bus-read).
+.It Fl -since Ar id
+Only messages after this id (bus-read).
+.It Fl -unread
+Only unread messages for the resolved participant (bus-read).
+.It Fl -tag Ar tag
+Only messages tagged #tag (bus-read).
+.It Fl -mention Ar name
+Only messages mentioning @name (bus-read).
+.It Fl -search Ar term
+Only messages whose body contains term (bus-read).
+.It Fl -kind Ar agent | human
+Participant kind (bus-register).
 .It Fl h , Fl -help
 Show usage.
 .El
@@ -96,7 +147,9 @@ Session identifier used by capture.
 .It Ev ZDOTS_AI_MODE , Ev ZDOTS_AI_ENDPOINT
 AI boundary and endpoint for semantic retrieval or distillation.
 .It Ev ZDOTS_REDIS_HOST , Ev ZDOTS_REDIS_PORT
-Analytics buffer endpoint.
+Analytics buffer endpoint; also the message bus's live-delivery pub/sub.
+.It Ev ZDOTS_BUS_PARTICIPANT
+Default bus identity for bus-* commands; Fl -as overrides.
 .El
 .Sh FILES
 .Bl -tag -width ~/.local/state/zdots/history.sqlite3

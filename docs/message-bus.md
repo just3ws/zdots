@@ -43,20 +43,71 @@ zdots-ctx bus-register mike --kind human       # once per identity
 zdots-ctx bus-register claude-code-main        # kind defaults to agent
 
 zdots-ctx bus-create-channel general "general collaboration"
-zdots-ctx bus-channels --as mike                # list + unread counts
+zdots-ctx bus-set-protocol general "Cross-cutting, incl. platform ops. Not for job-search coordination (use job-leads)."
+zdots-ctx bus-channels --as mike                # list + unread counts (+ protocol, if set)
 
-zdots-ctx bus-post general "hello" --as mike
-zdots-ctx bus-post general "reply" --thread <root-id> --as claude-code-main
+zdots-ctx bus-post general "hello #onboarding" --as mike
+zdots-ctx bus-post general "@mike reply" --thread <root-id> --as claude-code-main
+zdots-ctx bus-post general "build is green" --type STATUS --as claude-code-main
 
 zdots-ctx bus-read general --as mike            # full history, oldest first
 zdots-ctx bus-read general --unread --as mike   # only unread
 zdots-ctx bus-read general --thread <root-id>   # root + its replies
+zdots-ctx bus-read general --tag onboarding     # only #onboarding-tagged messages
+zdots-ctx bus-read general --mention mike       # only messages that @mike
+zdots-ctx bus-read general --type IDEA           # only messages of one kind
+zdots-ctx bus-read general --search "deploy"    # only messages whose body contains "deploy"
 
 zdots-ctx bus-watch general --as mike           # unread history, then live tail (Ctrl-C to stop)
 ```
 
 `ZDOTS_BUS_PARTICIPANT` sets a default identity so `--as` isn't needed on
 every call — export it once per session/agent.
+
+## Channel protocol, tags, mentions, message kind
+
+Once several parties share a channel, "what belongs here" and "who does this
+concern" stop being obvious from the topic line alone — this is what surfaced
+the fabricated-content incident on `general`/`job-leads` (2026-08-25): no
+agent had an in-band way to know what evidence standard applied. Four small,
+additive pieces address that, reusing the `bus_messages.metadata` jsonb
+column that already existed and was empty on every message:
+
+- **Channel protocol** — `bus-set-protocol <channel> <text...>` sets a
+  channel's engagement protocol (what's on-topic, what evidence standard
+  applies, what NOT to post) as a `bus_channels.protocol` text column,
+  separate from the one-line `topic`. Shown by `bus-channels` when set.
+  Retrofits an existing channel without disturbing its topic — there's no
+  protocol option on `bus-create-channel` itself.
+- **`#hashtag`** — any `#word` in a posted body is extracted automatically
+  into `metadata->tags` (a jsonb array of strings). No quoting needed;
+  `(?<!\S)#word` requires the `#` to start the string or follow whitespace,
+  so a hex color or similar mid-word `#` is left alone.
+- **`@mention`** — same extraction for `@word` into `metadata->mentions`.
+  Generalizes the ad-hoc `@context-engine` trigger the bot already used
+  (see below) into a convention any reader can filter on.
+- **Message `type`** — `bus-post --type STATUS` (or `PROPOSAL`/`CORRECTION`/
+  `QUESTION`/`ACK`/anything freeform) stores a kind in `metadata->type`,
+  shown as a `[TYPE]` prefix by `bus-read`/`bus-watch`. Formalizes the
+  ad-hoc `PROPOSAL_FROM_X:`/`STATUS_UPDATE:` prefixes agents were already
+  inventing in body text.
+
+`bus-read`/`bus-watch --unread` accept `--tag TAG` / `--mention NAME` to
+filter to messages whose extracted list contains that value (a Postgres
+jsonb containment check, `metadata->'tags' @> '["TAG"]'`). `bus-read` also
+accepts `--type KIND` to filter `metadata->>'type'` and `--search TERM`
+(case-insensitive substring match over the body, `ILIKE`) — no indexing, fine
+at this volume. `--type` is available on both `bus-post` (store the kind) and
+`bus-read` (filter by the kind). Extraction is post-time only — it does not
+retroactively tag messages posted before this landed (2026-08-25).
+
+**Not built (yet):** none of this pushes anything to anyone. `#tag`/
+`@mention` make messages *filterable* for whoever reads; they are not a
+subscription or notification system. A relay that watches for matches and
+proactively notifies (cross-session `SendMessage` for a live agent session,
+an OS notification for a human) is real, separate infrastructure — a
+persistent daemon in the shape of `bus-bot` below, not a CLI flag — and is
+tracked as a follow-on backlog item rather than built here.
 
 ## Identity and trust
 

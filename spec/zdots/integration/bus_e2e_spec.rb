@@ -107,4 +107,70 @@ RSpec.describe "Message bus E2E", :integration do
     expect { Zdots::Bus.post("no-such-channel-#{SecureRandom.hex(4)}", "agent-a", "hi") }
       .to raise_error(Zdots::Models::BusChannel::NotFound, /no such bus channel/)
   end
+
+  it "extracts #tags and @mentions from the body and stores a --type kind" do
+    Zdots::Bus.create_channel(channel)
+
+    msg = post_as("agent-a", channel, "status update #onboarding cc @agent-b", thread: nil)
+    tagged = Zdots::Bus.post(channel, "agent-a", "status update #onboarding cc @agent-b",
+                              token: @tokens.fetch("agent-a"), type: "STATUS")
+
+    expect(msg.metadata["tags"]).to eq(["onboarding"])
+    expect(msg.metadata["mentions"]).to eq(["agent-b"])
+    expect(tagged.metadata["type"]).to eq("STATUS")
+  end
+
+  it "does not extract a genuinely mid-word # or @ (CSS color, email)" do
+    Zdots::Bus.create_channel(channel)
+
+    msg = post_as("agent-a", channel, "color:#fff and email a@b.com, plain text")
+    expect(msg.metadata["tags"]).to be_nil
+    expect(msg.metadata["mentions"]).to be_nil
+  end
+
+  it "extracts a bare #tag even after whitespace, indistinguishable from e.g. a hex color" do
+    Zdots::Bus.create_channel(channel)
+
+    msg = post_as("agent-a", channel, "swatch is #fff this time")
+    expect(msg.metadata["tags"]).to eq(["fff"])
+  end
+
+  it "filters read/unread by --tag and --mention" do
+    Zdots::Bus.create_channel(channel)
+
+    post_as("agent-a", channel, "no tag here")
+    post_as("agent-a", channel, "#relevant one")
+    post_as("agent-a", channel, "cc @agent-b here")
+
+    expect(Zdots::Bus.read(channel, tag: "relevant").map(&:body)).to eq(["#relevant one"])
+    expect(Zdots::Bus.read(channel, mention: "agent-b").map(&:body)).to eq(["cc @agent-b here"])
+    expect(Zdots::Bus.unread(channel, "agent-b", tag: "relevant").map(&:body)).to eq(["#relevant one"])
+  end
+
+  it "filters read by --search (body substring, case-insensitive)" do
+    Zdots::Bus.create_channel(channel)
+
+    post_as("agent-a", channel, "the Deploy went fine")
+    post_as("agent-a", channel, "unrelated message")
+
+    expect(Zdots::Bus.read(channel, query: "deploy").map(&:body)).to eq(["the Deploy went fine"])
+  end
+
+  it "orders newest_first: true as DESC by created_at" do
+    Zdots::Bus.create_channel(channel)
+
+    post_as("agent-a", channel, "first")
+    post_as("agent-a", channel, "second")
+
+    expect(Zdots::Bus.read(channel, newest_first: true).map(&:body)).to eq(%w[second first])
+  end
+
+  it "sets and updates a channel's engagement protocol without disturbing its topic" do
+    Zdots::Bus.create_channel(channel, topic: "test channel")
+
+    updated = Zdots::Bus.set_protocol(channel, "On-topic: X. Evidence standard: Y.")
+
+    expect(updated.protocol).to eq("On-topic: X. Evidence standard: Y.")
+    expect(updated.topic).to eq("test channel")
+  end
 end

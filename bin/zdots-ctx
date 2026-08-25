@@ -26,10 +26,11 @@
 #   jobs      List pending and recent jobs
 #   result <job_id>  Fetch a completed job's structured result (JSON)
 #   worker    [--type T] Run a worker to process queued jobs
-#   bus-channels  List message-bus channels (+ unread count)
+#   bus-channels  List message-bus channels (+ unread count, protocol if set)
 #   bus-create-channel <name> [topic...]
-#   bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]
-#   bus-read <channel> [--since ID | --unread] [--thread ID] [--as PARTICIPANT]
+#   bus-set-protocol <channel> <text...>  Set/update a channel's engagement protocol
+#   bus-post <channel> <text> [--type KIND] [--thread ID] [--as PARTICIPANT]
+#   bus-read <channel> [--since ID | --unread] [--thread ID] [--tag TAG] [--mention NAME] [--type KIND] [--search TERM] [--as PARTICIPANT]
 #   bus-watch <channel> [--as PARTICIPANT]  Live tail (Ctrl-C to stop)
 #   bus-bot [channel-pattern...]  Run the context-engine bot (Ctrl-C to stop)
 #   bus-whoami [--as PARTICIPANT]  Show resolved bus identity
@@ -111,10 +112,12 @@ Knowledge Layer Interface:
   reprocess-series <tag> [--transcribe] Re-run all ingested sources matching <tag>
   jobs      List pending and recent jobs
   worker    [--type T] Run a worker to process queued jobs
-  bus-channels  List message-bus channels (+ unread count for --as/ZDOTS_BUS_PARTICIPANT)
+  bus-channels  List message-bus channels (+ unread count for --as/ZDOTS_BUS_PARTICIPANT, protocol if set)
   bus-create-channel <name> [topic...]
-  bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]
-  bus-read <channel> [--since ID | --unread] [--thread ID] [--as PARTICIPANT]
+  bus-set-protocol <channel> <text...>  Set/update a channel's engagement protocol (TOS: what's on-topic, evidence standard)
+  bus-post <channel> <text> [--type KIND] [--thread ID] [--as PARTICIPANT]  --type: STATUS/PROPOSAL/CORRECTION/QUESTION/ACK/freeform
+  bus-read <channel> [--since ID | --unread] [--thread ID] [--tag TAG] [--mention NAME] [--type KIND] [--search TERM] [--as PARTICIPANT]
+            #tag / @mention are auto-extracted; --tag/--mention/--type filter metadata; --search matches body substrings
   bus-watch <channel> [--as PARTICIPANT]  Live tail (unread history, then follows; Ctrl-C to stop)
   bus-bot [channel-pattern...]  Run the context-engine bot (default: general, ingest-*; Ctrl-C to stop)
   bus-whoami [--as PARTICIPANT]  Show resolved bus identity
@@ -571,6 +574,10 @@ cmd_bus_create_channel() {
   "${ZDOTDIR}/sbin/zdots-brain" bus-create-channel "$@"
 }
 
+cmd_bus_set_protocol() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-set-protocol "$@"
+}
+
 cmd_bus_post() {
   "${ZDOTDIR}/sbin/zdots-brain" bus-post "$@"
 }
@@ -900,6 +907,7 @@ case "${1:-}" in
   worker)          shift; cmd_worker "$@" ;;
   bus-channels)        shift; cmd_bus_channels "$@" ;;
   bus-create-channel)  shift; cmd_bus_create_channel "$@" ;;
+  bus-set-protocol)    shift; cmd_bus_set_protocol "$@" ;;
   bus-post)            shift; cmd_bus_post "$@" ;;
   bus-read)             shift; cmd_bus_read "$@" ;;
   bus-watch)            shift; cmd_bus_watch "$@" ;;

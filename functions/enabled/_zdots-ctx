@@ -37,6 +37,15 @@ _zdots-ctx() {
     'stats:show system utilization statistics from traces'
     'reprocess:re-run an ingested source (stages, or +whisper via --transcribe)'
     'reprocess-series:re-run all ingested sources matching a tag'
+    'bus-channels:list message-bus channels (unread counts, protocol)'
+    'bus-create-channel:create a message-bus channel'
+    'bus-set-protocol:set/update a channel'\''s engagement protocol'
+    'bus-post:post a message (#tag/@mention auto-extracted)'
+    'bus-read:read channel history (--tag/--mention/--type/--search/--thread/--since/--unread)'
+    'bus-watch:live-tail a channel (Ctrl-C to stop)'
+    'bus-bot:run the context-engine bot'
+    'bus-whoami:show the resolved bus identity'
+    'bus-register:register (or re-kind) a bus participant'
   )
 
   _arguments -C \
@@ -59,6 +68,11 @@ _zdots-ctx() {
         enqueue)      _arguments '--force[bypass dedup]' '*:type/payload/priority:' ;;
         reprocess|reprocess-series) _arguments '--transcribe[also re-run whisper transcription]' '*:source or tag:' ;;
         hydrate)      _message 'tag (optional)' ;;
+        bus-post)     _arguments '--type[message kind]:kind:' '--thread[reply to this message id]:id:' '--as[bus identity]:participant:' '*:channel/text:' ;;
+        bus-read)     _arguments '--tag[only #tag-ed messages]:tag:' '--mention[only @name-mentioned messages]:name:' '--type[only messages of this kind]:kind:' '--search[only body substring matches]:term:' '--thread[thread root id]:id:' '--since[only after this message id]:id:' '--unread[only unread]' '--as[bus identity]:participant:' '*:channel:' ;;
+        bus-watch)    _arguments '--as[bus identity]:participant:' '*:channel:' ;;
+        bus-set-protocol) _arguments '*:channel/text:' ;;
+        bus-register) _arguments '--kind[participant kind]:kind:(agent human)' '*:name:' ;;
       esac
       ;;
   esac

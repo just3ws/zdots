@@ -145,12 +145,28 @@ if command -v backlog >/dev/null 2>&1; then
   # Extract task ID (e.g. Z-142)
   TASK_ID=$(printf '%s' "$TASK_OUT" | grep -Ei 'Task Z-[0-9]+' | head -1 | sed -E 's/.*Task (Z-[0-9]+).*/\1/i')
 
-  if [[ -n "$TASK_ID" && -x "${ZDOTDIR:-$HOME/.config/zsh}/bin/zsynod" ]]; then
-    # Notify the synod of the agent-reported issue
-    "${ZDOTDIR:-$HOME/.config/zsh}/bin/zsynod" tick --topic "$TASK_ID" >/dev/null 2>&1 &
-  fi
+  if [[ -n "$TASK_ID" ]]; then
+    RESUME_CMD="ztask start ${TASK_ID} && zclaude"
 
-  printf '\nzdots-issue: filed (%s). The operator will review and resolve.\n' "${TASK_ID:-unknown ID}"
+    # Best-effort: announce on the bus so a watching session (human or agent)
+    # can pick it up without polling backlog. Never blocks filing — a bus
+    # outage should never mean the ticket didn't get filed.
+    if command -v zdots-ctx >/dev/null 2>&1; then
+      MENTION=""
+      [[ "$SEVERITY" == "critical" || "$SEVERITY" == "high" ]] && MENTION=" @mike"
+      # #ISSUE_TYPE must have whitespace before it (not "(#foo)") or the
+      # extraction lookbehind in Zdots::Bus skips it as mid-word — verified
+      # against a live post, not assumed.
+      zdots-ctx bus-post zdots \
+        "TICKET ${TASK_ID} #${ISSUE_TYPE} severity=${SEVERITY}: ${TITLE}${MENTION}. Resume: ${RESUME_CMD}" \
+        --type TICKET --as zdots-issue >/dev/null 2>&1 || true
+    fi
+
+    printf '\nzdots-issue: filed (%s). The operator will review and resolve.\n' "$TASK_ID"
+    printf 'To work it: %s\n' "$RESUME_CMD"
+  else
+    printf '\nzdots-issue: filed (unknown ID — could not parse backlog output). The operator will review and resolve.\n'
+  fi
 else
   # Fallback: store in JSONL only
   ISSUES_DIR="${ZDOTDIR:-$HOME/.config/zsh}/var"

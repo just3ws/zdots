@@ -552,9 +552,16 @@ docs/message-bus.md for the full model.
 
   zdots-ctx bus-register <name> [--kind agent|human]  once per identity
   zdots-ctx bus-create-channel <name> [topic...]
-  zdots-ctx bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]
-  zdots-ctx bus-read <channel> [--since ID | --unread] [--thread ID]
+  zdots-ctx bus-set-protocol <channel> <text...>  engagement protocol: on-topic, evidence standard
+  zdots-ctx bus-post <channel> <text> [--type KIND] [--thread ID] [--as PARTICIPANT]
+  zdots-ctx bus-read <channel> [--since ID | --unread] [--thread ID] [--tag T] [--mention N] [--type KIND] [--search TERM]
   zdots-ctx bus-watch <channel>   unread history, then live tail (Ctrl-C to stop)
+
+#tag / @mention in a posted body are auto-extracted (filter with --tag/--mention);
+--type on bus-post records a message kind (STATUS/PROPOSAL/CORRECTION/QUESTION/ACK,
+freeform), shown as a [KIND] prefix; --type on bus-read filters by that kind.
+None of this pushes to anyone — it's filtering for whoever reads, not a
+subscription system.
 
 Set ZDOTS_BUS_PARTICIPANT once per session instead of passing --as every call.
 
@@ -567,11 +574,16 @@ Posting is authenticated (Z-310, 2026-08-23). Register once with
 Bus.post reads it back. An unregistered name is refused rather than
 created. Reading stays open — it claims no identity.
 
-Two things this does NOT give you. Messages posted before 2026-08-23
+Three things this does NOT give you. Messages posted before 2026-08-23
 carry no proof of authorship, so never cite older bus traffic as evidence
-that a peer agent did something. And the Keychain is per-user, not
+that a peer agent did something. The Keychain is per-user, not
 per-process: another local process running as this user can still read
-your token. Forgery is deliberate now, not impossible.
+your token, so forgery is deliberate now, not impossible. And auth proves
+WHO posted, not that WHAT they posted is true (2026-08-25: two authenticated
+cross-repo peers both thanked zdots for infra work that never happened,
+traced to nothing in git log) — verify a claim about this repo's own state
+against git/backlog before repeating it, even from a trusted, authenticated
+name.
 EOF
 
 _head "Deliberation — zsynod"

@@ -131,6 +131,8 @@ module Zdots
         cmd_bus_channels(args)
       when "bus-create-channel"
         cmd_bus_create_channel(args)
+      when "bus-set-protocol"
+        cmd_bus_set_protocol(args)
       when "bus-post"
         cmd_bus_post(args)
       when "bus-read"
@@ -158,7 +160,7 @@ module Zdots
       OptionParser.new do |opts|
         opts.on("--json", "Output as JSON") { @options[:format] = "json" }
         opts.on("--semantic", "Perform semantic search") { @options[:semantic] = true }
-        opts.on("--type TYPE", "Filter by job type") { |t| @options[:type] = t }
+        opts.on("--type TYPE", "Filter by job type; bus-post: message kind; bus-read: only that kind (STATUS/PROPOSAL/CORRECTION/QUESTION/ACK/IDEA, freeform)") { |t| @options[:type] = t }
         opts.on("--dry-run", "Scan without writing changes") { @options[:dry_run] = true }
         opts.on("--all", "Ingest full Knowledge Vault") { @options[:all] = true }
         opts.on("--transcribe", "reprocess: also re-run transcription (not just downstream stages)") { @options[:transcribe] = true }
@@ -166,6 +168,9 @@ module Zdots
         opts.on("--thread ID", "bus-post/bus-read: thread root message id") { |v| @options[:thread] = v unless v.empty? }
         opts.on("--since ID", "bus-read: only messages after this message id") { |v| @options[:since] = v unless v.empty? }
         opts.on("--unread", "bus-read: only unread messages for the resolved participant") { @options[:unread] = true }
+        opts.on("--tag TAG", "bus-read: only messages tagged #TAG") { |v| @options[:tag] = v }
+        opts.on("--mention NAME", "bus-read: only messages mentioning @NAME") { |v| @options[:mention] = v }
+        opts.on("--search TERM", "bus-read: only messages whose body contains TERM") { |v| @options[:search] = v }
         opts.on("--kind KIND", "bus-register: agent|human") { |v| @options[:kind] = v }
       end.parse!
     rescue OptionParser::InvalidOption => e
@@ -707,6 +712,7 @@ module Zdots
       channels.each do |c|
         unread = name ? Zdots::Bus.unread(c.name, name).size : "?"
         printf "%-20s | %-7s | %s\n", c.name, unread, c.topic
+        puts "  protocol: #{c.protocol}" if c.protocol && !c.protocol.empty?
       end
     end
 
@@ -721,15 +727,29 @@ module Zdots
       puts "zdots-brain: channel #{channel.name.inspect} ready (#{channel.topic || 'no topic'})."
     end
 
+    def cmd_bus_set_protocol(args)
+      name = args.shift
+      protocol = args.join(" ")
+      if name.nil? || protocol.empty?
+        puts "usage: zdots-brain bus-set-protocol <channel> <protocol text...>"
+        exit 1
+      end
+      channel = Zdots::Bus.set_protocol(name, protocol)
+      puts "zdots-brain: protocol set for #{channel.name.inspect}."
+    rescue Zdots::Models::BusChannel::NotFound => e
+      puts "zdots-brain: #{e.message}"
+      exit 1
+    end
+
     def cmd_bus_post(args)
       channel = args.shift
       body = args.join(" ")
       if channel.nil? || body.empty?
-        puts "usage: zdots-brain bus-post <channel> <text> [--thread ID] [--as PARTICIPANT]"
+        puts "usage: zdots-brain bus-post <channel> <text> [--type KIND] [--thread ID] [--as PARTICIPANT]"
         exit 1
       end
       who = bus_identity!
-      msg = Zdots::Bus.post(channel, who, body, thread: @options[:thread])
+      msg = Zdots::Bus.post(channel, who, body, thread: @options[:thread], type: @options[:type])
       thread_note = @options[:thread] ? " (reply in thread #{@options[:thread]})" : ""
       puts "zdots-brain: posted #{msg.id} to #{channel.inspect} as #{who}#{thread_note}."
     rescue Zdots::Models::BusChannel::NotFound => e
@@ -741,20 +761,23 @@ module Zdots
       who = Zdots::Bus.participant_name(msg.participant_id)
       ts = msg.created_at.strftime("%H:%M")
       prefix = indent ? "    ↳ " : ""
-      printf "%s[%s] %s (%s): %s\n", prefix, ts, who, msg.id[0, 8], msg.body
+      kind = msg.metadata && msg.metadata["type"]
+      kind_note = kind ? "[#{kind}] " : ""
+      printf "%s[%s] %s (%s): %s%s\n", prefix, ts, who, msg.id[0, 8], kind_note, msg.body
     end
 
     def cmd_bus_read(args)
       channel = args.shift
       if channel.nil?
-        puts "usage: zdots-brain bus-read <channel> [--since ID | --unread] [--thread ID] [--as PARTICIPANT]"
+        puts "usage: zdots-brain bus-read <channel> [--since ID | --unread] [--thread ID] [--tag TAG] [--mention NAME] [--type KIND] [--search TERM] [--as PARTICIPANT]"
         exit 1
       end
 
       msgs = if @options[:unread]
-               Zdots::Bus.unread(channel, bus_identity!)
+               Zdots::Bus.unread(channel, bus_identity!, tag: @options[:tag], mention: @options[:mention], type: @options[:type])
              else
-               Zdots::Bus.read(channel, since: @options[:since], thread: @options[:thread])
+               Zdots::Bus.read(channel, since: @options[:since], thread: @options[:thread], tag: @options[:tag],
+                                mention: @options[:mention], type: @options[:type], query: @options[:search])
              end
 
       if @options[:format] == "json"
@@ -791,7 +814,9 @@ module Zdots
       Zdots::Bus.subscribe(channel) do |event|
         break if stop
 
-        printf "[%s] %s: %s\n", Time.parse(event[:created_at]).strftime("%H:%M"), event[:participant], event[:body]
+        kind = event[:metadata] && event[:metadata][:type]
+        kind_note = kind ? "[#{kind}] " : ""
+        printf "[%s] %s: %s%s\n", Time.parse(event[:created_at]).strftime("%H:%M"), event[:participant], kind_note, event[:body]
         Zdots::Bus.mark_read(channel, who, event[:id])
       end
     rescue Zdots::Models::BusChannel::NotFound => e
