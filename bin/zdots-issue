@@ -134,7 +134,10 @@ ${DESCRIPTION}
 *Do not modify zdots to work around this issue — wait for operator resolution.*"
 
 if command -v backlog >/dev/null 2>&1; then
-  TASK_OUT=$(backlog task create \
+  # Pin the tracker to zdots' own backlog regardless of caller's cwd — backlog
+  # resolves its tracker from the working directory, so filing from inside
+  # another Backlog.md-using repo would otherwise silently misroute (Z-314).
+  TASK_OUT=$(cd "${ZDOTDIR:-$HOME/.config/zsh}" && backlog task create \
     --priority "$PRIORITY" \
     --labels "agent-reported,${ISSUE_TYPE}" \
     --description "$BODY" \
@@ -144,6 +147,11 @@ if command -v backlog >/dev/null 2>&1; then
 
   # Extract task ID (e.g. Z-142)
   TASK_ID=$(printf '%s' "$TASK_OUT" | grep -Ei 'Task Z-[0-9]+' | head -1 | sed -E 's/.*Task (Z-[0-9]+).*/\1/i')
+
+  if [[ -n "$TASK_OUT" ]] && [[ -z "$TASK_ID" ]]; then
+    printf '\nzdots-issue: FAILED — backlog returned an unrecognized task ID (%s). Not a zdots ticket; investigate before retrying.\n' "$TASK_OUT" >&2
+    exit 1
+  fi
 
   if [[ -n "$TASK_ID" ]]; then
     RESUME_CMD="ztask start ${TASK_ID} && zclaude"
@@ -164,8 +172,6 @@ if command -v backlog >/dev/null 2>&1; then
 
     printf '\nzdots-issue: filed (%s). The operator will review and resolve.\n' "$TASK_ID"
     printf 'To work it: %s\n' "$RESUME_CMD"
-  else
-    printf '\nzdots-issue: filed (unknown ID — could not parse backlog output). The operator will review and resolve.\n'
   fi
 else
   # Fallback: store in JSONL only

@@ -89,6 +89,10 @@ esac
 command -v mkcert >/dev/null 2>&1 || _die "mkcert not installed (brew install mkcert)"
 [[ -f "$CERT" ]] || _die "current cert not found: $CERT"
 
+# Deploy tracked vhosts first so a newly added server_name is on disk before
+# we scan for it below.
+sync_configs
+
 # Build the SAN union. Start from the existing cert so no trusted name is lost.
 names=()
 declare -A seen=()
@@ -104,8 +108,13 @@ while IFS= read -r n; do _add "$n"; done < <(
   openssl x509 -in "$CERT" -noout -ext subjectAltName 2>/dev/null \
     | grep -oE '(DNS|IP Address):[^,]+' | sed -E 's/^(DNS|IP Address)://'
 )
+# Derive SANs from server_name directives actually deployed under
+# $CONF_DIR/servers/*.conf — any TLD, not just .local/.localhost — so a
+# deployed-only vhost (e.g. a tenant's .home.arpa entries) is covered too
+# (Z-324). "_" is nginx's default-server wildcard, not a real hostname.
 while IFS= read -r n; do _add "$n"; done < <(
-  grep -oE 'HOSTS=\([^)]*\)' "$ZDOTDIR/bin/nginx-ctl" 2>/dev/null | tr ' ()' '\n' | grep -E '\.local(host)?$'
+  grep -hoE 'server_name[[:space:]]+[^;]+;' "$CONF_DIR"/servers/*.conf 2>/dev/null \
+    | sed -E 's/^server_name[[:space:]]+//; s/;$//' | tr ' ' '\n' | grep -vE '^_$'
 )
 _add zdots.localhost localhost 127.0.0.1
 
@@ -113,8 +122,6 @@ _add zdots.localhost localhost 127.0.0.1
 
 _info "cert:        $CERT"
 _info "SANs (${#names[@]}): ${names[*]}"
-
-sync_configs
 
 if $DRY_RUN; then
   _ok "dry run — nothing changed"
