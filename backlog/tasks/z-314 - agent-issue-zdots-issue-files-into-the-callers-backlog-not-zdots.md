@@ -4,11 +4,12 @@ title: '[agent-issue] zdots-issue files into the caller''s backlog, not zdots'''
 status: To Do
 assignee: []
 created_date: '2026-08-23 14:58'
+updated_date: '2026-08-26 17:53'
 labels:
   - agent-reported
   - error
 dependencies: []
-priority: medium
+priority: high
 ordinal: 189895
 ---
 
@@ -44,3 +45,12 @@ Pin the tracker explicitly, e.g. run backlog with cwd forced to ${ZDOTDIR:-$HOME
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-08-26 17:53
+---
+Reproduced live again 2026-08-26 while filing Z-324 from wwworkremote/core: zdots-issue silently filed into that repo's own Backlog.md as task-91 (deleted after discovery) instead of erroring. Two independent agents hitting the identical failure a repo apart — bumping medium -> high.
+---
+<!-- COMMENTS:END -->
