@@ -58,6 +58,14 @@ developer, not a system of record. The design leans into that:
 - **Keychain is the single source of truth** for the root credential
   (`zdots / ZDOTS_O2_ROOT_PASSWORD`). Both the UI login and the collector's OTLP
   basic-auth derive from it.
+
+  Retrieve it either way:
+
+  ```bash
+  openobserve-ctl creds --show-password                                   # via the ctl
+  security find-generic-password -s zdots -a ZDOTS_O2_ROOT_PASSWORD -w      # Keychain direct
+  ```
+
 - OpenObserve only reads `ZO_ROOT_USER_PASSWORD` on **first init**, so a password
   set/rotated later won't match the UI. The fix is not to protect the data — it's
   to re-init cleanly:
