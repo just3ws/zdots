@@ -7,7 +7,6 @@
 # Ordering: taps first (so tapped formulae resolve), then brews, then casks.
 
 # ── Taps ──
-tap "bysiber/cleardisk"
 tap "romkatv/powerlevel10k"
 
 # ── Formulae ──
@@ -189,7 +188,6 @@ cask "claude"
 cask "claude-code"
 cask "claude-devtools"
 cask "claudebar"
-cask "bysiber/cleardisk/cleardisk"
 cask "cmux"
 cask "daisydisk"
 cask "dash"

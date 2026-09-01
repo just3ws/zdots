@@ -6,7 +6,6 @@
 instance_eval(File.read(File.expand_path("Brewfile.common", File.dirname(__FILE__))))
 
 # ── home-only packages ──
-tap "gromgit/brewtils"
 brew "flyctl"
 brew "gemini-cli"
 brew "gource"
@@ -23,7 +22,6 @@ brew "kubernetes-cli"
 brew "kubectx"
 # otelcol-contrib is intentionally absent — custom binary managed by
 # bin/otel-collector install (not available via Homebrew)
-brew "gromgit/brewtils/taproom"
 cask "1password"
 cask "1password-cli"
 cask "antigravity"

@@ -20,7 +20,7 @@ git clone https://github.com/just3ws/zdots.git ~/.config/zsh && ~/.config/zsh/bi
 
 > **Work machine?** Create `.zdots.local` with `ZDOTS_CONTEXT=work` before running bootstrap. See [SETUP.md](SETUP.md).
 
-> Local AI · PHI-safe · OTel-instrumented · 14-case model eval · 303-test Bats suite · Single-command restore
+> Local AI · PHI-safe · OTel-instrumented · 14-case model eval · 860-test Bats suite · Single-command restore
 
 ---
 
@@ -50,7 +50,7 @@ Traditional shell configs are **shallow**: a bug in one service's management log
 
 1.  **Opaque Service Seams**: The orchestrator (`zdots-ctl`) interacts with services (AI, OTel, OpenObserve) only through their CLI grammar. You can swap a background process for a Docker container without changing the orchestrator.
 2.  **Locality of Logic**: `launchd` plist generation, HuggingFace model downloads, and endpoint construction are concentrated in core libraries.
-3.  **High-Signal Validation**: Includes a 303-test Bats suite and a high-confidence `secret-scan` to ensure platform integrity on every commit.
+3.  **High-Signal Validation**: Includes an 860-test Bats suite and a high-confidence `secret-scan` to ensure platform integrity on every commit.
 
 ---
 
