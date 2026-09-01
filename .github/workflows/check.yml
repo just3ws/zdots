@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+# Least privilege: these jobs only read the repo.
+permissions:
+  contents: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 

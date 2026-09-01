@@ -1,56 +1,38 @@
-# Security Policy: The Zdots Control Plane
+# Security Policy
 
-## Security Baseline
+This is a personal configuration repository, maintained by one person, best-effort.
 
-Zdots enforces a high-security baseline for the shell environment:
+## Reporting a vulnerability
 
-1. **Restricted File Creation**: `umask 077` is enforced early in the boot sequence. All files created by the shell (caches, history, logs) are only accessible by the current user.
-2. **State Protection**: The `XDG_STATE_HOME/zsh` directory is restricted to `700` and trace files to `600` permissions.
-3. **Automated Redaction**: The observability stack automatically masks sensitive command-line flags (e.g., `-p`, `--password`, `--token`) in both local and remote telemetry.
+Please **do not open a public issue** for security-sensitive reports.
 
-## PHI Safety Controls (Operation Martian)
+Use GitHub's private vulnerability reporting:
+**[Report a vulnerability](https://github.com/just3ws/zdots/security/advisories/new)**
+(Security tab → "Report a vulnerability").
 
-Zdots enforces defense-in-depth for PHI-adjacent workloads across six layers:
+Expect an acknowledgement within a week. There is no bug bounty.
 
-| Layer | Mechanism |
-|---|---|
-| **Secret storage** | macOS Keychain via `zdots-keychain`; no plaintext secrets in repo |
-| **AI locality** | `lib/ai_boundary.bash`: `ZDOTS_AI_MODE=local` blocks non-RFC-1918 endpoints at the function boundary |
-| **PHI scrubbing** | `lib/phi_scrubber.bash`: SSN, MRN, DOB, connection strings redacted before every AI call |
-| **History redaction** | `zshaddhistory` hook: PHI patterns stripped from shell history |
-| **DB encryption** | pgcrypto `pgp_sym_encrypt` on `lessons.content`, `methodologies.content`, `session_residue.{summary,intent,result}` — key from Keychain |
-| **Audit trail** | `lib/audit_log.bash`: every PHI-adjacent event written to macOS Unified Logging (`com.zdots/phi-boundary`) |
+## Scope
 
-**Verify posture:** `zdots-ctl check` (with `ZDOTS_CONTEXT=work`) hard-fails on FileVault/SIP disabled; warns on firewall, AI mode, capture, history-redact, llama-server bind, and model provenance.
+In scope: anything in this repository that could expose secrets, execute
+untrusted code, or weaken the machine it configures — for example a `bin/`
+script that mishandles credentials, a workflow that leaks `GITHUB_TOKEN`, or a
+default that disables a protection.
 
-**Query audit log:**
-```bash
-log show --predicate 'subsystem == "com.zdots"' --last 1h
-log stream --predicate 'subsystem == "com.zdots" AND category == "phi-boundary"'
-```
+Out of scope: third-party tools this repo installs or wraps (report those
+upstream), and the security of a machine that has deviated from the documented
+setup.
 
-**Model provenance:** `lib/llama-models.sha256` contains tracked SHA256 hashes. `llama-ctl start` and `llama-ctl model-verify` refuse to run with a mismatched model file.
+## What this repo already does
 
-## Guardrails & Validation
+- **Secrets never committed.** `bin/secret-scan` (a Go scanner with an
+  externalised pattern registry) runs in CI on every push and is expected
+  locally before any commit. GitHub secret scanning + push protection are on.
+- **No cloud by default.** AI inference is local (`ZDOTS_AI_MODE=local`); the
+  AI boundary refuses non-loopback endpoints in local mode.
+- **Sensitive-data operating mode.** A documented posture for running near
+  regulated data — local-only inference, a redaction pipeline before any
+  outbound call, an audit trail to macOS Unified Logging.
+- **Least-privilege CI.** Workflows declare `permissions: contents: read`.
 
-- **Secret Scanning**: `bin/secret-scan` is run as part of the primary regression suite and in CI. It uses ripgrep to scan the codebase for leaked high-confidence patterns (AWS keys, GitHub PATs, private keys).
-- **Compliance Testing**: `tests/security.bats` provides automated regression testing for the security baseline.
-
-## Supported Branch
-
-- `main` is the supported branch for security fixes.
-
-## Reporting a Vulnerability
-...
-1. Use GitHub's private vulnerability reporting for this repository when available (`Security` tab -> `Report a vulnerability`).
-2. If private reporting is unavailable, open an issue with minimal detail and request a private contact channel.
-3. Do not post credentials, tokens, private keys, or exploit proof-of-concept details in public issues.
-
-## Secret Exposure Response
-
-If you discover an exposed credential in this repository:
-
-1. Revoke or rotate the credential immediately.
-2. Remove it from current files.
-3. Rewrite git history to purge the secret from historical commits.
-4. Force-push cleaned history and notify collaborators to re-clone.
+See `AGENTS.md` §10 for the full operating-mode contract.
