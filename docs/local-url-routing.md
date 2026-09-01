@@ -23,6 +23,7 @@ privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launch
 | `https://zdots.localhost` | `127.0.0.1:11600` | zdots-statusd (Observable Control Plane) | `zsvc status` |
 | `https://my.localhost`    | `127.0.0.1:7010`  | context-engine (Rails, prod) | — |
 | `https://wwworkremote.localhost` (alias `wwwr.localhost`) | `127.0.0.1:31000` | wwworkremote/core (Rails/Falcon or Puma, dev) | — |
+| `https://lan.wwworkremote.com` | `127.0.0.1:31000` (same upstream as above) | wwworkremote/core, trusted-LAN access (e.g. phone) | — |
 | `https://just3ws.localhost` | *(none — static files)* | prebuilt Jekyll `_site/`, synced to `/opt/homebrew/var/www/just3ws.github.io` by `bin/install-localhost` | — |
 
 `just3ws.localhost` has **no backend process** — nginx serves the last
@@ -35,6 +36,33 @@ build emits static data exports (`resume.json`, `exports/resume.md`,
 GitHub Pages copy, not the local vhost, in the traced call). Any two-way or
 request-time integration would still need a real backend built first; the
 static-export path already works today and needs nothing further here.
+
+### Trusted-LAN phone access (`lan.wwworkremote.com`)
+
+wwworkremote/core replaced its earlier `.home.arpa` trusted-LAN names with a
+real DNS record, `lan.wwworkremote.com` (its own DNS, own `server_name`,
+tracked in `~/github.com/wwworkremote/core/ops/nginx/servers/wwworkremote.conf`
+— not zdots' concern beyond fronting it, same as `my.localhost`/
+`just3ws.localhost`). nginx routes it to the same upstream as
+`wwworkremote.localhost` (`127.0.0.1:31000`) via `server_name`, and its cert
+coverage is handled by the Z-324 fix: `nginx-regen-certs` now scans every
+deployed vhost's `server_name` for SANs, so any TLD works, not just
+`.local`/`.localhost`.
+
+The phone gets a self-signed-cert warning on first connect because it doesn't
+trust the local mkcert CA (only this machine does, via `mkcert -install`) —
+expected, not a bug; proceeding past the warning is the accepted trust model
+here, same tradeoff as any dev-only mkcert setup. Confirmed working
+2026-08-26: phone on LAN → `lan.wwworkremote.com` → cert warning → accept →
+served homepage.
+
+Known gap (Z-325, filed, not yet resolved): `nginx-regen-certs` only ever
+*adds* SANs — it unions with whatever's already in the cert by design ("a
+name that already worked is never silently dropped"), so the retired
+`.home.arpa` names are still sitting in the cert's SAN list after a fresh
+regen. Harmless (unused SAN in a private cert), but they won't fall out on
+their own; a future `--prune` mode would need to rebuild the list purely from
+currently-live sources instead of unioning with the old cert.
 
 ## Deploy workflow (context-engine)
 

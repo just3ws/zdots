@@ -1,10 +1,10 @@
 ---
 id: Z-314
 title: '[agent-issue] zdots-issue files into the caller''s backlog, not zdots'''
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-23 14:58'
-updated_date: '2026-08-26 17:53'
+updated_date: '2026-08-26 18:01'
 labels:
   - agent-reported
   - error
@@ -54,3 +54,9 @@ created: 2026-08-26 17:53
 Reproduced live again 2026-08-26 while filing Z-324 from wwworkremote/core: zdots-issue silently filed into that repo's own Backlog.md as task-91 (deleted after discovery) instead of erroring. Two independent agents hitting the identical failure a repo apart — bumping medium -> high.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Pinned `backlog task create` to `${ZDOTDIR:-$HOME/.config/zsh}` via a subshell cd in bin/zdots-issue, and turned the "unknown ID" silent-success fallback into a hard `exit 1`. Verified with the Blink Test: green (fix, filed correctly as Z-325 from ~/my) -> red (fix reverted, misroute reproduced) -> green (fix reapplied). Commit 2e68ef32.
+<!-- SECTION:FINAL_SUMMARY:END -->

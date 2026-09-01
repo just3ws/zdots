@@ -1,9 +1,10 @@
 ---
 id: Z-324
 title: '[agent-issue] nginx-regen-certs SAN regex excludes .home.arpa hostnames'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-26 17:52'
+updated_date: '2026-08-26 18:01'
 labels:
   - agent-reported
   - request
@@ -25,3 +26,9 @@ Running wwworkremote/core's ops/nginx/deploy.sh calls nginx-regen-certs to pick 
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+bin/nginx-regen-certs now derives SANs from every server_name directive deployed under $CONF_DIR/servers/*.conf (any TLD), not just nginx-ctl's .local/.localhost-filtered HOSTS array; sync_configs runs before the scan so newly-tracked names are picked up too. Verified with the Blink Test using a synthetic blinktest.home.arpa vhost: green -> red (reverted) -> green. Live run confirms wwworkremote.localhost/wwwr.localhost are covered; .home.arpa entries aren't in the SAN list yet only because that vhost update hasn't been deployed to this machine's $CONF_DIR/servers/wwworkremote.conf — once wwworkremote deploys it, a re-run of nginx-regen-certs will pick it up automatically. Commit 2e68ef32.
+<!-- SECTION:FINAL_SUMMARY:END -->
