@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-09-01 19:24'
+updated_date: '2026-09-01 21:04'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,9 @@ check.yml 'full' job: ai_invoke.bats + ai_query.bats fail in GitHub Actions but 
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Root cause found 2026-09-01: NOT specific to ai_invoke/ai_query. The full job's committed cmd/* Go binaries (zdots-phi-scrub, zdots-buffer-drain, zdots-secret-scan — all Mach-O arm64) don't execute on the fresh GHA macos-latest runner, so 'zdots-phi-scrub --init' fails, phi_scrub exits non-zero, and the whole PHI-scrubber-dependent bats surface fails (phi_boundary ~10, message_hygiene, phi_registry, ai_invoke, ai_query, cmd_analytics/drain, zdots_ask — ~40 tests). ai_invoke.bats:68 exits 1 at the message_hygiene step, not the ai-query check — the test's assumption was masked by this. FIX: added a 'Build native Go tools' step to check.yml full job (setup-go + go build -C cmd/<tool> for all three), mirroring what secret-scan.yml already does for zdots-secret-scan. Commit 079cff4. Awaiting CI confirmation; if green, close.
+<!-- SECTION:NOTES:END -->
