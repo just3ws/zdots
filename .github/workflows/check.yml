@@ -90,6 +90,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # The bats hermetic subset invokes zdots CLIs (zdots-phi-scrub, …) as bare
+      # command names, so bin/ + sbin/ must be on PATH — the interactive shell
+      # adds them; CI has to do it explicitly.
+      - name: Put zdots bin on PATH
+        run: |
+          echo "${{ github.workspace }}/bin" >> "$GITHUB_PATH"
+          echo "${{ github.workspace }}/sbin" >> "$GITHUB_PATH"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
