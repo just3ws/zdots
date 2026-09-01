@@ -28,13 +28,21 @@ zdots_cc_boundary_check() {
       _fail ".claude/projects/ missing from adots tracked .gitignore (the portable guard)"
       _fix "add '.claude/projects/' to \$HOME/.gitignore and commit it"
     fi
-    # 3. the $HOME-tracked repo must be private
+    # 3. $HOME-tracked repo visibility. adots was made public in 2026-09 after a
+    #    full history scrub (git-filter-repo: work-tenant strings, dead creds,
+    #    identity all removed). Checks 1 & 2 above are the real boundary — they
+    #    _fail loudly if .claude/projects/ ever re-enters git regardless of
+    #    visibility. Set ZDOTS_ADOTS_PRIVATE_EXPECTED=1 to restore the hard gate.
     if command -v gh >/dev/null 2>&1; then
       case "$(gh repo view just3ws/adots --json visibility -q .visibility 2>/dev/null)" in
         PRIVATE) _pass "adots repo is private" ;;
-        PUBLIC)  _fail "adots (\$HOME-tracked) is PUBLIC — work-data exposure risk"
-                 _fix "gh repo edit just3ws/adots --visibility private" ;;
-        *)       _warn "adots visibility undetermined (gh unauthed?) — verify it is private" ;;
+        PUBLIC)  if [[ "${ZDOTS_ADOTS_PRIVATE_EXPECTED:-0}" == 1 ]]; then
+                   _fail "adots (\$HOME-tracked) is PUBLIC but ZDOTS_ADOTS_PRIVATE_EXPECTED=1"
+                   _fix "gh repo edit just3ws/adots --visibility private"
+                 else
+                   _pass "adots repo is public (intentional; the .claude/projects/ guards are the boundary)"
+                 fi ;;
+        *)       _warn "adots visibility undetermined (gh unauthed?)" ;;
       esac
     fi
   else
