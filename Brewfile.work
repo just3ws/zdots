@@ -20,6 +20,8 @@ tap "hashicorp/tap"           # Terraform and other HashiCorp tools
 
 cask "openvpn-connect"   # corporate VPN client — network access to work infrastructure
 
+brew "mysql-client"      # MySQL/MariaDB CLI — for work app databases; personal stack is Postgres-only
+
 vscode "github.copilot-chat"
 
 uv "aider-chat"   # LLM coding assistant — configurable to local endpoints
