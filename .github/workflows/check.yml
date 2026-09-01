@@ -90,6 +90,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cmd/zdots-phi-scrub/go.mod
+
+      # The committed cmd/* binaries are macOS arm64 and don't reliably execute
+      # on a fresh GHA runner (arch / quarantine). Rebuild them native so the
+      # bash adapters (phi_scrubber, buffer-drain, secret-scan) run the Go path.
+      - name: Build native Go tools
+        run: |
+          for tool in zdots-phi-scrub zdots-buffer-drain zdots-secret-scan; do
+            go build -C "cmd/$tool" -o "../../bin/$tool" .
+          done
+
       - name: Cache Homebrew Downloads
         uses: actions/cache@v5
         with:
