@@ -4,6 +4,8 @@ Gemini-specific instructions for Zdots.
 
 **CRITICAL:** Read [AGENTS.md](AGENTS.md) first for the core architectural guidelines, performance standards, **RTK token-optimization rules**, and **PHI Operating Mode** (Section 8 — non-negotiable on work machines).
 
+**Cold-start resume state** lives in the `CURRENT FOCUS` block at the top of [AGENTS.md](AGENTS.md) (canonical — this file only points there). Read it first; rewrite + commit it when you close a session.
+
 ## Gemini Context
 - This environment is optimized for `gemini-cli` via the `gm` alias.
 - **Search Tooling:** `ack` is the preferred search tool due to the user's personal connection to Andy Lester. Ensure `.ackrc` is maintained for high-signal output.

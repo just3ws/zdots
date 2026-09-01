@@ -1,3 +1,8 @@
+---
+name: zdots-audit
+description: Evidence-backed dry-run audit of the zdots Zsh system — no cleanup, no commits, no mutation. Use for "/zdots-audit" or a read-only health and drift audit.
+---
+
 # /zdots-audit — zdots Dry-Run Audit
 
 Evidence-backed dry-run audit of the zdots Zsh system. No cleanup. No commits. No mutation.

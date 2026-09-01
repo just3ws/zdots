@@ -34,11 +34,13 @@ zdots_trace_log() {
   
   # 4. Write entry
   # sid/spid fall back to process-based IDs if the shell trace environment is absent.
+  # A failed append (e.g. EPERM from a root-owned traces.jsonl, Z-323) must never
+  # abort the caller — bin/zdots-ctl runs `set -e` and calls this early in `up`.
   printf '{"ts":"%s","sid":"%s","spid":"%s","event":"%s","data":"%s"}\n' \
     "$timestamp" \
     "${ZDOTS_TRACE_ID:-session-$$}" \
     "${ZDOTS_SPAN_ID:-span-$$}" \
     "$event_type" \
     "$escaped_data" \
-    >> "$trace_file"
+    >> "$trace_file" 2>/dev/null || return 0
 }

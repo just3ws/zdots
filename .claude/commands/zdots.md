@@ -1,3 +1,8 @@
+---
+name: zdots
+description: Zdots operational context — operational detail for common tasks inside the zdots zsh shell platform. Use for "/zdots" or when orienting in the zdots repo.
+---
+
 # /zdots — Zdots Operational Context
 
 You are working inside **zdots** — a zsh-based shell configuration and local dev platform.

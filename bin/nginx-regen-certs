@@ -13,7 +13,7 @@
 # mkcert must have its local CA trusted once (`mkcert -install`); this only mints
 # a fresh leaf cert. The validate/reload steps call sudo and will prompt.
 #
-# Usage: nginx-regen-certs [--dry-run]
+# Usage: nginx-regen-certs [--dry-run] [--prune]
 
 set -uo pipefail
 
@@ -24,6 +24,7 @@ CERT_DIR="$CONF_DIR/certs"
 CERT="$CERT_DIR/zdots-local.pem"
 KEY="$CERT_DIR/zdots-local-key.pem"
 DRY_RUN=false
+PRUNE=false
 
 _die()  { printf 'nginx-regen-certs: error: %s\n' "$*" >&2; exit 1; }
 _info() { printf 'nginx-regen-certs: %s\n' "$*" >&2; }
@@ -63,7 +64,7 @@ sync_configs() {
 
 usage() {
   cat <<EOF
-Usage: nginx-regen-certs [--dry-run]
+Usage: nginx-regen-certs [--dry-run] [--prune]
 
 Deploy the tracked nginx vhosts to the dir nginx loads, regenerate the local
 mkcert TLS cert so it covers every hostname nginx serves (plus zdots.localhost),
@@ -72,6 +73,10 @@ if anything fails; deployed-only vhosts are preserved.
 
 Options:
   --dry-run   Show the resolved SAN set and planned actions; change nothing
+  --prune     Rebuild the SAN list from currently-live sources only (deployed
+              vhost server_name + zdots.localhost + loopback), instead of
+              unioning with the existing cert. Names no longer served anywhere
+              fall out. Removed SANs are listed before regeneration.
   -h, --help  Show this help
 
 Prereqs: mkcert installed with its CA trusted (\`mkcert -install\` once).
@@ -79,12 +84,14 @@ validate/reload prompt for sudo.
 EOF
 }
 
-case "${1:-}" in
-  --dry-run) DRY_RUN=true ;;
-  -h|--help) usage; exit 0 ;;
-  "")        ;;
-  *)         _die "unknown option: $1 (see --help)" ;;
-esac
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=true ;;
+    --prune)   PRUNE=true ;;
+    -h|--help) usage; exit 0 ;;
+    *)         _die "unknown option: $arg (see --help)" ;;
+  esac
+done
 
 command -v mkcert >/dev/null 2>&1 || _die "mkcert not installed (brew install mkcert)"
 [[ -f "$CERT" ]] || _die "current cert not found: $CERT"
@@ -104,10 +111,17 @@ _add() {
   done
 }
 
-while IFS= read -r n; do _add "$n"; done < <(
+# Existing cert SANs — kept for the removal report, and folded into the union
+# unless --prune asks for a clean rebuild from live sources only.
+cert_sans=()
+while IFS= read -r n; do
+  n="${n// /}"
+  [[ -n "$n" ]] && cert_sans+=("$n")
+done < <(
   openssl x509 -in "$CERT" -noout -ext subjectAltName 2>/dev/null \
     | grep -oE '(DNS|IP Address):[^,]+' | sed -E 's/^(DNS|IP Address)://'
 )
+$PRUNE || _add "${cert_sans[@]}"
 # Derive SANs from server_name directives actually deployed under
 # $CONF_DIR/servers/*.conf — any TLD, not just .local/.localhost — so a
 # deployed-only vhost (e.g. a tenant's .home.arpa entries) is covered too
@@ -122,6 +136,16 @@ _add zdots.localhost localhost 127.0.0.1
 
 _info "cert:        $CERT"
 _info "SANs (${#names[@]}): ${names[*]}"
+
+# Report any SANs in the current cert that the new list drops (only possible
+# under --prune, since the default path unions with the existing cert).
+removed=()
+for n in "${cert_sans[@]:-}"; do
+  [[ -n "$n" && -z "${seen[$n]:-}" ]] && removed+=("$n")
+done
+if [[ ${#removed[@]} -gt 0 ]]; then
+  _info "dropping ${#removed[@]} SAN(s) no longer served: ${removed[*]}"
+fi
 
 if $DRY_RUN; then
   _ok "dry run — nothing changed"

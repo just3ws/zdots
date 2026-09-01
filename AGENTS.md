@@ -2,6 +2,40 @@
 
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
+<!-- ═══════════════════════════════════════════════════════════════════════
+     CURRENT FOCUS  —  last updated 2026-09-01
+     Cold-start resume state, canonical for every agent tool (Claude, Codex,
+     Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
+     closes a session rewrites this whole block in place — step one, before
+     the wrap-up summary — then commits it. `git log` + Backlog are truth for
+     exact SHAs / task status; if this block contradicts them, trust them and
+     fix the block. Deep handoffs: newest `~/.config/adots/handoffs/*` (never
+     committed; another tool's close may bump a different file to the top, so
+     this block — not "the newest file" — is the reliable channel).
+     ═══════════════════════════════════════════════════════════════════════
+
+  In flight: nothing half-built in the kernel. An unrelated session has
+  uncommitted nginx/LAN-routing doc work in the tree (`docs/local-url-routing.md`,
+  Z-324/325 task-file edits) — leave it for that session to land.
+
+  Live tasks (Backlog):
+    Z-323  DONE 2026-09-01 — lib/trace_log.bash EPERM append aborted
+           `zdots-ctl up` under set -e. Fixed + tests/trace_log.bats.
+    Z-325  (Low) nginx-regen-certs only unions SANs, never prunes — retired
+           .home.arpa names linger in the cert. Wants a --prune/rebuild mode.
+    Z-327  (Med) this block. Done once committed.
+    Z-328  (Med) 23 bin/ commands in neither settings.json allowlist nor the
+           EXPECTED_MISSING registry in .claude/commands/zdots-heal.md.
+           Needs operator triage (agent-facing vs internal) — see below.
+    Z-329  (Med) career-search: completion + man page tracked-nothing, no
+           executable anywhere. Land the binary or delete the orphans.
+    Z-330  (Low) retire the dead `transcription` job type (→ transcribe_chunk).
+    Z-331  (Low) wire cc-audit/command-qc drift into zdots-doctor.
+
+  Blocked on Mike:
+    Z-328 — classifying the 23 unclassified bin/ commands needs your call on
+    which are agent-facing; a heal run won't guess-grant Bash permissions.
+
 ---
 
 ## The Schrute Test

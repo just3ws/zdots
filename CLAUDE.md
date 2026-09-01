@@ -4,6 +4,8 @@ Claude-specific instructions for Zdots.
 
 **CRITICAL:** Read [AGENTS.md](AGENTS.md) first for the core architectural guidelines, performance standards, **RTK token-optimization rules**, and **PHI Operating Mode** (Section 8 — non-negotiable on work machines). It is auto-imported below so it loads into every session:
 
+**Cold-start resume state** lives in the `CURRENT FOCUS` block at the top of [AGENTS.md](AGENTS.md) (canonical — this file only points there). Read it first; rewrite + commit it when you close a session.
+
 @AGENTS.md
 
 ## Claude Code Health
