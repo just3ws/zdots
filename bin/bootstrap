@@ -482,7 +482,7 @@ if command -v mkcert >/dev/null 2>&1; then
     mkcert \
       -cert-file "$_NGINX_PREFIX/certs/zdots-local.pem" \
       -key-file  "$_NGINX_PREFIX/certs/zdots-local-key.pem" \
-      llama.localhost embed.localhost o2.localhost zdots.localhost just3ws.localhost gemstash.localhost my.localhost localhost 127.0.0.1 \
+      llama.localhost embed.localhost o2.localhost zdots.localhost just3ws.localhost www.just3ws.localhost gemstash.localhost my.localhost localhost 127.0.0.1 \
       || echo "bootstrap: WARNING: cert generation failed — run mkcert manually."
   else
     echo "bootstrap: TLS certs already present ($_CERT_PEM)"

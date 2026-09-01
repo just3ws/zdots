@@ -24,9 +24,10 @@ privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launch
 | `https://my.localhost`    | `127.0.0.1:7010`  | context-engine (Rails, prod) | — |
 | `https://wwworkremote.localhost` (alias `wwwr.localhost`) | `127.0.0.1:31000` | wwworkremote/core (Rails/Falcon or Puma, dev) | — |
 | `https://lan.wwworkremote.com` | `127.0.0.1:31000` (same upstream as above) | wwworkremote/core, trusted-LAN access (e.g. phone) | — |
-| `https://just3ws.localhost` | *(none — static files)* | prebuilt Jekyll `_site/`, synced to `/opt/homebrew/var/www/just3ws.github.io` by `bin/install-localhost` | — |
+| `https://www.just3ws.localhost` | *(none — static files)* | prebuilt Jekyll `_site/`, synced to `/opt/homebrew/var/www/just3ws.github.io` by `bin/install-localhost`; **canonical** | — |
+| `https://just3ws.localhost` | *(301 → `www.`)* | bare host + all `:80` traffic redirect to the canonical `www.just3ws.localhost`, mirroring prod (`just3ws.com` → `www.just3ws.com`) | — |
 
-`just3ws.localhost` has **no backend process** — nginx serves the last
+`www.just3ws.localhost` has **no backend process** — nginx serves the last
 `jekyll build` output directly off disk (`try_files`). It cannot *receive* a
 request-time query or run any logic. It already *sends*, though: Jekyll's
 build emits static data exports (`resume.json`, `exports/resume.md`,
