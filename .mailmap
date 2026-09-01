@@ -1,0 +1,26 @@
+# Canonical contributor identity. One person maintains these repos:
+#
+#     Mike Hall <mike@just3ws.com>
+#
+# Every line below maps a historical alias (old machine hostnames, past
+# employer emails, GitHub web-UI identities) to that canonical identity, so
+# `git shortlog`, `git blame`, `git log --use-mailmap`, and the GitHub
+# contributor graph all show a single author. The platform repos (zdots /
+# vdots / adots) had these aliases removed from history directly via
+# git-filter-repo in 2026-09; this file is the durable record and a guard
+# against future strays.
+#
+# `dependabot[bot]` is deliberately NOT mapped — it is real automation, a
+# distinct actor, not an alias.
+
+Mike Hall <mike@just3ws.com> <mike@zalewholite.local>
+Mike Hall <mike@just3ws.com> <mike.hall@emrbear.com>
+Mike Hall <mike@just3ws.com> mike-emrbear <mike.hall@emrbear.com>
+Mike Hall <mike@just3ws.com> <mike.hall@omf.com>
+Mike Hall <mike@just3ws.com> <mike.hall.ce@omf.com>
+Mike Hall <mike@just3ws.com> <mike@benchprep.com>
+Mike Hall <mike@just3ws.com> <mike@Mikes-MacBook-Air.local>
+Mike Hall <mike@just3ws.com> <mike@10-36-1-149.lan>
+Mike Hall <mike@just3ws.com> <just3ws@users.noreply.github.com>
+Mike Hall <mike@just3ws.com> just3ws <mike@just3ws.com>
+Mike Hall <mike@just3ws.com> GitHub <noreply@github.com>
