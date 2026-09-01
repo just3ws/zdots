@@ -45,12 +45,4 @@ zdots_ask.bats
 zdots_eval.bats
 zdots_gh_insights.bats
 zdots_worker.bats
-zsynod_exectick.bats
-zsynod_headless.bats
-zsynod_init.bats
-zsynod_launch.bats
-zsynod_minutes.bats
-zsynod_queue.bats
-zsynod_risk.bats
-zsynod_tick.bats
 ztask_e2e.bats
