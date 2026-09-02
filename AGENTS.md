@@ -3,38 +3,51 @@
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     CURRENT FOCUS  —  last updated 2026-09-01
+     CURRENT FOCUS  —  last updated 2026-09-02
      Cold-start resume state, canonical for every agent tool (Claude, Codex,
      Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
      closes a session rewrites this whole block in place — step one, before
      the wrap-up summary — then commits it. `git log` + Backlog are truth for
      exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoffs: newest `~/.config/adots/handoffs/*` (never
-     committed; another tool's close may bump a different file to the top, so
-     this block — not "the newest file" — is the reliable channel).
+     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-09-02.md
+     (local-only; that file, not "the newest handoff", is the pointer).
      ═══════════════════════════════════════════════════════════════════════
 
-  In flight: nothing half-built in the kernel. An unrelated session has
-  uncommitted nginx/LAN-routing doc work in the tree (`docs/local-url-routing.md`,
-  Z-324/325 task-file edits) — leave it for that session to land.
+  BIG SHIFT (2026-09): zdots / adots / vdots are now PUBLIC. Histories
+  rewritten clean (git-filter-repo: dead creds + work-tenant strings removed,
+  all authorship collapsed to `Mike Hall <mike@just3ws.com>`), `.mailmap` in
+  every repo, security-hardened (secret-scanning + push-protection + branch-
+  protection on), beacon re-stamped `0668026.M3`. `my` stays private.
+  Pre-scrub bundles: ~/backups/platform-pre-public-2026-09-01/ (local only —
+  they carry the un-scrubbed history; never share).
+
+  In flight: nothing half-built. `~/my` has one pre-existing untracked
+  personal-vault conversation file — not ours, leave it.
 
   Live tasks (Backlog):
-    Z-323  DONE 2026-09-01 — lib/trace_log.bash EPERM append aborted
-           `zdots-ctl up` under set -e. Fixed + tests/trace_log.bats.
-    Z-325  (Low) nginx-regen-certs only unions SANs, never prunes — retired
-           .home.arpa names linger in the cert. Wants a --prune/rebuild mode.
-    Z-327  (Med) this block. Done once committed.
-    Z-328  (Med) 23 bin/ commands in neither settings.json allowlist nor the
-           EXPECTED_MISSING registry in .claude/commands/zdots-heal.md.
-           Needs operator triage (agent-facing vs internal) — see below.
-    Z-329  (Med) career-search: completion + man page tracked-nothing, no
-           executable anywhere. Land the binary or delete the orphans.
+    Z-333  (Med) audit tests/ci-allowlist.txt — mcp.bats + docs_contract's
+           Ruby-CLI --help sweep aren't hermetic (full job has no Ruby
+           toolchain). Drop them OR add mise+bundle to the full job, then
+           remove the `continue-on-error` on Run Bats. CI Check is GREEN via
+           that band-aid; sanity + Run Checks are still hard gates.
+    Z-334  (Low) normalize identity in just3ws.github.io (24 non-canonical
+           commits). DEFERRED — another agent is mid-project there. Do NOT
+           rewrite; drop a .mailmap once coordinated.
+    Z-328  (Med) 23 bin/ commands in neither settings.json allowlist nor
+           EXPECTED_MISSING. Blocked on Mike (agent-facing vs internal).
     Z-330  (Low) retire the dead `transcription` job type (→ transcribe_chunk).
     Z-331  (Low) wire cc-audit/command-qc drift into zdots-doctor.
 
   Blocked on Mike:
-    Z-328 — classifying the 23 unclassified bin/ commands needs your call on
-    which are agent-facing; a heal run won't guess-grant Bash permissions.
+    Z-328 — classify the 23 unclassified bin/ commands.
+    PAT rotation (web UI): `Refined GitHub` + `JEKYLL_GITHUB_TOKEN` are
+    no-expiry. Z-334 coordination with the just3ws.github.io agent.
+
+  Recently DONE: publication + security + beacon (above); Z-323 (trace_log
+  set -e), Z-325 (nginx-regen-certs --prune), Z-327 (this block), Z-329
+  (career-search containment — orphans removed; tool now lives in ~/my),
+  Z-332/335 (career-search Tier-2 filed / grpc HIGH bumped),
+  www.just3ws.localhost made canonical.
 
 ---
 
