@@ -1,9 +1,10 @@
 ---
 id: Z-335
 title: 'Bump google.golang.org/grpc in cmd/* Go modules (Dependabot high: HTTP/2 OOM)'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-09-01 22:02'
+updated_date: '2026-09-02 16:06'
 labels:
   - agent-reported
   - security
@@ -31,3 +32,9 @@ Dependabot (enabled 2026-09-01 with the public flip) flagged google.golang.org/g
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Done 2026-09-02. grpc v1.82.1 -> v1.83.1 in cmd/zdots-phi-scrub/go.mod (the only module with grpc — buffer-drain/secret-scan have 0 grpc in go.sum). go mod tidy also bumped genproto deps. Committed binary rebuilt (arm64), --init OK, phi_boundary.bats + phi_scrubber_fuzz.bats green. No vulnerable grpc anywhere in cmd/*/go.sum. Commit c80f03e.
+<!-- SECTION:NOTES:END -->
