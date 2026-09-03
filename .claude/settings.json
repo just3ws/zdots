@@ -209,7 +209,23 @@
       "Bash(bats tests/:*)",
       "Bash(make docs-contract)",
       "Bash(zdots-usage:*)",
-      "Bash(zdots-watch status:*)"
+      "Bash(zdots-watch status:*)",
+      "Bash(gitleaks:*)",
+      "Bash(luacheck:*)",
+      "Bash(ffprobe:*)",
+      "Bash(stylua --check:*)",
+      "Bash(selene:*)",
+      "Bash(vdots-doctor --json)",
+      "Bash(vdots-ctl check:*)",
+      "Bash(brew list:*)",
+      "Bash(brew info:*)",
+      "Bash(xxd:*)",
+      "mcp__claude-in-chrome__read_network_requests",
+      "mcp__claude-in-chrome__read_page",
+      "mcp__ctx__ctx_semantic_search",
+      "mcp__o2__o2_logs",
+      "mcp__backlog__document_view",
+      "mcp__backlog__milestone_list"
     ]
   },
   "hooks": {
