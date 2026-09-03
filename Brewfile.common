@@ -128,10 +128,12 @@ brew "repomix"
 brew "ripgrep"
 brew "rsync"
 brew "rtk"
+brew "rubberband"   # vdots read-aloud: pitch-preserving time-stretch for a measured spoken pace (ffmpeg atempo is the fallback)
 brew "ruby-lsp"
 brew "rustup"
 brew "sd"
 brew "sqlite-utils" # CLI analytics on SQLite — query command_runs, export JSON/CSV
+brew "selene"      # vdots: strict Lua linter (test/lint.sh uses it when present)
 brew "sentry-cli"
 brew "sesh"
 brew "shfmt"
