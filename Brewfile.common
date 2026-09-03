@@ -86,7 +86,8 @@ brew "lazygit"
 brew "litecli"      # SQLite REPL with autocomplete — explore command_runs analytics DB
 brew "llama.cpp"
 brew "lnav"
-brew "lua-language-server"
+# lua-language-server et al: editor-only LSP servers now come from Mason
+# (vdots lua/editor/mason.lua). Brew keeps only tools the shell / CI also run.
 brew "luacheck"
 brew "luarocks"
 brew "mactop"
