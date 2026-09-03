@@ -355,7 +355,7 @@ The shell PATH is constructed in `env.sh` (section 9) using a `_zdots_path_add` 
 5. `~/.config/zsh/bin` — **always on PATH** (zdots commands work from any directory)
 6. `~/.local/bin`, `~/bin`
 
-Additionally, `conf.d/08-local-bin.zsh` adds a `chpwd` hook: when you enter a directory that has a `bin/` subdirectory, that `bin/` is prepended to PATH. When you leave the directory, it is removed. This means project commands run without the `./bin/` prefix in any project directory.
+Additionally, `conf.d/08-local-bin.zsh` adds a `chpwd` hook: when you enter a directory that has a `bin/` subdirectory, that `bin/` is prepended to PATH, and removed again when you leave. This means project commands run without the `./bin/` prefix in any project directory. A `bin/` that is *already* on PATH permanently (via `.zshrc.local` or `env.sh`, e.g. `~/.config/nvim/bin`) is left alone — the hook only removes what it added (Z-338).
 
 ---
 

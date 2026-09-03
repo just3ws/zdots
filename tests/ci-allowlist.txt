@@ -30,6 +30,7 @@ env_posix.bats
 gemini_mcp_register.bats
 github_keys.bats
 lifecycle.bats
+local_bin_path.bats
 mcp.bats
 metadata.bats
 observability.bats
