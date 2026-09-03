@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-01 09:56'
+updated_date: '2026-09-03 13:32'
 labels:
   - enhancement
   - audit-filed
@@ -28,3 +29,15 @@ Safe tier (idempotent, local, PHI-inert): config regen, cache rebuild, log rotat
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+/zdots-heal 2026-09-03 — direct evidence for this tier. Two Gate-4 findings were both fixable by exactly the enumerated safe operations, and a human had to run them by hand:
+
+  1. log-rotate openobserve — openobserve.log 106M > 100M threshold (see Z-339)
+  2. adots-doctor --fix — stray ~/.docker duplicated the canonical ~/.config/docker;
+     adots-doctor --fix removed it with a backup to ~/.adots-backups/20260903-082516/
+
+Both are on the 'safe tier' list already written in the description. Prioritise.
+<!-- SECTION:NOTES:END -->
