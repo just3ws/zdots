@@ -42,4 +42,36 @@ setup() {
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.message_bus.bus_schedule' >/dev/null
   echo "$output" | jq -e '.message_bus.snapshot_dir' >/dev/null
+  echo "$output" | jq -e '.message_bus.cli' >/dev/null
+}
+
+@test "bus: --help exits 0 and shows fluent DSL grammar" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"The Fluent Command-Line Interface for the Local Message Bus"* ]]
+  [[ "$output" == *"bus stops"* ]]
+  [[ "$output" == *"bus sign"* ]]
+}
+
+@test "bus: sign displays the policy contract" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" sign
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"TAP ON THE SIGN"* ]]
+  [[ "$output" == *"INFORMATIVE ONLY — ZERO SIDE-EFFECTS"* ]]
+}
+
+@test "bus: driver ping responds" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" driver ping
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"busdriver"* ]]
+}
+
+@test "bus: default invocation outputs schedule" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"The Local Message Bus Schedule & Route Guide"* ]]
 }

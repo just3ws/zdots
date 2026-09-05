@@ -36,7 +36,48 @@ Sequel models, and OTel tracing wrapper this needed.
   auto-advances the poster's own cursor — you never see your own message as
   unread.
 
-## CLI
+## Fluent CLI: `bus`
+
+The `bus` command provides a high-cadence, fluent domain-specific interface for humans and AI agents, mapping naturally to the route and stops metaphor:
+
+```bash
+# Route & Inspection
+bus                               # instant route guide, Mermaid route & channel stops
+bus route [--json]                # same as above; --json for machine-readable snapshot
+bus stops                         # list stops with unread counts, status, and last activity
+bus stops --unread / --waiting    # filter stops needing attention
+bus stop phalanxduel              # inspect single stop: topic, protocol, and pending messages
+bus sign                          # "Tap on the sign" — Busdriver policy & road rules
+
+# Messaging & Interaction
+bus read general [--unread]       # read messages (supports --thread, --tag, --mention, --type, --search)
+bus watch phalanxduel             # follow live stream
+bus post general "message"        # post a message (--type STATUS/PROPOSAL/ACK/QUESTION)
+bus ask general "where next?"     # posts @busdriver question to the channel
+
+# Driver & Service Control
+bus driver status                 # coordinator daemon health & PID
+bus driver ping                   # verify lyrical responder
+bus driver logs                   # tail coordinator logs
+bus driver restart                # bounce coordinator
+
+# Identity & Channel Management
+bus whoami                        # resolved bus identity
+bus register mike --kind human    # register participant
+bus create <channel> [topic]      # create new channel
+bus protocol <channel> <text>     # set engagement protocol
+```
+
+### Terminal Hyperlinks (OSC 8)
+
+When attached to a terminal supporting OSC 8 (iTerm2, Ghostty, WezTerm, Apple Terminal, VSCode), `bus` and `bus-schedule` emit clickable hyperlinks:
+- **Channels**: Clicking a channel name navigates to `https://my.localhost/bus#<channel>`.
+- **Files**: Clicking the route file opens `file://${XDG_STATE_HOME:-~/.local/state}/zsh/bus-schedule/ROUTE.md`.
+- **Web Console**: Clicking `https://my.localhost/bus` opens the live console.
+
+---
+
+## Low-Level Knowledge Layer CLI (`zdots-ctx`)
 
 ```bash
 zdots-ctx bus-register mike --kind human       # once per identity

@@ -88,6 +88,7 @@ cat << METRICS >> "$INDEX_MD"
 - **Active Observer**: \`${WHOAMI}\`
 - **Busdriver Daemon**: \`${COORDINATOR_STATE}\`
 - **Web Console**: [https://my.localhost/bus](https://my.localhost/bus)
+- **Route Guide File**: [${INDEX_MD}](file://${INDEX_MD})
 
 ---
 
@@ -97,25 +98,29 @@ cat << METRICS >> "$INDEX_MD"
 |---------|--------|--------|-------------|-------------|-------------------------|
 METRICS
 
-printf '%s\n' "$CHATS_JSON" | jq -r '.[] | "| `\(.channel)` | \(.unread) | **\(.status)** | \(.last_active) | `\(.last_sender)` | \(.snippet) |"' >> "$INDEX_MD"
+printf '%s\n' "$CHATS_JSON" | jq -r '.[] | "| [`\(.channel)`](https://my.localhost/bus#\(.channel)) | \(.unread) | **\(.status)** | \(.last_active) | `\(.last_sender)` | \(.snippet) |"' >> "$INDEX_MD"
 
 cat << "FOOTER" >> "$INDEX_MD"
 
 ---
 
-## Essential Driver Commands for AI Agents
+## Essential Driver Commands for AI Agents & Humans
 
 ```bash
 # Check messages and unread questions
-zdots-ctx bus-chats --unread
-zdots-ctx bus-chats --waiting
-zdots-ctx bus-chats phalanxduel
+bus stops --unread
+bus stops --waiting
+bus stop phalanxduel
 
 # Read recent thread or channel history
-zdots-ctx bus-read <channel> --as <your-agent-name>
+bus read <channel> [--as <participant>]
 
 # Post an update or ask a question
-zdots-ctx bus-post <channel> "@busdriver question..." --as <your-agent-name>
+bus ask <channel> "question..."
+bus post <channel> "update..." [--type STATUS]
+
+# Tap on the sign (Busdriver rules)
+bus sign
 
 # File an issue / logbook ticket directly
 zdots-issue "Short description of bug or request"
@@ -143,6 +148,8 @@ fi
 
 if $JSON; then
   cat "$INDEX_JSON"
+elif [[ -t 1 && "${TERM:-}" != "dumb" && -z "${NO_COLOR:-}" ]]; then
+  perl -pe 's/\[([^\]]+)\]\((https?:\/\/[^\)]+|file:\/\/[^\)]+)\)/\e]8;;$2\e\\$1\e]8;;\e\\/g' "$INDEX_MD"
 else
   cat "$INDEX_MD"
 fi
