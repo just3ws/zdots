@@ -3,13 +3,13 @@
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     CURRENT FOCUS  —  last updated 2026-09-02
+     CURRENT FOCUS  —  last updated 2026-09-05
      Cold-start resume state, canonical for every agent tool (Claude, Codex,
      Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
      closes a session rewrites this whole block in place — step one, before
      the wrap-up summary — then commits it. `git log` + Backlog are truth for
      exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-09-02.md
+     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-09-05-4.md
      (local-only; that file, not "the newest handoff", is the pointer).
      ═══════════════════════════════════════════════════════════════════════
 
@@ -25,6 +25,8 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   personal-vault conversation file — not ours, leave it.
 
   Live tasks (Backlog):
+    Z-342  (Med) context-engine: expose scenario manifest catalog and ingest
+           contract for PVL tenants (both filesystem dropzone and REST API).
     Z-333  (Med) audit tests/ci-allowlist.txt — mcp.bats + docs_contract's
            Ruby-CLI --help sweep aren't hermetic (full job has no Ruby
            toolchain). Drop them OR add mise+bundle to the full job, then
