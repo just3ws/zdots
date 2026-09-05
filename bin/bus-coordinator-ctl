@@ -54,7 +54,7 @@ Options:
   -h, --help  Show this help
 
 Environment variables (configure in ~/.zdots.local):
-  ZDOTS_BUS_BOT_NAME       Identity name (default: syntagma)
+  ZDOTS_BUS_BOT_NAME       Identity name (default: busdriver)
   ZDOTS_BUS_BOT_TRIGGER    Prefix trigger (default: @<name>)
   ZDOTS_BUS_BOT_CHANNELS   Channels to watch (default: phalanxduel,zdots)
 EOF
@@ -72,7 +72,7 @@ cmd_run() {
   export ZDOTS_DATABASE_URL="${ZDOTS_DATABASE_URL:-postgresql://zdots_rw@/my}"
   export ZDOTS_AI_MODE="${ZDOTS_AI_MODE:-local}"
   export ZDOTS_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
-  export ZDOTS_BUS_BOT_NAME="${ZDOTS_BUS_BOT_NAME:-syntagma}"
+  export ZDOTS_BUS_BOT_NAME="${ZDOTS_BUS_BOT_NAME:-busdriver}"
   export ZDOTS_BUS_BOT_TRIGGER="${ZDOTS_BUS_BOT_TRIGGER:-@${ZDOTS_BUS_BOT_NAME}}"
   export ZDOTS_BUS_BOT_CHANNELS="${ZDOTS_BUS_BOT_CHANNELS:-phalanxduel,zdots}"
 
