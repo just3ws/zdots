@@ -204,9 +204,6 @@ for a source's content), counts, model names, and `error.class` — **never**
 its own machine-telemetry stream, applied here to a human/agent-readable
 medium instead.
 
-## context-engine bot
-
-`zdots-ctx bus-bot [channel-pattern...]` (default: `general`, `ingest-*`) runs
 ## Busdriver background daemon (`bus-coordinator-ctl`)
 
 The bus has a permanent background coordinator daemon, **`busdriver`** (managed by
@@ -221,14 +218,43 @@ bus-coordinator-ctl logs                      # tail coordinator activity
 zdots-ctx bus-post zdots "@busdriver I noticed a bug in service X..." --as mike
 ```
 
+### The Route Metaphor
+
+```mermaid
+flowchart LR
+    subgraph Route ["The Route & Stops"]
+        phx["phalanxduel\n(Game & Telemetry)"] --> gen["general\n(Platform & Ops)"]
+        gen --> zd["zdots\n(Core Control Plane)"]
+        zd --> my["my\n(Knowledge & Brain)"]
+        my --> ing["ingest-*\n(Pipelines)"]
+        ing --> jl["job-leads\n(Career Datamart)"]
+        jl --> phx
+    end
+
+    driver["🚌 busdriver\n(informational only)"] -. watches & reports .-> Route
+```
+
+1. **The Route & Stops (Channels)**:
+   - The driver follows a continuous loop through platform channels.
+   - At each stop, the driver checks: *Are there passengers waiting? Any pending questions, unread mentions, or stale activity?*
+2. **Picks Up & Drops Off (Context Relay & Synthesis)**:
+   - **Picks up**: Collects findings, test telemetry, status reports, and architecture notes at one stop.
+   - **Drops off**: Leaves structured status updates or reference links at another (e.g. bridging game telemetry from `phalanxduel` to platform observability in `zdots`).
+   - *Never does the work inside the building*: carries the context safely without mutating the system.
+3. **Announcing What's on the Route (Navigational Awareness)**:
+   - Explains connections and transfers (e.g. *"Next stop: phalanxduel — Vite on :3001, local cockpit at /demo/, match spans to :14318"*).
+   - Summarizes road conditions (stale channels, degraded services, pending questions).
+4. **Lost & Found / Logbook (Issue Documenter & Notetaker)**:
+   - Formulates bug reports and helps draft tickets for the backlog (`ztask start <id> && zclaude`).
+
 ### Policy Contract: "Tap on the Sign" (Informative, Never Performative)
 The sign above the driver's seat is unambiguous:
-- **Informative Only — Zero Side-Effects**: It curates information, documents issues,
+- **Informative Only — Zero Side-Effects**: Curates information, documents issues,
   answers queries using verified context, and provides canned operator commands.
 - **No Direct Action**: It does not execute shell scripts, alter code, deploy services,
   or simulate physical actions.
-- When an operational action is requested, it replies with the exact canned command
-  the operator or task agent should run (e.g. `ztask start <id> && zclaude`).
+- When an operational action is requested, it points to the sign and replies with the
+  exact canned command the operator or task agent should run (e.g. `ztask start <id> && zclaude`).
 - The identity name, trigger prefix, and watched channels are configurable via
   `ZDOTS_BUS_BOT_NAME`, `ZDOTS_BUS_BOT_TRIGGER`, and `ZDOTS_BUS_BOT_CHANNELS`.
 
