@@ -125,6 +125,7 @@ Knowledge Layer Interface:
             #tag / @mention are auto-extracted; --tag/--mention/--type filter metadata; --search matches body substrings
   bus-watch <channel> [--as PARTICIPANT]  Live tail (unread history, then follows; Ctrl-C to stop)
   bus-schedule [--json] [--dump-dir DIR]  Instant route guide & chat snapshot (~/.local/state/zsh/bus-schedule)
+  bus [route|stops|read|watch|post|ask|sign|driver]  Fluent message bus DSL (zdots-bus)
   bus-bot [channel-pattern...]  Run the context-engine bot (default: general, ingest-*; Ctrl-C to stop)
   bus-whoami [--as PARTICIPANT]  Show resolved bus identity
   bus-register <name> [--kind agent|human]  Register (or re-kind) a bus participant
@@ -608,6 +609,10 @@ cmd_bus_schedule() {
   "${ZDOTDIR}/bin/bus-schedule" "$@"
 }
 
+cmd_bus() {
+  "${ZDOTDIR}/bin/zdots-bus" "$@"
+}
+
 cmd_bus_bot() {
   "${ZDOTDIR}/sbin/zdots-brain" bus-bot "$@"
 }
@@ -932,6 +937,7 @@ case "${1:-}" in
   bus-read)             shift; cmd_bus_read "$@" ;;
   bus-watch)            shift; cmd_bus_watch "$@" ;;
   bus-schedule)         shift; cmd_bus_schedule "$@" ;;
+  bus)                  shift; cmd_bus "$@" ;;
   bus-bot)              shift; cmd_bus_bot "$@" ;;
   bus-whoami)           shift; cmd_bus_whoami "$@" ;;
   bus-register)         shift; cmd_bus_register "$@" ;;

@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+# bin/zdots-bus (symlinked as bin/bus) — Fluent CLI and DSL for the message bus & route coordinator.
+#
+# Provides human and AI agents with a high-cadence, fluent interface to
+# the asynchronous message bus, channel routes, stops, and coordinator daemon.
+# Canonical platform name: zdots-bus. Fluent short alias: bus.
+#
+# GRAMMAR:
+#   zdots-bus [route|schedule] [--json]           Frontpage route guide & state table
+#   zdots-bus stops [--unread|--waiting|--pending|--stale] List active stops and unread counts
+#   zdots-bus stop <channel>                      Inspect single channel status & pending
+#   zdots-bus read <channel> [options...]         Read message history (threaded, filtered)
+#   zdots-bus watch <channel> [options...]        Live tail follower (unread + follow)
+#   zdots-bus post <channel> <text> [options...]  Post message to channel
+#   zdots-bus ask <channel> <question...>         Ask @busdriver a question on <channel>
+#   zdots-bus sign                                Tap on the sign (Busdriver rules & policy)
+#   zdots-bus driver [status|health|restart|start|stop|logs|ping] Manage coordinator daemon
+#   zdots-bus whoami                              Show resolved participant identity
+#   zdots-bus register <name> [--kind human|agent] Register bus participant
+#   zdots-bus create <channel> [topic]            Create a new channel
+#   zdots-bus protocol <channel> <text...>        Set channel engagement protocol
+#   zdots-bus token <name>                        Display auth token for participant
+
+set -euo pipefail
+trap "" PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+BRAIN="${ZDOTDIR}/sbin/zdots-brain"
+SCHEDULE_BIN="${ZDOTDIR}/bin/bus-schedule"
+COORDINATOR_CTL="${ZDOTDIR}/bin/bus-coordinator-ctl"
+
+# shellcheck source=lib/cli-help.bash
+source "${ZDOTDIR}/lib/cli-help.bash"
+# shellcheck source=lib/term-link.bash
+source "${ZDOTDIR}/lib/term-link.bash"
+
+usage() {
+  cat <<HELP
+Usage: zdots-bus <command> [options] (or: bus <command>)
+
+The Fluent Command-Line Interface for the Local Message Bus.
+
+Route & Inspection:
+  bus [route|schedule] [--json]   Live route guide, Mermaid route & channel stops
+  bus stops [flags]               List stops with unread counts, status, and activity
+                                  Flags: --unread, --waiting, --pending, --stale, --json
+  bus stop <channel>              Inspect single stop topic, protocol & pending items
+  bus sign                        "Tap on the sign" — Busdriver policy & road rules
+
+Messaging & Interaction:
+  bus read <channel> [options]    Read messages (newest or threaded)
+                                  Options: --unread, --thread ID, --since ID,
+                                           --tag T, --mention N, --type KIND, --search TERM
+  bus watch <channel>             Live tail follower (unread history, then live stream)
+  bus post <channel> <text...>    Post a message (--type KIND, --thread ID, --as USER)
+  bus ask <channel> <question...> Post a QUESTION to @busdriver on <channel>
+
+Driver & Identity:
+  bus driver [action]             Manage busdriver coordinator daemon
+                                  Actions: status (default), health, logs, restart, start, stop, ping
+  bus whoami                      Show current resolved participant identity
+  bus register <name> [--kind K]  Register participant identity (human or agent)
+  bus create <channel> [topic]    Create a new communication channel
+  bus protocol <channel> <text>   Set engagement protocol for channel
+  bus token <name>                Display auth token for participant
+
+Terminal Hyperlinks (OSC 8):
+  Channels, web console, and route files render as clickable links in modern terminals.
+HELP
+}
+
+cmd_ask() {
+  if [ $# -lt 2 ]; then
+    printf "bus ask: usage: bus ask <channel> <question...>\n" >&2
+    exit 1
+  fi
+  local channel="$1"
+  shift
+  local question="$*"
+  exec "${BRAIN}" bus-post "$channel" "@busdriver $question" --type QUESTION
+}
+
+cmd_sign() {
+  local state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/bus-schedule"
+  local route_file="${state_dir}/ROUTE.md"
+  local web_link
+  web_link=$(term_link "https://my.localhost/bus" "https://my.localhost/bus")
+  local route_link
+  route_link=$(term_file_link "$route_file" "$route_file")
+  local backlog_link
+  backlog_link=$(term_link "https://zdots.localhost/backlog" "https://zdots.localhost/backlog")
+
+  local driver_status="stopped"
+  if command -v "$COORDINATOR_CTL" >/dev/null 2>&1; then
+    if "$COORDINATOR_CTL" health >/dev/null 2>&1; then
+      driver_status="running (healthy)"
+    fi
+  fi
+
+  cat <<SIGN
+🚏 POLICY CONTRACT: "TAP ON THE SIGN"
+=====================================
+Status: Busdriver daemon is ${driver_status}
+
+1. INFORMATIVE ONLY — ZERO SIDE-EFFECTS
+   Curates information, documents issues, answers queries using verified context,
+   and provides canned operator commands. Never performs destructive or side-effecting operations.
+
+2. NO DIRECT ACTION
+   Does not execute arbitrary scripts, alter source repositories, deploy services,
+   or simulate physical actions. When an operational step is required, points to the sign:
+     ztask start <id> && zclaude
+
+3. LYRICAL FLOW & EFFICIENCY
+   Channeling Project Blowed's Busdriver — high-speed lyrical efficiency, compact
+   rhymes, rhythmic cadence. Dense with substance, grounded in truth.
+
+Web Console : ${web_link}
+Route Guide : ${route_link}
+Backlog     : ${backlog_link}
+SIGN
+}
+
+cmd_driver() {
+  local action="${1:-status}"
+  if [ $# -gt 0 ]; then
+    shift
+  fi
+  case "$action" in
+    status|health|start|stop|restart|logs)
+      exec "$COORDINATOR_CTL" "$action" "$@"
+      ;;
+    ping)
+      if "$COORDINATOR_CTL" health >/dev/null 2>&1; then
+        printf "🚌 busdriver: [ok] cruising on rhythm, keeping context in prism.\n"
+        exit 0
+      else
+        printf "🚌 busdriver: [stopped] parked in the lot, coordinator is not.\n" >&2
+        exit 1
+      fi
+      ;;
+    -h|--help)
+      exec "$COORDINATOR_CTL" --help
+      ;;
+    *)
+      printf "bus driver: unknown action: %s\n" "$action" >&2
+      printf "Valid actions: status, health, logs, restart, start, stop, ping\n" >&2
+      exit 1
+      ;;
+  esac
+}
+
+# --- Dispatch ---
+
+if [ $# -eq 0 ]; then
+  exec "$SCHEDULE_BIN"
+fi
+
+if zdots_cli_wants_help "$@"; then
+  usage
+  exit 0
+fi
+
+case "${1:-}" in
+  --json)
+    shift
+    exec "$SCHEDULE_BIN" --json "$@"
+    ;;
+  route|schedule)
+    shift
+    exec "$SCHEDULE_BIN" "$@"
+    ;;
+  stops|chats|channels)
+    shift
+    exec "${BRAIN}" bus-chats "$@"
+    ;;
+  stop)
+    shift
+    if [ $# -eq 0 ]; then
+      exec "${BRAIN}" bus-chats
+    else
+      exec "${BRAIN}" bus-chats "$@"
+    fi
+    ;;
+  read)
+    shift
+    exec "${BRAIN}" bus-read "$@"
+    ;;
+  watch)
+    shift
+    exec "${BRAIN}" bus-watch "$@"
+    ;;
+  post)
+    shift
+    exec "${BRAIN}" bus-post "$@"
+    ;;
+  ask)
+    shift
+    cmd_ask "$@"
+    ;;
+  sign)
+    shift
+    cmd_sign "$@"
+    ;;
+  driver)
+    shift
+    cmd_driver "$@"
+    ;;
+  whoami)
+    shift
+    exec "${BRAIN}" bus-whoami "$@"
+    ;;
+  register)
+    shift
+    exec "${BRAIN}" bus-register "$@"
+    ;;
+  create)
+    shift
+    exec "${BRAIN}" bus-create-channel "$@"
+    ;;
+  protocol)
+    shift
+    exec "${BRAIN}" bus-set-protocol "$@"
+    ;;
+  token)
+    shift
+    exec "${BRAIN}" bus-token "$@"
+    ;;
+  *)
+    printf "bus: unknown command: %s\n\n" "$1" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

@@ -36,9 +36,9 @@ Sequel models, and OTel tracing wrapper this needed.
   auto-advances the poster's own cursor — you never see your own message as
   unread.
 
-## Fluent CLI: `bus`
+## Fluent CLI: `zdots-bus` (or `bus`)
 
-The `bus` command provides a high-cadence, fluent domain-specific interface for humans and AI agents, mapping naturally to the route and stops metaphor:
+The `zdots-bus` command (symlinked to `bus` on `PATH`, and accessible via `zdots-ctx bus`) provides a high-cadence, fluent domain-specific interface for humans and AI agents, mapping naturally to the route and stops metaphor:
 
 ```bash
 # Route & Inspection

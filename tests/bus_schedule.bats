@@ -75,3 +75,22 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"The Local Message Bus Schedule & Route Guide"* ]]
 }
+
+@test "zdots-bus: canonical executable exists and bus is symlink to it" {
+  [ -x "$REPO_ROOT/bin/zdots-bus" ]
+  [ -L "$REPO_ROOT/bin/bus" ]
+  target="$(readlink "$REPO_ROOT/bin/bus")"
+  [ "$target" = "zdots-bus" ]
+}
+
+@test "zdots-bus: --help exits 0 and mentions zdots-bus" {
+  run "$REPO_ROOT/bin/zdots-bus" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: zdots-bus"* ]]
+}
+
+@test "zdots-ctx: bus subcommand dispatches to zdots-bus" {
+  run "$REPO_ROOT/bin/zdots-ctx" bus driver ping
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"busdriver"* ]]
+}

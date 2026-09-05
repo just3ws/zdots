@@ -356,8 +356,8 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
   fi
 
   # Message bus route guide & schedule snapshot
-  if [ -x "${ZDOTDIR}/bin/bus" ]; then
-    printf "  %-15s : %bonline%b (bus · bus-schedule · %s/bus-schedule)\n" "bus schedule" "$GREEN" "$RESET" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+  if [ -x "${ZDOTDIR}/bin/zdots-bus" ] || [ -x "${ZDOTDIR}/bin/bus" ]; then
+    printf "  %-15s : %bonline%b (zdots-bus · bus · bus-schedule · %s/bus-schedule)\n" "bus schedule" "$GREEN" "$RESET" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
   elif [ -x "${ZDOTDIR}/bin/bus-schedule" ]; then
     printf "  %-15s : %bonline%b (bus-schedule · %s/bus-schedule)\n" "bus schedule" "$GREEN" "$RESET" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
   fi
@@ -471,8 +471,9 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
           analyze_upgrade: "zdots-log-analyze upgrade"
         },
         message_bus: {
-          cli: "bus",
-          cli_dsl: "bus [route|stops|stop|read|watch|post|ask|sign|driver]",
+          cli: "zdots-bus",
+          cli_alias: "bus",
+          cli_dsl: "zdots-bus [route|stops|stop|read|watch|post|ask|sign|driver] (or: bus ...)",
           bus_schedule: "bus-schedule",
           bus_schedule_json: "bus-schedule --json",
           snapshot_dir: "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/bus-schedule",
