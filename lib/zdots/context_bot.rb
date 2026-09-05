@@ -13,31 +13,49 @@ module Zdots
   # same fields IngestMedia's own #narrate treats as PHI-safe (see Z-163) —
   # plus the channel's own bus history. Never reaches past that.
   module ContextBot
-    NAME    = "context-engine"
-    TRIGGER = "@context-engine"
-    HISTORY_LIMIT = 30
+    DEFAULT_NAME    = "context-engine"
+    DEFAULT_TRIGGER = "@context-engine"
+    HISTORY_LIMIT   = 30
     AI_QUERY_TIMEOUT = 120
 
-    ANSWER_TASK =
-      "Answer the question using only the context below. Be brief (1-4 " \
-      "sentences). If the context doesn't contain the answer, say so plainly " \
-      "rather than guessing."
+    INFORMATIVE_PROMPT =
+      "You are an informative background coordinator for the message bus. " \
+      "Your role is strictly informative, NEVER performative: you report status, explain context, " \
+      "and answer questions using ONLY the verified context below. You do not execute commands, " \
+      "alter code, deploy services, or claim to take actions you cannot take. " \
+      "If a request asks you to perform an action or run a task, clarify your role as an informative status agent. " \
+      "Be brief (1-4 sentences), factual, and grounded. If the context doesn't contain the answer, " \
+      "state that plainly rather than guessing."
 
     class << self
+      def bot_name
+        ENV.fetch("ZDOTS_BUS_BOT_NAME", DEFAULT_NAME)
+      end
+
+      def bot_trigger
+        ENV.fetch("ZDOTS_BUS_BOT_TRIGGER", "@#{bot_name}")
+      end
+
+      def answer_task
+        ENV.fetch("ZDOTS_BUS_BOT_PROMPT", INFORMATIVE_PROMPT)
+      end
+
       # patterns: channel names, "*" glob-matched against the channels that
       # exist right now. Resolved once at startup — a channel created after
       # that point isn't picked up until the bot is restarted (v1 limitation,
       # see docs/message-bus.md).
-      def run(patterns = ["general", "ingest-*"])
-        Bus.register_participant(NAME, kind: "bot")
+      def run(patterns = nil)
+        patterns ||= ENV["ZDOTS_BUS_BOT_CHANNELS"]&.split(/[,\s]+/) || ["general", "ingest-*"]
+        name = bot_name
+        Bus.register_participant(name, kind: "bot")
         channels = matching_channels(patterns)
         if channels.empty?
           warn "context-bot: no channels matched #{patterns.inspect}"
           return
         end
 
-        warn "context-bot: watching #{channels.join(', ')}"
-        channels.map { |name| Thread.new { watch(name) } }.each(&:join)
+        warn "context-bot (#{name}): watching #{channels.join(', ')} (trigger: #{bot_trigger})"
+        channels.map { |ch| Thread.new { watch(ch) } }.each(&:join)
       end
 
       private
@@ -61,25 +79,27 @@ module Zdots
       end
 
       def handle(channel, msg)
-        return if msg[:participant] == NAME # never reply to itself
+        name = bot_name
+        return if msg[:participant] == name # never reply to itself
 
         body = msg[:body].to_s
-        return unless body.start_with?(TRIGGER)
+        trigger = bot_trigger
+        return unless body.start_with?(trigger)
 
-        question = body.sub(TRIGGER, "").strip
+        question = body.sub(trigger, "").strip
         reply = answer(channel, question)
-        Bus.post(channel, NAME, reply, thread: msg[:id])
+        Bus.post(channel, name, reply, thread: msg[:id])
       rescue StandardError => e
         warn "context-bot: reply failed (#{e.class}: #{e.message})"
         begin
-          Bus.post(channel, NAME, "context-engine: couldn't answer right now", thread: msg[:id])
+          Bus.post(channel, bot_name, "#{bot_name}: couldn't answer right now", thread: msg[:id])
         rescue StandardError
           nil
         end
       end
 
       def answer(channel, question)
-        ai_query(ANSWER_TASK, "#{gather_context(channel)}\n\nQuestion: #{question}")
+        ai_query(answer_task, "#{gather_context(channel)}\n\nQuestion: #{question}")
       end
 
       def gather_context(channel)

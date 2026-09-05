@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+# bin/bus-coordinator-ctl — Manage the background bus coordinator service.
+#
+# Listens continuously to message-bus channels (default: phalanxduel, zdots)
+# and provides an informative, grounded AI presence.
+#
+# POLICY CONTRACT (Informative, Never Performative):
+#   - Answers queries using only verified context (bus history, knowledge base).
+#   - Refuses performative commands (executing scripts, altering repos, deploying).
+#   - Identity and trigger are configurable via environment / .zdots.local.
+#
+# GRAMMAR:
+#   install / start / stop / restart / status / health / logs / run
+
+set -euo pipefail
+trap "" PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+OS=$(uname -s | tr "[:upper:]" "[:lower:]")
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+LOG_FILE="$STATE/bus-coordinator.log"
+PLIST_LABEL="com.zdots.bus-coordinator"
+PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
+BRAIN="$ZDOTDIR/sbin/zdots-brain"
+
+# shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
+SVC_NAME="bus-coordinator"
+# shellcheck source=lib/svc-launchd.bash
+source "${ZDOTDIR}/lib/svc-launchd.bash"
+# shellcheck source=lib/svc-process.bash
+source "${ZDOTDIR}/lib/svc-process.bash"
+source "${ZDOTDIR}/lib/cli-help.bash"
+
+_die()  { printf "bus-coordinator-ctl: error: %s\n" "$*" >&2; exit 1; }
+_info() { printf "bus-coordinator-ctl: %s\n" "$*" >&2; }
+
+usage() {
+  cat <<EOF
+Usage: bus-coordinator-ctl <command> [--json]
+
+Service Lifecycle:
+  install   Register the macOS launchd coordinator (KeepAlive, RunAtLoad)
+  start     Load and start the coordinator
+  stop      Unload and stop the coordinator
+  restart   stop then start
+  status    Show coordinator state and process info
+  health    Exit 0 if the coordinator process is alive, exit 1 otherwise
+  logs      Tail the coordinator log
+  run       launchd entry point — set up env, exec zdots-brain bus-bot
+            (internal; do not run by hand)
+
+Options:
+  --json      Output status/health as JSON (valid for status, health)
+  -h, --help  Show this help
+
+Environment variables (configure in ~/.zdots.local):
+  ZDOTS_BUS_BOT_NAME       Identity name (default: syntagma)
+  ZDOTS_BUS_BOT_TRIGGER    Prefix trigger (default: @<name>)
+  ZDOTS_BUS_BOT_CHANNELS   Channels to watch (default: phalanxduel,zdots)
+EOF
+}
+
+cmd_run() {
+  cd "$ZDOTDIR" || _die "cannot cd to $ZDOTDIR"
+  export ZDOTDIR
+
+  if [[ -f "$ZDOTDIR/.zdots.local" ]]; then
+    # shellcheck disable=SC1091
+    . "$ZDOTDIR/.zdots.local" || _info "warning: could not source .zdots.local"
+  fi
+
+  export ZDOTS_DATABASE_URL="${ZDOTS_DATABASE_URL:-postgresql://zdots_rw@/my}"
+  export ZDOTS_AI_MODE="${ZDOTS_AI_MODE:-local}"
+  export ZDOTS_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
+  export ZDOTS_BUS_BOT_NAME="${ZDOTS_BUS_BOT_NAME:-syntagma}"
+  export ZDOTS_BUS_BOT_TRIGGER="${ZDOTS_BUS_BOT_TRIGGER:-@${ZDOTS_BUS_BOT_NAME}}"
+  export ZDOTS_BUS_BOT_CHANNELS="${ZDOTS_BUS_BOT_CHANNELS:-phalanxduel,zdots}"
+
+  local channels=()
+  IFS="," read -r -a channels <<< "$ZDOTS_BUS_BOT_CHANNELS"
+
+  if command -v mise >/dev/null 2>&1; then
+    exec mise exec -- "$BRAIN" bus-bot "${channels[@]}"
+  fi
+  exec "$BRAIN" bus-bot "${channels[@]}"
+}
+
+cmd_install() {
+  [[ "$OS" == "darwin" ]] || _die "launchd coordinator is macOS-only (nothing to install on $OS)"
+  [[ -x "$BRAIN" ]] || _die "zdots-brain not found or not executable: $BRAIN"
+  mkdir -p "$STATE"
+
+  ZDOTS_SVC_ENV_KEYS="HOME PATH ZDOTDIR ZDOTS_BUS_BOT_NAME ZDOTS_BUS_BOT_TRIGGER ZDOTS_BUS_BOT_CHANNELS" \
+    zdots_svc_launchd_register \
+      "$PLIST_LABEL" "$PLIST_FILE" "$ZDOTDIR/bin/bus-coordinator-ctl" "$LOG_FILE" "run"
+}
+
+cmd_start() {
+  [[ "$OS" == "darwin" ]] || _die "macOS-only"
+  if [[ ! -f "$PLIST_FILE" ]]; then
+    _info "plist missing — running install first"
+    cmd_install
+  fi
+  zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
+}
+
+cmd_stop() {
+  [[ "$OS" == "darwin" ]] || _die "macOS-only"
+  zdots_svc_launchd_stop "$PLIST_LABEL"
+}
+
+cmd_status() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local state running pid
+  state=$(zdots_svc_launchd_status "$PLIST_LABEL")
+  running=$(echo "$state" | awk '{print $1}')
+  pid=$(echo "$state" | awk '{print $2}')
+
+  zdots_svc_print_status "$json" "$running" "$pid" "bus coordinator" "$LOG_FILE" \
+    "launchd=$([[ -f "$PLIST_FILE" ]] && echo true || echo false)"
+}
+
+cmd_health() {
+  local json=false
+  [[ "${1:-}" == "--json" ]] && json=true
+
+  local state running healthy
+  state=$(zdots_svc_launchd_status "$PLIST_LABEL")
+  running=$(echo "$state" | awk '{print $1}')
+  [[ "$running" == "true" ]] && healthy=true || healthy=false
+
+  zdots_svc_print_health "$json" "$healthy" "bus coordinator"
+}
+
+cmd_logs() {
+  zdots_svc_logs "$LOG_FILE"
+}
+
+zdots_cli_wants_help "$@" && { usage; exit 0; }
+
+case "${1:-}" in
+  install)   cmd_install ;;
+  start)     cmd_start ;;
+  stop)      cmd_stop ;;
+  restart)   zdots_svc_restart cmd_stop cmd_start ;;
+  status)    shift; cmd_status "$@" ;;
+  health)    shift; cmd_health "$@" ;;
+  logs)      cmd_logs ;;
+  run)       cmd_run ;;
+  -h|--help) usage; exit 0 ;;
+  "")        usage >&2; exit 1 ;;
+  *)         printf "bus-coordinator-ctl: unknown command: %s\n" "$1" >&2; usage >&2; exit 1 ;;
+esac

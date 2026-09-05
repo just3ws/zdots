@@ -65,6 +65,14 @@ RSpec.describe Zdots::ContextBot, :integration do
         .with("general", "context-engine", "context-engine: couldn't answer right now", thread: "msg-1")
       described_class.send(:handle, "general", msg)
     end
+
+    it "respects custom bot_name and bot_trigger from environment" do
+      stub_const("ENV", ENV.to_hash.merge("ZDOTS_BUS_BOT_NAME" => "syntagma", "ZDOTS_BUS_BOT_TRIGGER" => "@syntagma"))
+      custom_msg = { id: "msg-2", participant: "mike", body: "@syntagma status please" }
+      allow(described_class).to receive(:answer).with("general", "status please").and_return("all healthy")
+      expect(Zdots::Bus).to receive(:post).with("general", "syntagma", "all healthy", thread: "msg-2")
+      described_class.send(:handle, "general", custom_msg)
+    end
   end
 
   describe "source_summary_for" do
