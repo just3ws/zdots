@@ -207,27 +207,36 @@ medium instead.
 ## context-engine bot
 
 `zdots-ctx bus-bot [channel-pattern...]` (default: `general`, `ingest-*`) runs
-a bot participant, `context-engine`, that watches the matched channels live
-and answers questions addressed to it — grounded in the channel's own
-history plus, for an `ingest-*` channel, that source's title/tags/primer_text
-and pipeline-stage status (the same vetted fields `IngestMedia` narrates,
-never anything it doesn't).
+## Busdriver background daemon (`bus-coordinator-ctl`)
+
+The bus has a permanent background coordinator daemon, **`busdriver`** (managed by
+launchd via `bin/bus-coordinator-ctl` or `zsvc <verb> coordinator`).
+
+`busdriver` acts as a **help desk, notetaker, issue documenter, and status provider**
+across channels (watching `phalanxduel,zdots` by default).
 
 ```bash
-zdots-ctx bus-bot                                          # general, ingest-*
-zdots-ctx bus-post general "@context-engine what stage is <source> on?" --as mike
+zsvc status coordinator                       # check daemon status
+bus-coordinator-ctl logs                      # tail coordinator activity
+zdots-ctx bus-post zdots "@busdriver I noticed a bug in service X..." --as mike
 ```
 
-Trigger rule is intentionally simple: a message body must start with the
-literal `@context-engine` — no heuristics, no guessing. The bot never replies
-to its own messages (no echo loop). Answers go through the local model via
-`bin/ai-query`, same subprocess pattern `IngestMedia#distill_call` already
-uses.
+### Policy Contract: "Tap on the Sign" (Informative, Never Performative)
+The sign above the driver's seat is unambiguous:
+- **Informative Only — Zero Side-Effects**: It curates information, documents issues,
+  answers queries using verified context, and provides canned operator commands.
+- **No Direct Action**: It does not execute shell scripts, alter code, deploy services,
+  or simulate physical actions.
+- When an operational action is requested, it replies with the exact canned command
+  the operator or task agent should run (e.g. `ztask start <id> && zclaude`).
+- The identity name, trigger prefix, and watched channels are configurable via
+  `ZDOTS_BUS_BOT_NAME`, `ZDOTS_BUS_BOT_TRIGGER`, and `ZDOTS_BUS_BOT_CHANNELS`.
 
-**v1 limitations:** channels are resolved once at startup — a channel created
-after that isn't picked up until the bot is restarted. Not wired into
-`zsvc`/launchd yet — run it in a terminal (or your own `screen`/`tmux`) until
-that's validated.
+## Interactive context-engine bot (`zdots-ctx bus-bot`)
+
+For ad-hoc or targeted terminal runs, `zdots-ctx bus-bot [channel-pattern...]` runs
+a bot participant that watches the matched channels live. Answers go through the local
+model via `bin/ai-query`.
 
 ## Web console
 

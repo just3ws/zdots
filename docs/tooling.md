@@ -39,8 +39,9 @@ The zdots-specific stack. Every agent session should orient here first.
 | Local state updater | `zdots-update-local` | Post-pull reconciliation without full bootstrap |
 | Deploy log analyzer | `zdots-log-analyze update|bootstrap|upgrade` | Package phase logs with AI-ready context; no OTel required |
 | Status TUI | `zdots-status` | Self-refreshing service + env + storage panel |
-| Agent/human message bus | `zdots-ctx bus-post/bus-read/bus-watch` | Local channels + threaded persistent messages — see [message-bus.md](message-bus.md) |
-| Context-engine bus bot | `zdots-ctx bus-bot [pattern...]` | Answers `@context-engine`-addressed questions, grounded in pipeline state — see [message-bus.md](message-bus.md) |
+| Agent/human message bus | `zdots-ctx bus-post/bus-read/bus-watch/bus-chats` | Local channels + threaded persistent messages — see [message-bus.md](message-bus.md) |
+| Bus coordinator daemon | `bus-coordinator-ctl start/stop/status/logs` | Persistent `busdriver` help desk & issue documenter daemon (`zsvc <verb> coordinator`) |
+| Context-engine bus bot | `zdots-ctx bus-bot [pattern...]` | Interactive `@context-engine` terminal bot grounded in pipeline state |
 | Issue filing | `zdots-issue "description"` | File a backlog task with trace ID attached |
 | AI router | `zdots-ask "prompt"` | Domain-aware prompt routing (shell/ruby/phi/default) |
 | AI smoke test | `zdots-quiz --quick` | 3-case probe of the local model |
