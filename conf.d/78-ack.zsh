@@ -9,10 +9,13 @@ fack() {
   local initial_query="${*:-}"
   local ack_cmd='[[ -n {q} ]] && ack -H --nogroup --column --smart-case --nocolor --nofilter {q} || true'
   local selected
+  local qf_file
 
   if [[ -n "$initial_query" ]]; then
     ack_cmd="ack -H --nogroup --column --smart-case --nocolor --nofilter {q}"
   fi
+
+  qf_file=$(mktemp -t fack-qf.XXXXXX) || return 1
 
   selected=$(fzf --disabled --query "$initial_query" \
       --bind "start:reload:$ack_cmd" \
@@ -20,8 +23,17 @@ fack() {
       --delimiter : \
       --preview 'bat --style=numbers --color=always --highlight-line {2} {1} 2>/dev/null || cat {1}' \
       --preview-window '+{2}-/2' \
-      --header 'Enter: edit | Ctrl-Y: copy path | Esc: quit' \
-      --prompt "ack> ") || return 0
+      --header 'Enter: edit | Ctrl-Q: quickfix list | Ctrl-Y: copy path | Esc: quit' \
+      --bind "ctrl-q:execute-silent(ack -H --nogroup --column --smart-case --nocolor --nofilter {q} > '$qf_file')+abort" \
+      --bind 'ctrl-y:execute-silent(echo -n {1} | pbcopy)' \
+      --prompt "ack> ")
+
+  if [[ -s "$qf_file" ]]; then
+    ${EDITOR:-nvim} -q "$qf_file"
+    rm -f "$qf_file"
+    return 0
+  fi
+  rm -f "$qf_file"
 
   if [[ -n "$selected" ]]; then
     local file line col
@@ -38,7 +50,8 @@ fackf() {
   selected=$(ack -f 2>/dev/null | fzf \
     --preview 'bat --style=numbers --color=always {} 2>/dev/null || cat {}' \
     --preview-window 'right:60%' \
-    --header 'Enter: edit | Esc: quit' \
+    --header 'Enter: edit | Ctrl-Y: copy path | Esc: quit' \
+    --bind 'ctrl-y:execute-silent(echo -n {} | pbcopy)' \
     --prompt "ack-files> ") || return 0
 
   if [[ -n "$selected" ]]; then
@@ -69,7 +82,7 @@ ack-types() {
   ack --help-types
 }
 
-# ZLE Widget: Ctrl-X Ctrl-A invokes interactive live fack
+# ZLE Widgets: interactive shell bindings for fack and fackf
 if [[ -o interactive ]] && (( ${+widgets} )); then
   fack-widget() {
     fack
@@ -77,7 +90,18 @@ if [[ -o interactive ]] && (( ${+widgets} )); then
   }
   zle -N fack-widget
   bindkey '^X^A' fack-widget
+  bindkey '^[a' fack-widget
   bindkey -M emacs '^X^A' fack-widget
   bindkey -M viins '^X^A' fack-widget
   bindkey -M vicmd '^X^A' fack-widget
+
+  fackf-widget() {
+    fackf
+    zle reset-prompt
+  }
+  zle -N fackf-widget
+  bindkey '^X^F' fackf-widget
+  bindkey -M emacs '^X^F' fackf-widget
+  bindkey -M viins '^X^F' fackf-widget
+  bindkey -M vicmd '^X^F' fackf-widget
 fi
