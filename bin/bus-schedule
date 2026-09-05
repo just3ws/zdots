@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# bin/bus-schedule — Fast, accessible snapshot & status guide of the local message bus.
+#
+# Provides human and AI agents with an instant, zero-cost overview of the bus:
+# - Active channels and current "bus route" stops
+# - Live unread counts, mentions, pending questions, and stale lines
+# - Background coordinator daemon health (busdriver)
+# - Direct links and commands to inspect or participate
+#
+# GRAMMAR:
+#   bus-schedule [--json] [--dump-dir DIR] [--channel CH]
+
+set -euo pipefail
+trap "" PIPE
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+BRAIN="${ZDOTDIR}/sbin/zdots-brain"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+SNAPSHOT_DIR="${STATE_DIR}/bus-schedule"
+
+JSON=false
+CHANNEL=""
+DUMP_DIR=""
+
+usage() {
+  cat <<EOF
+Usage: bus-schedule [options]
+
+The Agent Frontpage & Route Guide for the local message bus.
+
+Options:
+  --json           Output machine-readable JSON snapshot
+  --channel NAME   Focus snapshot on a single channel/stop
+  --dump-dir DIR   Export Markdown/JSON snapshot files to directory
+  -h, --help       Show this help
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --json) JSON=true; shift ;;
+    --channel) CHANNEL="$2"; shift 2 ;;
+    --dump-dir) DUMP_DIR="$2"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) printf "bus-schedule: unknown option: %s\n" "$1" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+mkdir -p "$SNAPSHOT_DIR"
+
+WHOAMI=$("${BRAIN}" bus-whoami 2>/dev/null || echo "anonymous")
+COORDINATOR_STATE="stopped"
+if command -v bus-coordinator-ctl >/dev/null 2>&1; then
+  if bus-coordinator-ctl health >/dev/null 2>&1; then
+    COORDINATOR_STATE="running"
+  fi
+fi
+
+CHATS_JSON=$("${BRAIN}" bus-chats ${CHANNEL:+"$CHANNEL"} --json 2>/dev/null || echo "[]")
+
+INDEX_MD="${SNAPSHOT_DIR}/ROUTE.md"
+INDEX_JSON="${SNAPSHOT_DIR}/schedule.json"
+
+cat << "HEADER" > "$INDEX_MD"
+# 🚌 The Local Message Bus Schedule & Route Guide
+
+The message bus is the asynchronous communication substrate for agents and humans on this machine.
+Persistence: PostgreSQL (\`my\` database). Live push: Redis pub/sub. Coordinator: \`busdriver\`.
+
+```mermaid
+flowchart LR
+    subgraph Route ["The Route & Stops"]
+        phx["phalanxduel\n(Game & Telemetry)"] --> gen["general\n(Platform & Ops)"]
+        gen --> zd["zdots\n(Core Control Plane)"]
+        zd --> my["my\n(Knowledge & Brain)"]
+        my --> ing["ingest-*\n(Pipelines)"]
+        ing --> jl["job-leads\n(Career Datamart)"]
+        jl --> phx
+    end
+
+    driver["🚌 busdriver\n(informational only)"] -. watches & reports .-> Route
+```
+
+HEADER
+
+cat << METRICS >> "$INDEX_MD"
+- **Snapshot Time**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+- **Active Observer**: \`${WHOAMI}\`
+- **Busdriver Daemon**: \`${COORDINATOR_STATE}\`
+- **Web Console**: [https://my.localhost/bus](https://my.localhost/bus)
+
+---
+
+## Active Stops & Channel State
+
+| Channel | Unread | Status | Last Active | Last Sender | Latest Message Snippet |
+|---------|--------|--------|-------------|-------------|-------------------------|
+METRICS
+
+printf '%s\n' "$CHATS_JSON" | jq -r '.[] | "| `\(.channel)` | \(.unread) | **\(.status)** | \(.last_active) | `\(.last_sender)` | \(.snippet) |"' >> "$INDEX_MD"
+
+cat << "FOOTER" >> "$INDEX_MD"
+
+---
+
+## Essential Driver Commands for AI Agents
+
+```bash
+# Check messages and unread questions
+zdots-ctx bus-chats --unread
+zdots-ctx bus-chats --waiting
+zdots-ctx bus-chats phalanxduel
+
+# Read recent thread or channel history
+zdots-ctx bus-read <channel> --as <your-agent-name>
+
+# Post an update or ask a question
+zdots-ctx bus-post <channel> "@busdriver question..." --as <your-agent-name>
+
+# File an issue / logbook ticket directly
+zdots-issue "Short description of bug or request"
+```
+FOOTER
+
+printf '%s\n' "$CHATS_JSON" | jq \
+  --arg snapshot_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+  --arg observer "$WHOAMI" \
+  --arg coordinator "$COORDINATOR_STATE" \
+  --arg route_guide "$INDEX_MD" \
+  '{
+    snapshot_at: $snapshot_at,
+    observer: $observer,
+    busdriver: $coordinator,
+    route_guide_path: $route_guide,
+    channels: .
+  }' > "$INDEX_JSON"
+
+if [[ -n "$DUMP_DIR" ]]; then
+  mkdir -p "$DUMP_DIR"
+  cp "$INDEX_MD" "$DUMP_DIR/BUS_SCHEDULE.md"
+  cp "$INDEX_JSON" "$DUMP_DIR/bus_schedule.json"
+fi
+
+if $JSON; then
+  cat "$INDEX_JSON"
+else
+  cat "$INDEX_MD"
+fi

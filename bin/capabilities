@@ -354,6 +354,11 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
   else
     printf "  %-15s : %bparked (experiments)%b\n" "zsynod" "$YELLOW" "$RESET"
   fi
+
+  # Message bus route guide & schedule snapshot
+  if [ -x "${ZDOTDIR}/bin/bus-schedule" ]; then
+    printf "  %-15s : %bonline%b (bus-schedule · %s/bus-schedule)\n" "bus schedule" "$GREEN" "$RESET" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+  fi
 fi
 
 # 6. Tool Verification (The "Reality")
@@ -462,6 +467,13 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
           analyze_update: "zdots-log-analyze update",
           analyze_bootstrap: "zdots-log-analyze bootstrap",
           analyze_upgrade: "zdots-log-analyze upgrade"
+        },
+        message_bus: {
+          bus_schedule: "bus-schedule",
+          bus_schedule_json: "bus-schedule --json",
+          snapshot_dir: "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/bus-schedule",
+          route_guide: "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/bus-schedule/ROUTE.md",
+          web_console: "https://my.localhost/bus"
         },
         brain: {
           intelligence_live: ($ctx_live | tonumber),

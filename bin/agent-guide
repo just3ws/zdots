@@ -230,6 +230,8 @@ if $JSON; then
         theme:                "https://zdots.localhost/theme/palette.json (Kanagawa Wave)",
         services:             "zsvc map --json (purpose/auth/example per service)",
         vocabulary:           "zdots-ctx concept <slug> | concept resolve <word>",
+        bus_schedule:         "bus-schedule [--json] (local message bus route guide & chat snapshot)",
+        bus_snapshot_dir:     "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/bus-schedule",
         external_agents_note: "Tenant/corporate AI sessions on this machine: reads above are free (loopback-trusted, no PHI). Route requests/questions through ${ZDOTS_WORK_EXT:-~/.config/zdots-work}/handoffs/, not the Message Bus or zdots-issue directly."
       },
       database: {
@@ -575,6 +577,11 @@ docs/message-bus.md for the full model.
   zdots-ctx bus-post <channel> <text> [--type KIND] [--thread ID] [--as PARTICIPANT]
   zdots-ctx bus-read <channel> [--since ID | --unread] [--thread ID] [--tag T] [--mention N] [--type KIND] [--search TERM]
   zdots-ctx bus-watch <channel>   unread history, then live tail (Ctrl-C to stop)
+  zdots-ctx bus-chats [--unread|--waiting|--pending|--stale]  overview of unread & pending messages
+  bus-schedule [--json]           instant agent frontpage / snapshot guide (~/.local/state/zsh/bus-schedule)
+
+Background coordinator: `busdriver` (managed via `zsvc status coordinator`). Watches channels,
+answers queries lyrically, documents issues, and points passengers to the right track (zero side-effects).
 
 #tag / @mention in a posted body are auto-extracted (filter with --tag/--mention);
 --type on bus-post records a message kind (STATUS/PROPOSAL/CORRECTION/QUESTION/ACK,

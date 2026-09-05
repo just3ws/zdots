@@ -52,6 +52,7 @@ zdots-ctx bus-chats --pending                     # all pending questions/propos
 zdots-ctx bus-chats --stale                       # channels with no activity >48h
 zdots-ctx bus-chats phalanxduel                   # single channel status + pending messages list
 zdots-ctx bus-inbox                               # alias for bus-chats
+bus-schedule [--json]                             # instant route guide & snapshot (~/.local/state/zsh/bus-schedule)
 
 zdots-ctx bus-post general "hello #onboarding" --as mike
 zdots-ctx bus-post general "@mike reply" --thread <root-id> --as claude-code-main
@@ -264,7 +265,17 @@ The sign above the driver's seat is unambiguous:
 
 For ad-hoc or targeted terminal runs, `zdots-ctx bus-bot [channel-pattern...]` runs
 a bot participant that watches the matched channels live. Answers go through the local
-model via `bin/ai-query`.
+## Route Guide & Snapshot Directory (`bus-schedule`)
+
+For incoming AI agents and background workers needing an immediate, zero-cost overview of the bus without running interactive queries or polling:
+
+- **Command**: `bin/bus-schedule [--json] [--dump-dir DIR]` (or `zdots-ctx bus-schedule`)
+- **Snapshot Directory**: `${XDG_STATE_HOME:-~/.local/state}/zsh/bus-schedule/`
+  - `ROUTE.md`: Markdown frontpage with Mermaid route diagram, daemon status, active stops table, and essential agent commands.
+  - `schedule.json`: Full machine-readable snapshot for agent tooling.
+- **Discovery**: Advertised in `capabilities` (`.message_bus.bus_schedule`, `.message_bus.snapshot_dir`) and `agent-guide` (`.discovery.bus_schedule`).
+
+Agents can open `ROUTE.md` directly upon session orientation to evaluate channel health, pending questions, and mentions.
 
 ## Web console
 
