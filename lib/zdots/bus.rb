@@ -162,6 +162,180 @@ module Zdots
         Models::BusParticipant[id]&.name || "unknown"
       end
 
+      def format_age(seconds)
+        sec = seconds.to_i
+        if sec < 60
+          "#{sec}s ago"
+        elsif sec < 3600
+          "#{sec / 60}m ago"
+        elsif sec < 86400
+          "#{sec / 3600}h ago"
+        else
+          "#{sec / 86400}d ago"
+        end
+      end
+
+      def chats(participant_name = nil, filter: nil, channel_name: nil, stale_threshold_hours: 48)
+        participant_name ||= ENV.fetch("ZDOTS_BUS_PARTICIPANT", "mike")
+        participant = Models::BusParticipant[name: participant_name]
+        now = Time.now
+
+        target_channels = if channel_name && !channel_name.empty?
+                            [Models::BusChannel.resolve(channel_name)]
+                          else
+                            Models::BusChannel.order(:name).all
+                          end
+
+        results = target_channels.map do |c|
+          msgs = Models::BusMessage.where(channel_id: c.id).order(Sequel.desc(:created_at))
+          total = msgs.count
+          last_msg = msgs.first
+
+          unreads = participant ? unread(c.name, participant_name) : []
+          unread_count = unreads.size
+
+          if total.zero?
+            {
+              channel: c.name,
+              topic: c.topic,
+              protocol: c.protocol,
+              unread: 0,
+              total: 0,
+              status: "EMPTY",
+              last_sender: "-",
+              last_active: "-",
+              last_active_at: nil,
+              snippet: "(no messages)",
+              pending_messages: [],
+              is_stale: false,
+              waiting_for_reply: false,
+              has_unread: false,
+              has_pending: false
+            }
+          else
+            last_sender = participant_name(last_msg.participant_id)
+            age_sec = (now - last_msg.created_at).to_i
+            last_active = format_age(age_sec)
+            is_stale = age_sec >= (stale_threshold_hours * 3600)
+            type = last_msg.metadata["type"]
+            body_clean = last_msg.body.gsub(/\s+/, " ").strip[0..50]
+            snippet = type ? "[#{type}] #{body_clean}" : body_clean
+
+            has_mention = unreads.any? do |m|
+              (m.metadata["mentions"] || []).map(&:downcase).include?(participant_name.downcase)
+            end
+
+            has_question = unreads.any? do |m|
+              m.metadata["type"]&.upcase == "QUESTION" || m.body.strip.end_with?("?")
+            end
+
+            last_from_peer = (last_sender != participant_name && last_sender != "pipeline")
+
+            status = if has_mention
+                       "MENTIONED"
+                     elsif has_question && last_from_peer
+                       "QUESTION"
+                     elsif last_from_peer && (type == "QUESTION" || last_msg.body.strip.end_with?("?"))
+                       "WAITING_REPLY"
+                     elsif last_from_peer && unread_count.positive?
+                       "NEEDS_REPLY"
+                     elsif last_sender == participant_name
+                       "REPLIED"
+                     elsif unread_count.positive?
+                       "UNREAD"
+                     elsif is_stale
+                       "STALE"
+                     else
+                       "IDLE"
+                     end
+
+            pending_items = []
+            unreads.each do |um|
+              um_sender = participant_name(um.participant_id)
+              um_type = um.metadata["type"]
+              um_mentions = (um.metadata["mentions"] || []).map(&:downcase)
+              is_m = um_mentions.include?(participant_name.downcase)
+              is_q = um_type&.upcase == "QUESTION" || um.body.strip.end_with?("?")
+
+              reason = if is_m then "mention"
+                       elsif is_q then "question"
+                       elsif um_sender != participant_name then "unread"
+                       else "unread_self" end
+
+              next if reason == "unread_self"
+
+              pending_items << {
+                id: um.id,
+                parent_id: um.parent_id,
+                sender: um_sender,
+                body: um.body,
+                type: um_type,
+                created_at: um.created_at,
+                age: format_age(now - um.created_at),
+                reason: reason
+              }
+            end
+
+            if pending_items.empty? && last_from_peer && (type == "QUESTION" || last_msg.body.strip.end_with?("?"))
+              pending_items << {
+                id: last_msg.id,
+                parent_id: last_msg.parent_id,
+                sender: last_sender,
+                body: last_msg.body,
+                type: type,
+                created_at: last_msg.created_at,
+                age: format_age(age_sec),
+                reason: "question"
+              }
+            end
+
+            waiting_for_reply = %w[MENTIONED QUESTION WAITING_REPLY NEEDS_REPLY].include?(status)
+            has_pending = waiting_for_reply || unread_count.positive? || !pending_items.empty?
+
+            {
+              channel: c.name,
+              topic: c.topic,
+              protocol: c.protocol,
+              unread: unread_count,
+              total: total,
+              status: status,
+              last_sender: last_sender,
+              last_active: last_active,
+              last_active_at: last_msg.created_at,
+              snippet: snippet,
+              pending_messages: pending_items,
+              is_stale: is_stale,
+              waiting_for_reply: waiting_for_reply,
+              has_unread: unread_count.positive?,
+              has_pending: has_pending
+            }
+          end
+        end
+
+        sorted = results.sort_by { |r| r[:last_active_at] || Time.at(0) }.reverse
+
+        case filter&.to_s&.downcase
+        when "unread"
+          sorted.select { |r| r[:has_unread] }
+        when "pending"
+          sorted.select { |r| r[:has_pending] }
+        when "waiting", "waiting_reply", "needs_reply"
+          sorted.select { |r| r[:waiting_for_reply] }
+        when "stale"
+          sorted.select { |r| r[:is_stale] && r[:status] != "EMPTY" }
+        when nil, ""
+          sorted
+        else
+          f = filter.to_s.downcase
+          sorted.select do |r|
+            r[:channel].downcase.include?(f) ||
+              r[:status].downcase.include?(f) ||
+              r[:last_sender].downcase.include?(f)
+          end
+        end
+      end
+
+
       # Blocks forever, yielding a Hash per message as it's published.
       # Caller (bus-watch) handles Ctrl-C / SIGINT.
       def subscribe(channel_name)

@@ -64,6 +64,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "registry: jaeger probe function exists" {
+  run bash -c "source $ZDOTDIR/lib/svc-registry.bash && declare -f zdots_probe_jaeger >/dev/null"
+  [ "$status" -eq 0 ]
+}
+
 @test "registry: colima probe function exists" {
   run bash -c "source $ZDOTDIR/lib/svc-registry.bash && declare -f zdots_probe_colima >/dev/null"
   [ "$status" -eq 0 ]
@@ -145,8 +150,8 @@ setup() {
     source $ZDOTDIR/lib/svc-registry.bash
     table1=\"\$(printf '%s\n' \"\${!_ZDOTS_PROBE_DISPATCH[@]}\" | sort | md5sum)\"
     # Can't reload the same module, so just verify the table is complete
-    # (11 managed services + ctx health-only probe)
-    [[ \${#_ZDOTS_PROBE_DISPATCH[@]} -eq 12 ]]
+    # (12 managed services + ctx health-only probe)
+    [[ \${#_ZDOTS_PROBE_DISPATCH[@]} -eq 13 ]]
   "
   [ "$status" -eq 0 ]
 }

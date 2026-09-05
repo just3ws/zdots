@@ -101,6 +101,7 @@ _svc_reg "llama|llama-server|com.zdots.llama-server|${_SVC_REG_STATE}/llama-serv
 _svc_reg "embed|llama-embed|com.zdots.llama-embed|${_SVC_REG_STATE}/llama-embed.log|llama-ctl|${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}|launchd|1|llama-embed embedding|install-embed|start-embed|stop-embed|restart-embed|status-embed||||zdots_probe_embed"
 _svc_reg "otel|otel-collector|com.zdots.otel-collector|${_SVC_REG_STATE}/otel-collector.log|otel-collector|http://127.0.0.1:4318|launchd|1|otel-collector telemetry collector|install|start|stop|restart|status|health|logs|validate|zdots_probe_otel"
 _svc_reg "o2|openobserve|com.zdots.openobserve|${_SVC_REG_STATE}/openobserve.log|openobserve-ctl|http://127.0.0.1:5080|launchd|1|openobserve observability obs telemetry-ui|install|start|stop|restart|status|health|logs||zdots_probe_o2"
+_svc_reg "jaeger|jaeger|com.zdots.jaeger|${_SVC_REG_STATE}/jaeger.log|jaeger-ctl|http://127.0.0.1:16686|launchd|1|jaeger tracing jaeger-ui|install|start|stop|restart|status|health|logs||zdots_probe_jaeger"
 _svc_reg "colima|colima|com.zdots.colima-autostart||colima||colima|1|vm docker||start|stop||status||logs||zdots_probe_colima"
 _svc_reg "nginx|nginx|homebrew.mxcl.nginx|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.localhost (+ llama/embed/o2/zdots.localhost)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate|zdots_probe_nginx"
 _svc_reg "postgres|postgresql@18|homebrew.mxcl.postgresql@18|${_SVC_REG_BREW}/var/log/postgresql@18.log||postgresql:///my (:5432)|plist|1|postgresql pg db database||start|stop|restart|status|health|||zdots_probe_postgres"
@@ -172,6 +173,10 @@ zdots_probe_otel() {
 
 zdots_probe_o2() {
   curl -sf --max-time 3 "${ZDOTS_SVC_ENDPOINT[o2]}/healthz" >/dev/null 2>&1
+}
+
+zdots_probe_jaeger() {
+  curl -sf --max-time 3 "${ZDOTS_SVC_ENDPOINT[jaeger]}/" >/dev/null 2>&1
 }
 
 zdots_probe_colima() {

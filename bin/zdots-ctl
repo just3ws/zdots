@@ -39,6 +39,7 @@ AI_ENDPOINT="$(zdots_svc_endpoint llama)"
 EMBED_ENDPOINT="$(zdots_svc_endpoint embed)"
 OTLP_ENDPOINT="$(zdots_svc_endpoint otel)"
 O2_ENDPOINT="$(zdots_svc_endpoint o2)"
+JAEGER_ENDPOINT="$(zdots_svc_endpoint jaeger)"
 REDIS_HOST="${ZDOTS_REDIS_HOST:-127.0.0.1}"
 REDIS_PORT="${ZDOTS_REDIS_PORT:-6379}"
 WAIT_TIMEOUT="${ZDOTS_BOOT_TIMEOUT:-90}"
@@ -71,6 +72,7 @@ _ai_socket_up()  { zdots_svc_loopback_listening "$AI_ENDPOINT"; }
 _embed_up()      { zdots_svc_healthy embed; }
 _otel_up()       { zdots_svc_healthy otel; }
 _o2_up()         { zdots_svc_healthy o2; }
+_jaeger_up()     { zdots_svc_healthy jaeger; }
 _colima_up()     { zdots_svc_healthy colima; }
 _ctx_up()        { zdots_svc_healthy ctx; }
 _redis_up()      { zdots_svc_healthy redis; }
@@ -121,7 +123,17 @@ cmd_up() {
     _ok "OpenObserve up"
   fi
 
-  # 2. otel-collector (forwards to OpenObserve)
+  # 2. Jaeger (native tracing & service map backend)
+  if _jaeger_up; then
+    _ok "Jaeger already up"
+  elif [ -x "$BIN/jaeger-ctl" ]; then
+    _info "starting Jaeger..."
+    "$BIN/jaeger-ctl" start
+    _wait_for "Jaeger" "${JAEGER_ENDPOINT}/" 30
+    _ok "Jaeger up"
+  fi
+
+  # 3. otel-collector (forwards to OpenObserve & Jaeger)
   if _otel_up; then
     _ok "otel-collector already running"
   else
@@ -201,6 +213,8 @@ cmd_down() {
   "$BIN/llama-ctl" stop 2>/dev/null || true
   _info "stopping OpenObserve..."
   "$BIN/openobserve-ctl" stop 2>/dev/null || true
+  _info "stopping Jaeger..."
+  "$BIN/jaeger-ctl" stop 2>/dev/null || true
   _ok "platform down"
   zdots_trace_log "platform_down" "complete"
 }
@@ -234,8 +248,9 @@ cmd_status() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local o2_up ai_up ai_socket_up embed_up otel_up colima_up ctx_up redis_up worker_up
+  local o2_up jaeger_up ai_up ai_socket_up embed_up otel_up colima_up ctx_up redis_up worker_up
   _o2_up      && o2_up=true     || o2_up=false
+  _jaeger_up  && jaeger_up=true || jaeger_up=false
   _ai_up      && ai_up=true     || ai_up=false
   _ai_socket_up && ai_socket_up=true || ai_socket_up=false
   _embed_up   && embed_up=true  || embed_up=false
@@ -252,9 +267,9 @@ cmd_status() {
   fi
 
   if $json; then
-    printf '{"colima":%s,"openobserve":%s,"otel_collector":%s,"ai_server":%s,"ai_http_healthy":%s,"ai_socket_listening":%s,"embed_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"worker":%s,"o2_url":"%s","ai_endpoint":"%s","embed_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
-      "$colima_up" "$o2_up" "$otel_up" "$ai_up" "$ai_up" "$ai_socket_up" "$embed_up" "$ai_model" "$ctx_up" "$redis_up" "$worker_up" \
-      "$O2_ENDPOINT" "$AI_ENDPOINT" "$EMBED_ENDPOINT" "$OTLP_ENDPOINT" "$REDIS_HOST" "$REDIS_PORT"
+    printf '{"colima":%s,"openobserve":%s,"jaeger":%s,"otel_collector":%s,"ai_server":%s,"ai_http_healthy":%s,"ai_socket_listening":%s,"embed_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"worker":%s,"o2_url":"%s","jaeger_url":"%s","ai_endpoint":"%s","embed_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
+      "$colima_up" "$o2_up" "$jaeger_up" "$otel_up" "$ai_up" "$ai_up" "$ai_socket_up" "$embed_up" "$ai_model" "$ctx_up" "$redis_up" "$worker_up" \
+      "$O2_ENDPOINT" "$JAEGER_ENDPOINT" "$AI_ENDPOINT" "$EMBED_ENDPOINT" "$OTLP_ENDPOINT" "$REDIS_HOST" "$REDIS_PORT"
     return
   fi
 
@@ -265,6 +280,7 @@ cmd_status() {
   printf 'zdots-ctl: platform status\n'
   printf '  %-20s %s  %s\n' "colima"         "$(_sym "$colima_up")" "$([ "$colima_up" = true ] && echo up || echo down)"
   printf '  %-20s %s  %s\n' "OpenObserve"    "$(_sym "$o2_up")"    "$O2_ENDPOINT"
+  printf '  %-20s %s  %s\n' "Jaeger"         "$(_sym "$jaeger_up")" "$JAEGER_ENDPOINT"
   printf '  %-20s %s  %s\n' "otel-collector" "$(_sym "$otel_up")"  "$OTLP_ENDPOINT"
   printf '  %-20s %s  %s (socket: %s)\n' "AI server" "$(_sym "$ai_up")" "$AI_ENDPOINT" "$ai_socket_up"
   printf '  %-20s %s  %s\n' "embed server"   "$(_sym "$embed_up")" "$EMBED_ENDPOINT"

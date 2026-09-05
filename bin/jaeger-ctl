@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+# bin/jaeger-ctl — Manage the native Jaeger tracing & service dependency backend.
+#
+# RATIONALE:
+# Single-binary, OTLP-native trace viewer and service dependency map (DAG)
+# engine. Provides the System Architecture / Service Map view missing from
+# OpenObserve open-source editions. Receives OTLP traces from the local OTel
+# Collector and serves the Jaeger UI on :16686 (jaeger.localhost).
+#
+# GRAMMAR (consistent with openobserve-ctl / otel-collector / llama-ctl):
+#   install / start / stop / restart / status / health / logs / config
+#   serve  — internal: launchd target; binds loopback and execs the binary.
+
+set -euo pipefail
+trap "" PIPE
+
+VERSION="1.60.0"
+OS=$(uname -s | tr "[:upper:]" "[:lower:]")
+ARCH=$(uname -m)
+[ "$ARCH" = "aarch64" ] && ARCH="arm64"
+[ "$ARCH" = "x86_64" ] && ARCH="amd64"
+
+# shellcheck disable=SC2034
+TARBALL_SHA256_darwin_arm64="26cb558177de475998e4a054a8a97a9fc1cb26e889575091b0d626473c9e8d8d"
+# shellcheck disable=SC2034
+TARBALL_SHA256_darwin_amd64="a8301da512d9671751a23fcb84f378a40ac1aa98f55cc0a1c96b9d93f6786e33"
+
+INSTALL_DIR="${HOME}/.local/bin"
+BINARY="${INSTALL_DIR}/jaeger-all-in-one"
+LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/jaeger.log"
+PLIST_LABEL="com.zdots.jaeger"
+PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
+
+# Loopback bind only (PHI safety).
+HOST="127.0.0.1"
+UI_PORT="16686"
+ADMIN_PORT="14269"
+COLLECTOR_GRPC_PORT="14250"
+COLLECTOR_HTTP_PORT="14268"
+OTLP_GRPC_PORT="14317"
+OTLP_HTTP_PORT="14318"
+ENDPOINT="http://${HOST}:${UI_PORT}"
+UI_CONFIG="${ZDOTDIR:-$HOME/.config/zsh}/etc/jaeger-ui.json"
+
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
+# shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
+SVC_NAME="jaeger"
+# shellcheck source=lib/svc-launchd.bash
+source "${ZDOTDIR:-$(pwd)}/lib/svc-launchd.bash"
+# shellcheck source=lib/svc-process.bash
+source "${ZDOTDIR:-$(pwd)}/lib/svc-process.bash"
+source "${ZDOTDIR:-$(pwd)}/lib/cli-help.bash"
+
+_die()  { printf "jaeger-ctl: error: %s\n" "$*" >&2; exit 1; }
+_info() { printf "jaeger-ctl: %s\n" "$*" >&2; }
+
+usage() {
+  cat <<EOF
+Usage: jaeger-ctl <command> [--json]
+
+Service Lifecycle:
+  install   Download + sha-verify the pinned binary and register launchd
+  start     Load and start the launchd service
+  stop      Unload and stop the service
+  restart   stop then start
+  status    Show service state and process info
+  health    Exit 0 if the Jaeger UI endpoint is reachable, else 1
+  logs      Tail the Jaeger log
+  config    Show endpoints and paths
+
+Internal:
+  serve     launchd target — binds loopback + execs binary (not for direct use)
+
+Endpoints:
+  UI             : ${ENDPOINT} (or https://jaeger.localhost)
+  OTLP gRPC      : ${HOST}:${OTLP_GRPC_PORT}
+  OTLP HTTP      : http://${HOST}:${OTLP_HTTP_PORT}
+  Admin / Health : http://${HOST}:${ADMIN_PORT}
+EOF
+}
+
+cmd_install() {
+  mkdir -p "$INSTALL_DIR" "$(dirname "$LOG_FILE")"
+
+  if [ -x "$BINARY" ]; then
+    _info "binary already present: $BINARY"
+  else
+    local sha_var="TARBALL_SHA256_${OS}_${ARCH}"
+    local expected_sha="${!sha_var:-}"
+    [ -n "$expected_sha" ] || _die "no pinned sha256 for ${OS}-${ARCH} (unsupported platform)"
+
+    local tarball="jaeger-${VERSION}-${OS}-${ARCH}.tar.gz"
+    local url="https://github.com/jaegertracing/jaeger/releases/download/v${VERSION}/${tarball}"
+    local tmp_dir; tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/jaeger-install.XXXXXX")
+    # shellcheck disable=SC2064
+    trap "rm -rf '$tmp_dir'" EXIT
+
+    _info "downloading ${url}..."
+    curl -fsSL --retry 3 -o "${tmp_dir}/${tarball}" "$url" || _die "download failed"
+
+    _info "verifying sha256..."
+    local actual_sha
+    actual_sha=$(shasum -a 256 "${tmp_dir}/${tarball}" | awk '{print $1}')
+    if [ "$actual_sha" != "$expected_sha" ]; then
+      _die "sha256 mismatch for ${tarball}: expected ${expected_sha}, got ${actual_sha}"
+    fi
+
+    _info "unpacking..."
+    tar -xzf "${tmp_dir}/${tarball}" -C "$tmp_dir"
+    cp "${tmp_dir}/jaeger-${VERSION}-${OS}-${ARCH}/jaeger-all-in-one" "$BINARY"
+    chmod +x "$BINARY"
+    _info "installed $BINARY"
+  fi
+
+  ZDOTS_SVC_ENV_KEYS="HOME ZDOTDIR" \
+    zdots_svc_launchd_register "$PLIST_LABEL" "$PLIST_FILE" "$SELF" "$LOG_FILE" "serve"
+  _info "registered launchd service ${PLIST_LABEL}"
+  _info "next: jaeger-ctl start   then open ${ENDPOINT} or https://jaeger.localhost"
+}
+
+cmd_serve() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+  [ -x "$BINARY" ] || _die "binary not found. Run 'jaeger-ctl install' first."
+
+  local prom_args=()
+  local o2_pw
+  o2_pw="$(/usr/bin/security find-generic-password -s zdots -a ZDOTS_O2_ROOT_PASSWORD -w 2>/dev/null || true)"
+  if [ -n "$o2_pw" ]; then
+    local encoded_pw
+    encoded_pw=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$o2_pw" 2>/dev/null || true)
+    if [ -n "$encoded_pw" ]; then
+      export METRICS_STORAGE_TYPE="prometheus"
+      prom_args+=(
+        --prometheus.server-url "http://root%40zdots.local:${encoded_pw}@127.0.0.1:5080/api/default/prometheus"
+        --prometheus.query.namespace "traces_span_metrics"
+        --prometheus.query.normalize-calls=false
+        --prometheus.query.normalize-duration=false
+        --prometheus.query.duration-unit=ms
+      )
+    fi
+  fi
+
+  exec "$BINARY" \
+    --admin.http.host-port "${HOST}:${ADMIN_PORT}" \
+    --collector.grpc-server.host-port "${HOST}:${COLLECTOR_GRPC_PORT}" \
+    --collector.http-server.host-port "${HOST}:${COLLECTOR_HTTP_PORT}" \
+    --collector.otlp.grpc.host-port "${HOST}:${OTLP_GRPC_PORT}" \
+    --collector.otlp.http.host-port "${HOST}:${OTLP_HTTP_PORT}" \
+    --http-server.host-port "${HOST}:5778" \
+    --processor.jaeger-binary.server-host-port "${HOST}:6832" \
+    --processor.jaeger-compact.server-host-port "${HOST}:6831" \
+    --processor.zipkin-compact.server-host-port "${HOST}:5775" \
+    --query.grpc-server.host-port "${HOST}:16685" \
+    --query.http-server.host-port "${HOST}:${UI_PORT}" \
+    --query.ui-config "${UI_CONFIG}" \
+    "${prom_args[@]}"
+}
+
+cmd_start() {
+  [ -x "$BINARY" ] || _die "binary not found. Run 'jaeger-ctl install' first."
+  zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
+}
+
+cmd_stop() { zdots_svc_launchd_stop "$PLIST_LABEL"; }
+
+cmd_restart() {
+  cmd_stop || true
+  sleep 1
+  cmd_start
+}
+
+cmd_status() {
+  local json=false; [ "${1:-}" = "--json" ] && json=true
+  local running pid state healthy
+  state=$(zdots_svc_launchd_status "$PLIST_LABEL")
+  running=$(echo "$state" | awk '{print $1}')
+  pid=$(echo "$state" | awk '{print $2}')
+  zdots_svc_health_check_url "${ENDPOINT}/" "GET" "" && healthy=true || healthy=false
+  zdots_svc_print_status "$json" "$running" "$pid" "$ENDPOINT" "$LOG_FILE" "healthy=${healthy}"
+}
+
+cmd_health() {
+  local json=false; [ "${1:-}" = "--json" ] && json=true
+  local healthy
+  zdots_svc_health_check_url "${ENDPOINT}/" "GET" "" && healthy=true || healthy=false
+  zdots_svc_print_health "$json" "$healthy" "$ENDPOINT"
+}
+
+cmd_logs() { zdots_svc_logs "$LOG_FILE"; }
+
+cmd_config() {
+  local json=false; [ "${1:-}" = "--json" ] && json=true
+  if $json; then
+    printf "{\n"
+    printf "  \"version\": \"%s\",\n" "$VERSION"
+    printf "  \"binary\": \"%s\",\n" "$BINARY"
+    printf "  \"ui_endpoint\": \"%s\",\n" "$ENDPOINT"
+    printf "  \"otlp_grpc\": \"%s:%s\",\n" "$HOST" "$OTLP_GRPC_PORT"
+    printf "  \"otlp_http\": \"http://%s:%s\",\n" "$HOST" "$OTLP_HTTP_PORT"
+    printf "  \"admin_endpoint\": \"http://%s:%s\",\n" "$HOST" "$ADMIN_PORT"
+    printf "  \"log_file\": \"%s\",\n" "$LOG_FILE"
+    printf "  \"plist\": \"%s\"\n" "$PLIST_FILE"
+    printf "}\n"
+  else
+    printf "Jaeger Configuration:\n"
+    printf "  Version         : %s\n" "$VERSION"
+    printf "  Binary          : %s\n" "$BINARY"
+    printf "  UI Endpoint     : %s\n" "$ENDPOINT"
+    printf "  OTLP gRPC       : %s:%s\n" "$HOST" "$OTLP_GRPC_PORT"
+    printf "  OTLP HTTP       : http://%s:%s\n" "$HOST" "$OTLP_HTTP_PORT"
+    printf "  Admin Endpoint  : http://%s:%s\n" "$HOST" "$ADMIN_PORT"
+    printf "  Log File        : %s\n" "$LOG_FILE"
+    printf "  Launchd Plist   : %s\n" "$PLIST_FILE"
+  fi
+}
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  install)  cmd_install "$@" ;;
+  start)    cmd_start "$@" ;;
+  stop)     cmd_stop "$@" ;;
+  restart)  cmd_restart "$@" ;;
+  status)   cmd_status "$@" ;;
+  health)   cmd_health "$@" ;;
+  logs)     cmd_logs "$@" ;;
+  config)   cmd_config "$@" ;;
+  serve)    cmd_serve "$@" ;;
+  -h|--help) usage; exit 0 ;;
+  "")        usage >&2; exit 1 ;;
+  *)         _die "unknown command: $cmd" ;;
+esac

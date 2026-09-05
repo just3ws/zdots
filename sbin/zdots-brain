@@ -129,6 +129,8 @@ module Zdots
         cmd_rekey(args)
       when "bus-channels"
         cmd_bus_channels(args)
+      when "bus-chats", "bus-inbox"
+        cmd_bus_chats(args)
       when "bus-create-channel"
         cmd_bus_create_channel(args)
       when "bus-set-protocol"
@@ -167,7 +169,11 @@ module Zdots
         opts.on("--as PARTICIPANT", "bus-*: participant identity") { |v| @options[:as] = v }
         opts.on("--thread ID", "bus-post/bus-read: thread root message id") { |v| @options[:thread] = v unless v.empty? }
         opts.on("--since ID", "bus-read: only messages after this message id") { |v| @options[:since] = v unless v.empty? }
-        opts.on("--unread", "bus-read: only unread messages for the resolved participant") { @options[:unread] = true }
+        opts.on("--unread", "bus-read/bus-chats: only unread messages") { @options[:unread] = true }
+        opts.on("--pending", "bus-chats: only channels with pending questions or unread items") { @options[:pending] = true }
+        opts.on("--waiting", "bus-chats: only channels waiting for reply") { @options[:waiting] = true }
+        opts.on("--stale", "bus-chats: only stale channels (>48h inactive)") { @options[:stale] = true }
+        opts.on("--filter FILTER", "bus-chats: filter by status (unread/pending/waiting/stale) or keyword") { |f| @options[:filter] = f }
         opts.on("--tag TAG", "bus-read: only messages tagged #TAG") { |v| @options[:tag] = v }
         opts.on("--mention NAME", "bus-read: only messages mentioning @NAME") { |v| @options[:mention] = v }
         opts.on("--search TERM", "bus-read: only messages whose body contains TERM") { |v| @options[:search] = v }
@@ -713,6 +719,70 @@ module Zdots
         unread = name ? Zdots::Bus.unread(c.name, name).size : "?"
         printf "%-20s | %-7s | %s\n", c.name, unread, c.topic
         puts "  protocol: #{c.protocol}" if c.protocol && !c.protocol.empty?
+      end
+    end
+
+    def cmd_bus_chats(args)
+      name = @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", "mike")
+      channel_arg = args.shift
+
+      filter = @options[:filter]
+      filter ||= "unread" if @options[:unread]
+      filter ||= "pending" if @options[:pending]
+      filter ||= "waiting" if @options[:waiting]
+      filter ||= "stale" if @options[:stale]
+
+      chats = Zdots::Bus.chats(name, filter: filter, channel_name: channel_arg)
+
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(chats)
+        return
+      end
+
+      if chats.empty?
+        filter_msg = filter ? " matching filter #{filter.inspect}" : ""
+        puts "zdots-brain: no chats found#{filter_msg}."
+        return
+      end
+
+      if channel_arg
+        chat = chats.first
+        puts "CHANNEL:  #{chat[:channel]}"
+        puts "Topic:    #{chat[:topic]}" if chat[:topic] && !chat[:topic].empty?
+        puts "Protocol: #{chat[:protocol]}" if chat[:protocol] && !chat[:protocol].empty?
+        puts "Status:   #{chat[:status]} | Unread: #{chat[:unread]} | Total: #{chat[:total]} | Active: #{chat[:last_active]} (#{chat[:last_sender]})"
+        puts ""
+
+        if chat[:pending_messages].empty?
+          puts "No pending messages for #{name} in #{chat[:channel]}."
+        else
+          puts "Pending / Unread Messages (#{chat[:pending_messages].size}):"
+          chat[:pending_messages].each do |pm|
+            type_str = pm[:type] ? "[#{pm[:type]}] " : ""
+            reason_str = " (#{pm[:reason]})"
+            puts "  • [#{pm[:age]}] #{pm[:sender]}#{reason_str}: #{type_str}#{pm[:body].gsub(/\s+/, ' ').strip[0..100]}"
+          end
+        end
+        return
+      end
+
+      printf "%-20s | %-6s | %-13s | %-15s | %-10s | %s\n", "CHANNEL", "UNREAD", "STATUS", "LAST SENDER", "ACTIVE", "LAST MESSAGE"
+      printf "%-20s-+-%-6s-+-%-13s-+-%-15s-+-%-10s-+-%s\n", "-" * 20, "-" * 6, "-" * 13, "-" * 15, "-" * 10, "-" * 40
+      chats.each do |c|
+        printf "%-20s | %-6s | %-13s | %-15s | %-10s | %s\n",
+               c[:channel], c[:unread], c[:status], c[:last_sender], c[:last_active], c[:snippet]
+      end
+
+      pending_chats = chats.select { |c| c[:waiting_for_reply] || !c[:pending_messages].empty? }
+      if (@options[:pending] || @options[:waiting] || filter == "pending" || filter == "waiting") && pending_chats.any?
+        puts ""
+        puts "Pending items requiring attention (#{name}):"
+        pending_chats.each do |c|
+          c[:pending_messages].each do |pm|
+            type_str = pm[:type] ? "[#{pm[:type]}] " : ""
+            puts "  • [#{c[:channel]}] #{pm[:sender]} (#{pm[:age]}, #{pm[:reason]}): #{type_str}#{pm[:body].gsub(/\s+/, ' ').strip[0..90]}"
+          end
+        end
       end
     end
 

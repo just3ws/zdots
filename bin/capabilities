@@ -267,16 +267,25 @@ else
     echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${YELLOW}missing${RESET}]"
   fi
 fi
-# OTel Resource Info
-if [ -n "${_ZDOTS_OTEL_RESOURCE_JSON:-}" ]; then
-  if [ "$OUTPUT_FORMAT" = "text" ]; then
-    echo "  ${CYAN}OTel Resource:${RESET}"
-    if command -v jq >/dev/null 2>&1; then
-      echo "$_ZDOTS_OTEL_RESOURCE_JSON" | jq -r '.attributes[] | "    - \(.key): \(.value | to_entries[0].value)"'
-    else
-      # Fallback if jq is missing (less pretty)
-      echo "$_ZDOTS_OTEL_RESOURCE_JSON" | sed 's/[{}]//g' | tr ',' '\n'
-    fi
+# Observability backends (OpenObserve & Jaeger)
+_o2_live=0
+if curl -sf -m 2 "http://127.0.0.1:5080/healthz" >/dev/null 2>&1; then
+  _o2_live=1
+fi
+_jaeger_live=0
+if curl -sf -m 2 "http://127.0.0.1:16686/" >/dev/null 2>&1; then
+  _jaeger_live=1
+fi
+if [ "$OUTPUT_FORMAT" = "text" ]; then
+  if [ "$_o2_live" = "1" ]; then
+    printf "  %bOpenObserve:%b   %bonline%b (http://127.0.0.1:5080)\n" "$CYAN" "$RESET" "$GREEN" "$RESET"
+  else
+    printf "  %bOpenObserve:%b   %boffline%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
+  fi
+  if [ "$_jaeger_live" = "1" ]; then
+    printf "  %bJaeger:%b        %bonline%b (https://jaeger.localhost · :16686)\n" "$CYAN" "$RESET" "$GREEN" "$RESET"
+  else
+    printf "  %bJaeger:%b        %boffline%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
   fi
 fi
 
@@ -395,6 +404,8 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg trace_file "$_z_trace_file" \
       --arg last_trace "$_ts" \
       --arg trace_age "$_trace_age_seconds" \
+      --arg o2_live "$_o2_live" \
+      --arg jaeger_live "$_jaeger_live" \
       --arg ctx_live "$_ctx_live" \
       --arg ctx_db "$_ctx_db" \
       --arg ctx_pending "$_ctx_pending" \
@@ -440,7 +451,9 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
         observability: {
           trace_file: $trace_file,
           last_trace: $last_trace,
-          last_trace_age_seconds: $trace_age
+          last_trace_age_seconds: $trace_age,
+          openobserve: ($o2_live | tonumber),
+          jaeger: ($jaeger_live | tonumber)
         },
         diagnostics: {
           log_analyzer: ($diag_available | tonumber),

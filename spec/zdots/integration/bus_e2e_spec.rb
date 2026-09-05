@@ -173,4 +173,48 @@ RSpec.describe "Message bus E2E", :integration do
     expect(updated.protocol).to eq("On-topic: X. Evidence standard: Y.")
     expect(updated.topic).to eq("test channel")
   end
+
+  it "summarizes chats with unreads, waiting-for-reply, and pending messages" do
+    Zdots::Bus.create_channel(channel, topic: "chats test")
+
+    post_as("agent-a", channel, "hello @agent-b what is the status?")
+
+    # From agent-b's perspective: unread=1, status=MENTIONED / QUESTION, waiting_for_reply=true
+    chats_for_b = Zdots::Bus.chats("agent-b", channel_name: channel)
+    chat_b = chats_for_b.first
+    expect(chat_b[:channel]).to eq(channel)
+    expect(chat_b[:unread]).to eq(1)
+    expect(chat_b[:status]).to eq("MENTIONED")
+    expect(chat_b[:waiting_for_reply]).to be true
+    expect(chat_b[:has_pending]).to be true
+    expect(chat_b[:pending_messages].size).to eq(1)
+
+    # From agent-a's perspective: unread=0, status=REPLIED
+    chats_for_a = Zdots::Bus.chats("agent-a", channel_name: channel)
+    chat_a = chats_for_a.first
+    expect(chat_a[:unread]).to eq(0)
+    expect(chat_a[:status]).to eq("REPLIED")
+    expect(chat_a[:waiting_for_reply]).to be false
+
+    # Agent-b replies
+    post_as("agent-b", channel, "all good")
+    chats_after_reply = Zdots::Bus.chats("agent-b", channel_name: channel)
+    expect(chats_after_reply.first[:status]).to eq("REPLIED")
+    expect(chats_after_reply.first[:waiting_for_reply]).to be false
+  end
+
+  it "filters chats by unread, waiting, and pending" do
+    Zdots::Bus.create_channel(channel, topic: "filter test")
+    post_as("agent-a", channel, "ping @agent-b")
+
+    unread_chats = Zdots::Bus.chats("agent-b", filter: "unread")
+    expect(unread_chats.map { |c| c[:channel] }).to include(channel)
+
+    waiting_chats = Zdots::Bus.chats("agent-b", filter: "waiting")
+    expect(waiting_chats.map { |c| c[:channel] }).to include(channel)
+
+    # agent-a has no unread in this channel
+    unread_a = Zdots::Bus.chats("agent-a", filter: "unread")
+    expect(unread_a.map { |c| c[:channel] }).not_to include(channel)
+  end
 end

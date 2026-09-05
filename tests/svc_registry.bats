@@ -39,10 +39,10 @@ setup() {
 
 # ── Managed set ─────────────────────────────────────────────────────────────
 
-@test "registry: managed list is the eleven zsvc-controllable services in order" {
+@test "registry: managed list is the twelve zsvc-controllable services in order" {
   run zdots_svc_managed
   [ "$status" -eq 0 ]
-  expected=$'llama\nembed\notel\no2\ncolima\nnginx\npostgres\nredis\nworker\nstatus\ngemstash'
+  expected=$'llama\nembed\notel\no2\njaeger\ncolima\nnginx\npostgres\nredis\nworker\nstatus\ngemstash'
   [ "$output" = "$expected" ]
 }
 

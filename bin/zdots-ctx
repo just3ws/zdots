@@ -27,6 +27,8 @@
 #   result <job_id>  Fetch a completed job's structured result (JSON)
 #   worker    [--type T] Run a worker to process queued jobs
 #   bus-channels  List message-bus channels (+ unread count, protocol if set)
+#   bus-chats [ch] [--unread] [--pending] [--waiting] [--stale] [--filter F] Chat list overview
+#   bus-inbox [ch] [--unread] [--pending] [--waiting] [--stale] Alias for bus-chats
 #   bus-create-channel <name> [topic...]
 #   bus-set-protocol <channel> <text...>  Set/update a channel's engagement protocol
 #   bus-post <channel> <text> [--type KIND] [--thread ID] [--as PARTICIPANT]
@@ -113,6 +115,9 @@ Knowledge Layer Interface:
   jobs      List pending and recent jobs
   worker    [--type T] Run a worker to process queued jobs
   bus-channels  List message-bus channels (+ unread count for --as/ZDOTS_BUS_PARTICIPANT, protocol if set)
+  bus-chats [ch] [--unread] [--pending] [--waiting] [--stale] [--filter F]
+                Chat list overview: unreads, waiting-for-reply, pending questions, stale activity
+  bus-inbox     Alias for bus-chats
   bus-create-channel <name> [topic...]
   bus-set-protocol <channel> <text...>  Set/update a channel's engagement protocol (TOS: what's on-topic, evidence standard)
   bus-post <channel> <text> [--type KIND] [--thread ID] [--as PARTICIPANT]  --type: STATUS/PROPOSAL/CORRECTION/QUESTION/ACK/freeform
@@ -570,6 +575,14 @@ cmd_bus_channels() {
   "${ZDOTDIR}/sbin/zdots-brain" bus-channels "$@"
 }
 
+cmd_bus_chats() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-chats "$@"
+}
+
+cmd_bus_inbox() {
+  "${ZDOTDIR}/sbin/zdots-brain" bus-inbox "$@"
+}
+
 cmd_bus_create_channel() {
   "${ZDOTDIR}/sbin/zdots-brain" bus-create-channel "$@"
 }
@@ -906,6 +919,8 @@ case "${1:-}" in
   reprocess-series) shift; cmd_reprocess_series "$@" ;;
   worker)          shift; cmd_worker "$@" ;;
   bus-channels)        shift; cmd_bus_channels "$@" ;;
+  bus-chats)           shift; cmd_bus_chats "$@" ;;
+  bus-inbox)           shift; cmd_bus_inbox "$@" ;;
   bus-create-channel)  shift; cmd_bus_create_channel "$@" ;;
   bus-set-protocol)    shift; cmd_bus_set_protocol "$@" ;;
   bus-post)            shift; cmd_bus_post "$@" ;;

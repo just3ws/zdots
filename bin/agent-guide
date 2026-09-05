@@ -42,6 +42,7 @@ done
 AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 OTEL_ENDPOINT="http://127.0.0.1:4318"
 O2_URL="http://127.0.0.1:5080"
+JAEGER_URL="http://127.0.0.1:16686"
 LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
 AGENT_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 LOG_ANALYZER="${AGENT_ZDOTDIR}/bin/zdots-log-analyze"
@@ -59,6 +60,7 @@ AI_UP=false
 AI_MODEL_ID="unknown"
 OTEL_UP=false
 O2_UP=false
+JAEGER_UP=false
 COLIMA_UP=false
 
 CONTROL_STATUS_JSON=""
@@ -77,6 +79,8 @@ if [ -n "$CONTROL_STATUS_JSON" ] && printf '%s\n' "$CONTROL_STATUS_JSON" | jq -e
   OTEL_ENDPOINT=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.otlp_endpoint // "'"$OTEL_ENDPOINT"'"')
   O2_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.openobserve // false')
   O2_URL=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.o2_url // "'"$O2_URL"'"')
+  JAEGER_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.jaeger // false')
+  JAEGER_URL=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.jaeger_url // "'"$JAEGER_URL"'"')
   COLIMA_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.colima // false')
 else
   if curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; then
@@ -91,6 +95,10 @@ else
 
   if curl -sf -m 2 "${O2_URL}/healthz" >/dev/null 2>&1; then
     O2_UP=true
+  fi
+
+  if curl -sf -m 2 "${JAEGER_URL}/" >/dev/null 2>&1; then
+    JAEGER_UP=true
   fi
 
   # Colima is optional now (container workloads only, not observability).
@@ -132,6 +140,8 @@ if $JSON; then
     --argjson colima_up    "$COLIMA_UP" \
     --argjson o2_up        "$O2_UP" \
     --arg     o2_url       "$O2_URL" \
+    --argjson jaeger_up    "$JAEGER_UP" \
+    --arg     jaeger_url   "$JAEGER_URL" \
     --argjson whisper_up   "$WHISPER_UP" \
     --argjson fabric_up    "$FABRIC_UP" \
     --arg     current_user "$CURRENT_USER" \
@@ -149,7 +159,8 @@ if $JSON; then
         fabric_ai:   { up: $fabric_up,                                           start: "brew install fabric-ai" },
         otelcol:     { up: $otel_up,    endpoint: $otel_ep,                      start: "otel-collector start" },
         colima:      { up: $colima_up,                                            start: "colima start" },
-        openobserve: { up: $o2_up,      url: $o2_url,                            start: "zsvc start o2" }
+        openobserve: { up: $o2_up,      url: $o2_url,                            start: "zsvc start o2" },
+        jaeger:      { up: $jaeger_up,  url: $jaeger_url, vhost: "https://jaeger.localhost", start: "zsvc start jaeger" }
       },
       ai: {
         mode:              $ai_mode,
@@ -169,7 +180,9 @@ if $JSON; then
         otlp_grpc_endpoint:  "grpc://127.0.0.1:4317",
         protocol:            "http/protobuf",
         backend:             "openobserve",
-        ui_url:              $o2_url
+        ui_url:              $o2_url,
+        jaeger_url:          $jaeger_url,
+        jaeger_vhost:        "https://jaeger.localhost"
       },
       env: {
         ZDOTS_DATABASE_URL:            "postgresql://zdots_rw@/my",
@@ -394,7 +407,13 @@ else
   printf '%s\n' "$(_down "OpenObserve (logs/metrics/traces)")"
 fi
 
-if ! $AI_UP || ! $OTEL_UP || ! $O2_UP; then
+if $JAEGER_UP; then
+  printf '%s  %s (https://jaeger.localhost)\n' "$(_ok "Jaeger (tracing/service map/SPM)")" "$JAEGER_URL"
+else
+  printf '%s\n' "$(_down "Jaeger (tracing/service map/SPM)")"
+fi
+
+if ! $AI_UP || ! $OTEL_UP || ! $O2_UP || ! $JAEGER_UP; then
   printf '\n  To bring everything up: zdots-ctl up\n'
 fi
 
@@ -618,6 +637,10 @@ OPENOBSERVE:  ${O2_URL}  (login: root@zdots.local, password in Keychain)
   - Traces → OpenObserve
   - Logs   → OpenObserve
   - Metrics → OpenObserve (includes RED metrics auto-derived from traces)
+
+JAEGER:       ${JAEGER_URL}  (https://jaeger.localhost)
+  - Service Map / System Architecture DAG: https://jaeger.localhost/
+  - Service Performance Monitoring (SPM):  https://jaeger.localhost/monitor
 
 VERIFY CONNECTIVITY:
   curl -sf ${OTEL_ENDPOINT}/v1/traces \

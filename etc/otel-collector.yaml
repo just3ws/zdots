@@ -157,17 +157,27 @@ exporters:
       enabled: true
     sending_queue:
       enabled: true
+  # Jaeger (native, :14318 OTLP HTTP). Receives trace spans in parallel with
+  # OpenObserve for Service Map / DAG system architecture visualization.
+  otlp_http/jaeger:
+    endpoint: "http://127.0.0.1:14318"
+    tls:
+      insecure: true
+    retry_on_failure:
+      enabled: true
+    sending_queue:
+      enabled: true
 
 service:
   telemetry:
     logs:
       level: warn
   pipelines:
-    # Traces from apps → spanmetrics connector → OpenObserve
+    # Traces from apps → spanmetrics connector → OpenObserve & Jaeger
     traces:
       receivers: [otlp]
       processors: [resourcedetection, batch]
-      exporters: [debug, file, otlp_http/openobserve, spanmetrics]
+      exporters: [debug, file, otlp_http/openobserve, otlp_http/jaeger, spanmetrics]
     # Metrics from apps + host + containers + spanmetrics
     metrics:
       receivers: [otlp, hostmetrics, spanmetrics]

@@ -28,7 +28,7 @@ ACC_LOG="${BREW_PREFIX}/var/log/nginx/access.log"
 # nginx-regen-certs as part of its cert SAN union. All on .localhost
 # (decision-011/Z-205: RFC 6761, no /etc/hosts needed); my/dev.my are
 # ~/my-owned; tenant vhosts (work-extension layer) are cert SAN only, not probed.
-HOSTS=(llama.localhost embed.localhost o2.localhost zdots.localhost gemstash.localhost my.localhost)
+HOSTS=(llama.localhost embed.localhost o2.localhost jaeger.localhost zdots.localhost gemstash.localhost my.localhost)
 
 _ok()   { printf 'nginx-ctl: [ok]  %s\n' "$*" >&2; }
 _warn() { printf 'nginx-ctl: [!!]  %s\n' "$*" >&2; }

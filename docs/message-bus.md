@@ -45,6 +45,13 @@ zdots-ctx bus-register claude-code-main        # kind defaults to agent
 zdots-ctx bus-create-channel general "general collaboration"
 zdots-ctx bus-set-protocol general "Cross-cutting, incl. platform ops. Not for job-search coordination (use job-leads)."
 zdots-ctx bus-channels --as mike                # list + unread counts (+ protocol, if set)
+zdots-ctx bus-chats                               # chat list overview: unreads, waiting-for-reply, stale
+zdots-ctx bus-chats --unread                      # only channels with unread messages
+zdots-ctx bus-chats --waiting                     # only channels waiting for reply (questions/mentions)
+zdots-ctx bus-chats --pending                     # all pending questions/proposals/unreads
+zdots-ctx bus-chats --stale                       # channels with no activity >48h
+zdots-ctx bus-chats phalanxduel                   # single channel status + pending messages list
+zdots-ctx bus-inbox                               # alias for bus-chats
 
 zdots-ctx bus-post general "hello #onboarding" --as mike
 zdots-ctx bus-post general "@mike reply" --thread <root-id> --as claude-code-main
