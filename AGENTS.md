@@ -9,7 +9,7 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
      closes a session rewrites this whole block in place — step one, before
      the wrap-up summary — then commits it. `git log` + Backlog are truth for
      exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-09-05-4.md
+     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-09-05-9.md
      (local-only; that file, not "the newest handoff", is the pointer).
      ═══════════════════════════════════════════════════════════════════════
 
@@ -21,8 +21,7 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   Pre-scrub bundles: ~/backups/platform-pre-public-2026-09-01/ (local only —
   they carry the un-scrubbed history; never share).
 
-  In flight: nothing half-built. `~/my` has one pre-existing untracked
-  personal-vault conversation file — not ours, leave it.
+  In flight: clean landing, all systems green.
 
   Live tasks (Backlog):
     Z-342  (Med) context-engine: expose scenario manifest catalog and ingest
@@ -45,11 +44,15 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
     PAT rotation (web UI): `Refined GitHub` + `JEKYLL_GITHUB_TOKEN` are
     no-expiry. Z-334 coordination with the just3ws.github.io agent.
 
-  Recently DONE: publication + security + beacon (above); Z-323 (trace_log
-  set -e), Z-325 (nginx-regen-certs --prune), Z-327 (this block), Z-329
-  (career-search containment — orphans removed; tool now lives in ~/my),
-  Z-332/335 (career-search Tier-2 filed / grpc HIGH bumped),
-  www.just3ws.localhost made canonical.
+  Recently DONE:
+    - Message Bus Fluent DSL & Route Guide (`zdots-bus`, `bus` symlink,
+      `bus-schedule`, background coordinator `busdriver`, terminal hyperlinks,
+      capabilities/agent-guide publication).
+    - Ack & Fzf Complete Platform Parity (Andy Lester's ack first-class,
+      `~/.ackrc` hardened with `--nofilter` & rich types, live streaming `fack`
+      and `fackf` in zsh, `ack.vim` + `fzf-lua` + Telescope `vimgrep_arguments`
+      + `Trouble` quickfix in Neovim, full shortcut and prompt parity).
+    - Platform publication, security hardening, and beacon `0668026.M3`.
 
 ---
 
