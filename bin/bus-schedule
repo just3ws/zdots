@@ -131,11 +131,11 @@ cat << "PASSENGERS_HEADER" >> "$INDEX_MD"
 
 ## 👥 Passenger & Agent Roster
 
-| Participant | Kind | Last Seen | Token Auth | Since |
-|-------------|------|-----------|------------|-------|
+| Participant | Kind | Last Seen | Token Auth | Status | Since |
+|-------------|------|-----------|------------|--------|-------|
 PASSENGERS_HEADER
 
-printf '%s\n' "$PASSENGERS_JSON" | jq -r '.[] | "| `\(.name)` | \(.kind) | \(.last_seen) | \(if .has_token then "✓ active" else "—" end) | \(.created_at[0:10]) |"' >> "$INDEX_MD"
+printf '%s\n' "$PASSENGERS_JSON" | jq -r '.[] | "| `\(.name)` | \(.kind) | \(.last_seen) | \(if .has_token then "✓ active" else "—" end) | \(.presence // "in-service") | \(.created_at[0:10]) |"' >> "$INDEX_MD"
 
 cat << "LOGBOOK_HEADER" >> "$INDEX_MD"
 

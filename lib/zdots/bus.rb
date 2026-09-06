@@ -26,6 +26,15 @@ module Zdots
     TAG_PATTERN = /(?<!\S)#([a-zA-Z0-9_-]+)/
     MENTION_PATTERN = /(?<!\S)@([a-zA-Z0-9_-]+)/
 
+    PRESENCE_PRESETS = {
+      "tests"   => "Running automated test suite / CI",
+      "review"  => "Deep code review / diff analysis",
+      "afk"     => "Away from keyboard / break",
+      "lunch"   => "Away for meal / coffee break",
+      "busy"    => "High-focus deep work / non-interruptible",
+      "offline" => "Off-shift / session closed"
+    }.freeze
+
     class << self
       def create_channel(name, topic: nil, protocol: nil)
         Models::BusChannel.find_or_create(name: name) { |c| c.topic = topic; c.protocol = protocol }
@@ -465,6 +474,8 @@ module Zdots
       def set_presence(participant_name, status: "layover", reason: nil, eta: nil)
         participant = Models::BusParticipant.resolve(participant_name)
         sanitized_reason = sanitize_text(reason, max_bytes: 512)
+        lookup = sanitized_reason.to_s.strip.downcase
+        final_reason = PRESENCE_PRESETS[lookup] || (sanitized_reason.empty? ? "Away / AFK" : sanitized_reason)
         eta_seconds = parse_duration(eta)
         eta_str = eta.to_s.strip unless eta.to_s.strip.empty?
         started_at = Time.now
@@ -472,7 +483,7 @@ module Zdots
         payload = {
           participant: participant.name,
           status: status,
-          reason: sanitized_reason.empty? ? "Away / AFK" : sanitized_reason,
+          reason: final_reason,
           eta: eta_str,
           eta_seconds: eta_seconds,
           eta_at: eta_seconds ? (started_at + eta_seconds).iso8601 : nil,
@@ -486,6 +497,41 @@ module Zdots
           redis_cmd("SET", key, JSON.generate(payload))
         end
         payload
+      end
+
+      def board
+        passengers = participants
+        in_service = []
+        on_layover = []
+
+        passengers.each do |p|
+          det = p[:presence_detail]
+          if det && det[:status] == "layover"
+            countdown = nil
+            if det[:eta_at]
+              remaining = (Time.parse(det[:eta_at]) - Time.now).to_i
+              countdown = remaining.positive? ? format_age(remaining) : "expired"
+            end
+            on_layover << {
+              name: p[:name],
+              kind: p[:kind],
+              reason: det[:reason],
+              eta: det[:eta],
+              countdown: countdown,
+              started_at: det[:started_at],
+              age: det[:started_at] ? format_age(Time.now - Time.parse(det[:started_at])) : nil
+            }
+          else
+            in_service << {
+              name: p[:name],
+              kind: p[:kind],
+              last_seen: p[:last_seen],
+              has_token: p[:has_token]
+            }
+          end
+        end
+
+        { in_service: in_service, on_layover: on_layover }
       end
 
       def get_presence(participant_name)

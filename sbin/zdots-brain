@@ -149,6 +149,8 @@ module Zdots
         cmd_bus_register(args)
       when "bus-passengers", "bus-riders", "bus-participants"
         cmd_bus_passengers(args)
+      when "bus-board", "bus-transit", "bus-departures"
+        cmd_bus_board(args)
       when "bus-logbook", "bus-lost-and-found"
         cmd_bus_logbook(args)
       when "bus-conversations", "bus-threads"
@@ -957,13 +959,47 @@ module Zdots
         puts JSON.pretty_generate(passengers)
         return
       end
-      printf "%-22s | %-8s | %-12s | %-7s | %s\n", "NAME", "KIND", "LAST SEEN", "TOKEN", "SINCE"
-      printf "%-22s-+-%-8s-+-%-12s-+-%-7s-+-%s\n", "-" * 22, "-" * 8, "-" * 12, "-" * 7, "-" * 10
+      printf "%-20s | %-8s | %-12s | %-7s | %-18s | %s\n", "NAME", "KIND", "LAST SEEN", "TOKEN", "STATUS", "SINCE"
+      printf "%-20s-+-%-8s-+-%-12s-+-%-7s-+-%-18s-+-%s\n", "-" * 20, "-" * 8, "-" * 12, "-" * 7, "-" * 18, "-" * 10
       passengers.each do |p|
         since = p[:created_at] ? p[:created_at].strftime("%Y-%m-%d") : "-"
-        printf "%-22s | %-8s | %-12s | %-7s | %s\n",
-               p[:name], p[:kind], p[:last_seen], (p[:has_token] ? "yes" : "no"), since
+        printf "%-20s | %-8s | %-12s | %-7s | %-18s | %s\n",
+               p[:name], p[:kind], p[:last_seen], (p[:has_token] ? "yes" : "no"), (p[:presence] || "in-service"), since
       end
+    end
+
+    def cmd_bus_board(_args)
+      b = Zdots::Bus.board
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(b)
+        return
+      end
+      puts "================================================================================"
+      puts "                   🚌 ZDOTS TRANSIT TERMINAL BOARD"
+      puts "================================================================================"
+      puts "\n🟢 IN-SERVICE (ACTIVE RIDERS)"
+      printf "%-20s | %-8s | %-12s | %s\n", "NAME", "KIND", "LAST SEEN", "AUTH"
+      printf "%-20s-+-%-8s-+-%-12s-+-%s\n", "-" * 20, "-" * 8, "-" * 12, "-" * 6
+      if b[:in_service].empty?
+        puts "  (none)"
+      else
+        b[:in_service].each do |p|
+          printf "%-20s | %-8s | %-12s | %s\n", p[:name], p[:kind], p[:last_seen], (p[:has_token] ? "✓ active" : "—")
+        end
+      end
+
+      puts "\n🟡 ON LAYOVER (DEPARTED / AFK)"
+      printf "%-18s | %-8s | %-26s | %-8s | %s\n", "NAME", "KIND", "REASON", "ETA", "REMAINING"
+      printf "%-18s-+-%-8s-+-%-26s-+-%-8s-+-%s\n", "-" * 18, "-" * 8, "-" * 26, "-" * 8, "-" * 10
+      if b[:on_layover].empty?
+        puts "  (none on layover — all active)"
+      else
+        b[:on_layover].each do |p|
+          printf "%-18s | %-8s | %-26s | %-8s | %s\n",
+                 p[:name], p[:kind], p[:reason].to_s[0..25], (p[:eta] || "—"), (p[:countdown] || "—")
+        end
+      end
+      puts "================================================================================"
     end
 
     def cmd_bus_logbook(args)

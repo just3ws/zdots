@@ -173,3 +173,12 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"No voicemails recorded"* ]]
 }
+
+@test "bus: board displays terminal departures and arrivals" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" board
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"TRANSIT TERMINAL BOARD"* ]]
+  [[ "$output" == *"IN-SERVICE"* ]]
+  [[ "$output" == *"ON LAYOVER"* ]]
+}

@@ -48,6 +48,7 @@ Route & Inspection:
   bus stops [flags]               List stops with unread counts, status, and activity
                                   Flags: --unread, --waiting, --pending, --stale, --json
   bus stop <channel>              Inspect single stop topic, protocol & pending items
+  bus board                       Transit departures & arrivals board (aliases: transit, departures)
   bus sign                        "Tap on the sign" — Busdriver policy & road rules (alias: tap [sign])
 
 Messaging & Interaction:
@@ -251,6 +252,10 @@ case "${1:-}" in
   conversations|threads)
     shift
     exec "${BRAIN}" bus-conversations "$@"
+    ;;
+  board|transit|departures)
+    shift
+    exec "${BRAIN}" bus-board "$@"
     ;;
   passengers|riders)
     shift
