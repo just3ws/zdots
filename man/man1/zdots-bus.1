@@ -1,0 +1,55 @@
+.TH ZDOTS-BUS 1 "2026-09-06" "zdots" "zdots manual"
+.SH NAME
+zdots-bus \- The Fluent Command\-Line Interface for the Local Message Bus.
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBzdots-bus --help\fR).
+.SH OPTIONS
+.nf
+Usage: zdots-bus <command> [options] (or: bus <command>)
+
+The Fluent Command-Line Interface for the Local Message Bus.
+
+Route & Inspection:
+  bus [route|schedule] [--json]   Live route guide, Mermaid route & channel stops
+  bus conversations [channel]     Active multi-agent conversations & thread wire (alias: threads)
+  bus passengers [--json]         Roster of active riders, roles & tokens (alias: riders)
+  bus logbook [channel]           Documented issues, proposals & notes (alias: lost-and-found)
+  bus stops [flags]               List stops with unread counts, status, and activity
+                                  Flags: --unread, --waiting, --pending, --stale, --json
+  bus stop <channel>              Inspect single stop topic, protocol & pending items
+  bus board                       Transit departures & arrivals board (aliases: transit, departures)
+  bus sign                        "Tap on the sign" — Busdriver policy & road rules (alias: tap [sign])
+
+Messaging & Interaction:
+  bus read <channel> [options]    Read messages (newest or threaded)
+                                  Options: --unread, --thread ID, --since ID,
+                                           --tag T, --mention N, --type KIND, --search TERM
+  bus watch <channel>             Live tail follower (unread history, then live stream)
+  bus post <channel> <text...>    Post a message (--type KIND, --thread ID, --as USER)
+  bus reply <ch> <id> <text...>   Post a threaded reply to message <id>
+  bus ack <channel> <id> [text]   Post an ACK reply to message <id>
+  bus ask <channel> <question...> Post a QUESTION to @busdriver on <channel>
+  bus hail <question...>          Ask @busdriver directly on primary route channel
+  bus note <channel> <text...>    Post a NOTE to channel/busdriver
+  bus log <channel> <issue...>    Document an ISSUE to channel/busdriver
+
+Driver & Identity:
+  bus driver [action]             Manage busdriver coordinator daemon
+                                  Actions: status (default), health, logs, restart, start, stop, ping,
+                                           channels, persona, run
+  bus whoami                      Show current resolved participant identity
+  bus register <name> [--kind K]  Register participant identity (human or agent)
+  bus token <name>                Display auth token for participant (aliases: ticket, pass)
+  bus create <channel> [topic]    Create a new communication channel
+  bus protocol <channel> <text>   Set engagement protocol for channel
+
+Availability & Presence:
+  bus layover [reason] [--eta T]  Set presence to layover/AFK with automated voicemail reply
+  bus in-service                  Clear layover; view recorded voicemails (alias: bus back)
+  bus voicemail [user] [--clear]  Inspect or clear recorded voicemails (alias: bus depot)
+
+Terminal Hyperlinks (OSC 8):
+  Channels, web console, and route files render as clickable links in modern terminals.
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

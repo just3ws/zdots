@@ -1,0 +1,33 @@
+.TH BUS-COORDINATOR-CTL 1 "2026-09-06" "zdots" "zdots manual"
+.SH NAME
+bus-coordinator-ctl \- Service Lifecycle:
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBbus-coordinator-ctl --help\fR).
+.SH OPTIONS
+.nf
+Usage: bus-coordinator-ctl <command> [--json]
+
+Service Lifecycle:
+  install   Register the macOS launchd coordinator (KeepAlive, RunAtLoad)
+  start     Load and start the coordinator
+  stop      Unload and stop the coordinator
+  restart   stop then start
+  status    Show coordinator state and process info
+  health    Exit 0 if the coordinator process is alive, exit 1 otherwise
+  logs      Tail the coordinator log
+  channels  Show channels the coordinator is configured to watch
+  persona   Show the lyrical persona & policy prompt of the coordinator
+  run       launchd entry point — set up env, exec zdots-brain bus-bot
+            (internal; do not run by hand)
+
+Options:
+  --json      Output status/health as JSON (valid for status, health)
+  -h, --help  Show this help
+
+Environment variables (configure in ~/.zdots.local):
+  ZDOTS_BUS_BOT_NAME       Identity name (default: busdriver)
+  ZDOTS_BUS_BOT_TRIGGER    Prefix trigger (default: @<name>)
+  ZDOTS_BUS_BOT_CHANNELS   Channels to watch (default: phalanxduel,zdots)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

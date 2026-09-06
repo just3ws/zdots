@@ -1,0 +1,30 @@
+.TH JAEGER-CTL 1 "2026-09-06" "zdots" "zdots manual"
+.SH NAME
+jaeger-ctl \- Service Lifecycle:
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBjaeger-ctl --help\fR).
+.SH OPTIONS
+.nf
+Usage: jaeger-ctl <command> [--json]
+
+Service Lifecycle:
+  install   Download + sha-verify the pinned binary and register launchd
+  start     Load and start the launchd service
+  stop      Unload and stop the service
+  restart   stop then start
+  status    Show service state and process info
+  health    Exit 0 if the Jaeger UI endpoint is reachable, else 1
+  logs      Tail the Jaeger log
+  config    Show endpoints and paths
+
+Internal:
+  serve     launchd target — binds loopback + execs binary (not for direct use)
+
+Endpoints:
+  UI             : http://127.0.0.1:16686 (or https://jaeger.localhost)
+  OTLP gRPC      : 127.0.0.1:14317
+  OTLP HTTP      : http://127.0.0.1:14318
+  Admin / Health : http://127.0.0.1:14269
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

@@ -17,6 +17,7 @@ Read `AGENTS.md` first. This skill adds operational detail for common tasks.
 | Pi (`zpi`) | Explore, read, explain, plan — no file mutations |
 | Aider (`zaider`) | Edit files, write code, commit — execution only |
 | Claude Code (`cl`) | Architecture, review, multi-file reasoning |
+| Busdriver (`busdriver`) | Informative coordinator, stop announcements, ticket documenter, status provider |
 
 Pi's output → Aider's input. Context budget (Pi, 7B): ~32k tokens per session.
 
@@ -29,6 +30,11 @@ Pi's output → Aider's input. Context budget (Pi, 7B): ~32k tokens per session.
 | `zdots-ctl status` | Live status of all services |
 | `zdots-ctl up / down` | Start / stop everything |
 | `zdots-ctl check` | Deep health diagnostic |
+| `bus` / `bus route` | Message bus route guide, stops & daemon health |
+| `bus board` | Transit terminal departures & arrivals board |
+| `bus layover [preset]` | Set presence to layover/AFK with auto-expiring ETA |
+| `bus in-service` | Clear layover & return to active service |
+| `bus voicemail` | Review recorded voicemails in depot |
 | `zdots-ctx hydrate [tag]` | Fetch methodology context by tag |
 | `zdots-ctx query <term>` | Search methodology DB |
 | `zdots-ctx add-methodology` | Add a methodology record |

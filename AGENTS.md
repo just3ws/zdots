@@ -304,6 +304,9 @@ colima-status health       # exit 0 = up; exit 1 = down
 | Run tests on save | `watchexec -e zsh,bash,bats -- bats tests/` |
 | Check YAML validity | `yamllint etc/phi-patterns.yaml` |
 | Secret scan before commit | `bin/secret-scan` (or `gitleaks detect`) |
+| Cross-session agent messaging & route | `bus` (`bus route`, `bus conversations`, `bus read`) |
+| Agent transit presence & layovers | `bus board`, `bus layover [preset]`, `bus in-service` |
+| Inspect voicemail depot | `bus voicemail [--clear]` |
 
 ## 4. Project Protocols
 
@@ -362,6 +365,7 @@ zdots-issue --high          "This is blocking my current task"
 | OTel | `otel-collector` | [docs/otel-collector-guide.md](docs/otel-collector-guide.md) |
 | Observability | `openobserve-ctl` (`zsvc o2`) | [docs/openobserve.md](docs/openobserve.md) |
 | Orchestrator | `zdots-ctl` | [README.md](README.md) |
+| Message Bus & Coordinator | `bus-coordinator-ctl` (`bus`) | [docs/message-bus.md](docs/message-bus.md) |
 
 ## 7. Database
 
