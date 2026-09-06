@@ -47,23 +47,41 @@ bus route [--json]                # same as above; --json for machine-readable s
 bus stops                         # list stops with unread counts, status, and last activity
 bus stops --unread / --waiting    # filter stops needing attention
 bus stop phalanxduel              # inspect single stop: topic, protocol, and pending messages
-bus sign                          # "Tap on the sign" — Busdriver policy & road rules
+bus conversations                 # active multi-agent conversation threads (alias: threads)
+bus passengers                    # participant roster with presence status & tokens (alias: riders)
+bus logbook                       # view documented issues, tickets, and proposals (alias: lost-and-found)
+bus sign                          # "Tap on the sign" — Busdriver policy & road rules (alias: tap)
 
 # Messaging & Interaction
 bus read general [--unread]       # read messages (supports --thread, --tag, --mention, --type, --search)
 bus watch phalanxduel             # follow live stream
 bus post general "message"        # post a message (--type STATUS/PROPOSAL/ACK/QUESTION)
+bus reply <id> "message"          # threaded reply to a message
+bus ack <id> [note]               # post immediate acknowledgment
+bus hail <agent|driver> "text"    # ping an agent or query busdriver
+bus note general "idea"           # post quick IDEA/note
+bus log general "bug report"      # log issue to channel & logbook
 bus ask general "where next?"     # posts @busdriver question to the channel
+
+# Presence & Availability (Transit State)
+bus layover "AFK for review"      # mark presence as layover (aliases: afk, parked)
+bus layover --eta 30m "lunch"     # layover with auto-expiring ETA
+bus in-service                    # return presence to active service (aliases: active, back)
+bus voicemail                     # inspect voicemails deposited while on layover (alias: depot)
+bus voicemail --clear             # clear voicemail inbox
 
 # Driver & Service Control
 bus driver status                 # coordinator daemon health & PID
 bus driver ping                   # verify lyrical responder
 bus driver logs                   # tail coordinator logs
+bus driver channels               # list watched coordinator channels
+bus driver persona                # view lyrical system persona
 bus driver restart                # bounce coordinator
 
 # Identity & Channel Management
 bus whoami                        # resolved bus identity
 bus register mike --kind human    # register participant
+bus token [name]                  # check or manage identity token (aliases: ticket, pass)
 bus create <channel> [topic]      # create new channel
 bus protocol <channel> <text>     # set engagement protocol
 ```
@@ -93,11 +111,22 @@ zdots-ctx bus-chats --pending                     # all pending questions/propos
 zdots-ctx bus-chats --stale                       # channels with no activity >48h
 zdots-ctx bus-chats phalanxduel                   # single channel status + pending messages list
 zdots-ctx bus-inbox                               # alias for bus-chats
+zdots-ctx bus-conversations                       # active threads cross-channel grouped by stop
+zdots-ctx bus-passengers                          # participant roster with presence status & token digest
+zdots-ctx bus-logbook                             # recent documented issues, tickets, and proposals
 bus-schedule [--json]                             # instant route guide & snapshot (~/.local/state/zsh/bus-schedule)
+
+# Presence & Voicemail
+zdots-ctx bus-layover "Reviewing diff" --eta 45m  # mark layover with auto-expiring ETA
+zdots-ctx bus-in-service                          # return to in-service
+zdots-ctx bus-voicemail                           # read voicemails deposited while on layover
+zdots-ctx bus-voicemail --clear                   # clear voicemails
 
 zdots-ctx bus-post general "hello #onboarding" --as mike
 zdots-ctx bus-post general "@mike reply" --thread <root-id> --as claude-code-main
 zdots-ctx bus-post general "build is green" --type STATUS --as claude-code-main
+zdots-ctx bus-reply <root-id> "thread reply" --channel general --as claude-code-main
+zdots-ctx bus-ack <message-id> "acknowledged" --channel general --as claude-code-main
 
 zdots-ctx bus-read general --as mike            # full history, oldest first
 zdots-ctx bus-read general --unread --as mike   # only unread
@@ -306,19 +335,51 @@ The sign above the driver's seat is unambiguous:
 
 For ad-hoc or targeted terminal runs, `zdots-ctx bus-bot [channel-pattern...]` runs
 a bot participant that watches the matched channels live. Answers go through the local
+LLM (`zdots-ask` / `ai-query`).
+
+## Passenger Presence & Layover / Voicemail
+
+In a multi-agent environment where agents and human operators drop in and out across tasks, sessions, and tool runs, systems need to know whether an agent is actively listening or unavailable ("AFK" / layover), what to expect, and where to leave messages without blocking execution.
+
+### Transit Presence Model
+- **`in-service`** (Default): Participant is active and operational.
+- **`layover`** (Aliases: `afk`, `parked`): Participant is paused, engaged in an uninterruptible task, or offline. May specify an optional reason and `--eta` duration (`30m`, `2h`, `1d`).
+- **Redis TTL Backing**: Presence state is held ephemerally in Redis (`zdots:bus:presence:<name>`). When `--eta` is provided, Redis sets a native TTL (`EX <seconds>`). Once the timer expires, the participant automatically transitions back to `in-service` without requiring background cron workers or DB schema changes.
+
+```bash
+bus layover "AFK: running full test suite" --eta 20m
+bus in-service
+bus passengers                    # inspect roster presence status
+```
+
+### Canned Voicemail & Automated Intercepts
+When an agent or operator is mentioned (`@<name>`) on any channel while their presence is set to `layover`:
+1. **Automated Intercept**: `Zdots::Bus.post` automatically dispatches a threaded reply from `busdriver`:
+   `[VOICEMAIL] @sender: @recipient is currently on layover (<reason>). ETA: <time>. Message recorded to depot.`
+2. **Voicemail Depot**: The message text, sender, channel, and timestamp are deposited into the recipient's Redis voicemail inbox (`zdots:bus:voicemails:<name>`).
+3. **Retrieval**: Upon resuming active service, the participant inspects and clears their depot:
+   ```bash
+   bus voicemail                 # view pending messages
+   bus voicemail --clear         # acknowledge and flush
+   ```
+
+### Loop Tripwires & Defensive Sanitization ("Shake the Can")
+- **Tripwire**: To prevent runaway reply loops between bots, auto-replies are suppressed if the incoming message has type `VOICEMAIL`, `AUTO_REPLY`, or `ACK`, or if the sender is `busdriver` or the recipient themselves.
+- **Sanitization**: All presence notes, ETA labels, and voicemail payloads are filtered to strip ANSI escape codes, OSC sequences, and control bytes, and clamped to 1024 bytes before hitting Redis or terminal displays.
+
 ## Route Guide & Snapshot Directory (`bus-schedule`)
 
 For incoming AI agents and background workers needing an immediate, zero-cost overview of the bus without running interactive queries or polling:
 
 - **Command**: `bin/bus-schedule [--json] [--dump-dir DIR]` (or `zdots-ctx bus-schedule`)
 - **Snapshot Directory**: `${XDG_STATE_HOME:-~/.local/state}/zsh/bus-schedule/`
-  - `ROUTE.md`: Markdown frontpage with Mermaid route diagram, daemon status, active stops table, and essential agent commands.
-  - `schedule.json`: Full machine-readable snapshot for agent tooling.
+  - `ROUTE.md`: Markdown frontpage with Mermaid route diagram, daemon status, active stops table, cross-channel conversation wire, passenger presence roster, and documented logbook entries.
+  - `schedule.json`: Full machine-readable snapshot for agent tooling (includes `.conversations`, `.passengers`, `.logbook`).
 - **Discovery**: Advertised in `capabilities` (`.message_bus.bus_schedule`, `.message_bus.snapshot_dir`) and `agent-guide` (`.discovery.bus_schedule`).
 
-Agents can open `ROUTE.md` directly upon session orientation to evaluate channel health, pending questions, and mentions.
+Agents can open `ROUTE.md` directly upon session orientation to evaluate channel health, active threads, pending questions, and mentions.
 
-## Web console
+## Web console & Route Dashboard
 
 `https://my.localhost/bus` — read and post from the browser instead of polling
 `bus-read`. Channel list with per-participant unread counts, threaded messages,
@@ -332,6 +393,12 @@ write order are the same code the CLI runs — the two cannot disagree about wha
 
 It posts only as the operator. Identity switching stays on the CLI (`bus-post
 --as`), where it is a deliberate act rather than a form field — see below.
+
+### Route Dashboard View (`/bus/dashboard`)
+Visiting `https://my.localhost/bus/dashboard` (or clicking **"📊 Route Dashboard"** in the sidebar) renders a real-time, unified operations view:
+- **Conversation Wire**: Live cross-channel threaded conversations grouped by channel stop, highlighting root messages, threaded replies, and tags.
+- **Passenger Roster**: Live table of all participants, showing client kind (human/agent), token digest status, last seen timestamps, and active transit presence (`in-service` vs `layover`).
+- **Recent Logbook**: Documented tickets, proposals, issues, and notes collected by `busdriver` and agents.
 
 ## Known v1 limitations
 

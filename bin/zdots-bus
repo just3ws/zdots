@@ -42,10 +42,13 @@ The Fluent Command-Line Interface for the Local Message Bus.
 
 Route & Inspection:
   bus [route|schedule] [--json]   Live route guide, Mermaid route & channel stops
+  bus conversations [channel]     Active multi-agent conversations & thread wire (alias: threads)
+  bus passengers [--json]         Roster of active riders, roles & tokens (alias: riders)
+  bus logbook [channel]           Documented issues, proposals & notes (alias: lost-and-found)
   bus stops [flags]               List stops with unread counts, status, and activity
                                   Flags: --unread, --waiting, --pending, --stale, --json
   bus stop <channel>              Inspect single stop topic, protocol & pending items
-  bus sign                        "Tap on the sign" — Busdriver policy & road rules
+  bus sign                        "Tap on the sign" — Busdriver policy & road rules (alias: tap [sign])
 
 Messaging & Interaction:
   bus read <channel> [options]    Read messages (newest or threaded)
@@ -53,16 +56,27 @@ Messaging & Interaction:
                                            --tag T, --mention N, --type KIND, --search TERM
   bus watch <channel>             Live tail follower (unread history, then live stream)
   bus post <channel> <text...>    Post a message (--type KIND, --thread ID, --as USER)
+  bus reply <ch> <id> <text...>   Post a threaded reply to message <id>
+  bus ack <channel> <id> [text]   Post an ACK reply to message <id>
   bus ask <channel> <question...> Post a QUESTION to @busdriver on <channel>
+  bus hail <question...>          Ask @busdriver directly on primary route channel
+  bus note <channel> <text...>    Post a NOTE to channel/busdriver
+  bus log <channel> <issue...>    Document an ISSUE to channel/busdriver
 
 Driver & Identity:
   bus driver [action]             Manage busdriver coordinator daemon
-                                  Actions: status (default), health, logs, restart, start, stop, ping
+                                  Actions: status (default), health, logs, restart, start, stop, ping,
+                                           channels, persona, run
   bus whoami                      Show current resolved participant identity
   bus register <name> [--kind K]  Register participant identity (human or agent)
+  bus token <name>                Display auth token for participant (aliases: ticket, pass)
   bus create <channel> [topic]    Create a new communication channel
   bus protocol <channel> <text>   Set engagement protocol for channel
-  bus token <name>                Display auth token for participant
+
+Availability & Presence:
+  bus layover [reason] [--eta T]  Set presence to layover/AFK with automated voicemail reply
+  bus in-service                  Clear layover; view recorded voicemails (alias: bus back)
+  bus voicemail [user] [--clear]  Inspect or clear recorded voicemails (alias: bus depot)
 
 Terminal Hyperlinks (OSC 8):
   Channels, web console, and route files render as clickable links in modern terminals.
@@ -78,6 +92,58 @@ cmd_ask() {
   shift
   local question="$*"
   exec "${BRAIN}" bus-post "$channel" "@busdriver $question" --type QUESTION
+}
+
+cmd_hail() {
+  if [ $# -lt 1 ]; then
+    printf "bus hail: usage: bus hail <question...>\n" >&2
+    exit 1
+  fi
+  local channel="${ZDOTS_BUS_DEFAULT_CHANNEL:-zdots}"
+  exec "${BRAIN}" bus-post "$channel" "@busdriver $*" --type QUESTION
+}
+
+cmd_note() {
+  if [ $# -lt 2 ]; then
+    printf "bus note: usage: bus note <channel> <text...>\n" >&2
+    exit 1
+  fi
+  local channel="$1"
+  shift
+  exec "${BRAIN}" bus-post "$channel" "$*" --type NOTE
+}
+
+cmd_log() {
+  if [ $# -lt 2 ]; then
+    printf "bus log: usage: bus log <channel> <issue...>\n" >&2
+    exit 1
+  fi
+  local channel="$1"
+  shift
+  exec "${BRAIN}" bus-post "$channel" "@busdriver $*" --type ISSUE
+}
+
+cmd_reply() {
+  if [ $# -lt 3 ]; then
+    printf "bus reply: usage: bus reply <channel> <thread_id> <text...>\n" >&2
+    exit 1
+  fi
+  local channel="$1"
+  local thread_id="$2"
+  shift 2
+  exec "${BRAIN}" bus-post "$channel" "$*" --thread "$thread_id"
+}
+
+cmd_ack() {
+  if [ $# -lt 2 ]; then
+    printf "bus ack: usage: bus ack <channel> <msg_id> [text...]\n" >&2
+    exit 1
+  fi
+  local channel="$1"
+  local msg_id="$2"
+  shift 2
+  local text="${*:-Acknowledged}"
+  exec "${BRAIN}" bus-post "$channel" "$text" --thread "$msg_id" --type ACK
 }
 
 cmd_sign() {
@@ -127,7 +193,7 @@ cmd_driver() {
     shift
   fi
   case "$action" in
-    status|health|start|stop|restart|logs)
+    status|health|start|stop|restart|logs|channels|persona|prompt|run)
       exec "$COORDINATOR_CTL" "$action" "$@"
       ;;
     ping)
@@ -144,7 +210,7 @@ cmd_driver() {
       ;;
     *)
       printf "bus driver: unknown action: %s\n" "$action" >&2
-      printf "Valid actions: status, health, logs, restart, start, stop, ping\n" >&2
+      printf "Valid actions: status, health, logs, restart, start, stop, ping, channels, persona, run\n" >&2
       exit 1
       ;;
   esac
@@ -182,6 +248,18 @@ case "${1:-}" in
       exec "${BRAIN}" bus-chats "$@"
     fi
     ;;
+  conversations|threads)
+    shift
+    exec "${BRAIN}" bus-conversations "$@"
+    ;;
+  passengers|riders)
+    shift
+    exec "${BRAIN}" bus-passengers "$@"
+    ;;
+  logbook|lost-and-found)
+    shift
+    exec "${BRAIN}" bus-logbook "$@"
+    ;;
   read)
     shift
     exec "${BRAIN}" bus-read "$@"
@@ -194,12 +272,39 @@ case "${1:-}" in
     shift
     exec "${BRAIN}" bus-post "$@"
     ;;
+  reply)
+    shift
+    cmd_reply "$@"
+    ;;
+  ack)
+    shift
+    cmd_ack "$@"
+    ;;
+  note)
+    shift
+    cmd_note "$@"
+    ;;
+  log)
+    shift
+    cmd_log "$@"
+    ;;
   ask)
     shift
     cmd_ask "$@"
     ;;
+  hail)
+    shift
+    cmd_hail "$@"
+    ;;
   sign)
     shift
+    cmd_sign "$@"
+    ;;
+  tap)
+    shift
+    if [ "${1:-}" = "sign" ]; then
+      shift
+    fi
     cmd_sign "$@"
     ;;
   driver)
@@ -222,9 +327,21 @@ case "${1:-}" in
     shift
     exec "${BRAIN}" bus-set-protocol "$@"
     ;;
-  token)
+  token|ticket|pass)
     shift
     exec "${BRAIN}" bus-token "$@"
+    ;;
+  layover|afk|parked)
+    shift
+    exec "${BRAIN}" bus-layover "$@"
+    ;;
+  in-service|active|back)
+    shift
+    exec "${BRAIN}" bus-in-service "$@"
+    ;;
+  voicemail|depot)
+    shift
+    exec "${BRAIN}" bus-voicemail "$@"
     ;;
   *)
     printf "bus: unknown command: %s\n\n" "$1" >&2

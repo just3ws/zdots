@@ -94,3 +94,82 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"busdriver"* ]]
 }
+
+@test "bus: tap displays policy contract" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" tap
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"TAP ON THE SIGN"* ]]
+}
+
+@test "bus: passengers lists participants" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" passengers
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"mike"* ]]
+  [[ "$output" == *"busdriver"* ]]
+}
+
+@test "bus: conversations shows active thread wire" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" conversations
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"STOP:"* ]]
+}
+
+@test "bus: logbook displays documented entries" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" logbook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"CHANNEL"* ]]
+}
+
+@test "bus: driver channels and persona respond" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" driver channels
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"phalanxduel"* ]]
+
+  run "$BUS" driver persona
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"You are the busdriver"* ]]
+}
+
+@test "bus: ticket inspects participant auth token" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" ticket mike
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Participant: mike (human)"* ]]
+}
+
+@test "bus: layover and in-service lifecycle" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" layover "Testing layover lifecycle" --eta 15m
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Status set to LAYOVER"* ]]
+  [[ "$output" == *"15m"* ]]
+
+  run "$BUS" layover
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Status:      LAYOVER"* ]]
+  [[ "$output" == *"Testing layover lifecycle"* ]]
+
+  run "$BUS" in-service
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Status set to IN-SERVICE"* ]]
+
+  run "$BUS" layover
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Status:      IN-SERVICE"* ]]
+}
+
+@test "bus: voicemail command lists or clears inbox" {
+  BUS="$REPO_ROOT/bin/bus"
+  run "$BUS" voicemail --clear
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Voicemail inbox cleared"* ]]
+
+  run "$BUS" voicemail
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"No voicemails recorded"* ]]
+}

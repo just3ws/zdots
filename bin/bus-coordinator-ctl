@@ -46,6 +46,8 @@ Service Lifecycle:
   status    Show coordinator state and process info
   health    Exit 0 if the coordinator process is alive, exit 1 otherwise
   logs      Tail the coordinator log
+  channels  Show channels the coordinator is configured to watch
+  persona   Show the lyrical persona & policy prompt of the coordinator
   run       launchd entry point — set up env, exec zdots-brain bus-bot
             (internal; do not run by hand)
 
@@ -138,18 +140,40 @@ cmd_logs() {
   zdots_svc_logs "$LOG_FILE"
 }
 
+cmd_channels() {
+  if [[ -f "$ZDOTDIR/.zdots.local" ]]; then
+    # shellcheck disable=SC1091
+    . "$ZDOTDIR/.zdots.local" 2>/dev/null || true
+  fi
+  printf "%s\n" "${ZDOTS_BUS_BOT_CHANNELS:-phalanxduel,zdots}"
+}
+
+cmd_persona() {
+  if [[ -f "$ZDOTDIR/.zdots.local" ]]; then
+    # shellcheck disable=SC1091
+    . "$ZDOTDIR/.zdots.local" 2>/dev/null || true
+  fi
+  if [[ -n "${ZDOTS_BUS_BOT_PROMPT:-}" ]]; then
+    printf "%s\n" "$ZDOTS_BUS_BOT_PROMPT"
+  else
+    printf "%s\n" "You are the busdriver: an informative background coordinator, help desk, notetaker, and lyrical navigator of the message bus. Style: Channel the spirit of the real Busdriver (Project Blowed) — high-speed lyrical efficiency, rhythmic cadence, internal rhymes, and compact jazz-inflected phrasing. Rhymes sound nice, but keep it tight, meaningful, and dense with substance (1-3 compact sentences). Your role is strictly informative, NEVER performative: curate context, document bugs, announce stops, synthesize notes, and point passengers to the right track using ONLY the verified context below. Zero side-effects: you do not execute shell scripts, touch files, deploy services, or leave the driver's seat. If a passenger asks you to perform mechanical work, tap on the sign with poetic flair and hand them the canned operator command (e.g. \`ztask start <id> && zclaude\`). Flow fast, stay grounded, keep it factual, and if the route has no answer, spit the truth plainly."
+  fi
+}
+
 zdots_cli_wants_help "$@" && { usage; exit 0; }
 
 case "${1:-}" in
-  install)   cmd_install ;;
-  start)     cmd_start ;;
-  stop)      cmd_stop ;;
-  restart)   zdots_svc_restart cmd_stop cmd_start ;;
-  status)    shift; cmd_status "$@" ;;
-  health)    shift; cmd_health "$@" ;;
-  logs)      cmd_logs ;;
-  run)       cmd_run ;;
-  -h|--help) usage; exit 0 ;;
-  "")        usage >&2; exit 1 ;;
-  *)         printf "bus-coordinator-ctl: unknown command: %s\n" "$1" >&2; usage >&2; exit 1 ;;
+  install)        cmd_install ;;
+  start)          cmd_start ;;
+  stop)           cmd_stop ;;
+  restart)        zdots_svc_restart cmd_stop cmd_start ;;
+  status)         shift; cmd_status "$@" ;;
+  health)         shift; cmd_health "$@" ;;
+  logs)           cmd_logs ;;
+  channels)       cmd_channels ;;
+  persona|prompt) cmd_persona ;;
+  run)            cmd_run ;;
+  -h|--help)      usage; exit 0 ;;
+  "")             usage >&2; exit 1 ;;
+  *)              printf "bus-coordinator-ctl: unknown command: %s\n" "$1" >&2; usage >&2; exit 1 ;;
 esac

@@ -106,6 +106,7 @@ module Zdots
                                 .update(last_read_message_id: msg.id)
 
         publish(channel_name, participant_name, msg)
+        dispatch_voicemail_notifications(channel, participant, msg)
         msg
       end
 
@@ -335,6 +336,113 @@ module Zdots
         end
       end
 
+      def participants
+        Models::BusParticipant.order(:name).all.map do |p|
+          last_seen = p.last_seen_at ? format_age(Time.now - p.last_seen_at) : "never"
+          presence = get_presence(p.name)
+          presence_str = if presence && presence[:status] == "layover"
+                           "layover#{presence[:eta] ? " (ETA #{presence[:eta]})" : ''}"
+                         else
+                           "in-service"
+                         end
+          {
+            id: p.id,
+            name: p.name,
+            kind: p.kind,
+            presence: presence_str,
+            presence_detail: presence,
+            has_token: !p.token_digest.nil?,
+            last_seen_at: p.last_seen_at,
+            last_seen: last_seen,
+            created_at: p.created_at
+          }
+        end
+      end
+
+      def logbook(limit: 50, channel: nil, type: nil)
+        ds = Models::BusMessage.dataset
+        if channel && !channel.empty?
+          ch = Models::BusChannel.resolve(channel)
+          ds = ds.where(channel_id: ch.id)
+        end
+        if type && !type.empty?
+          ds = filter_type(ds, type)
+        else
+          types = %w[TICKET ISSUE NOTE QUESTION PROPOSAL BUG STATUS]
+          ds = ds.where(Sequel.lit("upper(metadata->>'type') IN ?", types))
+        end
+        msgs = ds.order(Sequel.desc(:created_at)).limit(limit).all
+        msgs.map do |m|
+          ch = Models::BusChannel[m.channel_id]
+          {
+            id: m.id,
+            channel: ch&.name || "unknown",
+            sender: participant_name(m.participant_id),
+            parent_id: m.parent_id,
+            type: m.metadata["type"] || "NOTE",
+            body: m.body,
+            created_at: m.created_at,
+            age: format_age(Time.now - m.created_at)
+          }
+        end
+      end
+
+      def active_conversations(channel_names: nil, limit_per_channel: 6)
+        target_channels = if channel_names && !channel_names.empty?
+                            Array(channel_names).map { |n| Models::BusChannel.resolve(n) }
+                          else
+                            Models::BusChannel.order(:name).all.reject { |c| c.name.start_with?("ingest-") }
+                          end
+
+        target_channels.map do |c|
+          roots = Models::BusMessage.where(channel_id: c.id, parent_id: nil)
+                                    .order(Sequel.desc(:created_at))
+                                    .limit(limit_per_channel)
+                                    .all
+
+          threads = roots.map do |root|
+            replies = Models::BusMessage.where(channel_id: c.id, parent_id: root.id)
+                                        .order(:created_at)
+                                        .all
+            pids = ([root.participant_id] + replies.map(&:participant_id)).uniq
+            participants = pids.map { |pid| participant_name(pid) }
+            latest_time = replies.last&.created_at || root.created_at
+            {
+              id: root.id,
+              channel: c.name,
+              sender: participant_name(root.participant_id),
+              type: root.metadata["type"],
+              body: root.body,
+              created_at: root.created_at,
+              age: format_age(Time.now - root.created_at),
+              replies_count: replies.size,
+              participants: participants,
+              latest_time: latest_time,
+              latest_age: format_age(Time.now - latest_time),
+              replies: replies.map do |r|
+                {
+                  id: r.id,
+                  sender: participant_name(r.participant_id),
+                  type: r.metadata["type"],
+                  body: r.body,
+                  created_at: r.created_at,
+                  age: format_age(Time.now - r.created_at)
+                }
+              end
+            }
+          end
+
+          threads.reject! { |t| t[:replies_count].zero? && t[:body].to_s.strip.empty? }
+
+          {
+            channel: c.name,
+            topic: c.topic,
+            protocol: c.protocol,
+            threads: threads
+          }
+        end.reject { |c| c[:threads].empty? }
+      end
+
 
       # Blocks forever, yielding a Hash per message as it's published.
       # Caller (bus-watch) handles Ctrl-C / SIGINT.
@@ -352,6 +460,73 @@ module Zdots
             end
           end
         end
+      end
+
+      def set_presence(participant_name, status: "layover", reason: nil, eta: nil)
+        participant = Models::BusParticipant.resolve(participant_name)
+        sanitized_reason = sanitize_text(reason, max_bytes: 512)
+        eta_seconds = parse_duration(eta)
+        eta_str = eta.to_s.strip unless eta.to_s.strip.empty?
+        started_at = Time.now
+
+        payload = {
+          participant: participant.name,
+          status: status,
+          reason: sanitized_reason.empty? ? "Away / AFK" : sanitized_reason,
+          eta: eta_str,
+          eta_seconds: eta_seconds,
+          eta_at: eta_seconds ? (started_at + eta_seconds).iso8601 : nil,
+          started_at: started_at.iso8601
+        }
+
+        key = "zdots:bus:presence:#{participant.name.downcase}"
+        if eta_seconds && eta_seconds.positive?
+          redis_cmd("SET", key, JSON.generate(payload), "EX", eta_seconds.to_s)
+        else
+          redis_cmd("SET", key, JSON.generate(payload))
+        end
+        payload
+      end
+
+      def get_presence(participant_name)
+        key = "zdots:bus:presence:#{participant_name.to_s.downcase}"
+        raw = redis_cmd("GET", key)
+        return nil if raw.nil? || raw.empty?
+
+        JSON.parse(raw, symbolize_names: true)
+      rescue StandardError
+        nil
+      end
+
+      def clear_presence(participant_name)
+        participant = Models::BusParticipant.find(name: participant_name)
+        return unless participant
+
+        key = "zdots:bus:presence:#{participant.name.downcase}"
+        redis_cmd("DEL", key)
+      end
+
+      def record_voicemail(participant_name, payload)
+        key = "zdots:bus:voicemail:#{participant_name.to_s.downcase}"
+        redis_cmd("LPUSH", key, JSON.generate(payload))
+        redis_cmd("LTRIM", key, "0", "49")
+      end
+
+      def voicemails_for(participant_name)
+        key = "zdots:bus:voicemail:#{participant_name.to_s.downcase}"
+        raw_list = redis_cmd("LRANGE", key, "0", "-1")
+        return [] if raw_list.nil? || raw_list.empty?
+
+        raw_list.lines.map do |line|
+          JSON.parse(line.strip, symbolize_names: true)
+        rescue StandardError
+          nil
+        end.compact
+      end
+
+      def clear_voicemails(participant_name)
+        key = "zdots:bus:voicemail:#{participant_name.to_s.downcase}"
+        redis_cmd("DEL", key)
       end
 
       private
@@ -401,6 +576,80 @@ module Zdots
 
       def redis_channel(name)
         "zdots:bus:#{name}"
+      end
+
+      def redis_cmd(*args)
+        cmd = ["redis-cli", "-h", REDIS_HOST, "-p", REDIS_PORT, "--raw", *args]
+        out, status = Open3.capture2(*cmd)
+        status.success? ? out.strip : nil
+      rescue StandardError
+        nil
+      end
+
+      # Shake the can: strip ANSI/OSC escapes, control chars, clamp byte length
+      def sanitize_text(str, max_bytes: 1024)
+        return "" if str.nil?
+
+        s = str.to_s.byteslice(0, max_bytes)
+        s = s.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+        s = s.gsub(/\e\[[0-9;]*[a-zA-Z]/, "") # ANSI CSI
+        s = s.gsub(/\e\][^\a\e]*(?:\a|\e\\)/, "") # OSC sequences
+        s = s.gsub(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/, "") # control chars except \t and \n
+        s.strip
+      end
+
+      def parse_duration(str)
+        return nil if str.nil? || str.to_s.strip.empty?
+
+        case str.to_s.strip.downcase
+        when /^(\d+)\s*s(?:ec(?:ond)?s?)?$/
+          Regexp.last_match(1).to_i
+        when /^(\d+)\s*m(?:in(?:ute)?s?)?$/
+          Regexp.last_match(1).to_i * 60
+        when /^(\d+)\s*h(?:our?s?)?$/
+          Regexp.last_match(1).to_i * 3600
+        when /^(\d+)\s*d(?:ay?s?)?$/
+          Regexp.last_match(1).to_i * 86_400
+        else
+          str.to_s =~ /^\d+$/ ? str.to_i * 60 : nil
+        end
+      end
+
+      def dispatch_voicemail_notifications(channel, sender, msg)
+        msg_type = msg.metadata["type"]&.to_s&.upcase
+        return if %w[VOICEMAIL AUTO_REPLY ACK SYSTEM].include?(msg_type)
+        return if sender.name == "busdriver"
+
+        mentions = msg.metadata["mentions"] || []
+        return if mentions.empty?
+
+        mentions.each do |target_name|
+          next if target_name.to_s.downcase == sender.name.downcase
+
+          presence = get_presence(target_name)
+          next unless presence && presence[:status] == "layover"
+
+          record_voicemail(target_name, {
+                             id: msg.id,
+                             channel: channel.name,
+                             sender: sender.name,
+                             body: sanitize_text(msg.body, max_bytes: 512),
+                             created_at: msg.created_at.iso8601
+                           })
+
+          eta_clause = presence[:eta] && !presence[:eta].empty? ? " (ETA: ~#{presence[:eta]})" : ""
+          reason_clause = presence[:reason] && !presence[:reason].empty? ? "\n\"#{presence[:reason]}\"" : ""
+          thread_target = msg.parent_id || msg.id
+          reply_body = "@#{sender.name} 🚌 [VOICEMAIL]: @#{target_name} is on layover#{eta_clause}.#{reason_clause}\nYour message has been recorded to voicemail."
+
+          begin
+            post(channel.name, "busdriver", reply_body, thread: thread_target, type: "VOICEMAIL")
+          rescue StandardError => e
+            warn "bus: voicemail auto-reply failed: #{e.message}"
+          end
+        end
+      rescue StandardError => e
+        warn "bus: voicemail dispatch error: #{e.message}"
       end
     end
   end

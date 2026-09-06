@@ -57,6 +57,9 @@ if command -v bus-coordinator-ctl >/dev/null 2>&1; then
 fi
 
 CHATS_JSON=$("${BRAIN}" bus-chats ${CHANNEL:+"$CHANNEL"} --json 2>/dev/null || echo "[]")
+CONVOS_JSON=$("${BRAIN}" bus-conversations ${CHANNEL:+"$CHANNEL"} --json 2>/dev/null || echo "[]")
+PASSENGERS_JSON=$("${BRAIN}" bus-passengers --json 2>/dev/null || echo "[]")
+LOGBOOK_JSON=$("${BRAIN}" bus-logbook ${CHANNEL:+"$CHANNEL"} --json 2>/dev/null || echo "[]")
 
 INDEX_MD="${SNAPSHOT_DIR}/ROUTE.md"
 INDEX_JSON="${SNAPSHOT_DIR}/schedule.json"
@@ -100,6 +103,57 @@ METRICS
 
 printf '%s\n' "$CHATS_JSON" | jq -r '.[] | "| [`\(.channel)`](https://my.localhost/bus#\(.channel)) | \(.unread) | **\(.status)** | \(.last_active) | `\(.last_sender)` | \(.snippet) |"' >> "$INDEX_MD"
 
+cat << "CONVOS_HEADER" >> "$INDEX_MD"
+
+---
+
+## 💬 Active Conversations & Thread Activity
+CONVOS_HEADER
+
+printf '%s\n' "$CONVOS_JSON" | jq -r '
+if length == 0 then
+  "\n_(No active conversation threads detected)_\n"
+else
+  .[] | 
+  "\n### [`#" + .channel + "`](https://my.localhost/bus#" + .channel + ")" + (if .topic then " — " + .topic else "" end) + "\n\n" +
+  (
+    .threads[] |
+    "> **@" + .sender + "** (" + .age + ")" + (if .type then " `[" + .type + "]`" else "" end) + ":\n" +
+    "> " + (.body | split("\n")[0]) + "\n" +
+    (
+      .replies | map("> ↳ **@" + .sender + "** (" + .age + ")" + (if .type then " `[" + .type + "]`" else "" end) + ": " + (.body | split("\n")[0]) + "\n") | join("")
+    ) + "\n"
+  )
+end' >> "$INDEX_MD"
+
+cat << "PASSENGERS_HEADER" >> "$INDEX_MD"
+---
+
+## 👥 Passenger & Agent Roster
+
+| Participant | Kind | Last Seen | Token Auth | Since |
+|-------------|------|-----------|------------|-------|
+PASSENGERS_HEADER
+
+printf '%s\n' "$PASSENGERS_JSON" | jq -r '.[] | "| `\(.name)` | \(.kind) | \(.last_seen) | \(if .has_token then "✓ active" else "—" end) | \(.created_at[0:10]) |"' >> "$INDEX_MD"
+
+cat << "LOGBOOK_HEADER" >> "$INDEX_MD"
+
+---
+
+## 📋 Recent Logbook & Documented Issues
+
+| Channel | Type | Reporter | Age | Summary |
+|---------|------|----------|-----|---------|
+LOGBOOK_HEADER
+
+printf '%s\n' "$LOGBOOK_JSON" | jq -r '
+if length == 0 then
+  "| — | — | — | — | (empty) |\n"
+else
+  .[0:10][] | "| [`#\(.channel)`](https://my.localhost/bus#\(.channel)) | `\(.type)` | `\(.sender)` | \(.age) | \(.body | gsub("\n"; " ") | .[0:60]) |"
+end' >> "$INDEX_MD"
+
 cat << "FOOTER" >> "$INDEX_MD"
 
 ---
@@ -107,20 +161,27 @@ cat << "FOOTER" >> "$INDEX_MD"
 ## Essential Driver Commands for AI Agents & Humans
 
 ```bash
-# Check messages and unread questions
+# Check messages, unread questions & conversations
 bus stops --unread
 bus stops --waiting
 bus stop phalanxduel
+bus conversations               # view multi-agent conversation wire
+bus passengers                  # participant roster & activity
 
-# Read recent thread or channel history
+# Read and participate in conversation threads
 bus read <channel> [--as <participant>]
+bus reply <channel> <thread_id> "reply..."
+bus ack <channel> <msg_id>
 
-# Post an update or ask a question
-bus ask <channel> "question..."
+# Post an update, note, or ask a question
+bus ask <channel> "question..." # ask @busdriver on channel
+bus hail "question..."          # hail @busdriver directly
+bus note <channel> "note..."    # post a note to channel
+bus log <channel> "issue..."    # document issue to busdriver & channel
 bus post <channel> "update..." [--type STATUS]
 
 # Tap on the sign (Busdriver rules)
-bus sign
+bus sign                        # or: bus tap
 
 # File an issue / logbook ticket directly
 zdots-issue "Short description of bug or request"
@@ -132,12 +193,18 @@ printf '%s\n' "$CHATS_JSON" | jq \
   --arg observer "$WHOAMI" \
   --arg coordinator "$COORDINATOR_STATE" \
   --arg route_guide "$INDEX_MD" \
+  --argjson convos "$CONVOS_JSON" \
+  --argjson passengers "$PASSENGERS_JSON" \
+  --argjson logbook "$LOGBOOK_JSON" \
   '{
     snapshot_at: $snapshot_at,
     observer: $observer,
     busdriver: $coordinator,
     route_guide_path: $route_guide,
-    channels: .
+    channels: .,
+    conversations: $convos,
+    passengers: $passengers,
+    logbook: $logbook
   }' > "$INDEX_JSON"
 
 if [[ -n "$DUMP_DIR" ]]; then

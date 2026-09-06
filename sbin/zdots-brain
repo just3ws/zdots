@@ -147,6 +147,24 @@ module Zdots
         cmd_bus_whoami(args)
       when "bus-register"
         cmd_bus_register(args)
+      when "bus-passengers", "bus-riders", "bus-participants"
+        cmd_bus_passengers(args)
+      when "bus-logbook", "bus-lost-and-found"
+        cmd_bus_logbook(args)
+      when "bus-conversations", "bus-threads"
+        cmd_bus_conversations(args)
+      when "bus-reply"
+        cmd_bus_reply(args)
+      when "bus-ack"
+        cmd_bus_ack(args)
+      when "bus-token", "bus-ticket", "bus-pass"
+        cmd_bus_token(args)
+      when "bus-layover", "bus-afk", "bus-parked"
+        cmd_bus_layover(args)
+      when "bus-in-service", "bus-active", "bus-back"
+        cmd_bus_in_service(args)
+      when "bus-voicemail", "bus-depot"
+        cmd_bus_voicemail(args)
       else
         puts "Unknown command: #{command}"
         exit 1
@@ -178,6 +196,8 @@ module Zdots
         opts.on("--mention NAME", "bus-read: only messages mentioning @NAME") { |v| @options[:mention] = v }
         opts.on("--search TERM", "bus-read: only messages whose body contains TERM") { |v| @options[:search] = v }
         opts.on("--kind KIND", "bus-register: agent|human") { |v| @options[:kind] = v }
+        opts.on("--eta DURATION", "bus-layover: estimated wait time / duration (e.g. 30m, 2h)") { |v| @options[:eta] = v }
+        opts.on("--clear", "bus-voicemail: clear recorded voicemails") { @options[:clear] = true }
       end.parse!
     rescue OptionParser::InvalidOption => e
       e.recover(ARGV) # leave unrecognized flags in ARGV for subcommands
@@ -929,6 +949,183 @@ module Zdots
         puts "zdots-brain: participant #{p.name.inspect} registered as #{p.kind}."
       end
       puts "zdots-brain: token stored in Keychain (service=zdots-bus account=#{p.name}); Bus.post reads it back."
+    end
+
+    def cmd_bus_passengers(_args)
+      passengers = Zdots::Bus.participants
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(passengers)
+        return
+      end
+      printf "%-22s | %-8s | %-12s | %-7s | %s\n", "NAME", "KIND", "LAST SEEN", "TOKEN", "SINCE"
+      printf "%-22s-+-%-8s-+-%-12s-+-%-7s-+-%s\n", "-" * 22, "-" * 8, "-" * 12, "-" * 7, "-" * 10
+      passengers.each do |p|
+        since = p[:created_at] ? p[:created_at].strftime("%Y-%m-%d") : "-"
+        printf "%-22s | %-8s | %-12s | %-7s | %s\n",
+               p[:name], p[:kind], p[:last_seen], (p[:has_token] ? "yes" : "no"), since
+      end
+    end
+
+    def cmd_bus_logbook(args)
+      channel = args.shift
+      entries = Zdots::Bus.logbook(limit: 30, channel: channel, type: @options[:type])
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(entries)
+        return
+      end
+      if entries.empty?
+        puts "zdots-brain: logbook empty."
+        return
+      end
+      printf "%-15s | %-10s | %-15s | %-10s | %s\n", "CHANNEL", "TYPE", "SENDER", "AGE", "SUMMARY / ISSUE"
+      printf "%-15s-+-%-10s-+-%-15s-+-%-10s-+-%s\n", "-" * 15, "-" * 10, "-" * 15, "-" * 10, "-" * 40
+      entries.each do |e|
+        summary = e[:body].gsub(/\s+/, " ").strip[0..60]
+        printf "%-15s | %-10s | %-15s | %-10s | %s\n",
+               e[:channel], e[:type], e[:sender], e[:age], summary
+      end
+    end
+
+    def cmd_bus_conversations(args)
+      channel = args.shift
+      channels = channel ? [channel] : nil
+      convos = Zdots::Bus.active_conversations(channel_names: channels)
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(convos)
+        return
+      end
+      if convos.empty?
+        puts "zdots-brain: no active conversations found."
+        return
+      end
+      convos.each do |c|
+        puts "======================================================================="
+        puts " STOP: ##{c[:channel]}#{c[:topic] ? " — #{c[:topic]}" : ''}"
+        puts "======================================================================="
+        c[:threads].each do |t|
+          type_tag = t[:type] ? "[#{t[:type]}] " : ""
+          puts "\n◆ #{t[:sender]} (#{t[:age]}): #{type_tag}#{t[:body].lines.first.to_s.strip[0..80]}"
+          t[:replies].each do |r|
+            rtype_tag = r[:type] ? "[#{r[:type]}] " : ""
+            puts "  ↳ #{r[:sender]} (#{r[:age]}): #{rtype_tag}#{r[:body].lines.first.to_s.strip[0..80]}"
+          end
+        end
+        puts ""
+      end
+    end
+
+    def cmd_bus_reply(args)
+      channel = args.shift
+      thread_id = args.shift
+      text = args.join(" ").strip
+      if channel.nil? || thread_id.nil? || text.empty?
+        puts "usage: zdots-brain bus-reply <channel> <thread_id> <text...>"
+        exit 1
+      end
+      name = @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", "mike")
+      msg = Zdots::Bus.post(channel, name, text, thread: thread_id, type: @options[:type])
+      puts "Posted reply #{msg.id} to ##{channel} thread #{thread_id} as #{name}."
+    end
+
+    def cmd_bus_ack(args)
+      channel = args.shift
+      msg_id = args.shift
+      text = args.empty? ? "Acknowledged" : args.join(" ").strip
+      if channel.nil? || msg_id.nil?
+        puts "usage: zdots-brain bus-ack <channel> <message_id> [text...]"
+        exit 1
+      end
+      name = @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", "mike")
+      msg = Zdots::Bus.post(channel, name, text, thread: msg_id, type: "ACK")
+      puts "Posted ACK #{msg.id} to ##{channel} message #{msg_id} as #{name}."
+    end
+
+    def cmd_bus_token(args)
+      name = args.shift || @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", "mike")
+      p = Zdots::Models::BusParticipant.find(name: name)
+      if p.nil?
+        puts "zdots-brain: unknown participant #{name.inspect}"
+        exit 1
+      end
+      token = Zdots::Bus.token_for(name)
+      if token
+        puts "Participant: #{p.name} (#{p.kind})"
+        puts "Digest:      #{p.token_digest ? p.token_digest[0..15] + '...' : '(none)'}"
+        puts "Status:      active in Keychain (service=zdots-bus account=#{p.name})"
+      else
+        puts "Participant: #{p.name} (#{p.kind})"
+        puts "Digest:      #{p.token_digest ? p.token_digest[0..15] + '...' : '(none)'}"
+        puts "Status:      no token found in Keychain"
+      end
+    end
+
+    def cmd_bus_layover(args)
+      name = @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", "mike")
+      reason = args.join(" ").strip
+      if reason.empty? && @options[:eta].nil?
+        presence = Zdots::Bus.get_presence(name)
+        if presence && presence[:status] == "layover"
+          puts "Participant: @#{name}"
+          puts "Status:      LAYOVER"
+          puts "Reason:      #{presence[:reason]}"
+          puts "ETA:         #{presence[:eta] ? "~#{presence[:eta]}" : '(none set)'}"
+          puts "Started:     #{presence[:started_at]}"
+        else
+          puts "Participant: @#{name}"
+          puts "Status:      IN-SERVICE (ready for dispatches)"
+        end
+        return
+      end
+
+      p = Zdots::Bus.set_presence(name, status: "layover", reason: reason, eta: @options[:eta])
+      eta_info = p[:eta] ? " (ETA: ~#{p[:eta]})" : ""
+      puts "🚌 Status set to LAYOVER for @#{name}#{eta_info}"
+      puts "Reason: #{p[:reason]}"
+      puts "Auto-reply active: Mentioners will receive automated voicemail in thread."
+    end
+
+    def cmd_bus_in_service(_args)
+      name = @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", "mike")
+      Zdots::Bus.clear_presence(name)
+      puts "🚌 Status set to IN-SERVICE for @#{name}."
+      puts "Layover cleared. Ready for dispatches."
+
+      voicemails = Zdots::Bus.voicemails_for(name)
+      if voicemails.any?
+        puts ""
+        puts "📬 You have #{voicemails.size} voicemail(s) recorded while on layover:"
+        voicemails.each do |v|
+          puts "  • [#{v[:created_at]}] from @#{v[:sender]} in ##{v[:channel]}: #{v[:body][0..80]}"
+        end
+        puts "Run `bus voicemail --clear` to dismiss."
+      end
+    end
+
+    def cmd_bus_voicemail(args)
+      name = args.shift || @options[:as] || ENV.fetch("ZDOTS_BUS_PARTICIPANT", "mike")
+      if @options[:clear]
+        Zdots::Bus.clear_voicemails(name)
+        puts "Voicemail inbox cleared for @#{name}."
+        return
+      end
+
+      voicemails = Zdots::Bus.voicemails_for(name)
+      if @options[:format] == "json"
+        puts JSON.pretty_generate(voicemails)
+        return
+      end
+
+      if voicemails.empty?
+        puts "No voicemails recorded for @#{name}."
+        return
+      end
+
+      puts "📬 Voicemails for @#{name} (#{voicemails.size}):"
+      voicemails.each do |v|
+        puts "  • [#{v[:created_at]}] from @#{v[:sender]} in ##{v[:channel]}:"
+        puts "    \"#{v[:body]}\""
+        puts "    Thread: #{v[:id]}"
+      end
     end
 
     # reindex-embeddings — enqueue embed jobs for lessons and methodologies that
