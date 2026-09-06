@@ -214,6 +214,28 @@ demonstration is a guess with good grammar.
 
 ---
 
+## The Ponytail Principle
+
+> "Premature abstraction is the most insidious form of technical debt.
+> Do not build scaffolding for a house that hasn't been designed."
+
+The archetypal senior engineer with a ponytail is not "lazy" because they lack ambition; they are "lazy" because they have watched a thousand cathedral frameworks die under their own weight. Every speculative abstraction carries a permanent maintenance tax: tests to maintain, edge cases to debug, and cognitive drag for every future hand.
+
+**The Ponytail Ladder (always stop at the lowest rung that works):**
+
+1. **Omission (The Empty Can)** — Don't build it. If a requirement is speculative, zero lines of code carry zero bugs and zero maintenance cost.
+2. **Inlining (Constants over Config)** — Hardcode sensible defaults directly where used. No YAML matrices or database tables for three static strings.
+3. **Stdlib Simplicity** — Standard loops, simple hashes, and standard library I/O before reaching for external queues, event machines, or dynamic plugin systems.
+4. **The Annotated Seam (`# ponytail: <rationale>`)** — When you make a deliberate, pragmatic shortcut, do not hide it. Document what was simplified, why it is sufficient for a single operator on localhost, and what condition would trigger an upgrade.
+
+```bash
+git grep -n "ponytail:"    # searchable inventory of intentional platform compromises
+```
+
+Source: [`docs/principles/ponytail.md`](docs/principles/ponytail.md)
+
+---
+
 ## 1. Orientation
 
 Run these to understand the current state of the machine:
