@@ -3,13 +3,13 @@
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     CURRENT FOCUS  —  last updated 2026-09-05
+     CURRENT FOCUS  —  last updated 2026-09-07
      Cold-start resume state, canonical for every agent tool (Claude, Codex,
      Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
      closes a session rewrites this whole block in place — step one, before
      the wrap-up summary — then commits it. `git log` + Backlog are truth for
      exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-09-05-9.md
+     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-09-07-2.md
      (local-only; that file, not "the newest handoff", is the pointer).
      ═══════════════════════════════════════════════════════════════════════
 
@@ -45,6 +45,9 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
     no-expiry. Z-334 coordination with the just3ws.github.io agent.
 
   Recently DONE:
+    - System Cartography Platform Rollout (Rails ERD, Graphviz, Mermaid diagram
+      generation, top-of-file Markdown model table annotations across
+      wwworkremote, my/context-engine, and hallway; system-cartography skill).
     - Message Bus Fluent DSL & Route Guide (`zdots-bus`, `bus` symlink,
       `bus-schedule`, background coordinator `busdriver`, terminal hyperlinks,
       capabilities/agent-guide publication).
