@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Toggle the LAN-facing nginx Observability vhost.
+# Backends stay loopback-bound; nginx is the sole LAN seam.
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+BREW_PREFIX="$(brew --prefix 2>/dev/null || printf /opt/homebrew)"
+NGINX_DIR="$BREW_PREFIX/etc/nginx/servers"
+ACTIVE="$NGINX_DIR/observability-lan.conf"
+TEMPLATE="$ZDOTDIR/etc/nginx/servers/observability-lan.conf.disabled"
+
+die() { printf 'observability-mode: error: %s\n' "$*" >&2; exit 1; }
+info() { printf 'observability-mode: %s\n' "$*" >&2; }
+
+usage() {
+  cat <<'EOF'
+Usage: observability-mode {local|lan|status}
+
+  local   Disable observability.lan.phalanxduel.com (default posture)
+  lan     Enable the LAN vhost, regenerate TLS SANs, validate, and reload nginx
+  status  Report whether the LAN vhost is enabled
+EOF
+}
+
+[ -f "$TEMPLATE" ] || die "missing vhost template: $TEMPLATE"
+
+case "${1:-}" in
+  status)
+    if [ -f "$ACTIVE" ]; then
+      printf 'LAN\n'
+    else
+      printf 'LOCAL_ONLY\n'
+    fi
+    ;;
+  local)
+    if [ -f "$ACTIVE" ]; then
+      sudo rm "$ACTIVE"
+      info 'LOCAL_ONLY enabled'
+      info 'next: nginx-regen-certs --prune && nginx-ctl validate && nginx-ctl reload'
+    else
+      info 'already LOCAL_ONLY'
+    fi
+    ;;
+  lan)
+    sudo install -m 0644 "$TEMPLATE" "$ACTIVE"
+    info 'LAN enabled: https://observability.lan.phalanxduel.com/'
+    info 'Jaeger: https://observability.lan.phalanxduel.com/jaeger/'
+    info 'next: nginx-regen-certs && nginx-ctl validate && nginx-ctl reload'
+    ;;
+  -h|--help) usage ;;
+  *) usage >&2; exit 1 ;;
+esac
