@@ -167,6 +167,8 @@ cmd_serve() {
   export ZO_GRPC_ADDR="$HTTP_ADDR"
   export ZO_GRPC_PORT="$GRPC_PORT"
   export ZO_TELEMETRY="false"        # PHI: no usage phone-home
+  # Local browser RUM intake; preserve any additional operator-configured origins.
+  export ZO_CORS_ALLOWED_ORIGINS="${ZO_CORS_ALLOWED_ORIGINS:+${ZO_CORS_ALLOWED_ORIGINS},}https://play.phalanxduel.localhost,https://admin.phalanxduel.localhost,http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:3003,http://localhost:3003,http://127.0.0.1:3103,http://localhost:3103"
   # Disposable dev telemetry — self-trim instead of growing forever.
   # 3-day default: spanmetrics duration_bucket ingests ~2 GB/day (Z-156 tuning
   # pending), so a short window caps the store until the connector is tamed.
