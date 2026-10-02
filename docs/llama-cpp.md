@@ -16,11 +16,11 @@ links:
 local `llama-server` binary via its OpenAI-compatible HTTP API on port 11500.
 
 **Managed by** `bin/llama-ctl` — a single control script for install, lifecycle,
-model management, and config.  
+model management, and config.
 **Configured by** `etc/ai-models.yaml` — the single source of truth for all
-server flags, model profiles, and the active default profile.  
+server flags, model profiles, and the active default profile.
 **Supervised by** launchd (`RunAtLoad + KeepAlive`) — auto-starts on login,
-restarts on crash with a 10-second throttle.  
+restarts on crash with a 10-second throttle.
 **Wired via** `ZDOTS_SERVICE_AI=llama-cpp` in `.zdots.env`.
 
 ---
@@ -214,7 +214,7 @@ The server exposes an OpenAI-compatible API. All endpoints are on
 This survives profile switches — the underlying GGUF filename changes, but
 `"local"` always resolves to whatever is loaded.
 
-**Known external consumer:** wwworkremote/core's background job worker calls
+**Known external consumer:** wwworkremote/wwworkremote's background job worker calls
 `POST /v1/chat/completions` directly (confirmed via O2 trace, 2026-08-17) —
 don't kill/restart llama-server without checking `zsvc status` for in-flight
 callers outside this repo.

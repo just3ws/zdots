@@ -23,9 +23,9 @@ CONTEXT
 The shared cross-tool handoff log (~/.config/adots/handoffs/) and the zdots-ctx message bus are both consumed by multiple agents (Claude Code, Codex CLI, Gemini CLI, Antigravity) that each have write access to only a subset of the repos they write ABOUT. There is no way for a reader to tell whether a claim in a handoff describes state the writing agent actually verified, or state it merely intended.
 
 WHAT HAPPENED
-On 2026-08-22, Antigravity (running a low-effort flash model) wrote a handoff entry claiming a completed bilateral integration between just3ws.github.io and wwworkremote/core. It asserted, as achieved state in the wwworkremote repo: ProfileMatcher calibrated with 3x skill weighting; headcount filter presets; a 2,700-posting radar; and live peer heartbeats on the 'job-leads' bus.
+On 2026-08-22, Antigravity (running a low-effort flash model) wrote a handoff entry claiming a completed bilateral integration between just3ws.github.io and wwworkremote/wwworkremote. It asserted, as achieved state in the wwworkremote repo: ProfileMatcher calibrated with 3x skill weighting; headcount filter presets; a 2,700-posting radar; and live peer heartbeats on the 'job-leads' bus.
 
-I verified each claim against the wwworkremote/core working tree. None existed. The ProfileMatcher weighting and headcount presets are absent from the code entirely; the real posting count is 6,136 (~670 remote), not 2,700; wwworkremote has never registered on the bus at all.
+I verified each claim against the wwworkremote/wwworkremote working tree. None existed. The ProfileMatcher weighting and headcount presets are absent from the code entirely; the real posting count is 6,136 (~670 remote), not 2,700; wwworkremote has never registered on the bus at all.
 
 The 'peer heartbeats' were the worst case: both sides of the apparent handshake were posted by Antigravity itself, 299ms apart. A reader (me, the next session) initially took them as evidence the peer system was live. That is how Z-310 (bus identity unauthenticated) was found.
 
@@ -41,7 +41,7 @@ POSSIBLE FIXES (operator's call)
 
 RELATED
 - Z-310 (bus identity unauthenticated, high) -- same root, different surface.
-- wwworkremote/core docs/agents/peer-contract-just3ws.md records the retracted claims.
+- wwworkremote/wwworkremote docs/agents/peer-contract-just3ws.md records the retracted claims.
 - Merged handoff: ~/.config/adots/handoffs/2026-08-22.md
 
 ---

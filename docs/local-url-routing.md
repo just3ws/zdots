@@ -5,7 +5,7 @@ Loopback-only zdots vhosts use the `*.localhost` TLD (decision-011: RFC 6761 —
 every resolver hard-wires it to loopback, no `/etc/hosts` entry needed, and no
 mDNS/Bonjour name-collision exposure the way `.local` carries). `my.localhost`,
 `wwworkremote.localhost`, and `just3ws.localhost` are each owned by their own
-project (`~/my`, `~/github.com/wwworkremote/core`, `~/github.com/just3ws/
+project (`~/my`, `~/github.com/wwworkremote/wwworkremote`, `~/github.com/just3ws/
 just3ws.github.io` respectively) and follow the same pattern independently —
 none of the three are zdots platform services; nginx just fronts them on this
 machine alongside the ones zdots does own.
@@ -22,8 +22,8 @@ privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launch
 | `https://o2.localhost`    | `127.0.0.1:5080`  | OpenObserve (logs/metrics/traces) | `zsvc o2` |
 | `https://zdots.localhost` | `127.0.0.1:11600` | zdots-statusd (Observable Control Plane) | `zsvc status` |
 | `https://my.localhost`    | `127.0.0.1:7010`  | context-engine (Rails, prod) | — |
-| `https://wwworkremote.localhost` (alias `wwwr.localhost`) | `127.0.0.1:31000` | wwworkremote/core (Rails/Falcon or Puma, dev) | — |
-| `https://lan.wwworkremote.com` | `127.0.0.1:31000` (same upstream as above) | wwworkremote/core, trusted-LAN access (e.g. phone) | — |
+| `https://wwworkremote.localhost` (alias `wwwr.localhost`) | `127.0.0.1:31000` | wwworkremote/wwworkremote (Rails/Falcon or Puma, dev) | — |
+| `https://lan.wwworkremote.com` | `127.0.0.1:31000` (same upstream as above) | wwworkremote/wwworkremote, trusted-LAN access (e.g. phone) | — |
 | `https://www.just3ws.localhost` | *(none — static files)* | prebuilt Jekyll `_site/`, synced to `/opt/homebrew/var/www/just3ws.github.io` by `bin/install-localhost`; **canonical** | — |
 | `https://just3ws.localhost` | *(301 → `www.`)* | bare host + all `:80` traffic redirect to the canonical `www.just3ws.localhost`, mirroring prod (`just3ws.com` → `www.just3ws.com`) | — |
 
@@ -31,7 +31,7 @@ privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launch
 `jekyll build` output directly off disk (`try_files`). It cannot *receive* a
 request-time query or run any logic. It already *sends*, though: Jekyll's
 build emits static data exports (`resume.json`, `exports/resume.md`,
-`exports/portfolio.md`) that `wwworkremote/core` fetches by plain GET — see
+`exports/portfolio.md`) that `wwworkremote/wwworkremote` fetches by plain GET — see
 `docs/just3ws-interop-protocol.md` in that repo. Confirmed via O2 trace:
 `wwworkremote` fetched `https://just3ws.github.io/resume.json` (the published
 GitHub Pages copy, not the local vhost, in the traced call). Any two-way or
@@ -40,9 +40,9 @@ static-export path already works today and needs nothing further here.
 
 ### Trusted-LAN phone access (`lan.wwworkremote.com`)
 
-wwworkremote/core replaced its earlier `.home.arpa` trusted-LAN names with a
+wwworkremote/wwworkremote replaced its earlier `.home.arpa` trusted-LAN names with a
 real DNS record, `lan.wwworkremote.com` (its own DNS, own `server_name`,
-tracked in `~/github.com/wwworkremote/core/ops/nginx/servers/wwworkremote.conf`
+tracked in `~/github.com/wwworkremote/wwworkremote/ops/nginx/servers/wwworkremote.conf`
 — not zdots' concern beyond fronting it, same as `my.localhost`/
 `just3ws.localhost`). nginx routes it to the same upstream as
 `wwworkremote.localhost` (`127.0.0.1:31000`) via `server_name`, and its cert

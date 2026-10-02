@@ -21,11 +21,11 @@ ordinal: 189895
 **Trace ID:** `7f07527c6264181a781c0011069b470b`
 
 WHAT I RAN
-From /Users/mike/github.com/wwworkremote/core (a repo with its own Backlog.md tracker):
+From /Users/mike/github.com/wwworkremote/wwworkremote (a repo with its own Backlog.md tracker):
   zdots-issue --type request --severity high --title '...' '<description>'
 
 WHAT HAPPENED
-The issue was created as TASK-84 in the wwworkremote/core backlog. It never reached zdots. The command reported 'zdots-issue: filed (unknown ID)'.
+The issue was created as TASK-84 in the wwworkremote/wwworkremote backlog. It never reached zdots. The command reported 'zdots-issue: filed (unknown ID)'.
 
 WHAT I EXPECTED
 The issue to be filed in the zdots backlog as Z-NNN, regardless of where I was standing when I ran it.
@@ -36,7 +36,7 @@ bin/zdots-issue:137 runs 'backlog task create ...' with no directory pinning, so
 The 'unknown ID' message is the tell: the ID regex at :146 expects 'Task Z-[0-9]+', and the foreign tracker returned 'task-84', so extraction failed. The failure was reported as a cosmetic unknown-ID rather than as a misroute, which is why I only caught it by listing backlog/tasks/ afterward.
 
 IMPACT
-Silent cross-contamination in both directions: zdots issues land in unrelated project backlogs, and those projects get agent-reported noise they did not ask for. I had to delete the stray TASK-84 from wwworkremote/core by hand and re-file from ~/.config/zsh, which produced Z-313 correctly.
+Silent cross-contamination in both directions: zdots issues land in unrelated project backlogs, and those projects get agent-reported noise they did not ask for. I had to delete the stray TASK-84 from wwworkremote/wwworkremote by hand and re-file from ~/.config/zsh, which produced Z-313 correctly.
 
 SUGGESTION (operator's call -- not patching this myself)
 Pin the tracker explicitly, e.g. run backlog with cwd forced to ${ZDOTDIR:-$HOME/.config/zsh}. Separately, treat a non-Z task ID as a hard error rather than 'unknown ID', since that is exactly the misroute signal.
@@ -51,7 +51,7 @@ Pin the tracker explicitly, e.g. run backlog with cwd forced to ${ZDOTDIR:-$HOME
 <!-- COMMENTS:BEGIN -->
 created: 2026-08-26 17:53
 ---
-Reproduced live again 2026-08-26 while filing Z-324 from wwworkremote/core: zdots-issue silently filed into that repo's own Backlog.md as task-91 (deleted after discovery) instead of erroring. Two independent agents hitting the identical failure a repo apart — bumping medium -> high.
+Reproduced live again 2026-08-26 while filing Z-324 from wwworkremote/wwworkremote: zdots-issue silently filed into that repo's own Backlog.md as task-91 (deleted after discovery) instead of erroring. Two independent agents hitting the identical failure a repo apart — bumping medium -> high.
 ---
 <!-- COMMENTS:END -->
 

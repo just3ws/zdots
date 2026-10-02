@@ -11,7 +11,7 @@ Transition the Zdots "Brain" from monolithic Bash scripts to a modular Ruby-base
 - **Modularity**: Individual Job classes in `lib/zdots/jobs/`.
 
 ## 3. Reference Architecture
-Inspiration taken from `~/github.com/wwworkremote/core`:
+Inspiration taken from `~/github.com/wwworkremote/wwworkremote`:
 - Modular service boundaries.
 - Clean separation between models (State) and jobs (Execution).
 - Standardized AI context passing.

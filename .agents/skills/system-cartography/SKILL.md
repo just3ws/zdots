@@ -35,7 +35,7 @@ It bridges kinetic operational execution and empirical observation by maintainin
 
 ## 2. Standard Workflows by Application
 
-### WWWorkRemote (`~/github.com/wwworkremote/core`)
+### WWWorkRemote (`~/github.com/wwworkremote/wwworkremote`)
 ```bash
 # Full + bounded-context diagrams
 RAILS_ENV=development bundle exec rake diagrams:all
