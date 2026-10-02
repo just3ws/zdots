@@ -44,6 +44,7 @@ _svc_map "llama|OpenAI-compatible chat completions, local inference only|openai-
 _svc_map "embed|Text embeddings for vector search|openai-embeddings|none (loopback-trusted)|/health|curl -s http://127.0.0.1:11501/v1/embeddings -d '{\"model\":\"local\",\"input\":\"hi\"}'||docs/llama-cpp.md"
 _svc_map "otel|OTLP ingestion for traces/metrics/logs|otlp-http|none (loopback-trusted)|(health subcommand)|curl -s -H 'Content-Type: application/json' http://127.0.0.1:4318/v1/traces -d '{\"resourceSpans\":[]}'||docs/otel-collector-guide.md"
 _svc_map "o2|Trace/log/metric storage and query UI|http+sql|root creds via openobserve-ctl creds|/healthz|curl -s http://127.0.0.1:5080/healthz||otel|docs/openobserve.md"
+_svc_map "jaeger|Distributed tracing UI and query interface|http+ui|none (loopback-trusted)|/|curl -s http://127.0.0.1:16686/|otel|docs/otel-collector-guide.md"
 _svc_map "colima|Docker/container runtime VM|docker-socket|none (local user)|colima status|DOCKER_HOST=\"unix://\$(colima-status socket)\" docker ps||"
 _svc_map "nginx|TLS-terminating reverse proxy fronting the .localhost services|https|none (loopback-trusted)|/|curl -sk https://my.localhost/up|postgres redis|"
 _svc_map "postgres|Knowledge-layer store — database 'my'|sql|zdots_ro (read) / zdots_rw (write) via scram-sha-256|pg_isready|psql -U zdots_ro my||docs/wiki/AI-and-Knowledge-Layer.md"
@@ -51,6 +52,7 @@ _svc_map "redis|Command-analytics cache buffer|redis|none (loopback-trusted)|PIN
 _svc_map "worker|Async job queue drain for context-engine (my)|process|n/a (no network endpoint)|process alive||postgres|"
 _svc_map "status|Control-plane status console — service/launchd/log health|http+html|none (loopback-trusted)|/healthz|curl -s http://127.0.0.1:11600/healthz||"
 _svc_map "gemstash|RubyGems caching proxy + private gem host|http|none (loopback-trusted)|/|curl -s http://127.0.0.1:9292/||"
+_svc_map "coordinator|Cross-session agent message bus and transit coordinator|cli+ipc|none (local user)|bus-coordinator-ctl status|bus route|redis|docs/message-bus.md"
 _svc_map "ctx|Context-engine query/hydrate surface over the knowledge layer|cli|none (local user)|zdots-ctx status|zdots-ctx query <term>|postgres|docs/wiki/AI-and-Knowledge-Layer.md"
 
 # ── Accessors ────────────────────────────────────────────────────────────

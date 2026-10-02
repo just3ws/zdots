@@ -1,0 +1,15 @@
+.TH OBSERVABILITY-MODE 1 "2026-10-02" "zdots" "zdots manual"
+.SH NAME
+observability-mode \- local   Disable observability.lan.phalanxduel.com (default posture)
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBobservability-mode --help\fR).
+.SH OPTIONS
+.nf
+Usage: observability-mode {local|lan|status}
+
+  local   Disable observability.lan.phalanxduel.com (default posture)
+  lan     Enable the LAN vhost, regenerate TLS SANs, validate, and reload nginx
+  status  Report whether the LAN vhost is enabled
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

@@ -12,7 +12,7 @@ setup() {
 }
 
 @test "svc-map: every registered service has a purpose" {
-  for s in llama embed otel o2 colima nginx postgres redis worker status gemstash ctx; do
+  for s in $(zdots_svc_managed) ctx; do
     run zdots_svc_purpose "$s"
     [ -n "$output" ]
   done
@@ -20,7 +20,7 @@ setup() {
 
 @test "svc-map: depends_on only references known canonical services" {
   local s dep
-  for s in llama embed otel o2 colima nginx postgres redis worker status gemstash ctx; do
+  for s in $(zdots_svc_managed) ctx; do
     for dep in $(zdots_svc_depends_on "$s"); do
       run zdots_svc_resolve "$dep"
       [ "$status" -eq 0 ]
@@ -32,7 +32,7 @@ setup() {
   command -v jq >/dev/null 2>&1 || skip "jq not installed"
   run "$REPO_ROOT/bin/zsvc" map --json
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.services | length == 11' >/dev/null
+  echo "$output" | jq -e '.services | length == 13' >/dev/null
 }
 
 @test "zsvc map llama --json includes purpose, auth, and example" {

@@ -90,11 +90,11 @@ else
     # Rewrite all three pin sites in lockstep. The "update both together"
     # invariant in mise.toml's header is enforced here mechanically.
     [[ -f "$MISE_TOML" ]] && sed -i '' -E \
-      "s/^(\s*ruby\s*=\s*)\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$LATEST\"/" "$MISE_TOML"
+      "s/^([[:space:]]*ruby[[:space:]]*=[[:space:]]*)\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$LATEST\"/" "$MISE_TOML"
     printf '%s\n' "$LATEST" > "$RUBY_VERSION_FILE"
     if [[ -f "$GLOBAL_MISE" ]]; then
       sed -i '' -E \
-        "s/^(\s*ruby\s*=\s*)\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$LATEST\"/" "$GLOBAL_MISE"
+        "s/^([[:space:]]*ruby[[:space:]]*=[[:space:]]*)\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$LATEST\"/" "$GLOBAL_MISE"
     fi
     log "pins updated to $LATEST"
   fi
