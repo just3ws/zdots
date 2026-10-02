@@ -42,11 +42,15 @@ declare -A LABEL=(
   [zdots.localhost]="Observable Control Plane status console"
   [gemstash.localhost]="RubyGems caching proxy"
   [my.localhost]="context-engine (prod)"
+  [hister.localhost]="Hister personal search engine"
+  [just3ws.localhost]="just3ws portfolio & oral history archive"
 )
 declare -A LOGCMD=(
   [llama.localhost]="zsvc logs llama"   [embed.localhost]="zsvc logs embed"
   [o2.localhost]="zsvc logs o2"         [zdots.localhost]="zsvc logs status"
   [gemstash.localhost]="zsvc logs gemstash"
+  [hister.localhost]="tail -f $NGINX_ERR"
+  [just3ws.localhost]="tail -f $NGINX_ERR"
   [my.localhost]="tail -f $NGINX_ERR"
 )
 
