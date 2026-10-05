@@ -10,339 +10,67 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 
 ### 🚀 Features
 
-- *(cc-doctor)* Work-data boundary audit — catch CC-memory-in-git drift
-- *(theme)* Wire Kanagawa Wave through LS_COLORS/LSCOLORS
+- *(observability)* Add Jaeger service with SPM PromQL integration and bus-chats command
+- *(bus)* Add persistent launchd bus-coordinator-ctl and informative-not-performative bot policy
+- *(bus)* Establish busdriver as default help desk and issue documenter
+- *(bus)* Infuse busdriver with rhythmic lyrical cadence and Project Blowed flavor
+- *(bus)* Add bus-schedule route guide and advertise in capabilities and agent-guide
+- *(bus)* Add fluent bus DSL CLI and OSC 8 terminal hyperlinks
+- *(bus)* Make zdots-bus canonical command with bus symlink and zdots-ctx dispatch
+- *(ack)* Add fack and acke shell helpers with fzf preview and nvim quickfix jumping
+- *(ack)* Add live streaming fzf search, fackf, and ZLE widget
+- *(ack)* Add quickfix ctrl-q export, clipboard copy, and fackf widget to fack
+- *(bus)* Add transit presence, voicemail depot, and conversation wire
+- *(bus)* Add terminal board, presence status column, and canned presets
+- *(principles)* Codify The Ponytail Principle and agent skill
+- *(skills)* Add platform-wide system-cartography skill
+- *(observability)* Add LAN mode toggle
+- *(observability)* Support LAN demo origins
+- *(observability)* Add hister.localhost proxy, cert SANs, endpoints metadata & SCM domain cartography
+- *(search)* Resolve zmorning alias collision, fix hister proxy & add hister-sync
+- *(swiftbar)* Restore pulse with rich iconography and transcription telemetry
 
 ### 🐛 Bug Fixes
 
-- *(phi-scrub)* Bump grpc-go to 1.82.1, closes GHSA-hrxh-6v49-42gf
-
-### 🚜 Refactor
-
-- *(doctor)* Fold work-data boundary check into zdots-doctor
-
-### 🎨 Styling
-
-- *(theme)* Hand-tune Kanagawa Wave bg bluer (#1F1F28 -> #1A1B2F)
-
-### ⚙️ Miscellaneous Tasks
-
-- *(backlog)* Close Z-194 — adots-doctor .tmux.conf crash not reproducible
-## [0556026.M3] - 2026-07-22
-
-### 🚀 Features
-
-- *(zclaude)* Tuned Claude Code launcher for zdots platform work
-- *(zclaude)* Continuity, effort, tmux + iTerm2 decoration
-- *(db)* Add context-engine tables migration
-- *(db)* Add environment_facts migration; track Z-157 issue
-- *(db)* Add scope_hint + clarifying_questions to policy_gaps
-- *(db)* Add missing columns for markdown ingest pipeline
-- *(otel)* Stage 2 log spine — filelog/app receiver for lograge JSON
-- *(otel)* Trace-side PHI scrub (TASK-XXX) — transform/phi/traces, live-verified
-- *(ingest)* Transcription ledger + zdots-ingest-media (Z-164 incr 1-2)
-- *(ingest)* Worker raw stage → pipeline_runs (Z-164 incr 3)
-- *(ingest)* Known_terms migration for the doubt loop (Z-167 incr 1)
-- *(otel)* Allow http://localhost:8080 OTLP CORS origin for session-capture browser SDK
-- *(ingest)* Whisper priming from known_terms — Z-167 done
-- *(ingest)* Cleaned stage via generic stage-runner (Z-166)
-- *(ingest)* Z-168 distilled stage — local LLM → grounded insights
-- *(ingest)* Z-169 long-video chunking — fan-out windows, resume, stitch
-- *(statusd)* Zdots.local control-plane status service (slice 1)
-- *(statusd)* Make zdots-statusd a managed Platform Service (slice 2)
-- *(statusd)* Draft nginx vhost for zdots.local (slice 3, operator-applied)
-- *(statusd)* Command-qc surfaces for zdots-statusd (slice 4)
-- *(nginx)* Nginx-regen-certs — one-shot, safe cert regen + reload
-- *(ingest-media)* Scoped opt-in cloud distill (Haiku) — ADR-0003
-- *(statusd)* Zdots.local favicon — observable-pulse node mark
-- *(claude-code)* Export OTel telemetry to local otel-collector
-- *(skill)* /cc-audit — Claude Code config hygiene on PHI machines
-- *(cc-doctor)* Gate global cloud-egress plugins + local-telemetry on work
-- *(cc-burn)* Claude Code token burn-rate + 5h-window monitor (Phase 1)
-- *(cc-burn-watch)* Launchd burn-rate alerter (Phase 2)
-- *(mcp)* Wire @ccusage/mcp — agent-accessible token budget (Phase 3)
-- *(cc-statusline)* Live token-burn segment, fed by the watcher cache
-- *(cc-burn)* Self-calibrating window ceiling + calibrate command
-- *(zdots.local)* Token-burn panel + /man docs surfacing + cross-links
-- *(zdots.local)* Docs portal, live --help, deeper interlinking
-- *(knowledge)* Pour the convergence spine — Z-150/Z-151 foundation
-- *(dsl)* Zdots dispatcher root — Wave-0 spine (Z-149 ✓)
-- *(dsl)* Noun-miss desire-path sensor in zdots dispatcher (Z-177)
-- *(seam-7)* Session intelligence write-back — zdots-debrief
-- *(knowledge)* OKF ingest adapter — source_type:okf + type-bridge (Z-174 ✓)
-- *(output-axis)* Zdots-artifact — distilled content → publishable draft (Z-176 ✓)
-- *(output-axis)* Thread + show-notes artifact framework prompts
-- *(cc-burn)* Token-budget governor ACs#1-5 (Z-148)
-- *(o2-mcp)* Add OpenObserve MCP server (Z-152)
-- *(z-101)* Encrypt remaining PHI columns — lessons.context + source_document.body_md
-- *(gemini-invoke)* Export OTEL_RESOURCE_ATTRIBUTES with zdots.trace.id for O2 correlation
-- *(mcp)* Add sequential-thinking and o2 MCP servers to .mcp.json
-- *(peer-discovery)* Complete Phase 3 — one bootstrap lib, three adapters
-- *(nginx)* Migrate llama/embed/o2/zdots vhosts to .localhost (decision-011)
-- *(jobs)* Generic transform job type for tenant-consumable AI results (Z-199)
-- *(transform)* Transcript cleanup/insights/seo profiles
-- *(ingest)* Opt-in acoustic diarization stage in ingest_media
-- *(zdots)* Add bulk reprocess-series by tag
-- Add timeline extraction stage to ingest pipeline
-- *(Z-222)* Implement semantic retrieval and article drafting agent
-- *(Z-223)* Implement publishing engine for auto-subtitle rendering
-- *(ingest)* Thread num_speakers hint into ingest_media payload
-- *(ingest)* Boundaries stage — mark theme-song intro/outro + interview span
-- *(aliases)* Wire ztranscribe alias to yt-transcribe recipe
-- *(ingest)* Implement local-file retention store (Z-238)
-- *(ingest)* Opt-in yt-dlp cookie strategy for bot-gated sources (Z-237)
-- *(pipeline)* Schema-validated JSONL event stream for worker jobs (Z-247)
-- *(skills)* /platform-integrate + heal Gate 8 + allowlist classification loop
-- *(skills)* Vendor 5 anthropic/skills — webapp-testing, mcp-builder, docx, xlsx, pdf
-- *(mcp)* Register Playwright MCP — headless, loopback-origins only
-- *(ctx-mcp)* Ctx_pipeline_events tool — Z-247 stream over MCP
-- *(man)* 100% man coverage — zdots-man-gen + contract enforcement
-- *(platform)* Zdots-platform — one command for the four-repo platform
-
-### 🐛 Bug Fixes
-
-- *(upgrade)* Silence pnpm build-scripts and npm allow-scripts warnings
-- *(upgrade-node)* Silence pnpm build-scripts and npm allow-scripts warnings
-- *(upgrade-ai)* Drop redundant --allow-scripts flag now covered by .npmrc
-- *(upgrade-homebrew)* Brewfile_has checks Brewfile.common too
-- *(otel)* Suppress debug log spam — service.telemetry.logs.level warn
-- *(otel)* Rename otlphttp → otlp_http exporter (deprecation)
-- *(otel-phi)* Scrub span name (operation_name) — live-confirmed PHI leak
-- *(ai-query)* EXIT trap unbound-variable on empty _TMP_FILES under bash 3.2
-- *(otel)* Allow X-Request-Id in collector CORS for browser OTel export
-- *(ingest-media)* Map-reduce distill so long transcripts don't hit exit 3
-- *(ingest-media)* UTF-8 encoding so the launchd worker doesn't choke on transcripts
-- *(ingest-media)* Cloud distill via claude CLI, not the API (no API key here)
-- *(nginx)* Nginx-regen-certs also deploys tracked vhosts (zdots.local 403)
-- *(ingest-media)* Cloud distill model default catches empty string
-- *(zdots-doctor)* Guard adots-my contract substitution against set -e abort
-- *(docs-contract)* Close the --help gaps (Z-119)
-- *(agent-guide,capabilities)* --json exits clean (docs-contract green)
-- *(zdots-doctor)* --quiet must not abort at the first check
-- *(cmd-analytics)* Install zdots-buffer-drain so the Redis→SQLite drain runs
-- *(colima)* Root at $XDG_CONFIG_HOME/colima, not legacy ~/.colima
-- *(log-rotate)* Weekly launchd agent for service log rotation (Z-146 ✓)
-- *(embed)* Readiness retry in status + restart-embed command (Z-140 ✓)
-- *(llama-server)* Sandbox-exec profile + llama-ctl wrapper (Z-102 ✓)
-- *(llama-ctl)* Sandbox-exec for embed server (_register_embed_plist)
-- *(zclaude)* Export OTel exporter vars before claude launch (Z-172.01)
-- *(knowledge-layer)* Semantic search + embed reindex reliability
-- *(eval)* Close Z-172.05 — no MLX migration on M4 16GB
-- *(deps)* Bump concurrent-ruby 1.3.6 → 1.3.7 (CVE fix)
-- *(deps)* Bump faraday 2.14.2 → 2.14.3 (CVE fix)
-- *(otel-collector)* Guard against stale-compiled-config drift
-- *(nginx)* Remove zdots' stale duplicate of my.conf (Z-198)
-- *(colima)* Consolidate config off XDG, ~/.colima is canonical (Z-195, Z-181)
-- *(diarize)* Pin verified pyannote 3.1 stack + document token/licenses
-- *(zdots-ctx)* Pin brain launcher Ruby for status probe
-- *(transcribe)* Disable whisper prior-text context to stop turbo loops
-- *(transcribe)* Dedup divergent window seams after anti-loop change
-- *(ingest)* Bound cloud distill so a hung claude can't stall ingest
-- *(ingest)* Bound every media-pipeline subprocess, not just cloud distill
-- *(gh,pages)* Bound outward gh/git calls that ignore ~/.curlrc
-- *(openobserve)* Serve crash-loops under launchd — "${@}" empty + set -u
-- *(brain)* Self-heal Ruby toolchain so direct callers stop LoadError-ing
-- *(Z-221)* Make embed_chunks idempotent on reprocess
-- *(Z-221)* Add --help to zdots-search, regenerate pipeline Mermaid
-- *(worker)* Load HUGGINGFACE_TOKEN from Keychain; mirror HF_TOKEN
-- *(transcribe)* Reject unknown flags instead of swallowing as URL
-- *(mcp)* Run sequential-thinking via npx to survive node bumps
-- *(capabilities)* Decouple parked zsynod from the health contract (Z-235)
-- *(zdots-heal)* Sync Gate 3 service list + repair its drift check (Z-236)
-- *(zdots-ctl)* Capture check verifies §10 precondition instead of blanket-warning
-- *(platform-integrate)* Collision scan matches full task ID — z-172.03 subtask is not a z-172 dup
-
-### 💼 Other
-
-- *(z-172.02)* Arize Phoenix S2 eval complete — local LLM tracing confirmed
-- Live-verify AC #1 + #2 — reprocess stages-only + --transcribe
-- Add primer text to ingestion pipelines
-- Fix pipeline run race condition on manual restart
-- Allow whisper --prompt to work by conditionally dropping --max-context 0
-- Mark task as Done
-- Implement speaker registry and update backlog tasks
-- Mark Video Timeline as complete
-- Use --max-len 60 in whisper to improve back-and-forth diarization resolution
-- Task out the Autonomous Knowledge System implementation plan (Phases 2-4)
-- Implement Semantic Memory pgvector integration and Knowledge Chunking
-
-### 🚜 Refactor
-
-- *(version)* Source my contract from adots-my, not a hardcoded string
-- *(zshenv)* Wire .zshenv.local override hook; drop machine-specific fpath
-- Remove dead DI provider seams + unused contract machinery
-- Remove the retired LGTM observability stack (Z-134)
-- *(bin)* Use "$@" not "${@}" in ctl dispatch (bash 3.2 hygiene)
+- *(cc-boundary)* Adots public is expected, not a failure
+- *(ci)* Build native cmd/* Go tools in the full job
+- *(ci)* Put zdots bin/ + sbin/ on PATH for the full job's bats step
+- *(deps)* Bump google.golang.org/grpc to v1.83.1 (Dependabot high)
+- *(path)* Local-bin chpwd hook no longer evicts sticky ./bin dirs (Z-338)
 
 ### 📚 Documentation
 
-- *(nginx)* Resolve gap 4, add deploy workflow, drop dev.my.local
-- *(skill)* Add /my-ingest-principles + fix architecture my.local label
-- *(cc-audit)* Note cc-doctor now auto-gates cloud plugins (gap closed)
-- *(agents)* Drop LGTM service row (Z-134) + add Snake in a Can principle
-- *(knowledge)* Adopt OKF as knowledge interchange standard (decision-010)
-- *(backlog)* Direction synthesis + dream tasks (doc-007)
-- *(backlog)* Thread reconciliation + alignment plan (doc-008)
-- *(claude-md)* Ratify /docs-sync skill in Agent Skills section (Z-153 AC#1)
-- *(docs-sync)* Tier-propagation manifest + ratify naming convention (Z-153 AC#3,5,6)
-- Refresh agent-guide + tooling.md after Z-101 + statusd
-- *(z-159)* Document context-engine bin/deploy step in SETUP.md and agent-guide
-- *(nginx)* Note my.conf is ~/my-owned, not zdots' (Z-198 follow-up)
-- *(agent-guide)* Fix stale colima GUARD text, add Job Queue section
-- *(ponytail)* Add upgrade triggers to 3 no-trigger shortcut markers
-- *(secrets)* Document HUGGINGFACE_TOKEN setup + ZDOTS_DIARIZE flag
-- *(transcription)* Document boundaries, num_speakers, sanity gate
-- *(transcribe)* Add yt-transcribe(1) man page
-- *(transcribe)* Sync usage block with full flag surface
-- *(boundaries)* Add --help to zdots-backfill-boundaries
-- *(ingest)* Document yt-dlp cookie env knobs (Z-237 docs-sync)
-- *(architecture)* Drop stray quote after rotate-creds, restore trailing newline
-- *(changelog)* Regenerate for 0556026.M3
-
-### ⚡ Performance
-
-- *(phi-history)* Single scrub spawn per command (Z-173)
-
-### 🎨 Styling
-
-- *(phi-patterns)* Yamllint colon spacing — 4 alignment colons, zero pattern changes
-
-### 🧪 Testing
-
-- *(docs-contract)* Fictional-reference linting + register new binaries (Z-153 AC#2)
-- *(z-188)* Reprocess CLI wiring/guard smoke test; record P1 verification
-- *(Z-221)* Register zdots-search in docs contract test suite
-- *(e2e)* Fix stale methodology-slug assertion (Z-239, dup Z-206)
+- Www.just3ws.localhost is the canonical local host
+- *(agents)* Rewrite CURRENT FOCUS for the post-publication state
+- *(interop)* Admit phalanxduel to registry under PVL and define Agent RACI matrix
+- *(gov)* Add Platform RACI Matrix across zdots, adots, vdots, and my
+- *(agents)* Update CURRENT FOCUS to 2026-09-05-4 and add Z-342 task
+- *(bus)* Document busdriver daemon, policy contract, and register in zsvc
+- *(bus)* Document Busdriver Route metaphor and Mermaid diagram
+- *(agents)* Update cold-start resume state and deep handoff pointer
+- *(bus)* Add transit coordinator skill, busdriver profile, man pages, and tooling docs
+- *(agents)* Update CURRENT FOCUS block for 2026-09-07 cartography session close
+- *(interop)* Update wwworkremote repository path across docs and tasks
 
 ### ⚙️ Miscellaneous Tasks
 
-- *(cc)* Enable zdots platform commands + safe read patterns by default
-- *(env)* Add project-local ./sbin to PATH alongside ./bin (work)
-- *(env)* Project-local tool bins + zdots sbin on PATH
-- *(nginx)* Remove dev.my.local from my.conf
-- *(housekeeping)* Capture context-engine production work — docs, skills, backlog
-- *(housekeeping)* Operator console — skills, backlog dedupe, spec-debt task
-- *(backlog)* Publish transcription-pipeline v1 task slices (Z-163..Z-170)
-- *(backlog)* Ratify Z-163 PHI policy for source metadata
-- *(backlog)* Z-164 progress notes + Z-171 video-timeline task
-- *(backlog)* Z-164 done — end-to-end transcription tracer
-- *(backlog)* Z-165 done — tabbed stage viewer
-- *(claude)* Allow mcp__backlog__task_search (read-only)
-- *(backlog)* Z-166 done (AC#2 descoped) + Z-154 superseded-once-parity note
-- *(backlog)* Z-168 + Z-170 done (distilled stage, promote-to-lesson)
-- *(backlog)* Z-169 done (long-video chunking + resume)
-- *(gitignore)* Ignore /team-onboarding ONBOARDING.md artifact
-- *(backlog)* Add AI-stack evaluation itinerary epic (Z-172)
-- *(backlog)* File Z-173 — phi-history hook double-spawn overhead
-- *(backlog)* Z-173 — record phi-history double-spawn fix (daemon work remains)
-- *(backlog)* Z-153 Done — all ACs closed
-- *(backlog)* Close Z-148, file Z-178 for adots cl gate
-- *(backlog)* Close Z-153 — check off ACs #1-6
-- *(backlog)* Document Z-172.01 root cause + fix, awaiting next session verify
-- *(backlog)* Z-172.03 AC#3 done — file Z-179 for Presidio NER PHI operator coordination
-- *(backlog)* File Z-181 — adots .colima/.config/colima coexistence
-- *(z-101)* Mark done — all AC checked, 731 tests pass
-- *(z-172.01)* Mark done — claude_code.* metrics confirmed in O2
-- *(release)* Stamp Astronomicon beacon 0493026.M3
-- *(work-session)* CLI hardening, otel diagnostics, delivery-metrics, snapshot, backlog cleanup
-- *(backlog)* Track Z-194 (adots-doctor .tmux.conf pathspec crash)
-- *(backlog)* Track Z-195 (colima legacy-root symlink defeats adots-doctor --fix)
-- *(backlog)* Mark Z-198 done
-- *(backlog)* Reconcile z-199 against landed transform mechanism
-- *(backlog)* Track transcribe stitch validation + deferred cuts
-- *(backlog)* Z-202 done — zdots-brain Ruby self-heal (fixed in 0b5ab68)
-- *(bootstrap)* Add just3ws.localhost to mkcert SAN list
-- *(cc)* Allowlist zdots doctor + log show read-only commands
-- *(cc)* Promote mandoc + zdots-phi-scrub read-only wildcards
-- *(brew)* Add explicit ffmpeg + work kubernetes toolchain
-- *(backlog)* File Z-224 — adots git/config safe.directory append-loop
-- *(work-session)* Gemstash + Z-205 cutover + k8s toolkit + ruby 4.0.6 + ingest primed stage + model-bench registry
-- *(backlog)* File Z-235 (done) + Z-236 from zdots-heal run
-- *(backlog)* File Z-237/238/239 from pipeline validation
-- *(cc)* Wire 27 agent-facing bin/ commands into the tracked allowlist (Z-236)
-- *(backlog)* File Z-240 — retention-store GC follow-up
-- *(changelog)* Regenerate (Z-237 docs-sync)
-- *(backlog)* Z-235 filed+done (adots-my alias check), Z-236 filed (policy-engine schema drift), Z-162 phase-1 notes
-- *(backlog)* Renumber work-machine Z-235/Z-236 -> Z-240/Z-241 (ID collision with upstream zdots-heal filings)
-- *(backlog)* File Z-242/Z-243 from zdots-heal — phi_suppressed + unavailable-video retry loops
-- *(backlog)* Renumber work-machine Z-240 -> Z-244 (second ID collision with upstream)
-- *(backlog)* File Z-245 — cross-machine backlog ID allocation races
-- *(backlog)* File agent-issue — llama-mcp health probe false-negative under CC
-- *(backlog)* File request — per-job logs + schema-validated pipeline event log
-- *(backlog)* Z-247 — pin design direction: schema-validated JSONL stream primary, per-job logs as derived view
-- *(backlog)* Z-247 Done — event stream verified live on both job classes
-- *(backlog+db)* Z-241 migration, tenant-lesson-harvest + non-interactive-safety issues, Z-162/Z-241 notes
-- *(backlog)* File recurring embed-model disappearance + model-download embed-skip gap
-- *(beacon)* Re-stamp 0556026.M3
-## [0463026.M3] - 2026-06-19
-
-### 🚀 Features
-
-- *(version)* Agent-guide reports the platform beacon (Astronomicon)
-- *(version)* Add 'idate' alias for the imperial-date calendar converter
-- *(ai-query)* Add --from-file PATH flag
-- *(zdots-quiz)* Add TC-15/TC-16 for zdash binding + llama-ctl
-- *(ai-query)* Server-aware embed size ceiling from llama-ctl ubatch_size (Z-040)
-- *(skills)* Add /fan-out dispatch playbook + zdots-local-analyst agent (local-first)
-- *(skills)* Add /ingest-media pipeline + file Z-154 (ingest-prepare YouTube VTT gap)
-- *(skills)* Add /platform-sync — correct cross-repo review for the 4-repo platform
-- *(skills)* Add /telemetry-volume runbook; wire O2 drift into zdots-heal (Z-156)
-
-### 🐛 Bug Fixes
-
-- *(ai-query)* Calibrate scanner via context dampener + per-mode block thresholds
-- *(ztask)* Never gate task completion on AI distillation (Z-125)
-- *(docs)* Repair 3 broken Mermaid diagrams + correct stale topology/schema (Z-121)
-- *(zdots-eval)* Add --help handler; register in docs-contract (Z-133 follow-up)
-- *(skills)* Harden /ingest-media; document full pipeline + actor diagram
-- *(openobserve)* Cut retention 14→3d to cap spanmetrics volume (Z-156)
-- *(observability)* Tune spanmetrics at source + work retention + drift guard (Z-156)
-- *(doctor)* Don't abort on unversioned adots (unblocks all sections)
-- *(help)* Correct command-qc man convention; move openobserve-ctl to §8
-- *(help)* Complete §8 move — .Dt header, skill, cross-refs (amends ef5a4dc)
-
-### 💼 Other
-
-- Stamp beacon 0457026.M3 (Astronomicon)
-- Stamp beacon 0463026.M3 (Astronomicon)
-
-### 🚜 Refactor
-
-- *(mlx)* Archive Apple MLX experiment to experiments/mlx/
-- *(searchable)* Drop dead semantic branch, own search strategy
-- *(lesson)* Single intake owns source_type + trace-id provenance (Z-129)
-
-### 📚 Documentation
-
-- *(changelog)* Regenerate for 0452026.M3 with Astronomicon header
-- *(backlog)* Capture command-surface DSL + knowledge-ingestion contracts
-- *(backlog)* Land Z-135 runtime-insight loop; record coherence risks
-- *(skills)* Draft /docs-sync for AI-initializer-family coherence; file Z-153
-- *(coherence)* Close AGENTS.md §9 R2 wound; correct /docs-sync overclaim + cross-platform scope
-- *(skills)* Tighten /ingest-media verification after 2nd stability run
-- *(observability)* Propagate Z-156 across docs + openobserve-ctl help
-- *(man)* Add openobserve-ctl(1); refresh observability(7)/env(5) for Z-156
-- *(help)* Fill help-system gaps for observability commands
-- *(changelog)* Scrub work employer name from historical entries
-
-### 🧪 Testing
-
-- *(evals)* Add local-only promptfoo suite for PHI rules + thinking modes (Z-133)
-
-### ⚙️ Miscellaneous Tasks
-
-- *(backlog)* Audit + reconcile board; add Experimental state for parked work
-- *(backlog)* Reconcile Z-045 divergence — drop retired LGTM scope
-- *(backlog)* Land Z-038/Z-093 Done; attach Z-132 MCP eval
-- *(backlog)* Land Z-041 (scanner calibration) and Z-131 (Searchable) Done
-- *(backlog)* Land Z-125 (ztask AI-gate), Z-129 (Lesson intake), Z-133 (promptfoo evals) Done
-- *(backlog)* Z-153 AC#4 done (AGENTS.md §9 reconciled), add cross-platform AC#6
-- *(backlog)* Mark Z-040 Done
-- *(backlog)* Z-121 — add verified Mermaid audit findings as ACs
-- *(backlog)* Mark Z-121 Done
-- *(backlog)* File Z-156 (spanmetrics volume tuning)
-- *(work-session)* Platform-sync, skills, ctx fixes, work-path additions
-## [0452026.M3] - 2026-06-15
+- *(backlog)* File Z-333 — ai_invoke/ai_query bats fail in CI, pass locally
+- Add .mailmap — canonical identity + approved historical aliases
+- *(backlog)* File Z-334 — just3ws.github.io identity normalization (deferred)
+- *(backlog)* Z-333 root cause — committed Go binaries fail on GHA runner
+- Make the full job's bats subset non-blocking pending Z-333
+- *(backlog)* Z-333 — 4 causes fixed, residue is a ci-allowlist Ruby-toolchain audit
+- *(backlog)* File Z-335 — bump grpc in cmd/* (Dependabot high)
+- *(backlog)* Z-335 done — grpc bumped to v1.83.1
+- *(brew)* Add rubberband + selene for vdots read-aloud / Lua lint
+- *(brew)* Drop lua-language-server — vdots manages LSP servers via Mason
+- *(perms)* Allowlist read-only lint/scan tools + a few MCP read tools
+- *(backlog)* File heal-run findings — Z-339/340/341, +Z-336
+- *(backlog)* Record agent-reported tasks Z-343 through Z-346
+- *(infra)* Prune unused Brewfile casks and bump pre-commit shfmt
+- *(ruby)* Bump pinned Ruby to 4.0.7 & reconcile service map and docs contract gates
+- *(brew)* Deactivate optional packages and unused casks
+## [0668026.M3] - 2026-09-01
 
 ### 🚀 Features
 
@@ -662,6 +390,126 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(zdots)* Delegate my checks to adots
 - *(zdots-pages)* Bare-repo support + nav_order fix + relative-links
 - *(version)* Astronomicon platform versioning — Imperial-CalVer beacon
+- *(version)* Agent-guide reports the platform beacon (Astronomicon)
+- *(version)* Add 'idate' alias for the imperial-date calendar converter
+- *(ai-query)* Add --from-file PATH flag
+- *(zdots-quiz)* Add TC-15/TC-16 for zdash binding + llama-ctl
+- *(ai-query)* Server-aware embed size ceiling from llama-ctl ubatch_size (Z-040)
+- *(skills)* Add /fan-out dispatch playbook + zdots-local-analyst agent (local-first)
+- *(skills)* Add /ingest-media pipeline + file Z-154 (ingest-prepare YouTube VTT gap)
+- *(skills)* Add /platform-sync — correct cross-repo review for the 4-repo platform
+- *(skills)* Add /telemetry-volume runbook; wire O2 drift into zdots-heal (Z-156)
+- *(zclaude)* Tuned Claude Code launcher for zdots platform work
+- *(zclaude)* Continuity, effort, tmux + iTerm2 decoration
+- *(db)* Add context-engine tables migration
+- *(db)* Add environment_facts migration; track Z-157 issue
+- *(db)* Add scope_hint + clarifying_questions to policy_gaps
+- *(db)* Add missing columns for markdown ingest pipeline
+- *(otel)* Stage 2 log spine — filelog/app receiver for lograge JSON
+- *(otel)* Trace-side PHI scrub (TASK-XXX) — transform/phi/traces, live-verified
+- *(ingest)* Transcription ledger + zdots-ingest-media (Z-164 incr 1-2)
+- *(ingest)* Worker raw stage → pipeline_runs (Z-164 incr 3)
+- *(ingest)* Known_terms migration for the doubt loop (Z-167 incr 1)
+- *(otel)* Allow http://localhost:8080 OTLP CORS origin for session-capture browser SDK
+- *(ingest)* Whisper priming from known_terms — Z-167 done
+- *(ingest)* Cleaned stage via generic stage-runner (Z-166)
+- *(ingest)* Z-168 distilled stage — local LLM → grounded insights
+- *(ingest)* Z-169 long-video chunking — fan-out windows, resume, stitch
+- *(statusd)* Zdots.local control-plane status service (slice 1)
+- *(statusd)* Make zdots-statusd a managed Platform Service (slice 2)
+- *(statusd)* Draft nginx vhost for zdots.local (slice 3, operator-applied)
+- *(statusd)* Command-qc surfaces for zdots-statusd (slice 4)
+- *(nginx)* Nginx-regen-certs — one-shot, safe cert regen + reload
+- *(ingest-media)* Scoped opt-in cloud distill (Haiku) — ADR-0003
+- *(statusd)* Zdots.local favicon — observable-pulse node mark
+- *(claude-code)* Export OTel telemetry to local otel-collector
+- *(skill)* /cc-audit — Claude Code config hygiene on PHI machines
+- *(cc-doctor)* Gate global cloud-egress plugins + local-telemetry on work
+- *(cc-burn)* Claude Code token burn-rate + 5h-window monitor (Phase 1)
+- *(cc-burn-watch)* Launchd burn-rate alerter (Phase 2)
+- *(mcp)* Wire @ccusage/mcp — agent-accessible token budget (Phase 3)
+- *(cc-statusline)* Live token-burn segment, fed by the watcher cache
+- *(cc-burn)* Self-calibrating window ceiling + calibrate command
+- *(zdots.local)* Token-burn panel + /man docs surfacing + cross-links
+- *(zdots.local)* Docs portal, live --help, deeper interlinking
+- *(knowledge)* Pour the convergence spine — Z-150/Z-151 foundation
+- *(dsl)* Zdots dispatcher root — Wave-0 spine (Z-149 ✓)
+- *(dsl)* Noun-miss desire-path sensor in zdots dispatcher (Z-177)
+- *(seam-7)* Session intelligence write-back — zdots-debrief
+- *(knowledge)* OKF ingest adapter — source_type:okf + type-bridge (Z-174 ✓)
+- *(output-axis)* Zdots-artifact — distilled content → publishable draft (Z-176 ✓)
+- *(output-axis)* Thread + show-notes artifact framework prompts
+- *(cc-burn)* Token-budget governor ACs#1-5 (Z-148)
+- *(o2-mcp)* Add OpenObserve MCP server (Z-152)
+- *(z-101)* Encrypt remaining PHI columns — lessons.context + source_document.body_md
+- *(gemini-invoke)* Export OTEL_RESOURCE_ATTRIBUTES with zdots.trace.id for O2 correlation
+- *(mcp)* Add sequential-thinking and o2 MCP servers to .mcp.json
+- *(peer-discovery)* Complete Phase 3 — one bootstrap lib, three adapters
+- *(nginx)* Migrate llama/embed/o2/zdots vhosts to .localhost (decision-011)
+- *(jobs)* Generic transform job type for tenant-consumable AI results (Z-199)
+- *(transform)* Transcript cleanup/insights/seo profiles
+- *(ingest)* Opt-in acoustic diarization stage in ingest_media
+- *(zdots)* Add bulk reprocess-series by tag
+- Add timeline extraction stage to ingest pipeline
+- *(Z-222)* Implement semantic retrieval and article drafting agent
+- *(Z-223)* Implement publishing engine for auto-subtitle rendering
+- *(ingest)* Thread num_speakers hint into ingest_media payload
+- *(ingest)* Boundaries stage — mark theme-song intro/outro + interview span
+- *(aliases)* Wire ztranscribe alias to yt-transcribe recipe
+- *(ingest)* Implement local-file retention store (Z-238)
+- *(ingest)* Opt-in yt-dlp cookie strategy for bot-gated sources (Z-237)
+- *(pipeline)* Schema-validated JSONL event stream for worker jobs (Z-247)
+- *(skills)* /platform-integrate + heal Gate 8 + allowlist classification loop
+- *(skills)* Vendor 5 anthropic/skills — webapp-testing, mcp-builder, docx, xlsx, pdf
+- *(mcp)* Register Playwright MCP — headless, loopback-origins only
+- *(ctx-mcp)* Ctx_pipeline_events tool — Z-247 stream over MCP
+- *(man)* 100% man coverage — zdots-man-gen + contract enforcement
+- *(platform)* Zdots-platform — one command for the four-repo platform
+- *(cc-doctor)* Work-data boundary audit — catch CC-memory-in-git drift
+- *(theme)* Wire Kanagawa Wave through LS_COLORS/LSCOLORS
+- *(skills)* Extend patch-cycle/update to cover adots + vdots
+- *(patch-export)* Add 'my' as a 4th platform-repo label
+- *(theme)* Migrate shell theme Dracula Pro → Kanagawa Wave
+- *(theme)* Add Kanagawa Wave iTerm2 color preset
+- *(theme)* Add Alfred Kanagawa Wave appearance
+- *(theme)* Re-tone app assets to #1A1B2F + add bat/ghostty themes
+- *(theme)* Add lazygit Kanagawa Wave gui theme asset
+- *(zsynod)* Custom Kanagawa Wave Textual theme (exorcise last dracula)
+- *(env)* Wire ripgrep + wget XDG configs
+- *(theme)* Kanagawa Wave the zdots.localhost status dashboard
+- *(theme-gen)* Generate every surface from one palette source (Z-251)
+- *(statusd)* Consume generated theme tokens (Z-257)
+- *(statusd)* /theme swatch gallery + fix docs browser link resolution
+- *(statusd)* /theme as the living colorscheme reference
+- *(theme-gen)* Emit shell colors — fzf palette + LSCOLORS (Z-257 AC#3)
+- *(bus)* Local message bus for agent/human collaboration
+- *(pipeline)* Let ingest_media narrate progress and take directives via the bus
+- *(bus)* Context-engine bot that answers @context-engine questions
+- *(platform)* Zdots-platform integrate + idscan — mechanical /platform-integrate phases as verbs
+- *(llama)* Durable embed-model tripwire — launchd WatchPaths snapshot on deletion (Z-250/Z-260)
+- *(work-boundary)* Work-extension layer — tenant concerns leave the platform (Z-262)
+- *(doctor)* Surface embed-model tripwire evidence (Z-250/Z-260)
+- *(aliases)* Cl gates launch through cc-burn --assert-ceiling (Z-178)
+- *(Z-267)* Doctor detector pack — launchd flap/last-exit, dead-inode scan, install-set manifest
+- *(Z-264)* 'zdots help <cmd>' router verb + _zdots completion
+- *(Z-268)* Zdots-watch — scheduled doctor loop, transition-only notify
+- *(Z-260)* Model-download --all + embed missing-model start guard
+- *(Z-281)* Zdots-watch run-check — nightly bin/check with new-failure notify
+- *(zdots-watch)* Persist run evidence — last N full outputs per detector (Z-284)
+- *(Z-286)* Zdots-usage — CLI usage intelligence from the trace stream
+- *(Z-288)* Zdots-swiftbar — menu-bar platform pulse (SwiftBar emitter)
+- *(zdots-swiftbar)* CC burn state + north-star line on the pulse
+- *(zsvc)* Add "you are here" discovery layer — zsvc map
+- *(zdots-statusd)* Add /backlog — read-only Backlog.md board on zdots.localhost
+- *(agent-guide)* Synthesize man pages, HTTP routes, and external-agent discovery
+- *(zdots-statusd)* /backlog/<id> — view a task's full content
+- *(Z-192)* Zdots-ctx vault-doctor — Knowledge Layer curation
+- *(mcp)* Upgrade ctx/llama/o2 servers to 2026-07-28 spec, add self-describing skill/agent gate
+- *(zdots-storage,zdots-hygiene)* Bucket-aware storage monitoring & sweep (Z-303, Z-304)
+- *(zdots-lake,zdots-sql-lint)* Fix read-only enforcement, pandas dep, false-positive UNION block
+- *(interop-registry)* Durable cross-repo registry + maintenance skill
+- *(db)* Apply Z-316/Z-317 and one follow-on; file Z-319
+- *(bus)* Complete coordination surfaces
 
 ### 🐛 Bug Fixes
 
@@ -868,6 +716,110 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(Z-119)* --help exits 0 for bench/zdots-pattern/zdots-issue + docs-contract coverage
 - *(Z-126)* Bench degrades gracefully when nice/trace not permitted
 - *(Z-136)* Zsynod init guards _voting_ids against absent members.json
+- *(ai-query)* Calibrate scanner via context dampener + per-mode block thresholds
+- *(ztask)* Never gate task completion on AI distillation (Z-125)
+- *(docs)* Repair 3 broken Mermaid diagrams + correct stale topology/schema (Z-121)
+- *(zdots-eval)* Add --help handler; register in docs-contract (Z-133 follow-up)
+- *(skills)* Harden /ingest-media; document full pipeline + actor diagram
+- *(openobserve)* Cut retention 14→3d to cap spanmetrics volume (Z-156)
+- *(observability)* Tune spanmetrics at source + work retention + drift guard (Z-156)
+- *(doctor)* Don't abort on unversioned adots (unblocks all sections)
+- *(help)* Correct command-qc man convention; move openobserve-ctl to §8
+- *(help)* Complete §8 move — .Dt header, skill, cross-refs (amends 2bc1b6c)
+- *(upgrade)* Silence pnpm build-scripts and npm allow-scripts warnings
+- *(upgrade-node)* Silence pnpm build-scripts and npm allow-scripts warnings
+- *(upgrade-ai)* Drop redundant --allow-scripts flag now covered by .npmrc
+- *(upgrade-homebrew)* Brewfile_has checks Brewfile.common too
+- *(otel)* Suppress debug log spam — service.telemetry.logs.level warn
+- *(otel)* Rename otlphttp → otlp_http exporter (deprecation)
+- *(otel-phi)* Scrub span name (operation_name) — live-confirmed PHI leak
+- *(ai-query)* EXIT trap unbound-variable on empty _TMP_FILES under bash 3.2
+- *(otel)* Allow X-Request-Id in collector CORS for browser OTel export
+- *(ingest-media)* Map-reduce distill so long transcripts don't hit exit 3
+- *(ingest-media)* UTF-8 encoding so the launchd worker doesn't choke on transcripts
+- *(ingest-media)* Cloud distill via claude CLI, not the API (no API key here)
+- *(nginx)* Nginx-regen-certs also deploys tracked vhosts (zdots.local 403)
+- *(ingest-media)* Cloud distill model default catches empty string
+- *(zdots-doctor)* Guard adots-my contract substitution against set -e abort
+- *(docs-contract)* Close the --help gaps (Z-119)
+- *(agent-guide,capabilities)* --json exits clean (docs-contract green)
+- *(zdots-doctor)* --quiet must not abort at the first check
+- *(cmd-analytics)* Install zdots-buffer-drain so the Redis→SQLite drain runs
+- *(colima)* Root at $XDG_CONFIG_HOME/colima, not legacy ~/.colima
+- *(log-rotate)* Weekly launchd agent for service log rotation (Z-146 ✓)
+- *(embed)* Readiness retry in status + restart-embed command (Z-140 ✓)
+- *(llama-server)* Sandbox-exec profile + llama-ctl wrapper (Z-102 ✓)
+- *(llama-ctl)* Sandbox-exec for embed server (_register_embed_plist)
+- *(zclaude)* Export OTel exporter vars before claude launch (Z-172.01)
+- *(knowledge-layer)* Semantic search + embed reindex reliability
+- *(eval)* Close Z-172.05 — no MLX migration on M4 16GB
+- *(deps)* Bump concurrent-ruby 1.3.6 → 1.3.7 (CVE fix)
+- *(deps)* Bump faraday 2.14.2 → 2.14.3 (CVE fix)
+- *(otel-collector)* Guard against stale-compiled-config drift
+- *(nginx)* Remove zdots' stale duplicate of my.conf (Z-198)
+- *(colima)* Consolidate config off XDG, ~/.colima is canonical (Z-195, Z-181)
+- *(diarize)* Pin verified pyannote 3.1 stack + document token/licenses
+- *(zdots-ctx)* Pin brain launcher Ruby for status probe
+- *(transcribe)* Disable whisper prior-text context to stop turbo loops
+- *(transcribe)* Dedup divergent window seams after anti-loop change
+- *(ingest)* Bound cloud distill so a hung claude can't stall ingest
+- *(ingest)* Bound every media-pipeline subprocess, not just cloud distill
+- *(gh,pages)* Bound outward gh/git calls that ignore ~/.curlrc
+- *(openobserve)* Serve crash-loops under launchd — "${@}" empty + set -u
+- *(brain)* Self-heal Ruby toolchain so direct callers stop LoadError-ing
+- *(Z-221)* Make embed_chunks idempotent on reprocess
+- *(Z-221)* Add --help to zdots-search, regenerate pipeline Mermaid
+- *(worker)* Load HUGGINGFACE_TOKEN from Keychain; mirror HF_TOKEN
+- *(transcribe)* Reject unknown flags instead of swallowing as URL
+- *(mcp)* Run sequential-thinking via npx to survive node bumps
+- *(capabilities)* Decouple parked zsynod from the health contract (Z-235)
+- *(zdots-heal)* Sync Gate 3 service list + repair its drift check (Z-236)
+- *(zdots-ctl)* Capture check verifies §10 precondition instead of blanket-warning
+- *(platform-integrate)* Collision scan matches full task ID — z-172.03 subtask is not a z-172 dup
+- *(phi-scrub)* Bump grpc-go to 1.82.1, closes GHSA-hrxh-6v49-42gf
+- *(bootstrap)* Export ZDOTDIR in .zshenv so fresh logins resolve zdots
+- *(a11y)* WCAG AA contrast + focus-visible (zdots.localhost)
+- *(theme-gen)* Answer --help inertly (Z-249 non-interactive safety)
+- *(zshrc)* Dedupe iTerm2 shell integration sourcing
+- *(knowledge-layer)* Match slugs in methodology text search (Z-232)
+- *(command-qc)* Parse-only completion gate; add bats contract (Z-233)
+- *(observability)* Re-enable worker OTel — failures now reach O2 (Z-229)
+- *(worker)* Line-buffer stdout so logs are live under launchd
+- *(llama-mcp)* Run_cmd passed timeout: to capture3 — every tool reported failure (Z-246)
+- *(work-boundary)* Extract tenant k8s namespace from shell startup to .zdots.local
+- *(docs-sync)* UTF-8 boundary, hallucination gate, atomic apply, skip suppressed docs (Z-225/Z-228/Z-242)
+- *(llama-mcp)* Report active_model — status keys drifted; allow bats tests/
+- *(peer-bootstrap)* Append ADOTS_BIN_DIR to PATH so adots capabilities attest (Z-196)
+- *(log-rotate)* Add gemstash to weekly rotation job
+- *(upgrade-ai)* Protect every profile's model in prune — upgrade-ai was the serial embed-model deleter (Z-260)
+- *(upgrade-ai)* Fail-safe when the prune protect list is empty
+- *(Z-249)* --help answers without side effects — cc-home, zdots-pulse, ruby-default-gems + sweep test
+- *(man)* Point manpath at the real man/ tree; regen 2 corrupted NAME pages
+- *(zdots-watch)* Launchd runs get the real shell env; doctor stops conflating tool error with oversized logs
+- *(worker)* Survive code-ahead-of-migration boots (Z-280)
+- *(phi-history)* Scrub failures self-describe and self-heal (Z-266)
+- *(deps)* Bump transitive json gem 2.19.7 -> 2.21.2 (Dependabot #17)
+- *(zle-ai)* Deliberate non-interactive skip is not a source failure
+- *(zdots-watch)* Green runs actually write their state file + detector test suite
+- *(svc-map)* Correct two examples that were untested and wrong
+- *(docs)* DOCKER_HOST needs unix:// scheme, not a bare socket path
+- *(backlog)* Resolve Z-155 duplicate task ID (backlog doctor --fix)
+- *(docs)* Correct the "every service emits OTel spans" overclaim + genericize tenant naming
+- *(otel)* Zdots-worker's OTel instrumentation was silently a no-op since Z-229
+- *(search)* AND-over-words matching + relevance ranking, not exact-phrase substring
+- *(deps)* Bump json gem to 2.21.2, patches GHSA-9hj4-r449-hfvc (CVE-2026-71847)
+- *(tests)* Unbreak mise trust + jsonschema dep for nightly suite
+- *(gemstash)* Single-process Puma to avoid macOS fork-crash (Z-296)
+- *(zdots-check,zdots-gen)* Correct scope claims before first commit
+- *(nginx-ctl)* Health check false-negative on zdots.localhost
+- *(mcp)* Pass args as positional params, not interpolated shell text
+- *(ci,tests)* Drop unused untrusted tap; make mmdc guard prove it renders
+- *(bus)* Authenticate participants on post (Z-310)
+- *(spec)* Drop orphaned wiki_exporter spec that broke the whole suite
+- *(publisher)* Stop gsub eating the apostrophe in VTT paths (Z-311)
+- *(zdots-issue,nginx)* Pin backlog cwd, widen cert SAN scan to all TLDs
+- *(trace-log,nginx)* Resilient trace append, cert SAN --prune; adopt CURRENT FOCUS
+- *(ci)* Drop 8 stale zsynod_*.bats entries from the CI allowlist
 
 ### 💼 Other
 
@@ -958,6 +910,27 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - Complete task Z-116
 - Add decision decision-006
 - Add document doc-003
+- Stamp beacon 0457026.M3 (Astronomicon)
+- Stamp beacon 0463026.M3 (Astronomicon)
+- *(z-172.02)* Arize Phoenix S2 eval complete — local LLM tracing confirmed
+- Live-verify AC #1 + #2 — reprocess stages-only + --transcribe
+- Add primer text to ingestion pipelines
+- Fix pipeline run race condition on manual restart
+- Allow whisper --prompt to work by conditionally dropping --max-context 0
+- Mark task as Done
+- Implement speaker registry and update backlog tasks
+- Mark Video Timeline as complete
+- Use --max-len 60 in whisper to improve back-and-forth diarization resolution
+- Task out the Autonomous Knowledge System implementation plan (Phases 2-4)
+- Implement Semantic Memory pgvector integration and Knowledge Chunking
+- Ingest work branch — hot-path perf, zdots-watch/usage/swiftbar, charter docs
+- Ingest work branch — search relevance, vault-doctor, statusd backlog views, zsvc map
+- Synthesize work branch into main
+- File 3 findings from /zdots-heal run (redis crash-loop, retry-forever transcription jobs, no lesson-tag edit path)
+- Track Z-294..297 agent-filed issues in backlog
+- Track Z-294, Z-295, Z-297 agent-filed issues in backlog
+- Track Z-303, Z-304 agent-filed issues in backlog
+- Gitignore HUMAN.answered.md alongside HUMAN.md
 
 ### 🚜 Refactor
 
@@ -1009,6 +982,18 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(go)* Unify the RE2 engine into shared pkg/re2registry
 - *(zsynod)* Contain entirely under experiments/zsynod/
 - *(Z-130)* Move AI invocation contract into the signature; assert locality once
+- *(mlx)* Archive Apple MLX experiment to experiments/mlx/
+- *(searchable)* Drop dead semantic branch, own search strategy
+- *(lesson)* Single intake owns source_type + trace-id provenance (Z-129)
+- *(version)* Source my contract from adots-my, not a hardcoded string
+- *(zshenv)* Wire .zshenv.local override hook; drop machine-specific fpath
+- Remove dead DI provider seams + unused contract machinery
+- Remove the retired LGTM observability stack (Z-134)
+- *(bin)* Use "$@" not "${@}" in ctl dispatch (bash 3.2 hygiene)
+- *(doctor)* Fold work-data boundary check into zdots-doctor
+- *(theme)* Consolidate Kanagawa on kanagawa-wave, close LSCOLORS gap
+- *(theme)* Exorcise Dracula from zdots
+- *(upgrade,zle-ai)* Dedupe run_cmd wrapper and ZLE AI widget shape
 
 ### 📚 Documentation
 
@@ -1120,7 +1105,6 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(zsynod)* Add scenario-based tutorial
 - *(zsynod)* Validate scenarios and confirm hook sync
 - *(zsynod)* Update lifecycle and tutorial for test-gate
-- Abstract work and staging to work and staging
 - *(zsynod)* Quality control pass — man, help, completion, guide, health
 - *(zsynod)* D-014 — key resolution migrated to Keychain; update LIFECYCLE
 - *(zdots)* High-fidelity system description for large-context AI sessions
@@ -1135,6 +1119,64 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(backlog)* Document dependency-graph workflow + literal-file anti-pattern
 - *(Z-140)* Record embed-health investigation findings; keep open for timing-race fix
 - *(backlog)* Close Z-138 board + refresh dependency graph (doc-003)
+- *(changelog)* Regenerate for 0452026.M3 with Astronomicon header
+- *(backlog)* Capture command-surface DSL + knowledge-ingestion contracts
+- *(backlog)* Land Z-135 runtime-insight loop; record coherence risks
+- *(skills)* Draft /docs-sync for AI-initializer-family coherence; file Z-153
+- *(coherence)* Close AGENTS.md §9 R2 wound; correct /docs-sync overclaim + cross-platform scope
+- *(skills)* Tighten /ingest-media verification after 2nd stability run
+- *(observability)* Propagate Z-156 across docs + openobserve-ctl help
+- *(man)* Add openobserve-ctl(1); refresh observability(7)/env(5) for Z-156
+- *(help)* Fill help-system gaps for observability commands
+- *(changelog)* Scrub work employer name from historical entries
+- *(nginx)* Resolve gap 4, add deploy workflow, drop dev.my.local
+- *(skill)* Add /my-ingest-principles + fix architecture my.local label
+- *(cc-audit)* Note cc-doctor now auto-gates cloud plugins (gap closed)
+- *(agents)* Drop LGTM service row (Z-134) + add Snake in a Can principle
+- *(knowledge)* Adopt OKF as knowledge interchange standard (decision-010)
+- *(backlog)* Direction synthesis + dream tasks (doc-007)
+- *(backlog)* Thread reconciliation + alignment plan (doc-008)
+- *(claude-md)* Ratify /docs-sync skill in Agent Skills section (Z-153 AC#1)
+- *(docs-sync)* Tier-propagation manifest + ratify naming convention (Z-153 AC#3,5,6)
+- Refresh agent-guide + tooling.md after Z-101 + statusd
+- *(z-159)* Document context-engine bin/deploy step in SETUP.md and agent-guide
+- *(nginx)* Note my.conf is ~/my-owned, not zdots' (Z-198 follow-up)
+- *(agent-guide)* Fix stale colima GUARD text, add Job Queue section
+- *(ponytail)* Add upgrade triggers to 3 no-trigger shortcut markers
+- *(secrets)* Document HUGGINGFACE_TOKEN setup + ZDOTS_DIARIZE flag
+- *(transcription)* Document boundaries, num_speakers, sanity gate
+- *(transcribe)* Add yt-transcribe(1) man page
+- *(transcribe)* Sync usage block with full flag surface
+- *(boundaries)* Add --help to zdots-backfill-boundaries
+- *(ingest)* Document yt-dlp cookie env knobs (Z-237 docs-sync)
+- *(architecture)* Drop stray quote after rotate-creds, restore trailing newline
+- *(changelog)* Regenerate for 0556026.M3
+- *(changelog)* Regenerate for 0556026.M3
+- *(theme)* Keep the Kanagawa Wave 'Bedrock' artifact
+- *(agents)* Add Cook Ding's Blade as a core operating tenet
+- *(styleguide)* Canonical colorscheme reference (Kanagawa Wave)
+- *(styleguide)* Kanagawa Wave heritage — The Great Wave off Kanagawa
+- *(styleguide)* Point at the living reference (zdots.localhost/theme + palette.json)
+- *(agents)* Ratify "the platform" as the binding four-repo term
+- *(agents)* Make the work-extension hook surface apparent
+- *(roadmap)* Doc-003 — platform roadmap 2026-2031 (proposal for operator)
+- *(vision)* Doc-003 gains the vision statement; file the 90-day spine Z-289..292
+- *(charter)* Doc-004 — north star, alignment test, KPIs, OKRs, cadence
+- *(charter)* The operating adage — twice means automate, as self-describing tools
+- *(agent-guide)* Current with the weekend — detectors, usage intel, operator-chat conventions
+- *(platform-sync)* CI-health depth + fix-scope guidance for adots/my/vdots
+- State the zdots/tenant-app charter — generic here, specific there
+- *(agents)* Codify The Blink Test — verify fixes red-green-red-green
+- *(local-url-routing)* Add wwworkremote.localhost and just3ws.localhost
+- *(llama-cpp)* Note wwworkremote as a confirmed external consumer
+- *(local-url-routing)* Correct just3ws.localhost — it does export data
+- *(message-bus)* Flag job-leads as an external, live cross-repo channel
+- *(ytdlp)* Document cookie knobs; file Z-307/Z-308 agent issues
+- *(bus)* Document the web console; retract bus traffic as interop evidence
+- *(human)* Open items requiring the operator, answerable inline
+- *(human)* Inline '> **A:**' answer slots per question
+- *(bus)* Describe the authenticated model, retire the vulnerability notes
+- *(openobserve)* Add credential retrieval commands
 
 ### ⚡ Performance
 
@@ -1148,12 +1190,19 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(metadata)* Add process-level cache to deliver on documented contract
 - *(pi+aider)* Tighten context budgets for 32k local LLM window
 - *(phi-history)* Decouple SQLite record threshold from stderr print threshold
+- *(phi-history)* Single scrub spawn per command (Z-173)
+- *(Z-270)* Version-keyed init cache for shell-tool hooks; truly defer atuin
+- *(phi-history)* Resident scrubber — 16.4ms -> 0.08ms per command (Z-283)
+- *(trace)* Fork-free redaction + held trace fd — 16.6ms -> 1.5ms per command
+- *(check)* Two-lane bats — 41 suites across 4 parallel lanes, 16 stateful serial (Z-287)
 
 ### 🎨 Styling
 
 - Fix trailing whitespace and end-of-file issues
 - Apply RuboCop autocorrect to Ruby infrastructure
 - *(zsvc)* Add emoji and color to diagnostic output
+- *(phi-patterns)* Yamllint colon spacing — 4 alignment colons, zero pattern changes
+- *(theme)* Hand-tune Kanagawa Wave bg bluer (#1F1F28 -> #1A1B2F)
 
 ### 🧪 Testing
 
@@ -1181,6 +1230,14 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(zdots)* Add adots-my structure contract
 - *(Z-118)* Regression guard for 'rtk git diff -- <pathspec>'
 - *(backlog)* Assert auto_commit=false — lock in coherent-commit policy
+- *(evals)* Add local-only promptfoo suite for PHI rules + thinking modes (Z-133)
+- *(docs-contract)* Fictional-reference linting + register new binaries (Z-153 AC#2)
+- *(z-188)* Reprocess CLI wiring/guard smoke test; record P1 verification
+- *(Z-221)* Register zdots-search in docs contract test suite
+- *(e2e)* Fix stale methodology-slug assertion (Z-239, dup Z-206)
+- *(svc-registry)* Expected managed set is eleven services since c55adbdbd
+- Repair 11 stale/environment-brittle assertions blocking bin/check
+- *(docs-contract)* Register this session's 6 new commands, fix dir false-positive
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -1242,6 +1299,139 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(cc)* Permit all zdots platform tools without prompt
 - *(gitignore)* Ignore ledger dump files and *.bak
 - *(backlog)* Set auto_commit=false — coherent dependency-oriented commits
+- *(backlog)* Audit + reconcile board; add Experimental state for parked work
+- *(backlog)* Reconcile Z-045 divergence — drop retired LGTM scope
+- *(backlog)* Land Z-038/Z-093 Done; attach Z-132 MCP eval
+- *(backlog)* Land Z-041 (scanner calibration) and Z-131 (Searchable) Done
+- *(backlog)* Land Z-125 (ztask AI-gate), Z-129 (Lesson intake), Z-133 (promptfoo evals) Done
+- *(backlog)* Z-153 AC#4 done (AGENTS.md §9 reconciled), add cross-platform AC#6
+- *(backlog)* Mark Z-040 Done
+- *(backlog)* Z-121 — add verified Mermaid audit findings as ACs
+- *(backlog)* Mark Z-121 Done
+- *(backlog)* File Z-156 (spanmetrics volume tuning)
+- *(work-session)* Platform-sync, skills, ctx fixes, work-path additions
+- *(cc)* Enable zdots platform commands + safe read patterns by default
+- *(env)* Add project-local ./sbin to PATH alongside ./bin (work)
+- *(env)* Project-local tool bins + zdots sbin on PATH
+- *(nginx)* Remove dev.my.local from my.conf
+- *(housekeeping)* Capture context-engine production work — docs, skills, backlog
+- *(housekeeping)* Operator console — skills, backlog dedupe, spec-debt task
+- *(backlog)* Publish transcription-pipeline v1 task slices (Z-163..Z-170)
+- *(backlog)* Ratify Z-163 PHI policy for source metadata
+- *(backlog)* Z-164 progress notes + Z-171 video-timeline task
+- *(backlog)* Z-164 done — end-to-end transcription tracer
+- *(backlog)* Z-165 done — tabbed stage viewer
+- *(claude)* Allow mcp__backlog__task_search (read-only)
+- *(backlog)* Z-166 done (AC#2 descoped) + Z-154 superseded-once-parity note
+- *(backlog)* Z-168 + Z-170 done (distilled stage, promote-to-lesson)
+- *(backlog)* Z-169 done (long-video chunking + resume)
+- *(gitignore)* Ignore /team-onboarding ONBOARDING.md artifact
+- *(backlog)* Add AI-stack evaluation itinerary epic (Z-172)
+- *(backlog)* File Z-173 — phi-history hook double-spawn overhead
+- *(backlog)* Z-173 — record phi-history double-spawn fix (daemon work remains)
+- *(backlog)* Z-153 Done — all ACs closed
+- *(backlog)* Close Z-148, file Z-178 for adots cl gate
+- *(backlog)* Close Z-153 — check off ACs #1-6
+- *(backlog)* Document Z-172.01 root cause + fix, awaiting next session verify
+- *(backlog)* Z-172.03 AC#3 done — file Z-179 for Presidio NER PHI operator coordination
+- *(backlog)* File Z-181 — adots .colima/.config/colima coexistence
+- *(z-101)* Mark done — all AC checked, 731 tests pass
+- *(z-172.01)* Mark done — claude_code.* metrics confirmed in O2
+- *(release)* Stamp Astronomicon beacon 0493026.M3
+- *(work-session)* CLI hardening, otel diagnostics, delivery-metrics, snapshot, backlog cleanup
+- *(backlog)* Track Z-194 (adots-doctor .tmux.conf pathspec crash)
+- *(backlog)* Track Z-195 (colima legacy-root symlink defeats adots-doctor --fix)
+- *(backlog)* Mark Z-198 done
+- *(backlog)* Reconcile z-199 against landed transform mechanism
+- *(backlog)* Track transcribe stitch validation + deferred cuts
+- *(backlog)* Z-202 done — zdots-brain Ruby self-heal (fixed in 087ea3d)
+- *(bootstrap)* Add just3ws.localhost to mkcert SAN list
+- *(cc)* Allowlist zdots doctor + log show read-only commands
+- *(cc)* Promote mandoc + zdots-phi-scrub read-only wildcards
+- *(brew)* Add explicit ffmpeg + work kubernetes toolchain
+- *(backlog)* File Z-224 — adots git/config safe.directory append-loop
+- *(work-session)* Gemstash + Z-205 cutover + k8s toolkit + ruby 4.0.6 + ingest primed stage + model-bench registry
+- *(backlog)* File Z-235 (done) + Z-236 from zdots-heal run
+- *(backlog)* File Z-237/238/239 from pipeline validation
+- *(cc)* Wire 27 agent-facing bin/ commands into the tracked allowlist (Z-236)
+- *(backlog)* File Z-240 — retention-store GC follow-up
+- *(changelog)* Regenerate (Z-237 docs-sync)
+- *(backlog)* Z-235 filed+done (adots-my alias check), Z-236 filed (policy-engine schema drift), Z-162 phase-1 notes
+- *(backlog)* Renumber work-machine Z-235/Z-236 -> Z-240/Z-241 (ID collision with upstream zdots-heal filings)
+- *(backlog)* File Z-242/Z-243 from zdots-heal — phi_suppressed + unavailable-video retry loops
+- *(backlog)* Renumber work-machine Z-240 -> Z-244 (second ID collision with upstream)
+- *(backlog)* File Z-245 — cross-machine backlog ID allocation races
+- *(backlog)* File agent-issue — llama-mcp health probe false-negative under CC
+- *(backlog)* File request — per-job logs + schema-validated pipeline event log
+- *(backlog)* Z-247 — pin design direction: schema-validated JSONL stream primary, per-job logs as derived view
+- *(backlog)* Z-247 Done — event stream verified live on both job classes
+- *(backlog+db)* Z-241 migration, tenant-lesson-harvest + non-interactive-safety issues, Z-162/Z-241 notes
+- *(backlog)* File recurring embed-model disappearance + model-download embed-skip gap
+- *(beacon)* Re-stamp 0556026.M3
+- *(backlog)* Close Z-194 — adots-doctor .tmux.conf crash not reproducible
+- *(backlog)* Reconfirm Z-230 — adots-doctor symlink check still stale
+- *(backlog)* Close Z-230 — adots-doctor ensure_symlink fixed
+- *(brew)* Retire Dracula theme casks
+- *(gitignore)* Ignore Playwright MCP session artifacts
+- *(backlog)* File platform-dynamism epic — theme-gen + 4 levers (Z-251..255)
+- *(backlog)* File Z-256 — patch context-engine sanitizer-gem CVEs
+- *(backlog)* Close Z-251 (theme-gen Done), file Z-257 (dashboard token consumption)
+- *(backlog)* Close Z-256 (CVE bump Done); file Z-258 (health_spec) + Z-259 (dependabot gap)
+- *(backlog)* Z-257 AC#1 done (dashboards consume generated tokens); defer rest
+- *(backlog)* Close Z-232 (slug search fixed); file Z-260 (llama-ctl model lifecycle traps)
+- *(gitignore)* Untrack SimpleCov coverage/ output
+- *(backlog)* Close Z-257 — theme-token loop fully wired
+- *(backlog)* Close Z-233 (gate noise, not file defects)
+- *(backlog)* Close Z-229 (worker OTel re-enabled, verified in O2)
+- *(backlog)* Z-260 escalation — embed model deleted twice same day, deleter unidentified, tripwire armed
+- *(backlog)* Weekly triage — close Z-182/Z-242/Z-243/Z-246, evidence on Z-228/Z-250/Z-260
+- *(claude)* Allowlist 10 read-only command patterns from transcript frequency audit
+- *(backlog)* Z-246 follow-up note
+- *(backlog)* Close Z-196 (adots -ga fix d98b357) + Z-178 (cl cc-burn gate 96942d1); re-scope Z-224 to zdots-work layer
+- *(backlog)* Z-196 follow-up note — PATH fix, attestation 26/32
+- *(ruby-audit)* Bump json 2.19.7 -> 2.21.2 (Dependabot #17, CVE-2026-54696)
+- *(backlog)* Close Z-196 (adots -ga fix d98b357) + Z-178 (cl cc-burn gate a1eae3f); re-scope Z-224 to zdots-work layer
+- *(backlog)* File Z-263 — log-rotate plist hardcodes home-machine paths, no install step (work machine had no rotation wired)
+- *(backlog)* Close Z-250 as duplicate of Z-260; note prune fail-safe
+- *(claude)* Allow mcp__llama__llama_health (read-only, loopback, zero-input)
+- *(backlog)* 2026-08-01 system audit refresh — 7 closes, 11 updates, 16 new tasks
+- *(backlog)* Close Z-268/270/276, note Z-260/266, file Z-280 worker boot-crash
+- *(backlog)* File Z-281 — nightly bin/check runner (assertion-rot detector)
+- *(backlog)* Z-266 diagnosis complete — scrub_failure is registry load failure
+- *(backlog)* Close Z-281 — nightly suite detector live
+- *(backlog)* File the hot-path-and-evidence pass — Z-283/284/285
+- *(backlog)* Close Z-285 — rtk exonerated, corruption was rg -r flag bundling
+- *(backlog)* Close Z-283 (resident scrubber, 203x) + Z-284 note
+- *(backlog)* File Z-286 zdots-usage (evidence-driven spec) + Z-287 bats --jobs
+- *(backlog)* Close Z-286 — zdots-usage live
+- *(cc)* Allowlist make docs-contract, zdots-usage, zdots-watch status
+- *(backlog)* Z-272 evidence + ready patch; Z-275 adoption story corrected
+- *(backlog)* Close Z-287 — two-lane check at 4:41
+- *(backlog)* Close Z-288 — pulse widget live
+- *(statusd)* Drop tenant name from BacklogBoard comment (Z-262 hygiene)
+- *(statusd)* Remove residual tenant reference from comment
+- *(python)* Pin deps via requirements-lock.txt (uv pip compile)
+- *(cc)* Allowlist zdots-storage/hygiene/check/gen/lake/sql-lint; fix shellcheck warning
+- *(cc)* Allowlist MCP tools from /fewer-permission-prompts transcript scan
+- *(backlog)* Sync agent-issue state from 2026-08-20 session
+- *(backlog)* Close Z-297/Z-305/Z-307/Z-309; file Z-310 (bus identity unauthenticated)
+- *(backlog)* File Z-311 (publisher.rb gsub backreference, sibling of Z-297)
+- *(backlog)* Close Z-258; file Z-312 (context-engine suite was unrunnable)
+- *(human)* Untrack HUMAN.md — answers live in the my vault
+- *(backlog)* Close Z-310 and Z-311, annotate Z-312 triage
+- *(backlog)* File Z-315..Z-317; drop a hardcoded work-machine username
+- *(backlog)* File Z-318 — patch-export still writes to the old outbox
+- *(backlog)* Bump Z-314 to high, log second reproduction
+- *(backlog)* File Z-324 — nginx-regen-certs SAN regex excludes .home.arpa
+- *(backlog)* Add retirement scoping to Z-330
+- Commit completed Z-314/Z-324 bookkeeping + LAN-routing doc
+- *(backlog)* Z-329 done — remove career-search artifacts stray-installed into zdots
+- *(backlog)* File Z-332 — career-search Tier 2 semantic retrieval
+- *(backlog)* Z-332 narrowed — ask mode done, semantic layer remains
+- *(brew)* Move mysql-client to Brewfile.work
+- *(ci,brew,docs)* Drop untrusted taps, unblock CI, refresh README counts
+- *(security)* SECURITY.md, least-privilege CI, remove inert Gemini workflows
+- *(beacon)* Re-stamp 0668026.M3 (Astronomicon)
 
 ### 🛡️ Security
 
