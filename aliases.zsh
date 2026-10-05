@@ -54,7 +54,7 @@ alias zlogs='llama-ctl logs'                          # tail llama.cpp server lo
 alias zlogs-otel='otel-collector logs'                # tail OTel collector log
 
 # AI Recipes (pre-built scenarios — run with no args for usage)
-alias zmorning='"${ZDOTDIR}"/recipes/morning'                      # daily briefing: health + history + suggestions
+alias zmorning-recipe='"${ZDOTDIR}"/recipes/morning'               # daily briefing: health + history + suggestions
 alias zstandup='"${ZDOTDIR}"/recipes/standup'                      # git history → standup summary
 alias zpre-push='"${ZDOTDIR}"/recipes/pre-push'                    # review unpushed commits before pushing
 alias zcommit-recipe='"${ZDOTDIR}"/recipes/commit'                 # review staged diff → generate message → commit

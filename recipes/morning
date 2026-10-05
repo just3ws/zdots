@@ -59,10 +59,10 @@ else
   _warn "OTel collector down  (otel-collector start)"
 fi
 
-if curl -sf -m 3 "http://127.0.0.1:3000/api/health" >/dev/null 2>&1; then
-  _ok "Grafana / LGTM up"
+if "${ZDOTDIR}/bin/openobserve-ctl" health >/dev/null 2>&1; then
+  _ok "OpenObserve up"
 else
-  _warn "Grafana / LGTM down  (local-ci start)"
+  _warn "OpenObserve down  (openobserve-ctl start)"
 fi
 
 # 1.5 Knowledge Layer & Queue

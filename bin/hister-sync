@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# ---
+# id: hister-sync
+# title: "Hister Search Engine Sync & Ingestion"
+# purpose: Sync and index Software Craftsmanship knowledge corpora and local
+#          web applications into Hister (https://hister.localhost).
+# rationale: Hister powers local search across browsing history, local applications,
+#            and domain-specific cartography corpora. This tool automates sitemap
+#            translation from just3ws.localhost, seeds canonical craftsmanship
+#            manifestos and reading lists, and monitors indexing health.
+# ---
+# bin/hister-sync — manage and index software craftsmanship and platform corpora
+
+set -euo pipefail
+trap '' PIPE
+
+BREW_PREFIX="$(brew --prefix 2>/dev/null || printf /opt/homebrew)"
+HISTER_BIN="${BREW_PREFIX}/opt/hister/bin/hister"
+HISTER_DATA_DIR="${HISTER_DATA_DIR:-$BREW_PREFIX/var/hister}"
+HISTER_SERVER_URL="${HISTER_SERVER_URL:-http://127.0.0.1:4433}"
+JUST3WS_WEBROOT="${BREW_PREFIX}/var/www/just3ws.github.io"
+SITEMAP_FILE="${JUST3WS_WEBROOT}/sitemap.xml"
+
+_ok()   { printf '\033[32m✓\033[0m %s\n' "$*"; }
+_warn() { printf '\033[33m!\033[0m %s\n' "$*"; }
+_err()  { printf '\033[31m✗\033[0m %s\n' "$*" >&2; }
+_die()  { _err "$*"; exit 1; }
+
+usage() {
+  cat <<'EOF'
+Usage: hister-sync <command> [options]
+
+Sync and index Software Craftsmanship knowledge corpora and local web
+applications into Hister (https://hister.localhost).
+
+Commands:
+  just3ws         Index or update just3ws.localhost pages from sitemap.xml
+  craftsmanship   Index canonical software craftsmanship domains & reading lists
+  all             Index both just3ws and craftsmanship reading lists
+  url <URL...>    Index one or more specific URLs
+  status          Show Hister server connectivity, vhost state, and index stats
+  search <query>  Search the Hister index via CLI
+
+Options:
+  --all           When used with just3ws: index all sitemap URLs (not just craft subset)
+  --force         Force reindexing of already indexed URLs
+  --dry-run       Print URLs to be indexed without submitting to Hister
+  --label <name>  Custom label for indexed documents (default: just3ws or craftsmanship)
+  -h, --help      Show this help
+
+Examples:
+  hister-sync status
+  hister-sync just3ws
+  hister-sync just3ws --all
+  hister-sync craftsmanship
+  hister-sync search "Uncle Bob DHH"
+  hister-sync url https://manifesto.softwarecraftsmanship.org/
+EOF
+}
+
+_check_hister() {
+  [[ -x "$HISTER_BIN" ]] || _die "hister binary not found at $HISTER_BIN"
+  if ! curl -sf -m 2 "${HISTER_SERVER_URL}/" >/dev/null 2>&1; then
+    _die "Hister server not responding at ${HISTER_SERVER_URL} (run: brew services start hister)"
+  fi
+}
+
+_cmd_status() {
+  printf '\n\033[1m── Hister Search Integration Status ──\033[0m\n'
+  if curl -sf -m 2 "${HISTER_SERVER_URL}/" >/dev/null 2>&1; then
+    _ok "Backend daemon running (${HISTER_SERVER_URL})"
+  else
+    _err "Backend daemon down (${HISTER_SERVER_URL}) — run: brew services start hister"
+    return 1
+  fi
+
+  if curl -sk -m 3 "https://hister.localhost/" >/dev/null 2>&1; then
+    _ok "Nginx vhost healthy (https://hister.localhost)"
+  else
+    _warn "Nginx vhost unreachable (https://hister.localhost) — run: nginx-ctl health"
+  fi
+
+  local all_urls just3ws_urls craft_urls total_count
+  all_urls=$(HISTER_DATA_DIR="$HISTER_DATA_DIR" "$HISTER_BIN" list-urls --server-url "$HISTER_SERVER_URL" 2>/dev/null || true)
+  total_count=$(printf '%s\n' "$all_urls" | grep -c '^http' || true)
+  just3ws_urls=$(printf '%s\n' "$all_urls" | grep -c 'just3ws' || true)
+  craft_urls=$(printf '%s\n' "$all_urls" | grep -cE 'softwarecraftsmanship|agilemanifesto|codekata' || true)
+
+  printf '  Indexed documents : %d total\n' "$total_count"
+  printf '  just3ws pages     : %d\n' "$just3ws_urls"
+  printf '  Craftsmanship ext : %d\n' "$craft_urls"
+  printf '  Data directory    : %s\n' "$HISTER_DATA_DIR"
+  printf '  Webroot           : %s\n\n' "$JUST3WS_WEBROOT"
+}
+
+_cmd_just3ws() {
+  local all_mode=false force_mode=false dry_run=false label="just3ws"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --all)      all_mode=true ;;
+      --force)    force_mode=true ;;
+      --dry-run)  dry_run=true ;;
+      --label)    shift; label="${1:-just3ws}" ;;
+      -h|--help)  usage; exit 0 ;;
+      *)          _die "unknown option: $1" ;;
+    esac
+    shift
+  done
+
+  _check_hister
+
+  local sitemap_content=""
+  if [[ -f "$SITEMAP_FILE" ]]; then
+    sitemap_content=$(cat "$SITEMAP_FILE")
+  else
+    sitemap_content=$(curl -sk "https://www.just3ws.localhost/sitemap.xml" 2>/dev/null || true)
+  fi
+
+  [[ -n "$sitemap_content" ]] || _die "could not read sitemap from $SITEMAP_FILE or https://www.just3ws.localhost/sitemap.xml"
+
+  local urls=()
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && urls+=("$line")
+  done < <(printf '%s\n' "$sitemap_content" \
+    | grep -o '<loc>[^<]*</loc>' \
+    | sed -e 's/<loc>//' -e 's/<\/loc>//' \
+    | sed -e 's|https://www.just3ws.com|https://www.just3ws.localhost|' \
+          -e 's|http://www.just3ws.com|https://www.just3ws.localhost|' \
+          -e 's|https://just3ws.com|https://www.just3ws.localhost|' \
+    | grep -vE '\.(pdf|xml|json|jsonl|txt|png|jpg|jpeg|gif|svg|ico)$')
+
+  local target_urls=()
+  if $all_mode; then
+    target_urls=("${urls[@]}")
+  else
+    for u in "${urls[@]}"; do
+      if [[ "$u" =~ (craftsmanship|reports|signatory|agile|living-history|scmc|timeline|crucible|interviews|oral-history|videos|taxonomy|resume|about) ]]; then
+        target_urls+=("$u")
+      fi
+    done
+  fi
+
+  printf 'Parsed %d HTML URLs from sitemap (targeted: %d URLs, mode: %s)\n' \
+    "${#urls[@]}" "${#target_urls[@]}" "$([[ "$all_mode" == "true" ]] && echo "all" || echo "craftsmanship")"
+
+  if $dry_run; then
+    printf 'Dry-run plan (%d URLs):\n' "${#target_urls[@]}"
+    printf '  %s\n' "${target_urls[@]}"
+    return 0
+  fi
+
+  local -a flags=(--server-url "$HISTER_SERVER_URL" --no-robots --label "$label")
+  $force_mode && flags+=(--force)
+
+  printf 'Submitting %d URLs to Hister indexer...\n' "${#target_urls[@]}"
+  printf '%s\n' "${target_urls[@]}" \
+    | HISTER_DATA_DIR="$HISTER_DATA_DIR" "$HISTER_BIN" index "${flags[@]}" --input - 2>&1 \
+    | grep -v 'skipping URL by prefetch skip predicate' || true
+
+  _ok "just3ws indexing complete"
+}
+
+_cmd_craftsmanship() {
+  local force_mode=false dry_run=false label="craftsmanship"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force)    force_mode=true ;;
+      --dry-run)  dry_run=true ;;
+      --label)    shift; label="${1:-craftsmanship}" ;;
+      -h|--help)  usage; exit 0 ;;
+      *)          _die "unknown option: $1" ;;
+    esac
+    shift
+  done
+
+  _check_hister
+
+  local seeds=(
+    "https://manifesto.softwarecraftsmanship.org/"
+    "https://katas.softwarecraftsmanship.org/"
+    "https://scna.softwarecraftsmanship.org/"
+    "https://agilemanifesto.org/"
+    "http://blog.oshineye.com/2011/01/software-craftsmanship-more-than-just.html"
+    "http://ravimohan.blogspot.com/2005/09/nostalgia-for-guilds-and-other.html"
+    "http://jd-syntropy.blogspot.com/2009/01/am-i-master.html"
+    "http://norvig.com/21-days.html"
+    "http://thewalrus.ca/the-puppet-master-and-the-apprentice/"
+    "https://github.com/paulwpagel/codekata"
+    "http://www.exampler.com/blog/2008/12/10/screen-pairing/"
+    "https://www.infoq.com/news/2008/12/haines-pairing-tour/"
+    "https://meekrosoft.wordpress.com/2011/07/17/code-retreat-an-interview-with-corey-haines/"
+    "https://www.informit.com/articles/article.aspx?p=1735648"
+    "https://www.informit.com/articles/article.aspx?p=2252410"
+  )
+
+  printf 'Found %d canonical software craftsmanship seed URLs\n' "${#seeds[@]}"
+
+  if $dry_run; then
+    printf 'Dry-run seeds:\n'
+    printf '  %s\n' "${seeds[@]}"
+    return 0
+  fi
+
+  local -a flags=(--server-url "$HISTER_SERVER_URL" --no-robots --label "$label")
+  $force_mode && flags+=(--force)
+
+  printf 'Submitting seeds to Hister indexer...\n'
+  printf '%s\n' "${seeds[@]}" \
+    | HISTER_DATA_DIR="$HISTER_DATA_DIR" "$HISTER_BIN" index "${flags[@]}" --input -
+
+  _ok "Craftsmanship seed indexing complete"
+}
+
+_cmd_url() {
+  local -a urls=()
+  local force_mode=false label="manual"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) force_mode=true ;;
+      --label) shift; label="${1:-manual}" ;;
+      -*)      _die "unknown option: $1" ;;
+      *)       urls+=("$1") ;;
+    esac
+    shift
+  done
+
+  (( ${#urls[@]} > 0 )) || _die "usage: hister-sync url <URL...>"
+  _check_hister
+
+  local -a flags=(--server-url "$HISTER_SERVER_URL" --no-robots --label "$label")
+  $force_mode && flags+=(--force)
+
+  printf '%s\n' "${urls[@]}" \
+    | HISTER_DATA_DIR="$HISTER_DATA_DIR" "$HISTER_BIN" index "${flags[@]}" --input -
+}
+
+_cmd_search() {
+  (( $# > 0 )) || _die "usage: hister-sync search <query>"
+  _check_hister
+  HISTER_DATA_DIR="$HISTER_DATA_DIR" "$HISTER_BIN" search --server-url "$HISTER_SERVER_URL" "$@"
+}
+
+# ── Main router ──
+[[ $# -eq 0 ]] && { usage; exit 0; }
+
+cmd="$1"
+shift
+
+case "$cmd" in
+  just3ws)       _cmd_just3ws "$@" ;;
+  craftsmanship) _cmd_craftsmanship "$@" ;;
+  all)           _cmd_just3ws "$@"; _cmd_craftsmanship "$@" ;;
+  url)           _cmd_url "$@" ;;
+  status)        _cmd_status "$@" ;;
+  search)        _cmd_search "$@" ;;
+  -h|--help)     usage; exit 0 ;;
+  *)             _die "unknown command: $cmd (run: hister-sync --help)" ;;
+esac

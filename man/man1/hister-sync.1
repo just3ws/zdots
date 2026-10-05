@@ -1,0 +1,37 @@
+.TH HISTER-SYNC 1 "2026-10-05" "zdots" "zdots manual"
+.SH NAME
+hister-sync \- Sync and index Software Craftsmanship knowledge corpora and local web
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBhister-sync --help\fR).
+.SH OPTIONS
+.nf
+Usage: hister-sync <command> [options]
+
+Sync and index Software Craftsmanship knowledge corpora and local web
+applications into Hister (https://hister.localhost).
+
+Commands:
+  just3ws         Index or update just3ws.localhost pages from sitemap.xml
+  craftsmanship   Index canonical software craftsmanship domains & reading lists
+  all             Index both just3ws and craftsmanship reading lists
+  url <URL...>    Index one or more specific URLs
+  status          Show Hister server connectivity, vhost state, and index stats
+  search <query>  Search the Hister index via CLI
+
+Options:
+  --all           When used with just3ws: index all sitemap URLs (not just craft subset)
+  --force         Force reindexing of already indexed URLs
+  --dry-run       Print URLs to be indexed without submitting to Hister
+  --label <name>  Custom label for indexed documents (default: just3ws or craftsmanship)
+  -h, --help      Show this help
+
+Examples:
+  hister-sync status
+  hister-sync just3ws
+  hister-sync just3ws --all
+  hister-sync craftsmanship
+  hister-sync search "Uncle Bob DHH"
+  hister-sync url https://manifesto.softwarecraftsmanship.org/
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)
