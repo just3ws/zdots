@@ -1,26 +1,34 @@
-.TH ZDOTS-SWIFTBAR 1 "2026-08-02" "zdots" "zdots manual"
+.TH ZDOTS-SWIFTBAR 1 "2026-10-05" "zdots" "zdots manual"
 .SH NAME
-zdots-swiftbar \- bin/zdots\-swiftbar — platform pulse in SwiftBar dialect (Z\-288).
+zdots-swiftbar \- platform pulse in SwiftBar dialect (Z-288)
 .SH SYNOPSIS
-See OPTIONS below (generated from \fBzdots-swiftbar --help\fR).
+\fBzdots-swiftbar\fR [\fB--help\fR]
+.SH DESCRIPTION
+Emits menu-bar standing state and dropdown for SwiftBar, covering platform
+health, subsystem matrix, and ambient transcription telemetry.
 .SH OPTIONS
 .nf
-bin/zdots-swiftbar — platform pulse in SwiftBar dialect (Z-288).
-
-Emits the menu-bar standing state the detectors already maintain: one
-glyph (green/amber/red) from the zdots-watch doctor state, with a dropdown
-of open warns/fails, the nightly suite state, capability errors, a usage
-headline, and click-through to the evidence files (Z-284). Pure
-consumption: reads state files zdots-watch writes; the only subprocess is
-zdots-usage for the headline. Detectors notify on WORSENING; this shows
-what IS — the two halves of ambient observability.
-
-Install: a thin shim in $HOME/.swiftbar execs this script (SwiftBar wants
-name.refreshtime.ext there; logic stays in the repo where it is tracked,
-tested, and man-paged).
-
 Usage: zdots-swiftbar [--help]
-  No arguments: emit SwiftBar-format pulse to stdout.
+
+Platform pulse in SwiftBar dialect (Z-288).
+Emits menu-bar standing state and dropdown for SwiftBar, covering platform
+health, subsystem matrix, and ambient transcription telemetry.
+
+Options:
+  -h, --help    Show this help message and exit.
+
+Standing Indicators:
+  Platform:     🟢 Healthy · 🟡 Degraded · 🔴 Critical · ⚪ Unseeded
+  Whisper:      🎙️ Ready · 🎙️⚡ Transcribing · 🎙️⚠️ Warning · 🎙️❌ Missing
+
+Subsystems Monitored:
+  🎙️ Whisper    Local audio transcription (whisper.cpp / whisper-ctl)
+  🤖 Local AI    Inference server (llama-server / llama-ctl, port 11500)
+  🧠 Embeddings  Local embedding server (nomic-embed, port 11501)
+  🚌 Message Bus Transit coordinator & bus-bot (bus / busdriver)
+  ⚙️ Worker      Async background queue runner (zdots-worker)
+  🐳 Colima      Container runtime (Docker socket)
+  📊 Observability OpenObserve log/metric engine & OTel Collector
 .fi
 .SH SEE ALSO
-agent-guide(1), zdots-doctor(1)
+agent-guide(1), whisper-ctl(1), zdots-doctor(1), zdots-pulse(1)

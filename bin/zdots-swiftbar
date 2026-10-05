@@ -1,26 +1,57 @@
 #!/usr/bin/env bash
 # bin/zdots-swiftbar — platform pulse in SwiftBar dialect (Z-288).
 #
-# Emits the menu-bar standing state the detectors already maintain: one
-# glyph (green/amber/red) from the zdots-watch doctor state, with a dropdown
-# of open warns/fails, the nightly suite state, capability errors, a usage
-# headline, and click-through to the evidence files (Z-284). Pure
-# consumption: reads state files zdots-watch writes; the only subprocess is
-# zdots-usage for the headline. Detectors notify on WORSENING; this shows
-# what IS — the two halves of ambient observability.
+# Emits menu-bar standing state and dropdown in SwiftBar dialect, covering:
+# 1. Platform overall health (doctor state, test suite, capability errors).
+# 2. Transcription system status (whisper.cpp engine, active models, active
+#    decodes, pipeline runs, retention store, and interactive actions).
+# 3. Platform subsystems matrix (local AI, embeddings, message bus, worker,
+#    Colima Docker, and observability).
+# 4. Usage headline, CC burn watch, and fast diagnostic click-throughs.
 #
-# Install: a thin shim in $HOME/.swiftbar execs this script (SwiftBar wants
-# name.refreshtime.ext there; logic stays in the repo where it is tracked,
-# tested, and man-paged).
+# Install:
+#   A thin shim in $HOME/.swiftbar execs this script:
+#   $HOME/.swiftbar/zdots-pulse.1m.sh -> bin/zdots-swiftbar
 #
-# Usage: zdots-swiftbar [--help]
-#   No arguments: emit SwiftBar-format pulse to stdout.
+# Usage:
+#   zdots-swiftbar [--help]
+#     No arguments: emit SwiftBar-format pulse to stdout.
+#
+# Options:
+#   -h, --help    Show this help text and exit.
 
 set -uo pipefail
+trap '' PIPE
+
+usage() {
+  cat <<'EOF'
+Usage: zdots-swiftbar [--help]
+
+Platform pulse in SwiftBar dialect (Z-288).
+Emits menu-bar standing state and dropdown for SwiftBar, covering platform
+health, subsystem matrix, and ambient transcription telemetry.
+
+Options:
+  -h, --help    Show this help message and exit.
+
+Standing Indicators:
+  Platform:     🟢 Healthy · 🟡 Degraded · 🔴 Critical · ⚪ Unseeded
+  Whisper:      🎙️ Ready · 🎙️⚡ Transcribing · 🎙️⚠️ Warning · 🎙️❌ Missing
+
+Subsystems Monitored:
+  🎙️ Whisper    Local audio transcription (whisper.cpp / whisper-ctl)
+  🤖 Local AI    Inference server (llama-server / llama-ctl, port 11500)
+  🧠 Embeddings  Local embedding server (nomic-embed, port 11501)
+  🚌 Message Bus Transit coordinator & bus-bot (bus / busdriver)
+  ⚙️ Worker      Async background queue runner (zdots-worker)
+  🐳 Colima      Container runtime (Docker socket)
+  📊 Observability OpenObserve log/metric engine & OTel Collector
+EOF
+}
 
 case "${1:-}" in
   -h|--help)
-    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+    usage
     exit 0
     ;;
   ?*)
@@ -29,15 +60,25 @@ case "${1:-}" in
     ;;
 esac
 
+# Ensure standard platform paths are available when invoked by GUI SwiftBar
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$HOME/.local/bin:$HOME/.config/zsh/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
+
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+ZDOTS_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zdots"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
+MODELS_DIR="${ZDOTS_WHISPER_MODELS_DIR:-$DATA_DIR/whisper-cpp/models}"
+TRANSCRIPTS_DIR="${HOME}/Downloads/transcripts"
+mkdir -p "$TRANSCRIPTS_DIR" 2>/dev/null || true
+
 DOCTOR_STATE="$STATE_DIR/zdots-watch.state"
 CHECK_STATE="$STATE_DIR/zdots-watch-check.state"
 RUNS_DIR="$STATE_DIR/zdots-watch-runs"
+PIPELINE_EVENTS="$ZDOTS_STATE_DIR/pipeline-events.jsonl"
 
 _field() { sed -n "s/^$2=//p" "$1" 2>/dev/null | head -1; }
 
-# ── Menu bar glyph ───────────────────────────────────────────────────────────
+# ── 1. Platform Health State ──────────────────────────────────────────────────
 pass=0 warn=0 fail=0 caps="?" doctor_ts="never"
 if [[ -r "$DOCTOR_STATE" ]]; then
   pass="$(_field "$DOCTOR_STATE" pass)"; warn="$(_field "$DOCTOR_STATE" warn)"
@@ -50,56 +91,237 @@ if [[ -r "$CHECK_STATE" ]]; then
   check_ts="$(_field "$CHECK_STATE" ts)"
 fi
 
-glyph="🟢"
-[[ "${warn:-0}" != "0" || "${caps:-0}" == "?" ]] && glyph="🟡"
-[[ "${fail:-0}" != "0" || "${check_rc:-0}" == "1" ]] && glyph="🔴"
-[[ ! -r "$DOCTOR_STATE" ]] && glyph="⚪"
+plat_glyph="🟢"
+plat_status="Healthy"
+[[ "${warn:-0}" != "0" || "${caps:-0}" == "?" ]] && { plat_glyph="🟡"; plat_status="Degraded"; }
+[[ "${fail:-0}" != "0" || "${check_rc:-0}" == "1" ]] && { plat_glyph="🔴"; plat_status="Alert"; }
+[[ ! -r "$DOCTOR_STATE" ]] && { plat_glyph="⚪"; plat_status="Unseeded"; }
 
-echo "$glyph"
+# ── 2. Transcription Subsystem State (Focus Area) ─────────────────────────────
+tx_active=0
+tx_pid=""
+tx_etime=""
+tx_cmd=""
+tx_detail="idle"
+
+# Probe for active whisper / ingest / transcription processes (exclude self)
+tx_pids="$(pgrep -f '(whisper-cli|recipes/yt-transcribe|recipes/transcribe|lib/zdots/jobs/transcribe_chunk)' 2>/dev/null || true)"
+if [[ -n "$tx_pids" ]]; then
+  for p in $tx_pids; do
+    [[ "$p" == "$$" ]] && continue
+    tx_pid="$p"
+    break
+  done
+  if [[ -n "$tx_pid" ]]; then
+    tx_active=1
+    tx_etime="$(ps -p "$tx_pid" -o etime= 2>/dev/null | tr -d ' ' || true)"
+    tx_cmd="$(ps -p "$tx_pid" -o args= 2>/dev/null || true)"
+
+    if [[ "$tx_cmd" == *"whisper-cli"* ]]; then
+      tx_target="$(echo "$tx_cmd" | sed -n 's/.*--file *\([^ ]*\).*/\1/p' | xargs -n1 basename 2>/dev/null || true)"
+      tx_detail="${tx_target:-whisper-cli}"
+    elif [[ "$tx_cmd" == *"yt-transcribe"* ]]; then
+      if [[ "$tx_cmd" == *"--from-wav"* ]]; then
+        tx_target="$(echo "$tx_cmd" | sed -n 's/.*--output-base *\([^ ]*\).*/\1/p' | xargs -n1 basename 2>/dev/null || true)"
+        tx_detail="chunk: ${tx_target:-decode}"
+      else
+        tx_detail="yt-transcribe"
+      fi
+    elif [[ "$tx_cmd" == *"transcribe_chunk"* ]]; then
+      tx_detail="worker chunk"
+    else
+      tx_detail="audio decode"
+    fi
+  fi
+fi
+
+# Whisper CLI Binary Check
+whisper_bin="$(command -v whisper-cli 2>/dev/null || true)"
+[[ -z "$whisper_bin" && -x /opt/homebrew/bin/whisper-cli ]] && whisper_bin="/opt/homebrew/bin/whisper-cli"
+
+# Whisper Model & Profile Check
+whisper_profile="${ZDOTS_WHISPER_PROFILE:-standard}"
+case "$whisper_profile" in
+  standard)     def_model="ggml-large-v3-turbo.bin"; prof_desc="balanced turbo" ;;
+  max-accuracy) def_model="ggml-large-v3.bin";       prof_desc="maximum accuracy" ;;
+  light)        def_model="ggml-small.en.bin";       prof_desc="fast English" ;;
+  *)            def_model="ggml-large-v3-turbo.bin"; prof_desc="custom profile" ;;
+esac
+whisper_model="${ZDOTS_WHISPER_MODEL_FILE:-$def_model}"
+
+model_installed=0
+model_size="?"
+if [[ -f "$MODELS_DIR/$whisper_model" ]]; then
+  model_installed=1
+  model_size="$(du -h "$MODELS_DIR/$whisper_model" 2>/dev/null | awk '{print $1}')"
+fi
+
+# Pipeline History & Last Event
+last_tx_event=""
+last_tx_job=""
+last_tx_ts=""
+last_tx_failed=0
+if [[ -r "$PIPELINE_EVENTS" ]]; then
+  last_ev="$(grep -E '"job_type":"(transcribe_chunk|ingest_media)"' "$PIPELINE_EVENTS" 2>/dev/null | tail -1 || true)"
+  if [[ -n "$last_ev" ]]; then
+    last_tx_job="$(echo "$last_ev" | sed -n 's/.*"job_type":"\([^"]*\)".*/\1/p')"
+    last_tx_event="$(echo "$last_ev" | sed -n 's/.*"event":"\([^"]*\)".*/\1/p')"
+    last_tx_ts="$(echo "$last_ev" | sed -n 's/.*"ts":"\([^"]*\)".*/\1/p' | cut -d. -f1 | tr 'T' ' ')"
+    [[ "$last_tx_event" == "failed" ]] && last_tx_failed=1
+  fi
+fi
+
+# Count of Ingest Sources
+ingest_count=0
+if [[ -d "$ZDOTS_STATE_DIR/ingest-sources" ]]; then
+  for d in "$ZDOTS_STATE_DIR/ingest-sources"/*; do
+    [[ -d "$d" ]] && ingest_count=$((ingest_count + 1))
+  done
+fi
+
+# Evaluate Transcription Glyph & Status
+if [[ "$tx_active" -eq 1 ]]; then
+  tx_glyph="🎙️⚡"
+  tx_status_short="transcribing"
+  tx_desc="Transcribing (${tx_detail}) · ${tx_etime}"
+  tx_color="orange"
+elif [[ -z "$whisper_bin" ]]; then
+  tx_glyph="🎙️❌"
+  tx_status_short="missing cli"
+  tx_desc="whisper-cli not installed"
+  tx_color="red"
+elif [[ "$model_installed" -eq 0 ]]; then
+  tx_glyph="🎙️⚠️"
+  tx_status_short="missing model"
+  tx_desc="Model missing: ${whisper_model}"
+  tx_color="orange"
+elif [[ "$last_tx_failed" -eq 1 ]]; then
+  tx_glyph="🎙️⚠️"
+  tx_status_short="last job failed"
+  tx_desc="Last job failed: ${last_tx_job} (${last_tx_ts})"
+  tx_color="orange"
+else
+  tx_glyph="🎙️"
+  tx_status_short="ready"
+  tx_desc="Ready · ${whisper_profile} (${whisper_model} ${model_size})"
+  tx_color="green"
+fi
+
+# ── 3. Platform Subsystems Probe (Fast Process & Socket Checks) ───────────────
+ai_running=0
+pgrep -f 'llama-server.*--alias (ai|default)' >/dev/null 2>&1 && ai_running=1
+
+embed_running=0
+pgrep -f 'llama-server.*--alias embed' >/dev/null 2>&1 && embed_running=1
+
+bus_running=0
+pgrep -f 'bus-bot|busdriver|bus-coordinator' >/dev/null 2>&1 && bus_running=1
+
+worker_running=0
+pgrep -f 'zdots-brain worker' >/dev/null 2>&1 && worker_running=1
+
+colima_running=0
+[[ -S "$HOME/.colima/default/docker.sock" || -S "$HOME/.config/colima/default/docker.sock" ]] && colima_running=1
+
+o2_running=0
+pgrep -f 'openobserve' >/dev/null 2>&1 && o2_running=1
+
+# ── 4. Menu Bar Title (Iconography & Status) ──────────────────────────────────
+# Format: <Platform Glyph> <Transcription Glyph> [<Elapsed/Target>]
+if [[ "$tx_active" -eq 1 ]]; then
+  echo "${plat_glyph} 🎙️⚡ ${tx_etime}"
+elif [[ "$tx_glyph" != "🎙️" ]]; then
+  echo "${plat_glyph} ${tx_glyph}"
+else
+  echo "${plat_glyph} 🎙️"
+fi
 echo "---"
 
-# ── Doctor ───────────────────────────────────────────────────────────────────
+# ── 5. Dropdown: Featured Transcription Section ──────────────────────────────
+echo "🎙️ Transcription: ${tx_status_short} | color=${tx_color} font=bold"
+echo "-- State: ${tx_desc} | color=${tx_color}"
+echo "-- Profile: ${whisper_profile} (${prof_desc}) | size=11 color=gray"
+echo "-- Active Model: ${whisper_model} (${model_size}) | size=11"
+echo "-- Engine Binary: ${whisper_bin:-not found} | size=11 color=gray"
+echo "-- Ingest Sources: ${ingest_count} stored in ~/.local/state/zdots/ingest-sources | size=11 color=gray"
+if [[ -n "$last_tx_job" ]]; then
+  echo "-- Last Pipeline Event: ${last_tx_job} (${last_tx_event}) at ${last_tx_ts} | size=11 color=gray"
+fi
+echo "-- Models on Disk: | size=12"
+for m in "$MODELS_DIR"/*.bin; do
+  [[ -f "$m" ]] || continue
+  m_base="$(basename "$m")"
+  m_sz="$(du -h "$m" 2>/dev/null | awk '{print $1}')"
+  if [[ "$m_base" == "$whisper_model" ]]; then
+    echo "---- ● ${m_base} (${m_sz}) [active] | color=green"
+  else
+    echo "---- ○ ${m_base} (${m_sz}) | color=normal"
+  fi
+done
+echo "-- Actions: | size=12"
+echo "---- 🎬 Transcribe YouTube URL (interactive)... | bash=/bin/zsh param0=-ic param1=\"echo '=== YouTube Transcription Pipeline ==='; echo -n 'Enter YouTube URL: '; read url; if [[ -n \\\"\\\$url\\\" ]]; then \\\"${ZDOTDIR}/recipes/yt-transcribe\\\" \\\"\\\$url\\\"; else echo 'Cancelled.'; fi; echo 'Press Enter to close'; read\" terminal=true"
+echo "---- 🎧 Transcribe Local Audio File (interactive)... | bash=/bin/zsh param0=-ic param1=\"echo '=== Whisper Local Transcription ==='; echo -n 'Enter audio file path: '; read f; if [[ -f \\\"\\\$f\\\" ]]; then \\\"${ZDOTDIR}/bin/whisper-ctl\\\" transcribe \\\"\\\$f\\\"; else echo 'File not found.'; fi; echo 'Press Enter to close'; read\" terminal=true"
+echo "---- 📦 Manage Models (whisper-ctl)... | bash=/bin/zsh param0=-ic param1=\"\\\"${ZDOTDIR}/bin/whisper-ctl\\\" model-list; echo ''; \\\"${ZDOTDIR}/bin/whisper-ctl\\\" --help; exec zsh\" terminal=true"
+echo "---- 📂 Open Transcripts Directory | bash=/usr/bin/open param0=\"${TRANSCRIPTS_DIR}\" terminal=false"
+echo "---- 🗃️ Open Ingest Sources Directory | bash=/usr/bin/open param0=\"${ZDOTS_STATE_DIR}/ingest-sources\" terminal=false"
+echo "---- 📁 Open Models Directory | bash=/usr/bin/open param0=\"${MODELS_DIR}\" terminal=false"
+echo "---"
+
+# ── 6. Dropdown: Subsystems Status Matrix ────────────────────────────────────
+echo "Platform Subsystems | size=12 font=bold"
+echo "-- 🎙️ Whisper Transcription: ${tx_status_short} | color=${tx_color} bash=${ZDOTDIR}/bin/whisper-ctl param0=config terminal=true"
+echo "-- 🤖 AI Inference (11500): $([[ $ai_running -eq 1 ]] && echo 'Online' || echo 'Standby') | color=$([[ $ai_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/llama-ctl param0=status terminal=true"
+echo "-- 🧠 Embeddings Engine (11501): $([[ $embed_running -eq 1 ]] && echo 'Online' || echo 'Standby') | color=$([[ $embed_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/llama-ctl param0=status terminal=true"
+echo "-- 🚌 Message Bus Transit: $([[ $bus_running -eq 1 ]] && echo 'In Service' || echo 'Stopped') | color=$([[ $bus_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/bus param0=status terminal=true"
+echo "-- ⚙️ Async Pipeline Worker: $([[ $worker_running -eq 1 ]] && echo 'Running' || echo 'Stopped') | color=$([[ $worker_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/zsvc param0=status param1=worker terminal=true"
+echo "-- 🐳 Colima Container Engine: $([[ $colima_running -eq 1 ]] && echo 'Active' || echo 'Offline') | color=$([[ $colima_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/colima-status terminal=true"
+echo "-- 📊 Observability (OpenObserve): $([[ $o2_running -eq 1 ]] && echo 'Active' || echo 'Offline') | color=$([[ $o2_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/openobserve-ctl param0=status terminal=true"
+echo "---"
+
+# ── 7. Dropdown: Platform Doctor & Health ─────────────────────────────────────
 dc="green"; [[ "${warn:-0}" != "0" ]] && dc="orange"; [[ "${fail:-0}" != "0" ]] && dc="red"
-echo "Doctor: ${pass:-?} pass · ${warn:-?} warn · ${fail:-?} fail | color=$dc"
+echo "🩺 Platform Doctor: ${pass:-?} pass · ${warn:-?} warn · ${fail:-?} fail (${plat_status}) | color=$dc font=bold"
 echo "-- last run ${doctor_ts} | size=11 color=gray"
 grep -E '^(warn|fail)\|' "$DOCTOR_STATE" 2>/dev/null | tr '|' ' ' | head -6 | while IFS= read -r line; do
   lc="orange"; [[ "$line" == fail* ]] && lc="red"
   echo "-- ${line} | size=12 color=$lc"
 done
-ev_doctor="$(ls -t "$RUNS_DIR"/doctor-*.log 2>/dev/null | head -1)"
-[[ -n "$ev_doctor" ]] && echo "-- open evidence | bash=/usr/bin/open param0=-t param1=\"$ev_doctor\" terminal=false"
+ev_doctor="$(find "$RUNS_DIR" -maxdepth 1 -name 'doctor-*.log' 2>/dev/null | sort -r | head -1)"
+[[ -n "$ev_doctor" ]] && echo "-- 📄 Open Doctor Evidence | bash=/usr/bin/open param0=-t param1=\"$ev_doctor\" terminal=false"
 
-# ── Nightly suite ────────────────────────────────────────────────────────────
+# ── 8. Dropdown: Nightly Suite & Capabilities ─────────────────────────────────
 if [[ "$check_rc" == "0" ]]; then
-  echo "Suite: green | color=green"
+  echo "🧪 Test Suite: green | color=green font=bold"
 elif [[ "$check_rc" == "?" ]]; then
-  echo "Suite: no state yet (next nightly re-seeds) | color=gray"
+  echo "🧪 Test Suite: no state yet (next nightly re-seeds) | color=gray font=bold"
 else
   nfail="$(grep -cE '^(fail|suite)\|' "$CHECK_STATE" 2>/dev/null || echo '?')"
-  echo "Suite: rc=${check_rc} (${nfail} failing) | color=red"
+  echo "🧪 Test Suite: rc=${check_rc} (${nfail} failing) | color=red font=bold"
   grep -E '^(fail|suite)\|' "$CHECK_STATE" 2>/dev/null | tr '|' ' ' | head -4 | sed 's/^/-- /;s/$/ | size=12 color=red/'
 fi
 echo "-- last run ${check_ts} · nightly 03:17 | size=11 color=gray"
-ev_check="$(ls -t "$RUNS_DIR"/check-*.log 2>/dev/null | head -1)"
-[[ -n "$ev_check" ]] && echo "-- open evidence | bash=/usr/bin/open param0=-t param1=\"$ev_check\" terminal=false"
+ev_check="$(find "$RUNS_DIR" -maxdepth 1 -name 'check-*.log' 2>/dev/null | sort -r | head -1)"
+[[ -n "$ev_check" ]] && echo "-- 📄 Open Suite Evidence | bash=/usr/bin/open param0=-t param1=\"$ev_check\" terminal=false"
 
-echo "Capabilities: ${caps:-?} contract error(s) | color=$([[ "${caps:-1}" == "0" ]] && echo green || echo orange)"
+echo "📐 Capabilities: ${caps:-?} contract error(s) | color=$([[ "${caps:-1}" == "0" ]] && echo green || echo orange)"
 echo "---"
 
-# ── Usage headline (zdots-usage, ~0.3s) ─────────────────────────────────────
+# ── 9. Dropdown: Usage & Velocity ─────────────────────────────────────────────
 if command -v "$ZDOTDIR/bin/zdots-usage" >/dev/null 2>&1; then
   top_line="$("$ZDOTDIR/bin/zdots-usage" top --top 1 2>/dev/null | sed -n 's/^ *\([0-9][0-9]*\)  *\(.*\)/top: \2 (\1x)/p' | head -1)"
-  [[ -n "$top_line" ]] && echo "Usage — ${top_line} | size=12"
+  [[ -n "$top_line" ]] && echo "📊 Usage — ${top_line} | size=12"
   echo "-- full report: zdots-usage | bash=$ZDOTDIR/bin/zdots-usage param0=summary terminal=true size=11"
 fi
-# ── CC burn + north star ────────────────────────────────────────────────────
 burn_state="$(head -1 "$STATE_DIR/cc-burn-watch.state" 2>/dev/null)"
 if [[ -n "$burn_state" ]]; then
   bc="green"; [[ "$burn_state" == "warn" ]] && bc="orange"; [[ "$burn_state" == "alert" ]] && bc="red"
-  echo "CC burn: ${burn_state} | color=$bc bash=$ZDOTDIR/bin/cc-burn terminal=true"
+  echo "🔥 CC burn: ${burn_state} | color=$bc bash=$ZDOTDIR/bin/cc-burn terminal=true"
 fi
-# The NSM on the menu bar until the loop feeds itself (doc-004; flip when Z-289 lands).
-echo "Loop velocity: dormant — first domino Z-289 | color=gray size=12"
+echo "🌀 Loop velocity: dormant — first domino Z-289 | color=gray size=12"
 echo "---"
-echo "Run doctor now | bash=$ZDOTDIR/bin/zdots-doctor terminal=true"
-echo "Refresh | refresh=true"
+
+# ── 10. Dropdown: Operator Actions ───────────────────────────────────────────
+echo "🩺 Run Doctor Now | bash=$ZDOTDIR/bin/zdots-doctor terminal=true"
+echo "🧪 Run Check Suite | bash=$ZDOTDIR/bin/zdots-check terminal=true"
+echo "🚀 Start Platform Services (zdots-ctl up) | bash=$ZDOTDIR/bin/zdots-ctl param0=up terminal=true"
+echo "🔄 Refresh SwiftBar Pulse | refresh=true"
