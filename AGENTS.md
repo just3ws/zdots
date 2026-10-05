@@ -3,13 +3,13 @@
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     CURRENT FOCUS  —  last updated 2026-09-07
+     CURRENT FOCUS  —  last updated 2026-10-05
      Cold-start resume state, canonical for every agent tool (Claude, Codex,
      Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
      closes a session rewrites this whole block in place — step one, before
      the wrap-up summary — then commits it. `git log` + Backlog are truth for
      exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-09-07-2.md
+     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-05.md
      (local-only; that file, not "the newest handoff", is the pointer).
      ═══════════════════════════════════════════════════════════════════════
 
@@ -17,11 +17,11 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   rewritten clean (git-filter-repo: dead creds + work-tenant strings removed,
   all authorship collapsed to `Mike Hall <mike@just3ws.com>`), `.mailmap` in
   every repo, security-hardened (secret-scanning + push-protection + branch-
-  protection on), beacon re-stamped `0668026.M3`. `my` stays private.
+  protection on), beacon re-stamped `0761026.M3`. `my` stays private.
   Pre-scrub bundles: ~/backups/platform-pre-public-2026-09-01/ (local only —
   they carry the un-scrubbed history; never share).
 
-  In flight: clean landing, all systems green.
+  In flight: clean landing, all systems green (43/43 zdots-doctor checks pass).
 
   Live tasks (Backlog):
     Z-342  (Med) context-engine: expose scenario manifest catalog and ingest
@@ -45,6 +45,15 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
     no-expiry. Z-334 coordination with the just3ws.github.io agent.
 
   Recently DONE:
+    - SwiftBar Integration & Transcription Telemetry: Rich status bar pulse
+      (🟢/🟡/🔴, active transcription elapsed timer `🎙️⚡ <elapsed>`, active/available
+      Whisper model detection `ggml-large-v3-turbo.bin` / `ggml-large-v3.bin`,
+      quick actions, full 7-subsystem matrix, bats test suite 4/4 pass).
+    - Platform Doctor: Resolved all 43 checks to 100% green (Aider config path
+      migration to ~/.config/aider, cleared launchd flap exit codes, Docker config
+      normalization, Brewfile sync).
+    - Search & Local Observability: hister.localhost reverse proxy + cert SANs,
+      hister-sync CLI, resolved zmorning alias collision.
     - System Cartography Platform Rollout (Rails ERD, Graphviz, Mermaid diagram
       generation, top-of-file Markdown model table annotations across
       wwworkremote, my/context-engine, and hallway; system-cartography skill).
@@ -55,7 +64,8 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
       `~/.ackrc` hardened with `--nofilter` & rich types, live streaming `fack`
       and `fackf` in zsh, `ack.vim` + `fzf-lua` + Telescope `vimgrep_arguments`
       + `Trouble` quickfix in Neovim, full shortcut and prompt parity).
-    - Platform publication, security hardening, and beacon `0668026.M3`.
+    - Platform publication, security hardening, and beacon `0761026.M3`.
+
 
 ---
 
