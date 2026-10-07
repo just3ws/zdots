@@ -541,8 +541,8 @@ if [[ "$SKIP_EXTERNAL" != "1" ]]; then
     typeset -A _lane_files
     typeset _jobs="${ZDOTS_CHECK_JOBS:-4}" _f _i _lane_rc=0 _tmpd
     _serial_suites=(
-      cli_contracts.bats cmd_analytics.bats database.bats docs_contract.bats
-      flag_audit.bats history_intelligence.bats lifecycle.bats
+      ai_query.bats cli_contracts.bats cmd_analytics.bats database.bats docs_contract.bats
+      flag_audit.bats history_intelligence.bats lifecycle.bats o2_mcp.bats
       phase-3-peer-discovery.bats phi_boundary.bats platform_e2e.bats
       svc_registry_dispatch.bats svc_registry.bats utilization_analytics.bats
       zdots_ask.bats zdots_worker.bats ztask_e2e.bats

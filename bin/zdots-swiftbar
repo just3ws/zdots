@@ -92,10 +92,9 @@ if [[ -r "$CHECK_STATE" ]]; then
 fi
 
 plat_glyph="🟢"
-plat_status="Healthy"
-[[ "${warn:-0}" != "0" || "${caps:-0}" == "?" ]] && { plat_glyph="🟡"; plat_status="Degraded"; }
-[[ "${fail:-0}" != "0" || "${check_rc:-0}" == "1" ]] && { plat_glyph="🔴"; plat_status="Alert"; }
-[[ ! -r "$DOCTOR_STATE" ]] && { plat_glyph="⚪"; plat_status="Unseeded"; }
+[[ "${warn:-0}" != "0" || "${caps:-0}" == "?" ]] && plat_glyph="🟡"
+[[ "${fail:-0}" != "0" || "${check_rc:-0}" == "1" ]] && plat_glyph="🔴"
+[[ ! -r "$DOCTOR_STATE" ]] && plat_glyph="⚪"
 
 # ── 2. Transcription Subsystem State (Focus Area) ─────────────────────────────
 tx_active=0
@@ -209,10 +208,10 @@ fi
 
 # ── 3. Platform Subsystems Probe (Fast Process & Socket Checks) ───────────────
 ai_running=0
-pgrep -f 'llama-server.*--alias (ai|default)' >/dev/null 2>&1 && ai_running=1
+pgrep -f 'llama-server.*(--port 11500|--alias (local|ai|default))' >/dev/null 2>&1 && ai_running=1
 
 embed_running=0
-pgrep -f 'llama-server.*--alias embed' >/dev/null 2>&1 && embed_running=1
+pgrep -f 'llama-server.*(--port 11501|--alias embed)' >/dev/null 2>&1 && embed_running=1
 
 bus_running=0
 pgrep -f 'bus-bot|busdriver|bus-coordinator' >/dev/null 2>&1 && bus_running=1
@@ -279,8 +278,10 @@ echo "-- 📊 Observability (OpenObserve): $([[ $o2_running -eq 1 ]] && echo 'Ac
 echo "---"
 
 # ── 7. Dropdown: Platform Doctor & Health ─────────────────────────────────────
-dc="green"; [[ "${warn:-0}" != "0" ]] && dc="orange"; [[ "${fail:-0}" != "0" ]] && dc="red"
-echo "🩺 Platform Doctor: ${pass:-?} pass · ${warn:-?} warn · ${fail:-?} fail (${plat_status}) | color=$dc font=bold"
+dc="green"; doc_status="Healthy"
+[[ "${warn:-0}" != "0" ]] && { dc="orange"; doc_status="Degraded"; }
+[[ "${fail:-0}" != "0" ]] && { dc="red"; doc_status="Alert"; }
+echo "🩺 Platform Doctor: ${pass:-?} pass · ${warn:-?} warn · ${fail:-?} fail (${doc_status}) | color=$dc font=bold"
 echo "-- last run ${doctor_ts} | size=11 color=gray"
 grep -E '^(warn|fail)\|' "$DOCTOR_STATE" 2>/dev/null | tr '|' ' ' | head -6 | while IFS= read -r line; do
   lc="orange"; [[ "$line" == fail* ]] && lc="red"
@@ -322,6 +323,6 @@ echo "---"
 
 # ── 10. Dropdown: Operator Actions ───────────────────────────────────────────
 echo "🩺 Run Doctor Now | bash=$ZDOTDIR/bin/zdots-doctor terminal=true"
-echo "🧪 Run Check Suite | bash=$ZDOTDIR/bin/zdots-check terminal=true"
+echo "🧪 Run Check Suite | bash=$ZDOTDIR/bin/check terminal=true"
 echo "🚀 Start Platform Services (zdots-ctl up) | bash=$ZDOTDIR/bin/zdots-ctl param0=up terminal=true"
 echo "🔄 Refresh SwiftBar Pulse | refresh=true"

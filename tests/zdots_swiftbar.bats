@@ -48,6 +48,7 @@ setup() {
   # Dropdown must contain doctor and actions
   [[ "$output" =~ "Platform Doctor:" ]]
   [[ "$output" =~ "Run Doctor Now" ]]
+  [[ "$output" =~ "Run Check Suite | bash=".*"/bin/check terminal=true" ]]
   [[ "$output" =~ "Refresh SwiftBar Pulse" ]]
 }
 
@@ -58,4 +59,16 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" =~ "🎙️⚠️" ]]
   [[ "$output" =~ "missing model" ]]
+}
+
+@test "zdots-swiftbar: doctor status is decoupled from check suite rc" {
+  state_dir="$(mktemp -d)"
+  mkdir -p "$state_dir/zsh"
+  printf "ts=2026-10-07T00:00:00\nrc=0\npass=43\nwarn=0\nfail=0\ncaps_errors=0\n" > "$state_dir/zsh/zdots-watch.state"
+  printf "ts=2026-10-07T00:00:00\nrc=1\nfail|some test\n" > "$state_dir/zsh/zdots-watch-check.state"
+  run env XDG_STATE_HOME="$state_dir" "$REPO_ROOT/bin/zdots-swiftbar"
+  rm -rf "$state_dir"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "Platform Doctor: 43 pass · 0 warn · 0 fail (Healthy)" ]]
+  [[ "$output" =~ "Test Suite: rc=1" ]]
 }
