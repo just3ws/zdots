@@ -27,9 +27,13 @@ fixed.
 
 > **Bot-gated URL sources** (notably YouTube) reject anonymous `yt-dlp` fetches
 > with "Sign in to confirm you're not a bot". Supply cookies via the opt-in
-> `ZDOTS_YTDLP_COOKIES_FROM_BROWSER` or `ZDOTS_YTDLP_COOKIES_FILE` knobs
-> ([configuration.md](configuration.md)); non-gated sources (Vimeo, archive.org)
-> need none.
+> `ZDOTS_YTDLP_COOKIES_FROM_BROWSER` (interactive shells only; macOS TCC blocks
+> background launchd daemons from reading browser application data) or
+> `ZDOTS_YTDLP_COOKIES_FILE` (Netscape `cookies.txt` export; required for
+> `zdots-worker` background ingests). If configured cookies fail to load or
+> access the browser store, `yt-transcribe` automatically probes and falls
+> back to an anonymous fetch. Non-gated sources (Vimeo, archive.org) need none.
+> See [configuration.md](configuration.md).
 
 ## Dataflow
 

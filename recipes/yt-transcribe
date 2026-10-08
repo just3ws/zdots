@@ -55,6 +55,11 @@ Unknown --flags are rejected (exit 1).
 Outputs:
   Saved to ~/Downloads/transcripts/<video_id>/ in 5+ formats:
   .txt, .json (structured), .srt, .vtt, .csv, .info.json, .summary.md
+
+Bot-gated sources (e.g. YouTube) need cookies. Set one of (opt-in):
+  ZDOTS_YTDLP_COOKIES_FROM_BROWSER=firefox   # interactive shell only (macOS TCC restricts launchd)
+  ZDOTS_YTDLP_COOKIES_FILE=/path/to/cookies.txt # Netscape format; required for background worker
+  (If cookie extraction fails, yt-transcribe automatically falls back to anonymous fetch)
 EOF
 }
 

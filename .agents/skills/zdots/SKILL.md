@@ -42,6 +42,7 @@ Pi's output → Aider's input. Context budget (Pi, 7B): ~32k tokens per session.
 | `zdots-ask --context "prompt"` | Same, with hydrated methodology context |
 | `llama-ctl status` | llama.cpp server status |
 | `capabilities --json` | Environment contract |
+| `zdots-ingest-media <url\|file>` | Acquire, transcribe, and ingest media to lessons/embeddings |
 | `agent-guide` | Full agent usage guide |
 
 ---

@@ -25,6 +25,10 @@ The Z-169
 .Fl -from-wav
 mode skips the download and transcribes a window of an already-prepared 16 kHz
 wav instead.
+For bot-gated sources, cookies can be provided via environment variables.
+If a configured cookie strategy fails (e.g. browser cookies unreadable under
+a background launchd daemon or expired session), the pipeline automatically
+falls back to an anonymous fetch.
 .Sh OPTIONS
 .Bl -tag -width Fl
 .It Fl -keep-media
@@ -85,6 +89,14 @@ Required for
 .Fl -diarize .
 .It Ev ZDOTS_WHISPER_PROFILE , Ev ZDOTS_WHISPER_MODELS_DIR
 Override the active whisper profile and model directory.
+.It Ev ZDOTS_YTDLP_COOKIES_FROM_BROWSER
+Browser to read live cookies from for bot-gated sources
+.Pq e.g. Va chrome , Va firefox , Va safari .
+Valid only in interactive shells; background launchd agents are blocked from browser directories by macOS TCC.
+.It Ev ZDOTS_YTDLP_COOKIES_FILE
+Path to Netscape-format
+.Pa cookies.txt
+file for yt-dlp. Preferred for background workers.
 .El
 .Sh DIAGNOSTICS
 Any unrecognized

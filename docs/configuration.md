@@ -65,8 +65,8 @@ These variables are used by the documented command surface. See
 | `ZDOTS_WHISPER_MODEL_FILE` | profile-derived | Whisper model file. |
 | `ZDOTS_WHISPER_HF_REPO` | unset | Whisper HuggingFace repository. |
 | `ZDOTS_WHISPER_URL_PREFIX` | unset | Whisper model download prefix. |
-| `ZDOTS_YTDLP_COOKIES_FROM_BROWSER` | unset | Browser yt-dlp reads cookies from for bot-gated sources (e.g. YouTube): `firefox`/`chrome`/`safari`/`brave`/`edge`[`:profile`]. Opt-in. |
-| `ZDOTS_YTDLP_COOKIES_FILE` | unset | Netscape `cookies.txt` for yt-dlp; wins over the browser knob. Opt-in. |
+| `ZDOTS_YTDLP_COOKIES_FROM_BROWSER` | unset | Browser yt-dlp reads cookies from for bot-gated sources (e.g. YouTube): `firefox`/`chrome`/`safari`/`brave`/`edge`[`:profile`]. Opt-in. Note: Interactive terminal only; background launchd agents are denied browser directory access by macOS TCC. If cookie extraction fails, yt-dlp automatically falls back to anonymous fetch. |
+| `ZDOTS_YTDLP_COOKIES_FILE` | unset | Netscape `cookies.txt` for yt-dlp; wins over the browser knob. Opt-in. Required for background worker (`com.zdots.worker`) bot-gated ingests where browser directories are protected by macOS TCC. |
 | `AIQ_DEFAULT_MODE` | `safe-extract` | Default `ai-query` mode. |
 | `AIQ_MAX_BYTES` | `32768` | Hard `ai-query` input ceiling. |
 | `AIQ_WARN_BYTES` | tool default | Soft `ai-query` warning threshold. |

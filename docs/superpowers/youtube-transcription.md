@@ -109,3 +109,13 @@ on the 3.x stack, which uses only the three licenses above. The full pinned set
 
 `uv run` reads these from the header and fetches a matching Python automatically,
 so the tool stays reproducible even though the machine's ambient Python is 3.14.
+
+---
+
+## Cookie Strategy & macOS TCC Boundaries
+
+YouTube bot-gates some videos with *"Sign in to confirm you're not a bot"*. Two opt-in knobs supply cookies:
+
+- **`ZDOTS_YTDLP_COOKIES_FROM_BROWSER`**: Extracts live cookies from a local browser (e.g., `firefox`, `chrome`, `safari`). **Interactive terminal sessions only**. macOS TCC (`com.apple.macl`) permanently prohibits background launchd daemons (such as `zdots-worker`) from accessing browser application data directories.
+- **`ZDOTS_YTDLP_COOKIES_FILE`**: Path to a standard Netscape-format `cookies.txt` file (e.g. `~/.local/state/zdots/cookies.txt`). Because regular files are not TCC-gated application data, this is the required strategy for background worker ingests.
+- **Automatic Anonymous Fallback**: In `recipes/yt-transcribe` and `bin/zdots-ingest-media`, if a configured cookie strategy fails (unreadable browser database under launchd, corrupt SQLite lock, or expired session), the fetcher automatically probes and falls back to an anonymous fetch so non-gated public videos continue without failure.

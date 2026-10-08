@@ -46,6 +46,13 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
     no-expiry. Z-334 coordination with the just3ws.github.io agent.
 
   Recently DONE:
+    - Media Ingest Pipeline Resilience & macOS TCC Boundary: Resolved background
+      worker failure on YouTube ingest (`ingest_media`) where launchd platform daemons
+      are denied access to browser profile databases via macOS TCC (`com.apple.macl`).
+      Implemented automatic anonymous probing and download fallbacks in
+      `recipes/yt-transcribe` and `bin/zdots-ingest-media`, documented TCC constraints
+      vs `ZDOTS_YTDLP_COOKIES_FILE`, created `ingest-media` skill, and aligned man
+      pages (`yt-transcribe.1`, `zdots-ingest-media.1`).
     - SwiftBar Integration & Telemetry Hardening: Resolved SwiftBar failure
       indicators to 100% green (`🟢 🎙️`). Decoupled doctor status from check
       suite alert, fixed AI inference probe to match port 11500 / `--alias local`,
@@ -346,6 +353,8 @@ colima-status health       # exit 0 = up; exit 1 = down
 | Cross-session agent messaging & route | `bus` (`bus route`, `bus conversations`, `bus read`) |
 | Agent transit presence & layovers | `bus board`, `bus layover [preset]`, `bus in-service` |
 | Inspect voicemail depot | `bus voicemail [--clear]` |
+| Video/audio knowledge ingest | `zdots-ingest-media <url\|file>` (`ingest-media` skill) |
+| Local audio transcription | `ztranscribe <url>` (`recipes/yt-transcribe`) |
 
 ## 4. Project Protocols
 
