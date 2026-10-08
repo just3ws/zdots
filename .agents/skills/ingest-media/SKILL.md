@@ -33,6 +33,20 @@ Declared in `lib/zdots/jobs/ingest_media.rb` (`PIPELINE`):
 8. **embedded**: Chunks transcript into `knowledge_chunks` with pgvector embeddings.
 9. **published**: Export clips / social segments.
 
+## Human Curation & Hallucination Adjustments
+
+There are two distinct human gates in the workflow:
+
+1. **Vocabulary Corrections (`known_terms`)**:
+   - **Primer & Tags**: At the top of `/transcriptions/:id`, edit the **Primer text** or add tags to prime Whisper with domain vocabulary on future runs.
+   - **Doubts Panel**: For sources with token confidence artifacts, uncertain entities are detected on the fly for single-click confirmation (**✓ just a word**) or aliasing (**Learn**), which feeds future transcription priming.
+   - **Cleaned Stage**: Shows all vocabulary substitutions applied over the raw Whisper transcript.
+
+2. **Landed-Thoughts Gate (Distilled Stage Inline Edit)**:
+   - In `/transcriptions/:id?stage=distilled`, the operator can edit the Markdown briefing directly to correct any hallucinations or phrasing before permanent promotion.
+   - Clicking **Save edits** updates the artifact content hash and invalidates downstream stages to maintain data consistency.
+   - Clicking **Promote to lesson** transfers the curated briefing into the Knowledge Layer and enqueues embedding.
+
 ## Cookie Strategy & macOS TCC Constraints
 
 YouTube bot-gates some fetches (*"Sign in to confirm you're not a bot"*).
