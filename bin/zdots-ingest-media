@@ -52,8 +52,12 @@ _ytdlp_cookies=(); zdots_ytdlp_load_cookies
 if [[ "$SRC" =~ ^https?:// ]]; then
   # Public source — metadata only, no download. Public data, stored in full.
   if ! info="$(yt-dlp "${_ytdlp_cookies[@]+"${_ytdlp_cookies[@]}"}" --dump-json --skip-download "$SRC")"; then
-    zdots_ytdlp_cookie_hint
-    exit 1
+    if [[ ${#_ytdlp_cookies[@]} -gt 0 ]] && info="$(yt-dlp --dump-json --skip-download "$SRC" 2>/dev/null)"; then
+      printf '── Note: cookie metadata fetch failed; fell back to anonymous fetch\n' >&2
+    else
+      zdots_ytdlp_cookie_hint
+      exit 1
+    fi
   fi
   meta="$(jq -n --argjson i "$info" --arg cb "$captured_by" \
               --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" \
