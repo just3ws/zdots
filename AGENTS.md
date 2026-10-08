@@ -3,13 +3,13 @@
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     CURRENT FOCUS  —  last updated 2026-10-07
+     CURRENT FOCUS  —  last updated 2026-10-08
      Cold-start resume state, canonical for every agent tool (Claude, Codex,
      Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
      closes a session rewrites this whole block in place — step one, before
      the wrap-up summary — then commits it. `git log` + Backlog are truth for
      exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-07.md
+     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-08.md
      (local-only; that file, not "the newest handoff", is the pointer).
      ═══════════════════════════════════════════════════════════════════════
 
@@ -46,13 +46,16 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
     no-expiry. Z-334 coordination with the just3ws.github.io agent.
 
   Recently DONE:
-    - Media Ingest Pipeline Resilience & macOS TCC Boundary: Resolved background
-      worker failure on YouTube ingest (`ingest_media`) where launchd platform daemons
-      are denied access to browser profile databases via macOS TCC (`com.apple.macl`).
-      Implemented automatic anonymous probing and download fallbacks in
-      `recipes/yt-transcribe` and `bin/zdots-ingest-media`, documented TCC constraints
-      vs `ZDOTS_YTDLP_COOKIES_FILE`, created `ingest-media` skill, and aligned man
-      pages (`yt-transcribe.1`, `zdots-ingest-media.1`).
+    - Media Ingest Curation, Man Doc Curator & Platform Parity:
+      * Fixed macOS TCC launchd daemon boundary on YouTube cookie extraction
+        via automatic anonymous fallback in `recipes/yt-transcribe` and
+        `bin/zdots-ingest-media`.
+      * Resolved stuck "landed" pending stage in context-engine (`MediaSource::STAGE_ORDER`),
+        verified full Alan Watts podcast ingest (raw..published done), and surfaced
+        in-UI guidance for vocabulary adjustments vs Landed-Thoughts edit gate.
+      * Created `man-doc-curator` skill for automated man page generation, linting,
+        and contract test suites (`tests/docs_contract.bats`).
+      * Documented human curation and hallucination gates in `ingest-media` skill.
     - SwiftBar Integration & Telemetry Hardening: Resolved SwiftBar failure
       indicators to 100% green (`🟢 🎙️`). Decoupled doctor status from check
       suite alert, fixed AI inference probe to match port 11500 / `--alias local`,
