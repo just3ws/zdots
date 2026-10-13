@@ -100,16 +100,19 @@ module Zdots
       def self.levenshtein(a, b)
         m = a.length
         n = b.length
-        d = Array.new(m + 1) { Array.new(n + 1) }
-        (0..m).each { |i| d[i][0] = i }
-        (0..n).each { |j| d[0][j] = j }
+        return n if m == 0
+        return m if n == 0
+        prev = (0..n).to_a
+        curr = Array.new(n + 1, 0)
         (1..m).each do |i|
+          curr[0] = i
           (1..n).each do |j|
             cost = (a[i-1] == b[j-1] && !a[i-1].empty?) ? 0 : 1
-            d[i][j] = [d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + cost].min
+            curr[j] = [curr[j-1] + 1, prev[j] + 1, prev[j-1] + cost].min
           end
+          prev = curr.dup
         end
-        d[m][n]
+        curr[n]
       end
 
       # Fuzzy word-overlap splice: drop B's leading words that duplicate A's
@@ -117,7 +120,7 @@ module Zdots
       # independently (--max-context 0), so the shared ~15s overlap can diverge on
       # punctuation/casing/filler — compare NORMALIZED tokens and accept the
       # largest overlap using edit distance to tolerate insertions/deletions.
-      def self.splice(a, b, max_words: 256)
+      def self.splice(a, b, max_words: 64)
         aw = a.split
         bw = b.split
         an = aw.map { |w| norm(w) }

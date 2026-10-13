@@ -60,26 +60,26 @@ if [[ "$SRC" =~ ^https?:// ]]; then
       exit 1
     fi
   fi
-  meta="$(jq -n --argjson i "$info" --arg cb "$captured_by" \
+  meta="$(printf '%s' "$info" | jq --arg cb "$captured_by" \
               --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" \
               --argjson speakers "$SPEAKERS_JSON" '{
-    source_type:  ($i.extractor_key // "url" | ascii_downcase),
-    source_uri:   $i.webpage_url,
-    source_id:    $i.id,
-    title:        $i.title,
-    duration_sec: $i.duration,
+    source_type:  (.extractor_key // "url" | ascii_downcase),
+    source_uri:   .webpage_url,
+    source_id:    .id,
+    title:        .title,
+    duration_sec: .duration,
     profile:      $profile,
     force:        $force,
     num_speakers: $speakers,
     source_snapshot: {
       captured_by:  $cb,
-      channel:      ($i.channel // $i.uploader),
-      upload_date:  $i.upload_date,
-      view_count:   $i.view_count,
-      like_count:   $i.like_count,
-      availability: $i.availability,
-      webpage_url:  $i.webpage_url,
-      duration_sec: $i.duration
+      channel:      (.channel // .uploader),
+      upload_date:  .upload_date,
+      view_count:   .view_count,
+      like_count:   .like_count,
+      availability: .availability,
+      webpage_url:  .webpage_url,
+      duration_sec: .duration
     }
   }')"
 else
