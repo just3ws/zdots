@@ -3,13 +3,13 @@
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     CURRENT FOCUS  —  last updated 2026-10-08
+     CURRENT FOCUS  —  last updated 2026-10-20
      Cold-start resume state, canonical for every agent tool (Claude, Codex,
      Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
      closes a session rewrites this whole block in place — step one, before
      the wrap-up summary — then commits it. `git log` + Backlog are truth for
      exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-08.md
+     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-20.md
      (local-only; that file, not "the newest handoff", is the pointer).
      ═══════════════════════════════════════════════════════════════════════
 
@@ -22,9 +22,16 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   they carry the un-scrubbed history; never share).
 
   In flight: clean landing, all systems green (43/43 zdots-doctor checks pass,
-  test suite 100% green rc=0, SwiftBar pulse 🟢 🎙️).
+  test suite 100% green rc=0, SwiftBar pulse 🟢 🎙️, root storage 22GB [ok]).
 
   Live tasks (Backlog):
+    Z-349  (Med) Usage-backed Brewfile audit: cross-reference formulae against
+           Atuin shell history (90d configurable horizon).
+    Z-347  (Med) Evaluate and automate cleanup of old Codex and Claude session
+           state and caches (30d configurable threshold, context harvest before
+           zstd compression).
+    Z-350  (Med) Unified System Health Dashboard: aggregate storage buckets,
+           usage trends, and service vitals (CLI zdots pulse + Web zdots-statusd).
     Z-342  (Med) context-engine: expose scenario manifest catalog and ingest
            contract for PVL tenants (both filesystem dropzone and REST API).
     Z-333  (Med) audit tests/ci-allowlist.txt — mcp.bats + docs_contract's
@@ -46,6 +53,25 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
     no-expiry. Z-334 coordination with the just3ws.github.io agent.
 
   Recently DONE:
+    - Autonomous Storage Hygiene & Anti-Bitrot Verification (Z-348):
+      * Recovered +9.0 GB net primary SSD headroom (13GB [warn] -> 22GB [ok],
+        capacity reduced from 49% to 37%).
+      * Added anti-bitrot signature validation (`_is_valid_npx_signature`) and
+        dynamic store querying via `pnpm store path` to `bin/zdots-hygiene`.
+      * Extended `bin/log-rotate` with multi-namespace LaunchAgent resolution
+        (`com.zdots`, `com.my`, `com.wwworkremote`, direct files) and 30-day
+        retention pruning on `.gz` archives.
+      * Rotated large production logs in-place (`context-engine-api.error.log`
+        109MB -> 824KB, `nginx/access.log` 200MB -> 4MB, `wwworkremote/jobs.log`
+        53MB -> 1MB).
+      * Purged 62 stale rotated service logs (>30d) in `~/.local/state/zsh`
+        (freed 1.0 GB) and 26 verified npx runtimes (freed 3.6 GB).
+      * Disabled WWWorkRemote background autostart (`com.wwworkremote.web` &
+        `com.wwworkremote.jobs` set to manual start).
+      * Authored publishable architectural monograph on autonomous storage
+        hygiene, resource constraints, and frontier/local AI symbiosis.
+      * Contract tests 100% green: 32/32 Bats tests pass across storage,
+        log-rotate, and docs-contract suites.
     - Media Ingest Curation, Man Doc Curator & Platform Parity:
       * Fixed macOS TCC launchd daemon boundary on YouTube cookie extraction
         via automatic anonymous fallback in `recipes/yt-transcribe` and
