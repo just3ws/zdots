@@ -134,16 +134,27 @@ if [[ -d "$npx_dir" ]]; then
   done < <(find "$npx_dir" -mindepth 1 -maxdepth 1 -type d -mtime +30 -print0 2>/dev/null)
 fi
 
+media_scratch_dir="$HOME/.local/state/just3ws/scratch"
+stale_scratch_bytes=0
+stale_scratch_count=0
+if [[ -d "$media_scratch_dir" ]]; then
+  while IFS= read -r -d '' f; do
+    sz=$(_file_bytes "$f")
+    stale_scratch_bytes=$(( stale_scratch_bytes + sz ))
+    stale_scratch_count=$(( stale_scratch_count + 1 ))
+  done < <(find "$media_scratch_dir" -type f \( -name "*.wav" -o -name "*.mp3" -o -name "*.flac" \) -mtime +2 -print0 2>/dev/null)
+fi
+
 brew_cache_bytes=0
 if command -v brew >/dev/null 2>&1; then
   bcache=$(brew --cache 2>/dev/null || echo "")
   [[ -n "$bcache" ]] && brew_cache_bytes=$(_dir_bytes "$bcache")
 fi
 
-total_reclaimable=$(( stale_ingest_bytes + stale_diag_bytes + uv_cache_bytes + codex_cache_bytes + stale_npx_bytes + brew_cache_bytes ))
+total_reclaimable=$(( stale_ingest_bytes + stale_diag_bytes + uv_cache_bytes + codex_cache_bytes + stale_npx_bytes + stale_scratch_bytes + brew_cache_bytes ))
 
 if ! $apply; then
-  printf 'zdots-hygiene: dry run — pass -f or --apply to execute sweeps.\n\n'
+  printf 'zdots-hygiene: dry run -- pass -f or --apply to execute sweeps.\n\n'
   printf 'Candidate Evictions:\n'
   printf '  1. Stale Ingestion Buffers (>7d): %-8s  (%d files in %s)\n' \
     "$(_fmt_bytes "$stale_ingest_bytes")" "$stale_ingest_count" "$ingest_dir"
@@ -153,7 +164,9 @@ if ! $apply; then
   printf '  4. Codex Runtimes Cache:          %-8s\n' "$(_fmt_bytes "$codex_cache_bytes")"
   printf '  5. Stale npx Runtimes (>30d):     %-8s  (%d dirs in %s)\n' \
     "$(_fmt_bytes "$stale_npx_bytes")" "$stale_npx_count" "$npx_dir"
-  printf '  6. Homebrew Download Cache:       %-8s\n' "$(_fmt_bytes "$brew_cache_bytes")"
+  printf '  6. Stale Audio Scratch (>2d):     %-8s  (%d files in %s)\n' \
+    "$(_fmt_bytes "$stale_scratch_bytes")" "$stale_scratch_count" "$media_scratch_dir"
+  printf '  7. Homebrew Download Cache:       %-8s\n' "$(_fmt_bytes "$brew_cache_bytes")"
   printf '  ─────────────────────────────────────────────────────────────\n'
   printf '  Total Estimated Reclaimable:      %-8s  (+ Docker/Colima VM fstrim, pnpm store)\n\n' "$(_fmt_bytes "$total_reclaimable")"
   printf 'To execute, run:\n  zdots-hygiene -f\n'
@@ -205,7 +218,16 @@ if command -v brew >/dev/null 2>&1; then
   rm -rf "$(brew --cache 2>/dev/null)" 2>/dev/null || true
 fi
 
-# 7. Package Managers & Tool Caches (pnpm, npm, mise)
+# 7. Stale Audio Scratch Buffers (>2d)
+if (( stale_scratch_count > 0 )); then
+  printf '  [hygiene] purging %d stale audio scratch files (>2d)...\n' "$stale_scratch_count"
+  find "$media_scratch_dir" -type f \( -name "*.wav" -o -name "*.mp3" -o -name "*.flac" \) -mtime +2 -delete 2>/dev/null || true
+  printf '  [hygiene] freed %s from audio scratch buffer\n' "$(_fmt_bytes "$stale_scratch_bytes")"
+else
+  printf '  [hygiene] media audio scratch buffer clean (no files >2d)\n'
+fi
+
+# 8. Package Managers & Tool Caches (pnpm, npm, mise)
 if command -v pnpm >/dev/null 2>&1; then
   pstore="$(pnpm store path 2>/dev/null || echo "")"
   if [[ -n "$pstore" && -d "$pstore" ]]; then
