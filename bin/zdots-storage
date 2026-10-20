@@ -27,7 +27,7 @@ Context Buckets Monitored:
   models        Local LLM/audio weights (~/.local/share/llama-cpp, whisper-cpp)
   docker        Docker containers/images/volumes & Colima VM footprint
   ingest        Staged media & document ingestion sources (~/.local/state/zdots/ingest-sources)
-  caches        Tool & package manager caches (uv, codex-runtimes, pnpm, brew)
+  caches        Tool & package manager caches (uv, codex-runtimes, pnpm, npx, brew)
   logs          Diagnostic trace dumps & archived service logs (~/.local/state/zsh)
   backups       Stale migration & snapshot backups (colima-xdg-backup, adots-backups)
 EOF
@@ -134,12 +134,13 @@ ingest_status="ok"
 uv_bytes=$(_dir_bytes "$HOME/.cache/uv")
 codex_bytes=$(_dir_bytes "$HOME/.cache/codex-runtimes")
 pnpm_bytes=$(_dir_bytes "$HOME/.local/share/pnpm")
+npx_bytes=$(_dir_bytes "$HOME/.npm/_npx")
 brew_cache_bytes=0
 if command -v brew >/dev/null 2>&1; then
   bcache=$(brew --cache 2>/dev/null || echo "")
   [[ -n "$bcache" ]] && brew_cache_bytes=$(_dir_bytes "$bcache")
 fi
-caches_bytes=$(( uv_bytes + codex_bytes + pnpm_bytes + brew_cache_bytes ))
+caches_bytes=$(( uv_bytes + codex_bytes + pnpm_bytes + npx_bytes + brew_cache_bytes ))
 caches_status="ok"
 (( caches_bytes > 10737418240 )) && caches_status="warn" # > 10GB total caches
 
@@ -192,6 +193,7 @@ if $json; then
       "uv_bytes": $uv_bytes,
       "codex_runtimes_bytes": $codex_bytes,
       "pnpm_bytes": $pnpm_bytes,
+      "npx_bytes": $npx_bytes,
       "brew_cache_bytes": $brew_cache_bytes,
       "status": "$caches_status"
     },
@@ -216,8 +218,8 @@ else
   printf '  Docker/Colima:  %-8s  [%s]\n' "$(_fmt_bytes "$colima_bytes")" "$docker_status"
   printf '  Ingest Buffer:  %-8s  (stale >7d: %s in %d files) [%s]\n' \
     "$(_fmt_bytes "$ingest_bytes")" "$(_fmt_bytes "$stale_ingest_bytes")" "$stale_ingest_count" "$ingest_status"
-  printf '  Tool Caches:    %-8s  (uv: %s, codex: %s, brew: %s) [%s]\n' \
-    "$(_fmt_bytes "$caches_bytes")" "$(_fmt_bytes "$uv_bytes")" "$(_fmt_bytes "$codex_bytes")" "$(_fmt_bytes "$brew_cache_bytes")" "$caches_status"
+  printf '  Tool Caches:    %-8s  (uv: %s, codex: %s, npx: %s, brew: %s) [%s]\n' \
+    "$(_fmt_bytes "$caches_bytes")" "$(_fmt_bytes "$uv_bytes")" "$(_fmt_bytes "$codex_bytes")" "$(_fmt_bytes "$npx_bytes")" "$(_fmt_bytes "$brew_cache_bytes")" "$caches_status"
   printf '  Logs/Diags:     %-8s  (stale diags >14d: %s) [%s]\n' \
     "$(_fmt_bytes "$logs_bytes")" "$(_fmt_bytes "$diag_bytes")" "$logs_status"
   printf '  Backups:        %-8s  [%s]\n' "$(_fmt_bytes "$backups_bytes")" "$backups_status"

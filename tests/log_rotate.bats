@@ -91,3 +91,24 @@ teardown() {
   [ "$status" -eq 0 ]
   [[ "$output" =~ "line1" ]]
 }
+
+@test "log-rotate: rotates direct file path when given as argument" {
+  local direct_log="$TMP_DIR/direct-app.log"
+  echo "direct log line" > "$direct_log"
+  run log-rotate "$direct_log"
+  [ "$status" -eq 0 ]
+  [ ! -s "$direct_log" ]
+  local archive
+  archive="$(ls "$TMP_DIR"/direct-app.log.*.gz 2>/dev/null | head -1)"
+  [ -f "$archive" ]
+  run gunzip -c "$archive"
+  [[ "$output" =~ "direct log line" ]]
+}
+
+@test "log-rotate: resolves com.my.* service plists" {
+  defaults write "$HOME/Library/LaunchAgents/com.my.custom-app" \
+    StandardErrorPath "$FAKE_LOG"
+  run log-rotate custom-app --dry-run
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ "$FAKE_LOG" ]]
+}

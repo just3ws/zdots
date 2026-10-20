@@ -206,7 +206,7 @@ _known_gap() {
     embed-model-tripwire zdots-theme-gen
     zdots zdots-artifact zdots-debrief zdots-snapshot zdots-search zdots-draft zdots-publish
     zdots-help zdots-watch zdots-usage zdots-swiftbar zdots-vault-doctor
-    zdots-storage zdots-hygiene zdots-check zdots-gen zdots-lake zdots-sql-lint
+    zdots-storage zdots-hygiene zdots-check zdots-gen zdots-lake zdots-sql-lint ztranscribe
     bus bus-coordinator-ctl bus-schedule jaeger-ctl observability-mode zdots-bus
   )
 

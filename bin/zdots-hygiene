@@ -31,6 +31,7 @@ Actions Executed on --apply:
   4. Ingestion Buffer: Evict staged media/docs in ingest-sources > 7 days old
   5. Diagnostic Logs: Remove stale trace dumps (collector-diag-*.jsonl) > 14 days old
   6. Agent Runtimes: Purge obsolete codex-runtimes cache
+  7. Package Caches: Prune unreferenced pnpm packages, stale npx (>30d), and unused mise versions
 EOF
     exit 0
   }
@@ -76,6 +77,22 @@ _dir_bytes() {
   fi
 }
 
+# Validates whether a candidate directory matches the expected ephemeral npx cache layout
+_is_valid_npx_signature() {
+  local dir="$1"
+  local base
+  base="$(basename "$dir")"
+  # npx stores one-off packages in 16-hex hash directories
+  if [[ ! "$base" =~ ^[0-9a-f]{16}$ ]]; then
+    return 1
+  fi
+  # Must contain package.json or node_modules
+  if [[ ! -f "$dir/package.json" && ! -d "$dir/node_modules" ]]; then
+    return 1
+  fi
+  return 0
+}
+
 # Measure candidate evictions
 ingest_dir="$HOME/.local/state/zdots/ingest-sources"
 stale_ingest_bytes=0
@@ -96,11 +113,26 @@ if [[ -d "$log_state_dir" ]]; then
     sz=$(_file_bytes "$f")
     stale_diag_bytes=$(( stale_diag_bytes + sz ))
     stale_diag_count=$(( stale_diag_count + 1 ))
-  done < <(find "$log_state_dir" -maxdepth 1 -name "collector-diag-*.jsonl" -mtime +14 -print0 2>/dev/null)
+  done < <(find "$log_state_dir" -maxdepth 1 \( -name "collector-diag-*.jsonl" -mtime +14 -o -name "*.log.*.gz" -mtime +30 \) -print0 2>/dev/null)
 fi
 
 uv_cache_bytes=$(_dir_bytes "$HOME/.cache/uv")
 codex_cache_bytes=$(_dir_bytes "$HOME/.cache/codex-runtimes")
+
+npx_dir="$HOME/.npm/_npx"
+stale_npx_bytes=0
+stale_npx_count=0
+if [[ -d "$npx_dir" ]]; then
+  while IFS= read -r -d '' d; do
+    if _is_valid_npx_signature "$d"; then
+      sz=$(_dir_bytes "$d")
+      stale_npx_bytes=$(( stale_npx_bytes + sz ))
+      stale_npx_count=$(( stale_npx_count + 1 ))
+    else
+      printf 'zdots-hygiene: [warn] skipping anomalous npx path (signature mismatch): %s\n' "$d" >&2
+    fi
+  done < <(find "$npx_dir" -mindepth 1 -maxdepth 1 -type d -mtime +30 -print0 2>/dev/null)
+fi
 
 brew_cache_bytes=0
 if command -v brew >/dev/null 2>&1; then
@@ -108,20 +140,22 @@ if command -v brew >/dev/null 2>&1; then
   [[ -n "$bcache" ]] && brew_cache_bytes=$(_dir_bytes "$bcache")
 fi
 
-total_reclaimable=$(( stale_ingest_bytes + stale_diag_bytes + uv_cache_bytes + codex_cache_bytes + brew_cache_bytes ))
+total_reclaimable=$(( stale_ingest_bytes + stale_diag_bytes + uv_cache_bytes + codex_cache_bytes + stale_npx_bytes + brew_cache_bytes ))
 
 if ! $apply; then
   printf 'zdots-hygiene: dry run — pass -f or --apply to execute sweeps.\n\n'
   printf 'Candidate Evictions:\n'
   printf '  1. Stale Ingestion Buffers (>7d): %-8s  (%d files in %s)\n' \
     "$(_fmt_bytes "$stale_ingest_bytes")" "$stale_ingest_count" "$ingest_dir"
-  printf '  2. Stale Diagnostic Logs (>14d): %-8s  (%d files in %s)\n' \
+  printf '  2. Stale Logs & Rotations (>30d): %-8s  (%d files in %s)\n' \
     "$(_fmt_bytes "$stale_diag_bytes")" "$stale_diag_count" "$log_state_dir"
   printf '  3. Python uv Cache:              %-8s\n' "$(_fmt_bytes "$uv_cache_bytes")"
   printf '  4. Codex Runtimes Cache:          %-8s\n' "$(_fmt_bytes "$codex_cache_bytes")"
-  printf '  5. Homebrew Download Cache:       %-8s\n' "$(_fmt_bytes "$brew_cache_bytes")"
+  printf '  5. Stale npx Runtimes (>30d):     %-8s  (%d dirs in %s)\n' \
+    "$(_fmt_bytes "$stale_npx_bytes")" "$stale_npx_count" "$npx_dir"
+  printf '  6. Homebrew Download Cache:       %-8s\n' "$(_fmt_bytes "$brew_cache_bytes")"
   printf '  ─────────────────────────────────────────────────────────────\n'
-  printf '  Total Estimated Reclaimable:      %-8s  (+ Docker/Colima VM fstrim)\n\n' "$(_fmt_bytes "$total_reclaimable")"
+  printf '  Total Estimated Reclaimable:      %-8s  (+ Docker/Colima VM fstrim, pnpm store)\n\n' "$(_fmt_bytes "$total_reclaimable")"
   printf 'To execute, run:\n  zdots-hygiene -f\n'
   exit 0
 fi
@@ -137,13 +171,13 @@ else
   printf '  [hygiene] ingestion buffer clean (no files >7d)\n'
 fi
 
-# 2. Stale Diagnostic Logs (>14d)
+# 2. Stale Diagnostic Logs (>14d) & Rotated Service Logs (>30d)
 if (( stale_diag_count > 0 )); then
-  printf '  [hygiene] purging %d stale diagnostic dumps (>14d)...\n' "$stale_diag_count"
-  find "$log_state_dir" -maxdepth 1 -name "collector-diag-*.jsonl" -mtime +14 -delete 2>/dev/null || true
-  printf '  [hygiene] freed %s from diagnostic logs\n' "$(_fmt_bytes "$stale_diag_bytes")"
+  printf '  [hygiene] purging %d stale diagnostic dumps and rotated log archives (>30d)...\n' "$stale_diag_count"
+  find "$log_state_dir" -maxdepth 1 \( -name "collector-diag-*.jsonl" -mtime +14 -o -name "*.log.*.gz" -mtime +30 \) -delete 2>/dev/null || true
+  printf '  [hygiene] freed %s from stale logs\n' "$(_fmt_bytes "$stale_diag_bytes")"
 else
-  printf '  [hygiene] diagnostic dumps clean\n'
+  printf '  [hygiene] diagnostic dumps & log archives clean\n'
 fi
 
 # 3. Docker / Colima VM
@@ -169,6 +203,43 @@ if command -v brew >/dev/null 2>&1; then
   printf '  [hygiene] running brew cleanup...\n'
   brew cleanup --prune=all >/dev/null 2>&1 || true
   rm -rf "$(brew --cache 2>/dev/null)" 2>/dev/null || true
+fi
+
+# 7. Package Managers & Tool Caches (pnpm, npm, mise)
+if command -v pnpm >/dev/null 2>&1; then
+  pstore="$(pnpm store path 2>/dev/null || echo "")"
+  if [[ -n "$pstore" && -d "$pstore" ]]; then
+    printf '  [hygiene] pruning unreferenced packages from pnpm store (%s)...\n' "$pstore"
+    pnpm store prune >/dev/null 2>&1 || true
+  else
+    printf '  [hygiene:warn] pnpm installed but store path unreachable; skipping store prune\n' >&2
+  fi
+fi
+
+if [[ -d "$npx_dir" ]] && (( stale_npx_count > 0 )); then
+  printf '  [hygiene] purging %d verified stale npx runtimes (>30d)...\n' "$stale_npx_count"
+  freed_npx=0
+  while IFS= read -r -d '' d; do
+    if _is_valid_npx_signature "$d"; then
+      sz=$(_dir_bytes "$d")
+      rm -rf "$d" 2>/dev/null || true
+      freed_npx=$(( freed_npx + sz ))
+    fi
+  done < <(find "$npx_dir" -mindepth 1 -maxdepth 1 -type d -mtime +30 -print0 2>/dev/null)
+  printf '  [hygiene] freed %s from verified npx cache\n' "$(_fmt_bytes "$freed_npx")"
+fi
+
+if command -v npm >/dev/null 2>&1; then
+  npm cache clean --force >/dev/null 2>&1 || true
+fi
+
+if command -v mise >/dev/null 2>&1; then
+  if mise prune --help >/dev/null 2>&1; then
+    printf '  [hygiene] pruning unused mise tool versions...\n'
+    mise prune -y >/dev/null 2>&1 || true
+  else
+    printf '  [hygiene:warn] mise installed but prune command unsupported; skipping mise prune\n' >&2
+  fi
 fi
 
 printf '\nzdots-hygiene: sweep complete. Current status:\n'

@@ -1,0 +1,43 @@
+.TH ZTRANSCRIBE 1 "2026-10-20" "zdots" "zdots manual"
+.SH NAME
+ztranscribe \- ztranscribe \-\-from\-wav <wav> \-\-output\-base <base> [options]
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBztranscribe --help\fR).
+.SH OPTIONS
+.nf
+Usage: ztranscribe <youtube_url> [options]
+       ztranscribe --from-wav <wav> --output-base <base> [options]
+
+High-performance YouTube transcription pipeline. Downloads best audio,
+captures full metadata, and transcribes using whisper.cpp.
+
+Options:
+  --keep-media       Keep the original .wav audio file (deleted by default).
+  --diarize          Identify speakers (requires HUGGINGFACE_TOKEN).
+  --summarize        Generate an AI summary/cleanup (requires llama-server).
+  --json-full        Emit token-level confidence (--output-json-full).
+  --out-dir <dir>    Override retention dir (default ~/Downloads/transcripts).
+  --prompt <text>    Bias whisper toward known vocabulary.
+  --profile <p>      Whisper profile: max-accuracy (default), standard, light.
+  -h, --help         Show this help
+
+Windowed mode (Z-169, skips download):
+  --prep-only        Download+convert to 16k wav, report it, stop before whisper.
+  --from-wav <wav>   Transcribe a window of an existing 16k wav.
+  --offset-sec <n>   Window start in seconds (with --from-wav).
+  --window-sec <n>   Window length in seconds (with --from-wav).
+  --output-base <b>  Whisper output-file base (required with --from-wav).
+
+Unknown --flags are rejected (exit 1).
+
+Outputs:
+  Saved to ~/Downloads/transcripts/<video_id>/ in 5+ formats:
+  .txt, .json (structured), .srt, .vtt, .csv, .info.json, .summary.md
+
+Bot-gated sources (e.g. YouTube) need cookies. Set one of (opt-in):
+  ZDOTS_YTDLP_COOKIES_FROM_BROWSER=firefox   # interactive shell only (macOS TCC restricts launchd)
+  ZDOTS_YTDLP_COOKIES_FILE=/path/to/cookies.txt # Netscape format; required for background worker
+  (If cookie extraction fails, yt-transcribe automatically falls back to anonymous fetch)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)

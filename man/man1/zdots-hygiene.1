@@ -22,6 +22,7 @@ Actions Executed on --apply:
   4. Ingestion Buffer: Evict staged media/docs in ingest-sources > 7 days old
   5. Diagnostic Logs: Remove stale trace dumps (collector-diag-*.jsonl) > 14 days old
   6. Agent Runtimes: Purge obsolete codex-runtimes cache
+  7. Package Caches: Prune unreferenced pnpm packages, stale npx (>30d), and unused mise versions
 .fi
 .SH SEE ALSO
 agent-guide(1), zdots-doctor(1)

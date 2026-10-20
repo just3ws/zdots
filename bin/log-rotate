@@ -35,18 +35,33 @@ if [[ -z "$SERVICE" ]]; then
   exit 1
 fi
 
-# Find the service plist
-PLIST="$HOME/Library/LaunchAgents/com.zdots.${SERVICE}.plist"
-if [[ ! -f "$PLIST" ]]; then
-  printf 'log-rotate: plist not found: %s\n' "$PLIST" >&2
-  exit 1
-fi
+# Find the service plist or direct log path
+LOG_PATH=""
+PLIST=""
+if [[ -f "$SERVICE" ]]; then
+  LOG_PATH="$SERVICE"
+else
+  for p in \
+    "$HOME/Library/LaunchAgents/com.zdots.${SERVICE}.plist" \
+    "$HOME/Library/LaunchAgents/com.my.${SERVICE}.plist" \
+    "$HOME/Library/LaunchAgents/com.wwworkremote.${SERVICE}.plist" \
+    "$HOME/Library/LaunchAgents/${SERVICE}.plist"; do
+    if [[ -f "$p" ]]; then
+      PLIST="$p"
+      break
+    fi
+  done
+  if [[ -z "$PLIST" ]]; then
+    printf 'log-rotate: plist not found: %s\n' "$HOME/Library/LaunchAgents/com.zdots.${SERVICE}.plist" >&2
+    exit 1
+  fi
 
-# Extract log path from plist
-LOG_PATH=$(defaults read "$PLIST" StandardErrorPath 2>/dev/null || true)
-if [[ -z "$LOG_PATH" ]]; then
-  # Try StandardOutPath if StandardErrorPath not found
-  LOG_PATH=$(defaults read "$PLIST" StandardOutPath 2>/dev/null || true)
+  # Extract log path from plist
+  LOG_PATH=$(defaults read "$PLIST" StandardErrorPath 2>/dev/null || true)
+  if [[ -z "$LOG_PATH" ]]; then
+    # Try StandardOutPath if StandardErrorPath not found
+    LOG_PATH=$(defaults read "$PLIST" StandardOutPath 2>/dev/null || true)
+  fi
 fi
 
 if [[ -z "$LOG_PATH" ]]; then
@@ -67,11 +82,17 @@ printf 'log-rotate: %s\n' "$SERVICE"
 printf '  log:  %s\n' "$LOG_PATH"
 printf '  size: %d MB\n' "$LOG_SIZE_MB"
 
-# Check if service is running (launchd label is com.zdots.<service>)
-_pid=$(launchctl list "com.zdots.${SERVICE}" 2>/dev/null \
-        | awk -F'[ =;]+' '/"PID"/{print $2}')
+# Check if service is running
+_pid=""
+if [[ -n "$PLIST" ]]; then
+  _label=$(defaults read "$PLIST" Label 2>/dev/null || echo "com.zdots.${SERVICE}")
+  _pid=$(launchctl list "$_label" 2>/dev/null \
+          | awk -F'[ =;]+' '/"PID"/{print $2}')
+fi
 if [[ -z "$_pid" ]]; then
-  printf '  status: NOT RUNNING (warning: service may have failed)\n' >&2
+  if [[ -n "$PLIST" ]]; then
+    printf '  status: NOT RUNNING (warning: service may have failed)\n' >&2
+  fi
 else
   printf '  status: running (PID %s)\n' "$_pid"
 fi
@@ -98,6 +119,11 @@ true > "$LOG_PATH" || {
   exit 1
 }
 printf '  truncated: %s\n' "$LOG_PATH"
+
+# Prune historical rotations (>30 days) for this specific log to prevent unbounded accumulation
+local_dir="$(dirname "$LOG_PATH")"
+base_name="$(basename "$LOG_PATH")"
+find "$local_dir" -maxdepth 1 -name "${base_name}.*.gz" -mtime +30 -delete 2>/dev/null || true
 
 # Show result
 ARCHIVE_SIZE=$(stat -f%z "$ARCHIVE" 2>/dev/null || echo 0)

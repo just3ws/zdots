@@ -6,15 +6,26 @@
 .Nd rotate launchd service logs with compression
 .Sh SYNOPSIS
 .Nm
-.Ar service-name
+.Ar service-name | file-path
 .Op Fl -dry-run
 .Op Fl -help
 .Sh DESCRIPTION
 .Nm
-rotates a service's log file by gzip-compressing the current content into a
-timestamped archive and truncating the active log. The truncation is in place,
-so a service holding the file descriptor open keeps writing without a
-restart \(em safe for live daemons.
+rotates an application or service log file by gzip-compressing the current
+content into a timestamped archive and truncating the active log.
+The truncation is in place, so a service holding the file descriptor open
+keeps writing without a restart \(em safe for live daemons.
+.Pp
+.Ar service-name
+resolves across registered launchd agents in
+.Pa ~/Library/LaunchAgents
+(supporting
+.Li com.zdots.* ,
+.Li com.my.* ,
+and
+.Li com.wwworkremote.* ) ,
+or accepts a direct log file path.
+Upon rotation, historical archives older than 30 days are automatically pruned.
 .Sh OPTIONS
 .Bl -tag -width Fl
 .It Fl -dry-run
