@@ -41,7 +41,7 @@ Analysis of system disk usage revealed ~3.9 GB occupied by Codex (~3.5 GB in ~/.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Audit ~/.codex/sessions retention policy and evaluate TTL-based pruning (>30d or >60d)
+- [ ] #1 Audit ~/.codex/sessions retention policy and implement configurable zstd cold-storage compression (default: >30d)
 - [ ] #2 Audit ~/.codex/computer-use screenshot artifacts and define eviction routine
 - [ ] #3 Audit ~/.claude/projects/ workspace state and determine retention/eviction safety
 - [ ] #4 Incorporate approved pruning actions into zdots-hygiene or dedicated agent-cache cleanup verb

@@ -25,7 +25,8 @@ Aggregate zdots-storage (multi-bucket storage footprint), zdots-usage (command f
 <!-- AC:BEGIN -->
 - [ ] #1 Consolidate storage, usage, and service vitals into a single unified JSON schema
 - [ ] #2 Create a high-signal terminal overview command (zdots pulse / health)
-- [ ] #3 Record weekly snapshot metrics to track storage growth and error velocities over time
+- [ ] #3 Provide ambient web card integration on zdots-statusd (https://zdots.localhost)
+- [ ] #4 Record weekly snapshot metrics to track storage growth and error velocities over time
 <!-- AC:END -->
 
 ## Definition of Done

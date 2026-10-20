@@ -18,13 +18,13 @@ ordinal: 224895
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Cross-reference the 208 installed Homebrew leaves and 386 declared Brewfile.* entries against the 10,885 commands in ~/.local/share/atuin/history.db (and traces.jsonl) from the past 7 months. Identify Tier 3 zero-use packages and generate a report for safe operator review before pruning.
+Cross-reference the 208 installed Homebrew leaves and 386 declared Brewfile.* entries against the 10,885 commands in ~/.local/share/atuin/history.db (and traces.jsonl). Surface zero-use packages over a configurable horizon (default: 90 days, via --days) and generate an annotated report for safe operator review before pruning.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Map declared Homebrew formulae to their provided binary names
-- [ ] #2 Query Atuin SQLite history for binary execution frequencies over 180 days
+- [ ] #2 Query Atuin SQLite history for binary execution frequencies over configurable window (default: 90 days)
 - [ ] #3 Generate annotated report of zero-use candidates without auto-uninstalling
 <!-- AC:END -->
 
