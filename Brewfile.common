@@ -159,6 +159,7 @@ brew "universal-ctags"
 brew "uv"
 brew "visidata"     # TUI spreadsheet for SQLite/PostgreSQL — interactive command_runs analysis
 brew "vivid"
+brew "vips"
 brew "watch"
 brew "watchexec"    # re-run bats on file change — tighter test feedback than entr
 brew "wget"
