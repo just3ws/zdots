@@ -231,10 +231,14 @@ _have() { command -v "$1" >/dev/null 2>&1; }
   [[ "$output" == *ok* ]]
 }
 
-@test "zdots-ruby-bump reports the pin is already latest" {
+@test "zdots-ruby-bump reports pin status" {
   run "$REPO_ROOT/bin/zdots-ruby-bump" --check
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"already at latest"* ]]
+  [ "$status" -eq 0 ] || [ "$status" -eq 10 ]
+  if [[ "$status" -eq 0 ]]; then
+    [[ "$output" == *"already at latest"* ]]
+  else
+    [[ "$output" == *"a newer stable Ruby is available"* ]]
+  fi
 }
 
 @test "zdots-platform usage lists the integrate and idscan verbs" {

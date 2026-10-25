@@ -13,12 +13,6 @@ import os
 import subprocess
 import argparse
 
-try:
-    import duckdb
-except ImportError:
-    print("Error: duckdb library not found. Install via 'pip install --user --break-system-packages duckdb'.", file=sys.stderr)
-    sys.exit(2)
-
 def check_readonly(sql_content):
     """Shell out to zdots-sql-lint (same bin/ dir) to enforce read-only SQL."""
     lint_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zdots-sql-lint")
@@ -56,6 +50,12 @@ def main():
             print(f"❌ Blocked by read-only guard: {msg}", file=sys.stderr)
             print("   Pass --unsafe to run write/DDL queries anyway.", file=sys.stderr)
             sys.exit(1)
+
+    try:
+        import duckdb
+    except ImportError:
+        print("Error: duckdb library not found. Install via 'pip install --user --break-system-packages duckdb'.", file=sys.stderr)
+        sys.exit(2)
 
     try:
         con = duckdb.connect(database=":memory:")

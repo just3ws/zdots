@@ -61,8 +61,8 @@ CREATE OR REPLACE TABLE prs AS
          node.title                           AS title,
          node.state                           AS state,
          node.author.login                    AS author,
-         node.createdAt::TIMESTAMP            AS created_at,
-         node.mergedAt::TIMESTAMP            AS merged_at,
+         node.createdAt::TIMESTAMPTZ          AS created_at,
+         node.mergedAt::TIMESTAMPTZ           AS merged_at,
          coalesce(node.reviewThreads.totalCount, 0) AS thread_count,
          node.statusCheckRollup.state         AS ci_state,
          node.headRefName                     AS head_ref,    -- Phase 2
@@ -170,7 +170,7 @@ CREATE OR REPLACE TABLE workflow_runs AS
     columns={repo_name:'VARCHAR', id:'BIGINT', name:'VARCHAR', workflow_id:'BIGINT',
              conclusion:'VARCHAR', status:'VARCHAR', event:'VARCHAR', head_branch:'VARCHAR',
              actor:'VARCHAR', triggering_actor:'VARCHAR',
-             created_at:'TIMESTAMP', run_started_at:'TIMESTAMP', updated_at:'TIMESTAMP'},
+             created_at:'TIMESTAMPTZ', run_started_at:'TIMESTAMPTZ', updated_at:'TIMESTAMPTZ'},
     maximum_object_size=67108864);
 
 CREATE OR REPLACE TABLE releases AS
