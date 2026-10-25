@@ -111,7 +111,6 @@ _svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.lo
 _svc_reg "status|zdots-statusd|com.zdots.statusd|${_SVC_REG_STATE}/zdots-statusd.log|zdots-statusd-ctl|http://127.0.0.1:${ZDOTS_STATUS_PORT:-11600}|launchd|1|statusd statusd-ctl control-plane dashboard|install|start|stop|restart|status|health|logs||zdots_probe_status"
 _svc_reg "gemstash|gemstash|com.zdots.gemstash|${_SVC_REG_STATE}/gemstash.log|gemstash-ctl|http://127.0.0.1:9292|launchd|1|gems gem-cache rubygems gem-proxy|install|start|stop|restart|status|health|logs||zdots_probe_gemstash"
 _svc_reg "coordinator|bus-coordinator|com.zdots.bus-coordinator|${_SVC_REG_STATE}/bus-coordinator.log|bus-coordinator-ctl|bus coordinator|launchd|1|bus-coordinator busdriver bot|install|start|stop|restart|status|health|logs||zdots_probe_coordinator"
-_svc_reg "pipeline|media-pipeline|com.just3ws.media-pipeline|${_SVC_REG_JUST3WS_STATE}/media_pipeline_server.log|mp|http://127.0.0.1:32000/api/status|launchd|1|media-pipeline media-intake just3ws-pipeline||start|stop|restart|status|health|logs||zdots_probe_pipeline"
 # Health-only platform services (not zsvc lifecycle-managed):
 _svc_reg "ctx|context-engine|||zdots-ctx|postgres|derived|0|intelligence|||||||||zdots_probe_ctx"
 
@@ -208,10 +207,6 @@ zdots_probe_status() {
 
 zdots_probe_gemstash() {
   curl -sf --max-time 3 "${ZDOTS_SVC_ENDPOINT[gemstash]}/" >/dev/null 2>&1
-}
-
-zdots_probe_pipeline() {
-  curl -sf --max-time 3 "${ZDOTS_SVC_ENDPOINT[pipeline]}" >/dev/null 2>&1
 }
 
 zdots_probe_coordinator() {
