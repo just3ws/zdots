@@ -70,6 +70,48 @@ colima-status          # alias for colima status (CPU, memory, disk, runtime)
 colima status          # same
 ```
 
+### Virtual Disk Allocation vs Physical APFS Storage (The "128GB Ghost")
+
+On a 256GB Mac, inspecting `~/.colima` with standard GUI disk analyzers (e.g., DaisyDisk, GrandPerspective) or `ls -lh` can cause panic by reporting **~128 GB** of disk consumption:
+
+- `~/.colima/_lima/_disks/colima/datadisk`: **100 GB** apparent size
+- `~/.colima/_lima/colima/disk`: **20 GB** apparent size
+- Total apparent / logical directory size: **~128 GB**
+
+#### Why this is an illusion: APFS Sparse Files
+
+Colima/Lima provisions virtual disks with a *capacity ceiling* (the maximum virtual size the guest Linux VM can expand into). Under macOS APFS, these images are created as **sparse files**:
+
+- The file header advertises a 100 GB logical capacity to the guest VM.
+- Physical APFS storage blocks are only allocated on the host SSD when the guest OS actually writes new data.
+- Unwritten blocks / holes consume **zero bytes** on the host.
+
+To prove actual physical footprint on disk, inspect physical block allocation (`ls -ls`) or use `du -sh`:
+
+```sh
+# Compare apparent size (-lh) vs actual block allocation (-ls)
+ls -lh ~/.colima/_lima/_disks/colima/datadisk
+# Logical: 100G
+
+ls -ls ~/.colima/_lima/_disks/colima/datadisk
+# Allocated: 15949096 blocks * 512 bytes = ~7.6 GB
+
+du -sh ~/.colima
+# Real SSD usage: ~11 GB
+
+zdots-storage
+# Reports true multi-bucket consumption: Docker/Colima: ~11 GB [ok]
+```
+
+#### Reconciling "100+ GB Freed or Missing" Ghost Metrics
+
+When macOS GUI utilities or third-party analyzers switch between reading *apparent file size* (128 GB) and *actual allocated blocks* (11 GB), or when macOS recalculates APFS **Purgeable Space** (combining raw free space with cloud/snapshot caches like `~/Library/Application Support/Google/DriveFS` and local APFS snapshots), disk meters can appear to have "freed" or "lost" 100+ GB instantaneously.
+
+Always rely on:
+1. `df -h /` or `diskutil apfs list` for raw physical free space.
+2. `du -sh` or `ls -ls` (not `ls -lh`) when inspecting VM disk directories.
+3. `zdots-storage` for the authoritative multi-bucket platform breakdown.
+
 ### OpenObserve (logs/metrics/traces)
 
 Observability is native now (the containerized LGTM stack was retired, Z-134).
