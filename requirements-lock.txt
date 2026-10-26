@@ -21,7 +21,7 @@ click==8.4.2
     # via huggingface-hub
 duckdb==1.5.5
     # via -r requirements.txt
-filelock==3.32.3
+filelock==4.2.1
     # via huggingface-hub
 fsspec==2026.7.0
     # via huggingface-hub
