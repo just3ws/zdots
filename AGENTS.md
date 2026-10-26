@@ -3,13 +3,13 @@
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     CURRENT FOCUS  —  last updated 2026-10-23
+     CURRENT FOCUS  —  last updated 2026-10-26
      Cold-start resume state, canonical for every agent tool (Claude, Codex,
      Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
      closes a session rewrites this whole block in place — step one, before
      the wrap-up summary — then commits it. `git log` + Backlog are truth for
      exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-23.md
+     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-26.md
      (local-only; that file, not "the newest handoff", is the pointer).
      ═══════════════════════════════════════════════════════════════════════
 
@@ -53,6 +53,16 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
     no-expiry. Z-334 coordination with the just3ws.github.io agent.
 
   Recently DONE:
+    - APFS Storage Forensic Audit & Documentation (docs/storage-hygiene.md):
+      * Clarified APFS sparse allocation in Colima (~128 GB virtual ceiling vs
+        ~11 GB physical SSD allocation).
+      * Reconciled DaisyDisk 111.9 GB metric: Foundation API combines 20.4 GB raw
+        free space with 91.4 GB of evictable purgeable cache (Google Drive
+        dataless chunks, local snapshots, caches), not unallocated free space.
+      * Reconciled macOS Catalina+ dual-volume split: df -h / reports 41% bogus
+        capacity on the sealed 13 GB OS snapshot, while /System/Volumes/Data
+        accurately reflects persistent 91% data utilization (~178 GB used, ~20 GB free).
+      * Proved zero data loss; 15/15 docs_contract tests green.
     - Autonomous Storage Hygiene & Anti-Bitrot Verification (Z-348):
       * Recovered +9.0 GB net primary SSD headroom (13GB [warn] -> 22GB [ok],
         capacity reduced from 49% to 37%).
