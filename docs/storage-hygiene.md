@@ -103,14 +103,55 @@ zdots-storage
 # Reports true multi-bucket consumption: Docker/Colima: ~11 GB [ok]
 ```
 
-#### Reconciling "100+ GB Freed or Missing" Ghost Metrics
+#### Reconciling Ghost Metrics & "100+ GB Freed or Halved" Illusions
 
-When macOS GUI utilities or third-party analyzers switch between reading *apparent file size* (128 GB) and *actual allocated blocks* (11 GB), or when macOS recalculates APFS **Purgeable Space** (combining raw free space with cloud/snapshot caches like `~/Library/Application Support/Google/DriveFS` and local APFS snapshots), disk meters can appear to have "freed" or "lost" 100+ GB instantaneously.
+Operators managing tight storage on 256GB Apple Silicon machines routinely encounter phantom metrics that make it appear as though 100+ GB was suddenly wiped or freed. Two distinct macOS APFS architectural layers produce this:
 
-Always rely on:
-1. `df -h /` or `diskutil apfs list` for raw physical free space.
-2. `du -sh` or `ls -ls` (not `ls -lh`) when inspecting VM disk directories.
-3. `zdots-storage` for the authoritative multi-bucket platform breakdown.
+##### 1. DaisyDisk & Apple Foundation Purgeable Space API (The "111.9 GB Available" Illusion)
+
+DaisyDisk and macOS *System Settings → Storage* do not show raw physical free space by default. DaisyDisk queries Apple Foundation's native `volumeAvailableCapacityForImportantUsageKey`:
+
+$$\begin{aligned}
+\text{Raw Physical Free Space} &\quad \mathbf{20.43\text{ GB}} \\
++ \text{APFS Purgeable Space} &\quad \mathbf{91.39\text{ GB}} \\
+\hline
+\mathbf{\text{DaisyDisk "Available" Metric}} &\quad \mathbf{111.82\text{ GB (rounds to 111.9 GB)}}
+\end{aligned}$$
+
+**What is the 91.4 GB of "Purgeable Space"?**
+It is **not** unallocated space. It is physical disk space currently occupied by files that macOS knows it can silently evict if an application requests space for an essential installation:
+- **CloudStorage & DriveFS Virtual Assets:** Files in `~/Library/Application Support/Google/DriveFS` and `~/Library/CloudStorage` marked `compressed,dataless`. Because canonical copies exist in the cloud, macOS classifies local chunks as purgeable.
+- **Local APFS Snapshots & Caches:** Time Machine local deltas, OS update staging caches, and temporary swap pages.
+
+Seeing DaisyDisk report **111.9 GB** in green on a 245 GB drive does **not** mean half the drive's data was wiped; it means the system has 20.4 GB of real free space plus 91.4 GB of evictable caches.
+
+##### 2. The macOS Catalina+ System/Data Volume Split (The "41% Capacity" Illusion)
+
+Since macOS Catalina, APFS split the startup disk into two volumes within the same container:
+- **`/` (`disk3s1s1`)**: A cryptographically sealed, read-only system snapshot containing **only macOS** (~13 GB).
+- **`/System/Volumes/Data` (`disk3s5`)**: Where all user data, home directories, repos, containers, and tools live (~178 GB).
+
+When running `df -h /`, BSD `df` calculates capacity using **only the mounted volume specified**:
+
+$$\text{Capacity on /} = \frac{\text{Used on /}}{\text{Used on /} + \text{Free Container Space}} = \frac{13\text{ GiB}}{13\text{ GiB} + 19\text{ GiB}} = \frac{13}{32} \approx \mathbf{41\%}$$
+
+It completely excludes the 178 GB on `/System/Volumes/Data`. Comparing `df -h /` with the data volume reveals the true picture:
+
+```sh
+df -h / && df -h /System/Volumes/Data
+# Filesystem        Size    Used   Avail Capacity  Mounted on
+# /dev/disk3s1s1   228Gi    13Gi    19Gi    41%    /
+# /dev/disk3s5     228Gi   178Gi    19Gi    91%    /System/Volumes/Data
+```
+
+An operator or automated report seeing "Capacity: 37%–41%" on `/` might assume storage utilization was cut in half, when in reality `/System/Volumes/Data` remains at **91% utilization**.
+
+#### Operator Ground Truth Checklist
+
+To avoid false alarms when triaging storage:
+1. **Raw Storage Truth:** Always check `df -h /System/Volumes/Data` or `diskutil apfs list` (never rely solely on `df -h /`).
+2. **Virtual Machines & Caches:** Use `ls -ls` (allocated blocks $\times$ 512B) or `du -sh` on `~/.colima` to verify physical footprint vs virtual ceiling.
+3. **Platform Multi-Bucket View:** Run `zdots-storage` for verified, bucket-level telemetry across models, docker, ingest buffers, tool caches, and logs.
 
 ### OpenObserve (logs/metrics/traces)
 
