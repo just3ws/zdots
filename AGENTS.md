@@ -3,13 +3,13 @@
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     CURRENT FOCUS  —  last updated 2026-10-26
+     CURRENT FOCUS  —  last updated 2026-10-27
      Cold-start resume state, canonical for every agent tool (Claude, Codex,
      Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
      closes a session rewrites this whole block in place — step one, before
      the wrap-up summary — then commits it. `git log` + Backlog are truth for
      exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-26.md
+     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-27-6.md
      (local-only; that file, not "the newest handoff", is the pointer).
      ═══════════════════════════════════════════════════════════════════════
 
@@ -53,6 +53,12 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
     no-expiry. Z-334 coordination with the just3ws.github.io agent.
 
   Recently DONE:
+    - Media-Pipeline mp Global CLI & Navigation Parity:
+      * Added `mp` repo jump function with CLI dispatch and `_mp` completion
+        in `~/.config/zsh/.aliasrc.local` (matching `j3w`, `phx`, and `zdots` patterns).
+      * Appended `$HOME/github.com/just3ws/media-pipeline/bin` to global `$PATH`
+        in `~/.config/zsh/.zshrc.local` for direct sub-binary access.
+      * Isolated all changes to local, gitignored overrides with zero tracked drift.
     - APFS Storage Forensic Audit & Documentation (docs/storage-hygiene.md):
       * Clarified APFS sparse allocation in Colima (~128 GB virtual ceiling vs
         ~11 GB physical SSD allocation).
