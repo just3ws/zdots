@@ -35,6 +35,32 @@ jobs:
       - name: Install yq (required for phi_scrubber)
         run: brew install yq
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cmd/zdots-phi-scrub/go.mod
+
+      - name: Test PHI Scrubber Go module
+        run: go test ./...
+        working-directory: cmd/zdots-phi-scrub
+
+      - name: Test shared RE2 registry module
+        run: go test ./...
+        working-directory: pkg/re2registry
+
+      - name: Install uv for lock validation
+        run: brew install uv
+
+      - name: Validate Python dependency lock
+        shell: bash
+        run: |
+          uv pip compile -c requirements-lock.txt \
+            --output-file "$RUNNER_TEMP/requirements-lock-validated.txt" \
+            requirements.txt
+          diff -u \
+            <(grep -E '^[A-Za-z0-9._-]+==' requirements-lock.txt | sort) \
+            <(grep -E '^[A-Za-z0-9._-]+==' "$RUNNER_TEMP/requirements-lock-validated.txt" | sort)
+
       - name: 'Capabilities Health Check'
         run: ZDOTS_ENV_PROFILE=ci-act ./bin/capabilities
 
