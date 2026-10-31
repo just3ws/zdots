@@ -20,11 +20,19 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
 
   Identity follow-up: portfolio alias and obsolete employer-policy cleanup are
   pushed at a5504d1a; Phalanx game alias map is pushed at 24ca26fb. Portfolio
-  deployment is queued; Phalanx code-quality passed and its pipeline remains in
-  progress. Preserve the staged Phalanx and portfolio changes. The UGLST GeoSrv
+  deployment passed. Phalanx tests, security checks, and build passed, but
+  production release creation failed at the Fly.io provider gate; no retry was
+  attempted. Its staged changes remain preserved. The UGLST GeoSrv
   mdh@just3ws.com alias remains unconfirmed; do not map it without operator
   confirmation. Do not alter time-bounded historical career records as part of
   the identity cleanup.
+
+  Preserved branch candidates need operator disposition: portfolio
+  `consultancy` is 35 commits ahead / 1,348 behind `origin/master` (45 changed
+  files, latest commit May 5); Phalanx `feat/distributed-ledger` has 10 unique
+  commits, is 1,404 behind `origin/main`, and has three staged license edits.
+  Phalanx `godot/v2-client-parity` is six commits ahead of its remote. Do not
+  delete or publish these without review.
 
   The retired experiment has no current-tree references; Git history and its
   checksummed local archive remain provenance. No force-pushes were made.
