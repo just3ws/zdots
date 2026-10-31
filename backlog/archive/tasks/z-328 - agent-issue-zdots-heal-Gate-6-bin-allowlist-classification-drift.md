@@ -3,10 +3,12 @@ id: Z-328
 title: '[agent-issue] zdots-heal Gate 6: bin/ allowlist classification drift'
 status: To Do
 assignee: []
-created_date: '2026-09-01 13:00'
+created_date: 2026-09-01 13:00
+updated_date: '2026-10-31T22:28:00Z'
 labels:
   - agent-reported
   - friction
+  - obsolete
 dependencies: []
 priority: medium
 ordinal: 203895
@@ -25,3 +27,9 @@ zdots-heal Gate 6 flags 23 bin/ commands as UNCLASSIFIED: not in .claude/setting
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+SUPERSESSION NOTE (2026-10-31): Archived as obsolete after retiring the Claude Code integration and removing its tracked configuration and commands. The target surface no longer exists in the active system; no related security permission or command-audit change remains to implement. Original report retained here for provenance.
+<!-- SECTION:NOTES:END -->

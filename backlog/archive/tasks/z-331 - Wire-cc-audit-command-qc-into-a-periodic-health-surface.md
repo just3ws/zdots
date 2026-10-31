@@ -3,9 +3,11 @@ id: Z-331
 title: Wire cc-audit / command-qc into a periodic health surface
 status: To Do
 assignee: []
-created_date: '2026-09-01 13:05'
+created_date: 2026-09-01 13:05
+updated_date: '2026-10-31T22:28:00Z'
 labels:
   - agent-reported
+  - obsolete
 dependencies: []
 priority: low
 ordinal: 206895
@@ -30,3 +32,9 @@ zdots-heal (2026-09-01) surfaced settings.json allowlist drift (Z-328) that only
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+SUPERSESSION NOTE (2026-10-31): Archived as obsolete after retiring the Claude Code integration and removing its tracked configuration and commands. The target surface no longer exists in the active system; no related security permission or command-audit change remains to implement. Original report retained here for provenance.
+<!-- SECTION:NOTES:END -->

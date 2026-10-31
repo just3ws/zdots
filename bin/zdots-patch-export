@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# bin/zdots-patch-export - Export git patches to ~/Desktop/outbox for transfer.
+# bin/zdots-patch-export - Export git patches to ~/ai/outbox for transfer.
 #
 # OVERVIEW
 # --------
 # zdots-patch-export produces a single .patch file from a git repository and
-# writes it to an outbox directory (default: ~/Desktop/outbox) with a
+# writes it to an outbox directory (default: ~/ai/outbox) with a
 # timestamp-prefixed, descriptive filename.  It is designed for the personal
 # dots/config workflow where patches are generated on one machine and applied
 # on another with git-apply(1) or git-am(1).
@@ -81,7 +81,7 @@
 # a per-call flag.
 #
 # ENVIRONMENT VARIABLES
-#   ZDOTS_PATCH_OUTBOX  override outbox directory (default: ~/Desktop/outbox)
+#   ZDOTS_PATCH_OUTBOX  override outbox directory (default: ~/ai/outbox)
 #
 # SEE ALSO
 #   zdots-github-keys(1), zdots-server-keys(1), git-diff(1),
@@ -91,7 +91,7 @@
 set -euo pipefail
 
 PROGRAM="${0##*/}"
-OUTBOX="${ZDOTS_PATCH_OUTBOX:-${HOME}/Desktop/outbox}"
+OUTBOX="${ZDOTS_PATCH_OUTBOX:-${HOME}/ai/outbox}"
 
 # ---------------------------------------------------------------------------
 # Known labeled repo locations.
@@ -105,7 +105,7 @@ MY_DIR="${HOME}/my"
 
 usage() {
   cat <<'HELP'
-zdots-patch-export - export git patches to ~/Desktop/outbox
+zdots-patch-export - export git patches to ~/ai/outbox
 
 Usage:
   zdots-patch-export [TARGET] [REF] [options] [-- git-diff-args...]
@@ -128,7 +128,7 @@ Patch strategy:
 
 Options:
   --name SLUG       override the descriptive slug in the filename
-  --outbox DIR      override outbox directory (default: ~/Desktop/outbox
+  --outbox DIR      override outbox directory (default: ~/ai/outbox
                     or ZDOTS_PATCH_OUTBOX)
   -h, --help        show this help
 

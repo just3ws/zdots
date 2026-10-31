@@ -16,7 +16,7 @@
 produces a single
 .Pa .patch
 file from a git repository and writes it to an outbox directory
-.Pq default: Pa ~/Desktop/outbox
+.Pq default: Pa ~/ai/outbox
 with a timestamp-prefixed, descriptive filename.
 It is designed for the personal dots and config workflow: generate a patch
 on one machine, transfer it, apply it on another.
@@ -161,10 +161,10 @@ without a per-call flag.
 .El
 .Sh FILES
 .Bl -tag -width Pa
-.It Pa ~/Desktop/outbox/
+.It Pa ~/ai/outbox/
 Default outbox directory.
 Created on first use.
-.It Pa ~/Desktop/outbox/ Ns Ar timestamp Ns - Ns Ar slug Ns - Ns Ar descriptor Ns Pa .patch
+.It Pa ~/ai/outbox/ Ns Ar timestamp Ns - Ns Ar slug Ns - Ns Ar descriptor Ns Pa .patch
 Individual patch file.
 .El
 .Sh EXIT STATUS

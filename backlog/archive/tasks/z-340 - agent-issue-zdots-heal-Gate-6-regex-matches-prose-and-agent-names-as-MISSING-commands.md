@@ -5,11 +5,12 @@ title: >-
   commands
 status: To Do
 assignee: []
-created_date: '2026-09-03 13:32'
-updated_date: '2026-09-03 13:32'
+created_date: 2026-09-03 13:32
+updated_date: '2026-10-31T22:28:00Z'
 labels:
   - agent-reported
   - friction
+  - obsolete
 dependencies: []
 priority: low
 ordinal: 215895
@@ -36,3 +37,9 @@ In .claude/commands/zdots-heal.md Gate 6:
 Cosmetic: no real orphaned reference exists. Noise only.
 Filed from /zdots-heal 2026-09-03.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+SUPERSESSION NOTE (2026-10-31): Archived as obsolete after retiring the Claude Code integration and removing its tracked configuration and commands. The target surface no longer exists in the active system; no related security permission or command-audit change remains to implement. Original report retained here for provenance.
+<!-- SECTION:NOTES:END -->

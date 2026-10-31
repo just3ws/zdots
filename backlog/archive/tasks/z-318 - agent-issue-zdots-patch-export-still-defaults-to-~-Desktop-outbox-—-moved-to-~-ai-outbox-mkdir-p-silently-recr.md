@@ -1,15 +1,14 @@
 ---
 id: Z-318
-title: >-
-  [agent-issue] zdots-patch-export still defaults to ~/Desktop/outbox — moved to
-  ~/ai/outbox; mkdir -p silently recr
-status: To Do
+title: Patch export default follows ~/ai/outbox
+status: Done
 assignee: []
-created_date: '2026-08-24 16:04'
-updated_date: '2026-08-24 16:04'
+created_date: 2026-08-24 16:04
+updated_date: '2026-10-31T22:30:00Z'
 labels:
   - agent-reported
   - error
+  - resolved
 dependencies: []
 priority: medium
 ordinal: 193895
@@ -18,15 +17,7 @@ ordinal: 193895
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-**Type:** error
-**Severity:** medium
-**Trace ID:** `446f549869793a94583c5f920f60268f`
-
-zdots-patch-export still defaults to ~/Desktop/outbox — moved to ~/ai/outbox; mkdir -p silently recreates the dead path
-
----
-*Filed via `zdots-issue`. Operator review required before any changes are made.*
-*Do not modify zdots to work around this issue — wait for operator resolution.*
+Resolved on 2026-10-31. The default output path is ~/ai/outbox; ZDOTS_PATCH_OUTBOX and --outbox remain available for overrides. See implementation notes for the original report and verification evidence.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Implementation Notes
@@ -70,4 +61,12 @@ its own.
 Deliberately not touched in the same pass: dated files under
 `~/.config/adots/handoffs/` also name the old paths, but they are historical
 logs and rewriting them would falsify the record.
+
+Resolved 2026-10-31: changed the default destination in bin/zdots-patch-export and its man page from ~/Desktop/outbox to ~/ai/outbox. Kept ZDOTS_PATCH_OUTBOX and automatic directory creation; verified ~/ai/outbox exists. bash -n, zdots-man-gen --check, make docs-contract (15/15), git diff --check, and a temporary-HOME execution all passed; the temporary run created ~/ai/outbox under the test home and did not recreate ~/Desktop/outbox.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Resolved 2026-10-31: changed the default destination in bin/zdots-patch-export and its man page from ~/Desktop/outbox to ~/ai/outbox. Kept ZDOTS_PATCH_OUTBOX and automatic directory creation; verified ~/ai/outbox exists. bash -n, zdots-man-gen --check, make docs-contract (15/15), git diff --check, and a temporary-HOME execution all passed; the temporary run created ~/ai/outbox under the test home and did not recreate ~/Desktop/outbox.
+<!-- SECTION:FINAL_SUMMARY:END -->
