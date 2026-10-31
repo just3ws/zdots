@@ -1,13 +1,12 @@
 ---
 title: "Karpathy AI OS Architecture"
 date: 2026-06-09
+source: "https://www.youtube.com/watch?v=zmrPY6S1FwY"
+kind: source-transcript
 ---
 
----
-title: "Karpathy AI OS Architecture"
-date: 2026-06-09
-source: "https://www.youtube.com/watch?v=zmrPY6S1FwY"
----
+> Historical source transcript captured 2026-06-09. It records a third-party
+> presentation; it is not current Zdots behavior or implementation guidance.
 
 WEBVTT
 
