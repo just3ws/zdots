@@ -2,7 +2,7 @@
 id: doc-014
 title: Historical Framework Industrialization Plan
 type: other
-created_date: '2026-06-01'
+created_date: '2026-05-14'
 updated_date: '2026-10-31T21:25:00Z'
 ---
 > Historical proposal retained for provenance. Its Ruby 3.x assumptions are obsolete; current runtime policy is in the active project configuration and setup docs. Do not use this plan as implementation guidance.
