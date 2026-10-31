@@ -44,9 +44,7 @@ the *foundational tasks* that make them real have not been built:
 Today's OKF adapter (Z-174) is specced to **depend on Z-150 + Z-151** — i.e. new
 work is now stacking on a foundation that doesn't exist yet. *This* is the thing
 the fixation hid: you keep deciding the spine and building features around it,
-while the spine itself stays unpoured. It's the same pattern zsynod hit — except
-zsynod you correctly triaged to "experiment, parked," and the spine you never
-triaged at all. It just quietly waited.
+while the spine itself stays unpoured. The same pattern appeared in an earlier experiment, while the spine itself quietly waited.
 
 ## The threads, reconciled
 
@@ -68,7 +66,6 @@ triaged at all. It just quietly waited.
 **DONE** — the 64; the bulk of the platform (observability migration, creds/scram, clone readiness, most of transcription, CC hardening)
 
 **PARKED** — deliberately set aside
-- zsynod — Z-137 / Z-142 / Z-143 / Z-144 (Experimental). *Experiment; do not resurrect in current state (2026-06-28).* Revisit only as a clean rewrite, if ever.
 
 ## The alignment plan — harmonize by pouring the foundation
 
@@ -89,7 +86,6 @@ you already made real, close the loop's return, then resume.** In order:
 5. **Pay the safety debt — Z-101, Z-102, Z-146.** PHI-adjacent. It should not rot
    while features ship.
 6. **Publish what's built — `zpages`.** Knowledge that never ships doesn't compound.
-7. **Keep zsynod parked.** Explicit, so it stops being ambient weight.
 
 **The discipline (same spine as doc-007 §5):** resist new top-level surfaces;
 adapters behind envelopes, nouns under the dispatcher. Every "new idea" from here

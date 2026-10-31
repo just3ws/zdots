@@ -1,7 +1,7 @@
 # providers/tools/opencode.zsh — OpenCode wired to the local llama.cpp server.
 #
-# OpenCode (homebrew-core `opencode`) is a terminal agentic coding agent, seated
-# in the synod as a local executing member per committed P18. This wrapper pins
+# OpenCode (homebrew-core `opencode`) is a terminal agentic coding agent. This
+# wrapper pins
 # it to the local OpenAI-compatible endpoint and disables session sharing, so it
 # behaves like zaider/zpi under PHI Operating Mode.
 #
@@ -10,7 +10,7 @@
 # misconfigured provider FAILS (no model reachable) rather than leaking to a
 # cloud provider. Still: this config schema has NOT been verified against an
 # installed OpenCode on a PHI machine — VERIFY on the work box before any
-# PHI-adjacent use (see Z-137):
+# PHI-adjacent use:
 #   1. `zopencode` reaches the local model (a prompt returns a response).
 #   2. No cloud provider is contacted (`sudo bandwhich` shows loopback only).
 #   3. Session sharing is OFF.
@@ -98,7 +98,7 @@ zdots_opencode_init() {
   local _stamp="${_cfg_dir}/.verified-local"
   if [[ ! -f "$_stamp" ]]; then
     printf 'zopencode: configured for the local endpoint (%s) with sharing disabled.\n' "${_endpoint}/v1" >&2
-    printf 'zopencode: VERIFY local-only binding before any PHI use (Z-137):\n' >&2
+    printf 'zopencode: VERIFY local-only binding before any PHI use:\n' >&2
     printf '  - a prompt returns a response from the local model\n' >&2
     printf '  - `sudo bandwhich` shows loopback only (no cloud egress)\n' >&2
     printf '  then: touch %s to silence this notice.\n' "$_stamp" >&2

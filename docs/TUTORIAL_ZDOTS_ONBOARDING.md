@@ -85,7 +85,6 @@ The practical rule is simple:
 - If you need AI, use `zdots-ask` or `ai-query`, not raw model endpoints.
 - If you need state, use `zdots-ctx` and the `my` database.
 - If you need secrets, use `zdots-keychain`.
-- The former `zsynod` forum is archived; use the message bus for current agent coordination.
 
 ## 5. Fresh Machine Setup
 
@@ -196,10 +195,6 @@ zdots-ctx query "credential rotation"
 zdots-ctx hydrate
 zdots-ctx status
 ```
-
-### Retired zsynod experiment
-
-The zsynod forum was retired and archived on 2026-10-31. Its former command guide is removed so this tutorial describes only supported current tooling. Use `bus` for intentional human/agent coordination and OpenObserve for machine events. Archive provenance is recorded in the local-only archive manifest referenced by `AGENTS.md`.
 
 ## 9. Modules
 

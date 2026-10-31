@@ -14,8 +14,8 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
      ~/.config/adots/handoffs/2026-10-31.md (local-only). Update before close.
 
   Platform cleanup is active across zdots, adots, my, vdots, and related repos.
-  Claude utilization history and zsynod are archived on /Volumes/Dock_1TB with
-  provenance. Local integrations are removed; remaining configuration and
+  Claude utilization history is archived on /Volumes/Dock_1TB with provenance.
+  Local integrations are removed; remaining configuration and
   commit attribution are under review. Never rewrite history without verified
   full-ref bundles, checksums, and a ref mapping.
 
@@ -68,6 +68,8 @@ binding: when the operator says "the platform" or "platform-wide" without
 further qualification, it means all four repos, using the per-repo
 invocation table in `docs/agents/platform-sync.md`. Never assume
 "zdots" alone unless the operator names it specifically.
+
+Current component topology and PATH ownership: [docs/platform-map.md](docs/platform-map.md).
 
 **Work-extension hook surface (Z-262).** None of the four platform repos
 carries any tenant/employer identity — that lives entirely in a separate,

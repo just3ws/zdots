@@ -339,6 +339,7 @@ fi
 # packaged one without touching the repo).
 _zdots_path_add "$ZDOTDIR/sbin"
 _zdots_path_add "$ZDOTDIR/bin"
+_zdots_path_add "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/bin"
 _zdots_path_add "$HOME/.local/bin"
 _zdots_path_add "$HOME/.antigravity/antigravity/bin"
 _zdots_path_add "$HOME/bin"

@@ -15,9 +15,6 @@ Experimental features:
 ## Archived Experiments
 
 - `mlx/` — archived 2026-06-14; see its README for recovery notes.
-- `zsynod/` — archived 2026-10-31 to the operator's local backup volume; its
-  tracked and Git-ignored files are preserved there. It is no longer installed
-  or connected to core zdots commands. The backup has a local provenance manifest.
 
 ---
 

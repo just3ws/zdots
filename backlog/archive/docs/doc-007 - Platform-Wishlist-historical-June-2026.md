@@ -123,8 +123,6 @@ same loop running on **every input axis**:
   the transcription pipeline, OKF bundles (decision-010 / Z-174)
 - what you **mean** → the concept registry (Z-151) + OKF type-bridge: one
   ontology so all of it is *traversable by concept*, not just full-text searched
-- and eventually, an AI council (**zsynod**) that reasons over the whole
-  compounding corpus on your behalf
 
 One loop, many inputs, one store, one language. That's the "here" the pipeline is
 a prototype of.
@@ -192,8 +190,6 @@ live here until they ripen. *Big or small, it moves us all.*
 - Dream: knowledge-decay detection — flag lessons no recent session corroborates.
 - Dream: provenance graph — every lesson traceable to the session/source that bore it.
 
-### Reason (the council, someday)
-- zsynod over the compounding corpus: quorum answers, dissent recorded.
 - Dream: "ask my second brain" — a local Q&A that answers *as you*, from your
   lessons + methodologies, PHI-safe.
 - Dream: ambient assist — the speaker loop pointed at *live* audio (meetings),

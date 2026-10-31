@@ -9,7 +9,7 @@ inference will arrive through **apfel** (Apple Intelligence) as that capability
 matures — not through this MLX prototype. The harnesses (Pi, Aider, OpenCode) sit
 in front of llama.cpp; the backing infrastructure stays llama.cpp + the emerging
 Apple-native path. This experiment was in the way of that work, so it was contained
-here (the same treatment as `experiments/zsynod/`).
+here for historical reference.
 
 ## Contents (extracted from active tree)
 

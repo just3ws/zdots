@@ -17,7 +17,7 @@ ordinal: 141895
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Completion coverage is 20 of ~93 user-facing commands; high-frequency commands (ztask, zmorning, zdots-issue, cc-burn, colima-status, session-debrief) have none. command-qc records the zsynod incident: 4 new verbs shipped while _zsynod ended at 'version' — found by the operator, not the process. No generator, no drift check.
+Completion coverage is 20 of ~93 user-facing commands; high-frequency commands (ztask, zmorning, zdots-issue, cc-burn, colima-status, session-debrief) have none. A retired experimental CLI once shipped several verbs beyond its completion definition, found by the operator rather than the process. No generator, no drift check.
 
 Fix: (1) zdots-completion-gen — parse the two house --help patterns (usage() heredoc Commands:/Options:, header-comment) into #compdef stubs; fills gaps, never overwrites curated files (zdots-man-gen contract). (2) docs-contract check: every curated completion's subs cover the command's dispatch verbs (report-only first). (2026-08-01 system audit, cliux)
 <!-- SECTION:DESCRIPTION:END -->

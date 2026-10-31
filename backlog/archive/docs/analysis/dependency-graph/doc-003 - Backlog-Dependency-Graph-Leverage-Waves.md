@@ -45,13 +45,8 @@ every task. Now filed:
 - **Done — Wave-1 foundations:** ✅ **Z-134** (OpenObserve migration) · ✅ **Z-130**
   (AI-invocation seam: contract in the signature, locality asserted once).
 - **Done — Wave-4 leaves:** ✅ Z-118 Z-119 Z-126 Z-139 Z-141 Z-145 Z-147.
-- **Done — zsynod leaf fixes:** ✅ Z-136 (init jq stderr guard) · ✅ Z-138 (minutes
-  remark flatten — already on main, verified).
 - **In progress:** Z-135 (Runtime-insight loop, Wave-1).
-- **Parked → Experimental (held, not active backlog):** Z-137, Z-142, Z-143, Z-144
-  (all zsynod). zsynod is contained under `experiments/zsynod/` — a funded, held
-  experiment; these left the active waves and live in the board's Experimental lane.
-  MLX likewise archived to `experiments/mlx/` (code only — no board tasks).
+- **Archived experiment:** MLX was contained under `experiments/mlx/` (code only — no board tasks).
 - **Advanced, kept open:** Z-140 — embed-health probe investigated; root cause is a
   **restart timing race** (probe hits `/health` mid-load), not the busy-slot 503
   theory. Fix = post-restart readiness poll, not a looser health contract.
@@ -114,11 +109,6 @@ graph LR
     Z045["Z-045 Colima/LGTM lifecycle (re-scope)"]:::w2
     Z104["Z-104 nginx reverse proxy"]:::w2
   end
-  subgraph SYN[zsynod]
-    Z142["Z-142 Ratchet Test-Gate"]:::w1
-    Z143["Z-143 Librarian member"]:::w2
-    Z144["Z-144 Cross-platform sync"]:::w2
-  end
   subgraph DOCS[Docs]
     Z121["Z-121 Diagram audit"]:::w4
     Z075["Z-075 Mermaid upgrade"]:::w3
@@ -143,8 +133,6 @@ graph LR
   Z130 --> Z148
   Z026 --> Z146
   Z047 --> Z104
-  Z142 --> Z143
-  Z142 --> Z144
   Z121 --> Z052
   Z121 --> Z075
 ```
@@ -158,24 +146,23 @@ graph LR
 | 1 | **Z-134** OpenObserve migration | 4 | 7 | ✅ **done** | Observability substrate the Knowledge spine reads from. |
 | 2 | **Z-135** Runtime-insight loop | 4 | 4 | **WIP** | The *Infer* step of the Virtuous Loop; unblocks Z-103/Z-129/Z-052/Z-148. Finish next. |
 | 3 | **Z-130** Shrink AI invocation IF | 6 | 6 | ✅ **done** | Highest direct fan-out; the honest model seam + the metering point Z-148 needs. |
-| 4 | **Z-142** zsynod Test-Gate | 2 | 2 | open | Verification foundation before adding zsynod members (Z-143/Z-144). |
 | 5 | **Z-026** Central Log Mgmt | 1 | 1 | open | Subsumes Z-146 (don't build a one-off rotation). |
 | 6 | **Z-047** Deepen Orchestrator | 1 | 1 | open | Platform deepening; enables the nginx service (Z-104). |
 | – | **Z-133** promptfoo evals | 0 | 0 | open | The quality gate that now validates the Z-130 refactor + PHI rules. |
 
 **Next foundation to pick:** **Z-135** (finish the in-progress Infer loop) →
-then **Z-142**, **Z-026**, **Z-047**, **Z-133**. Z-134/Z-130 are cleared.
+then **Z-026**, **Z-047**, **Z-133**. Z-134/Z-130 are cleared.
 
 ## Execution waves (leverage-ordered)
 
 - **Wave 0 (analysis):** edges encoded, labels applied, DAG verified, artifacts cleaned. ✅
-- **Wave 1 — shared foundations:** ✅ Z-134 · ✅ Z-130 · **Z-135 (WIP)** · Z-142 · Z-026 · Z-047 · Z-133.
-- **Wave 2 — capability enablers:** Z-038 Z-040 Z-041 Z-125 Z-131 (**now unblocked — Z-130 done**) · Z-103 Z-129 (need Z-135) · Z-027 Z-045 Z-146 · Z-143 Z-144 (need Z-142) · Z-104 (needs Z-047).
+- **Wave 1 — shared foundations:** ✅ Z-134 · ✅ Z-130 · **Z-135 (WIP)** · Z-026 · Z-047 · Z-133.
+- **Wave 2 — capability enablers:** Z-038 Z-040 Z-041 Z-125 Z-131 (**now unblocked — Z-130 done**) · Z-103 Z-129 (need Z-135) · Z-027 Z-045 Z-146 · Z-104 (needs Z-047).
 - **Wave 3 — dependent features:** Z-148 (needs Z-130✅+Z-135+Z-134✅) · Z-052 Z-075 (need Z-121).
 - **Wave 4 — polish / independent leaves:** ✅ Z-118 Z-119 Z-126 Z-136 Z-138 Z-139 Z-141 Z-145 Z-147 done · Z-140 (open, timing-race fix) · Z-121 · security Z-101 Z-102 · Z-132 Z-093 Z-013 Z-034. Low leverage, high parallelism — safe subagent fan-out.
 
 > Do not start a later wave while a Wave-1 blocker it depends on is open.
-> Doctor/zsynod leaf bugs are wave-independent and fan out in parallel.
+> Independent leaf tasks can proceed in parallel.
 
 ## Architectural divergence / duplication flags
 
