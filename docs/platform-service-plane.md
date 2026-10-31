@@ -1,20 +1,23 @@
 # Platform Service Plane
 
-`zdots-ctl` owns the whole platform lifecycle. `zsvc` owns individual service
-lifecycle. `tests/platform_e2e.bats` proves the live service plane is usable.
+`zdots-ctl` owns the core platform lifecycle. `zsvc` owns registered
+components; project routes and Homebrew-managed applications can have separate
+lifecycle boundaries. `tests/platform_e2e.bats` covers live service contracts.
 
 Use this page when the question is: "Is zdots ready to run?"
 
 ## Stable State
 
-Stable means all three layers agree:
+Assess required services separately from on-demand and optional components:
 
 | Layer | Command | Stable signal |
 |---|---|---|
-| Aggregate control | `zdots-ctl status` | all seven service rows are green |
-| Service registry | `zsvc list` | all services are registered and running |
-| Health probe | `zsvc health` | all services and .local URLs report 'ok' |
-| Live E2E | `bats tests/platform_e2e.bats` | `11/11` pass (filtered for services) |
+| Core lifecycle | `zdots-ctl status` | required services are healthy; Colima may be stopped when not needed |
+| Registered services | `zsvc list` | inspect each registered service; the optional bus coordinator may be parked |
+| Health detail | `zsvc health --json` | inspect per-service states. Current aggregate is `healthy=false` because stopped Colima and unregistered optional coordinator count as failures; Z-355 tracks the policy mismatch |
+| Core capability | `capabilities --json` | `health_errors=0` is the current required-platform health signal |
+| Core URLs | `zsvc health --json` | the built-in probes cover core URLs only; use `zdots-endpoints` for all configured project hosts |
+| Live E2E | `bats tests/platform_e2e.bats` | run when requested; the suite is not run as part of this map refresh |
 
 Run live probes outside restricted sandboxes. Sandboxed agents can see false
 negatives for loopback TCP, launchctl, Docker, Postgres, and Redis even when the
@@ -23,7 +26,8 @@ machine is healthy.
 ```bash
 zdots-ctl status
 zsvc list
-zsvc health
+zsvc health --json
+zdots-endpoints
 bats tests/platform_e2e.bats
 ```
 
@@ -103,7 +107,7 @@ sequenceDiagram
 | `otel-collector` | `otel-collector` / `zsvc otel` | user LaunchAgent `com.zdots.otel-collector` | OTLP HTTP `:4318` | `~/.local/state/zsh/otel-collector.log` |
 | `o2` (OpenObserve) | `openobserve-ctl` / `zsvc o2` | user LaunchAgent `com.zdots.openobserve` | `:5080/healthz` | `~/.local/state/zsh/openobserve.log` |
 | `colima` | `colima` / `zsvc colima` | Colima VM state (optional; container workloads) | `colima status` | `colima logs` |
-| `nginx` | `nginx-ctl` / `zsvc nginx` | root LaunchDaemon `homebrew.mxcl.nginx` | `:80` listener and host probes | Homebrew nginx logs |
+| `nginx` | `nginx-ctl` / `zsvc status nginx` | root LaunchDaemon `homebrew.mxcl.nginx` | `:80` listener and host probes | Homebrew nginx logs |
 | `postgresql@18` | `zsvc postgres` | user LaunchAgent `homebrew.mxcl.postgresql@18` | `pg_isready` and `zdots-ctx status` | Homebrew Postgres log |
 | `redis` | `zsvc redis` | user LaunchAgent `homebrew.mxcl.redis` | `redis-cli PING` | Homebrew Redis log |
 
@@ -202,7 +206,7 @@ it, not just that processes exist.
 
 ```mermaid
 flowchart LR
-    e2e["platform_e2e.bats\n22 live tests"] --> registry["zsvc registry\n7 services + aliases"]
+    e2e["platform_e2e.bats\nlive service contracts"] --> registry["zsvc registry\nregistered services + aliases"]
     e2e --> ai["AI + embed\n/health"]
     e2e --> otel["OTel\n:4318"]
     e2e --> brain["Brain\nstatus + migrations + slugs"]
@@ -233,8 +237,7 @@ flowchart LR
 2. If one component is red, perform a deep health probe:
 
    ```bash
-   zsvc health
-   zsvc health --json  # for structured detail
+   zsvc health --json  # per-service detail; optional-service failures may affect aggregate health
    ```
 
 3. Inspect the service registry and diagnosis:

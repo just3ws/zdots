@@ -14,10 +14,14 @@ snapshot; use the listed status commands before acting.
 | **my** | `~/my` | Private Knowledge Layer source documents and Context Engine app | Normal Git repo; Markdown vaults are authoritative, PostgreSQL is derived/searchable state |
 | **vdots** | `~/.config/nvim` | Neovim configuration and editor command shims | Normal Git repo; `~/.config/nvim/bin` is on the shell PATH |
 | **media-pipeline** | `~/github.com/just3ws/media-pipeline` | Video intake, transcription, media workflow, and publication | Separate Rails app; local Puma on `127.0.0.1:32000` |
+| **dehum** | `~/github.com/just3ws/dehum` | Audio hum/crackle restoration and synchronization | Separate media tool; invoked as needed, not an always-on service |
 | **WWWorkRemote** | `~/github.com/wwworkremote/wwworkremote` | Personal job-search and synthesis app | Separate project; local Rails route is documented in the URL map |
 | **Hallway** | `~/github.com/just3ws/hallway` | Family coordination app | Separate project; not part of the always-on host service plane |
-| **Phalanx Duel** | `~/github.com/phalanxduel/game` and related repos | Game rules, web client, and demo/deploy surfaces | Local development runs on bare metal; Fly deployment uses its remote build path |
+| **Phalanx Duel** | `~/github.com/phalanxduel/{game,game-swiftui,site,wiki,monitor}` | Game rules, browser and native clients, documentation, and monitoring experiments | Separate project family; local development runs on bare metal; Fly deployment uses its remote build path |
 | **Portfolio** | `~/github.com/just3ws/just3ws.github.io` | Static personal site and generated résumé exports | Local nginx serves built output; it has no request-time app backend |
+| **Hister** | Homebrew `hister` service; data under Homebrew's `var/hister` | Local search index for selected personal and platform material | Native local service; accessed through `hister.localhost` and `hister-sync` |
+| **Bastion** | `~/github.com/just3ws/bastion` | Recovery and lifecycle tooling for the separate DietPi DNS/DHCP appliance | Separate physical system; not a service on this Mac |
+| **UGLST GeoSrv** | `~/github.com/just3ws/uglst-geosrv` | IP geolocation API backed by GeoLite2 data | Separate project; not part of the always-on host service plane |
 
 ## Runtime topology
 
@@ -39,9 +43,11 @@ flowchart TB
         Launchd --> Embed[llama.cpp embeddings<br/>11501]
         Launchd --> PG[PostgreSQL 18<br/>database my]
         Launchd --> Redis[Redis<br/>analytics/cache]
-        Launchd --> Worker[zdots worker]
+    Launchd --> Worker[zdots worker]
+    BrewServices[Homebrew services] --> Hister[Hister local search]
         Nginx --> Context[Context Engine<br/>7010]
         Nginx --> Media[media-pipeline<br/>32000]
+        Nginx --> Hister
         Nginx --> Projects[project vhosts]
     end
 
@@ -53,6 +59,7 @@ flowchart TB
     Context --> OTel
     Media --> OTel
     Colima[Colima — on demand] -. Docker only when needed .-> Fly[Fly.io deployment]
+    Hister --> SearchIndex[Local search index]
 ```
 
 ## Service roles and authority
@@ -60,13 +67,17 @@ flowchart TB
 | Layer | Component | Authority / use |
 |---|---|---|
 | Lifecycle | `zdots-ctl` | Starts/checks the platform in dependency order |
-| Lifecycle | `zsvc` | Controls individual registered services; nginx is handled by `nginx-ctl` through its sudo boundary |
+| Lifecycle | `zsvc` | Controls registered services (`zsvc status nginx`, `zsvc health nginx`); nginx is handled by `nginx-ctl` through its sudo boundary |
 | Local inference | `llama-ctl` / llama.cpp | Chat endpoint at `127.0.0.1:11500`; embeddings at `127.0.0.1:11501` |
 | Audio | `whisper-ctl` / whisper.cpp | Preferred local transcription engine; invoked by media workflows as needed |
 | Knowledge | `zdots-brain` / Context Engine | PostgreSQL database `my`; Markdown sources remain authoritative; use `zdots_ro` for safe ad-hoc queries |
 | Async work | `zdots-worker` | Drains the `my` job queue |
 | Telemetry | OTel collector → OpenObserve | Collector accepts OTLP on `4318`; OpenObserve stores and queries telemetry on `5080` |
 | Trace inspection | Jaeger | Local trace UI on `16686` |
+| Local search | Hister / `hister-sync` | Local search index over selected source material; distinct from the PostgreSQL Knowledge Layer |
+| Native packages | Homebrew / `Brewfile*` | Declares native formulae and casks; see [Key Tools Reference](tooling.md) |
+| Language runtimes | mise | Selects Ruby, Node.js, and Python versions per project; project pins are the source of runtime selection |
+| Menu-bar status | SwiftBar / `zdots-swiftbar` | Displays the platform pulse through `~/.swiftbar/zdots-pulse.1m.sh` |
 | Cache/analytics | Redis | Local buffer/cache on `6379`; not the Knowledge Layer source of truth |
 | Local routing | nginx + mkcert | HTTPS `*.localhost` routes to zdots and project backends; configuration ownership is split by repo |
 | Agent coordination | `bus` | Durable human/agent coordination CLI; the optional bus coordinator is parked |
@@ -172,12 +183,16 @@ launchd consumers.
 
 ## Operational snapshot — 2026-10-31
 
-Refreshed during the map audit. `zdots-ctl status` and `zsvc list` show
-OpenObserve, Jaeger, OTel, llama.cpp, embeddings, PostgreSQL 18, Redis, the
-worker, nginx, statusd, and Gemstash running. Colima is stopped by design.
-`capabilities --json` reports `health_errors=0`; internal storage reports
-53 GiB free. The current check did not inspect PostgreSQL contents. Confirm
-read-only access with the documented `zdots_ro` role before ad-hoc queries.
+Refreshed 2026-10-31. `zdots-ctl status` reports the core stack healthy;
+`zsvc list` also shows nginx, statusd, and Gemstash running. Hister is outside
+the `zsvc` registry and its local endpoint responds with HTTP 200. Colima is
+stopped by design. `capabilities --json` reports `health_errors=0` and 52 GiB
+available on `/` at the time of this check. `zsvc health --json` currently
+reports `healthy=false` because stopped Colima and the parked optional bus
+coordinator count as failures; Z-355 tracks this mismatch. The endpoint probe
+also found `dev.my.local` returning 502; see
+[Local URL Routing](local-url-routing.md). No PostgreSQL contents were
+inspected. Use the documented `zdots_ro` role for safe ad-hoc queries.
 
 Current commands:
 

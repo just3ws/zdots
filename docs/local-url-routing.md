@@ -28,12 +28,13 @@ changes to it must be reconciled with those owners and validated through
 | `zdots.localhost` | zdots status console | statusd :11600 |
 | `gemstash.localhost` | RubyGems cache / zdots | Gemstash service |
 | `my.localhost` | Knowledge Layer console / my | context-engine :7010 |
+| `my.local` | Legacy context-engine alias | Redirects to `my.localhost`; currently responds |
+| `dev.my.local` | Legacy context-engine development hostname | Still configured to `/tmp/my_dev.sock`; endpoint probe currently returns 502 |
 | `wwworkremote.localhost`, `wwwr.localhost` | wwworkremote project aliases | Rails app :31000 |
 | `media-pipeline.localhost`, `pipeline.localhost` | media-pipeline project aliases | media-pipeline service |
 | `hister.localhost`, `www.hister.localhost` | Hister search / project | static UI plus Hister backend |
 | `www.just3ws.localhost`, `just3ws.localhost` | just3ws portfolio / project | static Jekyll site; bare name redirects to `www` |
 | `phalanxduel.localhost`, `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Phalanx Duel / project | static site, game client :5173, admin :3103 |
-| `my.local`, `dev.my.local` | Legacy context-engine names still present in deployed config | Redirect / dev socket route; verify before retirement |
 
 Trusted-LAN names (`lan.wwworkremote.com` and Phalanx Duel `*.lan.phalanxduel.com`)
 are also served by nginx but are not `.localhost` hosts. They are project-owned
@@ -69,13 +70,11 @@ here, same tradeoff as any dev-only mkcert setup. Confirmed working
 2026-08-26: phone on LAN → `lan.wwworkremote.com` → cert warning → accept →
 served homepage.
 
-Known gap (Z-325, filed, not yet resolved): `nginx-regen-certs` only ever
-*adds* SANs — it unions with whatever's already in the cert by design ("a
-name that already worked is never silently dropped"), so the retired
-`.home.arpa` names are still sitting in the cert's SAN list after a fresh
-regen. Harmless (unused SAN in a private cert), but they won't fall out on
-their own; a future `--prune` mode would need to rebuild the list purely from
-currently-live sources instead of unioning with the old cert.
+Certificate cleanup (Z-325) is implemented by `nginx-regen-certs --prune`.
+The dry run on 2026-10-31 found three stale SANs to drop: `zdots.local`,
+`wwworkremote.home.arpa`, and `wwwr.home.arpa`. No certificate was changed;
+the shared certificate still contains them. Review the printed drop list and
+coordinate the certificate update/reload before applying `--prune`.
 
 ## Deploy workflow (context-engine)
 
@@ -87,47 +86,30 @@ cd ~/my/context-engine && bin/deploy   # bundle install → assets:precompile �
   (`zdots.conf` = AI/infra, tracked here; `my.conf` = context-engine, tracked
   and deployed from `~/my/context-engine/ops/nginx/servers/my.conf` — not
   zdots' concern, see decision-011 / Z-198). Certs in `certs/`.
-- Control: `zsvc nginx {status|health|reload|restart|start|stop|logs}` →
-  `bin/nginx-ctl`. Use `reload` after editing `servers/*.conf` (validates first,
-  zero-downtime); `restart` only for a full bounce.
+- Control: `zsvc status nginx`, `zsvc health nginx`, `zsvc reload nginx`, or
+  `zsvc restart nginx` → `bin/nginx-ctl`. Use `zsvc reload nginx` after editing
+  `servers/*.conf` (validates first, zero-downtime); `zsvc restart nginx` only
+  for a full bounce. nginx is a root LaunchDaemon, so lifecycle actions cross
+  the sudo boundary.
 
 ## Wiring check
 
 ```bash
 zsvc list                 # nginx now appears (system-domain state)
-zsvc nginx status         # loaded + listening on :80
-zsvc nginx health         # per-host HTTP codes (502 = nginx up, backend down)
+zsvc status nginx         # loaded + listening on :80
+zsvc health nginx         # service health; 502 means nginx is up, backend down
+zdots-endpoints            # inventory and probe deployed vhosts
 nginx-ctl validate        # sudo nginx -t
 ```
 
-## Known gaps
+## Current exceptions
 
-Status as of 2026-05-30. Severity: 🔴 breaks a URL · 🟡 latent/ops · ⚪ pre-existing.
-
-| # | Gap | Sev | State |
-|---|-----|-----|-------|
-| 1 | `llama.local`→`:8080` / `embed.local`→`:8090` were **stale**; services run on 11500/11501 | 🔴 | **Fixed** in `servers/zdots.conf`; run `zsvc nginx reload` (sudo) to apply |
-| 2 | nginx was a root LaunchDaemon but **not managed by `zsvc`** | 🟡 | **Fixed** — `bin/nginx-ctl` + `zsvc nginx` |
-| 3 | `grafana.local`→`:3000` Grafana | ⚪ | **Resolved (Z-134)** — LGTM/Grafana retired; observability moved to `o2.local`→`:5080` (native OpenObserve), freeing `:3000` |
-| 4 | `my.local` down — context-engine bundle/boot | ⚪ | **Resolved (2026-06-19)** — launchd-managed Puma at `/tmp/my_prod.sock`; dashboard live; `dev.my.local` eliminated (plist deleted, nginx block removed) |
-| 5 | `/etc/hosts`: `177.0.0.1 lgtm.local` **typo** | ⚪ | **Resolved (Z-134)** — lgtm.local retired; drop the hosts line |
-| 6 | `lgtm.local` in `/etc/hosts` but **no nginx server block** | ⚪ | **Resolved (Z-134)** — retired with the LGTM stack |
-| 7 | nginx `servers/*.conf` + `/etc/hosts` live **outside the repo** (not version-controlled); lost on rebuild | 🟡 | **Open** — consider symlinking from `etc/nginx/` or templating in bootstrap |
-| 8 | `pg_hba.conf` scram rules (DB auth fence) **not version-controlled** | 🟡 | **Open** — capture in bootstrap so a Postgres rebuild re-applies them |
-
-### Fix snippets
-
-```bash
-# Gap 1 — apply the port fix (graceful, validated):
-zsvc nginx reload
-
-# .localhost names (llama/embed/o2/zdots) need NO /etc/hosts entry — RFC 6761
-# hard-wires them to loopback. Regenerate the cert + deploy configs instead:
-nginx-regen-certs
-
-# Restart Puma only (no asset change):
-touch ~/my/context-engine/tmp/restart.txt
-```
+| Host / boundary | Current evidence | Next decision |
+|---|---|---|
+| `dev.my.local` | Still present in the tracked context-engine source and deployed nginx config; `zdots-endpoints` reports 502 because `/tmp/my_dev.sock` has no healthy upstream | Retire the stale vhost and its certificate name, or restore a real dev cockpit. No change made here |
+| `my.local` | Redirects to the healthy `my.localhost` cockpit | Keep as a compatibility alias or retire it with a coordinated config/certificate update |
+| Deployed nginx files | Each project owns its source; nginx serves copies under `/opt/homebrew/etc/nginx/servers/` | After a source change, sync/validate and reload through `zsvc reload nginx`; root lifecycle needs sudo |
+| Retired certificate names | `nginx-regen-certs --dry-run --prune` reports three removable SANs; the current shared certificate still contains them | Review the dry-run and apply `nginx-regen-certs --prune` when ready |
 
 > Resolution note: every vhost is a `*.localhost` name since the Z-205 cutover
 > (2026-07-11); the legacy `*.local` `/etc/hosts` pins are pruned. `.localhost`
