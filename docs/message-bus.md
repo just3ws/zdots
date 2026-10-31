@@ -10,6 +10,13 @@ A local, Slack/Discord-style collaboration substrate for AI agent sessions
 (Pi, Aider, future agents) and humans on this machine. Local-only —
 no LAN or remote participants.
 
+**Current operating status (2026-10-31):** the durable message store and manual
+CLI remain available, but the always-on `busdriver` AI responder is parked
+because it has little direct use and pipeline chatter dominates the inbox.
+Keep machine events in observability channels; use the bus for intentional
+human/agent coordination. The browser console stays at the existing
+`https://my.localhost/bus` route. Do not add another hostname for it.
+
 Postgres is the durable source of truth (channels, threaded messages,
 participants, per-participant read cursors); Redis pub/sub is a best-effort
 live-delivery layer on top for whatever happens to be actively watching a
@@ -275,13 +282,17 @@ for a source's content), counts, model names, and `error.class` — **never**
 its own machine-telemetry stream, applied here to a human/agent-readable
 medium instead.
 
-## Busdriver background daemon (`bus-coordinator-ctl`)
+## Optional AI responder (`bus-coordinator-ctl`)
 
-The bus has a permanent background coordinator daemon, **`busdriver`** (managed by
-launchd via `bin/bus-coordinator-ctl` or `zsvc <verb> coordinator`).
+The coordinator is an opt-in responder, not a required part of the durable bus.
+It is currently stopped. Start it only when actively evaluating the assistant
+workflow; `bus driver start` loads the launchd agent, and `bus driver stop`
+parks it again. The normal bus CLI, PostgreSQL history, and web console do not
+depend on it.
 
-`busdriver` acts as a **help desk, notetaker, issue documenter, and status provider**
-across channels (watching `phalanxduel,zdots` by default).
+When enabled, `busdriver` answers explicit mentions across configured channels
+(default `phalanxduel,zdots`). Keep machine-generated pipeline events out of
+the operator inbox; route those to observability.
 
 ```bash
 zsvc status coordinator                       # check daemon status
@@ -302,12 +313,12 @@ flowchart LR
         jl --> phx
     end
 
-    driver["🚌 busdriver\n(informational only)"] -. watches & reports .-> Route
+    driver["optional busdriver\n(explicit mentions)"] -. responds when enabled .-> Route
 ```
 
 1. **The Route & Stops (Channels)**:
-   - The driver follows a continuous loop through platform channels.
-   - At each stop, the driver checks: *Are there passengers waiting? Any pending questions, unread mentions, or stale activity?*
+   - When enabled, the responder watches its configured channels for explicit mentions.
+   - It does not need to continuously summarize channel activity.
 2. **Picks Up & Drops Off (Context Relay & Synthesis)**:
    - **Picks up**: Collects findings, test telemetry, status reports, and architecture notes at one stop.
    - **Drops off**: Leaves structured status updates or reference links at another (e.g. bridging game telemetry from `phalanxduel` to platform observability in `zdots`).

@@ -15,17 +15,29 @@ privileged ports 80/443 — managed via `bin/nginx-ctl` (which uses `sudo launch
 
 ## Topology
 
-| URL | nginx upstream | Backed by | zsvc service |
-|-----|----------------|-----------|--------------|
-| `https://llama.localhost` | `127.0.0.1:11500` | llama-server (Qwen3-8B) | `zsvc llama` |
-| `https://embed.localhost` | `127.0.0.1:11501` | llama-embed (Nomic)     | `zsvc embed` |
-| `https://o2.localhost`    | `127.0.0.1:5080`  | OpenObserve (logs/metrics/traces) | `zsvc o2` |
-| `https://zdots.localhost` | `127.0.0.1:11600` | zdots-statusd (Observable Control Plane) | `zsvc status` |
-| `https://my.localhost`    | `127.0.0.1:7010`  | context-engine (Rails, prod) | — |
-| `https://wwworkremote.localhost` (alias `wwwr.localhost`) | `127.0.0.1:31000` | wwworkremote/wwworkremote (Rails/Falcon or Puma, dev) | — |
-| `https://lan.wwworkremote.com` | `127.0.0.1:31000` (same upstream as above) | wwworkremote/wwworkremote, trusted-LAN access (e.g. phone) | — |
-| `https://www.just3ws.localhost` | *(none — static files)* | prebuilt Jekyll `_site/`, synced to `/opt/homebrew/var/www/just3ws.github.io` by `bin/install-localhost`; **canonical** | — |
-| `https://just3ws.localhost` | *(301 → `www.`)* | bare host + all `:80` traffic redirect to the canonical `www.just3ws.localhost`, mirroring prod (`just3ws.com` → `www.just3ws.com`) | — |
+`zdots-endpoints` discovers deployed nginx names and probes them; use it for
+live state. This table is the compact ownership map. The deployed nginx
+configuration is machine state, partly managed by related repositories, so
+changes to it must be reconciled with those owners and validated through
+`nginx-ctl` (sudo required).
+
+| Host(s) | Purpose / owner | Backend |
+|---------|-----------------|---------|
+| `llama.localhost`, `embed.localhost` | Local inference / zdots | llama :11500, embeddings :11501 |
+| `o2.localhost`, `jaeger.localhost` | Observability / zdots | OpenObserve :5080; Jaeger :16686 |
+| `zdots.localhost` | zdots status console | statusd :11600 |
+| `gemstash.localhost` | RubyGems cache / zdots | Gemstash service |
+| `my.localhost` | Knowledge Layer console / my | context-engine :7010 |
+| `wwworkremote.localhost`, `wwwr.localhost` | wwworkremote project aliases | Rails app :31000 |
+| `media-pipeline.localhost`, `pipeline.localhost` | media-pipeline project aliases | media-pipeline service |
+| `hister.localhost`, `www.hister.localhost` | Hister search / project | static UI plus Hister backend |
+| `www.just3ws.localhost`, `just3ws.localhost` | just3ws portfolio / project | static Jekyll site; bare name redirects to `www` |
+| `phalanxduel.localhost`, `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Phalanx Duel / project | static site, game client :5173, admin :3103 |
+| `my.local`, `dev.my.local` | Legacy context-engine names still present in deployed config | Redirect / dev socket route; verify before retirement |
+
+Trusted-LAN names (`lan.wwworkremote.com` and Phalanx Duel `*.lan.phalanxduel.com`)
+are also served by nginx but are not `.localhost` hosts. They are project-owned
+and intentionally omitted from the loopback host list.
 
 `www.just3ws.localhost` has **no backend process** — nginx serves the last
 `jekyll build` output directly off disk (`try_files`). It cannot *receive* a
