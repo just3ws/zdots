@@ -37,18 +37,31 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   The retired experiment has no current-tree references; Git history and its
   checksummed local archive remain provenance. No force-pushes were made.
 
+  Current CI/dependency evidence (2026-10-31): zdots Check and Secret Scan
+  passed on 7b76072f. Dependabot has zero open alerts and zero open PRs (29
+  closed alerts); no dependency changes were made in this review. media-pipeline
+  is pushed at ec1dc67 and CI run 41254389048 passed; six generated
+  graphify-out files remain locally modified and untouched.
+
+  Phalanx game main still has a staged Claude/Codex/Gemini instruction cleanup;
+  preserve it. Active docs and code still reference Claude Code and the
+  Anthropic API. Treat client/config removal separately from the Anthropic
+  product provider; do not remove a runtime provider without a scoped review.
+  Phalanx distributed-ledger still has three staged license edits and 1,404
+  commits of divergence; portfolio consultancy remains 35 ahead / 1,348 behind.
+  Keep both and the six-commit Godot branch pending operator disposition.
+
   The durable bus and manual CLI remain. Optional busdriver is parked. Existing
   localhost routes are indexed in docs/local-url-routing.md; do not add hosts
   without a clear workflow. nginx validation/reload requires operator sudo.
 
   Video recording/editing are critical. Preserve media sources and maintain
   about 45 GiB internal free space. Colima is installed for on-demand use only.
-  Current follow-up: verify live CI runs and continue open Backlog items. Keep
-  local adots git/npm config edits and my's untracked databases/private vault
-  untouched. Recent cleanup commits: f8078deb (retire stale provider guidance),
-  d8e3d8a0 (close stale backlog and fix patch-export path),
-  0663c1fb (map recording and media workflow), 794fdd6 (remove retired
-  home instructions). Earlier milestones are in Git history and the handoff.
+  Keep local adots git/npm config edits and my's untracked databases/private
+  vault untouched. Recent cleanup commits: f8078deb (retire stale provider
+  guidance), d8e3d8a0 (close stale backlog and fix patch-export path),
+  0663c1fb (map recording and media workflow), 794fdd6 (remove retired home
+  instructions). Earlier milestones are in Git history and the handoff.
 -->
 
 
