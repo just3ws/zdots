@@ -218,7 +218,15 @@ export DOCKER_CONFIG="$XDG_CONFIG_HOME/docker"
 export GNUPGHOME="$XDG_DATA_HOME/gnupg"
 export GOENV="$XDG_CONFIG_HOME/go/env"
 export INPUTRC="$XDG_CONFIG_HOME/readline/inputrc"
-export RIPGREP_CONFIG_PATH="$XDG_CONFIG_HOME/ripgrep/ripgreprc"
+_ripgrep_config="$XDG_CONFIG_HOME/ripgrep/ripgreprc"
+if [ -r "${RIPGREP_CONFIG_PATH:-}" ]; then
+  : # Keep a valid caller-supplied config.
+elif [ -r "$_ripgrep_config" ]; then
+  export RIPGREP_CONFIG_PATH="$_ripgrep_config"
+else
+  unset RIPGREP_CONFIG_PATH
+fi
+unset _ripgrep_config
 export WGETRC="$XDG_CONFIG_HOME/wget/wgetrc"
 export IRBRC="$XDG_CONFIG_HOME/irb/irbrc"
 export LESSHISTFILE="$XDG_STATE_HOME/less/history"
