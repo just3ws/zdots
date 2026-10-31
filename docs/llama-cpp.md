@@ -279,8 +279,8 @@ llama-caps --md | pbcopy
 capability matrix, client config snippets, constraint values, and pointers to
 the MCP server and integration tests.
 
-An MCP server (`llama-mcp`) is registered in `~/.claude.json` and available
-natively in Claude Code sessions. Its tools:
+The `llama-mcp` server exposes local inference tools to configured MCP clients.
+Its tools:
 
 | Tool | Purpose |
 |---|---|
@@ -433,7 +433,7 @@ ai: llama.cpp server not responding at http://127.0.0.1:11500
 
 **The `ai` function is a zsh function. It cannot be called from bash
 subprocesses, agent sandboxes, or any context without the interactive zsh
-environment loaded.** This includes Claude Code's Bash tool, scripts, CI, and
+environment loaded.** This includes agent shells, scripts, CI, and
 any non-interactive shell.
 
 `bin/ai-query` is the solution — a plain bash script that calls the same HTTP

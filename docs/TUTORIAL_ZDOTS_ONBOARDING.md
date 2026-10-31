@@ -64,7 +64,7 @@ These are the major services and what they provide.
 | `zdots-ask` | Domain-aware local AI router | shell, ruby, phi, default prompt routing |
 | `zdots-quiz` | Local model smoke test | quick capability probe |
 | `ztask` | Task hydration and tracking | `start`, `done`, `stop`, `status` |
-| `zsynod` | AI collaborator forum | `status`, `propose`, `committee`, `turn`, `convene` |
+| `zsynod` | Archived experiment (2026-10-31) | See the local-only archive manifest |
 
 ## 4. Dependency Map
 
@@ -86,7 +86,7 @@ The practical rule is simple:
 - If you need AI, use `zdots-ask` or `ai-query`, not raw model endpoints.
 - If you need state, use `zdots-ctx` and the `my` database.
 - If you need secrets, use `zdots-keychain`.
-- If you need multi-agent deliberation or ratification, use `zsynod`.
+- The former `zsynod` forum is archived; use the message bus for current agent coordination.
 
 ## 5. Fresh Machine Setup
 
@@ -199,6 +199,8 @@ zdots-ctx status
 ```
 
 ### zsynod Forum
+
+> **Retired 2026-10-31:** zsynod was archived. The commands below describe its former interface; do not run them on the current system.
 
 Use `zsynod` when a decision needs multiple AI seats, explicit attribution, or a durable handoff trail.
 Its ledger is append-only and hash-chained. The canonical state is `zsynod/ledger.jsonl`; `zsynod/minutes.md` is generated and should not be edited directly.

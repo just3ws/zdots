@@ -10,7 +10,7 @@
 #   llama-caps                          # human-readable terminal report
 #
 # The MCP server (llama-mcp) exposes these same facts as live callable tools
-# directly to Claude Code — no copy-paste needed.
+# directly to a compatible AI client — no copy-paste needed.
 
 set -euo pipefail
 trap '' PIPE
@@ -37,7 +37,7 @@ Usage: llama-caps [--json | --md]
 
 Examples:
   llama-caps                # terminal
-  llama-caps --md | pbcopy  # brief Gemini/ChatGPT/Claude about this stack
+  llama-caps --md | pbcopy  # brief Gemini/ChatGPT about this stack
   llama-caps --json | jq .capabilities
 EOF
       exit 0 ;;

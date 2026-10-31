@@ -306,4 +306,4 @@ zdots-ctl status        # Confirm entire stack is green
 *   [docs/tooling.md](docs/tooling.md) — Key tools reference: what to reach for and why (organized by workflow).
 *   [SETUP.md](SETUP.md) — Clone-to-running on a fresh machine, PHI checklist, work machine setup.
 *   [docs/testing.md](docs/testing.md) — How we ensure the build is always green.
-*   [AGENTS.md](AGENTS.md) — Orientation for AI agents (Claude, Gemini) including RTK rules.
+*   [AGENTS.md](AGENTS.md) — Orientation for all agents, including RTK rules.

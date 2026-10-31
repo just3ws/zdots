@@ -25,7 +25,7 @@ fi
 
 if command -v npm >/dev/null 2>&1; then
   # Allow known packages with postinstall scripts (add to this list when new ones warn)
-  [[ "$dry_run" != "1" ]] && npm config set allow-scripts=@anthropic-ai/claude-code,@google/genai,protobufjs --location=user 2>/dev/null || true
+  [[ "$dry_run" != "1" ]] && npm config set allow-scripts=@google/genai,protobufjs --location=user 2>/dev/null || true
   echo "Updating global npm packages..."
   run_cmd npm update -g
 fi

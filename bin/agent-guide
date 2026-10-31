@@ -220,7 +220,7 @@ if $JSON; then
             note:  "Backlog.md task tracker — see also https://zdots.localhost/backlog for a read-only view"
           }
         ],
-        note: "Registered in .mcp.json; available natively in Claude Code sessions"
+        note: "Available to compatible MCP clients when registered in their client configuration"
       },
       discovery: {
         man:                  "https://zdots.localhost/man (or: man <cmd> locally)",
@@ -432,7 +432,7 @@ CAPABILITY DISCOVERY — start here when integrating or debugging:
   llama-caps --md         markdown — copy/paste to any AI (Gemini, ChatGPT, etc.)
   llama-caps --md | pbcopy
 
-  MCP tools (Claude Code only — already registered in ~/.claude.json):
+  MCP tools (register these servers in the MCP client you use):
     llama_capabilities    complete capability + integration guide
     llama_health          live health check
     llama_config          resolved server config with capacity limits
@@ -623,21 +623,6 @@ against git/backlog before repeating it, even from a trusted, authenticated
 name.
 EOF
 
-_head "Deliberation — zsynod"
-
-cat <<'EOF'
-The zsynod is the AI collaborators' forum: a hash-chained ledger of
-proposals, votes, and handoffs.
-
-  zsynod status          show round, chair, and open proposals
-  zsynod tick            one deliberation turn over a backlog issue
-  zsynod ui              full-screen cockpit (Textual TUI)
-  zsynod keys            audit seat API keys
-  zsynod minutes         regenerate minutes.md (human mirror)
-
-Charter: docs/zsynod-charter.md · Man: man zsynod
-EOF
-
 _head "Observability — OTel + OpenObserve"
 
 cat <<EOF
@@ -822,10 +807,9 @@ EOF
 _head "Operator Chat — Conventions for Cloud Agents"
 
 cat <<'EOF'
-For Claude Code / Codex / Gemini sessions talking to the operator here:
+For Codex / Gemini / local agent sessions talking to the operator here:
 
-  PUSHES ARE THE OPERATOR'S. cc-hook-guard blocks git push from agent
-  sessions by design — do not retry or route around it. Hand the exact
+  PUSHES ARE THE OPERATOR'S. Agent sessions must not push. Hand the exact
   command and ask the operator to run it in chat with a leading "!":
     ! git -C ~/.config/zsh push -u origin work
   One command per prompt (multi-line pastes arrive as chat text, not
@@ -835,13 +819,11 @@ For Claude Code / Codex / Gemini sessions talking to the operator here:
   never add -A. bin/secret-scan before every commit.
 
   ZDOTS IS NOT YOURS TO FIX (AGENTS.md section 5) — infrastructure surprises
-  become `zdots-issue "..."`, not patches. Exception: zclaude sessions are
-  operator-authorized maintenance.
+  become `zdots-issue "..."`, not patches. The operator coordinates maintenance.
 
   LOCAL AI FIRST for anything PHI-adjacent: ai-query / zdots-ask keep
-  inference on-box. Claude Code itself is a CLOUD tool — never paste
-  secrets, keys, or PHI into the chat; the deny-list and guard are the
-  backstop, not the policy.
+  inference on-box. Never paste secrets, keys, or PHI into a cloud session;
+  the deny-list and guard are the backstop, not the policy.
 
   NAME YOUR LEVER (doc-004): every task states whether it serves DETECT,
   LEARN, COMPOUND, or OPERATE. Work that serves none gets questioned.

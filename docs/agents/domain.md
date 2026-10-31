@@ -5,7 +5,6 @@ How engineering skills should consume this repo's documentation.
 ## Before exploring, read these
 
 - **`AGENTS.md`** at the repo root — primary agent guide: architecture, protocols, tool selection, PHI rules, coordination model
-- **`CLAUDE.md`** at the repo root — Claude Code-specific conventions and platform control
 - **`docs/`** — supplementary docs (llama-cpp, otel, testing, quality rubric)
 
 `CONTEXT.md` exists at the repo root — read it for the domain glossary. `docs/adr/` exists — check it before re-litigating architectural decisions.
@@ -17,9 +16,8 @@ Single-context repo:
 ```
 /
 ├── AGENTS.md         ← primary doc: architecture, conventions, rules
-├── CLAUDE.md         ← Claude Code-specific overlay
 ├── docs/             ← service guides and standards
-│   ├── agents/       ← skill configuration (this directory)
+│   ├── agents/       ← agent guidance (this directory)
 │   ├── llama-cpp.md
 │   ├── otel-collector-guide.md
 │   ├── testing.md

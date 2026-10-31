@@ -3,8 +3,7 @@
 #
 # Machine-readable declaration of what zdots provides to external consumers:
 # - adots (during initialization)
-# - Claude Code (environment introspection)
-# - Other agents and tools (capability discovery)
+# - Agents and tools (capability discovery)
 #
 # Format: Bash associative arrays with structured capability strings.
 # Non-executable. Idempotent. Safe to source multiple times.

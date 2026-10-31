@@ -11,9 +11,6 @@ tiers:
   - id: agents
     file: AGENTS.md
     description: Core contract — universal; auto-imported into every session
-  - id: claude
-    file: CLAUDE.md
-    description: Claude Code (frontier) specifics; imports AGENTS.md
   - id: pi
     file: PI.md
     description: Pi per-tool initializer
@@ -42,7 +39,7 @@ change_types:
       - docs/wiki/
   command_surface:
     canonical: AGENTS.md
-    tiers: [claude]
+    tiers: [agents]
     extra:
       - docs/tooling.md
       - bin/agent-guide
@@ -62,7 +59,7 @@ cross_platform:
   convention: each_repo_owns_its_own_naming
   peers:
     zdots:
-      initializers: [AGENTS.md, CLAUDE.md]
+      initializers: [AGENTS.md]
       notes: kernel; this manifest lives here
     my:
       initializers: [AGENT.md, HUMAN.md]

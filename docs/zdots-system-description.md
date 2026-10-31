@@ -1,5 +1,10 @@
 # Zdots — System Description for AI Assistants
 
+> **Historical snapshot, not an operational guide.** This document describes the
+> platform before the 2026-10-31 Claude Code and zsynod decoupling. Use `AGENTS.md`,
+> `agent-guide`, and current command help for live interfaces. The archived Claude
+> and zsynod materials remain in the operator-local archive.
+
 **Purpose:** Drop this document into any large-context AI session (ChatGPT, Gemini, Claude, etc.) to give the assistant a complete, accurate mental model of the zdots system. It is written for fidelity, not brevity — every section matters.
 
 ---

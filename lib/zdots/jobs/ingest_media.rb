@@ -109,7 +109,7 @@ module Zdots
       # keeping it off by default AND rescuing here stops a dep/env failure from
       # dead-lettering the whole ingest — raw/cleaned/distilled already produced
       # their value, and this is the LAST stage. Off → returns nil (pipeline
-      # continues). Mirrors the DISTILL_CLOUD opt-in + cloud_distill fallback idiom.
+      # continues). Failures remain isolated to this pipeline stage.
       def run_diarized
         return nil unless ENV["ZDOTS_DIARIZE"] == "1"
         stage("diarized") { diarize_audio }
@@ -474,25 +474,6 @@ module Zdots
         { path: out, params: { "model" => model, "input_chars" => source.length } }
       end
 
-      # Scoped, opt-in cloud distill (ADR-0003). Default local. The cloud path is
-      # taken ONLY when the flag is on, the source is public (YouTube/Vimeo —
-      # hard-asserted), and the claude CLI is available; the PHI Scrubber still
-      # runs first, and any failure falls back to local. ai-query's shared
-      # default is never touched. Records which model produced the briefing.
-      #
-      # Egress goes through the `claude` CLI (Claude Code / zclaude auth) — this
-      # machine has no Anthropic API key. See ADR-0003.
-      DISTILL_CLOUD       = ENV["ZDOTS_DISTILL_CLOUD"] == "1"
-      # .strip.empty? guard: the worker passthrough exports an empty string when
-      # unset, and Ruby's `|| "haiku"` only catches nil — "" would win and send
-      # `--model ""` (a 400 from the API).
-      DISTILL_CLOUD_MODEL = ENV["ZDOTS_DISTILL_CLOUD_MODEL"].to_s.strip.then { |m| m.empty? ? "haiku" : m }
-      # Wall-clock ceiling for the cloud call. "Inaccessible" isn't only an absent
-      # binary (claude_available? covers that) — the binary can be present while
-      # Anthropic is unreachable, hanging `claude -p` indefinitely. Bounded so the
-      # ingest pipeline degrades to local instead of stalling. Env-overridable
-      # because a long transcript → Haiku one-shot can legitimately run a while.
-      DISTILL_CLOUD_TIMEOUT = (ENV["ZDOTS_DISTILL_CLOUD_TIMEOUT"] || 120).to_i
       # Local distill runs one transcript window through bin/ai-query. Tighter
       # than RECIPE_TIMEOUT: a wedged llama/embed server should fail the window
       # fast, not hang the whole map/reduce. Env-overridable.
@@ -542,15 +523,6 @@ def embed_chunks(raw_path)
 end
 
 def timeline_llm(source)
-  if cloud_distill_eligible?
-    begin
-      res = cloud_distill(source, TIMELINE_TASK)
-      warn "ingest_media: timeline via cloud (#{DISTILL_CLOUD_MODEL}) source=#{@mid}"
-      return [res, "cloud:#{DISTILL_CLOUD_MODEL}"]
-    rescue StandardError => e
-      warn "ingest_media: cloud timeline failed (#{e.message}); falling back to local"
-    end
-  end
   [ai_distill(source, TIMELINE_TASK, TIMELINE_MAP_TASK, TIMELINE_REDUCE_TASK), "local"]
 end
 
@@ -571,59 +543,7 @@ TIMELINE_REDUCE_TASK =
   '{ "timeline": [ { "start_sec": 12, "end_sec": 45, "kind": "clip", "title": "...", "reason": "...", "quote": "..." } ] }'
 
       def distill_briefing(source)
-        if cloud_distill_eligible?
-          begin
-            briefing = cloud_distill(source)
-            warn "ingest_media: distilled via cloud (#{DISTILL_CLOUD_MODEL}) source=#{@mid}"
-            return [briefing, "cloud:#{DISTILL_CLOUD_MODEL}"]
-          rescue StandardError => e
-            warn "ingest_media: cloud distill failed (#{e.message}); falling back to local"
-          end
-        end
         [ai_distill(source), "local"]
-      end
-
-      # All three must hold to send a byte to the cloud.
-      def cloud_distill_eligible?
-        DISTILL_CLOUD && public_source? && claude_available?
-      end
-
-      # Hard public-content gate: a local-file (or any non-public) ingest can
-      # NEVER take the cloud path, even with the flag on.
-      def public_source?
-        %w[youtube vimeo].include?(@src&.source_type.to_s.downcase)
-      end
-
-      # The claude CLI (Claude Code / zclaude auth) is the cloud egress — no API
-      # key on this machine. Absent → not eligible → stays local.
-      def claude_bin
-        @claude_bin ||= (`command -v claude 2>/dev/null`.strip rescue "")
-      end
-
-      def claude_available?
-        !claude_bin.empty?
-      end
-
-      # PHI Scrubber first (defense-in-depth even for public content; raises on a
-      # suppress-flagged pattern → caller falls back to local), then one headless
-      # `claude -p` call. The model (Haiku) has a large context, so the whole
-      # transcript goes in one shot — no windowing. The task is the prompt arg;
-      # the transcript is piped on stdin (the `cat file | claude -p` pattern).
-      def cloud_distill(source, task_str = DISTILL_TASK)
-        scrubbed = Zdots::AI::PhiScrubber.call(source)
-        task = task_str.dup
-        task += "\n\nAdditional Context for this video: #{@src.primer_text}" if @src && @src.primer_text.to_s.strip != ""
-        out, status = Zdots.run_bounded(
-          claude_bin, "-p", "--model", DISTILL_CLOUD_MODEL,
-          "--no-session-persistence", task,
-          stdin_data: scrubbed, timeout: DISTILL_CLOUD_TIMEOUT
-        )
-        raise "claude CLI failed (exit #{status.exitstatus}): #{out.to_s[0, 200]}" unless status.success?
-
-        briefing = out.strip
-        raise "claude CLI returned no text" if briefing.empty?
-
-        briefing
       end
 
       DISTILL_TASK =

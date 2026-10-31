@@ -19,10 +19,6 @@ reading your targets. The doctrine ("think first") stays primary.
 Usage:
   idiot-test <command...>     screen argv         (exit 0 ok · 1 warn · 2 block)
   echo "<cmd>" | idiot-test   screen stdin
-  idiot-test --hook           Claude Code PreToolUse hook: read the tool JSON on
-                              stdin, screen Bash commands, exit 2 to BLOCK on a
-                              catastrophic pattern, 0 otherwise (never blocks
-                              non-destructive commands).
   idiot-test -h | --help
 .fi
 .SH SEE ALSO

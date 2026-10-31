@@ -1,5 +1,7 @@
 # Zdots Ontology — Concepts & Relationships
 
+> **Historical architecture snapshot:** This ontology includes Claude Code and zsynod integration concepts that were decoupled on 2026-10-31. Use `AGENTS.md` and the current command catalog for live interfaces.
+
 A structured hierarchy of zdots concepts, showing how they relate, depend on each other, and organize into domains.
 
 ---

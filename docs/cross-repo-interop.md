@@ -42,7 +42,7 @@ repo's own committed docs stay the primary admissible kinds.
 
 ## Agent RACI Matrix (Platform & Cross-Repo)
 
-| Role / Entity | Operator (Mike) | Pi (`zpi`) | Aider (`zaider`) | Claude Code / Antigravity | Pavel (`pavel`, PVL specialist) | Tenant Agent (`phalanxduel-ai`, etc.) |
+| Role / Entity | Operator (Mike) | Pi (`zpi`) | Aider (`zaider`) | Gemini / Antigravity | Pavel (`pavel`, PVL specialist) | Tenant Agent (`phalanxduel-ai`, etc.) |
 |---|---|---|---|---|---|---|
 | **Platform Governance & Security** | **A** | I | I | C | C | I |
 | **System Exploration & Briefing** | I | **R** | I | C | C | I |

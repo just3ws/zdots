@@ -5,7 +5,6 @@
 #
 # Principle: tools that run locally or point at local endpoints are fine.
 # Excluded = the product IS the cloud service, or is purely personal.
-# Claude is cleared for work (home/work parity); PHI deny-list + cc-hook-guard apply.
 
 instance_eval(File.read(File.expand_path("Brewfile.common", File.dirname(__FILE__))))
 
@@ -31,11 +30,6 @@ npm "@earendil-works/pi-coding-agent"
 # OpenCode — terminal agentic coding seat (homebrew-core). Seated in the synod
 # per committed P18; drive it via `zopencode` (pinned to the local llama.cpp
 # endpoint, PHI guard parity). Principal-evaluated; pi stays the lightweight seat.
-
-# Claude — cleared for work; home/work parity (mirrors Brewfile.home).
-# Provides the cl/claude CLI used as the zsynod frontier seat, plus the
-# desktop suite. Local-LLM defaults and the PHI deny-list still apply.
-vscode "saoudrizwan.claude-dev"
 
 # ---------------------------------------------------------------------------
 # AWS — work infrastructure tooling

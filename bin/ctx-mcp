@@ -5,8 +5,7 @@
 # Allows AIs to both query existing knowledge and capture new insights.
 #
 # Transport: stdio (JSON-RPC 2.0)
-# Register in ~/.claude.json → mcpServers:
-#   "ctx": {"type":"stdio","command":"${ZDOTDIR}/bin/ctx-mcp"}
+# Register this stdio server in the MCP configuration for the client you use.
 
 require "json"
 require "open3"

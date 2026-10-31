@@ -7,7 +7,7 @@ purpose: Channels, threaded persistent messages, and named participants so AI ag
 # Message Bus
 
 A local, Slack/Discord-style collaboration substrate for AI agent sessions
-(Claude Code, Aider, future agents) and humans on this machine. Local-only —
+(Pi, Aider, future agents) and humans on this machine. Local-only —
 no LAN or remote participants.
 
 Postgres is the durable source of truth (channels, threaded messages,
@@ -316,7 +316,7 @@ flowchart LR
    - Explains connections and transfers (e.g. *"Next stop: phalanxduel — Vite on :3001, local cockpit at /demo/, match spans to :14318"*).
    - Summarizes road conditions (stale channels, degraded services, pending questions).
 4. **Lost & Found / Logbook (Issue Documenter & Notetaker)**:
-   - Formulates bug reports and helps draft tickets for the backlog (`ztask start <id> && zclaude`).
+   - Formulates bug reports and helps draft tickets for the backlog (`ztask start <id> && zpi`).
 5. **Lyrical Flow & Cadence**:
    - Channeling the real Busdriver (Project Blowed) — high-speed lyrical efficiency, internal rhymes, rhythmic cadence, and compact jazz-inflected phrasing. Rhymes sound nice, but keep it tight, meaningful, dense with substance, and grounded in truth.
 
@@ -327,7 +327,7 @@ The sign above the driver's seat is unambiguous:
 - **No Direct Action**: It does not execute shell scripts, alter code, deploy services,
   or simulate physical actions.
 - When an operational action is requested, it points to the sign and replies with the
-  exact canned command the operator or task agent should run (e.g. `ztask start <id> && zclaude`).
+  exact canned command the operator or task agent should run (e.g. `ztask start <id> && zpi`).
 - The identity name, trigger prefix, and watched channels are configurable via
   `ZDOTS_BUS_BOT_NAME`, `ZDOTS_BUS_BOT_TRIGGER`, and `ZDOTS_BUS_BOT_CHANNELS`.
 

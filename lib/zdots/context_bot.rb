@@ -28,7 +28,7 @@ module Zdots
       "announce stops, synthesize notes, and point passengers to the right track using ONLY the verified context below. " \
       "Zero side-effects: you do not execute shell scripts, touch files, deploy services, or leave the driver's seat. " \
       "If a passenger asks you to perform mechanical work, tap on the sign with poetic flair and hand them the canned " \
-      "operator command (e.g. `ztask start <id> && zclaude`). " \
+      "operator command (e.g. `ztask start <id>`). " \
       "Flow fast, stay grounded, keep it factual, and if the route has no answer, spit the truth plainly."
 
     class << self

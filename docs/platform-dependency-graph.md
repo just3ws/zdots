@@ -120,7 +120,7 @@ flowchart TB
     zaider --> llamaserver
 
     %% Agent access via MCP
-    agents["AI Agents\n(Claude Code, Pi, Aider)"] --> ctxmcp
+    agents["AI Agents\n(Gemini, Pi, Aider)"] --> ctxmcp
 
     %% Knowledge Layer feeds callers
     zdotsask --> zdotsctx
@@ -136,7 +136,7 @@ flowchart TB
 | ① | **AI Invocation Interface** | `lib/ai-invoke.bash` | `zdots-ask`, `ztask`, `zdots-ctx` distill | `ai-query-lib.bash` → llama-server |
 | ② | **PHI Boundary** | `lib/phi_scrubber.bash` + `lib/ai_boundary.bash` | Every AI call, every history hook | `bin/zdots-phi-scrub` (Go/RE2), `etc/phi-patterns.yaml` |
 | ③ | **Knowledge Layer** | `bin/zdots-ctx` | Shell scripts, `ctx-mcp`, `ztask done` | `context-engine` (Rails) → PostgreSQL |
-| ④ | **MCP Transport** | `bin/ctx-mcp` | AI agents (Claude Code, Gemini, Pi, Aider) | stdio JSON-RPC 2.0 → `zdots-ctx` |
+| ④ | **MCP Transport** | `bin/ctx-mcp` | MCP-capable agents (Gemini, Pi, Aider) | stdio JSON-RPC 2.0 → `zdots-ctx` |
 | ⑤ | **Observability Export** | OTLP / `otel-collector` | All shell spans, AI spans, service health | `otel-collector` → OpenObserve |
 | ⑥ | **History Capture** | `conf.d/55-phi-history.zsh` | Every interactive command | PHI scrub → SQLite (`command_runs`, `shell_hook_metrics`) + atuin + Redis |
 | ⑦ | **Intelligence Layer** | `bin/history-intelligence` | `zmorning`, AI agents, hooks/CI (`--gate`) | reads `command_runs` + `shell_hook_metrics` + atuin → synthesized report (human + `--json`) |
@@ -187,7 +187,7 @@ flowchart TB
 ## Data Flow: Agent Query → Knowledge Base
 
 ```
-Agent (Claude Code)
+Agent (Pi)
   │  stdio
   ▼
 bin/ctx-mcp  ──────────────────── Seam ④ (MCP)

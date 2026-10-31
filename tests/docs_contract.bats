@@ -31,7 +31,6 @@ _known_gap() {
     alias-suggest
     bootstrap
     capabilities
-    cc-doctor
     commit-msg
     diff-review
     docker-reclaim
@@ -74,9 +73,7 @@ _known_gap() {
     zmetrics
     zmorning
     zsvc
-    zsynod
     ztask
-    cc-home
     log-rotate
     zdots-phi-scrub
     zdots-schema
@@ -193,20 +190,20 @@ _known_gap() {
 @test "docs: every bin executable is --help-tested or in the known-gaps file" {
   # Canonical set of explicitly tested commands (mirrors the --help test above).
   local -a tested=(
-    agent-guide ai-query alias-suggest bootstrap capabilities cc-burn cc-burn-watch cc-doctor colima-status commit-msg
+    agent-guide ai-query alias-suggest bootstrap capabilities colima-status commit-msg
     diff-review docker-reclaim gemini-mcp-register hister-sync history-analyze history-import
     idiot-test llama-caps llama-ctl local-ci nginx-ctl nginx-repair openobserve-ctl otel-collector otel-smoke ruby-audit ruby-audit-batch ruby-audit-diff pi-ctx-brief pi-ctx-hydrate
     pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-doctor
     zdots-endpoints zdots-gh zdots-github-keys zdots-graph-audit zdots-index-tools zdots-keychain zdots-log-analyze zdots-logs zdots-o2-query zdots-otel-phi-compile zdots-patch-export zdots-pulse zdots-quiz zdots-ruby-default-gems zdots-server-keys zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-my-sync zdots-ingest-prepare zdots-ingest-media zdots-backfill-boundaries
-    nginx-regen-certs zclaude zdots-statusd zdots-statusd-ctl
-    zdots-worker zdots-eval zsynod zsynod-migrate
+    nginx-regen-certs zdots-statusd zdots-statusd-ctl
+    zdots-worker zdots-eval
     zmetrics zmorning zsvc ztask
-    cc-home log-rotate gemstash-ctl gemstash-metadata zdots-buffer-drain zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
+    log-rotate gemstash-ctl gemstash-metadata zdots-buffer-drain zdots-phi-scrub zdots-schema history-intelligence session-debrief zdots-pages
     bench zdots-pattern zdots-issue imperial-date zdots-man-gen zdots-platform
     embed-model-tripwire zdots-theme-gen
     zdots zdots-artifact zdots-debrief zdots-snapshot zdots-search zdots-draft zdots-publish
     zdots-help zdots-watch zdots-usage zdots-swiftbar zdots-vault-doctor
-    zdots-storage zdots-hygiene zdots-check zdots-gen zdots-lake zdots-sql-lint ztranscribe
+    zdots-storage zdots-hygiene zdots-check zdots-lake zdots-sql-lint ztranscribe
     bus bus-coordinator-ctl bus-schedule jaeger-ctl observability-mode zdots-bus
   )
 
@@ -266,7 +263,7 @@ _known_gap() {
 @test "docs: fictional-reference linting — backtick commands in tracked docs exist in bin/ or allowlist" {
   # R2 invariant (Z-153 AC#2+AC#3): docs must not cite zdots-* commands that don't exist.
   # Tier file list comes from etc/docs-sync-manifest.yaml (AC#3 single source of truth).
-  # Falls back to AGENTS.md + CLAUDE.md if yq/manifest unavailable.
+  # Falls back to AGENTS.md + PI.md if yq/manifest unavailable.
   #
   # Non-binary tokens (labels, aliases, external tools, schema terms) are allowlisted below.
   local -a allowlist=(
@@ -291,7 +288,7 @@ _known_gap() {
     done < <(yq '.tiers[].file // ""' "$manifest" 2>/dev/null | grep -v '^$\|^null$')
   fi
   # Always include the core initializers (fallback if manifest unreadable)
-  for core in AGENTS.md CLAUDE.md; do
+  for core in AGENTS.md PI.md; do
     local already=0
     for d in "${docs[@]}"; do [[ "$d" == "$REPO_ROOT/$core" ]] && already=1 && break; done
     [[ $already -eq 0 && -f "$REPO_ROOT/$core" ]] && docs+=("$REPO_ROOT/$core")

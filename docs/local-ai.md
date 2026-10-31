@@ -38,7 +38,6 @@ flowchart LR
 
     subgraph Tools["Operator Tools"]
         zaider["zaider (Aider)"]
-        cl["cl (Claude Code)"]
         zpi["zpi (Pi)"]
     end
 
@@ -57,7 +56,6 @@ flowchart LR
 
     boundary -->|127.0.0.1:11500 only| llama
     zaider -->|local model| llama
-    cl -->|frontier · unaffected by ZDOTS_AI_MODE| ext["Anthropic API"]
 ```
 
 ---

@@ -134,7 +134,7 @@ Reference this when adding a surface or auditing coverage.
 | fzf | `fzfrc` | `--color` opts |
 | prompt | `assets/kanagawa-wave/p10k-overrides.zsh` | ANSI palette indices |
 | iTerm2 | `assets/kanagawa-wave/Kanagawa-Wave.itermcolors` | color preset (import) |
-| Claude Code | `~/.claude/settings.json` | `theme: dark-ansi` (rides preset) |
+| Legacy Claude Code | `~/.claude/settings.json` | Retained as historical compatibility reference |
 | nvim | vdots `kanagawa.nvim` | `colors.theme.wave.ui.bg=#1A1B2F` |
 | bat | `assets/kanagawa-wave/Kanagawa-Wave.tmTheme` | `bat --theme` |
 | ghostty | `assets/kanagawa-wave/ghostty-kanagawa-wave` | `theme =` |

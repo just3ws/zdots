@@ -3,8 +3,8 @@
 # zgh sends one-shot prompts to GitHub Models (https://models.github.ai),
 # authorized by the existing `gh` OAuth token — no PAT, no new key to manage.
 # The catalog spans OpenAI (gpt-4o-mini … gpt-5), DeepSeek, Llama, Mistral,
-# and Cohere behind one endpoint. Seated in the zsynod as @gh via the
-# `openai` backend (zsynod/members.json: key_cmd "gh auth token").
+# and Cohere behind one endpoint. Uses the GitHub CLI token from Keychain or
+# `gh auth token` after the cloud lane guard approves egress.
 #
 # ⚠ CLOUD TOOL on a PHI-adjacent machine: every prompt leaves the box.
 # Prompt and piped stdin are passed through phi_scrub before sending —

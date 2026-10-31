@@ -3,124 +3,47 @@
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     CURRENT FOCUS  —  last updated 2026-10-27
-     Cold-start resume state, canonical for every agent tool (Claude, Codex,
-     Gemini, Antigravity). CLAUDE.md / GEMINI.md only point here. Whoever
-     closes a session rewrites this whole block in place — step one, before
-     the wrap-up summary — then commits it. `git log` + Backlog are truth for
-     exact SHAs / task status; if this block contradicts them, trust them and
-     fix the block. Deep handoff: ~/.config/adots/handoffs/2026-10-27-6.md
-     (local-only; that file, not "the newest handoff", is the pointer).
+     CURRENT FOCUS — last updated 2026-10-31
+     Cold-start state. Exact task status: Backlog + git history. Deep handoff:
+     ~/.config/adots/handoffs/2026-10-31.md (local-only; contains archive
+     provenance and current cleanup state). Update this block before closing.
      ═══════════════════════════════════════════════════════════════════════
 
-  BIG SHIFT (2026-09): zdots / adots / vdots are now PUBLIC. Histories
-  rewritten clean (git-filter-repo: dead creds + work-tenant strings removed,
-  all authorship collapsed to `Mike Hall <mike@just3ws.com>`), `.mailmap` in
-  every repo, security-hardened (secret-scanning + push-protection + branch-
-  protection on), beacon re-stamped `0761026.M3`. `my` stays private.
-  Pre-scrub bundles: ~/backups/platform-pre-public-2026-09-01/ (local only —
-  they carry the un-scrubbed history; never share).
+  Platform publication/security baseline unchanged: zdots/adots/vdots are
+  public with scrubbed histories; my is private. Do not rewrite repo history.
 
-  In flight: clean landing, all systems green (43/43 zdots-doctor checks pass,
-  test suite 100% green rc=0, SwiftBar pulse 🟢 🎙️, root storage 24GB [ok]).
+  In flight: Claude Code / Anthropic decoupling is implemented locally. Four
+  Claude casks removed; Claude session history, telemetry, zsynod, and token
+  monitor state archived to /Volumes/Dock_1TB/zdots-archive/ with checksums,
+  then scoped originals removed. Claude plugin cache remains (~47 MB) for a
+  future recovery path. Ingest cloud distillation was removed; ingest remains
+  local. Verify before commit; DB-backed checks are blocked by sandbox socket
+  access. Long-term removal of Claude co-author attribution from repo history
+  is deferred; no commit history was rewritten.
 
   Live tasks (Backlog):
-    Z-349  (Med) Usage-backed Brewfile audit: cross-reference formulae against
-           Atuin shell history (90d configurable horizon).
-    Z-347  (Med) Evaluate and automate cleanup of old Codex and Claude session
-           state and caches (30d configurable threshold, context harvest before
-           zstd compression).
-    Z-350  (Med) Unified System Health Dashboard: aggregate storage buckets,
-           usage trends, and service vitals (CLI zdots pulse + Web zdots-statusd).
-    Z-342  (Med) context-engine: expose scenario manifest catalog and ingest
-           contract for PVL tenants (both filesystem dropzone and REST API).
-    Z-333  (Med) audit tests/ci-allowlist.txt — mcp.bats + docs_contract's
-           Ruby-CLI --help sweep aren't hermetic (full job has no Ruby
-           toolchain). Drop them OR add mise+bundle to the full job, then
-           remove the `continue-on-error` on Run Bats. CI Check is GREEN via
-           that band-aid; sanity + Run Checks are still hard gates.
-    Z-334  (Low) normalize identity in just3ws.github.io (24 non-canonical
-           commits). DEFERRED — another agent is mid-project there. Do NOT
-           rewrite; drop a .mailmap once coordinated.
-    Z-328  (Med) 23 bin/ commands in neither settings.json allowlist nor
-           EXPECTED_MISSING. Blocked on Mike (agent-facing vs internal).
-    Z-330  (Low) retire the dead `transcription` job type (→ transcribe_chunk).
-    Z-331  (Low) wire cc-audit/command-qc drift into zdots-doctor.
+    Z-349  (Med) Usage-backed Brewfile audit (Atuin history, configurable 90d).
+    Z-347  (Med) Codex session/cache retention audit and cleanup policy.
+    Z-350  (Med) Unified System Health Dashboard.
+    Z-342  (Med) context-engine scenario manifest + ingest contract.
+    Z-333  (Med) Make full Bats CI hermetic; remove continue-on-error.
+    Z-334  (Low) Normalize identity in just3ws.github.io; coordinate first.
+    Z-328  (Med) Classify 23 unclassified bin/ commands; blocked on Mike.
+    Z-330  (Low) Retire dead `transcription` job type.
+    Z-331  (Low) Wire cc-audit/command-qc drift into zdots-doctor.
 
   Blocked on Mike:
-    Z-328 — classify the 23 unclassified bin/ commands.
-    PAT rotation (web UI): `Refined GitHub` + `JEKYLL_GITHUB_TOKEN` are
-    no-expiry. Z-334 coordination with the just3ws.github.io agent.
+    Z-328 command classification; PAT rotation; Z-334 coordination.
 
-  Recently DONE:
-    - Media-Pipeline mp Global CLI & Navigation Parity:
-      * Added `mp` repo jump function with CLI dispatch and `_mp` completion
-        in `~/.config/zsh/.aliasrc.local` (matching `j3w`, `phx`, and `zdots` patterns).
-      * Appended `$HOME/github.com/just3ws/media-pipeline/bin` to global `$PATH`
-        in `~/.config/zsh/.zshrc.local` for direct sub-binary access.
-      * Isolated all changes to local, gitignored overrides with zero tracked drift.
-    - APFS Storage Forensic Audit & Documentation (docs/storage-hygiene.md):
-      * Clarified APFS sparse allocation in Colima (~128 GB virtual ceiling vs
-        ~11 GB physical SSD allocation).
-      * Reconciled DaisyDisk 111.9 GB metric: Foundation API combines 20.4 GB raw
-        free space with 91.4 GB of evictable purgeable cache (Google Drive
-        dataless chunks, local snapshots, caches), not unallocated free space.
-      * Reconciled macOS Catalina+ dual-volume split: df -h / reports 41% bogus
-        capacity on the sealed 13 GB OS snapshot, while /System/Volumes/Data
-        accurately reflects persistent 91% data utilization (~178 GB used, ~20 GB free).
-      * Proved zero data loss; 15/15 docs_contract tests green.
-    - Autonomous Storage Hygiene & Anti-Bitrot Verification (Z-348):
-      * Recovered +9.0 GB net primary SSD headroom (13GB [warn] -> 22GB [ok],
-        capacity reduced from 49% to 37%).
-      * Added anti-bitrot signature validation (`_is_valid_npx_signature`) and
-        dynamic store querying via `pnpm store path` to `bin/zdots-hygiene`.
-      * Extended `bin/log-rotate` with multi-namespace LaunchAgent resolution
-        (`com.zdots`, `com.my`, `com.wwworkremote`, direct files) and 30-day
-        retention pruning on `.gz` archives.
-      * Rotated large production logs in-place (`context-engine-api.error.log`
-        109MB -> 824KB, `nginx/access.log` 200MB -> 4MB, `wwworkremote/jobs.log`
-        53MB -> 1MB).
-      * Purged 62 stale rotated service logs (>30d) in `~/.local/state/zsh`
-        (freed 1.0 GB) and 26 verified npx runtimes (freed 3.6 GB).
-      * Disabled WWWorkRemote background autostart (`com.wwworkremote.web` &
-        `com.wwworkremote.jobs` set to manual start).
-      * Authored publishable architectural monograph on autonomous storage
-        hygiene, resource constraints, and frontier/local AI symbiosis.
-      * Contract tests 100% green: 32/32 Bats tests pass across storage,
-        log-rotate, and docs-contract suites.
-    - Media Ingest Curation, Man Doc Curator & Platform Parity:
-      * Fixed macOS TCC launchd daemon boundary on YouTube cookie extraction
-        via automatic anonymous fallback in `recipes/yt-transcribe` and
-        `bin/zdots-ingest-media`.
-      * Resolved stuck "landed" pending stage in context-engine (`MediaSource::STAGE_ORDER`),
-        verified full Alan Watts podcast ingest (raw..published done), and surfaced
-        in-UI guidance for vocabulary adjustments vs Landed-Thoughts edit gate.
-      * Created `man-doc-curator` skill for automated man page generation, linting,
-        and contract test suites (`tests/docs_contract.bats`).
-      * Documented human curation and hallucination gates in `ingest-media` skill.
-    - SwiftBar Integration & Telemetry Hardening: Resolved SwiftBar failure
-      indicators to 100% green (`🟢 🎙️`). Decoupled doctor status from check
-      suite alert, fixed AI inference probe to match port 11500 / `--alias local`,
-      bound `Run Check Suite` action to `$ZDOTDIR/bin/check`, fixed shellcheck SC2034
-      unused variable, and placed `ai_query.bats` + `o2_mcp.bats` in `_serial_suites`
-      in `bin/check` to eliminate live service port contention. Verified 43/43 doctor
-      and full test suite pass (`rc=0`, 0 failing).
-    - Platform Doctor: Resolved all 43 checks to 100% green (Aider config path
-      migration to ~/.config/aider, cleared launchd flap exit codes, Docker config
-      normalization, Brewfile sync).
-    - Search & Local Observability: hister.localhost reverse proxy + cert SANs,
-      hister-sync CLI, resolved zmorning alias collision.
-    - System Cartography Platform Rollout (Rails ERD, Graphviz, Mermaid diagram
-      generation, top-of-file Markdown model table annotations across
-      wwworkremote, my/context-engine, and hallway; system-cartography skill).
-    - Message Bus Fluent DSL & Route Guide (`zdots-bus`, `bus` symlink,
-      `bus-schedule`, background coordinator `busdriver`, terminal hyperlinks,
-      capabilities/agent-guide publication).
-    - Ack & Fzf Complete Platform Parity (Andy Lester's ack first-class,
-      `~/.ackrc` hardened with `--nofilter` & rich types, live streaming `fack`
-      and `fackf` in zsh, `ack.vim` + `fzf-lua` + Telescope `vimgrep_arguments`
-      + `Trouble` quickfix in Neovim, full shortcut and prompt parity).
-    - Platform publication, security hardening, and beacon `0761026.M3`.
+  Verification for 2026-10-31 decoupling:
+    - man coverage complete; docs contract, routing, SwiftBar, and statusd
+      checks pass. Peer-discovery and ingest gate tests hit sandbox-denied
+      PostgreSQL socket access before their assertions; not counted as green.
+    - Archive SHA-256 values and provenance are in the handoff and external
+      archive README. Archives are local-only; never commit/upload.
+
+  Recently completed platform work is recorded in git history and Backlog.
+-->
 
 
 ---
@@ -318,7 +241,7 @@ agent-guide          # detailed usage guide for all services
 work-tree `$HOME`) + `my` (`~/my`) + `vdots` (`~/.config/nvim`). This is
 binding: when the operator says "the platform" or "platform-wide" without
 further qualification, it means all four repos, using the per-repo
-invocation table in `.claude/commands/platform-sync.md`. Never assume
+invocation table in `docs/agents/platform-sync.md`. Never assume
 "zdots" alone unless the operator names it specifically.
 
 **Work-extension hook surface (Z-262).** None of the four platform repos
@@ -376,7 +299,7 @@ colima-status health       # exit 0 = up; exit 1 = down
 
 | Need | Tool |
 |---|---|
-| Multi-file reasoning | Claude Code (`cl`) or `zaider` (Aider wired to local llama.cpp) |
+| Multi-file reasoning | `zaider` (Aider wired to local llama.cpp); use `zpi` for read-only exploration |
 | Interactive code edit | `zaider` |
 | Low-priority / background edits | `laid` — `zaider` at nice +19, reduced threads |
 | Scripted inference | `ai-query` |

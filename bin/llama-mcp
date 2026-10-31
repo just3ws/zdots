@@ -1,12 +1,11 @@
 #!/usr/bin/env zdots-ruby
 # bin/llama-mcp — MCP server for the local llama.cpp inference service.
 #
-# Exposes live, callable tools that any MCP client (Claude Code, Cursor, etc.)
+# Exposes live, callable tools that compatible MCP clients
 # can invoke to interrogate and validate the local llama.cpp stack.
 #
 # Transport: stdio (JSON-RPC 2.0)
-# Register in ~/.claude.json → mcpServers:
-#   "llama": {"type":"stdio","command":"${ZDOTDIR}/bin/llama-mcp","env":{"PATH":"..."}}
+# Register this stdio server in the MCP configuration for the client you use.
 #
 # Tools exposed:
 #   llama_capabilities      Full capability + integration guide (markdown or JSON)

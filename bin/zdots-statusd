@@ -93,19 +93,6 @@ def log_health(svc_names)
   end
 end
 
-# Claude Code token burn — read the cache cc-burn-watch writes (never run
-# ccusage here; the console must stay fast). nil when the watcher is off/stale.
-def token_burn
-  path = "#{STATE}/cc-burn.json"
-  return nil unless File.exist?(path) && (Time.now - File.mtime(path)) < 1800
-
-  data = JSON.parse(File.read(path))
-  return nil if data.nil?
-  data
-rescue StandardError
-  nil
-end
-
 # --- presentation -----------------------------------------------------------
 
 SERVICE_LABELS = {
@@ -129,47 +116,6 @@ def pill(up)
 end
 
 def h(str) = ERB::Util.html_escape(str.to_s)
-
-def fmt_n(n)
-  n = n.to_f
-  return format("%.1fM", n / 1e6) if n >= 1e6
-  return format("%.0fk", n / 1e3) if n >= 1e3
-  format("%d", n)
-end
-
-# Claude Code token-burn panel. Empty string when no fresh data (watcher off) so
-# the section simply doesn't render.
-def burn_section(b)
-  return "" unless b
-
-  warn_pct  = (ENV["ZDOTS_CC_WARN_PCT"]  || "70").to_i
-  alert_pct = (ENV["ZDOTS_CC_ALERT_PCT"] || "90").to_i
-  pct = b["pct"]
-  sev = "ok"
-  if pct
-    sev = "warn"  if pct >= warn_pct
-    sev = "alert" if pct >= alert_pct
-  end
-  pillcls = { "ok" => "ok", "warn" => "warn", "alert" => "down" }[sev]
-  pctcell = pct ? %(<span class="pill #{pillcls}">#{pct}% of ceiling</span>) : %(<span class="pill warn">calibrating</span>)
-  rmin = b["remaining_min"].to_i
-  reset = format("%dh %02dm", rmin / 60, rmin % 60)
-  proj = b["proj_pct"] ? "#{b['proj_pct']}%" : "?"
-
-  <<~SEC
-    <section aria-labelledby="cc-h">
-      <h2 id="cc-h">Claude Code — 5h token window <span class="dim">(self-calibrating · <a href="/man/cc-burn">cc-burn</a>)</span></h2>
-      <div class="grid">
-        <div class="card"><div class="lbl">window used</div>#{pctcell}</div>
-        <div class="card"><div class="lbl">resets in</div><span class="mono">#{reset}</span></div>
-        <div class="card"><div class="lbl">burn rate</div><span class="mono">#{fmt_n(b['rate_tpm'])}/min</span></div>
-        <div class="card"><div class="lbl">used / ceiling</div><span class="mono">#{fmt_n(b['used'])} / #{fmt_n(b['limit'])}</span></div>
-        <div class="card"><div class="lbl">projected</div><span class="mono">#{proj} by reset</span></div>
-        <div class="card"><div class="lbl">cache reuse</div><span class="mono">#{b['cache_pct']}%</span></div>
-      </div>
-    </section>
-  SEC
-end
 
 ROOT_NAV = %(<a href="/">← console</a> · <a href="/man">man index</a> · <a href="/backlog">backlog</a> · <a href="/theme">theme</a>).freeze
 
@@ -403,7 +349,6 @@ def render_page(live:)
   up     = cards.count { |c| c[:up] }
   svcs   = services
   logs   = log_health(svcs.map { |s| s[:name] })
-  burn   = token_burn
   refresh = live ? %(<meta http-equiv="refresh" content="10">) : ""
   now = Time.now.strftime("%Y-%m-%d %H:%M:%S")
   toggle = live ? %(<a href="/?live=0">⏸ pause</a>) : %(<a href="/">▶ resume live</a>)
@@ -433,7 +378,6 @@ def render_page(live:)
           </div>
         </section>
 
-        #{burn_section(burn)}
 
         <section aria-labelledby="ld-h">
           <h2 id="ld-h">launchd / processes</h2>

@@ -12,15 +12,12 @@ Experimental features:
 - Can be **extracted to a separate repository** or branch without code changes
 - Should be **self-documenting** with clear initialization instructions
 
-## Current Experiments
+## Archived Experiments
 
-### zsynod — AI Collaborators Council
-
-Multi-agent deliberation framework for consensus-driven decision making.
-
-**Status**: Working prototype  
-**Enable**: `source experiments/enable-zsynod.sh`  
-**Docs**: See [zsynod/README.md](zsynod/README.md)
+- `mlx/` — archived 2026-06-14; see its README for recovery notes.
+- `zsynod/` — archived 2026-10-31 to the operator's local backup volume; its
+  tracked and Git-ignored files are preserved there. It is no longer installed
+  or connected to core zdots commands. The backup has a local provenance manifest.
 
 ---
 

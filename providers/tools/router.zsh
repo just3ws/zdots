@@ -3,8 +3,7 @@
 # One explicit dispatcher across the local LLM, Pi, and Aider. Local is the
 # default; Pi and Aider are opt-in by flag. A local advisory classifier suggests
 # a better-fit engine but NEVER switches automatically — no silent escalation.
-# Cloud engines (--haiku, --claude-code) are declared for discoverability but
-# refuse until their phases land. See ROUTER.md for the full design and policy.
+# No cloud engine is routed here. Cloud use stays an explicit, separate lane.
 #
 # Everything routes through existing bin entrypoints (zdots-ask, zpi, zaider,
 # ai-query), so the gate + PHI scrub are inherited and an exit inside a gated
@@ -29,9 +28,6 @@ Engines (default: --local):
   --local         local llama.cpp via zdots-ask         (default)
   --pi            zpi    — explore / read / plan          (local)
   --aider         zaider — edit / patch / commit          (local)
-  --haiku         Claude Haiku   (ROUTER Phase 3 — not yet enabled)
-  --claude-code   Claude Code    (ROUTER Phase 2 — not yet enabled)
-
   --dry-run       print the routing decision; run nothing
   -h, --help      this help
 
@@ -54,13 +50,12 @@ _zai_classify() {
   local aiq="${ZDOTDIR:-$HOME/.config/zsh}/bin/ai-query"
   [[ -x "$aiq" ]] || return 0
 
-  local sys="Classify the software task into exactly ONE keyword from this set: local pi aider haiku claude-code. Rules: local=trivial text/snippet/single command; pi=explore/explain/inspect code; aider=edit/refactor/patch files in a repo; haiku=medium reasoning or ambiguous triage; claude-code=multi-file investigation, architecture, or debugging. Reply with ONLY the keyword, nothing else."
+  local sys="Classify the software task into exactly ONE keyword from this set: local pi aider. Rules: local=trivial text/snippet/single command; pi=explore/explain/inspect code; aider=edit/refactor/patch files in a repo. Reply with ONLY the keyword, nothing else."
 
   AIQ_SUPPRESS_RAW_WARN=1 AIQ_TEMPERATURE=0.1 "$aiq" --mode raw --system "$sys" "$task" 2>/dev/null \
     | tr '[:upper:]' '[:lower:]' \
-    | grep -oE 'claude[- ]?code|local|pi|aider|haiku' \
-    | head -n1 \
-    | sed 's/claude.*/claude-code/'
+    | grep -oE 'local|pi|aider' \
+    | head -n1
 }
 
 zai() {
@@ -71,8 +66,6 @@ zai() {
       --local)       engine=local;       shift ;;
       --pi)          engine=pi;          shift ;;
       --aider)       engine=aider;       shift ;;
-      --haiku)       engine=haiku;       shift ;;
-      --claude-code) engine=claude-code; shift ;;
       --dry-run)     dry=1;              shift ;;
       -h|--help)     _zai_usage; return 0 ;;
       --)            shift; rest+=("$@"); break ;;
@@ -82,7 +75,7 @@ zai() {
   done
 
   local task="${(j: :)rest}"
-  # Pi and Aider can launch interactively with no task; the rest need one.
+  # Pi and Aider can launch interactively with no task; local needs one.
   if [[ -z "$task" && "$engine" != "pi" && "$engine" != "aider" ]]; then
     _zai_usage >&2; return 2
   fi
@@ -116,11 +109,5 @@ zai() {
       zpi ${task:+"$task"} ;;
     aider)
       if [[ -n "$task" ]]; then zaider --message "$task"; else zaider; fi ;;
-    haiku)
-      printf 'zai: --haiku needs ROUTER Phase 3 (cloud backend + confirm + scrub). Not enabled yet.\n' >&2
-      return 3 ;;
-    claude-code)
-      printf 'zai: --claude-code needs ROUTER Phase 2 (scrubbed handoff). Not enabled yet.\n' >&2
-      return 3 ;;
   esac
 }

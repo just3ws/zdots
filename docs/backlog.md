@@ -42,7 +42,7 @@ Use `backlog config list` to verify these values.
 ### The Experimental state
 
 `Experimental` holds work that is **parked, not abandoned** — code that has been
-contained under `experiments/` (e.g. `experiments/zsynod/`, `experiments/mlx/`) and
+contained under `experiments/` (e.g. the archived `experiments/mlx/`) and
 is kept for future analysis but is not active backlog work. Moving a task to
 `Experimental` (plus the `experimental` label) takes it out of the active **To Do**
 queue and the leverage waves while keeping it on the board. Use `do-not-implement`

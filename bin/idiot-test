@@ -13,10 +13,6 @@
 # Usage:
 #   idiot-test <command...>     screen argv         (exit 0 ok · 1 warn · 2 block)
 #   echo "<cmd>" | idiot-test   screen stdin
-#   idiot-test --hook           Claude Code PreToolUse hook: read the tool JSON on
-#                               stdin, screen Bash commands, exit 2 to BLOCK on a
-#                               catastrophic pattern, 0 otherwise (never blocks
-#                               non-destructive commands).
 #   idiot-test -h | --help
 set -uo pipefail
 
@@ -94,21 +90,6 @@ _screen() {  # <cmd> <quiet?> -> exit 0/1/2
 case "${1:-}" in
   -h|--help|"") [[ "${1:-}" == "" && ! -t 0 ]] || { _usage; exit 0; } ;;
 esac
-
-if [[ "${1:-}" == "--hook" ]]; then
-  command -v jq >/dev/null 2>&1 || exit 0   # fail-open if jq missing
-  payload="$(cat)"
-  tool="$(jq -r '.tool_name // empty' <<<"$payload" 2>/dev/null)"
-  [[ "$tool" == "Bash" ]] || exit 0
-  cmd="$(jq -r '.tool_input.command // empty' <<<"$payload" 2>/dev/null)"
-  [[ -n "$cmd" ]] || exit 0
-  findings="$(_assess "$cmd")"; rc=$?
-  if (( rc == 2 )); then
-    printf 'idiot-test BLOCKED a catastrophic command (Filesystem Doctrine):\n%s\nResolve the target, echo it, and confirm with the user before retrying.\n' "$findings" >&2
-    exit 2
-  fi
-  exit 0
-fi
 
 # CLI: argv or stdin
 if [[ $# -gt 0 ]]; then

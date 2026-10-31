@@ -68,7 +68,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | Embedding server | `ZDOTS_AI_PROFILE=embed llama-ctl start` | Nomic embed-v2, port 11501 |
 | One-shot inference | `ai-query "prompt"` | Guarded LLM call with PHI scrubbing |
 | Capability doc | `llama-caps` | Full endpoint/capability/constraint doc for local stack |
-| llama MCP server | `llama-mcp` | MCP stdio server: health, config, test, snippet tools for Claude/Cursor |
+| llama MCP server | `llama-mcp` | MCP stdio server: health, config, test, snippet tools for compatible clients |
 | Context MCP server | `ctx-mcp` | MCP stdio server: query/capture knowledge base from AI agents |
 | Aider (local) | `zaider` | Aider wired to local llama.cpp — file editing + git |
 | Pi coding agent | `zpi "prompt"` | Interactive session agent (earendil pi) |
@@ -79,26 +79,11 @@ The zdots-specific stack. Every agent session should orient here first.
 | Fabric | `fabric-ai` | Expert prompt pipelines (local or cloud) |
 | AI pattern browser | `zdots-pattern` | Interactive `fzf` browser for 250+ Fabric patterns |
 | Whisper transcription | `whisper-ctl` | Local audio-to-text (whisper.cpp) |
-| Claude (platform) | `zclaude` / `--sync` / `--auto` / `--feature` | Tuned Claude Code launcher: bootstrap prompt + trio repos + split-model policy |
 
 **Security boundary:** `ai-query` and `zdots-ask` enforce `ZDOTS_AI_MODE` and route through
 `lib/ai_boundary.bash`. Use them in preference to calling `llama-server` or cloud CLIs directly
 from scripts — they apply the PHI scrubber and locality check automatically. `zdots-ask` now supports
 Expert Patterns via `--pattern <name>`.
-
----
-
-## Deliberation (zsynod)
-
-| Tool | Command | Purpose |
-|------|---------|---------|
-| Cockpit | `zsynod ui` | Full-screen forum TUI: auto-ticks, dials, herald briefings (audits seat keys at launch) |
-| Key audit | `zsynod keys` | Per-seat API key status + provisioning hints — never values |
-| Petition | `zsynod say --as <agent> [--to @m,@m] "text"` | Outside voice speaks to the forum (phi-scrubbed); prints a receipt seq |
-| Check back | `zsynod reply <seq> [--json]` | Petition state: addressed / heard / unheard |
-| Forum CLI | `zsynod status/propose/vote/…` | Bash-ledger forum verbs — `man zsynod` or `zsynod --help` |
-
-Docs: `zsynod/LIFECYCLE.md` (mechanics) · `zsynod/ZEN.md` (philosophy) · `zsynod/DECISIONS.md` (ADRs).
 
 ---
 

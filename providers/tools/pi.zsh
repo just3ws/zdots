@@ -92,12 +92,19 @@ zpi() {
   # scrubber-posture gated). Bare `zpi` is unchanged — local llama.cpp.
   local _mode="local"
   local _pi_provider_args=()
+  local _or_model=""
   if [[ "${1:-}" == "--or" ]]; then
     _mode="or"; shift
+    _or_model="${ZDOTS_OR_MODEL:-}"
+    [[ -n "$_or_model" ]] || { print -u2 "zpi --or: set ZDOTS_OR_MODEL explicitly; no default cloud model is selected."; return 2; }
+    if [[ "${_or_model:l}" == *anthropic* || "${_or_model:l}" == *claude* ]]; then
+      print -u2 "zpi --or: Anthropic models are disabled; choose a different ZDOTS_OR_MODEL."
+      return 2
+    fi
   fi
   zdots_pi_init "$_mode" || return $?
   if [[ "$_mode" == "or" ]]; then
-    _pi_provider_args=(--provider openrouter --model "${ZDOTS_OR_MODEL:-anthropic/claude-3.7-sonnet}")
+    _pi_provider_args=(--provider openrouter --model "$_or_model")
   fi
   local _pi_system_append=()
   local _pi_skill_args=()

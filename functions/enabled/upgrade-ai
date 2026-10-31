@@ -7,16 +7,7 @@
 setopt localoptions errexit pipefail
 dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
 
-# 1. Claude Code
-if brew list --cask claude-code >/dev/null 2>&1; then
-  echo "Updating Claude Code..."
-  run_cmd brew upgrade --cask claude-code 2>/dev/null || echo "  (already at latest)"
-elif command -v claude >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
-  echo "Updating Claude Code..."
-  run_cmd npm install -g @anthropic-ai/claude-code
-fi
-
-# 2. llama.cpp binary (via Homebrew)
+# 1. llama.cpp binary (via Homebrew)
 if command -v llama-server >/dev/null 2>&1; then
   echo "Updating llama.cpp..."
   run_cmd brew upgrade llama.cpp 2>/dev/null || echo "  (already at latest)"
@@ -27,7 +18,7 @@ else
   echo "llama.cpp not installed via Homebrew — skipping (run: llama-server install)"
 fi
 
-# 3. llama.cpp active model refresh
+# 2. llama.cpp active model refresh
 # Re-download the active profile's model only if a newer version is available
 # (HuggingFace doesn't version GGUFs, so we compare file sizes as a proxy).
 AI_PROFILE="${ZDOTS_AI_PROFILE:-standard}"

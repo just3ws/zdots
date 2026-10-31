@@ -347,14 +347,6 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
     fi
   done
 
-  # Check zsynod (parked experiment — lives in experiments/, not a core contract).
-  # Absence is expected, not a violation; report for visibility without failing health.
-  if [ -x "${ZDOTDIR}/bin/zsynod" ]; then
-    printf "  %-15s : %bonline%b\n" "zsynod" "$GREEN" "$RESET"
-  else
-    printf "  %-15s : %bparked (experiments)%b\n" "zsynod" "$YELLOW" "$RESET"
-  fi
-
   # Message bus route guide & schedule snapshot
   if [ -x "${ZDOTDIR}/bin/zdots-bus" ] || [ -x "${ZDOTDIR}/bin/bus" ]; then
     printf "  %-15s : %bonline%b (zdots-bus · bus · bus-schedule · %s/bus-schedule)\n" "bus schedule" "$GREEN" "$RESET" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh"

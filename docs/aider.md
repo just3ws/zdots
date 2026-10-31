@@ -1,6 +1,6 @@
 # Aider — Local AI Pair Programming
 
-Aider is a terminal-based AI pair programming tool wired to the local llama.cpp server. It provides repo-aware, interactive code editing from the shell — complementing Claude Code for tasks that don't need deep reasoning or large context windows.
+Aider is a terminal-based AI pair programming tool wired to the local llama.cpp server. It provides repo-aware, interactive code editing from the shell.
 
 ## Orientation
 
@@ -76,7 +76,7 @@ The active model (Qwen2.5-Coder-7B Q4_K_M) is capable but bounded. Match the tas
 - Long autonomous agentic loops (test → fix → rerun)
 - Anything requiring deep knowledge of external APIs not in training data
 
-For multi-file or high-reasoning work, use Claude Code. Aider with a local model is the right tool for focused, scoped edits where you don't need the master electrician.
+For multi-file or high-reasoning work, use `zpi` to explore and plan, then `zaider` for scoped edits. Keep local inference enabled for PHI-adjacent work.
 
 ## Aider modes
 

@@ -8,7 +8,7 @@
 # A macOS notification fires ONLY when health WORSENS — a new [FAIL], a new
 # [warn] (incl. pass→warn/fail), or a higher capability contract error count.
 # Improvements and steady state update the file silently. Local-only: no
-# cloud, no repair verbs — continuous detection first (cc-burn-watch pattern).
+# cloud, no repair verbs — continuous detection first.
 #
 # A second detector (Z-281) covers the test suite the same way: `run-check`
 # executes bin/check nightly (own calendar-scheduled LaunchAgent — a 7-minute

@@ -1,6 +1,11 @@
 # ADR-0003: scoped, opt-in cloud distill for public-video transcripts
 
-**Status:** Accepted
+> **Superseded 2026-10-31:** The Anthropic/Claude Code egress path described here
+> was removed. Ingest distillation and timeline extraction now use the local
+> `ai-query` path only. This ADR remains decision history; its procedures and
+> environment variables are no longer supported.
+
+**Status:** Superseded (2026-10-31)
 **Date:** 2026-06-21
 
 ## Context

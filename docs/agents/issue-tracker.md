@@ -27,7 +27,7 @@ Types: `error` (default), `request`, `friction`. Severity: `critical`, `high`, `
 
 ```bash
 zdots-ctx bus-read zdots --tag request --as mike   # see open tickets by type
-ztask start Z-NNN && zclaude                        # resume the one you want
+ztask start Z-NNN                                   # resume the one you want
 ```
 
 The bus post is best-effort (a bus outage never blocks filing) and posts as

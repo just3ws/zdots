@@ -27,7 +27,8 @@ local model. Opt-in only; bare `zpi` never touches the cloud. Gated by
 fail-closed on `phi_scrub`, key (`OPENROUTER_API_KEY`) from the Keychain only.
 `phi_scrub` cannot intercept interactive traffic — you are the last gate.
 
-Model defaults to `anthropic/claude-3.7-sonnet`; override with `ZDOTS_OR_MODEL`.
+Set `ZDOTS_OR_MODEL` explicitly before using `zpi --or`. There is no default
+cloud model, and Anthropic/Claude models are refused by this lane.
 Add the key once: `zdots-keychain add OPENROUTER_API_KEY <value>`.
 
 ## Pi vs Aider — the boundary
@@ -110,8 +111,8 @@ The `llamacpp` provider in `models.json` points at `http://127.0.0.1:11500/v1` �
 
 ## Peer Capability discovery
 
-`zdots_pi_init` sources `lib/peer-bootstrap.bash` (shared with Claude Code and
-Aider), exporting `ZDOTS_AVAILABLE`/`ADOTS_AVAILABLE` and the attested/declared
+`zdots_pi_init` sources `lib/peer-bootstrap.bash` (shared with Aider and other
+agent providers), exporting `ZDOTS_AVAILABLE`/`ADOTS_AVAILABLE` and the attested/declared
 Capability counts `ZDOTS_PEER_CAPS`/`ADOTS_PEER_CAPS` (e.g. `118/122`) into
 Pi's environment — attested means the command resolves right now, not merely
 that it is declared. The model-visible summary is the `peers:` line in the

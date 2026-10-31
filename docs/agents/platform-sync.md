@@ -3,7 +3,7 @@ name: platform-sync
 description: Review or push the FULL personal-OS platform — all four repos — with the correct git invocations for each. The platform is zdots (kernel) + adots (home-dir config, a BARE repo) + my (private, nested) + vdots (nvim). Use for "review the platform", "is everything pushed/in sync", "prepare the platform for push", or any cross-repo status/sync check.
 ---
 
-# /platform-sync — the platform is FOUR repos, checked correctly
+# Platform sync — the platform is FOUR repos, checked correctly
 
 The personal OS is a **balanced relationship: `zdots` is the kernel, `adots` is
 the configuration of the user's home directory.** "The platform" is never one

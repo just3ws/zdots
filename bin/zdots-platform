@@ -20,8 +20,8 @@ Verbs:
   fetch           git fetch origin on all four repos
   verify          compare local work tip vs remote origin/work, per repo
   push            print the push commands for repos with unpushed work
-  push --run      execute the pushes (refused inside Claude Code — the
-                  principal pushes; cc-hook-guard is the enforced boundary)
+  push --run      execute the pushes (refused when legacy Claude session
+                  markers are present; the principal pushes)
   exec <git args> run a git command across all four repos (e.g. exec log -1)
   integrate       mechanical phases of /platform-integrate: record tips,
                   fetch, lineage-continuity gate, fast-forward-only merge.
@@ -90,7 +90,7 @@ cmd_push() {
   local run=false
   [[ "${1:-}" == "--run" ]] && run=true
   if $run && [[ -n "${CLAUDECODE:-}${CLAUDE_CODE_ENTRYPOINT:-}" ]]; then
-    echo "zdots-platform: push --run refused under Claude Code — the principal pushes (cc-hook-guard boundary)." >&2
+    echo "zdots-platform: push --run refused with Claude session markers set — the principal pushes." >&2
     exit 2
   fi
   for r in "${_repos[@]}"; do

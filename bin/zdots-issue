@@ -154,7 +154,7 @@ if command -v backlog >/dev/null 2>&1; then
   fi
 
   if [[ -n "$TASK_ID" ]]; then
-    RESUME_CMD="ztask start ${TASK_ID} && zclaude"
+    RESUME_CMD="ztask start ${TASK_ID}"
 
     # Best-effort: announce on the bus so a watching session (human or agent)
     # can pick it up without polling backlog. Never blocks filing — a bus

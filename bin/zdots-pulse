@@ -19,21 +19,7 @@ def get_status():
     
     print(color("--- Zdots Platform Pulse ---", "1;36"))
     
-    # 1. Zsynod Status
-    ledger_path = zdotdir / "zsynod" / "ledger.py.jsonl"
-    if ledger_path.exists():
-        with open(ledger_path, "r") as f:
-            lines = f.readlines()
-            last_actor = "unknown"
-            if lines:
-                import json
-                last = json.loads(lines[-1])
-                last_actor = last.get("actor", "unknown")
-            print(f"{color('Zsynod:', '1')} {len(lines)} entries · last activity by {color(last_actor, '32')}")
-    else:
-        print(f"{color('Zsynod:', '1')} {color('Not initialized', '31')}")
-
-    # 2. Service Pulse
+    # 1. Service Pulse
     import subprocess
     try:
         # Check llama-ctl health (silent)
@@ -43,13 +29,13 @@ def get_status():
     except:
         print(f"{color('AI (Local):', '1')} {color('Unknown', '33')}")
 
-    # 3. Context Engine
+    # 2. Context Engine
     ctx_path = Path.home() / "my" / "context"
     if ctx_path.exists():
         notes = list(ctx_path.glob("*.md"))
         print(f"{color('Knowledge:', '1')} {len(notes)} context notes in ~/my/context/")
 
-    # 4. Next Step Guidance
+    # 3. Next Step Guidance
     print(f"\n{color('Discovery:', '1')} Run {color('agent-guide', '33')} for full connection details and man pages.")
 
 if __name__ == "__main__":

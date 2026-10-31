@@ -37,24 +37,14 @@ setup() {
   [[ "$output" == *"engine=pi"* ]]
 }
 
-@test "zai --haiku refuses until Phase 3" {
+@test "zai rejects removed cloud engine flags" {
   run zsh -c "
     export ZDOTDIR='$REPO_ROOT'
     source '$REPO_ROOT/providers/tools/router.zsh'
     ZAI_NO_CLASSIFY=1 zai --haiku 'x'
   "
-  [ "$status" -eq 3 ]
-  [[ "$output" == *"enabled yet"* ]]
-}
-
-@test "zai --claude-code refuses until Phase 2" {
-  run zsh -c "
-    export ZDOTDIR='$REPO_ROOT'
-    source '$REPO_ROOT/providers/tools/router.zsh'
-    ZAI_NO_CLASSIFY=1 zai --claude-code 'x'
-  "
-  [ "$status" -eq 3 ]
-  [[ "$output" == *"enabled yet"* ]]
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"unknown flag"* ]]
 }
 
 @test "zai rejects an unknown flag" {

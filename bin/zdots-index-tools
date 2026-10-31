@@ -39,7 +39,7 @@ FORCE=0
 INSTALL=0
 
 # Non-user-facing files in bin/ — skip entirely
-SKIP_CMDS=(commit-msg zsynod_tui bootstrap __pycache__)
+SKIP_CMDS=(commit-msg bootstrap __pycache__)
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -256,7 +256,6 @@ agent-guide           # full service usage guide for agents
 
 **Use a specific AI tool for a specific task**
 ```
-cl / cc / claude      # Claude Code — architecture, review, planning
 zaider / aider        # Aider wired to local llama.cpp — file edits, commits
 laid                  # Low-priority Aider (nice +19) — background edits
 zdots-ask             # Domain-aware local LLM prompt router

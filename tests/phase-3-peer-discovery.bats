@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# tests/phase-3-peer-discovery.bats — End-to-end tests for Claude Code / agent peer discovery
+# tests/phase-3-peer-discovery.bats — End-to-end tests for agent peer discovery
 #
 # Validates the session startup hook system that discovers and hydrates both zdots
 # and adots capabilities. Tests hook files, environment setup, cross-peer health
@@ -78,21 +78,6 @@ _parse_capability() {
   echo "$cap" | awk -F: '{print "category=" $1 " operation=" $2 " command=" $3}'
 }
 
-# ---------------------------------------------------------------------------
-# Tests: Hook File Existence
-# ---------------------------------------------------------------------------
-
-@test "Hook file: ~/.claude/hooks/session_start exists and is executable" {
-  local hook="$HOME/.claude/hooks/session_start"
-
-  [ -f "$hook" ] || skip "Claude Code hooks not initialized on this machine"
-  [ -x "$hook" ] || skip "session_start hook not executable"
-
-  # Verify it's a valid shell script
-  run bash -n "$hook"
-  [ "$status" -eq 0 ]
-}
-
 # Pi and Aider discovery runs through lib/peer-bootstrap.bash sourced by their
 # zdots launchers (zdots_pi_init / zdots_aider_init) — NOT per-tool hook files.
 # The old untracked ~/.config/{pi,aider}/hooks/session_start stubs are retired.
@@ -142,14 +127,6 @@ _parse_capability() {
   run bash "$REAL_ZDOTDIR/bin/pi-ctx-brief"
   [ "$status" -eq 0 ]
   [[ "$output" == *"peers: zdots "*/*" adots "* ]]
-}
-
-@test "Hook: session_start §5 delegates to lib/peer-bootstrap.bash" {
-  grep -q "peer-bootstrap.bash" "$REAL_ZDOTDIR/.claude/hooks/session_start"
-  # Sourced path exports the cc-home contract vars
-  run bash -c "ZDOTS_DIR='$REAL_ZDOTDIR'; source '$REAL_ZDOTDIR/.claude/hooks/session_start'; echo \"\${ZDOTS_HEALTHY?}-\${ADOTS_HEALTHY?}-\${PERSONAL_OS_READY?}-\${ZDOTS_PEER_CAPS?}\""
-  [ "$status" -eq 0 ]
-  [[ "$output" == *-*-*-*/* ]]
 }
 
 @test "Retirement: orphaned per-tool hook stubs are gone" {

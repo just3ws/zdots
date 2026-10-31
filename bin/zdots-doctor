@@ -420,23 +420,6 @@ if [[ "${ZDOTS_CONTEXT:-home}" == "work" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Deliberation (zsynod)
-# ---------------------------------------------------------------------------
-_section "Deliberation (zsynod)"
-
-if [[ -x "${BIN}/zsynod" ]]; then
-  if "${BIN}/zsynod" verify >/dev/null 2>&1; then
-    _pass "zsynod ledger  intact"
-  else
-    _fail "zsynod ledger  BROKEN or uninitialized"
-    _fix  "zsynod verify  (check for hash-chain errors)"
-    _fix  "zsynod init    (if first-time setup)"
-  fi
-else
-  _pass "zsynod  not installed (deprecated to experiments)"
-fi
-
-# ---------------------------------------------------------------------------
 # Services snapshot
 # ---------------------------------------------------------------------------
 _section "Services"
@@ -453,7 +436,7 @@ fi
 # workstation — this manifest is the doctor's definition of one (verified vs
 # ~/Library/LaunchAgents + etc/launchd/ 2026-08-01). Update on add/retire.
 _lc_expected=(llama-server llama-embed otel-collector openobserve worker statusd
-  gemstash log-rotate embed-tripwire cc-burn-watch colima-autostart)
+  gemstash log-rotate embed-tripwire colima-autostart)
 _lc_list=$(launchctl list 2>/dev/null | awk '$3 ~ /^com\.zdots\./') || true
 _lc_missing=0
 for _lc in "${_lc_expected[@]}"; do

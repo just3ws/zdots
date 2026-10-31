@@ -4,7 +4,6 @@
 # implementation, thin adapters). Replaces the per-tool hook copies that
 # drifted as untracked stubs in ~/.config/{pi,aider}/hooks/. Sourced by:
 #
-#   Claude Code — .claude/hooks/session_start §5 (sourced via cc-home)
 #   Pi          — providers/tools/pi.zsh    (zdots_pi_init)
 #   Aider       — providers/tools/aider.zsh (zdots_aider_init)
 #   pi-ctx-brief — emits the model-visible peers line for Pi

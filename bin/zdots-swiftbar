@@ -7,7 +7,7 @@
 #    decodes, pipeline runs, retention store, and interactive actions).
 # 3. Platform subsystems matrix (local AI, embeddings, message bus, worker,
 #    Colima Docker, and observability).
-# 4. Usage headline, CC burn watch, and fast diagnostic click-throughs.
+# 4. Usage headline and fast diagnostic click-throughs.
 #
 # Install:
 #   A thin shim in $HOME/.swiftbar execs this script:
@@ -312,11 +312,6 @@ if command -v "$ZDOTDIR/bin/zdots-usage" >/dev/null 2>&1; then
   top_line="$("$ZDOTDIR/bin/zdots-usage" top --top 1 2>/dev/null | sed -n 's/^ *\([0-9][0-9]*\)  *\(.*\)/top: \2 (\1x)/p' | head -1)"
   [[ -n "$top_line" ]] && echo "📊 Usage — ${top_line} | size=12"
   echo "-- full report: zdots-usage | bash=$ZDOTDIR/bin/zdots-usage param0=summary terminal=true size=11"
-fi
-burn_state="$(head -1 "$STATE_DIR/cc-burn-watch.state" 2>/dev/null)"
-if [[ -n "$burn_state" ]]; then
-  bc="green"; [[ "$burn_state" == "warn" ]] && bc="orange"; [[ "$burn_state" == "alert" ]] && bc="red"
-  echo "🔥 CC burn: ${burn_state} | color=$bc bash=$ZDOTDIR/bin/cc-burn terminal=true"
 fi
 echo "🌀 Loop velocity: dormant — first domino Z-289 | color=gray size=12"
 echo "---"
