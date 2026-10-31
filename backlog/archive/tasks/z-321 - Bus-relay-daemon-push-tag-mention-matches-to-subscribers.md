@@ -3,11 +3,13 @@ id: Z-321
 title: 'Bus relay daemon: push #tag/@mention matches to subscribers'
 status: To Do
 assignee: []
-created_date: '2026-08-25 17:37'
+created_date: 2026-08-25 17:37
+updated_date: '2026-10-31T22:33:00Z'
 labels:
   - feature
   - bus
   - agent-collaboration
+  - obsolete
 dependencies: []
 ordinal: 196895
 ---
@@ -30,3 +32,9 @@ See docs/message-bus.md 'Channel protocol, tags, mentions, message kind' section
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+PARKING NOTE (2026-10-31): Parked per operator direction. The optional busdriver coordinator is stopped, Claude Code session delivery is retired, and manual bus commands remain available. No active requirement currently justifies a persistent relay daemon. Preserve the feature proposal for possible future reconsideration.
+<!-- SECTION:NOTES:END -->

@@ -14,12 +14,11 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
      ~/.config/adots/handoffs/2026-10-31.md (local-only). Update before close.
 
   System map: docs/platform-map.md. Canonical identity maps are corrected and
-  pushed in zdots, adots, my, vdots, and the public portfolio. Tracked Claude
-  integrations are removed; utilization history remains archived on
-  /Volumes/Dock_1TB with provenance. Historical co-author attribution rewrite
-  is deferred per operator; do not rewrite Git history now.
+  pushed in zdots, adots, my, vdots, and the public portfolio. Retired provider
+  state is archived on /Volumes/Dock_1TB with provenance. Historical co-author
+  attribution rewrite is deferred per operator; do not rewrite Git history now.
 
-  zsynod is retired and has no current-tree references; Git history and its
+  The retired experiment has no current-tree references; Git history and its
   checksummed local archive remain provenance. No force-pushes were made.
 
   The durable bus and manual CLI remain. Optional busdriver is parked. Existing
@@ -30,8 +29,10 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   about 45 GiB internal free space. Colima is installed for on-demand use only.
   Current follow-up: verify live CI runs and continue open Backlog items. Keep
   local adots git/npm config edits and my's untracked databases/private vault
-  untouched. Recent cleanup commits: 708ad9d (retire stale narratives),
-  944b83dc (bus and localhost map), 6a9be7f7 (system map/zsynod retirement).
+  untouched. Recent cleanup commits: f8078deb (retire stale provider guidance),
+  d8e3d8a0 (close stale backlog and fix patch-export path),
+  0663c1fb (map recording and media workflow), 794fdd6 (remove retired
+  home instructions). Earlier milestones are in Git history and the handoff.
 -->
 
 

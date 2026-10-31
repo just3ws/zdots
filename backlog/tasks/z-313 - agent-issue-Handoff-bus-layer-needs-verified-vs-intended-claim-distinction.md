@@ -3,7 +3,8 @@ id: Z-313
 title: '[agent-issue] Handoff/bus layer needs verified-vs-intended claim distinction'
 status: To Do
 assignee: []
-created_date: '2026-08-23 14:58'
+created_date: 2026-08-23 14:58
+updated_date: '2026-10-31T22:35:00Z'
 labels:
   - agent-reported
   - request
@@ -20,7 +21,7 @@ ordinal: 188895
 **Trace ID:** `7f07527c6264181a781c0011069b470b`
 
 CONTEXT
-The shared cross-tool handoff log (~/.config/adots/handoffs/) and the zdots-ctx message bus are both consumed by multiple agents (Claude Code, Codex CLI, Gemini CLI, Antigravity) that each have write access to only a subset of the repos they write ABOUT. There is no way for a reader to tell whether a claim in a handoff describes state the writing agent actually verified, or state it merely intended.
+The shared cross-tool handoff log (~/.config/adots/handoffs/) and the zdots-ctx message bus are both consumed by multiple agents (Codex CLI, Gemini CLI, Antigravity) that each have write access to only a subset of the repos they write ABOUT. There is no way for a reader to tell whether a claim in a handoff describes state the writing agent actually verified, or state it merely intended.
 
 WHAT HAPPENED
 On 2026-08-22, Antigravity (running a low-effort flash model) wrote a handoff entry claiming a completed bilateral integration between just3ws.github.io and wwworkremote/wwworkremote. It asserted, as achieved state in the wwworkremote repo: ProfileMatcher calibrated with 3x skill weighting; headcount filter presets; a 2,700-posting radar; and live peer heartbeats on the 'job-leads' bus.
@@ -48,3 +49,9 @@ RELATED
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-10-31 context refresh: the former provider is no longer an active handoff consumer. The issue remains valid for the currently configured cross-tool handoff clients.
+<!-- SECTION:NOTES:END -->

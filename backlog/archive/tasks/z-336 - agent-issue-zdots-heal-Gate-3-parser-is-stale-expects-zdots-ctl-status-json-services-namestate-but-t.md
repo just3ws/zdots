@@ -5,10 +5,12 @@ title: >-
   --json '{services:[{name,state}]}' but t
 status: To Do
 assignee: []
-created_date: '2026-09-02 17:24'
+created_date: 2026-09-02 17:24
+updated_date: '2026-10-31T22:33:00Z'
 labels:
   - agent-reported
   - error
+  - obsolete
 dependencies: []
 priority: medium
 ordinal: 211895
@@ -27,3 +29,9 @@ zdots-heal Gate 3 parser is stale: expects zdots-ctl status --json '{services:[{
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+SUPERSESSION NOTE (2026-10-31): Archived as obsolete because the reported Gate 3 parser lives in the retired Claude command file, which is no longer part of the active tool surface. Preserve the original report for provenance; no status-schema workaround was added.
+<!-- SECTION:NOTES:END -->

@@ -1,12 +1,10 @@
 ---
 id: Z-275
-title: >-
-  rtk adoption: extend cc-hook rewrite to flagged simple commands; native
-  handlers for top proxy targets
+title: Evaluate RTK proxy gaps from current usage
 status: To Do
 assignee: []
-created_date: '2026-08-01 09:57'
-updated_date: '2026-08-02 17:20'
+created_date: 2026-08-01 09:57
+updated_date: '2026-10-31T22:34:00Z'
 labels:
   - enhancement
   - audit-filed
@@ -18,20 +16,27 @@ ordinal: 151895
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Measured 2026-08-01: rtk adoption inside CC sessions is 5.2% — ~405K tokens/30d of already-supported command shapes bypass the hook because the rewrite only covers unflagged simple commands. Separately, 1,253 segments route through rtk proxy (0% savings) where native handlers could exist.
-
-Fix: (1) extend cc-hook rewrite rules to flagged single-binary invocations: git -C, grep -n/-rn/-c/-nE, ls -la, head -N, rg -n, sed -n, curl -s*; (2) run rtk discover against the proxy-target histogram and extend native grep/sed/curl matchers to the observed flag shapes. Each recovered grep ≈ 25.7% avg savings. (2026-08-01 system audit, usage — measured)
+The 2026-08-02 usage review corrected the adoption estimate: RTK hook integrations already provided 96.2% aggregate savings over 39k commands. Remaining candidates were unsupported git subcommands and user habits that fall through to rtk proxy. This is a provider-independent tooling review; the old Claude Code hook framing no longer applies. Recheck current RTK version and usage before proposing local changes or upstream requests.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Refresh the RTK proxy usage summary for a configurable recent window without exposing raw command strings.
+- [ ] #2 Compare frequent proxy patterns with current RTK native handlers and recommend only evidence-backed local or upstream work.
+<!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
 - [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
+- [ ] #4 Use a privacy-preserving configurable history window; do not publish raw command strings.
 <!-- DOD:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
 ADOPTION STORY CORRECTED (2026-08-02): rtk gain reports 96.2% aggregate savings over 39k commands — the hook path does the heavy lifting (rtk grep 7,719 calls / 1.0GB tokens saved; rtk read 4,003 / 505MB). The earlier 5.2% figure measured explicit interactive rtk usage only. Remaining real gaps: rtk proxy git (411) = hook fallback for git subcommands without native handlers (upstream handler wishlist), and agent-habit rtk proxy rg — now obsolete since the 'mangling' was the rg -r flag error (Z-285). Re-scope this task to: file the git-subcommand handler wishlist upstream; drop the adoption-drive framing.
+
+2026-10-31 scope correction: Claude-specific hook language removed. Keep this as a low-priority usage-backed review; no local matcher changes are authorized by the old report alone.
 <!-- SECTION:NOTES:END -->

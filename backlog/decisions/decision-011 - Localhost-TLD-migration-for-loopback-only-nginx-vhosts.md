@@ -108,8 +108,8 @@ Every edit in this migration was scoped past that string.
   now documented as intentional per this decision rather than the only
   option).
 - **Cert regeneration and `/etc/hosts`/nginx reload are operator-only steps**
-  (`cc-hook-guard` blocks Claude Code from touching nginx or certs on this
-  PHI-adjacent machine) — see the runbook below.
+  because they require an explicit sudo boundary on this PHI-adjacent machine —
+  see the runbook below.
 - **Test suite**: `tests/platform_e2e.bats` had two hardcoded `llama.local`
   assertions, updated to `llama.localhost`; full suite re-run confirmed zero
   regressions beyond the pre-existing baseline failure set.
@@ -120,7 +120,7 @@ Every edit in this migration was scoped past that string.
   `my.localhost` config if bootstrap ever runs again on this machine
   (`zdots-issue` filed).
 
-## Operator runbook (cc-hook-guard boundary — not automatable from Claude Code)
+## Operator runbook (sudo boundary — perform with operator supervision)
 
 ```bash
 # 1. Regenerate the cert with the new SANs (keep every existing name — union,

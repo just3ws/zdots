@@ -77,11 +77,12 @@ bundle_root/
 └── <subdir>/ …
 ```
 
-## Reference bundle: the Claude memory store (pilot finding)
+## Historical reference bundle: agent memory store pilot
 
-The agent's memory store (`~/.claude/projects/.../memory/`) was the v1 pilot. The
-empirical finding redefined the binding: **the Claude Code harness owns this
-bundle's frontmatter shape.** Writes through the memory path are normalized to
+The Claude Code agent memory store (`~/.claude/projects/.../memory/`) was the v1
+pilot and was archived with the retired provider state on 2026-10-31. The
+empirical finding redefined the binding: **that harness owned the bundle's
+frontmatter shape.** Writes through the memory path were normalized to
 `name` / `description` / `metadata.{node_type, type, title, timestamp,
 originSessionId}` — any top-level key other than `name`/`description` is relocated
 under `metadata`. A literal top-level-`type` rewrite does not survive.

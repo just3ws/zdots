@@ -9,7 +9,7 @@ status: proposed
 The command surface has **88 binaries, 33 of them `zdots-*`**. Those hyphens are a
 *fake namespace*: `zdots-ctl`, `zdots-ctx`, `zdots-doctor`, `zdots-status`,
 `zdots-config`, `zdots-logs` all read as `zdots <noun>`, but **no bare `zdots`
-dispatcher exists**. CLAUDE.md and AGENTS.md already document `zdots doctor` and
+dispatcher exists**. AGENTS.md already documents `zdots doctor` and
 `zdots-ctl status` as if the grammar were real — the docs describe a DSL the
 binaries have not grown into. That gap is the felt incoherence: too many entry
 points, insufficiently composable, gaps and burrs in the syntax.
@@ -63,7 +63,7 @@ the docs stop lying.
   snapshot (archived doc-003): the
   substrate the 33 `zdots-*` binaries converge into. The graph can finally surface
   "complete the CLI syntax" as the foundation it always was.
-- **Docs must be reconciled to the grammar** (CLAUDE.md, AGENTS.md): every command
+- **Docs must be reconciled to the grammar** (AGENTS.md): every command
   example becomes a real, dispatchable invocation — no fictional `zdots doctor`.
 - **The AI-surface collapse** (`zdots ai <query|ask|chat>`) and the alias policy
   are follow-on design under this contract, not settled here.

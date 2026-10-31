@@ -5,13 +5,15 @@ title: >-
   infrastructure
 status: To Do
 assignee: []
-created_date: '2026-07-01 13:27'
+created_date: 2026-07-01 13:27
+updated_date: '2026-10-31T22:33:00Z'
 labels:
   - research
   - agent-ready
+  - obsolete
 dependencies: []
 references:
-  - 'https://fragua.app/en'
+  - https://fragua.app/en
 priority: medium
 ordinal: 82890
 ---
@@ -59,3 +61,9 @@ Evaluation/research task — no implementation. Do not change context-engine or 
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+PARKING NOTE (2026-10-31): Archived as speculative research. The proposal was framed around Claude Code orchestration and ccusage, both retired from this platform. The user is reducing speculative surfaces and has not requested an agent-orchestration product; reopen only with a concrete use case and provider-neutral scope.
+<!-- SECTION:NOTES:END -->
