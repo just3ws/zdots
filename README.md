@@ -36,8 +36,8 @@ Zdots is built on a "Deepened" architectural philosophy: a small number of seman
 |---|---|---|
 | **Local AI Runtime** | Local inference via **llama.cpp** and transcription via **whisper.cpp**. | `llama-ctl`, `whisper-ctl` |
 | **Shell Brain** | Structured PostgreSQL storage for methodologies and lessons. | `zdots-ctx`, `ctx-mcp` |
-| **System Observability** | Every shell command emits an OTel span to **OpenObserve** (native, logs/metrics/traces). | `bin/otel-collector`, `bin/openobserve-ctl`, `env.sh` |
-| **Declarative Lifecycle** | Services define specs; a unified engine handles registration. | `lib/lifecycle.bash` |
+| **System Observability** | Shell-command telemetry flows through OTel; suppression and redaction rules apply. | `conf.d/56-cmd-analytics.zsh`, `bin/otel-collector`, `bin/openobserve-ctl` |
+| **Declarative Lifecycle** | Shared lifecycle primitives support service management; deeper orchestration is tracked in the Backlog. | `lib/lifecycle.bash`, Z-045, Z-047 |
 | **Sentient Workbench** | Task-driven orchestration, trace propagation, and UX awareness. | `ztask`, `gemini-invoke` |
 | **Semantic Config** | Centralized Registry resolves derived endpoints from YAML. | `lib/metadata.bash` |
 | **Asset Management** | Unified store for downloading and caching AI model assets. | `lib/model-store.bash` |
@@ -48,7 +48,7 @@ Zdots is built on a "Deepened" architectural philosophy: a small number of seman
 
 Traditional shell configs are **shallow**: a bug in one service's management logic must be fixed everywhere. Zdots is **deep**:
 
-1.  **Opaque Service Seams**: The orchestrator (`zdots-ctl`) interacts with services (AI, OTel, OpenObserve) only through their CLI grammar. You can swap a background process for a Docker container without changing the orchestrator.
+1.  **Opaque Service Seams**: `zdots-ctl` coordinates services through their CLI grammar. A uniform Colima Docker/Compose adapter is still open work (Z-045), followed by orchestration deepening (Z-047).
 2.  **Locality of Logic**: `launchd` plist generation, HuggingFace model downloads, and endpoint construction are concentrated in core libraries.
 3.  **High-Signal Validation**: Includes a Bats suite and `secret-scan` to check platform integrity.
 
@@ -114,8 +114,8 @@ sequenceDiagram
     O2->>O2: Correlate Logs + Traces
 ```
 
-### Unified Service Lifecycle
-A shared engine (`lib/lifecycle.bash`) provides a consistent grammar across all service types.
+### Shared Service Lifecycle
+Shared lifecycle helpers (`lib/lifecycle.bash`) provide common primitives. Colima Docker/Compose integration and further orchestrator simplification remain open in Z-045 and Z-047.
 
 ```mermaid
 graph LR
