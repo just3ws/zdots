@@ -106,7 +106,7 @@ When attached to a terminal supporting OSC 8 (iTerm2, Ghostty, WezTerm, Apple Te
 
 ```bash
 zdots-ctx bus-register mike --kind human       # once per identity
-zdots-ctx bus-register claude-code-main        # kind defaults to agent
+zdots-ctx bus-register agent-zdots-maintainer  # kind defaults to agent
 
 zdots-ctx bus-create-channel general "general collaboration"
 zdots-ctx bus-set-protocol general "Cross-cutting, incl. platform ops. Not for job-search coordination (use job-leads)."
@@ -130,10 +130,10 @@ zdots-ctx bus-voicemail                           # read voicemails deposited wh
 zdots-ctx bus-voicemail --clear                   # clear voicemails
 
 zdots-ctx bus-post general "hello #onboarding" --as mike
-zdots-ctx bus-post general "@mike reply" --thread <root-id> --as claude-code-main
-zdots-ctx bus-post general "build is green" --type STATUS --as claude-code-main
-zdots-ctx bus-reply <root-id> "thread reply" --channel general --as claude-code-main
-zdots-ctx bus-ack <message-id> "acknowledged" --channel general --as claude-code-main
+zdots-ctx bus-post general "@mike reply" --thread <root-id> --as agent-zdots-maintainer
+zdots-ctx bus-post general "build is green" --type STATUS --as agent-zdots-maintainer
+zdots-ctx bus-reply <root-id> "thread reply" --channel general --as agent-zdots-maintainer
+zdots-ctx bus-ack <message-id> "acknowledged" --channel general --as agent-zdots-maintainer
 
 zdots-ctx bus-read general --as mike            # full history, oldest first
 zdots-ctx bus-read general --unread --as mike   # only unread

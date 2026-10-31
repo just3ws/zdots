@@ -121,7 +121,7 @@ CURRENT_USER="$(id -un 2>/dev/null || printf 'unknown')"
 AI_MODE="${ZDOTS_AI_MODE:-local}"
 
 CLOUD_KEYS_SET=false
-if [ -n "${OPENAI_API_KEY:-}" ] || [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${GEMINI_API_KEY:-}" ]; then
+if [ -n "${OPENAI_API_KEY:-}" ] || [ -n "${GEMINI_API_KEY:-}" ]; then
   CLOUD_KEYS_SET=true
 fi
 

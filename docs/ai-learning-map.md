@@ -29,7 +29,6 @@ Each section maps a specific gap to the 2-3 most useful resources to go deeper.
 **Resources**:
 - [Qwen3 Technical Report](https://arxiv.org/abs/2505.09388) — Section 4 covers the hybrid thinking/non-thinking architecture. Explains when thinking helps (math, multi-step reasoning) vs hurts (direct lookup, speed-critical queries).
 - [Qwen3 Blog Post](https://qwenlm.github.io/blog/qwen3/) — practical guidance on `enable_thinking` API parameter and the `/think` token. Key insight: `/no_think` at start of user turn suppresses thinking; `/think` enables it mid-conversation.
-- Anthropic Extended Thinking docs (for Claude) — different implementation but same conceptual tradeoffs apply. Useful mental model for when to budget reasoning tokens.
 
 **Usage in zdots**:
 ```bash

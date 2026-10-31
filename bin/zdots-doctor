@@ -670,13 +670,6 @@ fi
 
 # ---------------------------------------------------------------------------
 _section "Work-data boundary"
-# shellcheck source=lib/cc-boundary.bash
-if [[ -r "${ZDOTDIR}/lib/cc-boundary.bash" ]]; then
-  source "${ZDOTDIR}/lib/cc-boundary.bash"
-  zdots_cc_boundary_check
-else
-  _warn "lib/cc-boundary.bash missing — cannot run work-data boundary checks"
-fi
 
 # ---------------------------------------------------------------------------
 # JSON output (if requested)

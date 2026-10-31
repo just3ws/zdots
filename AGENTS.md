@@ -203,7 +203,10 @@ Do **not** set `DATABASE_URL` — it has no owner in this stack and causes confu
 
 ## 8. AI Stack
 
-All AI runs locally by default (`ZDOTS_AI_MODE=local`). No cloud API keys are configured until explicitly added to `.zdots.secrets`.
+Local inference is the default (`ZDOTS_AI_MODE=local`). Cloud calls are opt-in
+through the explicit Pi and Aider lanes documented in `PI.md` and `AIDER.md`;
+their credentials come from Keychain. Interactive cloud prompts are not
+scrubbed, so never include PHI, secrets, or credentials.
 
 | Tool | Purpose | Invocation |
 |---|---|---|
@@ -252,9 +255,7 @@ commits, PRs, and conversations.
 | **Virtuous Loop** | feedback loop, cycle, learning loop | Specific pattern: Work → Capture → Curate → Infer → Repeat |
 | **Workflow** | pipeline, job, script, task | Declarative, composable, observable (not imperative shell script) |
 | **Alert** | alert rule, notification, trigger | Specific: condition-based, with actions and thresholds |
-| **Actor** | user, agent, principal, client | In access control context; includes humans, agents, services |
-| **Access Control** | permissions, ACL, auth, RBAC | Specific system: roles + actor + allow/deny rules |
-| **Capability** | feature, service, function, operation | Discoverable, attestable facility (does-ai-inference) |
+| **Capability** | feature, service, function, operation | Discoverable facility with live availability evidence |
 
 **Why Vocabulary Matters:**
 

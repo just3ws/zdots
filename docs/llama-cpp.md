@@ -271,7 +271,7 @@ Three tools expose everything a service or AI needs to integrate:
 ```sh
 llama-caps              # terminal capability report
 llama-caps --json       # machine-readable capability document
-llama-caps --md         # markdown — paste to Gemini, ChatGPT, or Claude web
+llama-caps --md         # markdown — paste into an AI session
 llama-caps --md | pbcopy
 ```
 

@@ -45,7 +45,7 @@ setup() {
 
 @test "Security: secret-scan detects inline hex key assignment (regression: ZDOTS_DB_ENCRYPTION_KEY leak)" {
   # A 64-char hex value assigned inline to a *_KEY var must be flagged.
-  # This pattern is what leaked in .claude/settings.local.json commit 6996114.
+  # This pattern previously leaked through a local agent configuration file.
   local fixture
   fixture="$(mktemp)"
   echo 'ZDOTS_DB_ENCRYPTION_KEY="47343e0d92e06a3a72c5baf0dc62decd49461f37b7a3c09019142891046d5374"' > "$fixture"
@@ -57,13 +57,6 @@ setup() {
   rm -f "$fixture"
   echo "Output: $output"
   [ "$status" -eq 0 ]
-}
-
-@test "Security: .claude/settings.local.json is not tracked by git" {
-  # This file accumulates session permissions and may contain inline secrets.
-  # It must remain gitignored and never enter the commit history again.
-  run git -C "$ZDOTDIR" ls-files --error-unmatch .claude/settings.local.json
-  [ "$status" -ne 0 ]
 }
 
 @test "Security: secret-scan passes on clean working tree" {

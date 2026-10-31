@@ -105,7 +105,7 @@ The dashboards (`my.localhost`, `zdots.localhost`) and shell bind these tokens:
 
 ## 3. Terminal ANSI (0–15)
 
-Used by the iTerm2 preset, ghostty theme, and (transitively) `dark-ansi` in Claude Code.
+Used by the iTerm2 preset and Ghostty theme.
 
 | # | Role | Hex | | # | Role | Hex |
 |---|---|---|---|---|---|---|
@@ -134,7 +134,6 @@ Reference this when adding a surface or auditing coverage.
 | fzf | `fzfrc` | `--color` opts |
 | prompt | `assets/kanagawa-wave/p10k-overrides.zsh` | ANSI palette indices |
 | iTerm2 | `assets/kanagawa-wave/Kanagawa-Wave.itermcolors` | color preset (import) |
-| Legacy Claude Code | `~/.claude/settings.json` | Retained as historical compatibility reference |
 | nvim | vdots `kanagawa.nvim` | `colors.theme.wave.ui.bg=#1A1B2F` |
 | bat | `assets/kanagawa-wave/Kanagawa-Wave.tmTheme` | `bat --theme` |
 | ghostty | `assets/kanagawa-wave/ghostty-kanagawa-wave` | `theme =` |

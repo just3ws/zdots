@@ -10,6 +10,24 @@ set -euo pipefail
 trap '' PIPE
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+
+usage() {
+  cat <<'EOF'
+Usage: gemini-invoke [command [args...]]
+
+Run an AI CLI command inside a zdots OpenTelemetry session span. The default
+command is gemini. Platform context hydration is attempted when zdots-ctx is
+available; the wrapped command and its arguments are passed through unchanged.
+
+Options:
+  -h, --help  Show this help
+EOF
+}
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+esac
+
 # shellcheck source=lib/svc-health.bash
 source "${ZDOTDIR}/lib/svc-health.bash"
 

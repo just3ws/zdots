@@ -246,7 +246,7 @@ Use a special committee when the forum needs a durable working group around a fo
 ```bash
 zsynod --as mike committee ai-collab \
   --purpose "Improve collaboration between AI integrations" \
-  --participants claude,gemini,codex,antigravity
+  --participants mike,zdots-maintainer,media-pipeline-editor
 
 zsynod committees
 zsynod turn --session ai-collab --json

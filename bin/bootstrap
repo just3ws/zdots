@@ -362,7 +362,7 @@ _bootstrap_phase "ai boundary: local model policy and endpoint probe"
 #   - ZDOTS_AI_ENDPOINT defaults to http://127.0.0.1:11500 (this machine)
 #   - To use a more powerful machine on your LAN, set in .zdots.local:
 #       ZDOTS_AI_ENDPOINT=http://powerstation.local:11500
-#   - No OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY are set
+#   - No cloud API keys are set
 #   - Cloud API keys go in .zdots.secrets ONLY — never in this repo
 #
 # Local AI stack: llama.cpp (inference) + zdots-ctx (knowledge base)

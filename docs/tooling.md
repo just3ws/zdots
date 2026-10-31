@@ -58,6 +58,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | Ruby audit suite | `ruby-audit <dir>` | Modern metric_fu: security, quality, complexity metrics + health score |
 | Ruby metrics history | `zmetrics <slug>` | Visualize health score and metric trends over time |
 | Ruby audit comparison | `ruby-audit-diff <slug>` | Compare the latest two audit runs for a project |
+| Local code graph | `graphify query "<question>" --budget N` | Traverse an existing local `graphify-out/graph.json`; no model call is needed |
 | Ruby repo cloner | `zdots-ruby-clone <url>` | Organize repos into `~/github.com/org/repo` structure |
 | Ruby batch audit | `ruby-audit-batch` | Batch clone and audit a predefined set of repositories |
 | GitHub insights | `zdots-gh run/insights/status <owner>` | Harvest GitHub → DuckDB; DORA/DevEx + forensic process reports into the brain ([docs](zdots-gh.md)) |

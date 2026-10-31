@@ -311,7 +311,7 @@ Full policy: `backlog/docs/doc-002 - PHI-Safety-Policy.md`
 `ZDOTS_AI_MODE=local` is the default set in `.zdots.env`. It means:
 
 - `ai-query`, `zaider` (Aider), and `zdots-ctx` all send inference to `ZDOTS_AI_ENDPOINT` only
-- No `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY` are set
+- Cloud inference is opt-in; the default local path does not require provider keys
 - No data leaves the machine (or your LAN) to reach a cloud provider
 
 ### Local stack for analysis and automation
@@ -379,17 +379,12 @@ ZDOTS_AI_ENDPOINT=http://powerstation.local:11500
 
 `ai-query`, `zaider`, and `zdots-ctx` all read this single variable — no other config needed.
 
-### Enabling cloud AI (after security setup)
+### Optional cloud inference lanes
 
-1. Store API keys in macOS Keychain:
-   ```bash
-   zdots-keychain add OPENAI_API_KEY sk-...
-   zdots-keychain add ANTHROPIC_API_KEY sk-ant-...
-   ```
-2. Set `ZDOTS_AI_MODE=cloud` in `.zdots.local`
-3. Restart your shell
-
-Cloud keys live in the Keychain only — never in `.zdots.secrets`, `.zdots.local`, `.zdots.env`, or any tracked file. `env.sh` loads them automatically via `zdots_keychain_load` on every shell start.
+Cloud inference is not the default. Use only the explicit lanes documented in
+[AIDER.md](AIDER.md) (`zaider --hf`) and [PI.md](PI.md) (`zpi --or`). They
+load credentials from Keychain and require a deliberate invocation. Do not
+put PHI, secrets, or credentials into an interactive cloud prompt.
 
 ## fabric-ai (Pattern-based Intelligence)
 
@@ -463,29 +458,8 @@ work machine:  .zdots.local  →  ZDOTS_CONTEXT=work, corporate proxy, work emai
 
 No context or identity leaks between machines — config is gitignored.
 
-### Git workflow: fix-forward on work, push from home
+### Cross-machine Git workflow
 
-The two machines are **not** symmetric for `git push`.
-
-| Machine | `git pull` | `git commit` | `git push` |
-|---------|-----------|--------------|------------|
-| **home** (`ZDOTS_CONTEXT=home`) | ✅ | ✅ | ✅ |
-| **work** (`ZDOTS_CONTEXT=work`) | ✅ | ✅ (fix-forward) | ⛔ blocked by `cc-hook-guard` |
-
-On the work machine, Claude Code is **fix-forward**: make focused, limited changes
-to get zdots running locally and **commit** them, but **do not push**. The
-`cc-hook-guard` PreToolUse hook blocks `git push` when `ZDOTS_CONTEXT=work` (exit 2).
-The **principal alone pushes to the zdots repo** — this keeps the work effort and
-expense of standing zdots up on the corporate box constrained to local fix-forward,
-and keeps integration back into the shared repo as a single deliberate act.
-
-Flow for a work-machine fix:
-1. Work: pull, make the focused change, `git commit`.
-2. Bring it home: `git push` from a normal terminal on the work box yourself, **or**
-   carry the commit home (`git format-patch` / cherry-pick / a pull from work) and
-   push from home.
-3. Home pushes freely — `cc-hook-guard` only gates push on work.
-
-This is a perimeter/entanglement constraint, not a leak control (sessions inside the
-zdots dir are trusted). It is enforced in-repo and account-agnostic; see
-`bin/cc-hook-guard` and `lib/cc-context.bash`.
+Use `zdots-platform` and [docs/agents/platform-sync.md](docs/agents/platform-sync.md)
+to review platform repository state. Pushes are explicit external operations;
+review each repository and its destination before publishing.

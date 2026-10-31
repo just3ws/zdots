@@ -163,7 +163,7 @@ end
 # --- docs (markdown) --------------------------------------------------------
 
 def doc_files
-  # All root-level docs (AGENTS, CLAUDE, CONTEXT, PI, AIDER, README, …) plus the
+  # All root-level docs (AGENTS, CONTEXT, PI, AIDER, README, …) plus the
   # docs/ tree. Root glob keeps every top-level doc browsable and cross-linkable.
   (Dir["#{ZDOTS}/*.md"] + Dir["#{ZDOTS}/docs/**/*.md"]).select { |p| File.file?(p) }.uniq
 end

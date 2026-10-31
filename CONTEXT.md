@@ -215,23 +215,14 @@ steps:
 
 ## Configuration
 
-The set of all zdots settings, environment variables, service descriptors, and schema versions. Currently scattered across multiple file formats (bash `.zdots.local`, JSON `.claude/settings.json`, YAML `etc/phi-patterns.yaml`, SQL migrations, plist files).
+Machine and platform settings live at their owning seams: `.zdots.env` provides
+portable defaults, `.zdots.local` holds machine-local overrides,
+`etc/phi-patterns.yaml` is the PHI Pattern Registry, the service registry owns
+service metadata, and Keychain owns credentials. LaunchAgent files are
+rendered by service controllers. There is no universal configuration DSL.
 
-**Properties:**
-- **Source of truth** — single config DSL (not yet implemented; see Speculative DSL)
-- **Validation** — schema-based (JSON Schema or similar)
-- **Versioning** — explicit version markers for migrations
-- **Scope** — machine-local (work vs. home profiles) or global
-
-**Current state:** Scattered. `ZDOTDIR/.zdots.local` for shell, `ZDOTDIR/.claude/settings.json` for Claude Code, etc.
-
-**Ideal interface (speculative):**
-```
-zdots config get AI_MODE
-zdots config set AI_MODE local
-zdots config validate
-zdots config apply --from template.yaml
-```
+Keep one source per setting. Generate derived views where practical; add a new
+configuration layer only when a real machine-specific variation requires it.
 
 ---
 
@@ -256,77 +247,11 @@ zdots job watch <id>
 
 ---
 
-## Alert
-
-A condition-based notification and remediation rule. Currently not implemented; speculative.
-
-**Properties:**
-- **Name** — identifier (e.g., `llama_unhealthy`)
-- **Condition** — predicate on service state (e.g., `service.health != healthy`)
-- **Threshold** — duration before alert fires (e.g., `1m`)
-- **Severity** — critical, high, medium, low
-- **Actions** — notify, auto-remediate, escalate (e.g., restart service, ask council)
-
-**Interface (speculative):**
-```
-zdots alert list
-zdots alert silence <alert> --for 1h
-zdots alert status <alert>
-```
-
----
-
-## Actor
-
-A named principal (human, agent, or service) with a role and permissions. Currently all-or-nothing (full access or none); speculative for multi-agent safety.
-
-**Properties:**
-- **Name** — identifier (e.g., `pi-agent`, `deploy-bot`)
-- **Role** — classification (researcher, deployer, auditor)
-- **Permissions** — allow/deny list of commands (e.g., `zdots-ctx query`, `deny: zdots-ctx migrate`)
-
-**Interface (speculative):**
-```
-zdots actor add <name> --role <role>
-zdots actor check permission <actor> "<command>"
-zdots audit --actor <actor> --last 1h
-```
-
----
-
-## Environment
-
-An isolated, copyable zdots state for testing or multi-workstation setup. Currently single-machine only; speculative.
-
-**Properties:**
-- **Name** — identifier (e.g., `production`, `staging`, `test`)
-- **State** — complete copy of config, services, and schema (copyable/reproducible)
-- **Isolation** — services in one environment don't interfere with another
-
-**Interface (speculative):**
-```
-zdots env new <name>
-zdots env activate <name>
-zdots env copy <src> <dst>
-zdots env delete <name>
-ZDOTS_ENV=test-env zsvc start llama  # Run in specific env
-```
-
----
-
 ## Capability
 
-An advertised operation or facility that zdots provides. Currently implicit; speculative for programmatic discovery.
+A discoverable, attestable operation or facility that the platform currently
+provides. `capabilities --json` is the machine-readable discovery surface.
 
-**Properties:**
-- **Name** — identifier (e.g., `does-ai-inference`, `has-embeddings`)
-- **Type** — operation (verb), check (predicate), or resource
-- **Requires** — dependencies (e.g., `llama-service`)
-- **Attestation** — proof that the capability is available (health check, feature flag)
-
-**Interface (speculative):**
-```
-zdots capability list
-zdots capability check "does-ai-inference"
-zdots capability query "service:llama"
-```
+A capability has a stable name, dependencies, and evidence that it is
+available; capability claims must reflect the live environment, not documentation
+intent.

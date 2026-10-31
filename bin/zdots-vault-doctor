@@ -79,7 +79,7 @@ OVERSIZED_WORDS = 4000
 WEIGHTS = { stale: 20, broken_link: 15, unverified: 5, thin: 10, oversized: 8, orphan: 12 }.freeze
 CAPS    = { broken_link: 45, unverified: 20 }.freeze
 BANDS   = [[50, "address"], [25, "review"], [10, "watch"], [0, "ok"]].freeze
-INDEX_LIKE = %w[README AGENTS CLAUDE INDEX CONTEXT].freeze
+INDEX_LIKE = %w[README AGENTS INDEX CONTEXT].freeze
 
 def band_for(score)
   BANDS.find { |min, _| score >= min }[1]

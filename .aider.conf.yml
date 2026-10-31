@@ -15,8 +15,7 @@ model: openai/local
 weak-model: openai/local
 
 # Baseline context — loaded every session so Aider starts with full project awareness.
-# Mirrors the context that Claude Code and Gemini load automatically via their respective
-# CLAUDE.md / GEMINI.md conventions.
+# Reads the shared repository contract and Aider-specific delta.
 read:
   - AGENTS.md
   - AIDER.md

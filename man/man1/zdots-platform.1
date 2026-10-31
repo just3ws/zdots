@@ -12,8 +12,7 @@ Verbs:
   fetch           git fetch origin on all four repos
   verify          compare local work tip vs remote origin/work, per repo
   push            print the push commands for repos with unpushed work
-  push --run      execute the pushes (refused inside Claude Code — the
-                  principal pushes; cc-hook-guard is the enforced boundary)
+  push --run      execute the pushes (explicit external Git operation)
   exec <git args> run a git command across all four repos (e.g. exec log -1)
   -h, --help      this help
 
