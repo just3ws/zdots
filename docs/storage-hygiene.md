@@ -24,6 +24,25 @@ re-transcription and media recovery. Age alone does not make an item disposable.
 `zdots-hygiene` must never delete from this tree. Review it through the ingest
 workflow and remove an item only after verifying another durable copy exists.
 
+## Service logs
+
+The `com.zdots.log-rotate` LaunchAgent rotates service logs daily at 03:15.
+`log-rotate` compresses each log, truncates the active file in place (no service
+restart), and prunes compressed rotations older than 30 days. Daily rotation
+keeps high-volume OpenObserve logs from growing beyond the doctor's 100 MB
+warning between weekly runs.
+
+Inspect or rotate a service log manually when needed:
+
+```sh
+log-rotate openobserve --dry-run  # preview; exits 1 by contract
+log-rotate openobserve            # preserve compressed archive, truncate active log
+```
+
+Use `zdots-storage` to monitor the combined Logs/Diags bucket. Do not delete
+active logs or compressed archives by hand; the rotation command owns their
+retention.
+
 ---
 
 ## Docker / Colima

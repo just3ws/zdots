@@ -10,11 +10,9 @@
         <string>-c</string>
         <string>log-rotate otel-collector; log-rotate openobserve; log-rotate llama-server; log-rotate llama-embed; log-rotate gemstash; log-rotate worker; log-rotate bus-coordinator; log-rotate index-tools; log-rotate jaeger; log-rotate statusd</string>
     </array>
-    <!-- Weekly: Sunday 03:15 — after index-tools (03:00) to avoid I/O contention -->
+    <!-- Daily: cap high-volume service logs before the recording day. -->
     <key>StartCalendarInterval</key>
     <dict>
-        <key>Weekday</key>
-        <integer>0</integer>
         <key>Hour</key>
         <integer>3</integer>
         <key>Minute</key>
