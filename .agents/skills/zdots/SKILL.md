@@ -16,8 +16,7 @@ Read `AGENTS.md` first. This skill adds operational detail for common tasks.
 |-------|------|
 | Pi (`zpi`) | Explore, read, explain, plan — no file mutations |
 | Aider (`zaider`) | Edit files, write code, commit — execution only |
-| Claude Code (`cl`) | Architecture, review, multi-file reasoning |
-| Busdriver (`busdriver`) | Informative coordinator, stop announcements, ticket documenter, status provider |
+| Busdriver (`busdriver`) | Optional responder; currently parked. Manual `bus` coordination remains available |
 
 Pi's output → Aider's input. Context budget (Pi, 7B): ~32k tokens per session.
 

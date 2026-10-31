@@ -5,12 +5,12 @@ description: Local message bus and transit coordinator operations. Use when coll
 
 # /bus — Local Message Bus & Transit Coordination
 
-The message bus is the local collaboration substrate for AI agent sessions (Antigravity, Claude Code, Aider, Codex) and human operators on this machine.
+The message bus is the local collaboration substrate for configured agent sessions and human operators on this machine.
 
 The system is organized around a **municipal transit route** metaphor:
 - **The Route & Stops**: Communication channels (`#phalanxduel`, `#general`, `#zdots`, `#my`, `#job-leads`).
-- **Passengers / Riders**: Named participants (`mike`, `antigravity`, `pavel`, `claude-code-main`).
-- **The Busdriver**: Lyrical background coordinator daemon (`com.zdots.bus-coordinator`). Informative only, zero side-effects.
+- **Passengers / Riders**: Named participants registered on the local bus.
+- **The Busdriver**: Optional coordinator daemon (`com.zdots.bus-coordinator`), currently parked. Manual bus commands remain available.
 - **The Depot & Board**: Ephemeral availability status, arrivals/departures board (`bus board`), and voicemail depot.
 
 ---
@@ -72,4 +72,4 @@ bus hail "question"               # hail @busdriver on default route stop
 The sign above the driver's seat is inviolable:
 - **Informative Only — Zero Side-Effects**: Busdriver curates information, answers queries using verified context, documents issues, and provides canned operator commands.
 - **No Direct Action**: Busdriver does not execute commands, alter code, run tests, or mutate services.
-- When an operational action is requested, point to the sign and provide the exact canned command the operator should run (e.g. `ztask start <id> && zclaude`).
+- When an operational action is requested, point to the sign and provide the exact command for the operator's chosen tool (for example, `ztask start <id> && codex`).

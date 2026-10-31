@@ -38,7 +38,7 @@ Zdots enforces strict documentation hygiene via automated Bats suites:
    - Unwritten stubs can be generated via `bin/zdots-man-gen`.
 
 3. **Fictional-Reference Linting (Z-153)**:
-   - Any backticked \`zdots-*\` tool cited in docs (`AGENTS.md`, `CLAUDE.md`, `docs/wiki/`, tier docs in `etc/docs-sync-manifest.yaml`) must exist and be executable in `bin/` or explicit in the test's allowlist.
+   - Any backticked \`zdots-*\` tool cited in docs (`AGENTS.md`, `docs/wiki/`, tier docs in `etc/docs-sync-manifest.yaml`) must exist and be executable in `bin/` or explicit in the test's allowlist.
 
 4. **Interface Inventory**:
    - `docs/generated/interface-inventory.json` & `.md` track registered commands and capabilities.

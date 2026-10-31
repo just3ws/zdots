@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Runnable check for Zdots.run_bounded (the "Claude/recipe inaccessible" guard).
+# Runnable check for Zdots.run_bounded (the bounded subprocess guard).
 # Plain ruby, no framework/DB:  ruby spec/bounded_run_test.rb
 require_relative "../lib/zdots/bounded_run"
 
