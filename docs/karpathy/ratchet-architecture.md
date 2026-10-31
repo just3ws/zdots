@@ -1,5 +1,8 @@
 # Ratchet Architecture Proposal: Zdots Platform
 
+> Research proposal, not current platform implementation or priority. For live
+> behavior, use `docs/local-ai.md`, current configuration, and the Backlog.
+
 ## Concept
 An autonomous loop to safely iterate on Zdots platform changes, minimizing manual validation toil.
 

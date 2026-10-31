@@ -2,12 +2,12 @@ import sys
 import json
 import os
 
-# Ensure the library path is accessible
-LIB_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(LIB_PATH)
+# Keep this experiment self-contained; its implementation is archived beside it.
+EXPERIMENT_PATH = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, EXPERIMENT_PATH)
 
-from inference.mlx_engine import get_engine
-from karpathy_method.bin.context_compact import compact # Assuming utility is in library path
+from mlx_engine import get_engine
+from karpathy_method.bin.context_compact import compact
 
 # Budget constraint (1024 tokens)
 MAX_TOKENS = 1024

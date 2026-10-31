@@ -1,4 +1,4 @@
-# providers/tools/router.zsh — zai engine router (ROUTER Phase 1).
+# providers/tools/router.zsh — zai engine router.
 #
 # One explicit dispatcher across the local LLM, Pi, and Aider. Local is the
 # default; Pi and Aider are opt-in by flag. A local advisory classifier suggests

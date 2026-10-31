@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# tests/zai_router.bats — zai engine router (ROUTER Phase 1) behaviour.
+# tests/zai_router.bats — zai engine router behavior.
 # Classifier is disabled (ZAI_NO_CLASSIFY=1) so these stay offline/deterministic.
 
 setup() {

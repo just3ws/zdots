@@ -13,15 +13,12 @@ This project uses `backlog-md` for task management. It is the Source of Truth fo
 
 Always use the `--plain` flag for AI-friendly text output.
 
-**Known limitation (upstream, confirmed 2026-08-03):** `backlog task <id>` and the
-`backlog` MCP server's `task_view`/`task_list` do not resolve anything under
-`backlog/completed/` — reproduces even on `Z-001`, so it's not specific to any one
-task. `backlog doctor`'s cross-folder duplicate-ID scan and `backlog search <id>`
-(fuzzy full-text) both DO reach completed tasks; exact-ID lookup does not. For a
-reliable exact-ID lookup that includes completed tasks, use
-`https://zdots.localhost/backlog/<id>` (zdots-statusd's own board, built to glob
-all three folders — see `agent-guide`'s discovery section). This is a Backlog.md
-CLI/MCP behavior, not a zdots bug — nothing to patch here.
+**Known limitation (upstream, last confirmed 2026-08-03):** exact-ID lookup may
+not include archived tasks. Completed task records belong under
+`backlog/archive/tasks/`; use `backlog doctor` to check task IDs and archive
+placement. `backlog search <id>` and the local board may find archived records
+when exact-ID lookup does not. Verify current behavior before relying on this
+workaround; the CLI behavior is upstream-owned.
 
 ## 1.1 Repo Configuration
 
@@ -95,9 +92,10 @@ graph, then letting the tool surface it:
    (Sequence 1) tasks. Do not start a later wave while a foundation it depends on
    is open.
 
-The rationale snapshot — graph, leverage ranking, divergence flags — lives in the
-Backlog.md doc **`analysis/dependency-graph` (doc-003)**: `backlog doc view doc-003`.
-When task state changes, trust `backlog sequence`, then refresh that doc.
+The June 2026 dependency-graph document (`doc-003`) is a historical rationale
+snapshot, not live task state. Use `backlog sequence list --plain` and current
+task records for priorities and dependencies. Update or replace the snapshot
+when its assumptions are reviewed; never infer current status from it.
 
 Favor **convergence over proliferation**: before implementing, verify no
 equivalent solution exists and extend the existing abstraction rather than adding

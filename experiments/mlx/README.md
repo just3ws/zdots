@@ -21,17 +21,19 @@ here (the same treatment as `experiments/zsynod/`).
 | `inspect_mlx.py`, `inspect_mlx_stream.py` | repo root | scratch probes |
 | `mlx_benchmark_20260609_195045.json` | repo root | one benchmark run |
 | `mlx_help.txt` | repo root | captured help output |
+| `karpathy_method/` and `tests/` | experiment-only compaction helper and its test |
 
 ## What changed in the active tree
 
 - `bin/ai-query` dropped its `ZDOTS_INFERENCE_ENGINE=mlx` branch — it is now
   unconditionally llama.cpp (`aiq_submit`). The `ZDOTS_INFERENCE_ENGINE` env var is
   retired.
-- `lib/inference/` was removed (both modules moved here).
+- `lib/inference/` and `lib/karpathy_method/` were removed from the active tree;
+  their experiment-only copies live here.
 
 ## Reviving (future analysis)
 
-These files import as a flat set, not the original `inference.*` package layout;
-restore the package structure under `lib/inference/` if reactivating. Reattach to
-`ai-query` behind an explicit, gated engine selector — but only after a deliberate
-decision to add a second backend alongside llama.cpp.
+This experiment is not part of runtime or CI. To inspect it, run its helper test
+from this directory with `python3 tests/test_context_compaction.py`. Reattach to
+`ai-query` only after a deliberate decision to add a second backend alongside
+llama.cpp; treat the archived benchmark and tuning notes as historical evidence.

@@ -1,5 +1,5 @@
 ---
-id: Z-094
+id: Z-352
 title: >-
   [agent-issue] Does zdots-ask support a --domain sql keyword for database query
   generation?

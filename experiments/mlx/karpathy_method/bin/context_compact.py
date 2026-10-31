@@ -11,7 +11,7 @@ def compact(context):
     """
     # Initialize L2 persistent storage
     persistent = context.get("persistent_context", [])
-    
+
     # Process history: split into transient and persistent
     new_transient = []
     for turn in context.get("history", []):
@@ -20,14 +20,14 @@ def compact(context):
                 persistent.append(turn)
         else:
             new_transient.append(turn)
-            
+
     # Keep only last 3 transient turns
     compacted = {
         "system": context.get("system", ""),
         "persistent_context": persistent,
         "history": new_transient[-3:]
     }
-    
+
     return json.dumps(compacted)
 
 if __name__ == "__main__":

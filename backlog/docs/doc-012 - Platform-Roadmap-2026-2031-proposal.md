@@ -1,11 +1,15 @@
 ---
-id: doc-003
+id: doc-012
 title: Platform Roadmap 2026-2031 (proposal)
 type: other
 created_date: '2026-08-02'
 ---
 
 # Platform Roadmap — 90 days to 5 years (proposal)
+
+> Historical, unapproved proposal from August 2026. Its baselines, sequencing,
+> and target dates are not current operating guidance. Use the live Backlog
+> task sequence and current system documentation for present priorities.
 
 Drafted by the maintenance agent from the 2026-08-01/02 maximum-effort audit;
 operator edits/blesses. Grounded in measured state, not aspiration.

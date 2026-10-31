@@ -300,3 +300,11 @@ zdots-quiz TC-07 --verbose  # single case debug
 # Domain list
 zdots-ask --list-domains
 ```
+
+### Engine selection with `zai`
+
+`zai` selects an existing tool entrypoint; it does not change engines
+automatically. Local inference is the default. Use `--pi` for exploration and
+planning, `--aider` for code edits, and `--dry-run` to inspect the route without
+inference. See `providers/tools/router.zsh` for the implementation and
+`tests/zai_router.bats` for the offline behavior contract.

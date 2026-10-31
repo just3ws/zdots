@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
 import json
-import subprocess
+import sys
+from pathlib import Path
+
+EXPERIMENT_PATH = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(EXPERIMENT_PATH))
+
+from karpathy_method.bin.context_compact import compact
 
 def run_compaction(context):
-    process = subprocess.Popen(
-        ["python3", "/Users/mike/.config/zsh/lib/karpathy_method/bin/context_compact.py"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    stdout, stderr = process.communicate(input=json.dumps(context))
-    if stderr: raise Exception(f"Compaction error: {stderr}")
-    return json.loads(stdout)
+    return json.loads(compact(context))
 
 # Test 1: Needle Retention (High Importance)
-NEEDLE = "Password is ZDOTS"
+NEEDLE = "retain-this-note"
 HISTORY = [{"role": "user", "content": f"Important: {NEEDLE}", "importance": "high"}] + \
           [{"role": "user", "content": "Filler"} for _ in range(10)]
 context = {"history": HISTORY}

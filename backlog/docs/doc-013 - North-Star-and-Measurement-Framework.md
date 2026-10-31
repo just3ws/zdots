@@ -1,5 +1,5 @@
 ---
-id: doc-004
+id: doc-013
 title: North Star and Measurement Framework
 type: other
 created_date: '2026-08-02'
@@ -7,9 +7,13 @@ created_date: '2026-08-02'
 
 # North Star & Measurement Framework
 
-Companion to doc-003 (roadmap/vision). doc-003 says where; this says how we
-know we are on course. Every metric here is queryable with tooling that
-exists today (`zdots-usage`, `zdots-ctx status`, `zdots-watch status`,
+> Historical measurement snapshot from August 2026. Its baselines and task
+> references may be stale; do not treat reported values as current. The active
+> backlog and live status tools are authoritative.
+
+Companion to doc-012 (historical roadmap proposal). The proposal says where;
+this says how the August 2026 plan expected to measure progress. Every metric
+here was queryable with tooling that existed then (`zdots-usage`, `zdots-ctx status`, `zdots-watch status`,
 `bench startup`, `rtk gain`) or is explicitly flagged as an instrumentation
 gap owned by a task.
 
@@ -62,7 +66,7 @@ task body. Work that pulls none gets questioned, not silently done:
 | Security: known allowlist holes | 1 (Z-272 patch pending) | 0 | audit notes |
 | Autonomy: operator interventions needed /wk | unmeasured | down over years | quarterly audit review |
 
-## OKRs — Q through Nov 2026 (matches doc-003 90-day)
+## OKRs — Q through Nov 2026 (matches doc-012 90-day proposal)
 
 **O1 — Close the learning loop** (NSM goes nonzero)
 - KR1: `zdots-ctx promote` ships; ≥1 residue→Lesson end-to-end (Z-289)

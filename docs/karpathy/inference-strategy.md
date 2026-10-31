@@ -1,5 +1,8 @@
 # Final Research Report: Zdots Inference & Agentic Strategy
 
+> Research notes, not current platform implementation or priority. For live
+> behavior, use `docs/local-ai.md`, current configuration, and the Backlog.
+
 ## 1. The Inference Bottleneck (Observed)
 - **Constraint:** The 1024-token barrier is a hard performance wall for our hardware. Exceeding this triggers non-linear latency jumps (~400ms to >4s).
 - **Architecture Shift:** Agentic workflows must abandon "chat" patterns in favor of **Agentic Atomicity**—breaking complex tasks into granular, 500-1000 token state transitions.

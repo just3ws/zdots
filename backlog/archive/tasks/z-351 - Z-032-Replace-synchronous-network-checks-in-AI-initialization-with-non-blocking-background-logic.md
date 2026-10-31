@@ -1,5 +1,5 @@
 ---
-id: Z-032
+id: Z-351
 title: >-
   Z-032 - Replace synchronous network checks in AI initialization with
   non-blocking background logic

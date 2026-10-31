@@ -1,20 +1,24 @@
 # Inference Performance Update (As of 2026-06-09)
 
+> Historical MLX research snapshot. MLX and context compaction are not active
+> platform paths; consult `docs/local-ai.md`, live model configuration, and the
+> Backlog for current behavior.
+
 ## 1. Inference Engine Comparison: llama-cpp (Optimized) vs. MLX (Default)
 - **Baseline:** Optimized `llama-cpp` (Flash Attention, 8-bit KV Quantization, 2048 Batch Size).
 - **MLX Engine:** Default `mlx_lm` configuration.
 - **Result:** **Regression.** The default MLX implementation is significantly slower than our highly-tuned `llama-cpp` baseline (e.g., 512-token turns are ~80% slower).
 - **Conclusion:** MLX is not a "magic bullet." Without applying equivalent performance tuning (KV quantization, native Metal kernel parameters), it performs worse than the mature `llama.cpp` pipeline.
 
-## 2. Next Ratchet: MLX Optimization
-To beat the `llama-cpp` baseline, we must tune MLX:
+## 2. Proposed MLX Optimization (not adopted)
+The original proposal was to tune MLX against the `llama-cpp` baseline:
 1. **Quantization:** Enable 4-bit/8-bit KV cache quantization in MLX.
 2. **Flash Attention:** Verify MLX is utilizing hardware-native attention kernels (it should be default, but requires validation).
 3. **Batching:** Explicitly control batch sizes if possible via `mlx_lm` kwargs.
 
-## 3. Plan
-- [ ] Implement `context_compaction` in `mlx_engine.py` (mandatory requirement).
-- [ ] Re-run benchmark with KV cache quantization enabled in MLX.
+## 3. Proposal status
+This plan was not adopted. MLX is archived under `experiments/mlx/`; the
+compaction helper is experiment-only and is not an `ai-query` requirement.
 # Tuning Retrospective: Context Window Capping (8192)
 
 ## 1. Experiment Overview
