@@ -59,7 +59,8 @@ the docs stop lying.
 
 ## Consequences
 
-- **Z-149 becomes the new Wave-0 root** in the dependency graph (doc-003): the
+- **Z-149 becomes the new Wave-0 root** in the historical dependency-graph
+  snapshot (archived doc-003): the
   substrate the 33 `zdots-*` binaries converge into. The graph can finally surface
   "complete the CLI syntax" as the foundation it always was.
 - **Docs must be reconciled to the grammar** (CLAUDE.md, AGENTS.md): every command

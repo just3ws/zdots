@@ -12,6 +12,10 @@ tags:
 ---
 # Backlog Dependency Graph & Leverage Waves
 
+> Historical dependency-graph snapshot from June 2026. Task states and wave
+> recommendations are stale by design; use `backlog sequence list --plain` and
+> current task records for live planning.
+
 Wave-0 dependency analysis of the open backlog. Drives execution priority by
 **dependency leverage**, not task count or feature visibility. The mission:
 *unlock the most future work for the least effort.*

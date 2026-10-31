@@ -92,10 +92,10 @@ graph, then letting the tool surface it:
    (Sequence 1) tasks. Do not start a later wave while a foundation it depends on
    is open.
 
-The June 2026 dependency-graph document (`doc-003`) is a historical rationale
-snapshot, not live task state. Use `backlog sequence list --plain` and current
-task records for priorities and dependencies. Update or replace the snapshot
-when its assumptions are reviewed; never infer current status from it.
+The June 2026 dependency-graph document is archived at
+`backlog/archive/docs/analysis/dependency-graph/`; it is historical rationale,
+not live task state. Use `backlog sequence list --plain` and current task records
+for priorities and dependencies. Never infer current status from the snapshot.
 
 Favor **convergence over proliferation**: before implementing, verify no
 equivalent solution exists and extend the existing abstraction rather than adding

@@ -1,13 +1,16 @@
 ---
 id: doc-001
-title: Decision 006 - Performance-First AI Strategy and Observability Optimization
+title: >-
+  Performance-First AI Strategy and Observability Optimization (historical
+  snapshot)
 type: other
-created_date: '2026-04-04 15:31'
+created_date: 2026-04-04 15:31
+updated_date: '2026-10-31T21:32:00Z'
 ---
-# Decision 006: Performance-First AI Strategy & Observability Optimization
+# Performance-First AI Strategy & Observability Optimization
 
 **Date:** 2026-04-04
-**Status:** Active
+**Status:** Historical snapshot (2026-04-04); not current platform strategy.
 **Context:** The "Dwight Schrute Principle" (avoiding idiocy/inefficiency) has been adopted as a foundational mandate.
 
 ## Problem Statement

@@ -1,10 +1,14 @@
 ---
 id: doc-007
-title: Platform Wishlist — Dreams Big and Small
+title: Platform Wishlist (historical, June 2026)
 type: other
-created_date: '2026-06-28 16:48'
+created_date: 2026-06-28 16:48
+updated_date: '2026-10-31T21:32:00Z'
 ---
 # Platform Wishlist — Dreams Big and Small
+
+> Historical wishlist from June 2026, retained for provenance. Ideas here are
+> not active work unless they have a current Backlog task.
 
 *An analysis of the direction this repo has been moving, where it's heading, and
 how to keep refining toward it — with the dreams that flow from that, big and

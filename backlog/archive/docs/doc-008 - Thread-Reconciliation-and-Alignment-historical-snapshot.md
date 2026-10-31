@@ -1,10 +1,14 @@
 ---
 id: doc-008
-title: 'Thread Reconciliation & Alignment — what went quiet, and how to harmonize'
+title: Thread Reconciliation and Alignment (historical snapshot)
 type: other
-created_date: '2026-06-28 17:08'
+created_date: 2026-06-28 17:08
+updated_date: '2026-10-31T21:32:00Z'
 ---
 # Thread Reconciliation & Alignment
+
+> Historical project-state snapshot from June 2026. Its status and priority
+> claims are stale; use current Backlog tasks and live system state.
 
 *The question: "a plan for aligning the transcriptions and the things I've started
 to miss because of fixation on one place." This is the engineer's answer — the
