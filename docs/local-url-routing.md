@@ -108,6 +108,7 @@ nginx-ctl validate        # sudo nginx -t
 |---|---|---|
 | `dev.my.local` | Still present in the tracked context-engine source and deployed nginx config; `zdots-endpoints` reports 502 because `/tmp/my_dev.sock` has no healthy upstream | Retire the stale vhost and its certificate name, or restore a real dev cockpit. No change made here |
 | `my.local` | Redirects to the healthy `my.localhost` cockpit | Keep as a compatibility alias or retire it with a coordinated config/certificate update |
+| `grafana.local`, `lgtm.local` | `/etc/hosts` still maps both to 127.0.0.1, but neither has an nginx vhost; Z-134 retired the services | Remove the stale mappings via privileged host-config maintenance; Z-356 tracks this. No change made here |
 | Deployed nginx files | Each project owns its source; nginx serves copies under `/opt/homebrew/etc/nginx/servers/` | After a source change, sync/validate and reload through `zsvc reload nginx`; root lifecycle needs sudo |
 | Retired certificate names | `nginx-regen-certs --dry-run --prune` reports three removable SANs; the current shared certificate still contains them | Review the dry-run and apply `nginx-regen-certs --prune` when ready |
 
