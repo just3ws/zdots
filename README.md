@@ -20,7 +20,7 @@ git clone https://github.com/just3ws/zdots.git ~/.config/zsh && ~/.config/zsh/bi
 
 > **Work machine?** Create `.zdots.local` with `ZDOTS_CONTEXT=work` before running bootstrap. See [SETUP.md](SETUP.md).
 
-> Local AI · PHI-safe · OTel-instrumented · 14-case model eval · 860-test Bats suite · Single-command restore
+> Local AI · PHI-safe · OTel-instrumented · local model capability probe · Bats suite · single-command restore
 
 ---
 
@@ -34,7 +34,7 @@ Zdots is built on a "Deepened" architectural philosophy: a small number of seman
 
 | Pillar | Description | Implementation |
 |---|---|---|
-| **Local AI SOTA** | High-performance inference via **llama.cpp** and **whisper.cpp**. | `llama-ctl`, `whisper-ctl` |
+| **Local AI Runtime** | Local inference via **llama.cpp** and transcription via **whisper.cpp**. | `llama-ctl`, `whisper-ctl` |
 | **Shell Brain** | Structured PostgreSQL storage for methodologies and lessons. | `zdots-ctx`, `ctx-mcp` |
 | **System Observability** | Every shell command emits an OTel span to **OpenObserve** (native, logs/metrics/traces). | `bin/otel-collector`, `bin/openobserve-ctl`, `env.sh` |
 | **Declarative Lifecycle** | Services define specs; a unified engine handles registration. | `lib/lifecycle.bash` |
@@ -50,18 +50,18 @@ Traditional shell configs are **shallow**: a bug in one service's management log
 
 1.  **Opaque Service Seams**: The orchestrator (`zdots-ctl`) interacts with services (AI, OTel, OpenObserve) only through their CLI grammar. You can swap a background process for a Docker container without changing the orchestrator.
 2.  **Locality of Logic**: `launchd` plist generation, HuggingFace model downloads, and endpoint construction are concentrated in core libraries.
-3.  **High-Signal Validation**: Includes an 860-test Bats suite and a high-confidence `secret-scan` to ensure platform integrity on every commit.
+3.  **High-Signal Validation**: Includes a Bats suite and `secret-scan` to check platform integrity.
 
 ---
 
-## 3. The May 2026 AI Stack
+## 3. Local AI and Transcription
 
 Zdots includes a production-grade local AI runtime out of the box:
 
-*   **Inference**: llama.cpp (OpenAI-compatible) using Qwen3-8B Q4_K_M and Nomic embed-v2 MoE.
-*   **Transcription**: whisper.cpp for high-speed local audio-to-text.
-*   **Guardrails**: `ai-query` wraps LLM calls in security and normalization layers.
-*   **Recipes**: Built-in workflows like `transcribe` (audio → transcript → AI summary).
+*   **Inference**: llama.cpp. Active model profiles and server settings are defined in [`etc/ai-models.yaml`](etc/ai-models.yaml); see [docs/llama-cpp.md](docs/llama-cpp.md).
+*   **Transcription**: whisper.cpp for local audio-to-text; see the transcription tooling in [docs/tooling.md](docs/tooling.md).
+*   **Guardrails**: `ai-query` applies the configured security and input-normalization path.
+*   **Workflows**: Audio and media workflows are documented in [docs/ingest-media-pipeline.md](docs/ingest-media-pipeline.md).
 
 ---
 
@@ -78,7 +78,7 @@ architecture-beta
     service collector(logos:opentelemetry)[OTel Collector] in host
     service brain(logos:postgresql)[Postgres Brain] in host
     service ai(logos:meta)[llama cpp 11500 Inference] in host
-    service embed(logos:meta)[llama cpp 11501 Embedding] in host
+    service embed(logos:meta)[llama cpp embedding profile] in host
     service cache(logos:redis)[Redis] in host
 
     service o2(logos:opentelemetry)[OpenObserve] in host
