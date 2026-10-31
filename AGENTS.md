@@ -18,6 +18,14 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   state is archived on /Volumes/Dock_1TB with provenance. Historical co-author
   attribution rewrite is deferred per operator; do not rewrite Git history now.
 
+  Identity follow-up: portfolio alias and obsolete employer-policy cleanup are
+  pushed at a5504d1a; Phalanx game alias map is pushed at 24ca26fb. Portfolio
+  deployment is queued; Phalanx code-quality passed and its pipeline remains in
+  progress. Preserve the staged Phalanx and portfolio changes. The UGLST GeoSrv
+  mdh@just3ws.com alias remains unconfirmed; do not map it without operator
+  confirmation. Do not alter time-bounded historical career records as part of
+  the identity cleanup.
+
   The retired experiment has no current-tree references; Git history and its
   checksummed local archive remain provenance. No force-pushes were made.
 
