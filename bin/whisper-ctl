@@ -20,6 +20,7 @@ if [[ -f "$META_LIB" ]]; then
 fi
 
 PROFILE="${ZDOTS_WHISPER_PROFILE:-standard}"
+WHISPER_THREADS="${ZDOTS_WHISPER_THREADS:-8}"
 MODELS_DIR="${ZDOTS_WHISPER_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/whisper-cpp/models}"
 MODEL_FILE="${ZDOTS_WHISPER_MODEL_FILE:-}"
 
@@ -86,10 +87,16 @@ cmd_transcribe() {
     exit 1
   fi
 
+  if [[ ! "$WHISPER_THREADS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "whisper-ctl: error: ZDOTS_WHISPER_THREADS must be a positive integer." >&2
+    exit 2
+  fi
+
   # --max-context 0: don't condition on prior-text tokens. The default (-1) lets
   # large-v3-turbo feed its own output back in and spiral into a repetition loop;
   # see recipes/yt-transcribe for the same guard on the other decode sites.
-  "$bin" --model "$model_path" --file "$audio" --max-context 0 --output-txt
+  "$bin" --model "$model_path" --file "$audio" --max-context 0 \
+    --threads "$WHISPER_THREADS" --output-txt
 }
 
 case "${1:-}" in

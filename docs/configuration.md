@@ -61,6 +61,7 @@ These variables are used by the documented command surface. See
 | `ZDOTS_CI_MEMORY` | `4` | Colima memory in GB. |
 | `ZDOTS_CI_DISK` | `60` | Colima disk in GB. |
 | `ZDOTS_WHISPER_PROFILE` | `standard` | Whisper profile. |
+| `ZDOTS_WHISPER_THREADS` | `8` | CPU decode threads for whisper.cpp. Benchmark on this M4 showed 8 faster than the default 4 for a 75.5-second synthetic speech sample. |
 | `ZDOTS_WHISPER_MODELS_DIR` | `$XDG_DATA_HOME/whisper-cpp/models` | Whisper model storage. |
 | `ZDOTS_WHISPER_MODEL_FILE` | profile-derived | Whisper model file. |
 | `ZDOTS_WHISPER_HF_REPO` | unset | Whisper HuggingFace repository. |

@@ -18,9 +18,9 @@
 
 [tools]
 ruby   = "4.0.9"   # latest stable; auto-bumped by upgrade-mise, matches etc/ruby-version
-node   = "26.0.0"  # mise upgrade --bump node to move forward deliberately
+node   = "26.13.0" # current LTS; keep platform repos aligned
 go     = "1.26.3"
-python = "3.14.5"  # shell default; project-level python managed by uv
+python = "3.14.10" # latest patch supported by the current locked MLX/DuckDB wheels
 
 [env]
 # mise-managed Go toolchain — takes precedence over Homebrew go

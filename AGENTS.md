@@ -21,6 +21,51 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   access. Long-term removal of Claude co-author attribution from repo history
   is deferred; no commit history was rewritten.
 
+  Brewfile audit: Brewfile.home covers all 198 installed formula leaves and
+  39 installed casks after removing Bartender and AdGuard. Every active tool
+  declaration in system and project Brewfiles now has an inline purpose
+  comment. The operator ran both uninstallers; package, app, and service
+  remnants are absent. Six unused or superseded formulae were removed (~2.8 GB
+  including orphaned dependencies). Current `brew bundle check` reports
+  several installed packages need upgrades and the Pi npm package needs an
+  upgrade; no upgrades were applied. A
+  review-only 90-day Atuin report now exists at audit/brewfile-usage-2026-10-31.md;
+  Z-349 remains open for its DoD and human review. Local workloads must run on
+  bare metal; Dockerfiles remain for remote Fly deployment. Colima remains
+  installed, login autostart is disabled, and the empty Docker/K3s VM was
+  deleted after Kubernetes was disabled; `zsvc start colima` recreates an
+  on-demand Docker-only profile. Five unlinked act-only volumes (~1.386 GB)
+  were removed; no images or containers existed. Whisper.cpp and llama.cpp are
+  current Homebrew stable versions. Synthetic Whisper benchmark supports 8 threads
+  (faster than default 4). ClearDisk was removed after auditing its third-party
+  cask installer and quarantine-stripping postflight; mise remains the runtime
+  cleanup path. Platform pins are Ruby 4.0.9, Node 26.13.0, and Python 3.14.10.
+  Superseded Ruby 4.0.5, Node 24.14.0/26.0.0, and mise Python 3.14.5/3.15.2
+  were removed after migration checks. Python 3.15 is deferred for zdots because
+  its current lock requires native builds of pydantic-core and DuckDB; Homebrew
+  Python 3.15.2 remains installed. Media-pipeline now runs Ruby 4.0.9: project
+  pin, canonical LaunchAgent source, and locked bundle are updated. The loaded
+  job was bootstrapped from the new plist after a stale 4.0.6 registration
+  failed; `/up` is 200 and the log has no recent CloudStorage permission errors.
+  Ruby 4.0.6 remains installed because other local projects still pin it and the
+  context-engine process still has it loaded. Migrate those pins/processes
+  before removing that runtime. Video recording/editing are critical. Data volume now has
+  54 GiB free after simulator and reproducible dependency cleanup. The 16 GiB
+  iOS Simulator runtime was removed (~11 GiB reclaimed). Google DriveFS
+  `canceled_uploads` occupies 7.6 GB and remains untouched; Drive streaming and
+  offline-file settings still need verification. Deezer was not installed; its
+  396 MB updater cache was moved to Trash and is not reclaimed until Trash is
+  emptied. Aim for ~45 GiB reserve; preserve media
+  sources. OpenObserve home retention is already 3 days. Qwen3-8B answers short
+  guarded queries quickly,
+  while Aider's repo-scale coding path has not been isolated. No Nginx restart;
+  operator sudo needed.
+
+  Storage controls now treat `ingest-sources` as durable and never age-delete it;
+  uv uses cache prune, npm uses cache verify. Weekly log rotation covers ten
+  zdots service logs with a stable PATH; the installed LaunchAgent was reloaded.
+  `zdots-hygiene` remains manual and dry-run by default.
+
   Live tasks (Backlog):
     Z-349  (Med) Usage-backed Brewfile audit (Atuin history, configurable 90d).
     Z-347  (Med) Codex session/cache retention audit and cleanup policy.

@@ -8,6 +8,14 @@ purpose: Authoritative map of Brewfile.home and Brewfile.work tools to workflows
 
 All tools listed are installed via `Brewfile.home` or `Brewfile.work` unless noted (`bin/` prefix = zdots-native, not Homebrew).
 
+### Runtime inventory and cleanup
+
+Use `mise ls --installed` to inventory runtime versions and `mise ls --prunable`
+or `mise prune --dry-run` to preview mise's cleanup set. `zdots-hygiene` runs
+the prune after cache cleanup. Mise may retain versions referenced by tracked
+configs or prior tool use, so inspect project `.tool-versions`, `.ruby-version`,
+and `mise.toml` pins before retiring an old version with `mise uninstall`.
+
 | Need | Tool |
 |---|---|
 | Diagnose bootstrap/update/upgrade logs | `zdots-log-analyze update|bootstrap|upgrade [--ai]` |
@@ -72,7 +80,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | Context MCP server | `ctx-mcp` | MCP stdio server: query/capture knowledge base from AI agents |
 | Aider (local) | `zaider` | Aider wired to local llama.cpp — file editing + git |
 | Pi coding agent | `zpi "prompt"` | Interactive session agent (earendil pi) |
-| Apple Intelligence | `zapfel` | On-device Apple foundation model CLI (apfel, port 11434) |
+| Apple Intelligence | `zapfel` | On-device one-shot inference through the Message Hygiene Pipeline; interactive, file, MCP, and server modes are refused |
 | GitHub Models | `zgh "prompt"` | One-shot cloud inference, phi-scrubbed; `zgh --models` lists the catalog |
 | Gemini CLI | `gemini` | Google Gemini from the shell |
 | Kimi CLI | `kimi` | MoonshotAI from the shell |
@@ -227,7 +235,7 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 
 | Tool | Command | Purpose |
 |------|---------|---------|
-| `colima` | `colima start` | Lightweight Docker runtime (optional; container workloads only) |
+| `colima` | `zsvc start colima` / `zsvc stop colima` | Optional, on-demand Docker runtime; disabled at login on this host |
 | `lazydocker` | `lzd` | TUI for Docker containers and images |
 | `docker` / `docker-compose` | `docker compose up` | Container management |
 | `otel-collector` | `bin/otel-collector start` | Bare-metal OTel collector (managed, not Homebrew) |

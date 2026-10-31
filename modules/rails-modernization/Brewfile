@@ -3,10 +3,10 @@
 # Install only when doing legacy Rails build-only analysis:
 #   brew bundle --file modules/rails-modernization/Brewfile
 
-brew "libxml2"
-brew "libxslt"
-brew "shared-mime-info"
-brew "mariadb-connector-c"
-brew "memcached"
-tap "mongodb/brew"
-brew "mongodb-database-tools"
+brew "libxml2" # XML parser library required by legacy Rails gems
+brew "libxslt" # XSLT support used by XML processing dependencies
+brew "shared-mime-info" # MIME type database for file identification
+brew "mariadb-connector-c" # MariaDB and MySQL client library for legacy app builds
+brew "memcached" # In-memory cache service for legacy Rails builds
+tap "mongodb/brew" # MongoDB-maintained Homebrew formulae
+brew "mongodb-database-tools" # MongoDB command-line import/export and diagnostic tools

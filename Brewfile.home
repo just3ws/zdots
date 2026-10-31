@@ -6,32 +6,73 @@
 instance_eval(File.read(File.expand_path("Brewfile.common", File.dirname(__FILE__))))
 
 # ── home-only packages ──
-brew "flyctl"
+brew "age"          # file encryption and identity tooling
+brew "apfel"        # active local Apple Intelligence provider
+brew "bc"           # calculator used by local scripts
+brew "chromaprint" # Core component of the AcoustID project (Audio fingerprinting)
+brew "cpp-httplib" # C++ header-only HTTP/HTTPS server and client library
+brew "dash-shell" # POSIX-compliant descendant of NetBSD's ash (the Almquist SHell)
+brew "docker-clean" # Clean Docker containers, images, networks, and volumes
+brew "fprobe" # Libpcap-based NetFlow probe
+brew "gnu-tar" # GNU version of the tar archiving utility
+brew "herdr" # Agent multiplexer that lives in your terminal
+brew "hister"       # active local browsing-history search service
+brew "html2text" # Advanced HTML-to-text converter
+brew "lynx" # Text-based web browser
+brew "mercurial" # Scalable distributed version control system
+brew "mkdocs" # Project documentation with Markdown
+brew "models" # Fast TUI and CLI for browsing AI models, benchmarks, and coding agents
+brew "nmap" # Port scanning utility for large networks
+brew "pdfly" # CLI tool to extract (meta)data from PDF and manipulate PDF files
+tap "phalanxduel/tap" # Phalanx Duel command-line tools
+brew "phalanxduel/tap/duel-cli" # Interactive Go TUI client for Phalanx Duel
+brew "qt" # Cross-platform application and UI framework
+brew "restic"       # local backup utility
+brew "roblox-ts" # TypeScript-to-Luau Compiler for Roblox
+brew "syncthing"    # active user-level sync service
+brew "tomlplusplus" # Header-only TOML config file parser and serializer for C++17
+brew "tree-sitter-go" # Go grammar for tree-sitter
+brew "tree-sitter-python" # Python grammar for tree-sitter
+brew "tree-sitter-ruby" # Ruby grammar for tree-sitter
+brew "vale" # Syntax-aware linter for prose
+brew "flyctl" # Command-line tools for fly.io services
 # brew "gemini-cli"
-brew "gource"
-brew "julia"
-brew "kcov"
+brew "gource" # Version Control Visualization Tool
+brew "julia" # Fast, Dynamic Programming Language
+brew "kcov" # Code coverage tester for compiled programs, Python, and shell scripts
 # brew "kimi-cli"
                       # NOTE: start with launchctl, NOT brew services (brew services takes root ownership):
                       #   sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
 # brew "railway"
 # brew "tailscale"
 # gh-dash is a gh extension, not a Homebrew formula: gh extension install dlvhdr/gh-dash
-brew "k9s"
-brew "kubernetes-cli"
-brew "kubectx"
+brew "k9s" # Kubernetes CLI To Manage Your Clusters In Style!
+brew "kubernetes-cli" # Kubernetes command-line interface
+brew "kubectx" # Tool that can switch between kubectl contexts easily and create aliases
 # otelcol-contrib is intentionally absent — custom binary managed by
 # bin/otel-collector install (not available via Homebrew)
-cask "1password"
-cask "1password-cli"
-# cask "antigravity"
-# cask "chatgpt"
-# cask "codex"
-# cask "codex-app"
-# cask "deezer"
-cask "libreoffice"
-# cask "tailscale-app"
-cask "ungoogled-chromium"
-# vscode "github.copilot-chat"
-uv "aider-chat"
-npm "@earendil-works/pi-coding-agent"
+cask "1password" # Password manager that keeps all passwords secure behind one password
+cask "1password-cli" # Command-line interface for 1Password
+cask "android-platform-tools" # Android SDK component
+cask "codex" # OpenAI's coding agent that runs in your terminal
+cask "codexbar" # Menu bar app for tracking agentic coding limits and usage
+cask "deltawalker" # Tool to compare and synchronise files and folders
+cask "downie" # Downloads videos from different websites
+cask "font-fira-mono-nerd-font" # terminal and editor font with prompt glyphs
+cask "google-drive" # Client for the Google Drive storage service
+cask "imageoptim" # Tool to optimise images to a smaller size
+cask "itermbrowserplugin" # Enables an integrated web browser in iTerm2
+cask "itermcompanion" # Pairs iTerm2 with the iTerm2 Companion iPhone app
+cask "launchcontrol" # Create, manage and debug system and user services
+cask "libreoffice" # Free cross-platform office suite, fresh version
+cask "localsend" # Open-source cross-platform alternative to AirDrop
+cask "obs" # Open-source software for live streaming and screen recording
+cask "radix" # Disk space analyzer
+cask "raspberry-pi-imager" # Imaging utility to install operating systems to a microSD card
+cask "redis-insight" # GUI for streamlined Redis application development
+cask "swiftbar" # Menu bar customization tool
+cask "textream" # Teleprompter that highlights scripts in real time as you speak
+cask "ungoogled-chromium" # Google Chromium, sans integration with Google
+cask "zoom" # Video communication and virtual meeting platform
+cask "phalanxduel/tap/phalanx-duel-client" # native desktop client for Phalanx Duel
+npm "@earendil-works/pi-coding-agent" # Local-first coding agent used with the llama.cpp endpoint

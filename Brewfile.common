@@ -7,208 +7,211 @@
 # Ordering: taps first (so tapped formulae resolve), then brews, then casks.
 
 # ── Taps ──
-tap "romkatv/powerlevel10k"
+tap "romkatv/powerlevel10k" # Powerlevel10k formula tap
 
 # ── Formulae ──
-brew "ack"
-brew "act"
-brew "shellcheck"
-brew "actionlint"
-brew "ansifilter"
-brew "openssl@3"
-brew "tmux"
-brew "aoe"
-brew "ast-grep"
-brew "atuin"
-brew "sqlite"
-brew "node"
+brew "ack" # Search tool like grep, but optimized for programmers
+brew "act" # Run your GitHub Actions locally
+brew "shellcheck" # Static analysis and lint tool, for (ba)sh scripts
+brew "actionlint" # Static checker for GitHub Actions workflow files
+brew "ansifilter" # Strip or convert ANSI codes into HTML, (La)Tex, RTF, or BBCode
+brew "aider"       # zaider / laid use the Homebrew-managed local coding CLI
+brew "openssl@3" # Cryptography and SSL/TLS Toolkit
+brew "tmux" # Terminal multiplexer
+brew "aoe" # Terminal session manager for AI coding agents
+brew "ast-grep" # Code searching, linting, rewriting
+brew "atuin" # Improved shell history for zsh, bash, fish and nushell
+brew "sqlite" # Command-line interface for SQLite
+brew "node" # Open-source, cross-platform JavaScript runtime environment
 brew "python"      # interpreter for history-intelligence (Seam ⑦) + analysis tooling
-brew "backlog-md"
-brew "bash"
-brew "bat"
-brew "bats-core"
+brew "backlog-md" # Markdown‑native Task Manager & Kanban visualizer for any Git repository
+brew "bash" # Bourne-Again SHell, a UNIX command interpreter
+brew "bat" # Clone of cat(1) with syntax highlighting and Git integration
+brew "bats-core" # Bash Automated Testing System
 brew "bandwhich"    # network traffic per process — verify AI local-only boundary at OS level
-brew "bottom"
-brew "boxes"
-brew "broot"
-brew "btop"
-brew "librsvg"
-brew "chafa"
-brew "cmake"
-brew "colima"
-brew "coreutils"
-brew "csvlens"
-brew "curl"
-brew "dasel"
-brew "dashing"
-brew "diff-so-fancy"
+brew "bottom" # Yet another cross-platform graphical process/system monitor
+brew "boxes" # Draw boxes around text
+brew "broot" # New way to see and navigate directory trees
+brew "btop" # Resource monitor. C++ version and continuation of bashtop and bpytop
+brew "librsvg" # Library to render SVG files using Cairo
+brew "chafa" # Versatile and fast Unicode/ASCII/ANSI graphics renderer
+brew "cmake" # Cross-platform make
+brew "colima"      # on-demand local container VM; bare-metal work is the default
+brew "coreutils" # GNU File, Shell, and Text utilities
+brew "csvlens" # Command-line csv viewer
+brew "curl" # Get a file from an HTTP, HTTPS or FTP server
+brew "dasel" # JSON, YAML, TOML, XML, and CSV query and modification tool
+brew "dashing" # Generate Dash documentation from HTML files
+brew "diff-so-fancy" # Good-lookin' diffs with diff-highlight and more
 brew "difftastic"   # structural (AST-aware) diffs — easier for agents/humans to read
-brew "direnv"
-brew "docker"
-brew "docker-buildx"
-brew "docker-compose"
-brew "docker-compose-langserver"
+brew "direnv" # Load/unload environment variables based on $PWD
+brew "docker" # Pack, ship and run any application as a lightweight container
+brew "docker-buildx" # Docker CLI plugin for extended build capabilities with BuildKit
+brew "docker-compose" # Isolated development environments using Docker
+brew "docker-compose-langserver" # Language service for Docker Compose documents
+brew "docker-credential-helper" # Platform keystore credential helper for Docker
 brew "duckdb"       # embeddable OLAP SQL — fast local analytics (CSV/Parquet/SQLite)
-brew "entr"
-brew "eza"
-brew "fabric-ai"
-brew "fd"
-brew "fdupes"
-brew "ffmpeg"       # yt-transcribe: 16k mono conversion + ffprobe duration (was transitive via openai-whisper)
-brew "fish"
-brew "fswatch"
-brew "fx"
-brew "fzf"
+brew "entr" # Run arbitrary commands when files change
+brew "eza" # Modern, maintained replacement for ls
+brew "fabric-ai" # Open-source framework for augmenting humans using AI
+brew "fd" # Simple, fast and user-friendly alternative to find
+brew "fdupes" # Identify or delete duplicate files
+brew "ffmpeg"       # yt-transcribe: 16k mono conversion + ffprobe duration
+brew "fish" # User-friendly command-line shell for UNIX-like operating systems
+brew "fswatch" # Monitor a directory for changes and run a shell command
+brew "fx" # Terminal JSON viewer
+brew "fzf" # Command-line fuzzy finder written in Go
 brew "fzf-tab"        # zsh completion menu via fzf — conf.d/74-fzf.zsh sources it; bin/check asserts its widget
-brew "geoipupdate"
-brew "gh"
-brew "git"
-brew "git-absorb"
-brew "git-delta"
-brew "git-lfs"
-brew "gitleaks"
-brew "gitlint"
-brew "glow"
-brew "gnupg"
-brew "go"
-brew "graphicsmagick"
-brew "graphviz"
-brew "grep"
-brew "hadolint"
-brew "htop"
-brew "hyperfine"
-brew "imagemagick"
-brew "jemalloc"
-brew "jless"
-brew "jq"
-brew "k6"
-brew "lazygit"
+brew "geoipupdate" # Automatic updates of GeoIP2 and GeoIP Legacy databases
+brew "gh" # GitHub command-line tool
+brew "github-keygen" # zdots-github-keys manages separate home/work identities
+brew "git" # Distributed revision control system
+brew "git-absorb" # Automatic git commit --fixup
+brew "git-delta" # Syntax-highlighting pager for git and diff output
+brew "git-lfs" # Git extension for versioning large files
+brew "git-filter-repo" # local history maintenance; published history stays immutable
+brew "gitleaks" # Audit git repos for secrets
+brew "gitlint" # Linting for your git commit messages
+brew "glow" # Render markdown on the CLI
+brew "gnupg" # GNU Privacy Guard (OpenPGP)
+brew "go" # Open source programming language to build simple/reliable/efficient software
+brew "graphicsmagick" # Image processing tools collection
+brew "graphviz" # Graph visualization software from AT&T and Bell Labs
+brew "grep" # GNU grep, egrep and fgrep
+brew "hadolint" # Smarter Dockerfile linter to validate best practices
+brew "htop" # Improved top (interactive process viewer)
+brew "hyperfine" # Command-line benchmarking tool
+brew "imagemagick" # Tools and libraries to manipulate images in select formats
+brew "jemalloc" # Implementation of malloc emphasizing fragmentation avoidance
+brew "jless" # Command-line pager for JSON data
+brew "jq" # Lightweight and flexible command-line JSON processor
+brew "k6" # Modern load testing tool, using Go and JavaScript
+brew "lazygit" # Simple terminal UI for git commands
 brew "litecli"      # SQLite REPL with autocomplete — explore command_runs analytics DB
-brew "llama.cpp"
-brew "lnav"
+brew "llama.cpp" # LLM inference in C/C++
+brew "lnav" # Curses-based tool for viewing and analyzing log files
 # lua-language-server et al: editor-only LSP servers now come from Mason
 # (vdots lua/editor/mason.lua). Brew keeps only tools the shell / CI also run.
-brew "luacheck"
-brew "luarocks"
-brew "mactop"
-brew "mkcert"
-brew "mermaid-cli"
-brew "usage"
-brew "mise"
-brew "mmv"
-brew "ncdu"
-brew "tree-sitter"
-brew "neovim"
+brew "luacheck" # Tool for linting and static analysis of Lua code
+brew "luarocks" # Package manager for the Lua programming language
+brew "mactop" # Apple Silicon Monitor Top written in Go Lang
+brew "mkcert" # Simple tool to make locally trusted development certificates
+brew "mermaid-cli" # CLI for Mermaid library
+brew "usage" # Tool for working with usage-spec CLIs
+brew "mise" # Polyglot runtime manager (asdf rust clone)
+brew "mmv" # Move, copy, append, and link multiple files
+brew "ncdu" # NCurses Disk Usage
+brew "ninja"        # common native build backend for CMake projects
+brew "tree-sitter" # Incremental parsing library
+brew "neovim" # Ambitious Vim-fork focused on extensibility and agility
 brew "ghostscript"    # nvim (vdots) doc rendering — provides `gs` for PDF preview (snacks/image.nvim)
 brew "tectonic"       # nvim (vdots) LaTeX math rendering in markdown preview
 brew "nginx"          # local reverse proxy — the *.localhost vhosts (TLS via mkcert)
-brew "nvtop"
-brew "ollama"
-brew "openai-whisper"
-brew "openapi"
-brew "openjdk"
-brew "openapi-diff"
-brew "openapi-generator"
-brew "openapi-tui"
-brew "ossp-uuid"
-brew "otel-cli"
-brew "pandoc"
+brew "nvtop" # Interactive GPU process monitor
+brew "ollama" # Create, run, and share large language models (LLMs)
+brew "openapi" # CLI tools for working with OpenAPI, Arazzo and Overlay specifications
+brew "openjdk" # Development kit for the Java programming language
+brew "openapi-diff" # Utility for comparing two OpenAPI specifications
+brew "openapi-generator" # Generate clients, server & docs from an OpenAPI spec (v2, v3)
+brew "openapi-tui" # TUI to list, browse and run APIs defined with openapi spec
+brew "ossp-uuid" # ISO-C API and CLI for generating UUIDs
+brew "otel-cli" # Tool for sending events from shell scripts & similar environments
+brew "pandoc" # Swiss-army knife of markup format conversion
 brew "pgcli"        # PostgreSQL REPL with autocomplete — replaces raw psql for zdots_ro exploration
-brew "pgvector"
-brew "pipx"
-brew "pnpm"
-brew "postgresql@18", restart_service: :changed
-brew "powerlevel10k"
-brew "pre-commit"
-brew "prettier"
-brew "pv"
-brew "ranger"
-brew "redis", restart_service: :changed
-brew "rename"
-brew "repomix"
-brew "ripgrep"
-brew "rsync"
-brew "rtk"
+brew "pgvector" # Open-source vector similarity search for Postgres
+brew "pipx" # Execute binaries from Python packages in isolated environments
+brew "pnpm" # Fast, disk space efficient package manager
+brew "postgresql@18", restart_service: :changed # Object-relational database system
+brew "powerlevel10k" # Theme for zsh
+brew "pre-commit" # Framework for managing multi-language pre-commit hooks
+brew "prettier" # Code formatter for JavaScript, CSS, JSON, GraphQL, Markdown, YAML
+brew "pv" # Monitor data's progress through a pipe
+brew "ranger" # File browser
+brew "redis", restart_service: :changed # Persistent key-value database, with built-in net interface
+brew "rename" # Perl-powered file rename script with many helpful built-ins
+brew "repomix" # Pack repository contents into a single AI-friendly file
+brew "ripgrep" # Search tool like grep and The Silver Searcher
+brew "rsync" # Utility that provides fast incremental file transfer
+brew "rtk" # CLI proxy to minimize LLM token consumption
 brew "rubberband"   # vdots read-aloud: pitch-preserving time-stretch for a measured spoken pace (ffmpeg atempo is the fallback)
-brew "ruby-lsp"
-brew "rustup"
-brew "sd"
+brew "ruby-lsp" # Opinionated language server for Ruby
+brew "rustup" # Rust toolchain installer
+brew "sd" # Intuitive find & replace CLI
 brew "sqlite-utils" # CLI analytics on SQLite — query command_runs, export JSON/CSV
 brew "selene"      # vdots: strict Lua linter (test/lint.sh uses it when present)
-brew "sentry-cli"
-brew "sesh"
-brew "shfmt"
-brew "sponge"
-brew "ssh-copy-id"
-brew "stylua"
-brew "svgo"
-brew "swift-format"
-brew "swiftformat"
-brew "swiftlint"
-brew "syft"
-brew "taplo"
-brew "tealdeer"
-brew "television"
-brew "terminal-notifier"
-brew "tokei"
-brew "tree"
-brew "tree-sitter-cli"
-brew "trivy"
-brew "trufflehog"
-brew "universal-ctags"
-brew "uv"
+brew "sentry-cli" # Command-line utility to interact with Sentry
+brew "sesh" # Smart session manager for the terminal
+brew "shfmt" # Autoformat shell script source code
+brew "sponge" # Soak up standard input and write to a file
+brew "ssh-copy-id" # Add a public key to a remote machine's authorized_keys file
+brew "stylua" # Opinionated Lua code formatter
+brew "svgo" # Nodejs-based tool for optimizing SVG vector graphics files
+brew "swift-format" # Formatting technology for Swift source code
+brew "swiftformat" # Formatting tool for reformatting Swift code
+brew "swiftlint" # Tool to enforce Swift style and conventions
+brew "syft" # CLI for generating a Software Bill of Materials from container images
+brew "taplo" # TOML toolkit written in Rust
+brew "tealdeer" # Very fast implementation of tldr in Rust
+brew "television" # General purpose fuzzy finder TUI
+brew "terminal-notifier" # Send macOS User Notifications from the command-line
+brew "tokei" # Program that allows you to count code, quickly
+brew "tree" # Display directories as trees (with optional color/HTML output)
+brew "tree-sitter-cli" # Parser generator tool
+brew "trivy" # Vulnerability scanner for container images, file systems, and Git repos
+brew "trufflehog" # Find and verify credentials
+brew "universal-ctags" # Maintained ctags implementation
+brew "uv" # Extremely fast Python package installer and resolver, written in Rust
 brew "visidata"     # TUI spreadsheet for SQLite/PostgreSQL — interactive command_runs analysis
-brew "vivid"
-brew "vips"
-brew "watch"
+brew "vivid" # Generator for LS_COLORS with support for multiple color themes
+brew "vips" # Image processing library
+brew "watch" # Executes a program periodically, showing output fullscreen
 brew "watchexec"    # re-run bats on file change — tighter test feedback than entr
-brew "wget"
-brew "whisper-cpp"
-brew "whisperkit-cli"
-brew "xcodegen"
-brew "xmlstarlet"
-brew "yamllint"
-brew "yarn"
-brew "yq"
-brew "yt-dlp"
-brew "zoxide"
-brew "zsh"
-brew "zsh-autopair"
-brew "zsh-autosuggestions"
-brew "zsh-completions"
-brew "zsh-history-enquirer"
-brew "zsh-history-substring-search"
-brew "zsh-syntax-highlighting"
-brew "zsh-vi-mode"
-brew "zsh-you-should-use"
+brew "wget" # Internet file retriever
+brew "whisper-cpp" # local speech-to-text engine used by ztranscribe
+brew "whisperkit-cli" # Swift native on-device speech recognition with Whisper for Apple Silicon
+brew "xcodegen" # Generate your Xcode project from a spec file and your folder structure
+brew "xmlstarlet" # XML command-line utilities
+brew "yamllint" # Linter for YAML files
+brew "yarn" # JavaScript package manager
+brew "yq" # Process YAML, JSON, XML, CSV and properties documents from the CLI
+brew "yt-dlp" # Feature-rich command-line audio/video downloader
+brew "zoxide" # Shell extension to navigate your filesystem faster
+brew "zsh" # UNIX shell (command interpreter)
+brew "zsh-autopair" # Auto-close and delete matching delimiters in zsh
+brew "zsh-autosuggestions" # Fish-like fast/unobtrusive autosuggestions for zsh
+brew "zsh-completions" # Additional completion definitions for zsh
+brew "zsh-history-enquirer" # Zsh plugin that enhances history search interaction
+brew "zsh-history-substring-search" # Zsh port of Fish shell's history search
+brew "zsh-syntax-highlighting" # Fish shell like syntax highlighting for zsh
+brew "zsh-vi-mode" # Better and friendly vi(vim) mode plugin for ZSH
+brew "zsh-you-should-use" # ZSH plugin that reminds you to use existing aliases for commands you just typed
 brew "dust"         # better du — fast, tree-structured disk usage
 brew "git-cliff"    # CHANGELOG generation from conventional commits
 brew "lazydocker"   # Docker TUI — companion to lazygit
-brew "opencode"   # terminal agentic coding seat (synod P18); drive via zopencode
+brew "opencode"   # terminal coding agent; drive via zopencode
 
 # ── Casks ──
-cask "alfred"
+cask "alfred" # Application launcher and productivity software
 # cask "cmux"
-cask "daisydisk"
+cask "daisydisk" # Disk space visualiser
 # cask "dash"
-cask "dbeaver-community"
-cask "firefox"
-cask "font-fira-code-nerd-font"
-cask "font-meslo-lg-nerd-font"
-cask "google-chrome"
-cask "iterm2"
-cask "itermai"
-cask "marked-app"
+cask "dbeaver-community" # Universal database tool and SQL client
+cask "firefox" # Web browser
+cask "font-fira-code-nerd-font" # programming font for terminal and editor
+cask "font-meslo-lg-nerd-font" # Powerlevel10k glyph and prompt font
+cask "google-chrome" # Web browser
+cask "iterm2" # Terminal emulator as alternative to Apple's Terminal app
+cask "itermai" # Enable generative AI features in iTerm2
+cask "marked-app" # Previewer for Markdown, MultiMarkdown and other text markup languages
 # cask "microsoft-teams"
 # cask "miro"
 # cask "obsidian"
-cask "onyx"
+cask "onyx" # Verify system files structure, run miscellaneous maintenance and more
 # cask "pgadmin4"
 # cask "postman"
-cask "rectangle"
-cask "slack"
-cask "stats"
-cask "vimr"
+cask "rectangle" # Move and resize windows using keyboard shortcuts or snap areas
+cask "slack" # Team communication and collaboration software
+cask "stats" # System monitor for the menu bar
+cask "vimr" # GUI for the Neovim text editor
 # cask "visual-studio-code"
-# cask "zoom"
 # cask "opencode-desktop"   # OpenCode GUI (pairs with the opencode CLI)

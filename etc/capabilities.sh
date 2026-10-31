@@ -309,7 +309,7 @@ declare -ga ZDOTS_CAPABILITIES_UTILITIES=(
   "util:graph-audit:zdots-graph-audit                      — Audit codebase graph structure"
 
   # Docker utilities
-  "util:colima-autostart:colima-autostart                  — Auto-start colima on shell login"
+  "util:colima-autostart:colima-autostart                  — Colima login-start helper (disabled on this host)"
   "util:docker-reclaim:docker-reclaim                      — Reclaim disk space from Docker"
 
   # Index and metadata

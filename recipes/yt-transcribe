@@ -75,6 +75,7 @@ FROM_WAV=""               # Z-169: transcribe a window of an existing 16k wav (s
 OFFSET_SEC=""             # Z-169: window start (seconds) for --from-wav
 WINDOW_SEC=""             # Z-169: window length (seconds) for --from-wav
 OUTPUT_BASE=""            # Z-169: whisper --output-file base (required with --from-wav)
+WHISPER_THREADS="${ZDOTS_WHISPER_THREADS:-8}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -246,6 +247,11 @@ if [[ "$JSON_FULL" == true ]]; then JSON_FLAG="--output-json-full"; fi
 PROMPT_ARGS=()
 if [[ -n "$WHISPER_PROMPT" ]]; then PROMPT_ARGS=(--prompt "$WHISPER_PROMPT"); fi
 
+if [[ ! "$WHISPER_THREADS" =~ ^[1-9][0-9]*$ ]]; then
+  printf 'yt-transcribe: error: ZDOTS_WHISPER_THREADS must be a positive integer.\n' >&2
+  exit 2
+fi
+
 # We run whisper-cli with live progress visible.
 # --max-context 0 disables prior-text conditioning; see the window-mode note above
 # (turbo loops on itself without it).
@@ -254,6 +260,7 @@ if [[ -n "$WHISPER_PROMPT" ]]; then PROMPT_ARGS=(--prompt "$WHISPER_PROMPT"); fi
   --file "$CONVERTED_WAV" \
   ${MAX_CONTEXT[@]+"${MAX_CONTEXT[@]}"} \
   --max-len 60 \
+  --threads "$WHISPER_THREADS" \
   --output-txt --output-vtt --output-srt --output-csv "$JSON_FLAG" \
   "${PROMPT_ARGS[@]+"${PROMPT_ARGS[@]}"}" \
   --output-file "${OUT_DIR}/${VIDEO_ID}"

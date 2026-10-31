@@ -104,10 +104,10 @@ Available profiles: `standard` (Qwen2.5-Coder 7B), `llama-3.1`, `constrained` (1
 
 ## Updating
 
-Aider is managed by `uv tool`. Update with:
+Aider is managed by Homebrew in `Brewfile.common`. Update with:
 
 ```sh
-uv tool upgrade aider-chat
+brew upgrade aider
 ```
 
 Check version: `aider --version`

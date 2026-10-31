@@ -115,8 +115,6 @@ trust_declared_homebrew_targets() {
   brewfile_has 'brew "gromgit/brewtils/taproom"' && formulae+=(gromgit/brewtils/taproom)
   brewfile_has 'brew "powerlevel10k"' && formulae+=(romkatv/powerlevel10k/powerlevel10k)
 
-  brewfile_has 'cask "bysiber/cleardisk/cleardisk"' && casks+=(bysiber/cleardisk/cleardisk)
-
   (( $#formulae )) && run_cmd brew trust --formula "${formulae[@]}"
   (( $#casks )) && run_cmd brew trust --cask "${casks[@]}"
 }

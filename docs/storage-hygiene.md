@@ -17,6 +17,13 @@ Two primary consumers to manage:
 1. **Docker / Colima** — build cache, unused images, volumes
 2. **LLM models** — GGUF files (4–5GB each; keep only one active)
 
+### Ingest sources are durable
+
+`~/.local/state/zdots/ingest-sources/` is the non-git source-of-truth store for
+re-transcription and media recovery. Age alone does not make an item disposable.
+`zdots-hygiene` must never delete from this tree. Review it through the ingest
+workflow and remove an item only after verifying another durable copy exists.
+
 ---
 
 ## Docker / Colima

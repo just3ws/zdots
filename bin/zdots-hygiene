@@ -26,9 +26,9 @@ Options:
 
 Actions Executed on --apply:
   1. Docker/Colima VM: Prune unused images/volumes & run fstrim inside Colima
-  2. Python uv Cache: Clear package/build caches (uv cache clean)
+  2. Python uv Cache: Prune dangling entries (preserves useful cache)
   3. Homebrew: Remove old formula bottles & clear brew download cache
-  4. Ingestion Buffer: Evict staged media/docs in ingest-sources > 7 days old
+  4. Ingestion Sources: Retained source of truth; never age-pruned
   5. Diagnostic Logs: Remove stale trace dumps (collector-diag-*.jsonl) > 14 days old
   6. Agent Runtimes: Purge obsolete codex-runtimes cache
   7. Package Caches: Prune unreferenced pnpm packages, stale npx (>30d), and unused mise versions
@@ -95,13 +95,14 @@ _is_valid_npx_signature() {
 
 # Measure candidate evictions
 ingest_dir="$HOME/.local/state/zdots/ingest-sources"
-stale_ingest_bytes=0
-stale_ingest_count=0
+ingest_bytes=$(_dir_bytes "$ingest_dir")
+older_ingest_bytes=0
+older_ingest_count=0
 if [[ -d "$ingest_dir" ]]; then
   while IFS= read -r -d '' f; do
     sz=$(_file_bytes "$f")
-    stale_ingest_bytes=$(( stale_ingest_bytes + sz ))
-    stale_ingest_count=$(( stale_ingest_count + 1 ))
+    older_ingest_bytes=$(( older_ingest_bytes + sz ))
+    older_ingest_count=$(( older_ingest_count + 1 ))
   done < <(find "$ingest_dir" -type f -mtime +7 -print0 2>/dev/null)
 fi
 
@@ -151,16 +152,16 @@ if command -v brew >/dev/null 2>&1; then
   [[ -n "$bcache" ]] && brew_cache_bytes=$(_dir_bytes "$bcache")
 fi
 
-total_reclaimable=$(( stale_ingest_bytes + stale_diag_bytes + uv_cache_bytes + codex_cache_bytes + stale_npx_bytes + stale_scratch_bytes + brew_cache_bytes ))
+total_reclaimable=$(( stale_diag_bytes + codex_cache_bytes + stale_npx_bytes + stale_scratch_bytes + brew_cache_bytes ))
 
 if ! $apply; then
   printf 'zdots-hygiene: dry run -- pass -f or --apply to execute sweeps.\n\n'
   printf 'Candidate Evictions:\n'
-  printf '  1. Stale Ingestion Buffers (>7d): %-8s  (%d files in %s)\n' \
-    "$(_fmt_bytes "$stale_ingest_bytes")" "$stale_ingest_count" "$ingest_dir"
-  printf '  2. Stale Logs & Rotations (>30d): %-8s  (%d files in %s)\n' \
-    "$(_fmt_bytes "$stale_diag_bytes")" "$stale_diag_count" "$log_state_dir"
-  printf '  3. Python uv Cache:              %-8s\n' "$(_fmt_bytes "$uv_cache_bytes")"
+  printf '  1. Durable Ingest Sources:         retained; %d files >7d (%s)\n' \
+    "$older_ingest_count" "$(_fmt_bytes "$ingest_bytes")"
+  printf '  2. Old Logs & Rotations:           %-8s  (diagnostics >14d, archives >30d; %d files)\n' \
+    "$(_fmt_bytes "$stale_diag_bytes")" "$stale_diag_count"
+  printf '  3. Python uv Cache:              %-8s  (prune; actual reclaim varies)\n' "$(_fmt_bytes "$uv_cache_bytes")"
   printf '  4. Codex Runtimes Cache:          %-8s\n' "$(_fmt_bytes "$codex_cache_bytes")"
   printf '  5. Stale npx Runtimes (>30d):     %-8s  (%d dirs in %s)\n' \
     "$(_fmt_bytes "$stale_npx_bytes")" "$stale_npx_count" "$npx_dir"
@@ -168,21 +169,16 @@ if ! $apply; then
     "$(_fmt_bytes "$stale_scratch_bytes")" "$stale_scratch_count" "$media_scratch_dir"
   printf '  7. Homebrew Download Cache:       %-8s\n' "$(_fmt_bytes "$brew_cache_bytes")"
   printf '  ─────────────────────────────────────────────────────────────\n'
-  printf '  Total Estimated Reclaimable:      %-8s  (+ Docker/Colima VM fstrim, pnpm store)\n\n' "$(_fmt_bytes "$total_reclaimable")"
+  printf '  Total Estimated Reclaimable:      %-8s  (excludes uv/Docker/pnpm estimates)\n\n' "$(_fmt_bytes "$total_reclaimable")"
   printf 'To execute, run:\n  zdots-hygiene -f\n'
   exit 0
 fi
 
 printf 'zdots-hygiene: executing storage hygiene sweeps...\n'
 
-# 1. Stale Ingestion Buffers (>7d)
-if (( stale_ingest_count > 0 )); then
-  printf '  [hygiene] purging %d stale ingestion files (>7d)...\n' "$stale_ingest_count"
-  find "$ingest_dir" -type f -mtime +7 -delete 2>/dev/null || true
-  printf '  [hygiene] freed %s from ingestion buffer\n' "$(_fmt_bytes "$stale_ingest_bytes")"
-else
-  printf '  [hygiene] ingestion buffer clean (no files >7d)\n'
-fi
+# 1. Durable Ingestion Sources
+printf '  [hygiene] preserving durable ingest sources; no age-based deletion (%s)\n' \
+  "$(_fmt_bytes "$ingest_bytes")"
 
 # 2. Stale Diagnostic Logs (>14d) & Rotated Service Logs (>30d)
 if (( stale_diag_count > 0 )); then
@@ -201,8 +197,8 @@ fi
 
 # 4. Python uv Cache
 if command -v uv >/dev/null 2>&1; then
-  printf '  [hygiene] cleaning uv cache...\n'
-  uv cache clean >/dev/null 2>&1 || true
+  printf '  [hygiene] pruning dangling uv cache entries...\n'
+  uv cache prune >/dev/null 2>&1 || true
 fi
 
 # 5. Codex Runtimes
@@ -252,7 +248,7 @@ if [[ -d "$npx_dir" ]] && (( stale_npx_count > 0 )); then
 fi
 
 if command -v npm >/dev/null 2>&1; then
-  npm cache clean --force >/dev/null 2>&1 || true
+  npm cache verify >/dev/null 2>&1 || true
 fi
 
 if command -v mise >/dev/null 2>&1; then

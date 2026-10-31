@@ -21,15 +21,12 @@ cask "openvpn-connect"   # corporate VPN client — network access to work infra
 
 brew "mysql-client"      # MySQL/MariaDB CLI — for work app databases; personal stack is Postgres-only
 
-vscode "github.copilot-chat"
+vscode "github.copilot-chat" # GitHub Copilot Chat extension for VS Code
 
-uv "aider-chat"   # LLM coding assistant — configurable to local endpoints
+npm "@earendil-works/pi-coding-agent" # Local-first coding agent used with the llama.cpp endpoint
 
-npm "@earendil-works/pi-coding-agent"
-
-# OpenCode — terminal agentic coding seat (homebrew-core). Seated in the synod
-# per committed P18; drive it via `zopencode` (pinned to the local llama.cpp
-# endpoint, PHI guard parity). Principal-evaluated; pi stays the lightweight seat.
+# OpenCode — terminal coding agent (homebrew-core), driven via `zopencode`
+# with the local llama.cpp endpoint and PHI boundary.
 
 # ---------------------------------------------------------------------------
 # AWS — work infrastructure tooling
@@ -42,26 +39,26 @@ npm "@earendil-works/pi-coding-agent"
 # typically lives in AWS services (S3, RDS, Secrets Manager). The tools
 # below are CLI/local only — no cloud desktop apps.
 
-brew "awscli"
+brew "awscli" # AWS command-line interface for work cloud resources
 # Primary AWS CLI v2. Everything else in this section depends on it.
 # Config lives in ~/.aws/config (profiles only, no keys); keys are managed
 # by aws-vault (see below). Region + output format: set per-profile.
 
-brew "aws-vault"
+brew "aws-vault" # Keychain-backed temporary AWS credentials
 # Stores AWS credentials in macOS Keychain — never in ~/.aws/credentials
 # plaintext. On a PHI-adjacent machine this is non-negotiable. Usage:
 #   aws-vault add <profile>         # store creds (once)
 #   aws-vault exec <profile> -- aws s3 ls
 # Pairs with `granted` for SSO workflows.
 
-brew "granted"
+brew "granted" # Switch AWS SSO accounts and profiles from the terminal
 # Multi-account credential switching for SSO/IdC workloads. Replaces manual
 # `export AWS_PROFILE=...` juggling across accounts and regions. Integrates
 # with aws-vault backend; pops a browser for SSO login, caches session.
 #   assume <profile>                # switch active profile in current shell
 #   assume --sso                    # trigger SSO login flow
 
-cask "session-manager-plugin"
+cask "session-manager-plugin" # AWS Systems Manager Session Manager CLI integration
 # Required for `aws ssm start-session` to reach EC2/ECS tasks without open
 # SSH ports. PHI-safe: encrypted channel, no inbound firewall rules, all
 # sessions logged to CloudTrail automatically. Install this and you never
@@ -71,7 +68,7 @@ cask "session-manager-plugin"
 #     --document-name AWS-StartPortForwardingSession \
 #     --parameters '{"portNumber":["5432"],"localPortNumber":["5432"]}'
 
-brew "cfn-lint"
+brew "cfn-lint" # Linter for AWS CloudFormation templates
 # CloudFormation template linter. Catches syntax errors, deprecated resource
 # properties, and missing fields before deploy. Also flags common PHI-risk
 # misconfigurations: missing S3 encryption, public bucket ACLs, unencrypted
@@ -79,7 +76,7 @@ brew "cfn-lint"
 #   cfn-lint template.yaml          # lint a template
 #   cfn-lint **/*.yaml --format json | jq .
 
-brew "checkov"
+brew "checkov" # Infrastructure-as-code security scanner
 # IaC security scanner for Terraform, CloudFormation, and CDK. Runs ~1000
 # built-in policies; particularly useful for flagging PHI-relevant risks:
 # unencrypted S3/RDS/DynamoDB, public-access settings, missing KMS keys,
@@ -87,7 +84,7 @@ brew "checkov"
 #   checkov -d infra/               # scan a directory of TF/CFN files
 #   checkov -f template.yaml --framework cloudformation
 
-brew "terraform"
+brew "terraform" # Infrastructure-as-code tool for work cloud resources
 # Industry-standard IaC tool. Work-only because personal infrastructure uses
 # managed platforms with no Terraform footprint. Use with aws-vault:
 #   aws-vault exec <profile> -- terraform plan
@@ -114,11 +111,8 @@ brew "eksctl"           # AWS EKS cluster lifecycle (pairs with aws-vault exec)
 # ---------------------------------------------------------------------------
 # Cloud AI desktop apps (the service IS the cloud):
 # cask "chatgpt"
-# cask "codex"
-# cask "codex-app"
 # brew "gemini-cli"
 # brew "kimi-cli"
-# npm "@earendil-works/pi-coding-agent"
 #
 # Cloud deployment platforms:
 # brew "railway"
