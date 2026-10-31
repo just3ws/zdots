@@ -60,7 +60,7 @@ No task is **Done** until:
 
 ## 3. Milestones
 
-Tasks are organized into milestones. No milestone closes until all assigned tasks are Done and `SAGA.md` is updated.
+Tasks are organized into milestones. Close a milestone when every assigned task is Done, its Definition of Done has evidence, and operator documentation reflects any behavior that changed. Git history and the backlog carry chronology; do not maintain a separate narrative status file.
 
 ## 4. Critical Rule: Never Edit Task Files Directly
 
