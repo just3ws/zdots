@@ -1,120 +1,26 @@
-# PI.md
+---
+name: zdots-pi
+scope: zdots repository
+audience: Pi
+inherits: AGENTS.md
+---
 
-Pi-specific instructions for Zdots.
+# Pi
 
-**CRITICAL:** Read [AGENTS.md](AGENTS.md) first for the core architectural guidelines, performance standards, **RTK token-optimization rules**, and **PHI Operating Mode** (Section 8 — non-negotiable on work machines).
+Repository-wide policy is in [AGENTS.md](AGENTS.md). This file contains only
+Pi-specific operation.
 
-Pi is `@earendil-works/pi-coding-agent` — a session-aware AI coding agent with built-in tools (read, bash, edit, write). It runs locally via llama.cpp, with full PHI boundary enforcement.
+- `zpi`: local interactive session; `zpi -p` prints a one-shot response.
+- `zpi --or`: explicit OpenRouter lane. Set `ZDOTS_OR_MODEL`; the lane is
+  home-only, requires `phi_scrub`, and loads its key from Keychain. Interactive
+  prompts are not scrubbed; never include PHI, secrets, or credentials.
+- Use Pi for exploration, reading, and planning. Make edits through a reviewed
+  patch or Aider; do not enable write permissions casually.
+- `zpi` disables telemetry, stores sessions under `${XDG_STATE_HOME}/pi`, and
+  enforces the configured AI boundary.
+- Start a new session for a distinct task. Keep the local model's context
+  focused; see [docs/llama-cpp.md](docs/llama-cpp.md).
+- `zdots_pi_init` exposes peer capability counts to Pi's shell without adding
+  them to the model prompt.
 
-## Invocation
-
-| Command | Purpose |
-|---------|---------|
-| `zpi` | Interactive Pi session |
-| `zpi "question"` | One-shot question |
-| `zpi -p "prompt"` | Non-interactive, print output only |
-| `zpi --or "..."` | **Opt-in** OpenRouter frontier lane (see below) |
-| `zmorning` | Session-open ritual: brief + Pi orientation |
-| `zmorning --brief` | Brief only, no Pi |
-
-`zpi` auto-configures `PI_TELEMETRY=0`, `PI_CODING_AGENT_SESSION_DIR` (XDG), and enforces the AI boundary (`ZDOTS_AI_MODE`, RFC-1918 endpoint check).
-
-## Frontier (cloud) lane — `zpi --or`
-
-`zpi --or` routes Pi to **OpenRouter** (`--provider openrouter`) instead of the
-local model. Opt-in only; bare `zpi` never touches the cloud. Gated by
-`lib/ai_cloud_lane.bash` — **home-only** (refused on `ZDOTS_CONTEXT=work`),
-fail-closed on `phi_scrub`, key (`OPENROUTER_API_KEY`) from the Keychain only.
-`phi_scrub` cannot intercept interactive traffic — you are the last gate.
-
-Set `ZDOTS_OR_MODEL` explicitly before using `zpi --or`. There is no default
-cloud model, and Anthropic/Claude models are refused by this lane.
-Add the key once: `zdots-keychain add OPENROUTER_API_KEY <value>`.
-
-## Pi vs Aider — the boundary
-
-These tools are complementary, not competing. The rule is simple:
-
-| Tool | Use for |
-|------|---------|
-| `zpi` | Exploration, reading, explaining, planning, asking "how should we…" |
-| `zaider` | Editing files, writing code, committing — any **mutation** |
-
-Pi reads and reasons. Aider writes and commits. Pi's output becomes Aider's input.
-
-**Workflow:**
-```
-zpi "explain the capture pipeline and identify gaps"   # read + reason
-zpi "how should we fix the phi_scrub return value?"    # plan
-zaider --message "fix phi_scrub to always return 0"    # execute + commit
-```
-
-Pi does NOT own git. Any file changes Pi suggests should be reviewed and applied via `zaider` or reviewed manually. Do not run `pi` with write permissions in production paths.
-
-## Context Budget (7B model — 32k total)
-
-Same constraints as Aider — this is the same underlying model.
-
-| Slot | Tokens | Notes |
-|------|--------|-------|
-| System prompt | ~1k | Fixed |
-| Session history | ~4k | Grows across turns |
-| File reads | ~20k | Pi reads files with its tools |
-| Output | ~2k | Hard ceiling from llama.cpp |
-
-**Keep sessions focused.** Start a new `zpi` session for each distinct topic.
-
-## ZLE Widgets
-
-Two inline widgets are available without launching a full session:
-
-| Binding | Widget | What it does |
-|---------|--------|--------------|
-| `Alt-e` | explain | Explains the command currently in the buffer |
-| `Alt-f` | fix | Diagnoses the last command that exited non-zero |
-
-Both call the local inference endpoint directly — ~1-3s response time. Results appear below the prompt; your buffer is preserved.
-
-## PHI Safety
-
-- `PI_TELEMETRY=0` is always set by `zpi()` — no telemetry from a PHI-adjacent machine.
-- Session history lands in `${XDG_STATE_HOME}/pi/agent/sessions` — never in the project directory.
-- All Pi sessions are gated by `zdots_ai_gate` — exit 2 in `ZDOTS_AI_MODE=none`.
-- Endpoint assertion enforces RFC-1918 in `local` mode — Pi cannot reach cloud endpoints unless `ZDOTS_AI_MODE=cloud` is explicitly set.
-- Do NOT paste patient record excerpts into Pi. The PHI scrubber is the first layer, not the last.
-
-## Platform Control
-
-```bash
-zdots-ctl check       # deep health diagnostic — run first when something is wrong
-zdots-ctl up          # start llama.cpp and all services
-llama-ctl status      # check llama.cpp specifically
-```
-
-## Session Management
-
-Pi sessions are stored as files in `${XDG_STATE_HOME}/pi/agent/sessions`. Clean old sessions periodically:
-
-```bash
-ls "${XDG_STATE_HOME}/pi/agent/sessions"
-```
-
-## Configuration
-
-| File | Purpose |
-|------|---------|
-| `~/.pi/agent/settings.json` | Default provider/model |
-| `~/.pi/agent/models.json` | Provider definitions (llamacpp, ollama) |
-| `providers/ai/pi.zsh` | Zsh integration, boundary enforcement, `zpi()` |
-
-The `llamacpp` provider in `models.json` points at `http://127.0.0.1:11500/v1` — the local llama.cpp OpenAI-compatible endpoint. Changing `ZDOTS_AI_ENDPOINT` in `.zdots.local` does **not** automatically update Pi's `models.json`; they must be kept in sync manually.
-
-## Peer Capability discovery
-
-`zdots_pi_init` sources `lib/peer-bootstrap.bash` (shared with Aider and other
-agent providers), exporting `ZDOTS_AVAILABLE`/`ADOTS_AVAILABLE` and the attested/declared
-Capability counts `ZDOTS_PEER_CAPS`/`ADOTS_PEER_CAPS` (e.g. `118/122`) into
-Pi's environment — attested means the command resolves right now, not merely
-that it is declared. The model-visible summary is the `peers:` line in the
-`pi-ctx-brief` system-prompt injection; the exported vars serve Pi's bash tool.
-No doctor probes at launch (they cost seconds); posture, not health.
+See [docs/tooling.md](docs/tooling.md) for platform commands.

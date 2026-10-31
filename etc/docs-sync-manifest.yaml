@@ -62,11 +62,11 @@ cross_platform:
       initializers: [AGENTS.md]
       notes: kernel; this manifest lives here
     my:
-      initializers: [AGENT.md, HUMAN.md]
-      notes: private vault; different naming is intentional (singular agent, human-facing companion)
+      initializers: [AGENT.md]
+      notes: private vault; HUMAN.md is a separate human workflow guide
     adots:
       initializers: []
       notes: no root initializer; capabilities.sh + profile + wiki serve its readers
     vdots:
-      initializers: []
-      notes: named peer; not currently on disk
+      initializers: [AGENTS.md]
+      notes: Neovim-specific repo instructions; no separate tool-specific initializer
