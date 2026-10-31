@@ -17,19 +17,20 @@ module Zdots
       # load here so non-telemetry CLI paths don't pay the startup cost.
       require "opentelemetry-sdk"
       require "opentelemetry-exporter-otlp"
-      # c.use_all only installs instrumentations already registered in
-      # OpenTelemetry::Instrumentation.registry — without this require, the
-      # registry is empty and use_all silently no-ops (confirmed 2026-08-03:
-      # zdots-worker processed 311 jobs/30d with zero spans reaching
-      # OpenObserve; this was the actual cause, not a missing OTEL_* env var).
-      require "opentelemetry/instrumentation/all"
+      # These are the instrumented client libraries used by zdots: pg for the
+      # Knowledge Layer, Faraday for RubyLLM, and Net::HTTP for embeddings.
+      require "opentelemetry/instrumentation/faraday"
+      require "opentelemetry/instrumentation/net/http"
+      require "opentelemetry/instrumentation/pg"
 
       # Silence OTel diagnostic logging unless debug mode is active
       OpenTelemetry.logger = Logger.new(nil) unless ENV["ZDOTS_DEBUG"] == "1"
 
       OpenTelemetry::SDK.configure do |c|
         c.service_name = service_name
-        c.use_all
+        c.use "OpenTelemetry::Instrumentation::Faraday"
+        c.use "OpenTelemetry::Instrumentation::Net::HTTP"
+        c.use "OpenTelemetry::Instrumentation::PG"
       end
     end
 
