@@ -105,6 +105,41 @@ flowchart LR
 | AI boundary | Local inference by default; PHI Scrubber and locality gates apply before inference |
 | Archives | `/Volumes/Dock_1TB/zdots-archive` holds private local archives and provenance; never commit or upload it |
 
+## Recording, streaming, and media path
+
+Video work is a critical workload and should retain local disk and memory
+headroom. The path crosses native apps, cloud-file hydration, and the media
+project; Docker is not part of the normal recording path.
+
+```mermaid
+flowchart LR
+    Camera[Android camera / Open Camera] -->|user-managed sync| Drive[Google Drive streamed files]
+    Local[Local camera or stream files] --> OBS[OBS recording / streaming]
+    Drive -->|hydrate on demand| MP[media-pipeline]
+    Local --> MP
+    OBS -->|recorded source files| MP
+    MP --> YT[YouTube publication, when requested]
+    MP --> Whisper[whisper.cpp via whisper-ctl]
+    Whisper --> Transcript[transcripts / derived artifacts]
+    Drive -. File Provider cache managed by macOS .-> Storage[Internal storage]
+    MP --> External[Dock_1TB archive / build cache]
+```
+
+| Component | Operational role | Storage / safety boundary |
+|---|---|---|
+| OBS | Native recording and streaming app | Keep active recordings on a volume with adequate free space; retain original media |
+| Google Drive for Desktop | Stream-first access to large files | File Provider owns its cache; do not delete DriveFS internals. Review Offline Files through Drive settings |
+| Open Camera | Android camera capture option | Sync setup is operator-managed; do not assume camera files are already backed up |
+| `media-pipeline` | Rails workflow for intake, transcription, and publication | Native Ruby service; uses whisper.cpp and local file sources; publishes to YouTube only when requested |
+| `whisper-ctl` | Manages whisper.cpp transcription and model selection | Model files live under `~/.local/share/whisper-cpp/models` unless overridden |
+| Colima | Optional Docker environment for exceptional local container work | VM is stopped/deleted; keep it off during recording unless explicitly needed |
+| Dock_1TB | Archive and build-cache volume | Keeps private archives, build products, and optional bulky working data off the internal disk |
+
+The internal-disk operating reserve is about 45 GiB for recording and editing.
+Check `df -h /` before long sessions and use `zdots-storage` for the scoped
+platform inventory. Do not treat cache size alone as reclaimable space: DriveFS
+and other File Provider caches have managed lifecycles.
+
 ## PATH ownership
 
 The shell assembles PATH in layers. For a machine-wide static executable
@@ -137,11 +172,12 @@ launchd consumers.
 
 ## Operational snapshot — 2026-10-31
 
-`zdots-ctl status`, `capabilities --json`, and the read-only database probe
-showed the core platform healthy: OpenObserve, Jaeger, OTel, llama.cpp,
-embeddings, PostgreSQL 18.6, Redis, and the worker were reachable. nginx was
-loaded and listening. Colima was down by design. Internal storage reported
-about 51 GiB free; `/Volumes/Dock_1TB` had about 342 GiB free.
+Refreshed during the map audit. `zdots-ctl status` and `zsvc list` show
+OpenObserve, Jaeger, OTel, llama.cpp, embeddings, PostgreSQL 18, Redis, the
+worker, nginx, statusd, and Gemstash running. Colima is stopped by design.
+`capabilities --json` reports `health_errors=0`; internal storage reports
+53 GiB free. The current check did not inspect PostgreSQL contents. Confirm
+read-only access with the documented `zdots_ro` role before ad-hoc queries.
 
 Current commands:
 
