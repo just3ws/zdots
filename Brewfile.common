@@ -139,7 +139,7 @@ brew "rustup" # Rust toolchain installer
 brew "sd" # Intuitive find & replace CLI
 brew "sqlite-utils" # CLI analytics on SQLite — query command_runs, export JSON/CSV
 brew "selene"      # vdots: strict Lua linter (test/lint.sh uses it when present)
-brew "sentry-cli" # Command-line utility to interact with Sentry
+cask "sentry-cli" # Command-line utility to interact with Sentry (Homebrew cask)
 brew "sesh" # Smart session manager for the terminal
 brew "shfmt" # Autoformat shell script source code
 brew "sponge" # Soak up standard input and write to a file

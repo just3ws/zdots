@@ -120,11 +120,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-homebrew-
 
-      # brew refuses to load formulae/casks from third-party taps it has not
-      # been told to trust; tapping first registers them for a non-interactive
-      # `brew bundle`.
+      # Register and trust the third-party taps used by Brewfile.home so the
+      # non-interactive bundle install can load their formulae and casks.
       - name: Trust third-party taps
-        run: brew tap romkatv/powerlevel10k
+        run: |
+          brew tap romkatv/powerlevel10k
+          brew tap phalanxduel/tap
+          brew trust phalanxduel/tap
 
       - name: Install Dependencies (Retry)
         shell: bash
