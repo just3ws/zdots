@@ -46,9 +46,6 @@ brew "kcov" # Code coverage tester for compiled programs, Python, and shell scri
 # brew "railway"
 # brew "tailscale"
 # gh-dash is a gh extension, not a Homebrew formula: gh extension install dlvhdr/gh-dash
-brew "k9s" # Kubernetes CLI To Manage Your Clusters In Style!
-brew "kubernetes-cli" # Kubernetes command-line interface
-brew "kubectx" # Tool that can switch between kubectl contexts easily and create aliases
 # otelcol-contrib is intentionally absent — custom binary managed by
 # bin/otel-collector install (not available via Homebrew)
 cask "1password" # Password manager that keeps all passwords secure behind one password

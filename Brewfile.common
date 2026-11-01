@@ -139,7 +139,7 @@ brew "rustup" # Rust toolchain installer
 brew "sd" # Intuitive find & replace CLI
 brew "sqlite-utils" # CLI analytics on SQLite — query command_runs, export JSON/CSV
 brew "selene"      # vdots: strict Lua linter (test/lint.sh uses it when present)
-cask "sentry-cli" # Command-line utility to interact with Sentry (Homebrew cask)
+brew "sentry-cli" # Command-line utility to interact with Sentry
 brew "sesh" # Smart session manager for the terminal
 brew "shfmt" # Autoformat shell script source code
 brew "sponge" # Soak up standard input and write to a file
@@ -167,7 +167,7 @@ brew "vips" # Image processing library
 brew "watch" # Executes a program periodically, showing output fullscreen
 brew "watchexec"    # re-run bats on file change — tighter test feedback than entr
 brew "wget" # Internet file retriever
-brew "whisper-cpp" # local speech-to-text engine used by ztranscribe
+brew "whisper.cpp" # local speech-to-text engine used by ztranscribe
 brew "whisperkit-cli" # Swift native on-device speech recognition with Whisper for Apple Silicon
 brew "xcodegen" # Generate your Xcode project from a spec file and your folder structure
 brew "xmlstarlet" # XML command-line utilities

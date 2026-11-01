@@ -93,10 +93,9 @@ brew "terraform" # Infrastructure-as-code tool for work cloud resources
 # ---------------------------------------------------------------------------
 # Kubernetes — work cluster tooling
 # ---------------------------------------------------------------------------
-# Work-only: heavy day-to-day k8s here. The core three (kubectl/k9s/kubectx)
-# also live in Brewfile.home; work adds the workflow + EKS layer. All CLI/local
-# — they talk to whatever kubeconfig context is active (aws-vault + eksctl for
-# EKS auth), so credential discipline is the AWS section's, applied to clusters.
+# Work-only Kubernetes tooling. These commands are excluded from the home
+# profile; include this block only on a machine that actively operates clusters.
+# They use the active kubeconfig context (aws-vault + eksctl for EKS auth).
 
 brew "kubernetes-cli"   # kubectl — the base client
 brew "k9s"              # terminal UI for cluster navigation/triage
