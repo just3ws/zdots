@@ -37,11 +37,16 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   The retired experiment has no current-tree references; Git history and its
   checksummed local archive remain provenance. No force-pushes were made.
 
-  Current CI/dependency evidence (2026-10-31): zdots Check and Secret Scan
-  passed on 7b76072f. Dependabot has zero open alerts and zero open PRs (29
-  closed alerts); no dependency changes were made in this review. media-pipeline
-  is pushed at ec1dc67 and CI run 41254389048 passed; six generated
-  graphify-out files remain locally modified and untouched.
+  Current CI evidence (2026-11-01 UTC): zdots Check for c27a84f3 failed at
+  Homebrew installation because sentry-cli migrated from formula to cask; the
+  local Brewfile fix is ready for ordinary commit/push, and Secret Scan passed.
+  The latest full `make check` passed after corrections to stale task-state and
+  integration-test assumptions. A prior run had one transient o2_slow timeout;
+  its isolated suite passed 26/26. Z-349 remains In Progress until the changes
+  are committed and the new GitHub Actions run is green. The Atuin report was
+  refreshed; home Brewfile satisfies `brew bundle check --no-upgrade`.
+  media-pipeline remains pushed at ec1dc67 with CI run 41254389048 passed; six
+  generated graphify-out files remain locally modified and untouched.
 
   Phalanx game main still has a staged Claude/Codex/Gemini instruction cleanup;
   preserve it. Active docs and code still reference Claude Code and the
@@ -54,6 +59,11 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   The durable bus and manual CLI remain. Optional busdriver is parked. Existing
   localhost routes are indexed in docs/local-url-routing.md; do not add hosts
   without a clear workflow. nginx validation/reload requires operator sudo.
+
+  Starting Z-349 through ztask restored the active-task marker from archived
+  Z-348; ztask health now passes. The hydration also surfaced unrelated stale
+  guidance in the Knowledge Layer. Do not repeat/use that material; track a
+  separate context-curation review.
 
   Video recording/editing are critical. Preserve media sources and maintain
   about 45 GiB internal free space. Colima is installed for on-demand use only.

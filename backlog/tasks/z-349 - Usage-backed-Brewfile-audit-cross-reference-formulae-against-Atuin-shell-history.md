@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: 2026-10-20 15:55
-updated_date: '2026-11-01T00:06:00Z'
+updated_date: '2026-11-01T03:02:00Z'
 labels:
   - agent-reported
   - enhancement
@@ -25,24 +25,20 @@ Cross-reference current Homebrew formula declarations across the platform Brewfi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Map declared Homebrew formulae to their provided binary names
-- [ ] #2 Query Atuin SQLite history for binary execution frequencies over configurable window (default: 90 days)
-- [ ] #3 Generate annotated report of zero-use candidates without auto-uninstalling
+- [x] #1 Map declared Homebrew formulae to their provided binary names
+- [x] #2 Query Atuin SQLite history for binary execution frequencies over configurable window (default: 90 days)
+- [x] #3 Generate annotated report of zero-use candidates without auto-uninstalling
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
-- [ ] #2 make check passes with output captured in task notes or commit message
+- [x] #1 All acceptance criteria checked with evidence (command output, file path, or test result)
+- [x] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Inventory update (2026-10-31): Homebrew formula manifests resolve to 228 unique formula names across Brewfile.common/home/work and the optional Rails modernization file; 219 installed-on-request formulae were present before the Kubernetes removal. A 90-day read-only Atuin query covered 3,659 active history rows and found direct binary invocations for 23 formula packages. Treat zero counts as review signals only: aliases, wrappers, scripts, service use, and project dependencies make shell-history absence insufficient grounds to uninstall.
-
-Corrected sentry-cli from cask to formula, updated the whisper.cpp declaration to Homebrew’s canonical name, and removed k9s/kubernetes-cli/kubectx from the personal Brewfile. Those three tools had no recorded direct invocations in the window and no installed formula dependents; Homebrew removed about 259 MB. They remain in Brewfile.work. `brew bundle check --no-upgrade --file=Brewfile.home` now passes. The kube config under the home directory was not touched.
-
-Storage snapshot: Cellar 10 GB, Caskroom 818 MB, Homebrew cache 44 MB, internal free space 54 GiB (45 GiB operating reserve). `brew cleanup --dry-run` reports only 4.7 MB reclaimable. The installed but undeclared libarchive, nss, and xz leaves total about 25.7 MB and have no installed formula dependents; keep pending usage/context review. The fixed-window analysis and manually generated candidate output do not yet satisfy the reusable --days/report acceptance criterion.
+Implemented and ran audit/brewfile_usage.py with SQLite read-only access to Atuin history. The 90-day run queried 3,659 active rows (11,248 total), mapped declared formula executables, and generated 166 annotated zero-direct-use review candidates across the profiles. It never uninstalls packages. The report records the limits of direct history matching and distinguishes work-only and optional profiles. Output: audit/brewfile-usage-2026-10-31.md. Home Brewfile satisfies `brew bundle check --no-upgrade`; the standard make check emits a nonblocking warning for package freshness only. Homebrew migrated sentry-cli from formula to cask; Brewfile.common now declares the cask and local install is cask 3.8.2, with /opt/homebrew/bin/sentry-cli verified. Three unused Kubernetes tools were removed from the home profile and retained in the work profile. Verification: final full make check passed (`check: OK`; 870 passing test lines, with documented skips); the 66 targeted statusd/bus/ztask/platform checks and isolated o2_mcp suite (26/26) passed; git diff --check and secret-scan passed. Acceptance criteria and DoD evidence item 1 and make check item 2 are complete. DoD item 3 remains open until exact related files are committed and pushed through ordinary fast-forward, and the resulting GitHub Actions run passes.
 <!-- SECTION:NOTES:END -->

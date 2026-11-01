@@ -139,7 +139,6 @@ brew "rustup" # Rust toolchain installer
 brew "sd" # Intuitive find & replace CLI
 brew "sqlite-utils" # CLI analytics on SQLite — query command_runs, export JSON/CSV
 brew "selene"      # vdots: strict Lua linter (test/lint.sh uses it when present)
-brew "sentry-cli" # Command-line utility to interact with Sentry
 brew "sesh" # Smart session manager for the terminal
 brew "shfmt" # Autoformat shell script source code
 brew "sponge" # Soak up standard input and write to a file
@@ -211,6 +210,7 @@ cask "onyx" # Verify system files structure, run miscellaneous maintenance and m
 # cask "postman"
 cask "rectangle" # Move and resize windows using keyboard shortcuts or snap areas
 cask "slack" # Team communication and collaboration software
+cask "sentry-cli" # Command-line utility to interact with Sentry
 cask "stats" # System monitor for the menu bar
 cask "vimr" # GUI for the Neovim text editor
 # cask "visual-studio-code"

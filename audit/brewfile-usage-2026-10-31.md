@@ -5,18 +5,18 @@ Review-only report for a rolling 90-day Atuin history window.
 ## Method
 
 - Read Atuin history from `/Users/mike/.local/share/atuin/history.db` using SQLite read-only mode.
-- Queried 3,653 non-deleted history rows in the window (11,241 total rows). Raw command strings, working directories, and session identifiers are never written to this report.
+- Queried 3,659 non-deleted history rows in the window (11,248 total rows). Raw command strings, working directories, and session identifiers are never written to this report.
 - Mapped declared formulas through Homebrew `opt` links (including aliases) to executable files under each installed formula’s `bin`, `sbin`, and `libexec/bin` directories.
 - Counted top-level command invocations by executable basename. Shared executable names count as use for every provider. Shell aliases/functions and background/service use can be missed; zero-use rows are review candidates, never uninstall instructions.
 - Casks are not evaluated by shell history. Work-only formulae not installed on this host are listed separately, not treated as zero-use candidates.
 
 ## Summary
 
-- Installed Homebrew leaves: 198.
+- Installed Homebrew leaves: 195.
 - Declared formulas across common, home, work, and optional Rails profiles: 229.
-- Installed declared formulas with executable files: 200.
-- Review candidates with no direct invocation in this window: 169.
-- Declared formulas not installed on this host: 13.
+- Installed declared formulas with executable files: 197.
+- Review candidates with no direct invocation in this window: 166.
+- Declared formulas not installed on this host: 16.
 - Installed formulas without a CLI binary in scanned directories: 16.
 
 ## Operational exceptions
@@ -98,10 +98,7 @@ Review-only report for a rolling 90-day Atuin history window.
 | jq | common, home, work | jq |
 | julia | home | julia |
 | k6 | common, home, work | k6 |
-| k9s | home, work | k9s |
 | kcov | home | kcov |
-| kubectx | home, work | kubectl-ctx, kubectl-ns, kubectx, kubens |
-| kubernetes-cli | home, work | kubectl |
 | lazydocker | common, home, work | lazydocker |
 | lazygit | common, home, work | lazygit |
 | librsvg | common, home, work | rsvg-convert |
@@ -189,7 +186,7 @@ Review-only report for a rolling 90-day Atuin history window.
 | watch | common, home, work | watch |
 | watchexec | common, home, work | watchexec |
 | wget | common, home, work | wget |
-| whisper-cpp | common, home, work | parakeet-cli, parakeet-quantize, whisper-bench, whisper-cli, whisper-command, whisper-lsp, whisper-quantize, whisper-server, whisper-stream, whisper-talk-llama, whisper-vad-speech-segments |
+| whisper.cpp | common, home, work | parakeet-cli, parakeet-quantize, whisper-bench, whisper-cli, whisper-command, whisper-lsp, whisper-quantize, whisper-server, whisper-stream, whisper-talk-llama, whisper-vad-speech-segments |
 | whisperkit-cli | common, home, work | whisperkit-cli |
 | xcodegen | common, home, work | xcodegen |
 | xmlstarlet | common, home, work | xml, xmlstarlet |
@@ -214,6 +211,9 @@ Review each candidate against repo workflows, Nginx routes, service state, alias
 | eksctl | work |
 | granted | work |
 | helm | work |
+| k9s | work |
+| kubectx | work |
+| kubernetes-cli | work |
 | kustomize | work |
 | mariadb-connector-c | rails-modernization |
 | mongodb-database-tools | rails-modernization |
@@ -312,10 +312,7 @@ Review each candidate against repo workflows, Nginx routes, service state, alias
 | jq | common, home, work | jq | 0 |  |
 | julia | home | julia | 0 |  |
 | k6 | common, home, work | k6 | 0 |  |
-| k9s | home, work | k9s | 0 |  |
 | kcov | home | kcov | 0 |  |
-| kubectx | home, work | kubectl-ctx, kubectl-ns, kubectx, kubens | 0 |  |
-| kubernetes-cli | home, work | kubectl | 0 |  |
 | lazydocker | common, home, work | lazydocker | 0 |  |
 | lazygit | common, home, work | lazygit | 0 |  |
 | librsvg | common, home, work | rsvg-convert | 0 |  |
@@ -423,7 +420,7 @@ Review each candidate against repo workflows, Nginx routes, service state, alias
 | watch | common, home, work | watch | 0 |  |
 | watchexec | common, home, work | watchexec | 0 |  |
 | wget | common, home, work | wget | 0 |  |
-| whisper-cpp | common, home, work | parakeet-cli, parakeet-quantize, whisper-bench, whisper-cli, whisper-command, whisper-lsp, whisper-quantize, whisper-server, whisper-stream, whisper-talk-llama, whisper-vad-speech-segments | 0 |  |
+| whisper.cpp | common, home, work | parakeet-cli, parakeet-quantize, whisper-bench, whisper-cli, whisper-command, whisper-lsp, whisper-quantize, whisper-server, whisper-stream, whisper-talk-llama, whisper-vad-speech-segments | 0 |  |
 | whisperkit-cli | common, home, work | whisperkit-cli | 0 |  |
 | xcodegen | common, home, work | xcodegen | 0 |  |
 | xmlstarlet | common, home, work | xml, xmlstarlet | 0 |  |

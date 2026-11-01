@@ -270,3 +270,17 @@ FAILCTX
     .active_task_valid == true
   ' >/dev/null
 }
+
+@test "ztask health returns JSON when active task no longer exists" {
+  printf 'z-404\n' > "$ZTASK_TEST_ACTIVE"
+
+  run _ztask_isolated health --json
+  [ "$status" -ne 0 ]
+  printf '%s\n' "$output" | jq -e '
+    .healthy == false and
+    .active_task == "z-404" and
+    .active_task_valid == false and
+    .platform_ready == true and
+    .brain_ready == true
+  ' >/dev/null
+}

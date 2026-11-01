@@ -45,9 +45,14 @@ setup() {
 @test "zdots-statusd: /backlog/<id> renders one task's content when the service is up" {
   curl -sf --max-time 2 http://127.0.0.1:"${ZDOTS_STATUS_PORT:-11600}"/healthz >/dev/null 2>&1 \
     || skip "status service not running"
-  run curl -sf --max-time 3 "http://127.0.0.1:${ZDOTS_STATUS_PORT:-11600}/backlog/Z-192"
+  local task_file task_id
+  task_file="$(find "$REPO_ROOT/backlog/tasks" -maxdepth 1 -type f -name '*.md' -print | sort | head -n 1)"
+  [[ -n "$task_file" ]] || skip "no active backlog task is available"
+  task_id="$(sed -n 's/^id:[[:space:]]*//p' "$task_file" | head -n 1)"
+  [[ -n "$task_id" ]] || skip "first active backlog task has no ID"
+  run curl -sf --max-time 3 "http://127.0.0.1:${ZDOTS_STATUS_PORT:-11600}/backlog/${task_id}"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Knowledge Layer curation"* ]]
+  [[ "$output" == *"${task_id} —"* ]]
 }
 
 @test "zdots-statusd: /backlog/<unknown-id> is a 404, not a crash" {

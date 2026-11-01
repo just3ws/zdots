@@ -62,11 +62,14 @@ setup() {
   [[ "$output" == *"INFORMATIVE ONLY — ZERO SIDE-EFFECTS"* ]]
 }
 
-@test "bus: driver ping responds" {
+@test "bus: driver ping reports whether the optional coordinator is running" {
   BUS="$REPO_ROOT/bin/bus"
   run "$BUS" driver ping
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"busdriver"* ]]
+  if [ "$status" -eq 0 ]; then
+    [[ "$output" == *"busdriver: [ok]"* ]]
+  else
+    [[ "$output" == *"busdriver: [stopped] parked in the lot"* ]]
+  fi
 }
 
 @test "bus: default invocation outputs schedule" {
@@ -90,9 +93,14 @@ setup() {
 }
 
 @test "zdots-ctx: bus subcommand dispatches to zdots-bus" {
+  local direct_status direct_output
+  run "$REPO_ROOT/bin/bus" driver ping
+  direct_status="$status"
+  direct_output="$output"
+
   run "$REPO_ROOT/bin/zdots-ctx" bus driver ping
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"busdriver"* ]]
+  [ "$status" -eq "$direct_status" ]
+  [ "$output" = "$direct_output" ]
 }
 
 @test "bus: tap displays policy contract" {

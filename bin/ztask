@@ -52,8 +52,12 @@ _ztask_help_guard() {
 _find_task_file() {
   local id="$1"
   local slug; slug=$(echo "$id" | tr '[:upper:]' '[:lower:]')
+  local file
   # Find file matching "ID - *"
-  ls "$TASKS_DIR"/${slug}* 2>/dev/null | head -n 1
+  for file in "$TASKS_DIR"/${slug}*; do
+    [[ -f "$file" ]] && { printf '%s\n' "$file"; return 0; }
+  done
+  return 0
 }
 
 _set_task_status() {
