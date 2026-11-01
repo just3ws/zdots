@@ -629,16 +629,26 @@ module Zdots
       uri     = meta.fetch("source_uri")
       force   = meta["force"] == true
       profile = meta["profile"] || "standard"
+      tags = Array(meta["tags"]).map { |tag| tag.to_s.strip }.reject(&:empty?).uniq
+      primer_text = meta["primer_text"].to_s.strip
       existing = Zdots::Models::MediaSource.first(source_uri: uri)
 
       if existing && !force
+        updates = {}
+        merged_tags = (Array(existing.tags) + tags).uniq
+        updates[:tags] = Sequel.pg_array(merged_tags, :text) if merged_tags != Array(existing.tags)
+        updates[:primer_text] = primer_text if existing.primer_text.to_s.strip.empty? && !primer_text.empty?
+        existing.update(updates) unless updates.empty?
         puts "zdots-ingest-media: [skip] already ingested (#{existing.id}); use --force to reprocess."
         return
       end
 
       Zdots.db.transaction do
         if existing
-          existing.update(ingest_status: "queued", updated_at: Sequel::CURRENT_TIMESTAMP)
+          updates = { ingest_status: "queued", updated_at: Sequel::CURRENT_TIMESTAMP }
+          updates[:tags] = Sequel.pg_array((Array(existing.tags) + tags).uniq, :text) if tags.any?
+          updates[:primer_text] = primer_text if existing.primer_text.to_s.strip.empty? && !primer_text.empty?
+          existing.update(updates)
           media_source_id = existing.id
           puts "zdots-ingest-media: reprocessing #{media_source_id}."
         else
@@ -650,6 +660,8 @@ module Zdots
             title:           meta["title"],
             duration_sec:    meta["duration_sec"],
             ingest_status:   "queued",
+            primer_text:     (primer_text.empty? ? nil : primer_text),
+            tags:            Sequel.pg_array(tags, :text),
             source_snapshot: Sequel.pg_jsonb(meta["source_snapshot"] || {})
           )
           media_source_id = src.id

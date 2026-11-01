@@ -331,3 +331,10 @@ _known_gap() {
     return 1
   fi
 }
+
+@test "zdots-ingest-media help documents source context options" {
+  run "$REPO_ROOT/bin/zdots-ingest-media" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"--primer-text <text>"* ]]
+  [[ "$output" == *"--tags <list>"* ]]
+}

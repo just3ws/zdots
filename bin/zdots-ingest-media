@@ -16,6 +16,8 @@ usage() {
 Usage: zdots-ingest-media <url|file> [options]
   --label <text>          Non-PHI display label (REQUIRED for local files)
   --profile <p>           Whisper profile (default: standard)
+  --primer-text <text>    Source context for transcription and distillation
+  --tags <list>           Comma-separated source tags for scoped known terms
   --num-speakers <n>      Diarization speaker-count hint (e.g. interviewees + 1)
   --force                 Reprocess an already-ingested source
   -h, --help              Show this help
@@ -27,11 +29,13 @@ Bot-gated sources (e.g. YouTube) need cookies. Set one of (opt-in):
 EOF
 }
 
-SRC="" LABEL="" PROFILE="standard" FORCE="" NUM_SPEAKERS=""
+SRC="" LABEL="" PROFILE="standard" FORCE="" NUM_SPEAKERS="" PRIMER_TEXT="" TAGS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --label)        LABEL="$2"; shift 2 ;;
     --profile)      PROFILE="$2"; shift 2 ;;
+    --primer-text)  PRIMER_TEXT="$2"; shift 2 ;;
+    --tags)         TAGS="$2"; shift 2 ;;
     --num-speakers) NUM_SPEAKERS="$2"; shift 2 ;;
     --force)        FORCE="--force"; shift ;;
     -h|--help)      usage; exit 0 ;;
@@ -44,6 +48,7 @@ captured_by="zdots-ingest-media/yt-dlp-$(yt-dlp --version 2>/dev/null || echo '?
 FORCE_BOOL=$([[ -n "$FORCE" ]] && echo true || echo false)
 # null when unset → zdots-brain omits the hint; a bare int otherwise.
 SPEAKERS_JSON=$([[ -n "$NUM_SPEAKERS" ]] && echo "$NUM_SPEAKERS" || echo null)
+TAGS_JSON="$(printf '%s' "$TAGS" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
 
 # Z-237: opt-in cookie args for bot-gated sources (YouTube). Empty array unless
 # ZDOTS_YTDLP_COOKIES_FROM_BROWSER / _FILE is set. See lib/ytdlp.bash.
@@ -62,7 +67,8 @@ if [[ "$SRC" =~ ^https?:// ]]; then
   fi
   meta="$(printf '%s' "$info" | jq --arg cb "$captured_by" \
               --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" \
-              --argjson speakers "$SPEAKERS_JSON" '{
+              --argjson speakers "$SPEAKERS_JSON" --arg primer "$PRIMER_TEXT" \
+              --argjson tags "$TAGS_JSON" '{
     source_type:  (.extractor_key // "url" | ascii_downcase),
     source_uri:   .webpage_url,
     source_id:    .id,
@@ -71,6 +77,8 @@ if [[ "$SRC" =~ ^https?:// ]]; then
     profile:      $profile,
     force:        $force,
     num_speakers: $speakers,
+    primer_text: $primer,
+    tags: $tags,
     source_snapshot: {
       captured_by:  $cb,
       channel:      (.channel // .uploader),
@@ -106,7 +114,8 @@ else
   meta="$(jq -n --arg sha "$sha" --arg label "$LABEL" --argjson bytes "$bytes" \
               --arg mtime "$mtime" --arg cb "$captured_by" --argjson p "$probe" \
               --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" \
-              --argjson speakers "$SPEAKERS_JSON" '{
+              --argjson speakers "$SPEAKERS_JSON" --arg primer "$PRIMER_TEXT" \
+              --argjson tags "$TAGS_JSON" '{
     source_type:  "local",
     source_uri:   ("local:sha256:" + $sha),
     source_id:    $sha,
@@ -115,6 +124,8 @@ else
     profile:      $profile,
     force:        $force,
     num_speakers: $speakers,
+    primer_text: $primer,
+    tags: $tags,
     source_snapshot: {
       captured_by:   $cb,
       sha256:        $sha,
