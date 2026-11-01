@@ -146,6 +146,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - Validate Go and Python dependency changes
 - *(homebrew)* Trim personal Kubernetes tools
 - Keep GitHub gate lightweight
+- *(release)* Align beacon to 0835026.M3
 ## [0668026.M3] - 2026-09-01
 
 ### 🚀 Features
