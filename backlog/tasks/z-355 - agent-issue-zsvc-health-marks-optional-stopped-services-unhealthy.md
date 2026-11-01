@@ -1,13 +1,19 @@
 ---
 id: Z-355
 title: '[agent-issue] zsvc health marks optional stopped services unhealthy'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-31T23:15:00Z'
+updated_date: '2026-11-01T03:17:00Z'
 labels:
   - agent-reported
   - error
 dependencies: []
+modified_files:
+  - lib/svc-registry.bash
+  - bin/zsvc
+  - tests/svc_registry.bats
+  - tests/platform_e2e.bats
 priority: medium
 ordinal: 226895
 ---
@@ -25,3 +31,16 @@ I was checking the normal bare-metal service posture with Colima intentionally s
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 Service registry declares required or optional health policy for every service
+- [x] #2 Optional service probe failures remain visible but do not fail aggregate health
+- [x] #3 Required service and local URL failures still fail aggregate health
+<!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented explicit health policy in lib/svc-registry.bash. zsvc JSON exposes policy; optional failures remain visible without failing aggregate status. Tests: tests/svc_registry.bats and tests/platform_e2e.bats pass (38/38); full make check passes (check: OK). Live zsvc health --json reports healthy:true with Colima stopped and coordinator not registered, all six core URLs HTTP 200. Verified git diff --check and bin/secret-scan. Operator approved work by directing resume/fix-forward; this resolves the original wait-for-operator note.
+<!-- SECTION:NOTES:END -->

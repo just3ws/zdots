@@ -183,16 +183,18 @@ launchd consumers.
 
 ## Operational snapshot — 2026-10-31
 
-Refreshed 2026-10-31. `zdots-ctl status` reports the core stack healthy;
-`zsvc list` also shows nginx, statusd, and Gemstash running. Hister is outside
-the `zsvc` registry and its local endpoint responds with HTTP 200. Colima is
-stopped by design. `capabilities --json` reports `health_errors=0` and 52 GiB
-available on `/` at the time of this check. `zsvc health --json` currently
-reports `healthy=false` because stopped Colima and the parked optional bus
-coordinator count as failures; Z-355 tracks this mismatch. The endpoint probe
-also found `dev.my.local` returning 502; see
-[Local URL Routing](local-url-routing.md). No PostgreSQL contents were
-inspected. Use the documented `zdots_ro` role for safe ad-hoc queries.
+Refreshed 2026-10-31. `capabilities --json` reports `health_errors=0`; core
+services and the six core URLs (`llama`, `embed`, `o2`, `zdots`, Gemstash, and
+`my`) respond healthy. The aggregate `zsvc health --json` remains
+`healthy=false` because on-demand Colima is stopped and the optional bus
+coordinator is not registered; Z-355 tracks this mismatch. Neither is required
+for bare-metal recording or normal platform work. `zdots-endpoints -q` found
+`dev.my.local` returning 502, the on-demand `wwworkremote` and Phalanx local
+development upstreams stopped (502), and `media-pipeline.localhost` reachable
+with an untrusted mkcert certificate. See [Local URL Routing](local-url-routing.md)
+for ownership and current exceptions. Internal storage had 49 GiB available,
+about 4 GiB above the 45 GiB recording reserve. No PostgreSQL contents were
+inspected; use the documented `zdots_ro` role for safe ad-hoc queries.
 
 Current commands:
 

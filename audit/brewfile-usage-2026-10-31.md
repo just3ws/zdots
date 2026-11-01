@@ -5,17 +5,17 @@ Review-only report for a rolling 90-day Atuin history window.
 ## Method
 
 - Read Atuin history from `/Users/mike/.local/share/atuin/history.db` using SQLite read-only mode.
-- Queried 3,659 non-deleted history rows in the window (11,248 total rows). Raw command strings, working directories, and session identifiers are never written to this report.
+- Queried 3,662 non-deleted history rows in the window (11,251 total rows). Raw command strings, working directories, and session identifiers are never written to this report.
 - Mapped declared formulas through Homebrew `opt` links (including aliases) to executable files under each installed formula’s `bin`, `sbin`, and `libexec/bin` directories.
 - Counted top-level command invocations by executable basename. Shared executable names count as use for every provider. Shell aliases/functions and background/service use can be missed; zero-use rows are review candidates, never uninstall instructions.
 - Casks are not evaluated by shell history. Work-only formulae not installed on this host are listed separately, not treated as zero-use candidates.
 
 ## Summary
 
-- Installed Homebrew leaves: 195.
-- Declared formulas across common, home, work, and optional Rails profiles: 229.
-- Installed declared formulas with executable files: 197.
-- Review candidates with no direct invocation in this window: 166.
+- Installed Homebrew leaves: 194.
+- Declared formulas across common, home, work, and optional Rails profiles: 228.
+- Installed declared formulas with executable files: 196.
+- Review candidates with no direct invocation in this window: 165.
 - Declared formulas not installed on this host: 16.
 - Installed formulas without a CLI binary in scanned directories: 16.
 
@@ -152,7 +152,6 @@ Review-only report for a rolling 90-day Atuin history window.
 | rustup | common, home, work | cargo, cargo-clippy, cargo-fmt, cargo-miri, clippy-driver, rls, rust-analyzer, rust-gdb, rust-gdbgui, rust-lldb, rustc, rustdoc, rustfmt, rustup |
 | sd | common, home, work | sd |
 | selene | common, home, work | selene |
-| sentry-cli | common, home, work | sentry-cli |
 | sesh | common, home, work | sesh |
 | shared-mime-info | rails-modernization | update-mime-database |
 | shellcheck | common, home, work | shellcheck |
@@ -378,7 +377,6 @@ Review each candidate against repo workflows, Nginx routes, service state, alias
 | rustup | common, home, work | cargo, cargo-clippy, cargo-fmt, cargo-miri, clippy-driver, rls, rust-analyzer, rust-gdb, rust-gdbgui, rust-lldb, rustc, rustdoc, rustfmt, rustup | 0 |  |
 | sd | common, home, work | sd | 0 |  |
 | selene | common, home, work | selene | 0 |  |
-| sentry-cli | common, home, work | sentry-cli | 0 |  |
 | sesh | common, home, work | sesh | 0 |  |
 | shared-mime-info | rails-modernization | update-mime-database | 0 |  |
 | shellcheck | common, home, work | shellcheck | 0 |  |

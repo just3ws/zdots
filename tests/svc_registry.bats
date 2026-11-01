@@ -66,6 +66,9 @@ setup() {
   [ "${ZDOTS_SVC_CTL[llama]}" = "llama-ctl" ]
   [ "${ZDOTS_SVC_CTL[postgres]}" = "" ]
   [ "${ZDOTS_SVC_START[embed]}" = "start-embed" ]
+  [ "$(zdots_svc_health_policy colima)" = optional ]
+  [ "$(zdots_svc_health_policy coordinator)" = optional ]
+  [ "$(zdots_svc_health_policy postgres)" = required ]
 }
 
 @test "registry: probe functions are defined" {

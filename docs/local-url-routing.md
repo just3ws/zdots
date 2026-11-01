@@ -107,6 +107,9 @@ nginx-ctl validate        # sudo nginx -t
 | Host / boundary | Current evidence | Next decision |
 |---|---|---|
 | `dev.my.local` | Still present in the tracked context-engine source and deployed nginx config; `zdots-endpoints` reports 502 because `/tmp/my_dev.sock` has no healthy upstream | Retire the stale vhost and its certificate name, or restore a real dev cockpit. No change made here |
+| `wwworkremote.localhost`, `wwwr.localhost` | Both return 502 while the optional local Rails app is stopped | Expected for an on-demand project; start its native app when needed. Do not treat this as a zdots platform outage |
+| `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Both return 502 while local game/admin development servers are stopped | Expected for on-demand project development; production deploy is independent and uses Fly's remote build path |
+| `media-pipeline.localhost` | Endpoint probe reaches the app but reports its mkcert certificate as untrusted | Check local CA trust with `mkcert -install` if browsers reject the route; no trust-store change was made |
 | `my.local` | Redirects to the healthy `my.localhost` cockpit | Keep as a compatibility alias or retire it with a coordinated config/certificate update |
 | `grafana.local`, `lgtm.local` | `/etc/hosts` still maps both to 127.0.0.1, but neither has an nginx vhost; Z-134 retired the services | Remove the stale mappings via privileged host-config maintenance; Z-356 tracks this. No change made here |
 | Deployed nginx files | Each project owns its source; nginx serves copies under `/opt/homebrew/etc/nginx/servers/` | After a source change, sync/validate and reload through `zsvc reload nginx`; root lifecycle needs sudo |

@@ -37,14 +37,14 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   The retired experiment has no current-tree references; Git history and its
   checksummed local archive remain provenance. No force-pushes were made.
 
-  Current CI evidence (2026-11-01 UTC): zdots Check for c27a84f3 failed at
-  Homebrew installation because sentry-cli migrated from formula to cask; the
-  local Brewfile fix is ready for ordinary commit/push, and Secret Scan passed.
-  The latest full `make check` passed after corrections to stale task-state and
-  integration-test assumptions. A prior run had one transient o2_slow timeout;
-  its isolated suite passed 26/26. Z-349 remains In Progress until the changes
-  are committed and the new GitHub Actions run is green. The Atuin report was
-  refreshed; home Brewfile satisfies `brew bundle check --no-upgrade`.
+  Current CI evidence (2026-11-01 UTC): Check and Secret Scan for a55cdb1c
+  passed (run 41267572563 and 41267572544). The Homebrew migration exposed an
+  unused sentry-cli declaration; operator confirmed Sentry is unused, so its
+  cask was removed from Brewfile.common and uninstalled. The Atuin report was
+  refreshed. Z-355 health-policy implementation passes targeted suites and
+  full `make check`; it is locally complete, pending commit and CI. Current
+  worktree changes are not yet pushed; verify new Actions before closing Z-349.
+  Home Brewfile satisfies `brew bundle check --no-upgrade`.
   media-pipeline remains pushed at ec1dc67 with CI run 41254389048 passed; six
   generated graphify-out files remain locally modified and untouched.
 

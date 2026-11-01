@@ -108,6 +108,8 @@ _plist_health() {
 
 _svc_state_pid() { zdots_svc_state "$SVC_NAME"; }
 
+_svc_health_required() { [[ "$(zdots_svc_health_policy "$1")" == required ]]; }
+
 # Health verdict for the current service: "ok\t<detail>" or "fail\t<detail>".
 # The probe itself lives once in the registry (zdots_svc_healthy); only the
 # human-facing detail label is chosen here.
@@ -227,7 +229,7 @@ cmd_health_all() {
   [[ "${1:-}" == "--json" ]] && json=true
 
   local svc state_pid state health detail failed=0
-  local service_json="" url_json="" first=true item name url code status
+  local service_json="" url_json="" first=true item name url code status policy
 
   if $json; then
     for svc in "${ALL_SVCS[@]}"; do
@@ -237,12 +239,13 @@ cmd_health_all() {
       health="$(_svc_health_text)"
       detail="${health##*$'\t'}"
       health="${health%%$'\t'*}"
-      [[ "$health" == ok ]] || failed=1
+      policy="$(zdots_svc_health_policy "$svc")"
+      [[ "$health" == ok || "$policy" == optional ]] || failed=1
       $first || service_json+=","
       first=false
-      service_json+=$(printf '{"name":"%s","display":"%s","state":"%s","health":"%s","detail":"%s","endpoint":"%s","log":"%s"}' \
+      service_json+=$(printf '{"name":"%s","display":"%s","state":"%s","health":"%s","policy":"%s","detail":"%s","endpoint":"%s","log":"%s"}' \
         "$(_json_escape "$SVC_NAME")" "$(_json_escape "$SVC_DISPLAY")" "$(_json_escape "$state")" \
-        "$(_json_escape "$health")" "$(_json_escape "$detail")" "$(_json_escape "${SVC_ENDPOINT:-}")" "$(_json_escape "${SVC_LOG:-}")")
+        "$(_json_escape "$health")" "$(_json_escape "$policy")" "$(_json_escape "$detail")" "$(_json_escape "${SVC_ENDPOINT:-}")" "$(_json_escape "${SVC_LOG:-}")")
     done
 
     first=true
@@ -266,8 +269,8 @@ cmd_health_all() {
     return "$failed"
   fi
 
-  printf '%-16s  %-18s  %-6s  %s\n' SERVICE STATE HEALTH DETAIL
-  printf '%-16s  %-18s  %-6s  %s\n' '-------' '-----' '------' '------'
+  printf '%-16s  %-18s  %-8s  %-6s  %s\n' SERVICE STATE POLICY HEALTH DETAIL
+  printf '%-16s  %-18s  %-8s  %-6s  %s\n' '-------' '-----' '------' '------' '------'
   for svc in "${ALL_SVCS[@]}"; do
     _svc_meta "$svc"
     state_pid=$(_svc_state_pid)
@@ -275,8 +278,9 @@ cmd_health_all() {
     health="$(_svc_health_text)"
     detail="${health##*$'\t'}"
     health="${health%%$'\t'*}"
-    [[ "$health" == ok ]] || failed=1
-    printf '%-16s  %-18s  %-6s  %s\n' "$SVC_DISPLAY" "$state" "$health" "$detail"
+    policy="$(zdots_svc_health_policy "$svc")"
+    if [[ "$health" != ok ]] && _svc_health_required "$svc"; then failed=1; fi
+    printf '%-16s  %-18s  %-8s  %-6s  %s\n' "$SVC_DISPLAY" "$state" "$policy" "$health" "$detail"
   done
 
   printf '\n'
