@@ -80,12 +80,12 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
 
   Z-356 remains blocked on sudo authentication: /etc/hosts still maps retired
   grafana.local/lgtm.local; rollback copy is on Dock_1TB. Docs now state this
-  accurately. Wworkremote Ruby 4.0.9/Node 26.13 toolchain and advisory updates
-  are local and uncommitted: its pre-commit RSpec suite has deterministic stale
-  expectations (companies cooldown fixed; unscheduled session wording remains
-  failing). Do not bypass hooks or publish until disposition. Six moderate npm
-  audit advisories remain and their available fixes are major upgrades. Hallway
-  Ruby 4.0.9 update is committed and pushed as e1260ab.
+  accurately. Wworkremote Ruby 4.0.9/Node 26.13 and advisory updates are
+  committed/pushed as 125f1762; stale cooldown-date and translated session-label
+  expectations were corrected, then all pre-commit and Brakeman hooks passed.
+  Six moderate npm advisories remain; available fixes require major upgrades.
+  GitHub Actions API returns 404 for that remote, so its CI state could not be
+  verified. Hallway Ruby 4.0.9 update is committed and pushed as e1260ab.
 
   Keep local adots git/npm config edits and my's untracked databases/private
   vault untouched. Recent cleanup commits: f8078deb (retire stale provider
