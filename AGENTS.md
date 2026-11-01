@@ -18,6 +18,11 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   state is archived on /Volumes/Dock_1TB with provenance. Historical co-author
   attribution rewrite is deferred per operator; do not rewrite Git history now.
 
+  Astronomicon epoch 0835026.M3 is aligned across zdots/adots/vdots and verified
+  by zdots-doctor. Release commits: zdots 0821ccdb + changelog d59308e6, adots
+  6ca2e93, vdots ff6e5d5. Runtime baseline and project-specific exceptions are
+  in docs/platform-map.md; `my` remains contract-versioned.
+
   Identity follow-up: portfolio alias and obsolete employer-policy cleanup are
   pushed at a5504d1a; Phalanx game alias map is pushed at 24ca26fb. Portfolio
   deployment passed. Phalanx tests, security checks, and build passed, but
@@ -72,11 +77,11 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
 
   Video recording/editing are critical. Preserve media sources and maintain
   about 45 GiB internal free space. Colima is installed for on-demand use only.
-  Live snapshot: 51 GiB free (6 GiB above reserve); zsvc required services and
-  six core URLs healthy. Package caches total 2.53 GB, OpenObserve 4.47 GB,
-  backups 1.69 GB. No hygiene sweep was run. Google Drive cache is File
-  Provider-managed; only review Offline Files in Drive settings. Do not delete
-  DriveFS internals or canceled_uploads by directory name.
+  Live snapshot: 46 GiB free (about 1 GiB above reserve); required zdots
+  services and six core URLs healthy. Package caches total 2.53 GB,
+  OpenObserve 4.47 GB, backups 1.69 GB. No hygiene sweep was run. Google Drive
+  cache is File Provider-managed; only review Offline Files in Drive settings.
+  Do not delete DriveFS internals or canceled_uploads by directory name.
 
   Z-356 remains blocked on sudo authentication: /etc/hosts still maps retired
   grafana.local/lgtm.local; rollback copy is on Dock_1TB. Docs now state this

@@ -191,8 +191,8 @@ platform work. `zdots-endpoints -q` found
 `dev.my.local` returning 502, the on-demand `wwworkremote` and Phalanx local
 development upstreams stopped (502), and `media-pipeline.localhost` reachable
 with an untrusted mkcert certificate. See [Local URL Routing](local-url-routing.md)
-for ownership and current exceptions. Internal storage has 51 GiB available,
-6 GiB above the 45 GiB recording reserve. `zdots-storage --json` reports
+for ownership and current exceptions. Internal storage has 46 GiB available,
+about 1 GiB above the 45 GiB recording reserve. `zdots-storage --json` reports
 2.53 GB package caches, 4.47 GB OpenObserve data, and 1.69 GB backups. The
 hygiene sweep was not run; its small reclaimable estimate does not justify
 disturbing active scratch or media files. No PostgreSQL contents were inspected;
@@ -227,7 +227,7 @@ platform on 3.14 until that stack is verified there.
 | media-pipeline | Ruby 4.0.9 | Already aligned; keep its local whisper.cpp workflow healthy |
 | hallway, wworkremote, portfolio, Phalanx site | Ruby 4.0.9; Node 26.13.0 where pinned | Already aligned |
 | Phalanx game | Ruby 4.0.9, Node 24.22.2, Python 3.14.10, Bun 1.3.10 | Node is capped at <=25 by package engines; stay on latest Node 24 until that contract is tested and raised |
-| UGLST GeoSrv | Ruby 4.0.9, Node 26.13.0 | Align only the runtime files; preserve its ongoing application changes |
+| UGLST GeoSrv | Ruby 4.0.9, Node 26.13.0 | Runtime and Puma/Rack compatibility validated; preserve the rest of its ongoing application changes |
 | CCS | Ruby 1.9.3 / Rails 3.0.11 | Legacy stack; isolate or archive, or plan a full modernization before changing its runtime |
 | Fluffle | No Ruby pin | If revived, validate and pin Ruby 4.0.9; otherwise archive rather than add another maintained runtime |
 
