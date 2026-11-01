@@ -29,6 +29,12 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(observability)* Add hister.localhost proxy, cert SANs, endpoints metadata & SCM domain cartography
 - *(search)* Resolve zmorning alias collision, fix hister proxy & add hister-sync
 - *(swiftbar)* Restore pulse with rich iconography and transcription telemetry
+- *(skills)* Introduce man-doc-curator skill for CLI man & help documentation
+- *(bin)* Expose ztranscribe executable in PATH linked to recipes/yt-transcribe
+- *(hygiene)* Tool cache pruners with signature verification & log retention (Z-348)
+- *(hygiene)* Add media audio scratch buffer eviction for just3ws
+- Add vips formula to shared platform Brewfile
+- *(storage)* Expose platform bucket inventory
 
 ### 🐛 Bug Fixes
 
@@ -37,6 +43,25 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(ci)* Put zdots bin/ + sbin/ on PATH for the full job's bats step
 - *(deps)* Bump google.golang.org/grpc to v1.83.1 (Dependabot high)
 - *(path)* Local-bin chpwd hook no longer evicts sticky ./bin dirs (Z-338)
+- *(swiftbar)* Harden service probes, doctor decoupling, and serial test suites
+- *(ingest)* Fallback to anonymous fetch when yt-dlp cookie strategy fails
+- *(ingest)* Handle large info json via stdin and optimize Levenshtein seam splice
+- Resolve check suite failures, integrate media-pipeline into svc-registry and log-rotate
+- Maintain 13-service contract in svc-registry and robust ruby-bump test assertion
+- *(identity)* Keep attribution personal and unambiguous
+- *(ci)* Align Homebrew bundle with current recipes
+- *(storage)* Rotate service logs daily
+- *(deps)* Update security-sensitive runtimes
+- *(ci)* Align brew and health checks
+- *(platform)* Classify optional health and prune unused Sentry
+
+### 💼 Other
+
+- *(phi-scrub)* Refresh runtime binary
+
+### 🚜 Refactor
+
+- *(docs)* Remove stale audit and narrative artifacts
 
 ### 📚 Documentation
 
@@ -51,6 +76,39 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(bus)* Add transit coordinator skill, busdriver profile, man pages, and tooling docs
 - *(agents)* Update CURRENT FOCUS block for 2026-09-07 cartography session close
 - *(interop)* Update wwworkremote repository path across docs and tasks
+- *(agents)* Update CURRENT FOCUS to 2026-10-07 green state
+- Align man pages, --help usage, skills, and agent guidance for media ingest and cookie strategy
+- *(skills)* Document human curation and hallucination gates in ingest-media
+- *(agents)* Update CURRENT FOCUS to 2026-10-08 handoff state
+- *(backlog)* Configure 90d Brewfile, 30d session, and dual dashboard criteria
+- *(agents)* Update CURRENT FOCUS to 2026-10-20 (Z-348 done, storage green)
+- *(agents)* Update CURRENT FOCUS to 2026-10-23 (doctor 43/43, storage 24GB)
+- *(storage)* Document APFS sparse virtual disk allocation and ghost metrics
+- *(storage)* Expand APFS purgeable space and dual-volume forensic guide
+- *(agents)* Update CURRENT FOCUS to 2026-10-26 (APFS forensic audit & handoff)
+- *(agents)* Update CURRENT FOCUS to 2026-10-27-6 handoff
+- *(platform)* Clarify bus and local routes
+- *(agents)* Consolidate instruction hierarchy
+- Prune stale backlog and inference guidance
+- *(backlog)* Archive stale planning snapshots
+- *(backlog)* Correct archive provenance date
+- Refresh README runtime references
+- Distinguish shipped lifecycle from backlog
+- Clarify Karpathy source transcript provenance
+- *(platform)* Retire zsynod guidance and tasks
+- *(platform)* Refresh active cleanup state
+- *(platform)* Map recording and media workflow
+- *(backlog)* Close portfolio identity audit
+- *(backlog)* Refresh Dependabot reconciliation
+- *(backlog)* Close Dependabot reconciliation
+- *(backlog)* Close Codex storage audit
+- *(platform)* Refresh service and route maps
+- *(routing)* Track retired local host aliases
+- *(agent)* Refresh identity closeout status
+- *(agent)* Record CI and preserved branch state
+- *(agent)* Refresh platform closeout evidence
+- Record lightweight CI status
+- *(platform)* Refresh project runtime status
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -70,6 +128,24 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(infra)* Prune unused Brewfile casks and bump pre-commit shfmt
 - *(ruby)* Bump pinned Ruby to 4.0.7 & reconcile service map and docs contract gates
 - *(brew)* Deactivate optional packages and unused casks
+- *(beacon)* Re-stamp 0761026.M3 (Astronomicon)
+- Update AGENTS.md cold-start focus for beacon 0761026.M3
+- *(backlog)* Record task Z-347 to evaluate Codex and Claude cache/session cleanup
+- *(backlog)* Record tasks Z-348, Z-349, and Z-350 for system hygiene & health
+- *(env)* Bump ruby to 4.0.8 in mise/etc and update iterm2 shell integration
+- *(mise)* Sync ruby 4.0.9 pin across mise.toml and etc/ruby-version
+- *(ai)* Decouple Claude Code integrations
+- *(platform)* Tighten tooling and storage hygiene
+- *(platform)* Prune Claude and stale guidance
+- *(platform)* Retire zsynod references and map system
+- *(platform)* Close retired Claude backlog work
+- *(agents)* Remove retired Claude instructions
+- *(backlog)* Prune retired agent context
+- *(otel)* Load only used instrumentation
+- *(backlog)* Align identity task filename
+- Validate Go and Python dependency changes
+- *(homebrew)* Trim personal Kubernetes tools
+- Keep GitHub gate lightweight
 ## [0668026.M3] - 2026-09-01
 
 ### 🚀 Features
@@ -284,9 +360,26 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(obs)* Scrub PHI/secrets at the OTel ingest edge (Z-135 Phase 1)
 - *(obs)* Zdots-o2-query — read runtime insight back into a session (Z-135 P2)
 - *(obs)* SessionStart runtime digest from OpenObserve (Z-135 P4)
+- *(zsynod)* AI collaborators' forum — hash-chained ledger, quorum, convene
+- *(zsynod)* Principal ratify + transcript capture on convene
+- *(zsynod)* Auto-orient Claude Code sessions launched into a forum seat
+- *(zsynod)* Principal cockpit + Alphabet bootstrap proposal (P2)
+- *(zsynod)* Headless turn runner + first working forum round
+- *(zsynod)* Apply committed P2, commit P5/P6 under recomputed quorum
+- *(zsynod)* Tick — one deliberation turn over a backlog issue
+- *(zsynod)* Minutes render discussion context (comments + tick deliberation)
+- *(zsynod)* Ticks escalate ripe issues to PROPOSE + history view
+- *(zsynod)* Proposed-diff queue — priority + dependency aware review
+- *(zsynod)* Resume — facilitator handoff brief (backend-agnostic, resumable)
+- *(zsynod)* Full CLI experience + ledger content guard + close codex P3 deliverable
+- *(zsynod)* Exec-tick — bounded frontier execution into the diff queue
+- *(zsynod)* Risk-gated auto-delegation — queue risk/review/auto
+- *(zsynod)* Answer questions + minutes "Awaiting you (blocking)" section
 - *(idiot-test)* Advisory gate for destructive commands + PreToolUse hook
+- *(zsynod)* Launch — bounded live facilitator sessions
 - *(cc)* Lift work-machine commit/push restriction for Claude Code
 - *(cc)* Work CC is fix-forward — allow commit, block push
+- *(zsynod)* Seat OpenCode as a local executing member (P18)
 - *(zdots-gh)* Forensic delivery-process insights (Phase 1)
 - *(zdots-gh)* Expand harvest — Actions, releases, triage, metadata (Phase 2)
 - *(doctor)* Teach cc-doctor and zdots-doctor about zdots-gh
@@ -309,11 +402,33 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(bench)* Document MLX performance regression and define next ratchet
 - *(docs)* Document inference strategy pivot (retain engine, focus on compaction)
 - *(gateway)* Implement atomic inference gateway with compaction
+- *(zsynod)* Add post-commit hook for ledger and minutes sync
+- *(zsynod)* Integrate zsynod tick into ztask and zdots-issue
+- *(zsynod)* Seat red-team member per P20 ratification
+- *(zsynod)* Implement automated test-gate (verify) for ratchet queue
 - *(xdg)* Redirect IRB config to XDG_CONFIG_HOME via IRBRC
 - *(xdg)* Redirect Docker config dir via DOCKER_CONFIG
 - *(xdg)* Redirect Go env file via GOENV
 - *(env)* Add ~/bin to PATH as the personal override dir
+- *(zsynod)* Add `repl` — hybrid follow-along cockpit (no tmux)
 - *(tooling)* Add zdots-patch-export and zdots-server-keys
+- *(zsynod)* Migrate to Python — TUI cockpit, Pydantic ledger, OTel
+- *(zsynod-py)* Wire Claude API dispatch with per-actor model param
+- *(zsynod-tui)* Add claude actor with graceful token-limited degradation
+- *(zsynod-py)* Wire gemini + codex actors with resumable sessions
+- *(zsynod-tui)* Proposal nav, tally, drilling, triumvirate agents
+- *(zsynod)* Switch claude ticks to --no-session-persistence + prompt-suggestions
+- *(zsynod)* Add Taoist glyph tick seeds for deliberation randomness
+- *(zsynod)* Exponential backoff circuit breaker for all agent adapters
+- *(zsynod)* 160-token SMS constraint + hashtags + @mentions
+- *(zsynod)* Summarizer pass + unit tests + Dracula theme
+- *(zsynod)* Hashtag stats screen (page 2) + topic status view
+- *(zsynod)* Hashtag trend temperature in every tick preamble
+- *(zsynod)* Introduce directive system for structured agent actions
+- *(zsynod)* Event scheduler, quorum recognition, and operator control plane
+- *(zsynod)* Auto-pilot silence timer + knowledge-base loop (secretary)
+- *(zsynod)* Honest votes, member contract seats, the pawl, zsynod ui
+- *(zsynod)* The door — petitions and receipts (D-013)
 - *(update-local)* Add python phase — uv pip install -r requirements.txt
 - *(tooling)* Zdots-index-tools — platform command catalog in context engine
 - *(platform)* Colima-status + ./bin PATH + agent-guide/capabilities hardening
@@ -322,6 +437,18 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(zdots-logs)* Add check command with size warnings + zdots-doctor integration
 - *(skill)* /zdots-update — pull and apply zdots repo updates safely
 - *(brew)* Add openvpn-connect + AWS tooling to Brewfile.work
+- *(zsynod)* Items 6-8 + glossary — WIP limits, dedup, per-tier tokens
+- *(zsynod)* Items 9-10 — quality graph, mentorship signals, and brief
+- *(zsynod)* Add session_tick counter to _c conditions snapshot
+- *(zsynod)* Quota error backoff + AI OS session agenda
+- *(zsynod)* One-line proposal bodies + say/body cockpit commands
+- *(zsynod)* Self-governing topic lifecycle — close, body, stuck auto-close
+- *(zsynod)* Can_propose gate + ratified decisions pinned in prompt
+- *(zsynod)* Dynamic token budget + Twitter @mention convention
+- *(zsynod)* Feed model — central timeline, hard cap only, hashtag threads
+- *(zsynod)* >ask directive + notification pin
+- *(zsynod)* Card layout for feed entries
+- *(zsynod)* Avatar panels + per-member colors + word wrap for feed
 - *(tooling)* Log-rotate — safely compress and rotate service logs
 - *(integrate)* Assimilate log-rotate into zdots tooling surface
 - *(architecture)* Complete vocabulary system, Phase 1 DSL, PHI Scrubber unification, operational feedback
@@ -423,6 +550,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(theme)* Add Alfred Kanagawa Wave appearance
 - *(theme)* Re-tone app assets to #1A1B2F + add bat/ghostty themes
 - *(theme)* Add lazygit Kanagawa Wave gui theme asset
+- *(zsynod)* Custom Kanagawa Wave Textual theme (exorcise last dracula)
 - *(env)* Wire ripgrep + wget XDG configs
 - *(theme)* Kanagawa Wave the zdots.localhost status dashboard
 - *(theme-gen)* Generate every surface from one palette source (Z-251)
@@ -619,6 +747,11 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(nginx)* Add lgtm.local to TLS cert SANs
 - *(obs)* Reinit re-syncs otel-collector OTLP auth (Z-134)
 - *(ctl)* AI server start waits for inference readiness (Z-120)
+- *(zsynod)* Tick rotates to least-discussed issue + feeds prior remarks
+- *(zsynod)* Tick focus/picker resolve leading task id only
+- *(zsynod)* Z-136 (init jq-on-missing-members.json) via dogfooded exec-tick + harden queue apply
+- *(zsynod)* Restore exec-tick read-only sandbox + --ref (lost to a stray checkout)
+- *(zsynod)* Flatten remark whitespace in minutes (Z-138)
 - *(check)* Tolerate TTY-less CI artifacts in the interactive-shell probe
 - *(check)* Tolerate TTY-less CI artifacts in the safe-mode probe too
 - *(mcp)* Make ctx/llama servers resolve portably across machines
@@ -628,12 +761,19 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(config)* Revert batch size changes and commit inference reports
 - *(zdots-update-local)* Name-only default gems yielded a whitespace version
 - *(server-keys)* Resolve shellcheck SC2034 and SC2088
+- *(zsynod-py)* Lightest claude mode for ticks — haiku default, no thinking
+- *(zsynod-py)* Gemini session create/resume handoff
+- *(zsynod)* Enforce LOCAL_TICK_TIMEOUT on llama.cpp HTTP path
+- *(zsynod)* Migrate hf and openrouter keys from tmp files to Keychain
 - *(local)* Add compinit permissive flag + tighten DB key example wording
 - *(local)* Correct ZDOTS_DB_ENCRYPTION_KEY Keychain lookup to use zdots-keychain
 - *(index-tools)* Use add-methodology + guard grep for empty help text
 - *(colima-status)* Remove backtick-in-single-quote (SC2016) from guard message
+- *(zsynod)* Items 1-5 — stability, safety, and member hygiene
+- *(zsynod)* Quorum excludes muted seats
 - *(brew)* Add hashicorp/tap + restore terraform formula
 - *(log-rotate)* Correct launchctl label and PID extraction
+- *(zsynod)* Kill in-flight AI processes on TUI quit
 - *(zle)* Start zsh-vi-mode in insert mode, not normal mode
 - *(zle)* Source zsh-vi-mode eagerly; hardcode insert mode literal
 - *(zle)* Revert to deferred vi-mode load; set ZVM_LINE_INIT_MODE directly
@@ -651,6 +791,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(Z-139)* Cc-doctor validates .mcp.json command resolution + $ZDOTDIR/bin PATH
 - *(Z-119)* --help exits 0 for bench/zdots-pattern/zdots-issue + docs-contract coverage
 - *(Z-126)* Bench degrades gracefully when nice/trace not permitted
+- *(Z-136)* Zsynod init guards _voting_ids against absent members.json
 - *(ai-query)* Calibrate scanner via context dampener + per-mode block thresholds
 - *(ztask)* Never gate task completion on AI distillation (Z-125)
 - *(docs)* Repair 3 broken Mermaid diagrams + correct stale topology/schema (Z-121)
@@ -707,6 +848,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(worker)* Load HUGGINGFACE_TOKEN from Keychain; mirror HF_TOKEN
 - *(transcribe)* Reject unknown flags instead of swallowing as URL
 - *(mcp)* Run sequential-thinking via npx to survive node bumps
+- *(capabilities)* Decouple parked zsynod from the health contract (Z-235)
 - *(zdots-heal)* Sync Gate 3 service list + repair its drift check (Z-236)
 - *(zdots-ctl)* Capture check verifies §10 precondition instead of blanket-warning
 - *(platform-integrate)* Collision scan matches full task ID — z-172.03 subtask is not a z-172 dup
@@ -753,6 +895,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(publisher)* Stop gsub eating the apostrophe in VTT paths (Z-311)
 - *(zdots-issue,nginx)* Pin backlog cwd, widen cert SAN scan to all TLDs
 - *(trace-log,nginx)* Resilient trace append, cert SAN --prune; adopt CURRENT FOCUS
+- *(ci)* Drop 8 stale zsynod_*.bats entries from the CI allowlist
 
 ### 💼 Other
 
@@ -837,6 +980,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - P15 durable/resumable/token-thrifty facilitation + tick Z-129
 - Ratify P7-P11 + P15 (principal); charter records Kaizen/Mentorship/Durable-facilitation
 - Tick deliberations (Z-119, Z-131) + ?1 answered
+- Ratify P17 — work-machine synod scoped to zdots only (§0.1.1)
 - *(zdots)* Dry-run audit — artifacts, skill, and settings allowlist
 - Complete task Z-115
 - Complete task Z-116
@@ -902,12 +1046,17 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - Split optional zdots modules
 - *(docs-sync)* Route inference through Pipeline, read residue via model
 - *(svc)* Collapse the Platform Service into one registry
+- *(zsynod)* Tmux command-interface suite (no send-keys)
+- *(zsynod-py)* Replace MLX model load with llama.cpp HTTP endpoint
+- *(zsynod-py)* Replace anthropic SDK with claude CLI subprocess
 - *(skills)* Make zdots-heal + zdots-integrate small-model friendly
 - *(llama-ctl)* Consolidate config resolution to metadata.bash seam
+- Decouple zsynod (experimental AI council) from core zdots
 - *(svc-registry)* Wrap arrays with accessor functions — resolve array leak
 - *(analytics)* Unify buffer with Go binary, fix shell race + TTL bugs
 - *(knowledge-layer)* Retire DB-export wiki path — filesystem is source of truth
 - *(go)* Unify the RE2 engine into shared pkg/re2registry
+- *(zsynod)* Contain entirely under experiments/zsynod/
 - *(Z-130)* Move AI invocation contract into the signature; assert locality once
 - *(mlx)* Archive Apple MLX experiment to experiments/mlx/
 - *(searchable)* Drop dead semantic branch, own search strategy
@@ -1021,10 +1170,19 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(obs)* Phase 6 — docs + doctor sweep for OpenObserve (Z-134)
 - *(graphify)* Integration audit — local-first code-graph tool
 - *(graphify)* Record Kin as a considered alternative (substitute, not complement)
+- *(zsynod)* Ratify P13/P14 + incorporate Article 0 into the charter
 - *(agent-guide)* Filesystem Doctrine — The Idiot Test (after the 2026-05-25 rm -rf ~/)
 - *(setup)* Work-machine fix-forward push policy
+- *(charter)* §0.1.1 — scope the work-machine synod to zdots only
 - *(zdots-gh)* Reconcile --help, man page, completion, and references
 - *(skills)* Add github-kb-analysis validation and update zdots-gh docs
+- *(zsynod)* Document lifecycle and integration protocols
+- *(zsynod)* Add integration and expansion strategy
+- *(zsynod)* Add scenario-based tutorial
+- *(zsynod)* Validate scenarios and confirm hook sync
+- *(zsynod)* Update lifecycle and tutorial for test-gate
+- *(zsynod)* Quality control pass — man, help, completion, guide, health
+- *(zsynod)* D-014 — key resolution migrated to Keychain; update LIFECYCLE
 - *(zdots)* High-fidelity system description for large-context AI sessions
 - *(platform-service-plane)* Document control script patterns
 - *(audit)* Add repo dependency graph artifact
@@ -1199,6 +1357,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(backlog)* Archive recently completed tasks
 - *(colima)* Finalize migration to default ~/.colima path
 - *(cc)* Move work-machine grants to tracked settings.json
+- *(zsynod)* Wire codex + gemini launch commands into the roster
 - Regenerate coverage artifacts
 - Gitignore Claude Code scheduler lock
 - *(brew)* Install Claude on work at home parity; retire CC home-only policy
@@ -1210,6 +1369,9 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(cleanup)* Remove sandbox files and finalize repository state
 - *(test)* Finalize test paths and registry
 - Reconcile ruby default gems
+- *(zsynod)* Exclude minutes.md from git; it is a local artifact
+- *(zsynod)* Stop tracking the ledger — it is system data, not source
+- Ignore zsynod/ledger.py.jsonl
 - *(cc)* Permit all zdots platform tools without prompt
 - *(gitignore)* Ignore ledger dump files and *.bak
 - *(backlog)* Set auto_commit=false — coherent dependency-oriented commits

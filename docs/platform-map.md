@@ -209,6 +209,34 @@ zdots-storage
 zdots-hygiene              # preview only
 ```
 
+## Runtime recommendations — 2026-11-01
+
+The supported platform baseline is Ruby **4.0.9**, Node.js **26.13.0 LTS**, and
+Python **3.14.10**. These are the latest compatible versions confirmed by mise
+for this machine. Ruby 4.0.9 is the current stable Ruby 4.0 patch; Node 26.13.0
+has entered LTS. Python 3.15.2 is newer, but the local MLX/DuckDB lock set was
+verified on 3.14.10 and did not have ready wheels on 3.15.2, so keep the
+platform on 3.14 until that stack is verified there.
+
+| Project | Recommended versions | Current action / boundary |
+|---|---|---|
+| zdots | Ruby 4.0.9, Node 26.13.0, Python 3.14.10 | Already aligned |
+| adots | No runtime pin | Dotfile repository; only share the Astronomicon epoch |
+| vdots | Ruby 4.0.9, Lua 5.1.5, latest Neovim | Replace floating Ruby `latest` with the tested platform pin |
+| my / Context Engine | Ruby 4.0.9, Node 26.13.0 | Already aligned; `my` also requires Node >=22.19 |
+| media-pipeline | Ruby 4.0.9 | Already aligned; keep its local whisper.cpp workflow healthy |
+| hallway, wworkremote, portfolio, Phalanx site | Ruby 4.0.9; Node 26.13.0 where pinned | Already aligned |
+| Phalanx game | Ruby 4.0.9, Node 24.22.2, Python 3.14.10, Bun 1.3.10 | Node is capped at <=25 by package engines; stay on latest Node 24 until that contract is tested and raised |
+| UGLST GeoSrv | Ruby 4.0.9, Node 26.13.0 | Align only the runtime files; preserve its ongoing application changes |
+| CCS | Ruby 1.9.3 / Rails 3.0.11 | Legacy stack; isolate or archive, or plan a full modernization before changing its runtime |
+| Fluffle | No Ruby pin | If revived, validate and pin Ruby 4.0.9; otherwise archive rather than add another maintained runtime |
+
+The Wworkremote backup clone is not an active checkout and should not drive
+runtime selection. Sources: [Ruby stable releases](https://www.ruby-lang.org/en/downloads/),
+[Node.js 26.13.0 LTS](https://nodejs.org/en/blog/release/v26.13.0),
+[Python 3.14.10](https://www.python.org/downloads/release/python-31410/), and
+[Python release list](https://www.python.org/downloads/source/).
+
 ## Related maps
 
 - [zdots service plane](platform-service-plane.md)
