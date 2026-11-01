@@ -10,6 +10,12 @@ make check-fast  # Shellcheck and sanity checks (no external dependencies)
 make coverage    # Generates unified Ruby (SimpleCov) and Shell (kcov) metrics
 ```
 
+GitHub Actions runs a lightweight sanity gate: shell syntax, safe interactive
+and login startup, and the standalone Go module tests. It does not install the
+workstation Brewfile, local services, Ruby gems, or the broader test suite.
+Run `make check` locally for the full platform test suite and service-aware
+checks; those results depend on the operator's installed tooling and services.
+
 ## 2. Unit Testing (Bats-core)
 
 We use `bats-core` for shell unit testing. Tests are located in `tests/`.
@@ -36,7 +42,9 @@ zdots-ruby -S rspec                  # all unit specs (fast, no services)
 zdots-ruby -S rspec --tag integration  # integration specs (requires live DB)
 ```
 
-The suite runs in CI on every push and PR via the `ruby` job in `check.yml`. Use `zdots-ruby` (not the ambient `ruby`) so the specs always run on the pinned version from `etc/ruby-version`.
+Run the suite locally with `zdots-ruby` (not the ambient `ruby`) so specs use
+the pinned version from `etc/ruby-version`. GitHub Actions does not provision
+Ruby or run the full RSpec suite.
 
 ## 4. Integration Testing (RubyLLM × llama.cpp)
 

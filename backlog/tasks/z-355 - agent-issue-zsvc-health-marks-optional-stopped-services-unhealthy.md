@@ -1,10 +1,10 @@
 ---
 id: Z-355
 title: '[agent-issue] zsvc health marks optional stopped services unhealthy'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-31T23:15:00Z'
-updated_date: '2026-11-01T03:17:00Z'
+updated_date: '2026-11-01T03:46:00Z'
 labels:
   - agent-reported
   - error
@@ -43,4 +43,6 @@ I was checking the normal bare-metal service posture with Colima intentionally s
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented explicit health policy in lib/svc-registry.bash. zsvc JSON exposes policy; optional failures remain visible without failing aggregate status. Tests: tests/svc_registry.bats and tests/platform_e2e.bats pass (38/38); full make check passes (check: OK). Live zsvc health --json reports healthy:true with Colima stopped and coordinator not registered, all six core URLs HTTP 200. Verified git diff --check and bin/secret-scan. Operator approved work by directing resume/fix-forward; this resolves the original wait-for-operator note.
+
+Remote verification complete: commit 9f2549da was pushed as Mike Hall <mike@just3ws.com>; GitHub Check 41268639876 and Secret Scan 41268639863 both passed. Optional Colima and coordinator remain visible as failing probes but do not affect aggregate health. The operator explicitly authorized resuming and fixing forward, resolving the original coordination hold.
 <!-- SECTION:NOTES:END -->

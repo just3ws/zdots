@@ -38,13 +38,17 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   checksummed local archive remain provenance. No force-pushes were made.
 
   Current CI evidence (2026-11-01 UTC): Check and Secret Scan for a55cdb1c
-  passed (run 41267572563 and 41267572544). The Homebrew migration exposed an
-  unused sentry-cli declaration; operator confirmed Sentry is unused, so its
-  cask was removed from Brewfile.common and uninstalled. The Atuin report was
-  refreshed. Z-355 health-policy implementation passes targeted suites and
-  full `make check`; it is locally complete, pending commit and CI. Current
-  worktree changes are not yet pushed; verify new Actions before closing Z-349.
-  Home Brewfile satisfies `brew bundle check --no-upgrade`.
+  passed (41267572563, 41267572544), as did both runs for 9f2549da
+  (41268639876, 41268639863). The full Check took over 15 minutes installing
+  the workstation Brewfile before passing. Operator clarified GHA should be a
+  light sanity gate only. `.github/workflows/check.yml` now removes Brewfile,
+  Ruby, broad Bats, and full `bin/check` provisioning; it keeps shell syntax and
+  safe startup smoke checks plus standalone Go module tests. `actionlint`,
+  shell syntax, startup smoke, Go tests, and secret scan passed locally; this
+  workflow revision is not yet committed. Z-349 and Z-355 are complete and
+  their implementation commits passed remote CI. Sentry was confirmed unused,
+  removed from Brewfile.common, and uninstalled; the usage report was refreshed.
+  Home Brewfile satisfies `brew bundle check`.
   media-pipeline remains pushed at ec1dc67 with CI run 41254389048 passed; six
   generated graphify-out files remain locally modified and untouched.
 

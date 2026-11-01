@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
 
-# Least privilege: these jobs only read the repo.
+# Least privilege: this job only reads the repository.
 permissions:
   contents: read
 
@@ -16,191 +16,49 @@ env:
 jobs:
   sanity:
     runs-on: macos-latest
+    timeout-minutes: 10
     env:
       ZDOTDIR: ${{ github.workspace }}
+      ZDOTS_ENV_PROFILE: ci-act
+      ZDOTS_SAFE_MODE: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: 'Install Zsh (Linux/act only)'
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y zsh
+      - name: Environment Info
+        run: zsh --version
 
-      - name: 'Environment Info'
-        run: |-
-          zsh --version
-          which zsh
-          echo "ZDOTS_ENV_PROFILE=${ZDOTS_ENV_PROFILE:-unknown}"
+      - name: Check shell syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in .zshenv .zprofile .zshrc .aliasrc .fzf.zsh conf.d/*.zsh functions/enabled/*; do
+            [[ -f "$file" ]] || continue
+            zsh -n "$file"
+          done
+          for file in bin/*; do
+            [[ -f "$file" ]] || continue
+            case "$(head -n 1 "$file")" in
+              '#!/usr/bin/env zsh'|'#!/bin/zsh') zsh -n "$file" ;;
+              '#!/usr/bin/env bash'|'#!/bin/bash'|'#!/usr/bin/env sh'|'#!/bin/sh') bash -n "$file" ;;
+            esac
+          done
 
-      - name: Install yq (required for phi_scrubber)
-        run: brew install yq
+      - name: Smoke-test interactive startup
+        run: |
+          zsh -i -c exit
+          zsh -l -i -c exit
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: cmd/zdots-phi-scrub/go.mod
 
-      - name: Test PHI Scrubber Go module
-        run: go test ./...
+      - name: Test standalone Go modules
+        run: |
+          go test ./...
         working-directory: cmd/zdots-phi-scrub
 
-      - name: Test shared RE2 registry module
+      - name: Test shared RE2 registry
         run: go test ./...
         working-directory: pkg/re2registry
-
-      - name: Install uv for lock validation
-        run: brew install uv
-
-      - name: Validate Python dependency lock
-        shell: bash
-        run: |
-          uv pip compile -c requirements-lock.txt \
-            --output-file "$RUNNER_TEMP/requirements-lock-validated.txt" \
-            requirements.txt
-          diff -u \
-            <(grep -E '^[A-Za-z0-9._-]+==' requirements-lock.txt | sort) \
-            <(grep -E '^[A-Za-z0-9._-]+==' "$RUNNER_TEMP/requirements-lock-validated.txt" | sort)
-
-      - name: 'Capabilities Health Check'
-        run: ZDOTS_ENV_PROFILE=ci-act ./bin/capabilities
-
-      - name: 'Verify Session Identity'
-        run: |
-          SID=$(
-            ZDOTS_ENV_PROFILE=ci-act zsh -i -c 'printf "%s\n" "$ZDOTS_SESSION_ID"' \
-              | sed $'s/\x1b\][^\x07]*\x07//g; s/\x1b\\[[0-9;]*[a-zA-Z]//g' \
-              | grep -E '^[0-9a-f]{32}$' \
-              | tail -1
-          )
-          test -n "$SID"
-          echo "session id: ${SID:0:8}..."
-
-      - name: 'Run Fast Sanity Checks'
-        run: ZDOTS_CHECK_SKIP_EXTERNAL=1 ZDOTS_CHECK_REPORT_STARTUP=1 ZDOTS_ENV_PROFILE=ci-act ./bin/check
-
-  ruby:
-    runs-on: macos-latest
-    env:
-      ZDOTDIR: ${{ github.workspace }}
-      ZDOTS_AI_MODE: none
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Install mise + Ruby
-        uses: jdx/mise-action@v2
-
-      - name: Install PostgreSQL client (required by pg gem)
-        run: brew install libpq
-
-      - name: Install gems
-        run: |
-          VER=$(cat etc/ruby-version)
-          BUNDLE_BUILD__PG="--with-pg-config=/opt/homebrew/opt/libpq/bin/pg_config" \
-            ~/.local/share/mise/installs/ruby/"${VER}"/bin/bundle install
-
-      # The Ruby spec suite is mid-port from ActiveRecord to Sequel idioms and
-      # is not yet green end-to-end. Non-blocking until the port lands, then
-      # this guard comes off.
-      - name: Run RSpec
-        continue-on-error: true
-        run: bin/zdots-ruby -S rspec
-
-  full:
-    runs-on: macos-latest
-    needs: sanity
-    if: github.event_name != 'pull_request'
-    env:
-      ZDOTDIR: ${{ github.workspace }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      # The bats hermetic subset invokes zdots CLIs (zdots-phi-scrub, …) as bare
-      # command names, so bin/ + sbin/ must be on PATH — the interactive shell
-      # adds them; CI has to do it explicitly.
-      - name: Put zdots bin on PATH
-        run: |
-          echo "${{ github.workspace }}/bin" >> "$GITHUB_PATH"
-          echo "${{ github.workspace }}/sbin" >> "$GITHUB_PATH"
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: cmd/zdots-phi-scrub/go.mod
-
-      # The committed cmd/* binaries are macOS arm64 and don't reliably execute
-      # on a fresh GHA runner (arch / quarantine). Rebuild them native so the
-      # bash adapters (phi_scrubber, buffer-drain, secret-scan) run the Go path.
-      - name: Build native Go tools
-        run: |
-          for tool in zdots-phi-scrub zdots-buffer-drain zdots-secret-scan; do
-            go build -C "cmd/$tool" -o "../../bin/$tool" .
-          done
-
-      - name: Cache Homebrew Downloads
-        uses: actions/cache@v5
-        with:
-          path: ~/Library/Caches/Homebrew
-          key: ${{ runner.os }}-homebrew-${{ hashFiles('Brewfile.home') }}
-          restore-keys: |
-            ${{ runner.os }}-homebrew-
-
-      # Register and trust the third-party taps used by Brewfile.home so the
-      # non-interactive bundle install can load their formulae and casks.
-      - name: Trust third-party taps
-        run: |
-          brew tap romkatv/powerlevel10k
-          brew tap phalanxduel/tap
-          brew trust phalanxduel/tap
-
-      - name: Install Dependencies (Retry)
-        shell: bash
-        run: |
-          for attempt in 1 2 3; do
-            if brew bundle --file Brewfile.home; then
-              exit 0
-            fi
-            if [[ "$attempt" -eq 3 ]]; then
-              echo "brew bundle failed after ${attempt} attempts" >&2
-              exit 1
-            fi
-            sleep $((attempt * 5))
-          done
-
-      - name: Run Checks (Retry)
-        shell: bash
-        run: |
-          for attempt in 1 2; do
-            if ZDOTS_CHECK_SKIP_EXTERNAL=1 ZDOTS_CHECK_REPORT_STARTUP=1 ./bin/check; then
-              exit 0
-            fi
-            if [[ "$attempt" -eq 2 ]]; then
-              echo "bin/check failed after ${attempt} attempts" >&2
-              exit 1
-            fi
-            sleep 5
-          done
-
-      # Public-sanity bats: the subset listed in tests/ci-allowlist.txt. Non-
-      # blocking pending Z-333 — the allowlist has drifted: some entries
-      # (mcp.bats -> ctx-mcp, docs_contract's Ruby-CLI --help sweep) need a Ruby
-      # toolchain this job doesn't set up. The tap-trust, stale-file, native-Go
-      # and PATH fixes cleared the phi/hygiene cascade; the residue is an
-      # allowlist audit + deciding whether `full` gets Ruby. sanity + Run Checks
-      # above remain hard gates.
-      - name: Run Bats (public-sanity subset)
-        continue-on-error: true
-        shell: bash
-        env:
-          ZDOTS_SKIP_ENV_TESTS: "1"
-        run: |
-          mapfile -t files < <(grep -vE '^\s*#|^\s*$' tests/ci-allowlist.txt | sed 's#^#tests/#')
-          printf 'running %d allowlisted bats files\n' "${#files[@]}"
-          bats "${files[@]}"
-
-      - name: Run Bats (flag-audit contract)
-        shell: bash
-        env:
-          ZDOTS_SKIP_ENV_TESTS: "1"
-        run: bats tests/flag_audit.bats
