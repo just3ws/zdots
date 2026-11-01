@@ -3,10 +3,10 @@ id: Z-315
 title: >-
   [agent-issue] zdots-storage Backups bucket does not count Postgres dumps
   (~/my/backups) — the 'my' database is unc
-status: To Do
+status: Done
 assignee: []
-created_date: '2026-08-24 13:53'
-updated_date: '2026-08-24 13:54'
+created_date: 2026-08-24 13:53
+updated_date: '2026-11-01T03:57:00Z'
 labels:
   - agent-reported
   - request
@@ -28,6 +28,13 @@ zdots-storage Backups bucket does not count Postgres dumps (~/my/backups) — th
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 zdots-storage counts bytes under /Users/mike/my/backups without reading dump contents
+- [x] #2 Backups JSON reports the my backup subdirectory size
+- [x] #3 Storage thresholds preserve the 45 GiB recording reserve and critical floor
+<!-- AC:END -->
 
 ## Implementation Notes
 
@@ -68,4 +75,6 @@ both dumps are *tracked in git* in `~/my` (`git ls-files backups/` returns
 them) and `~/my/.gitignore` has no backup rule. Left untouched deliberately:
 untracking them could remove the only offsite copy, so that is the operator's
 call, not an agent's.
+
+Implemented in bin/zdots-storage. MY backups are counted via ZDOTS_MY_ROOT (default ~/my) and reported as backups.my_bytes. Root status now warns below the configurable ZDOTS_STORAGE_RESERVE_GB (default 45) and remains critical below 5 GiB. Focused tests pass (9/9); shellcheck and bash syntax pass. Live snapshot: 51 GiB available, 45 GiB reserve; my/backups contributes 20 KiB. Backup file contents were not read. No backup scheduler was installed; scheduling Postgres dumps remains separate.
 <!-- SECTION:NOTES:END -->

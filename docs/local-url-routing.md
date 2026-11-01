@@ -115,12 +115,11 @@ nginx-ctl validate        # sudo nginx -t
 | Deployed nginx files | Each project owns its source; nginx serves copies under `/opt/homebrew/etc/nginx/servers/` | After a source change, sync/validate and reload through `zsvc reload nginx`; root lifecycle needs sudo |
 | Retired certificate names | `nginx-regen-certs --dry-run --prune` reports three removable SANs; the current shared certificate still contains them | Review the dry-run and apply `nginx-regen-certs --prune` when ready |
 
-> Resolution note: every vhost is a `*.localhost` name since the Z-205 cutover
-> (2026-07-11); the legacy `*.local` `/etc/hosts` pins are pruned. `.localhost`
-> needs no entry at all — every resolver hard-wires it to loopback per RFC
-> 6761 (verified: `dscacheutil -q host -a name llama.localhost` → 127.0.0.1
-> with zero `/etc/hosts` configuration; see decision-011). A `000` from `curl`
-> in a sandboxed/non-interactive context is a resolver artifact there, not a
-> routing gap. A `200` where you expect a different backend may mean `curl`
-> silently followed a redirect — check with `--max-redirs 0` before trusting
-> a green health check.
+> Resolution note: zdots-owned loopback vhosts use `*.localhost`; macOS
+> resolves these to loopback without `/etc/hosts` entries (decision-011).
+> `/etc/hosts` still contains retired `grafana.local` and `lgtm.local` aliases;
+> Z-356 tracks their removal. A rollback copy exists on Dock_1TB. The edit
+> requires operator sudo authentication and has not been applied. A `000` from
+> `curl` in a sandboxed/non-interactive context may be a resolver artifact. A
+> `200` where you expect a different backend may mean `curl` followed a
+> redirect — check with `--max-redirs 0` before trusting a green health check.

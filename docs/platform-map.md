@@ -181,20 +181,22 @@ the interactive list above does not prove every launchd process has the same
 PATH. Use explicit `WorkingDirectory` and a controlled service PATH for
 launchd consumers.
 
-## Operational snapshot — 2026-10-31
+## Operational snapshot — 2026-11-01
 
-Refreshed 2026-10-31. `capabilities --json` reports `health_errors=0`; core
+Refreshed 2026-11-01 UTC. `zsvc health --json` reports `healthy=true`; required
 services and the six core URLs (`llama`, `embed`, `o2`, `zdots`, Gemstash, and
-`my`) respond healthy. The aggregate `zsvc health --json` remains
-`healthy=false` because on-demand Colima is stopped and the optional bus
-coordinator is not registered; Z-355 tracks this mismatch. Neither is required
-for bare-metal recording or normal platform work. `zdots-endpoints -q` found
+`my`) respond healthy. Colima is stopped and the optional bus coordinator is
+not registered; neither is required for bare-metal recording or normal
+platform work. `zdots-endpoints -q` found
 `dev.my.local` returning 502, the on-demand `wwworkremote` and Phalanx local
 development upstreams stopped (502), and `media-pipeline.localhost` reachable
 with an untrusted mkcert certificate. See [Local URL Routing](local-url-routing.md)
-for ownership and current exceptions. Internal storage had 49 GiB available,
-about 4 GiB above the 45 GiB recording reserve. No PostgreSQL contents were
-inspected; use the documented `zdots_ro` role for safe ad-hoc queries.
+for ownership and current exceptions. Internal storage has 51 GiB available,
+6 GiB above the 45 GiB recording reserve. `zdots-storage --json` reports
+2.53 GB package caches, 4.47 GB OpenObserve data, and 1.69 GB backups. The
+hygiene sweep was not run; its small reclaimable estimate does not justify
+disturbing active scratch or media files. No PostgreSQL contents were inspected;
+use the documented `zdots_ro` role for safe ad-hoc queries.
 
 Current commands:
 

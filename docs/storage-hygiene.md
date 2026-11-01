@@ -13,6 +13,11 @@ links:
 
 256GB primary disk. Storage discipline is not optional.
 
+The primary-volume reserve for recording and editing is 45 GiB. `zdots-storage`
+reports the reserve and warns when free space falls below it; set
+`ZDOTS_STORAGE_RESERVE_GB` to override the threshold for a different machine.
+The critical status remains below 5 GiB.
+
 Two primary consumers to manage:
 1. **Docker / Colima** — build cache, unused images, volumes
 2. **LLM models** — GGUF files (4–5GB each; keep only one active)
@@ -171,6 +176,18 @@ df -h / && df -h /System/Volumes/Data
 ```
 
 An operator or automated report seeing "Capacity: 37%–41%" on `/` might assume storage utilization was cut in half, when in reality `/System/Volumes/Data` remains at **91% utilization**.
+
+#### Google Drive streamed-file cache
+
+Drive for desktop uses Apple's File Provider cache on newer macOS; macOS
+controls eviction and does not expose a cache-size limit. Do not delete files
+inside `DriveFS` or `CloudStorage` directly. For a regular review, open Drive
+for desktop → **Settings → Offline files**, then unpin only files you no longer
+need available offline. Streamed files remain cloud-backed and macOS can evict
+their local cache under pressure. The last observed DriveFS footprint was about
+8.0 GiB; the earlier `canceled_uploads` directory was not proven disposable.
+
+See [Google's cache and Offline Files guidance](https://support.google.com/drive/answer/13470231?hl=en).
 
 #### Operator Ground Truth Checklist
 

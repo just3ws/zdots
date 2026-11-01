@@ -1,9 +1,10 @@
 ---
 id: Z-356
 title: '[agent-issue] Remove retired LGTM host aliases from /etc/hosts'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-31T23:19:00Z'
+updated_date: '2026-11-01T03:57:00Z'
 labels:
   - agent-reported
   - request
@@ -25,3 +26,9 @@ I audited `zdots-endpoints` after Z-134 retired the LGTM/Grafana stack. `/etc/ho
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Verified /etc/hosts still has the two exact loopback mappings. Created mode-0600 rollback copy at /Volumes/Dock_1TB/zdots-archive/hosts-before-retired-observability-alias-removal-2026-11-01.txt. The precise sudo sed command is ready, but sudo -n reports a password is required, so the privileged edit was not applied. No nginx reload is involved or attempted.
+<!-- SECTION:NOTES:END -->

@@ -148,7 +148,7 @@ _known_gap() {
 @test "docs: live JSON surfaces are parseable when available" {
   run "$BIN/capabilities" --json
   [ "$status" -eq 0 ]
-  printf '%s\n' "$output" | jq -e '.session_id and .ai' >/dev/null
+  printf '%s\n' "$output" | jq -e '.session_id and .ai and .storage.disk_reserve_gb and .storage.buckets.caches' >/dev/null
 
   run "$BIN/agent-guide" --json
   [ "$status" -eq 0 ]

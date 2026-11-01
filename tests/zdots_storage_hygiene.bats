@@ -31,6 +31,29 @@ setup() {
   [ "$models_status" != "null" ]
 }
 
+@test "zdots-storage: applies the configurable primary-volume reserve" {
+  run env ZDOTS_STORAGE_RESERVE_GB=999 zdots-storage --json
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.disk_reserve_gb')" = "999" ]
+  [ "$(echo "$output" | jq -r '.root_status')" = "warn" ]
+}
+
+@test "zdots-storage: counts the my repository backup directory" {
+  local my_root="$BATS_TEST_TMPDIR/my"
+  mkdir -p "$my_root/backups"
+  printf 'test backup metadata\n' > "$my_root/backups/test.sql.gz"
+
+  run env ZDOTS_MY_ROOT="$my_root" zdots-storage --json
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -r '.buckets.backups.my_bytes')" -gt 0 ]
+}
+
+@test "zdots-storage: rejects an invalid reserve setting" {
+  run env ZDOTS_STORAGE_RESERVE_GB=unlimited zdots-storage --json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"must be a non-negative integer"* ]]
+}
+
 # ── zdots-hygiene interface contract ──────────────────────────────────────────
 
 @test "zdots-hygiene: --help exits 0" {

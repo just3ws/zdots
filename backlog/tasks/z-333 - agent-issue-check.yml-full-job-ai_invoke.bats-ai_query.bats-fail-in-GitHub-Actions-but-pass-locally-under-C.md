@@ -3,10 +3,10 @@ id: Z-333
 title: >-
   [agent-issue] check.yml 'full' job: ai_invoke.bats + ai_query.bats fail in
   GitHub Actions but pass locally under C
-status: To Do
+status: Done
 assignee: []
-created_date: '2026-09-01 19:24'
-updated_date: '2026-09-01 22:01'
+created_date: 2026-09-01 19:24
+updated_date: '2026-11-01T03:57:00Z'
 labels:
   - agent-reported
   - error
@@ -29,6 +29,12 @@ check.yml 'full' job: ai_invoke.bats + ai_query.bats fail in GitHub Actions but 
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
 
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 GitHub Actions no longer runs the fragile full job or non-blocking broad Bats subset
+- [x] #2 Lightweight sanity and separate secret scanning gates pass remotely
+<!-- AC:END -->
+
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
@@ -38,4 +44,6 @@ RESOLVED (partial) 2026-09-01. Four accreted causes in check.yml 'full', broken 
   3. committed cmd/* Go binaries are Mach-O arm64, don't exec on the GHA runner -> 'Build native Go tools' step (079cff4)
   4. THE BIG ONE: hermetic bats call zdots CLIs by bare name; bin/ was never on PATH -> 'zdots-phi-scrub binary not found in PATH', exit 127, ~40 phi_scrubber/message_hygiene/ai_invoke/cmd_analytics failures. Fixed: echo $GITHUB_WORKSPACE/bin >> $GITHUB_PATH (b38bd4e). This cleared the whole PHI cascade.
 RESIDUE (this task now covers only this): mcp.bats (ctx-mcp is Ruby) + docs_contract.bats' Ruby-CLI --help sweep fail because the 'full' job sets up no Ruby toolchain. The ci-allowlist has drifted from 'hermetic only'. 'Run Bats (public-sanity subset)' set continue-on-error (e182837) so Check goes green; sanity + Run Checks remain hard gates. TO DO: audit tests/ci-allowlist.txt (drop mcp.bats + any other Ruby/DB-dependent entries, OR add jdx/mise-action + bundle install to the full job), then remove continue-on-error.
+
+Resolved by operator direction: GitHub Actions is now a single 10-minute sanity job; the Ruby and full Homebrew/Bats jobs were removed. The affected tests remain part of local make check. Workflow lint and local checks passed; latest Check and Secret Scan both passed on 09c97705 (41270628305, 41270628293).
 <!-- SECTION:NOTES:END -->

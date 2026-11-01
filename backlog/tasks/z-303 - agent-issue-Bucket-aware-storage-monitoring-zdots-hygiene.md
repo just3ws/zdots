@@ -25,3 +25,16 @@ Expand zdots storage monitoring beyond global df / probe to track specific conte
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-11-01 review: `zdots-storage` now reports models, Colima, durable ingest,
+tool caches, logs/OpenObserve, and backup buckets. `capabilities --json` now
+embeds this inventory under `storage`; targeted JSON contract and storage
+hygiene tests pass. `zdots-hygiene` previews age-based log/scratch and cache
+cleanup, but durable ingest sources remain retained because they are source
+media. No automatic ingest TTL or sweep was enabled. Keep this task open until
+the operator-facing durable-source retention policy and warning thresholds
+are explicitly resolved.
+<!-- SECTION:NOTES:END -->

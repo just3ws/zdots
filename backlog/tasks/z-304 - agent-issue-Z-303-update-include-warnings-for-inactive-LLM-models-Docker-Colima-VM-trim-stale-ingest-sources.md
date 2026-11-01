@@ -27,3 +27,16 @@ Z-303 update: include warnings for inactive LLM models, Docker/Colima VM trim, s
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-11-01 review: `zdots-storage` reports inactive GGUF models, Colima
+footprint, ingest sources older than seven days, package caches, and stale
+diagnostic logs. `zdots-hygiene` reports cleanup candidates without applying
+them by default. Current live report has 195 durable ingest files older than
+seven days (464.9 MB), explicitly retained; no age-based source deletion was
+run. Keep this task open: review signals exist, but the issue's requested
+warning semantics and safe durable-source retention rule need a clear
+acceptance decision.
+<!-- SECTION:NOTES:END -->

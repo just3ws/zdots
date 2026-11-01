@@ -29,7 +29,7 @@ Context Buckets Monitored:
   ingest        Staged media & document ingestion sources (~/.local/state/zdots/ingest-sources)
   caches        Tool & package manager caches (uv, codex-runtimes, pnpm, npx, brew)
   logs          Diagnostic trace dumps & archived service logs (~/.local/state/zsh)
-  backups       Stale migration & snapshot backups (colima-xdg-backup, adots-backups)
+  backups       Migration, dotfile, and database backups (colima-xdg-backup, adots-backups, my/backups)
 EOF
     exit 0
   }
@@ -78,8 +78,13 @@ _file_bytes() {
 # 1. Root Volume
 avail_kb=$(df -k / 2>/dev/null | tail -1 | awk '{print $4}')
 avail_gb=$(( avail_kb / 1024 / 1024 ))
+reserve_gb="${ZDOTS_STORAGE_RESERVE_GB:-45}"
+if [[ ! "$reserve_gb" =~ ^[0-9]+$ ]]; then
+  printf 'zdots-storage: ZDOTS_STORAGE_RESERVE_GB must be a non-negative integer\n' >&2
+  exit 2
+fi
 root_status="ok"
-(( avail_gb < 15 )) && root_status="warn"
+(( avail_gb < reserve_gb )) && root_status="warn"
 (( avail_gb < 5 )) && root_status="crit"
 
 # 2. Models Bucket
@@ -162,7 +167,9 @@ logs_status="ok"
 # 7. Migration Backups
 colima_bak_bytes=$(_dir_bytes "$HOME/.local/state/zsh/colima-xdg-backup")
 adots_bak_bytes=$(_dir_bytes "$HOME/.adots-backups")
-backups_bytes=$(( colima_bak_bytes + adots_bak_bytes ))
+my_root="${ZDOTS_MY_ROOT:-$HOME/my}"
+my_bak_bytes=$(_dir_bytes "$my_root/backups")
+backups_bytes=$(( colima_bak_bytes + adots_bak_bytes + my_bak_bytes ))
 backups_status="ok"
 (( backups_bytes > 1073741824 )) && backups_status="warn"
 
@@ -170,6 +177,7 @@ if $json; then
   cat << EOF
 {
   "disk_available_gb": $avail_gb,
+  "disk_reserve_gb": $reserve_gb,
   "root_status": "$root_status",
   "buckets": {
     "models": {
@@ -205,6 +213,7 @@ if $json; then
     },
     "backups": {
       "total_bytes": $backups_bytes,
+      "my_bytes": $my_bak_bytes,
       "status": "$backups_status"
     }
   }
@@ -212,7 +221,7 @@ if $json; then
 EOF
 else
   printf '━━━ System Storage Buckets ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
-  printf '  Root Avail:     %-8s  [%s]\n' "${avail_gb}GB" "$root_status"
+  printf '  Root Avail:     %-8s  [%s; reserve %sGB]\n' "${avail_gb}GB" "$root_status" "$reserve_gb"
   printf '  Models:         %-8s  (inactive GGUFs: %s in %d files) [%s]\n' \
     "$(_fmt_bytes "$models_bytes")" "$(_fmt_bytes "$inactive_model_bytes")" "$inactive_model_count" "$models_status"
   printf '  Docker/Colima:  %-8s  [%s]\n' "$(_fmt_bytes "$colima_bytes")" "$docker_status"

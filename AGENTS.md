@@ -9,7 +9,7 @@ canonical: true
 
 Zdots is a modular, high-performance Zsh configuration ("Observable Control Plane").
 
-<!-- CURRENT FOCUS — 2026-10-31
+<!-- CURRENT FOCUS — 2026-11-01 UTC
      Exact task status: Git + Backlog. Session details and archive provenance:
      ~/.config/adots/handoffs/2026-10-31.md (local-only). Update before close.
 
@@ -72,6 +72,21 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
 
   Video recording/editing are critical. Preserve media sources and maintain
   about 45 GiB internal free space. Colima is installed for on-demand use only.
+  Live snapshot: 51 GiB free (6 GiB above reserve); zsvc required services and
+  six core URLs healthy. Package caches total 2.53 GB, OpenObserve 4.47 GB,
+  backups 1.69 GB. No hygiene sweep was run. Google Drive cache is File
+  Provider-managed; only review Offline Files in Drive settings. Do not delete
+  DriveFS internals or canceled_uploads by directory name.
+
+  Z-356 remains blocked on sudo authentication: /etc/hosts still maps retired
+  grafana.local/lgtm.local; rollback copy is on Dock_1TB. Docs now state this
+  accurately. Wworkremote Ruby 4.0.9/Node 26.13 toolchain and advisory updates
+  are local and uncommitted: its pre-commit RSpec suite has deterministic stale
+  expectations (companies cooldown fixed; unscheduled session wording remains
+  failing). Do not bypass hooks or publish until disposition. Six moderate npm
+  audit advisories remain and their available fixes are major upgrades. Hallway
+  Ruby 4.0.9 update is committed and pushed as e1260ab.
+
   Keep local adots git/npm config edits and my's untracked databases/private
   vault untouched. Recent cleanup commits: f8078deb (retire stale provider
   guidance), d8e3d8a0 (close stale backlog and fix patch-export path),

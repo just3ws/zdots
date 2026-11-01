@@ -389,6 +389,15 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
   fi
 
   if command -v jq >/dev/null 2>&1; then
+    _storage_json='{}'
+    _storage_cmd="${ZDOTDIR}/bin/zdots-storage"
+    if [ -x "$_storage_cmd" ]; then
+      _storage_candidate=$("$_storage_cmd" --json 2>/dev/null || true)
+      if printf '%s\n' "$_storage_candidate" | jq -e 'type == "object" and has("disk_available_gb") and has("buckets")' >/dev/null 2>&1; then
+        _storage_json=$_storage_candidate
+      fi
+    fi
+
     jq -n \
       --arg sid "${ZDOTS_SESSION_ID:-}" \
       --arg platform_version "$PLATFORM_VERSION" \
@@ -422,6 +431,7 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg multiplexer "$_json_mux" \
       --arg lines "${LINES:-?}" \
       --arg columns "${COLUMNS:-?}" \
+      --argjson storage "$_storage_json" \
       '{
         session_id: $sid,
         platform: {
@@ -434,6 +444,7 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
         arch: $arch,
         disk_available: $disk,
         disk_available_source: $disk_source,
+        storage: $storage,
         terminal: {
           stdin_tty: ($stdin_tty == "true"),
           stdout_tty: ($stdout_tty == "true"),
