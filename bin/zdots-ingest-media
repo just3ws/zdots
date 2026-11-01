@@ -49,6 +49,7 @@ FORCE_BOOL=$([[ -n "$FORCE" ]] && echo true || echo false)
 # null when unset → zdots-brain omits the hint; a bare int otherwise.
 SPEAKERS_JSON=$([[ -n "$NUM_SPEAKERS" ]] && echo "$NUM_SPEAKERS" || echo null)
 TAGS_JSON="$(printf '%s' "$TAGS" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
+[[ -n "$TAGS_JSON" ]] || TAGS_JSON='[]'
 
 # Z-237: opt-in cookie args for bot-gated sources (YouTube). Empty array unless
 # ZDOTS_YTDLP_COOKIES_FROM_BROWSER / _FILE is set. See lib/ytdlp.bash.

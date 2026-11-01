@@ -20,6 +20,7 @@ Encoding.default_internal = Encoding::UTF_8
 unless ENV["ZDOTS_BRAIN_PINNED"]
   begin
     require "opentelemetry"
+    require "sequel"
   rescue LoadError
     ENV["ZDOTS_BRAIN_PINNED"] = "1"
     exec File.expand_path("../bin/zdots-ruby", __dir__),
