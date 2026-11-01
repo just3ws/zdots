@@ -45,8 +45,9 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   Ruby, broad Bats, and full `bin/check` provisioning; it keeps shell syntax and
   safe startup smoke checks plus standalone Go module tests. `actionlint`,
   shell syntax, startup smoke, Go tests, and secret scan passed locally; this
-  workflow revision is not yet committed. Z-349 and Z-355 are complete and
-  their implementation commits passed remote CI. Sentry was confirmed unused,
+  revision is pushed as 8d5f3c31 and its Check (41270541992) and Secret Scan
+  (41270541990) passed. Z-349 and Z-355 are complete and their implementation
+  commits passed remote CI. Sentry was confirmed unused,
   removed from Brewfile.common, and uninstalled; the usage report was refreshed.
   Home Brewfile satisfies `brew bundle check`.
   media-pipeline remains pushed at ec1dc67 with CI run 41254389048 passed; six
