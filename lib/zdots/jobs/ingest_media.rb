@@ -210,7 +210,7 @@ module Zdots
         end
         
         if terms.size < 100
-          global = Zdots.db[:known_terms].order(:canonical)
+          global = Zdots.db[:known_terms].where(tags: []).order(:canonical)
           global = global.exclude(canonical: terms) unless terms.empty?
           global = global.limit(100 - terms.size).select_map(:canonical)
           terms += global
@@ -439,7 +439,20 @@ module Zdots
         filler_words = %w[uh um ah like you know i mean so well person okay yes no yeah]
         filler_re = "(?:\\W|(?:\\b(?:#{filler_words.join('|')})\\b))+"
 
-        Zdots.db[:known_terms].select(:canonical, :aliases, :category).each do |t|
+        terms = Zdots.db[:known_terms]
+        source_tags = Array(@src&.tags).compact.reject(&:empty?)
+        if source_tags.any?
+          terms = terms.where(
+            Sequel.|(
+              { tags: [] },
+              Sequel.pg_array_op(:tags).overlaps(Sequel.pg_array(source_tags, :text))
+            )
+          )
+        else
+          terms = terms.where(tags: [])
+        end
+
+        terms.select(:canonical, :aliases, :category).each do |t|
           Array(t[:aliases]).each do |al|
             al = al.to_s.strip
             next if al.empty?
@@ -580,7 +593,9 @@ TIMELINE_REDUCE_TASK =
         map_task = map_task_str.dup
         map_task += "\n\nAdditional Context for this video: #{@src.primer_text}" if @src && @src.primer_text.to_s.strip != ""
         partials = windows.map { |w| distill_call(map_task, w) }
-        reduce_partials(partials.join("\n\n"), reduce_task_str)
+        reduce_task = reduce_task_str.dup
+        reduce_task += "\n\nAdditional Context for this video: #{@src.primer_text}" if @src && @src.primer_text.to_s.strip != ""
+        reduce_partials(partials.join("\n\n"), reduce_task)
       end
 
       def reduce_partials(text, reduce_task_str = DISTILL_REDUCE_TASK)
