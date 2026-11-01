@@ -77,8 +77,9 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
 
   Video recording/editing are critical. Preserve media sources and maintain
   about 45 GiB internal free space. Colima is installed for on-demand use only.
-  Live snapshot: 46 GiB free (about 1 GiB above reserve); required zdots
-  services and six core URLs healthy. Package caches total 2.53 GB,
+  Live snapshot: 45 GiB free, at the 45 GiB reserve threshold; build additional
+  margin before a long recording/editing session. Required zdots services and
+  six core URLs healthy. Package caches total 2.53 GB,
   OpenObserve 4.47 GB, backups 1.69 GB. No hygiene sweep was run. Google Drive
   cache is File Provider-managed; only review Offline Files in Drive settings.
   Do not delete DriveFS internals or canceled_uploads by directory name.

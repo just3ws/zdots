@@ -191,8 +191,9 @@ platform work. `zdots-endpoints -q` found
 `dev.my.local` returning 502, the on-demand `wwworkremote` and Phalanx local
 development upstreams stopped (502), and `media-pipeline.localhost` reachable
 with an untrusted mkcert certificate. See [Local URL Routing](local-url-routing.md)
-for ownership and current exceptions. Internal storage has 46 GiB available,
-about 1 GiB above the 45 GiB recording reserve. `zdots-storage --json` reports
+for ownership and current exceptions. Internal storage has 45 GiB available,
+at the 45 GiB recording reserve; restore margin before a long recording or
+editing session. `zdots-storage --json` reports
 2.53 GB package caches, 4.47 GB OpenObserve data, and 1.69 GB backups. The
 hygiene sweep was not run; its small reclaimable estimate does not justify
 disturbing active scratch or media files. No PostgreSQL contents were inspected;
