@@ -4,7 +4,7 @@ title: 'Panoramic View: operational activation and SLO calibration'
 status: In Progress
 assignee: []
 created_date: '2026-11-02T15:13:00Z'
-updated_date: '2026-11-02T17:59:00Z'
+updated_date: '2026-11-02T18:45:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -26,7 +26,7 @@ Complete the live activation and data-bearing calibration phase for the permanen
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Reload the Context Engine application through its authorized lifecycle and verify the authenticated versioned Panoramic aggregate endpoint responds.
+- [x] #1 Reload the Context Engine application through its authorized lifecycle and verify the authenticated versioned Panoramic aggregate endpoint responds.
 - [ ] #2 Collect multiple ordinary operational journeys and separately identified control runs; verify checkpoint counts, route/offramp reasons, queue, inter-marker, handoff, stage, and path latency evidence.
 - [ ] #3 Review sample counts and workload/version segments before deriving checkpoint and whole-path operating ranges and proposing explicit versioned SLO windows.
 - [ ] #4 Verify SLO evaluations and dashboard Alert state against representative met and breached conditions; document and configure an Alert delivery route before enabling external notifications.
@@ -47,4 +47,6 @@ Live activation evidence (2026-11-02): Restarted the launchd-managed Context Eng
 Fixed Panoramic context loss at the zdots async handoff: `zdots-brain` now forwards journey/run/correlation/workflow/flow/run-class fields into the ingest job payload, and raw-stage reuse is scoped by Panoramic run ID. After restarting the existing worker and reprocessing the synthetic source, the Context Engine source API showed all eight stages carrying the same journey/run/workflow/flow IDs; aggregate API returned one control run, one journey, and count/latency distributions across all eight stages.
 
 Remaining: operational cohort is still zero (control data is excluded); one control sample is not a normal-range baseline. Live API currently accepts an invalid bearer because `CONTEXT_ENGINE_BEARER_TOKEN` is unset in its launch environment; secure token provisioning and authenticated verification remain open. Numeric SLOs, multi-run comparisons, representative breach/met evaluation, and external Alert delivery still need operational samples and an explicitly configured receiver. Do not close this task or derive thresholds from this control run.
+
+Live auth activation (2026-11-02): provisioned CONTEXT_ENGINE_BEARER_TOKEN in Keychain and updated the canonical Context Engine and media-pipeline LaunchAgent templates to load it at process start and fail closed if missing. Reloaded both authorized launchd jobs. Verified aggregate endpoint rejects absent and invalid Bearer (401), accepts the Keychain token (200), and `/up` and the media Panoramic page return 200. Commits pushed: my 617355f; media-pipeline b0018b0. Media-pipeline pre-push checks passed: mp-lint clean (mdl unavailable), Brakeman 0 warnings, full RSpec 320 examples/0 failures. Live calibration remains operational run_count=0; no thresholds were fabricated. External Alert receiver and real ordinary production samples remain open. Queue warning is unchanged: two editorial title-review holds and one failed upload needing verified remote reconciliation.
 <!-- SECTION:NOTES:END -->
