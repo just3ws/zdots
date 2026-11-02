@@ -35,6 +35,8 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(hygiene)* Add media audio scratch buffer eviction for just3ws
 - Add vips formula to shared platform Brewfile
 - *(storage)* Expose platform bucket inventory
+- *(ingest)* Retain playlist guidance
+- *(panoramic)* Carry run correlation through ingest
 
 ### 🐛 Bug Fixes
 
@@ -54,6 +56,9 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(deps)* Update security-sensitive runtimes
 - *(ci)* Align brew and health checks
 - *(platform)* Classify optional health and prune unused Sentry
+- *(ingest)* Scope term corrections
+- *(ingest)* Detect incomplete child bundle
+- *(worker)* Reject stray arguments
 
 ### 💼 Other
 
@@ -109,6 +114,9 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(agent)* Refresh platform closeout evidence
 - Record lightweight CI status
 - *(platform)* Refresh project runtime status
+- *(release)* Refresh changelog after beacon
+- *(platform)* Record aligned runtime baseline
+- *(storage)* Refresh reserve snapshot
 
 ### ⚙️ Miscellaneous Tasks
 
