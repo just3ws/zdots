@@ -4,7 +4,7 @@ title: 'Panoramic View: operational activation and SLO calibration'
 status: In Progress
 assignee: []
 created_date: '2026-11-02T15:13:00Z'
-updated_date: '2026-11-02T18:45:00Z'
+updated_date: '2026-11-02T19:23:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -49,4 +49,6 @@ Fixed Panoramic context loss at the zdots async handoff: `zdots-brain` now forwa
 Remaining: operational cohort is still zero (control data is excluded); one control sample is not a normal-range baseline. Live API currently accepts an invalid bearer because `CONTEXT_ENGINE_BEARER_TOKEN` is unset in its launch environment; secure token provisioning and authenticated verification remain open. Numeric SLOs, multi-run comparisons, representative breach/met evaluation, and external Alert delivery still need operational samples and an explicitly configured receiver. Do not close this task or derive thresholds from this control run.
 
 Live auth activation (2026-11-02): provisioned CONTEXT_ENGINE_BEARER_TOKEN in Keychain and updated the canonical Context Engine and media-pipeline LaunchAgent templates to load it at process start and fail closed if missing. Reloaded both authorized launchd jobs. Verified aggregate endpoint rejects absent and invalid Bearer (401), accepts the Keychain token (200), and `/up` and the media Panoramic page return 200. Commits pushed: my 617355f; media-pipeline b0018b0. Media-pipeline pre-push checks passed: mp-lint clean (mdl unavailable), Brakeman 0 warnings, full RSpec 320 examples/0 failures. Live calibration remains operational run_count=0; no thresholds were fabricated. External Alert receiver and real ordinary production samples remain open. Queue warning is unchanged: two editorial title-review holds and one failed upload needing verified remote reconciliation.
+
+Failed-jobs dashboard triage (2026-11-02): `/jobs/failed/jobs` returns HTTP 200 and lists 16 failed Solid Queue executions, all aged 1–4 days. Eight are ScanIntakeQueuesJob failures with NoMethodError for PipelineConfigService.hydrate_queue; current code defines hydrate_queue and a fresh scanner execution completed successfully (~60 ms), so this failure is historical, not currently reproducing. The remaining entries are worker process exit/pruning records, one historical negative-interval hydration failure, and process exits for publish/enrich. Asset IDs 285, 286, 287, 290, and 297 are currently processed and have YouTube IDs, so the failed job records are stale and must not be retried. The only current failed MediaAsset is #296 with no local YouTube ID; that remains a separate ambiguous-upload reconciliation item. I did not click Retry or Discard and did not mutate job records.
 <!-- SECTION:NOTES:END -->
