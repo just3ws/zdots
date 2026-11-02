@@ -206,7 +206,14 @@ module Zdots
       e.recover(ARGV) # leave unrecognized flags in ARGV for subcommands
     end
 
-    def cmd_worker(_args)
+    def cmd_worker(args)
+      unless args.empty?
+        warn "zdots-brain: unexpected worker argument(s): #{args.join(' ')}"
+        warn "usage: zdots-ctx worker [--type TYPE]"
+        warn "For worker status, use: zdots-worker status"
+        exit 2
+      end
+
       # Z-280: refuse to run against a schema behind the shipped code. Every
       # loaded model must find its table (zdots_rw cannot read the migration
       # table, so ask about the tables the worker actually needs). Exit 78
