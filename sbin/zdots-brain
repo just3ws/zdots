@@ -680,6 +680,10 @@ module Zdots
         record_panoramic_correlation(media_source_id, meta)
 
         payload     = { "media_source_id" => media_source_id, "profile" => profile }
+        payload.merge!(meta.slice(
+          "panoramic_journey_id", "panoramic_run_id", "panoramic_correlation_id",
+          "panoramic_workflow_id", "panoramic_flow_id", "panoramic_run_class"
+        ).compact)
         # Diarization speaker-count hint from the caller (site: interviewees + 1).
         # Tenant data — passed through, never computed here. Consumed by ingest_media#diarize_audio.
         ns = meta["num_speakers"]

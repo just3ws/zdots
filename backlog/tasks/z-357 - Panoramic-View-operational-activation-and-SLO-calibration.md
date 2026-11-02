@@ -1,17 +1,18 @@
 ---
 id: Z-357
 title: 'Panoramic View: operational activation and SLO calibration'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-11-02T15:13:00Z'
+updated_date: '2026-11-02T17:59:00Z'
 labels: []
 dependencies: []
 documentation:
   - docs/plans/panoramic-observability.md
   - /Users/mike/github.com/just3ws/media-pipeline/docs/panoramic-view-tracer.md
 modified_files:
-  - docs/plans/panoramic-observability.md
-  - app/controllers/api/v1/panoramic_observations_controller.rb
+  - sbin/zdots-brain
+  - lib/zdots/jobs/ingest_media.rb
 priority: medium
 type: task
 ordinal: 228895
@@ -37,3 +38,13 @@ Complete the live activation and data-bearing calibration phase for the permanen
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Live activation evidence (2026-11-02): Restarted the launchd-managed Context Engine API; `/api/v1/panoramic/observations` now serves HTTP 200 and returns aggregate-only structured checkpoints. A synthetic control fixture was processed through the dedicated Drive intake target and public test playlist. One journey/run was observed; the title-review offramp was recorded with `title_review_required`, the synthetic title was operator-approved, and the original canonical enqueue failure remains visible. A same-source retry completed all eight canonical stages.
+
+Fixed Panoramic context loss at the zdots async handoff: `zdots-brain` now forwards journey/run/correlation/workflow/flow/run-class fields into the ingest job payload, and raw-stage reuse is scoped by Panoramic run ID. After restarting the existing worker and reprocessing the synthetic source, the Context Engine source API showed all eight stages carrying the same journey/run/workflow/flow IDs; aggregate API returned one control run, one journey, and count/latency distributions across all eight stages.
+
+Remaining: operational cohort is still zero (control data is excluded); one control sample is not a normal-range baseline. Live API currently accepts an invalid bearer because `CONTEXT_ENGINE_BEARER_TOKEN` is unset in its launch environment; secure token provisioning and authenticated verification remain open. Numeric SLOs, multi-run comparisons, representative breach/met evaluation, and external Alert delivery still need operational samples and an explicitly configured receiver. Do not close this task or derive thresholds from this control run.
+<!-- SECTION:NOTES:END -->

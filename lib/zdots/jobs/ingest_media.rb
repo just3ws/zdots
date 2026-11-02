@@ -276,7 +276,10 @@ module Zdots
       # (> CHUNK_THRESHOLD_SEC) fan out and return :pending — TranscribeChunk
       # stitches and re-enqueues this job to finish cleaned/distilled.
       def ensure_raw
-        summary = Models::PipelineRun.first(media_source_id: @mid, stage: "raw", chunk_index: nil)
+        summary = Models::PipelineRun.first(
+          media_source_id: @mid, stage: "raw", chunk_index: nil,
+          panoramic_run_id: @panoramic_context&.fetch("panoramic_run_id", nil)
+        )
         return summary.artifact_path if summary&.status == "done"
 
         dur = @src.duration_sec.to_i
