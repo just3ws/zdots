@@ -61,6 +61,10 @@ module Zdots
       def run
         @mid      = payload.fetch("media_source_id")
         @profile  = payload["profile"] || "standard"
+        @panoramic_context = payload.slice(
+          "panoramic_journey_id", "panoramic_run_id", "panoramic_correlation_id",
+          "panoramic_workflow_id", "panoramic_flow_id", "panoramic_run_class"
+        ).compact
         @src      = Models::MediaSource[@mid] or raise "media_source not found: #{@mid}"
         @out_base = File.join(RETENTION_ROOT, @mid.to_s)
         FileUtils.mkdir_p(@out_base)
@@ -290,7 +294,8 @@ module Zdots
         narrate("long source (#{dur}s) → #{n} chunks (window=#{CHUNK_WINDOW_SEC}s overlap=#{CHUNK_OVERLAP_SEC}s)")
         pending = 0
         (0...n).each do |i|
-          next if upsert_run(@mid, "raw", chunk_index: i).status == "done"
+          next if upsert_run(@mid, "raw", chunk_index: i,
+            panoramic_run_id: @panoramic_context&.fetch("panoramic_run_id", nil)).status == "done"
           enqueue_chunk(i, offset: i * step, n: n, wav: wav)
           pending += 1
         end
@@ -299,7 +304,7 @@ module Zdots
           # All chunks already done but no summary — drive the reduce directly
           # (covers a planning retry that lands after the last chunk finished).
           require_relative "transcribe_chunk"
-          TranscribeChunk.reduce_if_complete(@mid, n, @profile)
+          TranscribeChunk.reduce_if_complete(@mid, n, @profile, @panoramic_context || {})
         end
         :pending
       end
@@ -321,6 +326,7 @@ module Zdots
       def enqueue_chunk(i, offset:, n:, wav:)
         payload = { "media_source_id" => @mid, "chunk_index" => i, "offset_sec" => offset,
                     "window_sec" => CHUNK_WINDOW_SEC, "n" => n, "wav" => wav, "profile" => @profile }
+        payload.merge!(@panoramic_context || {})
         Models::Job.dataset.insert_conflict(target: :fingerprint, update: { status: "pending", attempts: 0, error_message: nil, updated_at: Sequel::CURRENT_TIMESTAMP }).insert(
           type: "transcribe_chunk", payload: Sequel.pg_jsonb(payload), priority: 10,
           fingerprint: Digest::MD5.hexdigest("transcribe_chunk-#{@mid}-#{i}")
@@ -331,14 +337,14 @@ module Zdots
       # records the artifact, its content hash, and run params. The block
       # returns { path:, params: }. Content-hashed → re-runs are idempotent.
       def stage(name)
-        pr = upsert_run(@mid, name)
+        pr = upsert_run(@mid, name, panoramic_run_id: @panoramic_context&.fetch("panoramic_run_id", nil))
         pr.update(status: "running", started_at: Sequel::CURRENT_TIMESTAMP, error_message: nil)
         narrate("▶ #{name} started")
         result = yield
         pr.update(status: "done", finished_at: Sequel::CURRENT_TIMESTAMP,
                   artifact_path: result[:path],
                   content_hash: result[:path] ? Digest::SHA256.hexdigest(File.read(result[:path])) : nil,
-                  run_params: Sequel.pg_jsonb(result[:params] || {}))
+                  run_params: Sequel.pg_jsonb((result[:params] || {}).merge(@panoramic_context || {})))
         narrate("✓ #{name} done")
         result[:path]
       rescue Sequel::NoExistingObject => e
@@ -350,9 +356,14 @@ module Zdots
         raise e
       end
 
-      def upsert_run(mid, stage, chunk_index: nil)
-        Models::PipelineRun.first(media_source_id: mid, stage: stage, chunk_index: chunk_index) ||
-          Models::PipelineRun.create(media_source_id: mid, stage: stage, chunk_index: chunk_index, status: "pending")
+      def upsert_run(mid, stage, chunk_index: nil, panoramic_run_id: nil)
+        Models::PipelineRun.first(
+          media_source_id: mid, stage: stage, chunk_index: chunk_index,
+          panoramic_run_id: panoramic_run_id
+        ) || Models::PipelineRun.create(
+          media_source_id: mid, stage: stage, chunk_index: chunk_index,
+          panoramic_run_id: panoramic_run_id, status: "pending"
+        )
       end
 
       # Decouple downloader from processor: the recipe (yt-dlp) IS the fetcher and

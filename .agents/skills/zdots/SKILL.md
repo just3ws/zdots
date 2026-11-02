@@ -24,6 +24,12 @@ Pi's output → Aider's input. Context budget (Pi, 7B): ~32k tokens per session.
 
 ## Key Commands
 
+Panoramic process evidence is inspected through `mp panoramic runs`,
+`journey`, `compare`, and `calibrate`. These are read-only. The explicit
+`evaluate-slos` subcommand persists policy-window results and does not send
+Alerts under the default calibration policy. Do not use
+`zdots-ctx worker status`: that syntax starts a worker in this environment.
+
 | Command | What it does |
 |---------|-------------|
 | `zdots-ctl status` | Live status of all services |

@@ -63,6 +63,18 @@ Zdots includes a production-grade local AI runtime out of the box:
 *   **Guardrails**: `ai-query` applies the configured security and input-normalization path.
 *   **Workflows**: Audio and media workflows are documented in [docs/ingest-media-pipeline.md](docs/ingest-media-pipeline.md).
 
+Panoramic View is the permanent cartography for instrumented workflow runs,
+including normal operations and its synthetic control tracer. It preserves
+work-item journeys, per-execution identity, asynchronous correlation, route and
+offramp outcomes, and latency between checkpoints. See the
+[Panoramic View agent guidance](.agents/skills/panoramic-view/SKILL.md) and the
+[Panoramic CLI documentation](docs/tooling.md).
+
+```bash
+mp panoramic runs 20
+mp panoramic calibrate media-publication --flow media-publication.v1 --class operational
+```
+
 ---
 
 ## 4. Architecture Diagrams

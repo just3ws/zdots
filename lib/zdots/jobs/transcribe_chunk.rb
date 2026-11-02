@@ -25,6 +25,11 @@ module Zdots
         @mid = payload.fetch("media_source_id")
         i    = payload.fetch("chunk_index")
         n    = payload.fetch("n")
+        panoramic_context = payload.slice(
+          "panoramic_journey_id", "panoramic_run_id", "panoramic_correlation_id",
+          "panoramic_workflow_id", "panoramic_flow_id", "panoramic_run_class"
+        ).compact
+        @panoramic_run_id = panoramic_context["panoramic_run_id"]
         @src = Models::MediaSource[@mid] or raise "media_source not found: #{@mid}"
 
         pr = chunk_run(i)
@@ -34,9 +39,10 @@ module Zdots
         out = transcribe_window(i, payload)
         pr.update(status: "done", artifact_path: out,
                   content_hash: Digest::SHA256.hexdigest(File.read(out)),
+                  run_params: Sequel.pg_jsonb(panoramic_context),
                   finished_at: Sequel::CURRENT_TIMESTAMP)
 
-        self.class.reduce_if_complete(@mid, n, payload["profile"])
+        self.class.reduce_if_complete(@mid, n, payload["profile"], panoramic_context)
         true
       rescue Sequel::NoExistingObject => e
         warn "pipeline_run was deleted, assuming restart/cancel"
@@ -52,36 +58,40 @@ module Zdots
       # ponytail: a crash after claiming strands the summary in "running"; rare
       # and stitch is cheap+deterministic — re-run the source if it happens.
       # upgrade: add a stale-"running" reaper if strands stop being rare.
-      def self.reduce_if_complete(mid, n, profile)
-        done = Models::PipelineRun.where(media_source_id: mid, stage: "raw")
+      def self.reduce_if_complete(mid, n, profile, panoramic_context = {})
+        panoramic_run_id = panoramic_context["panoramic_run_id"]
+        runs = Models::PipelineRun.where(media_source_id: mid, stage: "raw", panoramic_run_id: panoramic_run_id)
+        done = runs
                                   .exclude(chunk_index: nil).where(status: "done").count
         return if done < n
 
         begin
           summary = Models::PipelineRun.create(
             media_source_id: mid, stage: "raw", chunk_index: nil,
-            status: "running", started_at: Sequel::CURRENT_TIMESTAMP
+            status: "running", started_at: Sequel::CURRENT_TIMESTAMP,
+            panoramic_run_id: panoramic_run_id,
+            run_params: Sequel.pg_jsonb(panoramic_context)
           )
         rescue Sequel::UniqueConstraintViolation
           return # another window already claimed the reduce
         end
 
-        raw_path = stitch(mid)
+        raw_path = stitch(mid, panoramic_run_id: panoramic_run_id)
         summary.update(status: "done", artifact_path: raw_path,
                        content_hash: Digest::SHA256.hexdigest(File.read(raw_path)),
                        finished_at: Sequel::CURRENT_TIMESTAMP)
 
         Models::Job.dataset.insert_conflict(target: :fingerprint, update: { status: "pending", attempts: 0, error_message: nil, updated_at: Sequel::CURRENT_TIMESTAMP }).insert(
           type: "ingest_media",
-          payload: Sequel.pg_jsonb({ "media_source_id" => mid, "profile" => profile }),
+          payload: Sequel.pg_jsonb({ "media_source_id" => mid, "profile" => profile }.merge(panoramic_context)),
           priority: 10, fingerprint: Digest::MD5.hexdigest("ingest_media-resume-#{mid}")
         )
       end
 
       # Stitch the window transcripts in order, overlap-deduped, into one file.
-      def self.stitch(mid)
+      def self.stitch(mid, panoramic_run_id: nil)
         src  = Models::MediaSource[mid]
-        rows = Models::PipelineRun.where(media_source_id: mid, stage: "raw")
+        rows = Models::PipelineRun.where(media_source_id: mid, stage: "raw", panoramic_run_id: panoramic_run_id)
                                   .exclude(chunk_index: nil).order(:chunk_index).all
         merged = rows.map { |r| File.read(r.artifact_path).strip }
                      .reduce("") { |acc, t| acc.empty? ? t : splice(acc, t) }
@@ -161,8 +171,12 @@ module Zdots
       private
 
       def chunk_run(i)
-        Models::PipelineRun.first(media_source_id: @mid, stage: "raw", chunk_index: i) ||
-          Models::PipelineRun.create(media_source_id: @mid, stage: "raw", chunk_index: i, status: "pending")
+        Models::PipelineRun.first(
+          media_source_id: @mid, stage: "raw", chunk_index: i, panoramic_run_id: @panoramic_run_id
+        ) || Models::PipelineRun.create(
+          media_source_id: @mid, stage: "raw", chunk_index: i,
+          panoramic_run_id: @panoramic_run_id, status: "pending"
+        )
       end
 
       def transcribe_window(i, p)

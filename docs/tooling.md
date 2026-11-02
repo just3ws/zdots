@@ -40,6 +40,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | Vault curation | `zdots-ctx vault-doctor [PATH...] [--json\|--llm]` | Rules-first, local-LLM-last asset catalog over any markdown corpus — staleness/broken-links/orphans, durable per-asset history + disposition (`--ack`/`--history`) |
 | Semantic transcript search | `zdots-search "<question>"` | pgvector cosine search over embedded knowledge chunks; top 5 passages with source + timestamp |
 | Media ingest orchestrator | `zdots-ingest-media <url\|file>` | Download, 16k WAV convert, chunk, transcribe (whisper.cpp), clean, distill, diarize, and embed |
+| Panoramic process evidence | `mp panoramic runs\|journey\|compare\|calibrate` | Inspect durable journey/checkpoint evidence, compare executions, and derive operational distributions without starting workers |
 | Audio transcription | `ztranscribe <url> [--prep-only]` | High-accuracy transcription pipeline recipe (whisper.cpp) |
 | Brain status | `zdots-brain status [--json]` | DB row counts + encryption coverage across all 8 `_enc` columns |
 | Brain rekey | `zdots-brain rekey [table]` | Re-encrypt after key rotation; covers lessons, methodologies, session_residue, source_document |

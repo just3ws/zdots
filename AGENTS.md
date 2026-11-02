@@ -410,3 +410,15 @@ This codebase operates near protected health information. The following rules ar
 **Verify posture:** `zdots-ctl check` (hard-fails on FileVault/SIP; checks AI mode, capture, history-redact, llama-server bind, model provenance).
 
 Full policy: `backlog/docs/doc-002 - PHI-Safety-Policy.md`
+
+## Panoramic View instrumentation
+
+Read `.agents/skills/panoramic-view/SKILL.md` before inspecting or changing
+Panoramic evidence. Panoramic View is permanent instrumentation for normal
+runs; the synthetic tracer is its control test. Preserve separate operational
+and control cohorts. Compare by workflow and stable checkpoint ID, and retain
+version, journey, run, and correlation identities. Calibrate representative
+operational samples before proposing numeric SLO targets. `mp panoramic runs`,
+`journey`, `compare`, and `calibrate` are read-only. `evaluate-slos` writes
+window results but sends no Alerts under the default calibration-only policy.
+Never use `zdots-ctx worker status`: it starts a worker in this environment.

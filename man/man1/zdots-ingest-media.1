@@ -1,6 +1,6 @@
-.TH ZDOTS-INGEST-MEDIA 1 "2026-07-21" "zdots" "zdots manual"
+.TH ZDOTS-INGEST-MEDIA 1 "2026-11-02" "zdots" "zdots manual"
 .SH NAME
-zdots-ingest-media \- \-\-label <text>          Non\-PHI display label (REQUIRED for local files)
+zdots-ingest-media \- ingest a media source into the knowledge pipeline
 .SH SYNOPSIS
 See OPTIONS below (generated from \fBzdots-ingest-media --help\fR).
 .SH OPTIONS
@@ -12,6 +12,13 @@ Usage: zdots-ingest-media <url|file> [options]
   --tags <list>           Comma-separated source tags for scoped known terms
   --num-speakers <n>      Diarization speaker-count hint (e.g. interviewees + 1)
   --force                 Reprocess an already-ingested source
+  --journey-id <uuid>     Optional external work-item journey identity
+  --run-id <uuid>         Optional Panoramic execution identity
+  --correlation-id <uuid> Optional async message correlation identity
+  --workflow-id <name>   Comparable workflow family name
+  --flow-id <version>    Immutable contract identifier
+  --run-class <class>    operational or control cohort
+  --panoramic-started-at <iso8601> Run start for whole-path latency
   -h, --help              Show this help
 
 Bot-gated sources (e.g. YouTube) need cookies. Set one of (opt-in):

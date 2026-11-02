@@ -647,6 +647,7 @@ module Zdots
         updates[:tags] = Sequel.pg_array(merged_tags, :text) if merged_tags != Array(existing.tags)
         updates[:primer_text] = primer_text if existing.primer_text.to_s.strip.empty? && !primer_text.empty?
         existing.update(updates) unless updates.empty?
+        record_panoramic_correlation(existing.id, meta)
         puts "zdots-ingest-media: [skip] already ingested (#{existing.id}); use --force to reprocess."
         return
       end
@@ -676,6 +677,8 @@ module Zdots
           puts "zdots-ingest-media: ingested #{media_source_id} (#{meta['title']})."
         end
 
+        record_panoramic_correlation(media_source_id, meta)
+
         payload     = { "media_source_id" => media_source_id, "profile" => profile }
         # Diarization speaker-count hint from the caller (site: interviewees + 1).
         # Tenant data — passed through, never computed here. Consumed by ingest_media#diarize_audio.
@@ -695,6 +698,33 @@ module Zdots
     rescue JSON::ParserError
       puts "zdots-ingest-media: [!!] invalid metadata JSON on stdin"
       exit 1
+    end
+
+    def record_panoramic_correlation(media_source_id, meta)
+      values = %w[panoramic_journey_id panoramic_run_id panoramic_correlation_id].map { |key| meta[key] }
+      return if values.all?(&:nil?)
+      raise ArgumentError, "Panoramic correlation requires all IDs and workflow versions" if values.any?(&:nil?)
+
+      uuid = /\A[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/i
+      raise ArgumentError, "Invalid Panoramic correlation UUID" unless values.all? { |value| value.to_s.match?(uuid) }
+      workflow_id = meta["panoramic_workflow_id"].to_s
+      flow_id = meta["panoramic_flow_id"].to_s
+      run_class = meta["panoramic_run_class"].to_s
+      panoramic_started_at = Time.iso8601(meta.fetch("panoramic_started_at").to_s)
+      identifier = /\A[a-z0-9][a-z0-9_.-]{0,119}\z/i
+      raise ArgumentError, "Panoramic workflow and flow IDs are required" unless workflow_id.match?(identifier) && flow_id.match?(identifier)
+      raise ArgumentError, "Invalid Panoramic run class" unless %w[operational control].include?(run_class)
+
+      Zdots.db[:panoramic_correlations].insert_conflict(target: :run_id).insert(
+        media_source_id: media_source_id,
+        journey_id: values[0],
+        run_id: values[1],
+        correlation_id: values[2],
+        panoramic_started_at: panoramic_started_at,
+        workflow_id: workflow_id,
+        flow_id: flow_id,
+        created_at: Sequel::CURRENT_TIMESTAMP
+      )
     end
 
     # Z-199: tenant-facing result fetch. metadata is the generic result slot —

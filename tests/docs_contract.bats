@@ -337,4 +337,9 @@ _known_gap() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"--primer-text <text>"* ]]
   [[ "$output" == *"--tags <list>"* ]]
+  [[ "$output" == *"--journey-id <uuid>"* ]]
+  [[ "$output" == *"--correlation-id <uuid>"* ]]
+  [[ "$output" == *"--flow-id <version>"* ]]
+  [[ "$output" == *"--run-class <class>"* ]]
+  [[ "$output" == *"--panoramic-started-at <iso8601>"* ]]
 }

@@ -19,6 +19,13 @@ Usage: zdots-ingest-media <url|file> [options]
   --primer-text <text>    Source context for transcription and distillation
   --tags <list>           Comma-separated source tags for scoped known terms
   --num-speakers <n>      Diarization speaker-count hint (e.g. interviewees + 1)
+  --journey-id <uuid>     Optional external work-item journey identity
+  --run-id <uuid>         Optional Panoramic execution identity
+  --correlation-id <uuid> Optional async message correlation identity
+  --workflow-id <name>   Comparable workflow family name
+  --flow-id <version>    Immutable contract identifier
+  --run-class <class>    operational or control cohort
+  --panoramic-started-at <iso8601> Run start for whole-path latency
   --force                 Reprocess an already-ingested source
   -h, --help              Show this help
 
@@ -29,7 +36,7 @@ Bot-gated sources (e.g. YouTube) need cookies. Set one of (opt-in):
 EOF
 }
 
-SRC="" LABEL="" PROFILE="standard" FORCE="" NUM_SPEAKERS="" PRIMER_TEXT="" TAGS=""
+SRC="" LABEL="" PROFILE="standard" FORCE="" NUM_SPEAKERS="" PRIMER_TEXT="" TAGS="" JOURNEY_ID="" RUN_ID="" CORRELATION_ID="" WORKFLOW_ID="" FLOW_ID="" RUN_CLASS="" PANORAMIC_STARTED_AT=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --label)        LABEL="$2"; shift 2 ;;
@@ -37,12 +44,30 @@ while [[ $# -gt 0 ]]; do
     --primer-text)  PRIMER_TEXT="$2"; shift 2 ;;
     --tags)         TAGS="$2"; shift 2 ;;
     --num-speakers) NUM_SPEAKERS="$2"; shift 2 ;;
+    --journey-id) JOURNEY_ID="$2"; shift 2 ;;
+    --run-id) RUN_ID="$2"; shift 2 ;;
+    --correlation-id) CORRELATION_ID="$2"; shift 2 ;;
+    --workflow-id) WORKFLOW_ID="$2"; shift 2 ;;
+    --flow-id) FLOW_ID="$2"; shift 2 ;;
+    --run-class) RUN_CLASS="$2"; shift 2 ;;
+    --panoramic-started-at) PANORAMIC_STARTED_AT="$2"; shift 2 ;;
     --force)        FORCE="--force"; shift ;;
     -h|--help)      usage; exit 0 ;;
     *)              SRC="$1"; shift ;;
   esac
 done
 [[ -z "$SRC" ]] && { usage; exit 1; }
+[[ -z "$RUN_CLASS" || "$RUN_CLASS" == "operational" || "$RUN_CLASS" == "control" ]] || {
+  echo "zdots-ingest-media: --run-class must be operational or control" >&2
+  exit 2
+}
+uuid_re='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+for correlation_value in "$JOURNEY_ID" "$RUN_ID" "$CORRELATION_ID"; do
+  [[ -z "$correlation_value" || "$correlation_value" =~ $uuid_re ]] || {
+    echo "zdots-ingest-media: Panoramic identifiers must be UUIDs" >&2
+    exit 2
+  }
+done
 
 captured_by="zdots-ingest-media/yt-dlp-$(yt-dlp --version 2>/dev/null || echo '?')"
 FORCE_BOOL=$([[ -n "$FORCE" ]] && echo true || echo false)
@@ -69,7 +94,10 @@ if [[ "$SRC" =~ ^https?:// ]]; then
   meta="$(printf '%s' "$info" | jq --arg cb "$captured_by" \
               --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" \
               --argjson speakers "$SPEAKERS_JSON" --arg primer "$PRIMER_TEXT" \
-              --argjson tags "$TAGS_JSON" '{
+              --argjson tags "$TAGS_JSON" --arg journey_id "$JOURNEY_ID" \
+              --arg run_id "$RUN_ID" --arg correlation_id "$CORRELATION_ID" \
+              --arg workflow_id "$WORKFLOW_ID" --arg flow_id "$FLOW_ID" --arg run_class "$RUN_CLASS" \
+              --arg panoramic_started_at "$PANORAMIC_STARTED_AT" '{
     source_type:  (.extractor_key // "url" | ascii_downcase),
     source_uri:   .webpage_url,
     source_id:    .id,
@@ -80,6 +108,13 @@ if [[ "$SRC" =~ ^https?:// ]]; then
     num_speakers: $speakers,
     primer_text: $primer,
     tags: $tags,
+    panoramic_journey_id: (if $journey_id == "" then null else $journey_id end),
+    panoramic_run_id: (if $run_id == "" then null else $run_id end),
+    panoramic_correlation_id: (if $correlation_id == "" then null else $correlation_id end),
+    panoramic_workflow_id: (if $workflow_id == "" then null else $workflow_id end),
+    panoramic_flow_id: (if $flow_id == "" then null else $flow_id end),
+    panoramic_run_class: (if $run_class == "" then null else $run_class end),
+    panoramic_started_at: (if $panoramic_started_at == "" then null else $panoramic_started_at end),
     source_snapshot: {
       captured_by:  $cb,
       channel:      (.channel // .uploader),
@@ -116,7 +151,10 @@ else
               --arg mtime "$mtime" --arg cb "$captured_by" --argjson p "$probe" \
               --arg profile "$PROFILE" --argjson force "$FORCE_BOOL" \
               --argjson speakers "$SPEAKERS_JSON" --arg primer "$PRIMER_TEXT" \
-              --argjson tags "$TAGS_JSON" '{
+              --argjson tags "$TAGS_JSON" --arg journey_id "$JOURNEY_ID" \
+              --arg run_id "$RUN_ID" --arg correlation_id "$CORRELATION_ID" \
+              --arg workflow_id "$WORKFLOW_ID" --arg flow_id "$FLOW_ID" --arg run_class "$RUN_CLASS" \
+              --arg panoramic_started_at "$PANORAMIC_STARTED_AT" '{
     source_type:  "local",
     source_uri:   ("local:sha256:" + $sha),
     source_id:    $sha,
@@ -127,6 +165,13 @@ else
     num_speakers: $speakers,
     primer_text: $primer,
     tags: $tags,
+    panoramic_journey_id: (if $journey_id == "" then null else $journey_id end),
+    panoramic_run_id: (if $run_id == "" then null else $run_id end),
+    panoramic_correlation_id: (if $correlation_id == "" then null else $correlation_id end),
+    panoramic_workflow_id: (if $workflow_id == "" then null else $workflow_id end),
+    panoramic_flow_id: (if $flow_id == "" then null else $flow_id end),
+    panoramic_run_class: (if $run_class == "" then null else $run_class end),
+    panoramic_started_at: (if $panoramic_started_at == "" then null else $panoramic_started_at end),
     source_snapshot: {
       captured_by:   $cb,
       sha256:        $sha,
