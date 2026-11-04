@@ -11,7 +11,8 @@ Usage: zdots-statusd            # serve the control-plane console (foreground)
 The zdots.localhost status console and LAN System Atlas — a no-dep loopback HTTP server rendering live
 platform health (zdots-ctl status, zsvc, service logs). Binds
 127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes include GET / (console), GET /map
-(interactive topology), GET /map.json (sanitized live service snapshot), GET
+(interactive topology with hostname families, paths, upstreams, ports, and
+connections), GET /map.json (sanitized live service snapshot), GET
 /healthz, GET /man, GET /docs, GET /help, GET /backlog, and GET /theme. The
 trusted-LAN vhost lan.just3ws.com exposes only /map and /map.json.
 

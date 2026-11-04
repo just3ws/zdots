@@ -30,6 +30,17 @@ architecture reference.
 
 ## Runtime topology
 
+### Hostname ownership
+
+The System Atlas records the full host-to-path-to-upstream map. Shared apps
+keep `*.localhost` for this Mac and use the one-label
+`*.lan.just3ws.com` convention for trusted-LAN aliases. That shared family is
+currently partial: the Atlas and media-pipeline have active routes, while the
+other aliases are candidates only. Phalanx Duel retains its project-owned
+`*.lan.phalanxduel.com` family and observability gateway; WWWorkRemote retains
+`lan.wwworkremote.com`. See [Local URL Routing](local-url-routing.md) for
+owners, routes, and backend ports.
+
 ```mermaid
 flowchart TB
     Operator[Mike / local tools] --> Shell[Zsh entrypoint]

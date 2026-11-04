@@ -23,6 +23,10 @@ system's existing consoles:
   observations; `/platform` shows service health.
 - `media-pipeline.lan.just3ws.com` for media intake, transcription, and
   publication operations.
+- `lan.wwworkremote.com` and `lan.phalanxduel.com` for the project-owned
+  WWWorkRemote and Phalanx Duel LAN routes.
+- `observability.lan.phalanxduel.com` for OpenObserve at `/` and Jaeger at
+  `/jaeger/`.
 - `o2.localhost` and `jaeger.localhost` for telemetry and trace inspection.
 
 The topology catalog is [`etc/system-topology.json`](../etc/system-topology.json).
@@ -30,6 +34,33 @@ It records ownership, links, hostnames, process, port, lifecycle manager, and
 coordinates in one place. Coordinates are hand-tuned for readability. Update
 the catalog and this page together when ownership, routing, or dependency
 relationships change.
+
+The node panel also shows active LAN hostnames, candidate shared aliases,
+concrete nginx path-to-upstream routes, and graph connections. A candidate
+alias is an inventory/planning aid; it does not imply that nginx serves it.
+
+## Hostname families and route detail
+
+The shared system uses `*.localhost` on this Mac and the intended one-label
+`*.lan.just3ws.com` family on the trusted LAN. The shared LAN family is
+partial: `lan.just3ws.com` serves this Atlas and
+`media-pipeline.lan.just3ws.com` serves media-pipeline; other candidate aliases
+appear on their app nodes but do not have nginx routes yet. Wildcard DNS
+resolves a name to the Mac, but a matching nginx virtual host and certificate
+SAN are still required.
+
+Phalanx Duel retains its project-owned `*.phalanxduel.localhost` and
+`*.lan.phalanxduel.com` conventions. Its map entry includes game, play, admin,
+demo, telemetry, and RUM paths, plus the separate
+`observability.lan.phalanxduel.com` gateway shared by OpenObserve and Jaeger.
+WWWorkRemote retains its project-owned `.localhost` aliases and
+`lan.wwworkremote.com` route. Neither project is renamed into the shared
+`lan.just3ws.com` family.
+
+Route metadata names nginx paths and loopback upstream ports, including
+static nginx-served pages and path-specific bridges. The graph then shows each
+application's connections to shared data, inference, and telemetry systems.
+Configured routes and current process/health observations remain separate.
 
 ## Reading live state
 
@@ -66,9 +97,19 @@ flowchart TB
     Nginx -->|zdots.localhost| Zdots[zdots console]
     Nginx -->|my.localhost| Context[Context Engine :7010]
     Nginx -->|media-pipeline.lan.just3ws.com| Media[media-pipeline :32000]
-    Nginx -->|hister.localhost| Hister[Hister :4433]
-    Nginx -->|wwworkremote.localhost| WWR[WWWorkRemote :31000]
-    Nginx -->|phalanxduel.localhost| Phalanx[Phalanx Duel :5173 / :3103]
+    Nginx -->|hister.localhost /search /api/*| Hister[Hister :4433]
+    Nginx -->|wwworkremote.localhost / lan.wwworkremote.com| WWR[WWWorkRemote :31000]
+    Nginx -->|phalanxduel + play routes| Phalanx[Phalanx Duel :5173]
+    Nginx -->|admin routes| PhalanxAdmin[Phalanx admin :3103]
+    Nginx -->|observability.lan.phalanxduel.com /jaeger/| Jaeger
+    Nginx -->|observability.lan.phalanxduel.com /| O2
+    Nginx -->|llama.localhost| Llama
+    Nginx -->|embed.localhost| Embed
+    Nginx -->|o2.localhost| O2
+    Nginx -->|jaeger.localhost| Jaeger
+    Nginx -->|gemstash.localhost| Gemstash[Gemstash :9292]
+    Nginx -->|Phalanx play /otel/| OTel
+    Nginx -->|portfolio /api/live/| Live[Portfolio stream :7025]
     Context --> PG[(PostgreSQL :5432 / database my)]
     Context --> Bus[Message Bus coordinator · optional]
     Bus --> PG
@@ -93,10 +134,10 @@ views. For the media-pipeline cockpit, open
 machine setup and recovery guidance is in the repository
 [owner's manual](https://github.com/just3ws/media-pipeline/blob/main/docs/owners-manual.md).
 
-The LAN map is reachable from a browser on the local network. Most
-`*.localhost` dashboards are loopback-only and therefore open on this Mac,
-not on a phone. The current dedicated LAN application route is
-`media-pipeline.lan.just3ws.com`; the other app links are labeled “this Mac”.
+The LAN map is reachable from a browser on the local network. Hostnames marked
+as LAN routes are configured; unmarked `*.localhost` apps remain loopback-only
+until their candidate alias is added to the owning nginx source, allowed by the
+application if required, and included in the shared certificate.
 
 ## LAN route activation
 
@@ -118,7 +159,8 @@ validates/reloads nginx. These commands may prompt for sudo.
 The DNS wildcard configured for `*.lan.just3ws.com` should resolve the name to
 this Mac. Confirm from a LAN client with `https://lan.just3ws.com/` and
 `https://lan.just3ws.com/map.json`. `https://lan.just3ws.com/docs` must return
-404. The vhost is not active until that privileged deploy step succeeds.
+404. The vhost is active on this Mac; each LAN client still needs local DNS and
+certificate trust for a warning-free connection.
 
 ## Maintenance contract
 

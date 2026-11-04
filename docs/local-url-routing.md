@@ -21,29 +21,31 @@ configuration is machine state, partly managed by related repositories, so
 changes to it must be reconciled with those owners and validated through
 `nginx-ctl` (sudo required).
 
-| Host(s) | Purpose / owner | Backend |
-|---------|-----------------|---------|
-| `llama.localhost`, `embed.localhost` | Local inference / zdots | llama :11500, embeddings :11501 |
-| `o2.localhost`, `jaeger.localhost` | Observability / zdots | OpenObserve :5080; Jaeger :16686 |
-| `zdots.localhost` | zdots status console | statusd :11600 |
-| `lan.just3ws.com` | Trusted-LAN System Atlas; root opens `/map`, only `/map` and `/map.json` are served | statusd :11600, sanitized routes only |
-| `gemstash.localhost` | RubyGems cache / zdots | Gemstash service |
-| `my.localhost` | Knowledge Layer console / my | context-engine :7010 |
-| `my.local` | Legacy context-engine alias | Redirects to `my.localhost`; currently responds |
-| `dev.my.local` | Legacy context-engine development hostname | Still configured to `/tmp/my_dev.sock`; endpoint probe currently returns 502 |
-| `wwworkremote.localhost`, `wwwr.localhost` | wwworkremote project aliases | Rails app :31000 |
-| `media-pipeline.localhost`, `pipeline.localhost` | media-pipeline project aliases | media-pipeline service |
-| `hister.localhost`, `www.hister.localhost` | Hister search / project | static UI plus Hister backend |
-| `www.just3ws.localhost`, `just3ws.localhost` | just3ws portfolio / project | static Jekyll site; bare name redirects to `www` |
-| `phalanxduel.localhost`, `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Phalanx Duel / project | static site, game client :5173, admin :3103 |
+| Host(s) | Purpose / owner | Backend / request route | LAN hostname |
+|---------|-----------------|-------------------------|--------------|
+| `llama.localhost`, `embed.localhost` | Local inference / zdots | llama :11500; embeddings :11501 | Candidate `llama.lan.just3ws.com`, `embed.lan.just3ws.com`; not routed yet |
+| `o2.localhost`, `jaeger.localhost` | Observability / zdots | OpenObserve :5080; Jaeger :16686 | Candidate `o2.lan.just3ws.com`, `jaeger.lan.just3ws.com`; not routed yet |
+| `zdots.localhost` | zdots status console | statusd :11600 | Candidate `zdots.lan.just3ws.com`; not routed yet |
+| `lan.just3ws.com` | Trusted-LAN System Atlas; root opens `/map`, only `/map` and `/map.json` are served | statusd :11600, sanitized routes only | Active |
+| `gemstash.localhost` | RubyGems cache / zdots | Gemstash :9292 | Candidate `gemstash.lan.just3ws.com`; not routed yet |
+| `my.localhost` | Knowledge Layer console / my | context-engine :7010; Rails routes include `/panoramic` and `/platform` | Candidate `my.lan.just3ws.com`; not routed yet |
+| `my.local` | Legacy context-engine alias | Redirects to `my.localhost`; currently responds | Local alias only |
+| `dev.my.local` | Legacy context-engine development hostname | `/` to `/tmp/my_dev.sock`; endpoint probe currently returns 502 | Local alias only |
+| `wwworkremote.localhost`, `wwwr.localhost` | WWWorkRemote project aliases | `/` → Rails app :31000 | Active project-owned `lan.wwworkremote.com` |
+| `media-pipeline.localhost`, `pipeline.localhost` | media-pipeline project aliases | `/`, `/live/`, `/cable` → media-pipeline :32000 | Active `media-pipeline.lan.just3ws.com`; `pipeline.lan.just3ws.com` is a candidate |
+| `hister.localhost`, `www.hister.localhost` | Hister search / project | `/` static UI; search/API routes → Hister :4433 | Candidate `hister.lan.just3ws.com`; not routed yet |
+| `www.just3ws.localhost`, `just3ws.localhost` | just3ws portfolio / project | `/` static Jekyll site; `/api/live/` → :7025; bare name redirects to `www` | Candidate `www.lan.just3ws.com`; not routed yet |
+| `phalanxduel.localhost`, `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Phalanx Duel / project | game :5173; admin :3103; demo :3333; telemetry :4318 / :5080 | Active project-owned `lan.phalanxduel.com`, `www.lan.phalanxduel.com`, `play.lan.phalanxduel.com`, `admin.lan.phalanxduel.com` |
+| `observability.lan.phalanxduel.com` | Phalanx Duel observability gateway | `/` → OpenObserve :5080; `/jaeger/` → Jaeger :16686 | Active project-owned route |
 
-Trusted-LAN names (`lan.wwworkremote.com`, Phalanx Duel `*.lan.phalanxduel.com`,
-media-pipeline `media-pipeline.lan.just3ws.com`, and the zdots-owned
-`lan.just3ws.com`) are configured through nginx sources but are not
-`.localhost` hosts. They are documented separately from loopback-only
-hostnames. The System Atlas source vhost blocks every path except `/map` and
-`/map.json`; its activation is still pending. See
-[System Atlas](system-atlas.md).
+The hostname families are intentionally split by ownership. Shared system
+applications use `*.localhost` locally and candidate single-label
+`*.lan.just3ws.com` names on the LAN. Only `lan.just3ws.com` and
+`media-pipeline.lan.just3ws.com` currently have shared-family nginx routes.
+Phalanx Duel keeps its `*.lan.phalanxduel.com` family, including the
+path-routed observability gateway; WWWorkRemote keeps `lan.wwworkremote.com`.
+The Atlas source vhost allows only `/map` and `/map.json` on
+`lan.just3ws.com`, and is active. See [System Atlas](system-atlas.md).
 
 `www.just3ws.localhost` has **no backend process** — nginx serves the last
 `jekyll build` output directly off disk (`try_files`). It cannot *receive* a
@@ -116,7 +118,7 @@ nginx-ctl validate        # sudo nginx -t
 | `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Both return 502 while local game/admin development servers are stopped | Expected for on-demand project development; production deploy is independent and uses Fly's remote build path |
 | `media-pipeline.localhost` | Endpoint probe reaches the app but reports its mkcert certificate as untrusted | Check local CA trust with `mkcert -install` if browsers reject the route; no trust-store change was made |
 | `media-pipeline.lan.just3ws.com` | LAN DNS, trusted TLS certificate, Nginx vhost, and Rails host allowlist are active; `/up` returns 200 from `10.36.1.149` | Keep the DNS record pointed at the Mac's current LAN address and confirm `/up` after host or certificate changes |
-| `lan.just3ws.com` | Source vhost is being added for the read-only System Atlas; deployed state is not verified | Install zdots' vhost, regenerate the certificate, validate and reload nginx, then confirm `/map`, `/map.json`, and blocked `/docs` from a LAN client |
+| `lan.just3ws.com` | Active on this Mac; `/` redirects to `/map`, `/map.json` returns a sanitized snapshot, and `/docs` returns 404 | Verify DNS and certificate trust from each LAN client |
 | `my.local` | Redirects to the healthy `my.localhost` cockpit | Keep as a compatibility alias or retire it with a coordinated config/certificate update |
 | `grafana.local`, `lgtm.local` | `/etc/hosts` still maps both to 127.0.0.1, but neither has an nginx vhost; Z-134 retired the services | Remove the stale mappings via privileged host-config maintenance; Z-356 tracks this. No change made here |
 | Deployed nginx files | Each project owns its source; nginx serves copies under `/opt/homebrew/etc/nginx/servers/` | After a source change, sync/validate and reload through `zsvc reload nginx`; root lifecycle needs sudo |

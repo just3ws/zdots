@@ -19,6 +19,30 @@
       "signal": null,
       "hosts": [
         "lan.just3ws.com"
+      ],
+      "lan_hosts": [
+        {
+          "host": "lan.just3ws.com",
+          "status": "active"
+        }
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "302 → /map",
+          "host": "lan.just3ws.com"
+        },
+        {
+          "path": "/map",
+          "target": "zdots-statusd :11600/map",
+          "host": "lan.just3ws.com"
+        },
+        {
+          "path": "/map.json",
+          "target": "zdots-statusd :11600/map.json",
+          "host": "lan.just3ws.com",
+          "note": "Sanitized live snapshot; other paths return 404"
+        }
       ]
     },
     {
@@ -35,9 +59,33 @@
       "href": null,
       "hosts": [
         "lan.just3ws.com",
-        "*.lan.just3ws.com"
+        "*.lan.just3ws.com",
+        "*.lan.phalanxduel.com",
+        "*.lan.wwworkremote.com"
       ],
-      "description": "Resolves the local LAN names to the Mac address; this DNS appliance runs separately from the Mac."
+      "description": "Resolves the local LAN names to the Mac address; this DNS appliance runs separately from the Mac.",
+      "lan_hosts": [
+        {
+          "host": "*.lan.just3ws.com",
+          "status": "active"
+        },
+        {
+          "host": "*.lan.phalanxduel.com",
+          "status": "active"
+        },
+        {
+          "host": "*.lan.wwworkremote.com",
+          "status": "active"
+        }
+      ],
+      "routes": [
+        {
+          "path": "A lookup",
+          "target": "10.36.1.149",
+          "host": "*.lan.just3ws.com",
+          "note": "The wildcard resolves to this Mac; nginx still requires a matching virtual host"
+        }
+      ]
     },
     {
       "id": "nginx",
@@ -53,7 +101,21 @@
       "href": null,
       "service_key": "nginx",
       "description": "Terminates local TLS and routes hostnames to loopback application ports.",
-      "signal": "Process state only; run zdots-endpoints to probe routes."
+      "signal": "Process state only; run zdots-endpoints to probe routes.",
+      "routes": [
+        {
+          "path": ":80",
+          "target": ":443",
+          "host": "HTTP vhosts",
+          "note": "HTTPS redirect"
+        },
+        {
+          "path": ":443",
+          "target": "named virtual hosts",
+          "host": "SNI + Host",
+          "note": "TLS termination and path routing"
+        }
+      ]
     },
     {
       "id": "zdots",
@@ -71,6 +133,17 @@
       "description": "Observable Control Plane console, command help, manuals, and local operations.",
       "hosts": [
         "zdots.localhost"
+      ],
+      "lan_alias_candidates": [
+        "zdots.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:11600",
+          "host": "zdots.localhost",
+          "note": "Full local operator console"
+        }
       ]
     },
     {
@@ -89,7 +162,25 @@
       "description": "Knowledge Layer interface, service health, Panoramic View, and diagnostic workflows.",
       "hosts": [
         "my.localhost",
-        "my.local"
+        "my.local",
+        "dev.my.local"
+      ],
+      "lan_alias_candidates": [
+        "my.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:7010",
+          "host": "my.localhost",
+          "note": "Context Engine / Rails routes including /panoramic and /platform"
+        },
+        {
+          "path": "/",
+          "target": "unix:/tmp/my_dev.sock",
+          "host": "dev.my.local",
+          "note": "Legacy development cockpit"
+        }
       ]
     },
     {
@@ -111,6 +202,35 @@
         "media-pipeline.localhost",
         "pipeline.localhost",
         "media-pipeline.lan.just3ws.com"
+      ],
+      "lan_hosts": [
+        {
+          "host": "media-pipeline.lan.just3ws.com",
+          "status": "active"
+        }
+      ],
+      "lan_alias_candidates": [
+        "pipeline.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:32000",
+          "host": "media-pipeline.localhost · pipeline.localhost · media-pipeline.lan.just3ws.com",
+          "note": "Puma + Solid Queue"
+        },
+        {
+          "path": "/live/",
+          "target": "127.0.0.1:32000",
+          "host": "media-pipeline.lan.just3ws.com",
+          "note": "Live updates"
+        },
+        {
+          "path": "/cable",
+          "target": "127.0.0.1:32000",
+          "host": "media-pipeline.lan.just3ws.com",
+          "note": "Action Cable"
+        }
       ]
     },
     {
@@ -129,6 +249,23 @@
       "hosts": [
         "just3ws.localhost",
         "www.just3ws.localhost"
+      ],
+      "lan_alias_candidates": [
+        "www.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "nginx static files",
+          "host": "www.just3ws.localhost",
+          "note": "Bare just3ws.localhost redirects to the canonical www host"
+        },
+        {
+          "path": "/api/live/",
+          "target": "127.0.0.1:7025",
+          "host": "www.just3ws.localhost",
+          "note": "SSE / WebSocket dashboard stream"
+        }
       ]
     },
     {
@@ -146,9 +283,25 @@
       "description": "Local job-search and synthesis application; start it when needed.",
       "hosts": [
         "wwworkremote.localhost",
-        "wwwr.localhost"
+        "wwwr.localhost",
+        "lan.wwworkremote.com"
       ],
-      "signal": "Run zdots-endpoints to probe the configured route and upstream."
+      "signal": "Run zdots-endpoints to probe the configured route and upstream.",
+      "lan_hosts": [
+        {
+          "host": "lan.wwworkremote.com",
+          "status": "active"
+        }
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:31000",
+          "host": "wwworkremote.localhost · wwwr.localhost · lan.wwworkremote.com",
+          "note": "Project-owned Rails / Puma route"
+        }
+      ],
+      "lan_href": "https://lan.wwworkremote.com"
     },
     {
       "id": "hister",
@@ -167,7 +320,24 @@
         "hister.localhost",
         "www.hister.localhost"
       ],
-      "signal": "Run zdots-endpoints to probe the configured route and upstream."
+      "signal": "Run zdots-endpoints to probe the configured route and upstream.",
+      "lan_alias_candidates": [
+        "hister.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "nginx static files",
+          "host": "hister.localhost",
+          "note": "Landing page"
+        },
+        {
+          "path": "/search · /suggest · /api/*",
+          "target": "127.0.0.1:4433",
+          "host": "hister.localhost",
+          "note": "Search backend and application assets"
+        }
+      ]
     },
     {
       "id": "phalanx",
@@ -185,9 +355,70 @@
       "hosts": [
         "phalanxduel.localhost",
         "play.phalanxduel.localhost",
-        "admin.phalanxduel.localhost"
+        "admin.phalanxduel.localhost",
+        "lan.phalanxduel.com",
+        "www.lan.phalanxduel.com",
+        "play.lan.phalanxduel.com",
+        "admin.lan.phalanxduel.com"
       ],
-      "signal": "Run zdots-endpoints to probe the configured route and upstream."
+      "signal": "Run zdots-endpoints to probe the configured route and upstream.",
+      "lan_hosts": [
+        {
+          "host": "lan.phalanxduel.com",
+          "status": "active"
+        },
+        {
+          "host": "www.lan.phalanxduel.com",
+          "status": "active"
+        },
+        {
+          "host": "play.lan.phalanxduel.com",
+          "status": "active"
+        },
+        {
+          "host": "admin.lan.phalanxduel.com",
+          "status": "active"
+        }
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:5173",
+          "host": "phalanxduel.localhost · lan.phalanxduel.com · www.lan.phalanxduel.com",
+          "note": "Project-owned game frontend"
+        },
+        {
+          "path": "/",
+          "target": "127.0.0.1:5173",
+          "host": "play.phalanxduel.localhost · play.lan.phalanxduel.com",
+          "note": "Project-owned play route"
+        },
+        {
+          "path": "/",
+          "target": "127.0.0.1:3103",
+          "host": "admin.phalanxduel.localhost · admin.lan.phalanxduel.com",
+          "note": "Project-owned admin route"
+        },
+        {
+          "path": "/demo/*",
+          "target": "127.0.0.1:3333",
+          "host": "phalanxduel.localhost",
+          "note": "Demo bridge"
+        },
+        {
+          "path": "/otel/*",
+          "target": "127.0.0.1:4318",
+          "host": "play.phalanxduel.localhost",
+          "note": "OTLP HTTP bridge"
+        },
+        {
+          "path": "/rum/*",
+          "target": "127.0.0.1:5080",
+          "host": "play.phalanxduel.localhost",
+          "note": "RUM intake"
+        }
+      ],
+      "lan_href": "https://lan.phalanxduel.com"
     },
     {
       "id": "bus",
@@ -205,6 +436,14 @@
       "description": "Optional AI responder. Durable bus CLI and history work when this process is stopped.",
       "hosts": [
         "my.localhost/bus"
+      ],
+      "routes": [
+        {
+          "host": "my.localhost",
+          "path": "/bus",
+          "target": "Context Engine :7010 → local IPC",
+          "note": "Browser route through the Context Engine; coordinator has no TCP port"
+        }
       ]
     },
     {
@@ -224,6 +463,17 @@
       "description": "Local language model endpoint used by approved local workflows.",
       "hosts": [
         "llama.localhost"
+      ],
+      "lan_alias_candidates": [
+        "llama.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:11500",
+          "host": "llama.localhost",
+          "note": "Local inference API"
+        }
       ]
     },
     {
@@ -243,6 +493,17 @@
       "description": "Local embedding endpoint for knowledge retrieval.",
       "hosts": [
         "embed.localhost"
+      ],
+      "lan_alias_candidates": [
+        "embed.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:11501",
+          "host": "embed.localhost",
+          "note": "Embedding API"
+        }
       ]
     },
     {
@@ -259,7 +520,14 @@
       "href": null,
       "service_key": "postgresql-18",
       "health_key": "intelligence_suite",
-      "description": "Application database for Context Engine and the Knowledge Layer."
+      "description": "Application database for Context Engine and the Knowledge Layer.",
+      "routes": [
+        {
+          "path": "PostgreSQL protocol",
+          "target": "127.0.0.1:5432",
+          "note": "Internal data connection; database my"
+        }
+      ]
     },
     {
       "id": "redis",
@@ -275,7 +543,14 @@
       "href": null,
       "service_key": "redis",
       "health_key": "cache",
-      "description": "Local cache and command analytics buffer."
+      "description": "Local cache and command analytics buffer.",
+      "routes": [
+        {
+          "path": "RESP",
+          "target": "127.0.0.1:6379",
+          "note": "Internal notifications and cache"
+        }
+      ]
     },
     {
       "id": "otel",
@@ -291,7 +566,19 @@
       "href": null,
       "service_key": "otel-collector",
       "health_key": "otel_collector",
-      "description": "Receives local telemetry and forwards it to OpenObserve."
+      "description": "Receives local telemetry and forwards it to OpenObserve.",
+      "routes": [
+        {
+          "path": "OTLP gRPC",
+          "target": "127.0.0.1:4317",
+          "note": "Local telemetry intake"
+        },
+        {
+          "path": "OTLP HTTP",
+          "target": "127.0.0.1:4318",
+          "note": "Local telemetry intake and Phalanx play proxy"
+        }
+      ]
     },
     {
       "id": "o2",
@@ -309,8 +596,39 @@
       "health_key": "openobserve",
       "description": "Local logs, metrics, and trace search.",
       "hosts": [
-        "o2.localhost"
-      ]
+        "o2.localhost",
+        "observability.lan.phalanxduel.com"
+      ],
+      "lan_hosts": [
+        {
+          "host": "observability.lan.phalanxduel.com",
+          "status": "active"
+        }
+      ],
+      "lan_alias_candidates": [
+        "o2.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:5080",
+          "host": "o2.localhost",
+          "note": "OpenObserve UI / API"
+        },
+        {
+          "path": "/",
+          "target": "127.0.0.1:5080",
+          "host": "observability.lan.phalanxduel.com",
+          "note": "Project-owned observability gateway default route"
+        },
+        {
+          "path": "/rum/",
+          "target": "127.0.0.1:5080",
+          "host": "o2.localhost",
+          "note": "RUM intake"
+        }
+      ],
+      "lan_href": "https://observability.lan.phalanxduel.com"
     },
     {
       "id": "jaeger",
@@ -328,8 +646,33 @@
       "health_key": "jaeger",
       "description": "Trace inspection and service-map visualization.",
       "hosts": [
-        "jaeger.localhost"
-      ]
+        "jaeger.localhost",
+        "observability.lan.phalanxduel.com"
+      ],
+      "lan_hosts": [
+        {
+          "host": "observability.lan.phalanxduel.com",
+          "status": "active"
+        }
+      ],
+      "lan_alias_candidates": [
+        "jaeger.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:16686",
+          "host": "jaeger.localhost",
+          "note": "Jaeger UI / API"
+        },
+        {
+          "path": "/jaeger/",
+          "target": "127.0.0.1:16686",
+          "host": "observability.lan.phalanxduel.com",
+          "note": "Project-owned path route to Jaeger"
+        }
+      ],
+      "lan_href": "https://observability.lan.phalanxduel.com/jaeger/"
     },
     {
       "id": "gemstash",
@@ -347,6 +690,17 @@
       "description": "Local RubyGems caching proxy.",
       "hosts": [
         "gemstash.localhost"
+      ],
+      "lan_alias_candidates": [
+        "gemstash.lan.just3ws.com"
+      ],
+      "routes": [
+        {
+          "path": "/",
+          "target": "127.0.0.1:9292",
+          "host": "gemstash.localhost",
+          "note": "Gemstash registry UI / API"
+        }
       ]
     },
     {
@@ -362,7 +716,14 @@
       "manager": "com.zdots.worker · launchd",
       "href": null,
       "service_key": "zdots-worker",
-      "description": "Processes asynchronous Knowledge Layer jobs."
+      "description": "Processes asynchronous Knowledge Layer jobs.",
+      "routes": [
+        {
+          "path": "Solid Queue",
+          "target": "PostgreSQL database my",
+          "note": "Background jobs; no TCP listener"
+        }
+      ]
     },
     {
       "id": "colima",
@@ -377,7 +738,14 @@
       "manager": "colima",
       "href": null,
       "service_key": "colima",
-      "description": "Optional container runtime; normally stopped when no container workflow needs it."
+      "description": "Optional container runtime; normally stopped when no container workflow needs it.",
+      "routes": [
+        {
+          "path": "Docker API",
+          "target": "local Unix socket",
+          "note": "On-demand only; no LAN route"
+        }
+      ]
     }
   ],
   "links": [
@@ -495,6 +863,62 @@
       "from": "bus",
       "to": "redis",
       "label": "live notifications and presence"
+    },
+    {
+      "from": "nginx",
+      "to": "llama",
+      "label": "llama.localhost → :11500"
+    },
+    {
+      "from": "nginx",
+      "to": "embed",
+      "label": "embed.localhost → :11501"
+    },
+    {
+      "from": "nginx",
+      "to": "o2",
+      "label": "o2.localhost + observability LAN route"
+    },
+    {
+      "from": "nginx",
+      "to": "jaeger",
+      "label": "jaeger.localhost + /jaeger LAN route"
+    },
+    {
+      "from": "nginx",
+      "to": "gemstash",
+      "label": "gemstash.localhost → :9292"
+    },
+    {
+      "from": "nginx",
+      "to": "otel",
+      "label": "Phalanx play /otel/ → :4318"
+    }
+  ],
+  "hostname_families": [
+    {
+      "id": "shared",
+      "owner": "zdots platform",
+      "local_pattern": "*.localhost",
+      "lan_pattern": "*.lan.just3ws.com",
+      "status": "partial",
+      "notes": "Shared app host labels map to one-label names under lan.just3ws.com. The active nginx routes are listed on app nodes; DNS wildcard resolution alone does not create an app route."
+    },
+    {
+      "id": "phalanxduel",
+      "owner": "Phalanx Duel",
+      "local_pattern": "*.phalanxduel.localhost",
+      "lan_pattern": "*.lan.phalanxduel.com",
+      "status": "project-owned",
+      "notes": "Project-owned explicit game, play, admin, and observability hosts. The LAN family is not folded into lan.just3ws.com."
+    },
+    {
+      "id": "wwworkremote",
+      "owner": "WWWorkRemote",
+      "local_pattern": "wwworkremote.localhost · wwwr.localhost",
+      "lan_pattern": "*.lan.wwworkremote.com",
+      "status": "project-owned",
+      "notes": "Project-owned current localhost aliases and explicit lan.wwworkremote.com route. Keep this family unchanged."
     }
   ]
 }

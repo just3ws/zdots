@@ -29,7 +29,8 @@ if ARGV.first =~ /\A(-h|--help)\z/
     The zdots.localhost status console — a no-dep loopback HTTP server rendering live
     platform health (zdots-ctl status, zsvc, service logs). Binds
     127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /map
-    (system topology), GET /map.json (sanitized live snapshot), GET /healthz,
+    (interactive topology with hostname families, nginx path-to-upstream routes,
+    ports, and system connections), GET /map.json (sanitized live snapshot), GET /healthz,
     GET /man, GET /docs, GET /help, GET /backlog (read-only Backlog.md board), GET /theme.
     The lan.just3ws.com vhost exposes only /map and /map.json.
 
@@ -148,6 +149,13 @@ def topology_page
     EDGE
   end.compact.join
 
+  family_cards = atlas.fetch("hostname_families", []).map do |family|
+    <<~FAMILY.strip
+      <div class="domain-family"><b>#{h(family['owner'])} · #{h(family['status'])}</b>
+        <small>Local: #{h(family['local_pattern'])}<br>LAN: #{h(family['lan_pattern'])}<br>#{h(family['notes'])}</small></div>
+    FAMILY
+  end.join
+
   catalog = JSON.generate(atlas).gsub("</", "<\\/")
   <<~HTML
     <!doctype html>
@@ -188,6 +196,10 @@ def topology_page
         .map-foot { font-size: .78rem; color: var(--text-dim); }
         .system-links { display: flex; gap: .6rem; flex-wrap: wrap; }
         .system-links a { padding: .45rem .7rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
+        .domain-families { display: grid; grid-template-columns: repeat(auto-fit,minmax(14rem,1fr)); gap: .6rem; margin: 1rem 0; }
+        .domain-family { padding: .65rem .8rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: .8rem; }
+        .domain-family b, .domain-family small { display: block; }
+        .domain-family small { color: var(--text-dim); margin-top: .2rem; }
         @media (max-width: 850px) { .map-shell { grid-template-columns: 1fr; } .detail { position: static; } .map-canvas { min-height: 49rem; } .map-stage { height: 46rem; } }
       </style>
     </head>
@@ -196,7 +208,7 @@ def topology_page
         <header class="map-head">
           <div>
             <h1>System Atlas <span class="mark">· LAN</span></h1>
-            <p class="sub">A connectionist map of the local system. Move from the network edge inward through routes, applications, and shared infrastructure. Select a node to inspect its owner, port, health signal, and next hop.</p>
+            <p class="sub">A connectionist map of the local system. Move from the network edge inward through routes, applications, and shared infrastructure. Select a node to inspect hostname families, request paths, backend ports, health signals, and connected systems.</p>
           </div>
           <div class="sub"><span id="map-summary">Checking service state…</span><br>Observed <time id="checked-at">—</time></div>
         </header>
@@ -206,9 +218,14 @@ def topology_page
           <a data-local-only href="https://my.localhost/panoramic">Context Engine Panoramic View · this Mac</a>
           <a data-local-only href="https://my.localhost/platform">Service health · this Mac</a>
           <a href="https://media-pipeline.lan.just3ws.com">Media Pipeline · LAN</a>
+          <a href="https://lan.wwworkremote.com">WWWorkRemote · LAN</a>
+          <a href="https://lan.phalanxduel.com">Phalanx Duel · LAN</a>
+          <a href="https://observability.lan.phalanxduel.com">Observability · LAN</a>
           <a data-local-only href="https://o2.localhost">OpenObserve · this Mac</a>
           <a data-local-only href="https://jaeger.localhost">Jaeger · this Mac</a>
         </nav>
+
+        <section class="domain-families" aria-label="Hostname families">#{family_cards}</section>
 
         <p class="map-foot">Node accents: edge · route · application · data · telemetry. Select a node to highlight its adjacent connections; relationship labels appear in the detail panel.</p>
 
@@ -285,6 +302,9 @@ def topology_page
                 : node.health_url ? `HTTP GET ${node.health_url}`
                   : node.signal || "Process state only; no application health probe";
               const hosts = (node.hosts || []).join(", ") || "—";
+              const lanHosts = (node.lan_hosts || []).map((item) => `${item.host} (${item.status})`).join("; ") || "No active LAN hostname";
+              const lanCandidates = (node.lan_alias_candidates || []).join(", ") || "—";
+              const routes = (node.routes || []).map((item) => `<span>${item.host || "all hosts"} ${item.path} → ${item.target}<small>${item.note || ""}</small></span>`).join("") || "—";
               const health = observed.health === true ? "healthy"
                 : observed.health === false ? "unhealthy" : "not checked";
 
@@ -295,6 +315,8 @@ def topology_page
                   <dt>Owner</dt><dd>${node.owner}</dd>
                   <dt>Process / port</dt><dd>${node.process || "—"} · ${node.port || "—"}</dd>
                   <dt>Hostnames</dt><dd>${hosts}</dd>
+                  <dt>LAN hostnames</dt><dd>${lanHosts}<small>Candidate shared aliases: ${lanCandidates}</small></dd>
+                  <dt>Request routes</dt><dd>${routes}</dd>
                   <dt>Manager</dt><dd>${node.manager || "—"}</dd>
                   <dt>Process state</dt><dd>${observed.state || "checking"}</dd>
                   <dt>Health</dt><dd><span class="state" data-state="${stateFor(observed)}">${health}</span><small>${signal}</small></dd>

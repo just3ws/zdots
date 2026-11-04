@@ -61,7 +61,9 @@ Options:
 
 Serves the zdots.localhost control-plane dashboard on 127.0.0.1:${PORT}; its
 interactive System Atlas is at /map. The LAN hostname lan.just3ws.com exposes
-only that map and its sanitized /map.json status snapshot. Manage it via
+only that map and its sanitized /map.json status snapshot. Map details show
+local/LAN hostname families, active and candidate aliases, nginx path-to-backend
+routes, ports, and connected systems. Manage it via
 \`zsvc <verb> status\`; this script is the authoritative ctl backing that.
 EOF
 }

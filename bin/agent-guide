@@ -333,6 +333,8 @@ The read-only cross-project System Atlas is separately exposed on the trusted
 LAN at https://lan.just3ws.com (only /map and /map.json; no docs/logs/backlog):
   https://lan.just3ws.com/           homepage redirect to /map
   https://lan.just3ws.com/map.json   coarse service state, timestamped
+Select map nodes for hostname-family ownership, active vs candidate LAN names,
+nginx path-to-upstream routing, internal ports, and service interconnections.
 EOF
 
 _head "Service Control — zsvc"
