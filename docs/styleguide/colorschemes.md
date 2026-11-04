@@ -3,9 +3,17 @@
 Canonical reference for the platform's colorschemes. The platform themes through a
 **semantic token model**: surfaces reference tokens (`--bg`, `--accent`, …), and a
 scheme binds those tokens to palette values. Swapping the binding re-themes every
-surface. **Kanagawa Wave** is the default scheme, with **nord** as an alternate.
+surface. **Kanagawa Wave** remains the default terminal scheme, with **nord**
+as an alternate. Browser-based platform surfaces use the separate
+**Craftsmanship** semantic palette from `etc/themes/craftsmanship.yaml`.
 
 To reference or extend a scheme, start here.
+
+Craftsmanship surfaces self-host the same FiraCode Nerd Font Mono Retina face
+under the SIL Open Font License. Monospace stacks prefer that face, then plain
+Fira Code, then the platform monospace. Each independently deployed surface
+includes the font and license so local and online browsers do not depend on a
+third-party font CDN.
 
 **Living reference** — the colorscheme is served, not just documented:
 
@@ -142,6 +150,7 @@ Reference this when adding a surface or auditing coverage.
 | k9s | `~/.config/k9s/skins/kanagawa.yaml` | `ui.skin` |
 | gh-dash / delta | `~/.config/gh-dash`, git `[delta]` | theme colors |
 | dashboards | context-engine `app.css` `:root`; `bin/zdots-statusd` CSS | semantic tokens |
+| browser monospace | `FiraCodeNerdFontMono-Retina.ttf` plus `OFL.txt` in each app's public assets | self-hosted, lazy-loaded via `font-display: swap` |
 | wallpapers | `~/Pictures/kanagawa-wave/` | desktop tiers + faint iTerm bg |
 
 App-level source files live under `assets/kanagawa-wave/`; the commemorative

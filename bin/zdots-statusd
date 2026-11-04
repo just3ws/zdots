@@ -171,14 +171,14 @@ def topology_page
         .map-head h1 { font-size: 1.6rem; }
         .map-head p { max-width: 48rem; }
         .map-shell { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); gap: 1rem; align-items: start; }
-        .map-canvas { position: relative; min-height: 57rem; overflow: auto; background: radial-gradient(ellipse at center, rgba(45,79,103,.28), transparent 70%), var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; }
-        .map-stage { position: relative; min-width: 900px; height: 54rem; }
+        .map-canvas { position: relative; height: calc(100vh - 17rem); min-height: 40rem; max-height: 70rem; overflow: auto; background: radial-gradient(ellipse at center, rgba(15,118,110,.07), transparent 70%), var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; }
+        .map-stage { position: relative; min-width: 1000px; height: 100%; min-height: 38rem; }
         .map-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
         .map-stage line { stroke: var(--accent); stroke-width: 1.4; opacity: .4; vector-effect: non-scaling-stroke; }
         .map-stage line.active { stroke: var(--green); stroke-width: 2.3; opacity: .9; }
         .region { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--border); color: var(--text-dim); font: .68rem var(--mono); padding-top: .15rem; pointer-events: none; }
         .region.r1 { top: 1.5%; } .region.r2 { top: 22%; } .region.r3 { top: 47%; } .region.r3b { top: 61%; } .region.r4 { top: 73%; }
-        .node { position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); transform: translate(-50%, -50%); min-width: 9rem; max-width: 12rem; min-height: 4.5rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: .55rem .7rem; text-align: left; cursor: pointer; box-shadow: 0 5px 18px #0004; z-index: 1; }
+        .node { position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); transform: translate(-50%, -50%); min-width: 9rem; max-width: 12rem; min-height: 4.5rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: .55rem .7rem; text-align: left; cursor: pointer; box-shadow: var(--craft-shadow); z-index: 1; }
         .node:hover, .node:focus-visible, .node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(91,141,238,.18); }
         .node.edge { border-top: 3px solid var(--accent); } .node.route { border-top: 3px solid var(--yellow); } .node.app { border-top: 3px solid var(--accent); } .node.core { border-top: 3px solid var(--green); } .node.data { border-top: 3px solid var(--yellow); } .node.telemetry { border-top: 3px solid #957fb8; }
         .node small, .node .state { display: block; color: var(--text-dim); font: .7rem var(--mono); margin-top: .2rem; }
@@ -200,11 +200,11 @@ def topology_page
         .domain-family { padding: .65rem .8rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: .8rem; }
         .domain-family b, .domain-family small { display: block; }
         .domain-family small { color: var(--text-dim); margin-top: .2rem; }
-        @media (max-width: 850px) { .map-shell { grid-template-columns: 1fr; } .detail { position: static; } .map-canvas { min-height: 49rem; } .map-stage { height: 46rem; } }
+        @media (max-width: 850px) { .map-shell { grid-template-columns: 1fr; } .detail { position: static; } .map-canvas { height: 48rem; min-height: 48rem; } .map-stage { height: 46rem; } }
       </style>
     </head>
     <body>
-      <main style="max-width: 90rem; margin: auto; padding: 1.2rem">
+      <main class="system-atlas">
         <header class="map-head">
           <div>
             <h1>System Atlas <span class="mark">· LAN</span></h1>
@@ -707,27 +707,30 @@ def render_page(live:)
   HTML
 end
 
-# Semantic tokens come from the generated theme partial (zdots-theme-gen ->
-# assets/<scheme>/tokens.css) so a palette change propagates here on regen.
-# Fallback keeps the daemon alive if the asset is ever absent.
+# Browser surfaces use the shared Craftsmanship palette; the shell keeps its
+# separately selected ZDOTS_THEME.
 TOKENS_ROOT = begin
-  File.read(File.join(ZDOTS, "assets", ENV["ZDOTS_THEME"] || "kanagawa-wave", "tokens.css"))
+  File.read(File.join(ZDOTS, "assets", "craftsmanship", "tokens.css"))
 rescue StandardError
-  ":root { --bg:#1A1B2F; --surface:#2A2A37; --border:#363646; --text:#DCD7BA; " \
-  "--text-dim:#C8C093; --accent:#7E9CD8; --accent-dim:#2D4F67; --green:#98BB6C; " \
-  "--yellow:#E6C384; --red:#C34043; --red-text:#F29B9B; " \
-  "--mono:'FiraCode Nerd Font Mono Ret','FiraCode Nerd Font Mono',ui-monospace,monospace; }"
+  ":root { --bg:#FAF8F5; --surface:#FFFFFF; --border:#E3DFD7; --text:#1E232A; " \
+  "--text-dim:#525866; --accent:#0F766E; --accent-dim:#B9D6D1; --green:#059669; " \
+  "--yellow:#B45309; --red:#DC2626; --red-text:#991B1B; --craft-paper-subtle:#F4F0E8; " \
+  "--craft-blue:#1D4ED8; --craft-serif:Georgia,serif; --font-sans:system-ui,sans-serif; " \
+  "--craft-shadow:0 2px 8px rgba(30,35,42,.04); --craft-shadow-raised:0 8px 24px rgba(30,35,42,.08); " \
+  "--mono:'FiraCode Nerd Font Mono','Fira Code',monospace; }"
 end
 
 CSS = <<~CSS
+  @font-face { font-family:'FiraCode Nerd Font Mono'; src:url('/theme/fonts/FiraCodeNerdFontMono-Retina.ttf') format('truetype'); font-style:normal; font-weight:400; font-display:swap; }
   #{TOKENS_ROOT}
   * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--text);
-    font:15px/1.5 system-ui,-apple-system,sans-serif; }
+    font:15px/1.5 var(--font-sans); }
   header { padding:1.5rem 2rem; border-bottom:1px solid var(--border); }
-  h1 { margin:0; font-size:1.2rem; } h1 .mark { color:var(--accent); }
+  h1 { margin:0; color:var(--heading); font-family:var(--craft-serif); font-size:1.35rem; }
+  h1 .mark { color:var(--accent); }
   .sub { margin:.35rem 0 0; color:var(--text-dim); font-size:.85rem; }
   .live a { color:var(--accent); }
-  main { padding:1.5rem 2rem; max-width:60rem; }
+  main { width:100%; max-width:none; margin:0 auto; padding:clamp(1rem,2vw,2rem); }
   section { margin-bottom:2rem; }
   h2 { font-size:.75rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-dim);
     border-bottom:1px solid var(--border); padding-bottom:.4rem; }
@@ -938,6 +941,9 @@ loop do
     when %r{\A/theme/great-wave\.jpg\z}
       WAVE_IMG ? respond_bytes(client, WAVE_IMG, "image/jpeg") : respond(client, "no image", status: "404 Not Found", type: "text/plain")
     when %r{\A/theme/palette\.json\z} then respond(client, theme_json, type: "application/json")
+    when %r{\A/theme/fonts/FiraCodeNerdFontMono-Retina\.ttf\z}
+      font_path = File.join(ZDOTS, "assets", "craftsmanship", "FiraCodeNerdFontMono-Retina.ttf")
+      respond_bytes(client, File.binread(font_path), "font/ttf")
     when %r{\A/theme/download/([a-z0-9]+)\z}
       p = wave_tier_path($1)
       p ? respond_bytes(client, File.binread(p), "image/png", filename: File.basename(p)) : respond(client, "no such wallpaper", status: "404 Not Found", type: "text/plain")

@@ -1,0 +1,77 @@
+# Craftsmanship semantic palette for browser-based platform surfaces.
+#
+# The roles and visual character follow the Digital Patina / Editorial Craft
+# references in just3ws.localhost and the media-pipeline cockpit. This CSS-only
+# scheme does not change the selected terminal palette.
+slug: craftsmanship
+title: Craftsmanship
+source: Digital Patina / Editorial Craft design tokens
+
+palette:
+  paperCanvas: "FAF8F5"
+  paperCard: "FFFFFF"
+  paperSubtle: "F4F0E8"
+  paperCode: "F3F4F6"
+  inkMain: "1E232A"
+  inkHeading: "0F172A"
+  inkMuted: "525866"
+  inkMeta: "64748B"
+  borderBook: "E3DFD7"
+  borderSubtle: "EEEBE3"
+  tealCraftsman: "0F766E"
+  tealHover: "115E59"
+  amberAccent: "B45309"
+  cobaltLink: "1D4ED8"
+  cobaltHover: "1E40AF"
+  greenStatus: "059669"
+  redStatus: "DC2626"
+  redText: "991B1B"
+  tealTint: "B9D6D1"
+  white: "FFFFFF"
+
+# Browser semantic tokens. ANSI roles are only for the palette gallery; this
+# CSS-only scheme is not selected as the shell colorscheme.
+tokens:
+  bg: paperCanvas
+  surface: paperCard
+  border: borderBook
+  text: inkMain
+  text-dim: inkMuted
+  accent: tealCraftsman
+  accent-dim: tealTint
+  green: greenStatus
+  yellow: amberAccent
+  red: redStatus
+  red-text: redText
+token_literals:
+  mono: "'FiraCode Nerd Font Mono', 'Fira Code', ui-monospace, monospace"
+  craft-paper-subtle: "#F4F0E8"
+  craft-blue: "#1D4ED8"
+  craft-shadow: "0 2px 8px rgba(30, 35, 42, 0.04)"
+  craft-shadow-raised: "0 8px 24px rgba(30, 35, 42, 0.08)"
+  craft-serif: "'Charter', 'Bitstream Charter', 'Iowan Old Style', Georgia, serif"
+  font-sans: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  heading: "#0F172A"
+  meta: "#64748B"
+  paper-code: "#F3F4F6"
+
+ansi:
+  - inkMain
+  - redStatus
+  - greenStatus
+  - amberAccent
+  - tealCraftsman
+  - cobaltLink
+  - tealTint
+  - paperCanvas
+  - inkMeta
+  - redText
+  - greenStatus
+  - amberAccent
+  - cobaltHover
+  - cobaltLink
+  - tealHover
+  - inkHeading
+
+outputs:
+  - {type: builtin, emit: css_tokens, out: "tokens.css"}
