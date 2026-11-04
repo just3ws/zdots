@@ -149,7 +149,7 @@ Reference this when adding a surface or auditing coverage.
 | lazygit | `assets/kanagawa-wave/lazygit-kanagawa-wave.yml` | `gui.theme` |
 | k9s | `~/.config/k9s/skins/kanagawa.yaml` | `ui.skin` |
 | gh-dash / delta | `~/.config/gh-dash`, git `[delta]` | theme colors |
-| dashboards | context-engine `app.css` `:root`; `bin/zdots-statusd` CSS | semantic tokens |
+| dashboards | context-engine `craftsmanship_tokens.css`; `assets/craftsmanship/tokens.css` served by `bin/zdots-statusd` | semantic tokens |
 | browser monospace | `FiraCodeNerdFontMono-Retina.ttf` plus `OFL.txt` in each app's public assets | self-hosted, lazy-loaded via `font-display: swap` |
 | wallpapers | `~/Pictures/kanagawa-wave/` | desktop tiers + faint iTerm bg |
 
