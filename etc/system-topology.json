@@ -1,0 +1,500 @@
+{
+  "schema_version": 1,
+  "description": "Operator-maintained inventory for the LAN System Atlas. Coordinates place nodes from the network edge inward; links describe runtime or routing relationships.",
+  "nodes": [
+    {
+      "id": "operator",
+      "label": "Browser / operator",
+      "kind": "edge",
+      "area": "Network edge",
+      "x": 72,
+      "y": 9,
+      "owner": "Operator",
+      "process": "Web browser",
+      "port": "LAN",
+      "manager": "DNS + browser",
+      "href": "https://lan.just3ws.com",
+      "lan_href": "https://lan.just3ws.com",
+      "description": "Entry point from a trusted local network.",
+      "signal": null,
+      "hosts": [
+        "lan.just3ws.com"
+      ]
+    },
+    {
+      "id": "dns",
+      "label": "Local DNS · Bastion",
+      "kind": "edge",
+      "area": "Network edge",
+      "x": 25,
+      "y": 9,
+      "owner": "Bastion / local network",
+      "process": "DNS appliance",
+      "port": "53",
+      "manager": "Separate DietPi host",
+      "href": null,
+      "hosts": [
+        "lan.just3ws.com",
+        "*.lan.just3ws.com"
+      ],
+      "description": "Resolves the local LAN names to the Mac address; this DNS appliance runs separately from the Mac."
+    },
+    {
+      "id": "nginx",
+      "label": "nginx",
+      "kind": "route",
+      "area": "Routing",
+      "x": 50,
+      "y": 30,
+      "owner": "zdots platform",
+      "process": "nginx",
+      "port": "80 / 443",
+      "manager": "root LaunchDaemon · nginx-ctl",
+      "href": null,
+      "service_key": "nginx",
+      "description": "Terminates local TLS and routes hostnames to loopback application ports.",
+      "signal": "Process state only; run zdots-endpoints to probe routes."
+    },
+    {
+      "id": "zdots",
+      "label": "zdots console",
+      "kind": "app",
+      "area": "Applications",
+      "x": 20,
+      "y": 55,
+      "owner": "zdots",
+      "process": "zdots-statusd",
+      "port": "11600",
+      "manager": "com.zdots.statusd · launchd",
+      "href": "https://zdots.localhost",
+      "service_key": "zdots-statusd",
+      "description": "Observable Control Plane console, command help, manuals, and local operations.",
+      "hosts": [
+        "zdots.localhost"
+      ]
+    },
+    {
+      "id": "context",
+      "label": "Context Engine",
+      "kind": "app",
+      "area": "Applications",
+      "x": 42,
+      "y": 55,
+      "owner": "my / context-engine",
+      "process": "Puma",
+      "port": "7010",
+      "manager": "Context Engine scripts",
+      "href": "https://my.localhost",
+      "health_url": "http://127.0.0.1:7010/up",
+      "description": "Knowledge Layer interface, service health, Panoramic View, and diagnostic workflows.",
+      "hosts": [
+        "my.localhost",
+        "my.local"
+      ]
+    },
+    {
+      "id": "media",
+      "label": "media-pipeline",
+      "kind": "app",
+      "area": "Applications",
+      "x": 65,
+      "y": 55,
+      "owner": "media-pipeline",
+      "process": "Puma + Solid Queue",
+      "port": "32000",
+      "manager": "com.just3ws.media-pipeline · launchd",
+      "href": "https://media-pipeline.lan.just3ws.com",
+      "lan_href": "https://media-pipeline.lan.just3ws.com",
+      "health_url": "http://127.0.0.1:32000/up",
+      "description": "Media intake, transcription, review, and publication cockpit.",
+      "hosts": [
+        "media-pipeline.localhost",
+        "pipeline.localhost",
+        "media-pipeline.lan.just3ws.com"
+      ]
+    },
+    {
+      "id": "portfolio",
+      "label": "Portfolio site",
+      "kind": "app",
+      "area": "Applications",
+      "x": 86,
+      "y": 55,
+      "owner": "just3ws.github.io",
+      "process": "nginx static files",
+      "port": "80 / 443",
+      "manager": "nginx",
+      "href": "https://just3ws.localhost",
+      "description": "Static portfolio and public media surfaces.",
+      "hosts": [
+        "just3ws.localhost",
+        "www.just3ws.localhost"
+      ]
+    },
+    {
+      "id": "wwworkremote",
+      "label": "WWWorkRemote",
+      "kind": "app",
+      "area": "On-demand applications",
+      "x": 11,
+      "y": 70,
+      "owner": "wwworkremote",
+      "process": "Rails / Puma",
+      "port": "31000",
+      "manager": "Project-owned development app",
+      "href": "https://wwworkremote.localhost",
+      "description": "Local job-search and synthesis application; start it when needed.",
+      "hosts": [
+        "wwworkremote.localhost",
+        "wwwr.localhost"
+      ],
+      "signal": "Run zdots-endpoints to probe the configured route and upstream."
+    },
+    {
+      "id": "hister",
+      "label": "Hister",
+      "kind": "app",
+      "area": "On-demand applications",
+      "x": 37,
+      "y": 70,
+      "owner": "zdots + Hister",
+      "process": "Hister backend",
+      "port": "4433",
+      "manager": "Homebrew service",
+      "href": "https://hister.localhost",
+      "description": "Local search service with a static browser surface served by nginx.",
+      "hosts": [
+        "hister.localhost",
+        "www.hister.localhost"
+      ],
+      "signal": "Run zdots-endpoints to probe the configured route and upstream."
+    },
+    {
+      "id": "phalanx",
+      "label": "Phalanx Duel",
+      "kind": "app",
+      "area": "On-demand applications",
+      "x": 63,
+      "y": 70,
+      "owner": "Phalanx Duel",
+      "process": "Vite client + admin",
+      "port": "5173 / 3103",
+      "manager": "Project development commands",
+      "href": "https://phalanxduel.localhost",
+      "description": "Local game client and admin development surfaces; normally stopped outside active work.",
+      "hosts": [
+        "phalanxduel.localhost",
+        "play.phalanxduel.localhost",
+        "admin.phalanxduel.localhost"
+      ],
+      "signal": "Run zdots-endpoints to probe the configured route and upstream."
+    },
+    {
+      "id": "bus",
+      "label": "Message Bus coordinator",
+      "kind": "core",
+      "area": "On-demand applications",
+      "x": 89,
+      "y": 70,
+      "owner": "zdots",
+      "process": "bus-coordinator-ctl",
+      "port": "local IPC · no TCP",
+      "manager": "com.zdots.bus-coordinator · launchd",
+      "href": "https://my.localhost/bus",
+      "service_key": "bus-coordinator",
+      "description": "Optional AI responder. Durable bus CLI and history work when this process is stopped.",
+      "hosts": [
+        "my.localhost/bus"
+      ]
+    },
+    {
+      "id": "llama",
+      "label": "Inference",
+      "kind": "core",
+      "area": "Shared core",
+      "x": 14,
+      "y": 84,
+      "owner": "zdots",
+      "process": "llama.cpp",
+      "port": "11500",
+      "manager": "com.zdots.llama-server · launchd",
+      "href": "https://llama.localhost",
+      "service_key": "llama-server",
+      "health_key": "ai_http_healthy",
+      "description": "Local language model endpoint used by approved local workflows.",
+      "hosts": [
+        "llama.localhost"
+      ]
+    },
+    {
+      "id": "embed",
+      "label": "Embeddings",
+      "kind": "core",
+      "area": "Shared core",
+      "x": 31,
+      "y": 84,
+      "owner": "zdots",
+      "process": "llama.cpp",
+      "port": "11501",
+      "manager": "com.zdots.llama-embed · launchd",
+      "href": "https://embed.localhost",
+      "service_key": "llama-embed",
+      "health_key": "embed_server",
+      "description": "Local embedding endpoint for knowledge retrieval.",
+      "hosts": [
+        "embed.localhost"
+      ]
+    },
+    {
+      "id": "postgres",
+      "label": "PostgreSQL · my",
+      "kind": "data",
+      "area": "Shared core",
+      "x": 48,
+      "y": 84,
+      "owner": "zdots platform",
+      "process": "PostgreSQL 18",
+      "port": "5432",
+      "manager": "Homebrew LaunchAgent",
+      "href": null,
+      "service_key": "postgresql-18",
+      "health_key": "intelligence_suite",
+      "description": "Application database for Context Engine and the Knowledge Layer."
+    },
+    {
+      "id": "redis",
+      "label": "Redis",
+      "kind": "data",
+      "area": "Shared core",
+      "x": 65,
+      "y": 84,
+      "owner": "zdots",
+      "process": "Redis",
+      "port": "6379",
+      "manager": "Homebrew LaunchAgent",
+      "href": null,
+      "service_key": "redis",
+      "health_key": "cache",
+      "description": "Local cache and command analytics buffer."
+    },
+    {
+      "id": "otel",
+      "label": "OTel Collector",
+      "kind": "telemetry",
+      "area": "Shared core",
+      "x": 82,
+      "y": 84,
+      "owner": "zdots",
+      "process": "otelcol-contrib",
+      "port": "4317 / 4318",
+      "manager": "com.zdots.otel-collector · launchd",
+      "href": null,
+      "service_key": "otel-collector",
+      "health_key": "otel_collector",
+      "description": "Receives local telemetry and forwards it to OpenObserve."
+    },
+    {
+      "id": "o2",
+      "label": "OpenObserve",
+      "kind": "telemetry",
+      "area": "Observability",
+      "x": 72,
+      "y": 94,
+      "owner": "zdots",
+      "process": "OpenObserve",
+      "port": "5080",
+      "manager": "com.zdots.openobserve · launchd",
+      "href": "https://o2.localhost",
+      "service_key": "openobserve",
+      "health_key": "openobserve",
+      "description": "Local logs, metrics, and trace search.",
+      "hosts": [
+        "o2.localhost"
+      ]
+    },
+    {
+      "id": "jaeger",
+      "label": "Jaeger",
+      "kind": "telemetry",
+      "area": "Observability",
+      "x": 91,
+      "y": 94,
+      "owner": "zdots",
+      "process": "Jaeger",
+      "port": "16686",
+      "manager": "Homebrew service",
+      "href": "https://jaeger.localhost",
+      "service_key": "jaeger",
+      "health_key": "jaeger",
+      "description": "Trace inspection and service-map visualization.",
+      "hosts": [
+        "jaeger.localhost"
+      ]
+    },
+    {
+      "id": "gemstash",
+      "label": "Gemstash",
+      "kind": "core",
+      "area": "Shared core",
+      "x": 8,
+      "y": 94,
+      "owner": "zdots",
+      "process": "Gemstash",
+      "port": "9292",
+      "manager": "com.zdots.gemstash · launchd",
+      "href": "https://gemstash.localhost",
+      "service_key": "gemstash",
+      "description": "Local RubyGems caching proxy.",
+      "hosts": [
+        "gemstash.localhost"
+      ]
+    },
+    {
+      "id": "worker",
+      "label": "zdots worker",
+      "kind": "core",
+      "area": "Shared core",
+      "x": 27,
+      "y": 94,
+      "owner": "zdots",
+      "process": "zdots-worker",
+      "port": "jobs queue (my)",
+      "manager": "com.zdots.worker · launchd",
+      "href": null,
+      "service_key": "zdots-worker",
+      "description": "Processes asynchronous Knowledge Layer jobs."
+    },
+    {
+      "id": "colima",
+      "label": "Colima",
+      "kind": "core",
+      "area": "On demand",
+      "x": 48,
+      "y": 94,
+      "owner": "zdots",
+      "process": "Colima VM",
+      "port": "Docker socket",
+      "manager": "colima",
+      "href": null,
+      "service_key": "colima",
+      "description": "Optional container runtime; normally stopped when no container workflow needs it."
+    }
+  ],
+  "links": [
+    {
+      "from": "operator",
+      "to": "dns",
+      "label": "hostname lookup"
+    },
+    {
+      "from": "dns",
+      "to": "nginx",
+      "label": "A record resolves to Mac"
+    },
+    {
+      "from": "operator",
+      "to": "nginx",
+      "label": "HTTPS request"
+    },
+    {
+      "from": "nginx",
+      "to": "zdots",
+      "label": "host route"
+    },
+    {
+      "from": "nginx",
+      "to": "context",
+      "label": "host route"
+    },
+    {
+      "from": "nginx",
+      "to": "media",
+      "label": "host route"
+    },
+    {
+      "from": "nginx",
+      "to": "portfolio",
+      "label": "static host route"
+    },
+    {
+      "from": "nginx",
+      "to": "wwworkremote",
+      "label": "localhost route"
+    },
+    {
+      "from": "nginx",
+      "to": "hister",
+      "label": "localhost route"
+    },
+    {
+      "from": "nginx",
+      "to": "phalanx",
+      "label": "localhost route"
+    },
+    {
+      "from": "zdots",
+      "to": "otel",
+      "label": "telemetry"
+    },
+    {
+      "from": "context",
+      "to": "postgres",
+      "label": "Knowledge Layer data"
+    },
+    {
+      "from": "context",
+      "to": "llama",
+      "label": "local inference"
+    },
+    {
+      "from": "context",
+      "to": "embed",
+      "label": "retrieval"
+    },
+    {
+      "from": "context",
+      "to": "otel",
+      "label": "telemetry"
+    },
+    {
+      "from": "media",
+      "to": "llama",
+      "label": "local enrichment"
+    },
+    {
+      "from": "media",
+      "to": "otel",
+      "label": "telemetry"
+    },
+    {
+      "from": "otel",
+      "to": "o2",
+      "label": "OTLP export"
+    },
+    {
+      "from": "otel",
+      "to": "jaeger",
+      "label": "trace inspection"
+    },
+    {
+      "from": "zdots",
+      "to": "worker",
+      "label": "queued work"
+    },
+    {
+      "from": "context",
+      "to": "bus",
+      "label": "message bus console"
+    },
+    {
+      "from": "bus",
+      "to": "postgres",
+      "label": "durable messages"
+    },
+    {
+      "from": "bus",
+      "to": "redis",
+      "label": "live notifications and presence"
+    }
+  ]
+}

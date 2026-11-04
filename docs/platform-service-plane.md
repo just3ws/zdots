@@ -4,6 +4,10 @@
 components; project routes and Homebrew-managed applications can have separate
 lifecycle boundaries. `tests/platform_e2e.bats` covers live service contracts.
 
+The [System Atlas](system-atlas.md) is the interactive, read-only LAN overview.
+The `lan.just3ws.com` nginx vhost exposes only the statusd map and its small
+service-state snapshot; the full status console remains on `zdots.localhost`.
+
 Use this page when the question is: "Is zdots ready to run?"
 
 ## Stable State
@@ -64,7 +68,8 @@ flowchart TB
     
     pglaunch --> postgres["PostgreSQL 18\nmy database"]
     redislaunch --> redis["Redis\nanalytics buffer"]
-    nginxctl --> nginx["nginx\n:80/:443 local URLs"]
+    nginxctl --> nginx["nginx\n:80/:443 local URLs + LAN Atlas"]
+    nginx --> atlas["lan.just3ws.com\n/map → statusd :11600"]
 
     brain --> postgres
     redisprobe --> redis

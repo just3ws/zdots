@@ -1,4 +1,4 @@
-.Dd July 11, 2026
+.Dd November 4, 2026
 .Dt ZDOTS-STATUSD-CTL 8
 .Os zdots
 .Sh NAME
@@ -11,20 +11,33 @@
 .Sh DESCRIPTION
 .Nm
 controls
-.Xr zdots-statusd 8 ,
+.Xr zdots-statusd 1 ,
 the Observable Control Plane's own health console served at zdots.localhost.
 It is deliberately separate from my.localhost (context-engine) so platform
-health stays reachable when the Rails app or Postgres is down. The service is a thin viewer
-over the zdots health tools
+health stays reachable when the Rails app or Postgres is down.
+.Pp
+The service is a thin viewer over the zdots health tools
 .Pq Xr zdots-ctl 8 , Xr zsvc 8 , service logs ;
 the intelligence lives in those CLIs.
 .Pp
 The service binds loopback only on 127.0.0.1:${ZDOTS_STATUS_PORT:-11600};
 .Xr nginx 8
 terminates TLS for https://zdots.localhost. No secrets touch the launchd plist.
+.Pp
 Manage it via
 .Ic zsvc Ar verb Cm status ;
 this script is the authoritative ctl backing that.
+.Pp
+The status console provides an interactive system map at Pa /map and a
+sanitized, read-only live snapshot at Pa /map.json.
+.Pp
+The trusted-LAN hostname
+.Pa lan.just3ws.com
+exposes only those two map routes; other paths return 404.
+.Pp
+See
+.Pa docs/system-atlas.md
+for the topology and activation procedure.
 .Sh COMMANDS
 .Bl -tag -width restart
 .It Cm install

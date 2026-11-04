@@ -5,6 +5,11 @@ projects that depend on it. It separates tracked configuration, runtime
 services, data stores, and externally hosted workloads. Runtime state is a
 snapshot; use the listed status commands before acting.
 
+For the interactive LAN overview, current service signals, port details, and
+drill-down links, open the [System Atlas](system-atlas.md). Its source catalog
+is `etc/system-topology.json`; this document remains the durable ownership and
+architecture reference.
+
 ## Ownership
 
 | Component | Location | Responsibility | Git / lifecycle boundary |
@@ -47,6 +52,7 @@ flowchart TB
     BrewServices[Homebrew services] --> Hister[Hister local search]
         Nginx --> Context[Context Engine<br/>7010]
         Nginx --> Media[media-pipeline<br/>32000]
+        Nginx --> Atlas[LAN System Atlas<br/>lan.just3ws.com → statusd :11600/map]
         Nginx --> Hister
         Nginx --> Projects[project vhosts]
     end
@@ -60,6 +66,8 @@ flowchart TB
     Media --> OTel
     Colima[Colima — on demand] -. Docker only when needed .-> Fly[Fly.io deployment]
     Hister --> SearchIndex[Local search index]
+
+    BastionDNS[Bastion local DNS / DHCP appliance<br/>port 53] -->|LAN name resolves to Mac| Nginx
 ```
 
 ## Service roles and authority
@@ -85,6 +93,7 @@ flowchart TB
 
 For exact vhosts, owners, and upstreams see [Local URL Routing](local-url-routing.md).
 For startup order and launchd registrations see [Platform Service Plane](platform-service-plane.md).
+For the interactive node-and-link overview see [System Atlas](system-atlas.md).
 
 ## Data paths
 

@@ -59,8 +59,10 @@ Options:
   --json      Output status/health as JSON (valid for status, health)
   -h, --help  Show this help
 
-Serves the zdots.localhost control-plane dashboard on 127.0.0.1:${PORT}. Manage it
-via \`zsvc <verb> status\`; this script is the authoritative ctl backing that.
+Serves the zdots.localhost control-plane dashboard on 127.0.0.1:${PORT}; its
+interactive System Atlas is at /map. The LAN hostname lan.just3ws.com exposes
+only that map and its sanitized /map.json status snapshot. Manage it via
+\`zsvc <verb> status\`; this script is the authoritative ctl backing that.
 EOF
 }
 

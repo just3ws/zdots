@@ -1,10 +1,11 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# zdots-statusd — the Observable Control Plane's own status console, served at
+# zdots-statusd — the Observable Control Plane's status console, served at
 # zdots.localhost (separate from my.localhost so it survives context-engine/Postgres
-# being down). A thin viewer over zdots' health tools — the intelligence lives
-# in zsvc / zdots-ctl / the logs, not here. Loopback-only; nginx terminates TLS.
+# being down). nginx exposes only its sanitized map routes on the trusted LAN.
+# A thin viewer over zdots' health tools — the intelligence lives in zsvc and
+# zdots-ctl, not here. The server itself remains loopback-only.
 #
 # ponytail: stdlib TCPServer, single-thread serial accept loop — one operator,
 # add threading if it ever matters. No web framework, no deps.
@@ -14,6 +15,9 @@ require "json"
 require "yaml"
 require "erb"
 require "shellwords"
+require "time"
+require "net/http"
+require "uri"
 
 Encoding.default_external = Encoding::UTF_8
 Encoding.default_internal = Encoding::UTF_8
@@ -24,8 +28,10 @@ if ARGV.first =~ /\A(-h|--help)\z/
 
     The zdots.localhost status console — a no-dep loopback HTTP server rendering live
     platform health (zdots-ctl status, zsvc, service logs). Binds
-    127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /healthz,
+    127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /map
+    (system topology), GET /map.json (sanitized live snapshot), GET /healthz,
     GET /man, GET /docs, GET /help, GET /backlog (read-only Backlog.md board), GET /theme.
+    The lan.just3ws.com vhost exposes only /map and /map.json.
 
     Don't run this by hand for normal use — manage it as a Platform Service:
       zsvc start|stop|restart|status|logs status
@@ -70,6 +76,270 @@ def services
     rows << { name: cols[0], state: cols[1], pid: cols[2], endpoint: cols[3] }
   end
   rows
+end
+
+# Stable topology is data, while health is sampled from the existing service
+# controls. Keep the LAN map's response deliberately smaller than the private
+# localhost console: it must not expose logs, PIDs, backlog, docs, or disk paths.
+def topology
+  JSON.parse(File.read(File.join(ZDOTS, "etc", "system-topology.json")))
+rescue StandardError
+  { "nodes" => [], "links" => [] }
+end
+
+def topology_snapshot
+  rows = services
+  state_by_key = rows.to_h do |row|
+    [row[:name].to_s.downcase.gsub(/[^a-z0-9]+/, "-"), row[:state]]
+  end
+  platform = ctl_status
+  nodes = topology.fetch("nodes", []).map do |node|
+    key = node["service_key"]
+    state = key && state_by_key[key]
+    health = node.key?("health_key") ? platform[node["health_key"]] : nil
+    health = http_healthy?(node["health_url"]) if node["health_url"]
+    { id: node["id"], state: state || (key ? "unobserved" : "catalogued"), health: health }
+  end
+  running = nodes.count { |node| node[:state] == "running" }
+  checked = nodes.count { |node| !node[:health].nil? }
+  unhealthy = nodes.count { |node| node[:health] == false }
+  { checked_at: Time.now.utc.iso8601, summary: { running: running, checked: checked, unhealthy: unhealthy }, nodes: nodes }
+end
+
+def http_healthy?(url)
+  uri = URI(url)
+  http = Net::HTTP.new(uri.host, uri.port, nil)
+  http.open_timeout = 0.6
+  http.read_timeout = 0.6
+  http.start { |connection| connection.get(uri.request_uri).code.to_i.between?(200, 299) }
+rescue StandardError
+  false
+end
+
+def topology_json
+  JSON.generate(topology_snapshot)
+end
+
+def topology_page
+  atlas = topology
+  graph_nodes = atlas.fetch("nodes", []).map do |node|
+    monitored = node["service_key"] || node["health_key"] || node["health_url"]
+    status = if monitored
+               %(<span class="state" data-node-state="#{h(node['id'])}">checking</span>)
+             else
+               ""
+             end
+    <<~NODE.strip
+      <button class="node #{h(node['kind'])}" data-node="#{h(node['id'])}"
+        style="--x:#{node['x']};--y:#{node['y']}" type="button">
+        <b>#{h(node['label'])}</b><small>#{h(node['port'])}</small>#{status}
+      </button>
+    NODE
+  end.join
+
+  graph_links = atlas.fetch("links", []).map do |link|
+    from = atlas["nodes"].find { |node| node["id"] == link["from"] }
+    to = atlas["nodes"].find { |node| node["id"] == link["to"] }
+    next unless from && to
+
+    <<~EDGE.strip
+      <line x1="#{from['x']}%" y1="#{from['y']}%" x2="#{to['x']}%" y2="#{to['y']}%"
+        data-link-from="#{h(link['from'])}" data-link-to="#{h(link['to'])}" />
+    EDGE
+  end.compact.join
+
+  catalog = JSON.generate(atlas).gsub("</", "<\\/")
+  <<~HTML
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>LAN System Map</title>
+      <style>
+        #{CSS}
+        body { min-height: 100vh; }
+        .map-head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+        .map-head h1 { font-size: 1.6rem; }
+        .map-head p { max-width: 48rem; }
+        .map-shell { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); gap: 1rem; align-items: start; }
+        .map-canvas { position: relative; min-height: 57rem; overflow: auto; background: radial-gradient(ellipse at center, rgba(45,79,103,.28), transparent 70%), var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; }
+        .map-stage { position: relative; min-width: 900px; height: 54rem; }
+        .map-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+        .map-stage line { stroke: var(--accent); stroke-width: 1.4; opacity: .4; vector-effect: non-scaling-stroke; }
+        .map-stage line.active { stroke: var(--green); stroke-width: 2.3; opacity: .9; }
+        .region { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--border); color: var(--text-dim); font: .68rem var(--mono); padding-top: .15rem; pointer-events: none; }
+        .region.r1 { top: 1.5%; } .region.r2 { top: 22%; } .region.r3 { top: 47%; } .region.r3b { top: 61%; } .region.r4 { top: 73%; }
+        .node { position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); transform: translate(-50%, -50%); min-width: 9rem; max-width: 12rem; min-height: 4.5rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: .55rem .7rem; text-align: left; cursor: pointer; box-shadow: 0 5px 18px #0004; z-index: 1; }
+        .node:hover, .node:focus-visible, .node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(91,141,238,.18); }
+        .node.edge { border-top: 3px solid var(--accent); } .node.route { border-top: 3px solid var(--yellow); } .node.app { border-top: 3px solid var(--accent); } .node.core { border-top: 3px solid var(--green); } .node.data { border-top: 3px solid var(--yellow); } .node.telemetry { border-top: 3px solid #957fb8; }
+        .node small, .node .state { display: block; color: var(--text-dim); font: .7rem var(--mono); margin-top: .2rem; }
+        .node .state[data-state="running"], .node .state[data-state="healthy"] { color: var(--green); }
+        .node .state[data-state="stopped"] { color: var(--yellow); }
+        .node .state[data-state="unobserved"], .node .state[data-state="catalogued"] { color: var(--text-dim); }
+        .node .state[data-state="unhealthy"] { color: var(--red-text); }
+        .detail { position: sticky; top: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+        .detail h2 { font-size: 1rem; text-transform: none; letter-spacing: 0; color: var(--text); }
+        .detail dt { color: var(--text-dim); font-size: .72rem; text-transform: uppercase; margin-top: .8rem; }
+        .detail dd { margin: .1rem 0 0; font-size: .85rem; overflow-wrap: anywhere; }
+        .detail dd small { display: block; color: var(--text-dim); }
+        .detail a { display: inline-block; margin: .3rem .7rem .1rem 0; }
+        .detail button { border: 0; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; padding: 0; font: inherit; }
+        .map-foot { font-size: .78rem; color: var(--text-dim); }
+        .system-links { display: flex; gap: .6rem; flex-wrap: wrap; }
+        .system-links a { padding: .45rem .7rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
+        @media (max-width: 850px) { .map-shell { grid-template-columns: 1fr; } .detail { position: static; } .map-canvas { min-height: 49rem; } .map-stage { height: 46rem; } }
+      </style>
+    </head>
+    <body>
+      <main style="max-width: 90rem; margin: auto; padding: 1.2rem">
+        <header class="map-head">
+          <div>
+            <h1>System Atlas <span class="mark">· LAN</span></h1>
+            <p class="sub">A connectionist map of the local system. Move from the network edge inward through routes, applications, and shared infrastructure. Select a node to inspect its owner, port, health signal, and next hop.</p>
+          </div>
+          <div class="sub"><span id="map-summary">Checking service state…</span><br>Observed <time id="checked-at">—</time></div>
+        </header>
+
+        <nav class="system-links" aria-label="System views">
+          <a data-local-only href="https://zdots.localhost/">zdots control plane · this Mac</a>
+          <a data-local-only href="https://my.localhost/panoramic">Context Engine Panoramic View · this Mac</a>
+          <a data-local-only href="https://my.localhost/platform">Service health · this Mac</a>
+          <a href="https://media-pipeline.lan.just3ws.com">Media Pipeline · LAN</a>
+          <a data-local-only href="https://o2.localhost">OpenObserve · this Mac</a>
+          <a data-local-only href="https://jaeger.localhost">Jaeger · this Mac</a>
+        </nav>
+
+        <p class="map-foot">Node accents: edge · route · application · data · telemetry. Select a node to highlight its adjacent connections; relationship labels appear in the detail panel.</p>
+
+        <section class="map-shell">
+          <div class="map-canvas" aria-label="Interactive system topology">
+            <div class="map-stage">
+              <span class="region r1">NETWORK EDGE · browser, DNS, HTTPS</span>
+              <span class="region r2">ROUTING · nginx and named entrypoints</span>
+              <span class="region r3">APPLICATIONS · owned workflows</span>
+              <span class="region r3b">ON-DEMAND · project apps and optional coordinator</span>
+              <span class="region r4">SHARED CORE · data, inference, telemetry</span>
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">#{graph_links}</svg>
+              #{graph_nodes}
+            </div>
+          </div>
+          <aside class="detail" id="node-detail" aria-live="polite">
+            <h2>Select a node</h2><p class="sub">The detail panel follows the selected point in the map.</p>
+          </aside>
+        </section>
+
+        <p class="map-foot">
+          #{atlas.fetch('nodes', []).size} nodes · #{atlas.fetch('links', []).size} connections ·
+          #{atlas.fetch('nodes', []).count { |node| node['service_key'] }} service-registry entries.
+          Topology is static configuration; status is a live read-only sample from launchd-backed
+          service state and application health URLs. “Unobserved” means this status source does
+          not own that service. No logs, process IDs, disk paths, or controls are exposed on this
+          LAN view. Source: etc/system-topology.json; refreshes every 30 seconds.
+        </p>
+        <script type="application/json" id="topology-catalog">#{catalog}</script>
+        <script>
+          (() => {
+            const catalog = JSON.parse(document.getElementById("topology-catalog").textContent);
+            const detail = document.getElementById("node-detail");
+            const lanView = location.hostname === "lan.just3ws.com";
+            let snapshot = { nodes: [] };
+
+            if (lanView) {
+              document.querySelectorAll("[data-local-only]").forEach((element) => {
+                element.hidden = true;
+              });
+            }
+
+            function stateFor(node) {
+              if (node.health === true) return "healthy";
+              if (node.health === false) return "unhealthy";
+              return node.state || "catalogued";
+            }
+
+            function select(id) {
+              const node = catalog.nodes.find((item) => item.id === id);
+              if (!node) return;
+
+              document.querySelectorAll(".node").forEach((button) => {
+                button.classList.toggle("selected", button.dataset.node === id);
+              });
+              document.querySelectorAll("svg line").forEach((line) => {
+                line.classList.toggle("active", line.dataset.linkFrom === id || line.dataset.linkTo === id);
+              });
+
+              const connected = catalog.links.filter((link) => link.from === id || link.to === id);
+              const linkMarkup = connected.map((link) => {
+                const otherId = link.from === id ? link.to : link.from;
+                const other = catalog.nodes.find((item) => item.id === otherId);
+                if (!other) return "";
+                return `<span><button type="button" data-select="${other.id}">${other.label}</button><small>${link.label}</small></span>`;
+              }).join("");
+              const observed = snapshot.nodes.find((item) => item.id === id) || {};
+              const route = lanView ? node.lan_href : node.href;
+              const open = route
+                ? `<a href="${route}" rel="noreferrer">${route}</a>`
+                : node.href ? `${node.href} · available on this Mac only` : "No web route";
+              const signal = node.health_key
+                ? `zdots-ctl status: ${node.health_key}`
+                : node.health_url ? `HTTP GET ${node.health_url}`
+                  : node.signal || "Process state only; no application health probe";
+              const hosts = (node.hosts || []).join(", ") || "—";
+              const health = observed.health === true ? "healthy"
+                : observed.health === false ? "unhealthy" : "not checked";
+
+              detail.innerHTML = `
+                <h2>${node.label}</h2><p class="sub">${node.description}</p>
+                <dl>
+                  <dt>Area</dt><dd>${node.area}</dd>
+                  <dt>Owner</dt><dd>${node.owner}</dd>
+                  <dt>Process / port</dt><dd>${node.process || "—"} · ${node.port || "—"}</dd>
+                  <dt>Hostnames</dt><dd>${hosts}</dd>
+                  <dt>Manager</dt><dd>${node.manager || "—"}</dd>
+                  <dt>Process state</dt><dd>${observed.state || "checking"}</dd>
+                  <dt>Health</dt><dd><span class="state" data-state="${stateFor(observed)}">${health}</span><small>${signal}</small></dd>
+                  <dt>Open</dt><dd>${open}</dd>
+                  <dt>Connected to</dt><dd>${linkMarkup || "—"}</dd>
+                </dl>`;
+              detail.querySelectorAll("[data-select]").forEach((button) => {
+                button.addEventListener("click", () => select(button.dataset.select));
+              });
+            }
+
+            async function refresh() {
+              try {
+                const response = await fetch("/map.json", { cache: "no-store" });
+                if (!response.ok) throw new Error("status unavailable");
+                snapshot = await response.json();
+                document.getElementById("checked-at").textContent = new Date(snapshot.checked_at).toLocaleString();
+                document.getElementById("map-summary").textContent =
+                  `${snapshot.summary.checked} health checks · ${snapshot.summary.unhealthy} need attention · ${snapshot.summary.running} processes running`;
+                snapshot.nodes.forEach((node) => {
+                  const status = document.querySelector(`[data-node-state="${node.id}"]`);
+                  if (status) {
+                    status.textContent = stateFor(node);
+                    status.dataset.state = stateFor(node);
+                  }
+                });
+                const selected = document.querySelector(".node.selected");
+                if (selected) select(selected.dataset.node);
+              } catch (_error) {
+                document.getElementById("map-summary").textContent = "Live status unavailable";
+              }
+            }
+
+            document.querySelectorAll(".node").forEach((button) => {
+              button.addEventListener("click", () => select(button.dataset.node));
+            });
+            select(catalog.nodes[0]?.id);
+            refresh();
+            setInterval(refresh, 30000);
+          })();
+        </script>
+      </main>
+    </body>
+    </html>
+  HTML
 end
 
 # Recent error counts for the *service* logs — "how are the logs doing" at a
@@ -117,7 +387,11 @@ end
 
 def h(str) = ERB::Util.html_escape(str.to_s)
 
-ROOT_NAV = %(<a href="/">← console</a> · <a href="/man">man index</a> · <a href="/backlog">backlog</a> · <a href="/theme">theme</a>).freeze
+ROOT_NAV = [
+  %(<a href="/">← console</a>), %(<a href="/map">system map</a>),
+  %(<a href="https://lan.just3ws.com">LAN Atlas ↗</a>), %(<a href="/man">man index</a>),
+  %(<a href="/backlog">backlog</a>), %(<a href="/theme">theme</a>)
+].join(" · ").freeze
 
 # Shared page chrome so /man pages match the console (cross-linked back).
 def wrap(title, inner)
@@ -368,7 +642,7 @@ def render_page(live:)
       <header>
         <h1><span class="mark">zdots</span>.localhost</h1>
         <p class="sub">Observable Control Plane · #{up}/#{cards.size} services up · #{now}
-          · <a href="/man">man</a> · <a href="/docs">docs</a> · <a href="/help">help</a> · <a href="/backlog">backlog</a> · <span class="live">#{toggle}</span></p>
+          · <a href="/map">system map</a> · <a href="https://lan.just3ws.com">LAN Atlas ↗</a> · <a href="/man">man</a> · <a href="/docs">docs</a> · <a href="/help">help</a> · <a href="/backlog">backlog</a> · <span class="live">#{toggle}</span></p>
       </header>
       <main>
         <section aria-labelledby="svc-h">
@@ -632,8 +906,10 @@ loop do
     while (hdr = client.gets) && hdr != "\r\n" && hdr != "\n"; end
     path = line.split(" ")[1].to_s
     case path
-    when %r{\A/healthz}             then respond(client, "ok", type: "text/plain")
-    when %r{\A/man/?(\?.*)?\z}      then respond(client, man_index)
+    when %r{\A/healthz} then respond(client, "ok", type: "text/plain")
+    when %r{\A/map/?(\?.*)?\z} then respond(client, topology_page)
+    when %r{\A/map\.json\z} then respond(client, topology_json, type: "application/json; charset=utf-8")
+    when %r{\A/man/?(\?.*)?\z} then respond(client, man_index)
     when %r{\A/man/([a-z0-9-]+)\z}
       page = render_man($1)
       page ? respond(client, page) : respond(client, "no such man page", status: "404 Not Found", type: "text/plain")
@@ -643,20 +919,20 @@ loop do
     when %r{\A/theme/download/([a-z0-9]+)\z}
       p = wave_tier_path($1)
       p ? respond_bytes(client, File.binread(p), "image/png", filename: File.basename(p)) : respond(client, "no such wallpaper", status: "404 Not Found", type: "text/plain")
-    when %r{\A/theme/?(\?.*)?\z}    then respond(client, theme_page)
-    when %r{\A/backlog/?(\?.*)?\z}  then respond(client, backlog_index)
+    when %r{\A/theme/?(\?.*)?\z} then respond(client, theme_page)
+    when %r{\A/backlog/?(\?.*)?\z} then respond(client, backlog_index)
     when %r{\A/backlog/([A-Za-z][A-Za-z0-9._-]*)\z}
       page = render_backlog_task($1)
       page ? respond(client, page) : respond(client, "no such task", status: "404 Not Found", type: "text/plain")
-    when %r{\A/docs/?(\?.*)?\z}     then respond(client, docs_index)
+    when %r{\A/docs/?(\?.*)?\z} then respond(client, docs_index)
     when %r{\A/docs/([A-Za-z0-9:._-]+)\z}
       page = render_doc($1)
       page ? respond(client, page) : respond(client, "no such doc", status: "404 Not Found", type: "text/plain")
-    when %r{\A/help/?(\?.*)?\z}     then respond(client, help_index)
+    when %r{\A/help/?(\?.*)?\z} then respond(client, help_index)
     when %r{\A/help/([a-z0-9._-]+)\z}
       page = render_help($1)
       page ? respond(client, page) : respond(client, "no such command", status: "404 Not Found", type: "text/plain")
-    when %r{\A/(\?.*)?\z}    then respond(client, render_page(live: path !~ /live=0/))
+    when %r{\A/(\?.*)?\z} then respond(client, render_page(live: path !~ /live=0/))
     else respond(client, "not found", status: "404 Not Found", type: "text/plain")
     end
   rescue StandardError => e

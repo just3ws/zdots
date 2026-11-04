@@ -79,6 +79,11 @@ mp panoramic calibrate media-publication --flow media-publication.v1 --class ope
 
 ## 4. Architecture Diagrams
 
+For the interactive cross-project LAN map, port inventory, and live service
+signals, see the [System Atlas](docs/system-atlas.md). It links the zdots,
+Context Engine Panoramic View, media-pipeline, and observability consoles while
+keeping route health separate from documented topology.
+
 ### System Overview
 The Zdots platform operates as a "Sidecar Control Plane" on the host. All services run natively — no Docker or Colima dependency in the observability path (Z-134).
 

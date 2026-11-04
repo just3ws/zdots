@@ -328,6 +328,11 @@ useful for any local agent that would rather GET than shell out:
   https://zdots.localhost/help      every command's --help
   https://zdots.localhost/backlog   read-only Backlog.md board
   https://zdots.localhost/theme     platform theme (Kanagawa Wave) + palette.json
+
+The read-only cross-project System Atlas is separately exposed on the trusted
+LAN at https://lan.just3ws.com (only /map and /map.json; no docs/logs/backlog):
+  https://lan.just3ws.com/           homepage redirect to /map
+  https://lan.just3ws.com/map.json   coarse service state, timestamped
 EOF
 
 _head "Service Control — zsvc"

@@ -1,16 +1,19 @@
-.TH ZDOTS-STATUSD 1 "2026-07-21" "zdots" "zdots manual"
+.TH ZDOTS-STATUSD 1 "2026-11-04" "zdots" "zdots manual"
 .SH NAME
-zdots-statusd \- The zdots.localhost status console — a no\-dep loopback HTTP server rendering live
+zdots-statusd \- The zdots.localhost status console and LAN System Atlas
+no\-dep loopback HTTP server rendering live
 .SH SYNOPSIS
 See OPTIONS below (generated from \fBzdots-statusd --help\fR).
 .SH OPTIONS
 .nf
 Usage: zdots-statusd            # serve the control-plane console (foreground)
 
-The zdots.localhost status console — a no-dep loopback HTTP server rendering live
+The zdots.localhost status console and LAN System Atlas — a no-dep loopback HTTP server rendering live
 platform health (zdots-ctl status, zsvc, service logs). Binds
-127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes: GET / (console), GET /healthz,
-GET /man, GET /docs, GET /help, GET /backlog (read-only Backlog.md board), GET /theme.
+127.0.0.1:${ZDOTS_STATUS_PORT:-11600}. Routes include GET / (console), GET /map
+(interactive topology), GET /map.json (sanitized live service snapshot), GET
+/healthz, GET /man, GET /docs, GET /help, GET /backlog, and GET /theme. The
+trusted-LAN vhost lan.just3ws.com exposes only /map and /map.json.
 
 Don't run this by hand for normal use — manage it as a Platform Service:
   zsvc start|stop|restart|status|logs status
