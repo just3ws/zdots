@@ -32,6 +32,13 @@ environment, `zdots-ctx worker status` starts a worker.
   comparable versions.
 - A gate's eligible/continued/offramp counts are recorded on its decision
   result, never its entry marker. Holds and deferred work are explicit outcomes.
+- Each marker carries safe run-entry context, its preceding checkpoint, and the
+  ordered prior gate decisions. Gateway markers use the stable flow-node
+  `gate_id`; entry, exit, and error markers record the repository-relative code
+  location that emitted them. This durable workflow context is separate from
+  OTel trace parenting and survives asynchronous handoffs by run identity.
+- Historical run context may be reconstructed from stored observations. Never
+  infer a historical code location when the original marker did not record one.
 - Checkpoint execution, queue wait, time since prior marker, and handoff
   latency describe different intervals. Do not add them as if disjoint.
 - Context Engine remains authoritative for canonical transcription stage
