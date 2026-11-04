@@ -35,6 +35,15 @@ coordinates in one place. Coordinates are hand-tuned for readability. Update
 the catalog and this page together when ownership, routing, or dependency
 relationships change.
 
+Atlas node ownership describes the subsystem or project boundary represented
+by that node. Across the portfolio, the canonical owner identity is Mike Hall
+(`just3ws`, `mike@just3ws.com`). Project brands and repository organizations
+remain intact. UGtastic and WHOIS Tech Community are historical names for the
+same community and oral-history project; its current YouTube integration uses
+the configured `@whoistechcmty` channel handle, while Patreon-era
+`whoistechcmty` is a legacy identifier. See the [Platform Map](platform-map.md)
+for project lineage and current focus.
+
 The node panel also shows active LAN hostnames, candidate shared aliases,
 concrete nginx path-to-upstream routes, and graph connections. A candidate
 alias is an inventory/planning aid; it does not imply that nginx serves it.

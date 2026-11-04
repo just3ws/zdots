@@ -10,6 +10,22 @@ drill-down links, open the [System Atlas](system-atlas.md). Its source catalog
 is `etc/system-topology.json`; this document remains the durable ownership and
 architecture reference.
 
+## Canonical owner identity and project lineage
+
+Mike Hall's primary and original public identity is `just3ws`
+(`mike@just3ws.com`). The projects mapped here, including Phalanx Duel,
+WWWorkRemote, UGtastic / WHOIS Tech Community, CCS, and the platform tools,
+are Mike's projects under that identity. Separate repository organizations,
+product names, host families, and historical account labels describe project
+boundaries or past branding; they do not imply separate owners.
+
+UGtastic and WHOIS Tech Community are one community and oral-history project
+with historical name and branding changes. The YouTube integration currently
+uses the channel handle `@whoistechcmty`; the Patreon-era `whoistechcmty` label
+is legacy. For community development and support, Mike's current priorities
+are UGtastic / WHOIS Tech Community and Phalanx Duel. Preserve historical names
+in records and retain project-specific hosting conventions.
+
 ## Ownership
 
 | Component | Location | Responsibility | Git / lifecycle boundary |
@@ -22,7 +38,9 @@ architecture reference.
 | **dehum** | `~/github.com/just3ws/dehum` | Audio hum/crackle restoration and synchronization | Separate media tool; invoked as needed, not an always-on service |
 | **WWWorkRemote** | `~/github.com/wwworkremote/wwworkremote` | Personal job-search and synthesis app | Separate project; local Rails route is documented in the URL map |
 | **Hallway** | `~/github.com/just3ws/hallway` | Family coordination app | Separate project; not part of the always-on host service plane |
+| **UGtastic / WHOIS Tech Community** | `~/github.com/ugtastic/ugtastic.github.io`; media-pipeline YouTube targets | Community and oral-history project under historical names and branding | One project owned by Mike Hall / `just3ws`; preserve existing repository and channel identifiers |
 | **Phalanx Duel** | `~/github.com/phalanxduel/{game,game-swiftui,site,wiki,monitor}` | Game rules, browser and native clients, documentation, and monitoring experiments | Separate project family; local development runs on bare metal; Fly deployment uses its remote build path |
+| **CCS** | `~/github.com/just3ws/ccs` | Legacy product and application | Mike Hall / `just3ws` project; historical product identity and runtime are preserved |
 | **Portfolio** | `~/github.com/just3ws/just3ws.github.io` | Static personal site and generated résumé exports | Local nginx serves built output; it has no request-time app backend |
 | **Hister** | Homebrew `hister` service; data under Homebrew's `var/hister` | Local search index for selected personal and platform material | Native local service; accessed through `hister.localhost` and `hister-sync` |
 | **Bastion** | `~/github.com/just3ws/bastion` | Recovery and lifecycle tooling for the separate DietPi DNS/DHCP appliance | Separate physical system; not a service on this Mac |
