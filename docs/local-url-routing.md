@@ -36,7 +36,8 @@ changes to it must be reconciled with those owners and validated through
 | `www.just3ws.localhost`, `just3ws.localhost` | just3ws portfolio / project | static Jekyll site; bare name redirects to `www` |
 | `phalanxduel.localhost`, `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Phalanx Duel / project | static site, game client :5173, admin :3103 |
 
-Trusted-LAN names (`lan.wwworkremote.com` and Phalanx Duel `*.lan.phalanxduel.com`)
+Trusted-LAN names (`lan.wwworkremote.com`, Phalanx Duel `*.lan.phalanxduel.com`,
+and media-pipeline `media-pipeline.lan.just3ws.com`)
 are also served by nginx but are not `.localhost` hosts. They are project-owned
 and intentionally omitted from the loopback host list.
 
@@ -110,6 +111,7 @@ nginx-ctl validate        # sudo nginx -t
 | `wwworkremote.localhost`, `wwwr.localhost` | Both return 502 while the optional local Rails app is stopped | Expected for an on-demand project; start its native app when needed. Do not treat this as a zdots platform outage |
 | `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Both return 502 while local game/admin development servers are stopped | Expected for on-demand project development; production deploy is independent and uses Fly's remote build path |
 | `media-pipeline.localhost` | Endpoint probe reaches the app but reports its mkcert certificate as untrusted | Check local CA trust with `mkcert -install` if browsers reject the route; no trust-store change was made |
+| `media-pipeline.lan.just3ws.com` | LAN DNS, trusted TLS certificate, Nginx vhost, and Rails host allowlist are active; `/up` returns 200 from `10.36.1.149` | Keep the DNS record pointed at the Mac's current LAN address and confirm `/up` after host or certificate changes |
 | `my.local` | Redirects to the healthy `my.localhost` cockpit | Keep as a compatibility alias or retire it with a coordinated config/certificate update |
 | `grafana.local`, `lgtm.local` | `/etc/hosts` still maps both to 127.0.0.1, but neither has an nginx vhost; Z-134 retired the services | Remove the stale mappings via privileged host-config maintenance; Z-356 tracks this. No change made here |
 | Deployed nginx files | Each project owns its source; nginx serves copies under `/opt/homebrew/etc/nginx/servers/` | After a source change, sync/validate and reload through `zsvc reload nginx`; root lifecycle needs sudo |
