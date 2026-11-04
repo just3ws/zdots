@@ -41,6 +41,7 @@ Usage: capabilities [--json] [-h|--help]
 Environment health and service contract validator.
 Checks service providers, critical paths, observability, Knowledge Layer,
 deploy diagnostics, and tooling reality against the .zdots.env manifest.
+Reports the shared Astronomicon epoch and the independent my structure contract.
 
 Options:
   --json      Machine-readable JSON output
@@ -58,9 +59,8 @@ for _arg in "$@"; do
 done
 unset _arg
 
-# Platform version — the Astronomicon beacon (CalVer epoch). The public trio
-# (zdots/adots/vdots) shares ONE epoch across every deploy; this is zdots's
-# attestation of it. `my` is per-environment content conforming to MY_CONTRACT.
+# Platform version — six deployed surfaces share the Astronomicon epoch.
+# `my` also keeps its per-environment structure contract and separate content.
 # See backlog/decisions/decision-007 (Astronomicon platform versioning).
 PLATFORM_VERSION="$(cat "${ZDOTDIR:-$HOME/.config/zsh}/VERSION" 2>/dev/null || echo unknown)"
 # Source the my contract version from adots-my (the authority); fall back to the
@@ -69,13 +69,16 @@ PLATFORM_VERSION="$(cat "${ZDOTDIR:-$HOME/.config/zsh}/VERSION" 2>/dev/null || e
 MY_CONTRACT="$(command -v adots-my >/dev/null 2>&1 \
   && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)" || true
 MY_CONTRACT="${MY_CONTRACT:-my.structure.v1}"
+MY_PLATFORM_VERSION="$(command -v adots-my >/dev/null 2>&1 \
+  && adots-my doctor --json 2>/dev/null | sed -n 's/.*"platform_version":"\([^"]*\)".*/\1/p' | head -1)" || true
+MY_PLATFORM_VERSION="${MY_PLATFORM_VERSION:-unknown}"
 
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   echo "${BOLD}Zdots Environment Capabilities Report${RESET}"
   echo "----------------------------------------"
 
   # 1. Identity
-  echo "${CYAN}Platform:${RESET}    ${BOLD}${PLATFORM_VERSION}${RESET}  (public-trio epoch · my=${MY_CONTRACT})"
+  echo "${CYAN}Platform:${RESET}    ${BOLD}${PLATFORM_VERSION}${RESET}  (six-surface epoch · my=${MY_PLATFORM_VERSION} · contract=${MY_CONTRACT})"
   echo "${CYAN}Session ID:${RESET}  ${ZDOTS_SESSION_ID:-<unset>}"
   echo "${CYAN}Profile:${RESET}     ${ZDOTS_ENV_PROFILE:-unknown}"
   echo "${CYAN}OS:${RESET}          $(uname -s) ($(uname -m))"
@@ -402,6 +405,7 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg sid "${ZDOTS_SESSION_ID:-}" \
       --arg platform_version "$PLATFORM_VERSION" \
       --arg my_contract "$MY_CONTRACT" \
+      --arg my_platform_version "$MY_PLATFORM_VERSION" \
       --arg profile "${ZDOTS_ENV_PROFILE:-unknown}" \
       --arg os "$(uname -s)" \
       --arg arch "$(uname -m)" \
@@ -437,7 +441,9 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
         platform: {
           version: $platform_version,
           scheme: "imperial-calver",
-          my_contract: $my_contract
+          my_contract: $my_contract,
+          my_version: $my_platform_version,
+          versioned_surfaces: ["zdots", "adots", "my", "vdots", "media-pipeline", "just3ws.github.io"]
         },
         profile: $profile,
         os: $os,

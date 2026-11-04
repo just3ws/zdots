@@ -35,48 +35,52 @@ keeping with the Astronomicon. Format `CFFFYYY.M#`:
 | `YYY` | Year within the millennium |
 | `M#` | Millennium (M3 = 2001–3000) |
 
-This release: **`0452026.M3`** (2026-06-14). `bin/imperial-date` computes the stamp
+Initial release: **`0452026.M3`** (2026-06-14). `bin/imperial-date` computes the stamp
 (and decodes one, ±1 day — the fraction granularity is ~8.76h). It is plain CalVer
 underneath; the Imperial form is the character, not a different scheme.
 
-**2. The public trio shares ONE epoch per deploy.** zdots, adots, and vdots each
-carry a `VERSION` file holding the *same* stamp for a given release. Equal stamps =
-in sync; differing stamps = **deploy drift** (the miasma), surfaced — not silently
-tolerated.
+**2. Six deployed surfaces share ONE epoch per release.** zdots, adots, `my`,
+vdots, media-pipeline, and the just3ws.github.io site each carry a root `VERSION`
+file with the *same* stamp. The just3ws.com and localhost/LAN host aliases resolve
+to the same site repo. Equal stamps mean in sync; differing stamps are **deploy
+drift** (the miasma), surfaced rather than silently tolerated.
 
-**3. `my` attests to a contract, not the epoch.** `my` declares
-`my.structure.v1` (governed by `adots-my`). Both `just3ws/my` and `myworkname/my`
-conform to the *same contract version* while holding *different content*. `my` is
-never stamped with the public epoch and never carries content across the home/work
-boundary.
+**3. `my` carries both the epoch and its independent structure contract.** `my`
+declares `my.structure.v1` (governed by `adots-my`) and carries the same
+Astronomicon `VERSION` as the other deployed surfaces. Both `just3ws/my` and
+`myworkname/my` conform to the same contract and epoch while holding different
+content. The shared epoch is release metadata only; it never carries content
+across the home/work boundary.
 
-**4. The beacon is reported as ground truth.** `capabilities` emits
-`platform.version` (text + JSON). `zdots-doctor` has a *Platform version
-(Astronomicon)* section that reads zdots's beacon and compares the public peers'
-`VERSION` when present (absence = "rollout pending", forward-compatible), and
-reports the `my` contract. Reading the Astronomicon is one command.
+**4. The beacon is reported as ground truth.** `capabilities` and `agent-guide`
+emit `platform.version` (text + JSON), the `my` epoch, and the structure
+contract. `zdots-doctor` compares all six `VERSION` markers (absence = "rollout
+pending", forward-compatible) and reports drift. SwiftBar displays the zdots
+epoch and links to the drift check.
 
-**5. Stamping a release.** Cut a release by writing the current Imperial date into
-each public repo's `VERSION` (`imperial-date > VERSION`), committing, and updating
-`CHANGELOG.md`. Tags may mirror the stamp.
+**5. Stamping a release.** Calculate the Imperial date once with `imperial-date`,
+write that exact value to each of the six root `VERSION` files, commit each
+repository's scoped change, and push. Use `adots-git` for the home-directory repo.
+Update `CHANGELOG.md` where maintained and run `make changelog` in zdots. Tags
+may mirror the stamp.
 
 ## Consequences
 
 Positive: a deploy onto the work machine has a single verifiable reference point —
-`zdots-doctor` answers "are the public systems aligned?" before work begins; the
-home/work `my` separation is encoded as policy, not memory; `capabilities` makes
-the platform version legible to humans and agents in one turn.
+`zdots-doctor` answers "are the system surfaces aligned?" before work begins; the
+home/work `my` separation remains encoded as policy, not memory; `capabilities`,
+`agent-guide`, and SwiftBar make the platform version legible in normal workflows.
 
-Negative: stamping is a manual release ritual across three repos (mitigated by
+Negative: stamping is a manual release ritual across six repos (mitigated by
 `imperial-date` + the doctor sync check catching drift); the Imperial form is
 opaque without the key (mitigated by the decode mode and the Gregorian annotation
 in `capabilities`/`doctor`); the year-fraction is ~8.76h-granular, so same-day
 re-cuts share a stamp (acceptable for an epoch).
 
-Rollout: **zdots core landed this session** (VERSION beacon, `bin/imperial-date`,
-`capabilities`, `zdots-doctor` sync check, this record, CHANGELOG). adots/vdots
-`VERSION` files and the `my.structure` contract version are the coordinated next
-step, run when deploying.
+Current beacon update (2026-11-04): **`0843026.M3`** is aligned across zdots,
+adots, my, vdots, media-pipeline, and just3ws.github.io. The my structure
+contract remains `my.structure.v1`. SwiftBar displays the zdots beacon. Earlier
+rollout history remains in Git.
 
 Related: project_my_system (home/work split), project_work_machine_deploy,
 the capabilities/agent contract. "The Emperor Protects."

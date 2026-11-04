@@ -119,39 +119,40 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Platform version — the Astronomicon beacon. The public trio (zdots/adots/vdots)
-# must share ONE Imperial-CalVer epoch across a deploy; drift is the miasma.
-# `my` is per-environment content conforming to a contract, not a shared stamp.
+# Platform version — all six versioned surfaces share one Astronomicon epoch.
+# `my` retains its independent structure contract and content boundary.
 # See backlog/decisions/decision-007.
 # ---------------------------------------------------------------------------
 _section "Platform version (Astronomicon)"
+
+_check_beacon_file() {
+  local label="$1" path="$2" version
+  if [[ -r "$path" ]]; then
+    version="$(tr -d '[:space:]' < "$path")"
+    [[ "$version" == "$_beacon" ]] && _pass "${label}  ${version}  (in sync)" \
+      || _warn "${label}  ${version} ≠ beacon ${_beacon} — deploy drift"
+  else
+    _warn "${label}  no VERSION at ${path} — rollout pending"
+  fi
+}
 
 _zdots_ver_file="${ZDOTDIR:-$HOME/.config/zsh}/VERSION"
 if [[ -r "$_zdots_ver_file" ]]; then
   _beacon="$(tr -d '[:space:]' < "$_zdots_ver_file")"
   _pass "zdots  ${_beacon}  (the beacon)"
 
-  # Compare the public peers when their VERSION is present; absence is "not yet
-  # versioned" (forward-compatible during rollout), not a failure.
-  _vdots_ver_file="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/VERSION"
-  if [[ -r "$_vdots_ver_file" ]]; then
-    _v="$(tr -d '[:space:]' < "$_vdots_ver_file")"
-    [[ "$_v" == "$_beacon" ]] && _pass "vdots  ${_v}  (in sync)" \
-      || _warn "vdots  ${_v} ≠ beacon ${_beacon} — deploy drift"
-  else
-    _warn "vdots  not yet versioned (no ~/.config/nvim/VERSION) — rollout pending"
-  fi
+  _check_beacon_file "vdots" "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/VERSION"
+  _check_beacon_file "my" "$HOME/my/VERSION"
+  _check_beacon_file "media-pipeline" "${MEDIA_PIPELINE_ROOT:-$HOME/github.com/just3ws/media-pipeline}/VERSION"
+  _check_beacon_file "just3ws site" "${JUST3WS_SITE_ROOT:-$HOME/github.com/just3ws/just3ws.github.io}/VERSION"
 
-  # || true: adots isn't versioned yet (rollout pending), so `show HEAD:VERSION`
-  # exits 128. Without this, set -euo pipefail aborts the whole doctor here — long
-  # before the Services/Observability sections. Empty result flows to the graceful
-  # "not yet versioned" branch below, which is the documented intent.
-  _adots_ver="$(/usr/bin/git --git-dir="$HOME/.homegit" --work-tree="$HOME" show HEAD:VERSION 2>/dev/null | tr -d '[:space:]')" || true
+  # Read the committed home-directory marker through the adots wrapper.
+  _adots_ver="$(adots-git show HEAD:VERSION 2>/dev/null | tr -d '[:space:]')" || true
   if [[ -n "$_adots_ver" ]]; then
     [[ "$_adots_ver" == "$_beacon" ]] && _pass "adots  ${_adots_ver}  (in sync)" \
       || _warn "adots  ${_adots_ver} ≠ beacon ${_beacon} — deploy drift"
   else
-    _warn "adots  not yet versioned (no tracked VERSION) — rollout pending"
+    _warn "adots  no committed VERSION — rollout pending"
   fi
 
   # Contract version sourced from adots-my (the authority); literal fallback when
@@ -162,7 +163,7 @@ if [[ -r "$_zdots_ver_file" ]]; then
   _my_contract="$(command -v adots-my >/dev/null 2>&1 \
     && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)" || true
   _my_contract="${_my_contract:-my.structure.v1}"
-  _pass "my  contract ${_my_contract} (per-environment content: just3ws/my @home · myworkname/my @work)"
+  _pass "my  contract ${_my_contract} (per-environment content remains separate)"
 else
   _warn "zdots  no VERSION beacon at ${_zdots_ver_file}"
   _fix  "imperial-date > ${_zdots_ver_file}"

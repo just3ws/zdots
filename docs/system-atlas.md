@@ -65,10 +65,14 @@ Configured routes and current process/health observations remain separate.
 ## Reading live state
 
 `/map.json` is a small, read-only snapshot derived from `zsvc list`,
-`zdots-ctl status --json`, and two application `/up` routes. The page refreshes
-it every 30 seconds. It includes only a timestamp, summary counts, coarse
-process state, and boolean application health. It omits PIDs, logs, disk
-paths, command output, backlog content, and diagnostic details.
+`zdots-ctl status --json`, application `/up` routes, and the six root `VERSION`
+markers. The page refreshes it every 30 seconds. It includes a timestamp,
+summary counts, coarse process state, boolean application health, and the
+Astronomicon epoch for each versioned surface. The Atlas header highlights
+missing or drifting markers, and versioned application nodes repeat their epoch
+in the node card and detail panel. SwiftBar consumes the zdots marker; `my`
+retains its separate `my.structure.v1` contract. The snapshot omits PIDs, logs,
+disk paths, command output, backlog content, and diagnostic details.
 
 The map separates three ideas:
 

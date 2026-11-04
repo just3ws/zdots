@@ -1,10 +1,11 @@
 # Changelog
 
 Platform versioning follows the **Astronomicon** scheme (decision-007): an
-Imperial-CalVer epoch `CFFFYYY.M#` — e.g. `0452026.M3` (2026-06-14) — shared by the
-public trio (zdots / adots / vdots). Compute a stamp with `imperial-date`; read the
-live beacon with `capabilities` or `zdots-doctor`. `my` is per-environment and
-versioned by contract (`my.structure.vN`), not by this epoch.
+Imperial-CalVer epoch `CFFFYYY.M#` — e.g. `0452026.M3` (2026-06-14) — shared by
+zdots, adots, my, vdots, media-pipeline, and just3ws.github.io. Compute a stamp
+with `imperial-date`; read the beacon and drift report with `zdots-doctor`.
+`my` also retains its independent `my.structure.vN` contract and per-environment
+content.
 
 ## [unreleased]
 
@@ -37,6 +38,9 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(storage)* Expose platform bucket inventory
 - *(ingest)* Retain playlist guidance
 - *(panoramic)* Carry run correlation through ingest
+- *(atlas)* Add LAN system map
+- *(atlas)* Map hostname routes and ports
+- *(theme)* Self-host craftsmanship font
 
 ### 🐛 Bug Fixes
 
@@ -59,6 +63,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(ingest)* Scope term corrections
 - *(ingest)* Detect incomplete child bundle
 - *(worker)* Reject stray arguments
+- *(panoramic)* Preserve run context
 
 ### 💼 Other
 
@@ -117,6 +122,10 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(release)* Refresh changelog after beacon
 - *(platform)* Record aligned runtime baseline
 - *(storage)* Refresh reserve snapshot
+- *(panoramic)* Record authenticated activation
+- *(media-pipeline)* Triage stale failed jobs
+- *(network)* Record media pipeline LAN route
+- *(theme)* Map generated dashboard tokens
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -155,6 +164,7 @@ versioned by contract (`my.structure.vN`), not by this epoch.
 - *(homebrew)* Trim personal Kubernetes tools
 - Keep GitHub gate lightweight
 - *(release)* Align beacon to 0835026.M3
+- *(release)* Align Astronomicon 0838026.M3
 ## [0668026.M3] - 2026-09-01
 
 ### 🚀 Features

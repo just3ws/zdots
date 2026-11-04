@@ -18,9 +18,11 @@ Zdots is a modular, high-performance Zsh configuration ("Observable Control Plan
   state is archived on /Volumes/Dock_1TB with provenance. Historical co-author
   attribution rewrite is deferred per operator; do not rewrite Git history now.
 
-  Astronomicon epoch 0838026.M3 is stamped across zdots/adots/vdots for the
-  2026-11-02 release. `my` remains contract-versioned. Runtime baseline and
-  project-specific exceptions are in docs/platform-map.md.
+  Astronomicon epoch 0843026.M3 is stamped across six versioned surfaces:
+  zdots, adots, my, vdots, media-pipeline, and just3ws.github.io. `my` also
+  retains its `my.structure.v1` contract and separate per-environment content.
+  SwiftBar consumes the zdots beacon; just3ws host aliases share one site repo.
+  Runtime baseline and project-specific exceptions are in docs/platform-map.md.
 
   Identity follow-up: portfolio alias and obsolete employer-policy cleanup are
   pushed at a5504d1a; Phalanx game alias map is pushed at 24ca26fb. Portfolio

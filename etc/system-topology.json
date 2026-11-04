@@ -119,6 +119,8 @@
     },
     {
       "id": "zdots",
+      "version_key": "zdots",
+      "version_note": "SwiftBar consumes this shared epoch",
       "label": "zdots console",
       "kind": "app",
       "area": "Applications",
@@ -148,6 +150,7 @@
     },
     {
       "id": "context",
+      "version_key": "my",
       "label": "Context Engine",
       "kind": "app",
       "area": "Applications",
@@ -185,6 +188,7 @@
     },
     {
       "id": "media",
+      "version_key": "media-pipeline",
       "label": "media-pipeline",
       "kind": "app",
       "area": "Applications",
@@ -235,6 +239,7 @@
     },
     {
       "id": "portfolio",
+      "version_key": "just3ws.github.io",
       "label": "Portfolio site",
       "kind": "app",
       "area": "Applications",

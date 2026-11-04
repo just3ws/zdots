@@ -2,7 +2,7 @@
 # ---
 # id: imperial-date
 # title: "Imperial Dating System — the Astronomicon calendar"
-# purpose: Convert a Gregorian date to the Imperium of Mankind's Imperial date, the in-character beacon for platform versioning.
+# purpose: Convert Gregorian dates to the shared Astronomicon epoch used by platform repositories and published surfaces.
 # ---
 # bin/imperial-date — emit a date in the Imperial Dating System (Warhammer 40k).
 #
@@ -12,8 +12,9 @@
 #   YYY  — Year within the millennium (000-999)
 #   M#   — Millennium (M3 = years 2001-3000)
 #
-# This is the platform Astronomicon beacon: the public trio (zdots/adots/vdots)
-# shares ONE stamp per release across every deploy; drift = mismatched stamps.
+# The Astronomicon beacon is shared by zdots, adots, my, vdots, media-pipeline,
+# and the just3ws public site. The doctor checks for drift; my keeps its separate
+# structure contract and content boundary.
 # See backlog/decisions/decision-007.
 
 set -eu

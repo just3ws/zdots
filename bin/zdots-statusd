@@ -88,23 +88,53 @@ rescue StandardError
   { "nodes" => [], "links" => [] }
 end
 
+def platform_versions
+  config_home = ENV.fetch("XDG_CONFIG_HOME", File.join(Dir.home, ".config"))
+  paths = {
+    "zdots" => File.join(ZDOTS, "VERSION"),
+    "adots" => File.join(Dir.home, "VERSION"),
+    "my" => File.join(Dir.home, "my", "VERSION"),
+    "vdots" => File.join(config_home, "nvim", "VERSION"),
+    "media-pipeline" => File.join(ENV.fetch("MEDIA_PIPELINE_ROOT", File.join(Dir.home, "github.com", "just3ws", "media-pipeline")), "VERSION"),
+    "just3ws.github.io" => File.join(ENV.fetch("JUST3WS_SITE_ROOT", File.join(Dir.home, "github.com", "just3ws", "just3ws.github.io")), "VERSION")
+  }
+  paths.to_h do |name, path|
+    version = File.read(path).strip
+    [name, version]
+  rescue StandardError
+    [name, nil]
+  end
+end
+
+def topology_with_versions
+  atlas = topology
+  versions = platform_versions
+  atlas["platform_versions"] = versions
+  atlas.fetch("nodes", []).each do |node|
+    key = node["version_key"]
+    node["version"] = versions[key] if key
+  end
+  atlas
+end
+
 def topology_snapshot
+  atlas = topology_with_versions
   rows = services
   state_by_key = rows.to_h do |row|
     [row[:name].to_s.downcase.gsub(/[^a-z0-9]+/, "-"), row[:state]]
   end
   platform = ctl_status
-  nodes = topology.fetch("nodes", []).map do |node|
+  nodes = atlas.fetch("nodes", []).map do |node|
     key = node["service_key"]
     state = key && state_by_key[key]
     health = node.key?("health_key") ? platform[node["health_key"]] : nil
     health = http_healthy?(node["health_url"]) if node["health_url"]
-    { id: node["id"], state: state || (key ? "unobserved" : "catalogued"), health: health }
+    { id: node["id"], state: state || (key ? "unobserved" : "catalogued"), health: health, version: node["version"] }
   end
   running = nodes.count { |node| node[:state] == "running" }
   checked = nodes.count { |node| !node[:health].nil? }
   unhealthy = nodes.count { |node| node[:health] == false }
-  { checked_at: Time.now.utc.iso8601, summary: { running: running, checked: checked, unhealthy: unhealthy }, nodes: nodes }
+  { checked_at: Time.now.utc.iso8601, platform_versions: atlas["platform_versions"], summary: { running: running, checked: checked, unhealthy: unhealthy }, nodes: nodes }
 end
 
 def http_healthy?(url)
@@ -122,7 +152,18 @@ def topology_json
 end
 
 def topology_page
-  atlas = topology
+  atlas = topology_with_versions
+  versions = atlas.fetch("platform_versions", {})
+  beacon = versions["zdots"]
+  version_cards = [
+    ["zdots", "zdots"], ["adots", "adots"], ["my", "my"], ["vdots", "vdots"],
+    ["media-pipeline", "media-pipeline"], ["just3ws.github.io", "just3ws site"]
+  ].map do |key, label|
+    version = versions[key]
+    state = version.nil? ? "missing" : version == beacon ? "aligned" : "drift"
+    %(<div class="version-card #{state}"><b>#{h(label)}</b><span>#{h(version || "no VERSION")}</span></div>)
+  end.join
+
   graph_nodes = atlas.fetch("nodes", []).map do |node|
     monitored = node["service_key"] || node["health_key"] || node["health_url"]
     status = if monitored
@@ -130,10 +171,11 @@ def topology_page
              else
                ""
              end
+    version = node["version"] ? %(<small class="node-version">#{h(node["version"])}</small>) : ""
     <<~NODE.strip
       <button class="node #{h(node['kind'])}" data-node="#{h(node['id'])}"
         style="--x:#{node['x']};--y:#{node['y']}" type="button">
-        <b>#{h(node['label'])}</b><small>#{h(node['port'])}</small>#{status}
+        <b>#{h(node['label'])}</b><small>#{h(node['port'])}</small>#{version}#{status}
       </button>
     NODE
   end.join
@@ -170,6 +212,14 @@ def topology_page
         .map-head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
         .map-head h1 { font-size: 1.6rem; }
         .map-head p { max-width: 48rem; }
+        .version-ribbon { display: flex; flex-direction: column; gap: .5rem; margin: 0 0 1rem; }
+        .version-ribbon h2 { margin: 0; border: 0; padding: 0; color: var(--text); font-size: .78rem; }
+        .version-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .5rem; }
+        .version-card { display: flex; flex-direction: column; gap: .2rem; min-width: 0; padding: .5rem .65rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+        .version-card b { font-size: .7rem; color: var(--text-dim); }
+        .version-card span { font: .73rem var(--mono); overflow-wrap: anywhere; }
+        .version-card.aligned { border-color: rgba(5,150,105,.35); }
+        .version-card.drift, .version-card.missing { border-color: rgba(180,83,9,.55); }
         .map-shell { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); gap: 1rem; align-items: start; }
         .map-canvas { position: relative; height: calc(100vh - 17rem); min-height: 40rem; max-height: 70rem; overflow: auto; background: radial-gradient(ellipse at center, rgba(15,118,110,.07), transparent 70%), var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; }
         .map-stage { position: relative; min-width: 1000px; height: 100%; min-height: 38rem; }
@@ -182,6 +232,7 @@ def topology_page
         .node:hover, .node:focus-visible, .node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(91,141,238,.18); }
         .node.edge { border-top: 3px solid var(--accent); } .node.route { border-top: 3px solid var(--yellow); } .node.app { border-top: 3px solid var(--accent); } .node.core { border-top: 3px solid var(--green); } .node.data { border-top: 3px solid var(--yellow); } .node.telemetry { border-top: 3px solid #957fb8; }
         .node small, .node .state { display: block; color: var(--text-dim); font: .7rem var(--mono); margin-top: .2rem; }
+        .node .node-version { color: var(--accent); font-size: .62rem; }
         .node .state[data-state="running"], .node .state[data-state="healthy"] { color: var(--green); }
         .node .state[data-state="stopped"] { color: var(--yellow); }
         .node .state[data-state="unobserved"], .node .state[data-state="catalogued"] { color: var(--text-dim); }
@@ -212,6 +263,12 @@ def topology_page
           </div>
           <div class="sub"><span id="map-summary">Checking service state…</span><br>Observed <time id="checked-at">—</time></div>
         </header>
+
+        <section class="version-ribbon" aria-label="Astronomicon version status">
+          <h2>Astronomicon · #{h(beacon || "beacon missing")} <span class="dim">· all six release markers</span></h2>
+          <div class="version-cards">#{version_cards}</div>
+          <p class="sub">SwiftBar reads the zdots epoch; my keeps the separate my.structure.v1 content contract.</p>
+        </section>
 
         <nav class="system-links" aria-label="System views">
           <a data-local-only href="https://zdots.localhost/">zdots control plane · this Mac</a>
@@ -293,6 +350,9 @@ def topology_page
                 return `<span><button type="button" data-select="${other.id}">${other.label}</button><small>${link.label}</small></span>`;
               }).join("");
               const observed = snapshot.nodes.find((item) => item.id === id) || {};
+              const versionDetail = node.version ? `<dt>Platform version</dt><dd>${node.version}</dd>` : "";
+              const versionNote = node.version_note ? `<p class="sub">${node.version_note}</p>` : "";
+              const contractDetail = node.version_key === "my" ? `<dt>Structure contract</dt><dd>my.structure.v1</dd>` : "";
               const route = lanView ? node.lan_href : node.href;
               const open = route
                 ? `<a href="${route}" rel="noreferrer">${route}</a>`
@@ -309,8 +369,9 @@ def topology_page
                 : observed.health === false ? "unhealthy" : "not checked";
 
               detail.innerHTML = `
-                <h2>${node.label}</h2><p class="sub">${node.description}</p>
+                <h2>${node.label}</h2><p class="sub">${node.description}</p>${versionNote}
                 <dl>
+                  ${versionDetail}${contractDetail}
                   <dt>Area</dt><dd>${node.area}</dd>
                   <dt>Owner</dt><dd>${node.owner}</dd>
                   <dt>Process / port</dt><dd>${node.process || "—"} · ${node.port || "—"}</dd>

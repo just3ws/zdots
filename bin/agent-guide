@@ -47,14 +47,16 @@ LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
 AGENT_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 LOG_ANALYZER="${AGENT_ZDOTDIR}/bin/zdots-log-analyze"
 
-# Platform version — the Astronomicon beacon (decision-007). Agents read this to
-# confirm which epoch they are operating in. my is per-environment by contract.
+# Platform version — shared Astronomicon epoch; my also retains its structure contract.
 PLATFORM_VERSION="$(cat "${AGENT_ZDOTDIR}/VERSION" 2>/dev/null || echo unknown)"
 # Source the my contract version from adots-my (the authority); literal fallback
 # when adots-my is absent. JSON is emitted even on doctor failures.
 MY_CONTRACT="$(command -v adots-my >/dev/null 2>&1 \
   && adots-my doctor --json 2>/dev/null | sed -n 's/.*"contract_version":"\([^"]*\)".*/\1/p' | head -1)" || true
 MY_CONTRACT="${MY_CONTRACT:-my.structure.v1}"
+MY_PLATFORM_VERSION="$(command -v adots-my >/dev/null 2>&1 \
+  && adots-my doctor --json 2>/dev/null | sed -n 's/.*"platform_version":"\([^"]*\)".*/\1/p' | head -1)" || true
+MY_PLATFORM_VERSION="${MY_PLATFORM_VERSION:-unknown}"
 
 AI_UP=false
 AI_MODEL_ID="unknown"
@@ -132,6 +134,7 @@ if $JSON; then
   jq -n \
     --arg     platform_version "$PLATFORM_VERSION" \
     --arg     my_contract      "$MY_CONTRACT" \
+    --arg     my_platform_version "$MY_PLATFORM_VERSION" \
     --argjson ai_up        "$AI_UP" \
     --arg     ai_ep        "$AI_ENDPOINT" \
     --arg     ai_model     "$AI_MODEL_ID" \
@@ -151,7 +154,9 @@ if $JSON; then
       platform: {
         version:     $platform_version,
         scheme:      "imperial-calver",
-        my_contract: $my_contract
+        my_contract: $my_contract,
+        my_version:  $my_platform_version,
+        versioned_surfaces: ["zdots", "adots", "my", "vdots", "media-pipeline", "just3ws.github.io"]
       },
       services: {
         llama_cpp:   { up: $ai_up,      endpoint: $ai_ep,     model: $ai_model, start: "llama-ctl start" },
@@ -282,7 +287,7 @@ _head() { printf '\n'; _bold "$*"; printf '\n'; printf '%*s\n' "${#*}" '' | tr '
 # Human-readable output
 # ---------------------------------------------------------------------------
 _bold "=== Zdots Agent Guide ==="
-printf '\nPlatform: %s  (public-trio epoch · my=%s)\n' "$PLATFORM_VERSION" "$MY_CONTRACT"
+printf '\nPlatform: %s  (six-surface epoch · my=%s / %s)\n' "$PLATFORM_VERSION" "$MY_PLATFORM_VERSION" "$MY_CONTRACT"
 printf 'This machine is the central hub for AI inference and OTel observability.\n'
 printf 'For machine-readable output: agent-guide --json\n'
 

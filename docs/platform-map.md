@@ -242,10 +242,10 @@ platform on 3.14 until that stack is verified there.
 | Project | Recommended versions | Current action / boundary |
 |---|---|---|
 | zdots | Ruby 4.0.9, Node 26.13.0, Python 3.14.10 | Already aligned |
-| adots | No runtime pin | Dotfile repository; only share the Astronomicon epoch |
+| adots | No runtime pin | Dotfile repository; shares the six-surface Astronomicon epoch |
 | vdots | Ruby 4.0.9, Lua 5.1.5, latest Neovim | Replace floating Ruby `latest` with the tested platform pin |
-| my / Context Engine | Ruby 4.0.9, Node 26.13.0 | Already aligned; `my` also requires Node >=22.19 |
-| media-pipeline | Ruby 4.0.9 | Already aligned; keep its local whisper.cpp workflow healthy |
+| my / Context Engine | Ruby 4.0.9, Node 26.13.0 | Shares the Astronomicon epoch and `my.structure.v1`; also requires Node >=22.19 |
+| media-pipeline | Ruby 4.0.9 | Shares the Astronomicon epoch; keep its local whisper.cpp workflow healthy |
 | hallway, wworkremote, portfolio, Phalanx site | Ruby 4.0.9; Node 26.13.0 where pinned | Already aligned |
 | Phalanx game | Ruby 4.0.9, Node 24.22.2, Python 3.14.10, Bun 1.3.10 | Node is capped at <=25 by package engines; stay on latest Node 24 until that contract is tested and raised |
 | UGLST GeoSrv | Ruby 4.0.9, Node 26.13.0 | Runtime and Puma/Rack compatibility validated; preserve the rest of its ongoing application changes |
