@@ -63,6 +63,7 @@ The zdots-specific stack. Every agent session should orient here first.
 | Ruby repo cloner | `zdots-ruby-clone <url>` | Organize repos into `~/github.com/org/repo` structure |
 | Ruby batch audit | `ruby-audit-batch` | Batch clone and audit a predefined set of repositories |
 | GitHub insights | `zdots-gh run/insights/status <owner>` | Harvest GitHub → DuckDB; DORA/DevEx + forensic process reports into the brain ([docs](zdots-gh.md)) |
+| GitHub public metadata | `gh api user`, `gh repo view/edit` | Review and update profile bio and repository descriptions without handling tokens directly ([runbook](github-public-metadata.md)) |
 | Startup benchmark | `bench` | Measure cold/warm shell startup latency; guards 350ms budget |
 | Morning ritual | `zmorning` | Daily context brief + optional Pi orientation session |
 | Task picker | `zdash` | fzf task picker wired to Pi↔Aider↔ztask cycle |

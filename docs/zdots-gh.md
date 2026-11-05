@@ -31,6 +31,10 @@ See `man zdots-gh` for the full interface, or `zdots-gh --help`.
 
 Reusable agent workflow: `.agents/skills/github-kb-analysis/SKILL.md`.
 
+For reviewing or updating public profile biographies and repository descriptions,
+use the separate [GitHub public metadata runbook](github-public-metadata.md).
+`zdots-gh` remains focused on read-only delivery and process analysis.
+
 ---
 
 ## Pipeline
@@ -59,8 +63,11 @@ For a first pass on a moderate org, bound the harvest before widening scope:
 
 ```bash
 export ZDOTS_GH_REPO_LIMIT=25
-GH_TOKEN=$(gh auth token) zdots-gh run <owner> --html
+zdots-gh run <owner> --html
 ```
+
+The GitHub CLI uses its configured authentication. Do not extract a token into
+an environment variable for this workflow.
 
 `ZDOTS_GH_REPO_LIMIT` limits repository count only. It does not limit PR/issue
 pagination depth within each repository, so a high-history first repo can still
