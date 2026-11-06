@@ -25,6 +25,9 @@ git clone <your-remote> ~/.config/zsh
 
 ## Before running bootstrap on a work machine
 
+Review the four-repository split and remaining onboarding gates in
+[Work and personal setup](docs/work-profile.md) first.
+
 **Do these steps before `bootstrap` — not after.** Bootstrap reads `.zdots.local` at runtime; if the file isn't present before it runs, PHI warnings are skipped and `ZDOTS_CONTEXT` defaults to `home`.
 
 ```bash
@@ -46,7 +49,7 @@ GIT_AUTHOR_EMAIL=firstname.lastname@company.com
 GIT_COMMITTER_EMAIL=firstname.lastname@company.com
 ```
 
-> **adots warning:** bootstrap clones and restores `adots` (home dotfiles) to `$HOME`. On a corporate Mac, any IT-managed files at `~/.gitconfig`, `~/.bashrc`, etc. will be overwritten by the adots restore step. Back them up first or skip adots restore if your employer manages those files.
+> **adots warning:** bootstrap clones and restores `adots` (home dotfiles) to `$HOME`. On a corporate Mac, tracked IT-managed files can be overwritten by the adots restore step. Bootstrap currently has no skip-restore option or automatic backup. Review the exact tracked paths and create a recoverable backup before running it; defer bootstrap if those files must remain IT-managed.
 
 ## Bootstrap (automated)
 

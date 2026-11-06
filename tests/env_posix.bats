@@ -64,6 +64,35 @@ setup() {
   [ "$val" == "$BATS_TEST_TMPDIR/brew-work/Brewfile.work" ]
 }
 
+@test "env.sh: Work posture overrides unsafe machine-local settings" {
+  local fixture="$BATS_TEST_TMPDIR/work-posture"
+  mkdir -p "$fixture"
+  cp "$ZDOTDIR/.zdots.work" "$fixture/.zdots.work"
+  cat > "$fixture/.zdots.local" <<'EOF'
+ZDOTS_CONTEXT=work
+ZDOTS_CAPTURE_ENABLED=1
+ZDOTS_CMD_ANALYTICS=1
+ZDOTS_HISTORY_REDACT=0
+ZDOTS_AI_MODE=cloud
+EOF
+
+  # No baseline, secrets, Keychain library, or providers in this fresh fixture.
+  run bash -c '
+    export ZDOTDIR="$1"
+    . "$2/env.sh"
+    printf "%s %s %s %s %s\n" "$ZDOTS_CONTEXT" "$ZDOTS_CAPTURE_ENABLED" \
+      "$ZDOTS_CMD_ANALYTICS" "$ZDOTS_HISTORY_REDACT" "$ZDOTS_AI_MODE"
+  ' _ "$fixture" "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]}-1]}" == "work 0 0 1 local" ]
+}
+
+@test "work profile: preserves explicitly disabled AI" {
+  run bash -c 'ZDOTS_AI_MODE=none; . "$1/.zdots.work"; printf "%s\n" "$ZDOTS_AI_MODE"' _ "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "$output" == "none" ]
+}
+
 @test "env.sh: Replaces stale naked Brewfile setting" {
   run bash -c "repo=$ZDOTDIR; tmp=\$BATS_TEST_TMPDIR/brew-stale; mkdir -p \"\$tmp\"; cp \"\$repo/.zdots.env\" \"\$tmp/.zdots.env\"; cp \"\$repo/.zdots.work\" \"\$tmp/.zdots.work\"; printf 'ZDOTS_CONTEXT=work\n' > \"\$tmp/.zdots.local\"; export ZDOTDIR=\"\$tmp\"; export HOMEBREW_BUNDLE_FILE=\"\$tmp/Brewfile\"; . \"\$repo/env.sh\" && echo \$HOMEBREW_BUNDLE_FILE"
   echo "Output: $output"
