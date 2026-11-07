@@ -17,6 +17,7 @@ alias -g J='| jq'
 hash -d desk="$HOME/Desktop"
 hash -d xdots="$HOME/.config"
 hash -d zdots="$ZDOTDIR"
+hash -d my="$HOME/my"
 hash -d projects="$HOME/projects"
 
 # Directory Aliases (Zsh-friendly)
@@ -24,6 +25,7 @@ alias projects='nocorrect ~projects'
 alias desk='nocorrect ~desk'
 alias xdots='nocorrect ~xdots'
 alias zdots='nocorrect ~zdots'
+alias my='nocorrect ~my'
 
 # Modern DSL Patterns (Zsh-specific fpath)
 alias fpath='echo $fpath | tr " " "\n"'
