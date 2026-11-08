@@ -3,6 +3,8 @@
 This is the authoritative guide for standing up zdots on a new macOS machine.
 All steps are idempotent — safe to re-run.
 
+> **AI Agent Orchestration:** For a deterministic, end-to-end playbook designed for an AI agent to execute setup across zdots, adots, vdots, and my while preserving structural parity and work/home isolation, see the [Bootstrap Playbook](docs/bootstrap-playbook.md).
+
 ## Prerequisites
 
 1. **Xcode Command Line Tools**

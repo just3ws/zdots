@@ -18,6 +18,9 @@ work-extension repository at `${ZDOTS_WORK_EXT:-~/.config/zdots-work}`. It has
 its own history and remote; it is never a platform submodule. Do not reuse a
 previous employer's extension or copy its runtime state to the new role.
 
+For an end-to-end, deterministic AI agent orchestration runbook that executes this setup
+sequence and verifies cross-repo parity, see the [Bootstrap Playbook](bootstrap-playbook.md).
+
 ## Set up the company baseline first
 
 Start with the issued Mac as provided. Complete company enrollment, security
