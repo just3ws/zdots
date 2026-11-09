@@ -1,0 +1,262 @@
+# frozen_string_literal: true
+
+flow_id: ztranscribe.v1
+workflow_id: media-transcription
+contract_version: 1
+name: BPMN 2.0 ztranscribe Audio Transcription & Knowledge Distillation Workflow
+description: >-
+  Sovereign, Apple Metal GPU-accelerated local transcription and knowledge distillation pipeline.
+  Supports dual entry points: fast synchronous WAV slice execution (Path A) and full multi-stage
+  canonical LLM and pgvector knowledge ingestion (Path B).
+
+stages:
+  - id: ingress
+    label: "1. Audio Ingress & Routing"
+  - id: inference
+    label: "2. Apple Metal GPU Whisper STT"
+  - id: lexical
+    label: "3. Lexical & Boundary Cleansing"
+  - id: distillation
+    label: "4. Knowledge Distillation & Vector Indexing"
+
+nodes:
+  - id: start_fast_wav
+    kind: startEvent
+    name: "Path A: 16kHz WAV Ingress (Media Pipeline Lane 2)"
+    stage: ingress
+    checkpoint_ids: [transcription.fast_ingress]
+    description: Pre-extracted ephemeral 16kHz mono WAV from Media Pipeline Lane 2 audio_extract
+    service_task: MediaEnrichmentSteps#transcribe_audio
+    sli: Immediate file hand-off < 10ms
+    runbook: Verify WAV file exists on local NVMe scratch disk
+
+  - id: start_canonical_url
+    kind: startEvent
+    name: "Path B: YouTube URL Ingress (Media Pipeline Lane 4)"
+    stage: ingress
+    checkpoint_ids: [transcription.canonical_ingress]
+    description: Published YouTube video URL dispatched by Media Pipeline Lane 4 canonical_transcription
+    service_task: CanonicalTranscriptionEnqueueService
+    sli: Enqueued to zdots background worker with journey tokens
+    runbook: Check zdots worker queue via zdots-ingest-media
+
+  - id: input_routing_gate
+    kind: gateway
+    name: Input format routing?
+    stage: ingress
+    checkpoint_ids: [transcription.input_routing]
+    description: Routes pre-extracted WAV directly to Whisper GPU, or YouTube URL to full context priming
+    service_task: ztranscribe input dispatcher
+    sli: Evaluation latency < 1ms
+    runbook: Inspect CLI arguments for --from-wav flag
+
+  - id: input_error
+    kind: endEvent
+    name: Invalid input offramp
+    stage: ingress
+    checkpoint_ids: [transcription.input_error]
+    description: Unrecognized audio format, empty WAV file, or missing YouTube URL
+    service_task: ztranscribe error handler
+    sli: Terminated with explicit error code
+    runbook: Validate source file presence and ffmpeg compatibility
+
+  - id: primed
+    kind: task
+    name: Context priming via local LLM
+    stage: ingress
+    checkpoint_ids: [canonical_transcription.primed]
+    description: Filters title and description using local LLM to generate whisper initial-prompt vocabulary
+    service_task: Zdots::Jobs::IngestMedia#run_primed
+    sli: Primer generation < 2.0s
+    runbook: Check llama-server responsiveness on port 8080
+
+  - id: raw
+    kind: task
+    name: Apple Metal GPU Whisper STT (Shared Convergence)
+    stage: inference
+    checkpoint_ids: [canonical_transcription.raw]
+    description: High-accuracy transcription using whisper.cpp Metal GPU inference producing TXT, VTT, and JSON sidecars
+    service_task: whisper-cli / ggml-large-v3
+    sli: Real-time factor < 0.15 on Apple Silicon
+    runbook: Run ~/.config/zsh/bin/whisper-ctl model-list
+
+  - id: transcription_confidence_gate
+    kind: gateway
+    name: Transcription verified and confident?
+    stage: inference
+    checkpoint_ids: [transcription.confidence_gate]
+    description: Verifies non-empty VTT/TXT output and checks whether executing Path A (Fast STT) or Path B (Canonical)
+    service_task: ztranscribe output validator
+    sli: Zero-empty transcript assertions
+    runbook: Inspect output directory sidecars
+
+  - id: exit_fast_stt
+    kind: endEvent
+    name: Fast STT complete (Return to Media Pipeline Lane 2)
+    stage: inference
+    checkpoint_ids: [transcription.fast_complete]
+    description: VTT and TXT written to disk; returns execution control to Media Pipeline Lane 2 enrichment
+    service_task: MediaEnrichmentSteps#clean_transcript_text
+    sli: Immediate synchronous return to parent job
+    runbook: Verify media_asset.transcript_text is populated
+
+  - id: transcription_error
+    kind: endEvent
+    name: Transcription failure offramp
+    stage: inference
+    checkpoint_ids: [transcription.stt_error]
+    description: Whisper Metal GPU out-of-memory error, segmentation fault, or hallucination loop
+    service_task: ztranscribe retry handler
+    sli: Logged in error ledger with exit code
+    runbook: Check whisper-cli stderr and Metal memory allocation
+
+  - id: cleaned
+    kind: task
+    name: Known-terms lexical correction
+    stage: lexical
+    checkpoint_ids: [canonical_transcription.cleaned]
+    description: Applies canonical dictionary rules for SCMC (Software Craftsmanship McHenry County) and tech terms
+    service_task: Zdots::Jobs::IngestMedia#run_cleaned
+    sli: Deterministic regex substitution < 50ms
+    runbook: Update known_terms vocabulary in zdots
+
+  - id: boundaries
+    kind: task
+    name: Acoustic & semantic boundary detection
+    stage: lexical
+    checkpoint_ids: [canonical_transcription.boundaries]
+    description: Detects intro and outro musical jingles and flags interview question boundaries via timestamped ASR
+    service_task: Zdots::Jobs::IngestMedia#run_boundaries
+    sli: Boundary alignment error < 0.5s
+    runbook: Check .boundaries.json sidecar file
+
+  - id: distilled
+    kind: task
+    name: LLM knowledge briefing synthesis
+    stage: distillation
+    checkpoint_ids: [canonical_transcription.distilled]
+    description: Generates structured knowledge briefing, key takeaways, and technical glossary
+    service_task: Zdots::Jobs::IngestMedia#run_distilled
+    sli: Strict zero em dash compliance, factual consistency
+    runbook: Check .summary.md sidecar file
+
+  - id: timeline
+    kind: task
+    name: Curated moments timeline extraction
+    stage: distillation
+    checkpoint_ids: [canonical_transcription.timeline]
+    description: Extracts high-signal timestamped moments for chapter markers and video highlights
+    service_task: Zdots::Jobs::IngestMedia#run_timeline
+    sli: Chronological integrity verified
+    runbook: Inspect extracted chapters in video metadata
+
+  - id: diarization_gate
+    kind: gateway
+    name: Acoustic speaker diarization enabled?
+    stage: distillation
+    checkpoint_ids: [transcription.diarization_gate]
+    description: Checks if ZDOTS_DIARIZE is set and HUGGINGFACE_TOKEN is present for pyannote speaker clustering
+    service_task: Zdots::Jobs::IngestMedia#diarize?
+    sli: Zero stall on missing credentials (degrades gracefully)
+    runbook: Set HUGGINGFACE_TOKEN in environment to enable
+
+  - id: diarized
+    kind: task
+    name: Pyannote acoustic speaker turns
+    stage: distillation
+    checkpoint_ids: [canonical_transcription.diarized]
+    description: Clusters multi-speaker audio turns and generates speaker-attributed dialogue blocks
+    service_task: bin/diarize / pyannote-audio
+    sli: Diarization error rate < 12%
+    runbook: Check .speaker.json sidecar file
+
+  - id: diarization_error
+    kind: endEvent
+    name: Diarization token error offramp
+    stage: distillation
+    checkpoint_ids: [transcription.diarization_error]
+    description: Missing HuggingFace token or Pyannote model download failure
+    service_task: Zdots::Jobs::IngestMedia#handle_diarize_failure
+    sli: Degrades gracefully without failing full ingest
+    runbook: Verify HUGGINGFACE_TOKEN permission for pyannote/speaker-diarization
+
+  - id: embedded
+    kind: task
+    name: pgvector chunk embedding & persistence
+    stage: distillation
+    checkpoint_ids: [canonical_transcription.embedded]
+    description: Slices cleaned transcript into semantic chunks and embeds 768-dim vectors into Postgres Context Engine
+    service_task: Zdots::Jobs::IngestMedia#run_embedded
+    sli: Database insertion latency < 500ms
+    runbook: Query context_engine_development transcript_chunks
+
+  - id: published
+    kind: task
+    name: Timeline clip extraction & manifest update
+    stage: distillation
+    checkpoint_ids: [canonical_transcription.published]
+    description: Exports social video snippets via FFmpeg and updates site knowledge graph records
+    service_task: Zdots::Jobs::IngestMedia#run_published
+    sli: Clips cut with keyframe precision
+    runbook: Inspect published clips in output directory
+
+  - id: end_canonical
+    kind: endEvent
+    name: Canonical distillation complete & indexed
+    stage: distillation
+    checkpoint_ids: [canonical_transcription.complete]
+    description: All 10 stages complete; knowledge graph and vector indices fully synchronized
+    service_task: Zdots::Jobs::IngestMedia#finish!
+    sli: Terminal canonical state reached with zero data loss
+    runbook: Verify presence in Context Engine semantic search
+
+flows:
+  - from: start_fast_wav
+    to: input_routing_gate
+  - from: start_canonical_url
+    to: input_routing_gate
+  - from: input_routing_gate
+    to: raw
+    condition: "exit: fast wav slice (Path A)"
+  - from: input_routing_gate
+    to: primed
+    condition: "exit: canonical url (Path B)"
+  - from: input_routing_gate
+    to: input_error
+    condition: "error: invalid input format"
+  - from: primed
+    to: raw
+  - from: raw
+    to: transcription_confidence_gate
+  - from: transcription_confidence_gate
+    to: exit_fast_stt
+    condition: "exit: fast path complete (return to Lane 2)"
+  - from: transcription_confidence_gate
+    to: cleaned
+    condition: "exit: canonical pipeline proceed"
+  - from: transcription_confidence_gate
+    to: transcription_error
+    condition: "error: transcription empty or failed"
+  - from: cleaned
+    to: boundaries
+  - from: boundaries
+    to: distilled
+  - from: distilled
+    to: timeline
+  - from: timeline
+    to: diarization_gate
+  - from: diarization_gate
+    to: diarized
+    condition: "exit: diarization enabled (token present)"
+  - from: diarization_gate
+    to: embedded
+    condition: "exit: diarization skipped (default)"
+  - from: diarization_gate
+    to: diarization_error
+    condition: "error: pyannote token invalid"
+  - from: diarized
+    to: embedded
+  - from: embedded
+    to: published
+  - from: published
+    to: end_canonical
