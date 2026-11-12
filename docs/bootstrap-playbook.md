@@ -9,6 +9,9 @@ audience: Platform Operator & Coding Agents
 
 This playbook defines the exact sequence for bringing up a fresh macOS machine to full operational parity with your existing environment across all four platform repositories (`zdots`, `adots`, `vdots`, `my`), while strictly enforcing work/home isolation, security boundaries, and zero personal data leakage.
 
+> [!IMPORTANT]
+> **Pre-Configured Work Machines:** If you are migrating onto a corporate-managed Mac that already has existing developer configurations, runtimes (e.g. PostgreSQL 17, mise, Colima), 1Password, an existing `~/.ssh` directory, or an IT onboarding log, follow the dedicated **[Work Machine Migration Playbook](work-migration-playbook.md)** instead. That playbook handles audit-before-action log parsing, non-destructive `adots` diffing, and PostgreSQL 17 dynamic extension wiring.
+
 It is structured in two parts:
 1. **Phase 0: The Human Handshake**: Manual prerequisites you perform at the keyboard before delegating.
 2. **Phases 1–6: The Agent Playbook**: Deterministic steps, prompts, and verification gates that an AI coding agent (Claude Code, Antigravity, etc.) can execute autonomously.
@@ -58,6 +61,8 @@ $EDITOR ~/.config/zsh/.zdots.local
 ZDOTS_CONTEXT=work
 GIT_AUTHOR_EMAIL="first.last@company.com"
 GIT_COMMITTER_EMAIL="first.last@company.com"
+# If corporate machine runs PostgreSQL 17 (instead of default 18):
+# ZDOTS_POSTGRES_VERSION=17
 # If corporate proxy is required:
 # HTTP_PROXY=http://proxy.company.internal:8080
 # HTTPS_PROXY=http://proxy.company.internal:8080

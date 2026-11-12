@@ -19,6 +19,10 @@ tap "hashicorp/tap"           # Terraform and other HashiCorp tools
 
 cask "openvpn-connect"   # corporate VPN client — network access to work infrastructure
 
+# 1Password — credentials and SSH agent integration
+cask "1password" unless ENV["ZDOTS_SKIP_1PASSWORD_INSTALL"] == "1"
+cask "1password-cli" unless ENV["ZDOTS_SKIP_1PASSWORD_INSTALL"] == "1"
+
 brew "mysql-client"      # MySQL/MariaDB CLI — for work app databases; personal stack is Postgres-only
 
 vscode "github.copilot-chat" # GitHub Copilot Chat extension for VS Code

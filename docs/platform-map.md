@@ -31,9 +31,10 @@ in records and retain project-specific hosting conventions.
 | Component | Location | Responsibility | Git / lifecycle boundary |
 |---|---|---|---|
 | **zdots** | `~/.config/zsh` | Zsh environment, command catalog, service registry, local AI and observability control | Normal Git repo; `zdots-ctl` and `zsvc` manage services |
-| **adots** | `~/.homegit` bare repo; work tree `$HOME` | User-level configuration and dotfiles | Use `adots` / `adots-git`; never treat it as a normal work-tree repo |
+| **adots** | `~/.homegit` bare repo; work tree `$HOME` | User-level configuration and dotfiles; consolidates historical `gdots` (Git) and `tdots` (Tmux) | Use `adots` / `adots-git`; never treat it as a normal work-tree repo |
 | **my** | `~/my` | Private Knowledge Layer source documents and Context Engine app | Normal Git repo; Markdown vaults are authoritative, PostgreSQL is derived/searchable state |
 | **vdots** | `~/.config/nvim` | Neovim configuration and editor command shims | Normal Git repo; `~/.config/nvim/bin` is on the shell PATH |
+| **work-ext** | `${ZDOTS_WORK_EXT:-~/.config/zdots-work}` | Work scripts, tenant PHI patterns, and internal company tool wrappers | Independent external repo; never a submodule; fresh per employer |
 | **media-pipeline** | `~/github.com/just3ws/media-pipeline` | Video intake, transcription, media workflow, and publication | Separate Rails app; local Puma on `127.0.0.1:32000` |
 | **dehum** | `~/github.com/just3ws/dehum` | Audio hum/crackle restoration and synchronization | Separate media tool; invoked as needed, not an always-on service |
 | **WWWorkRemote** | `~/github.com/wwworkremote/wwworkremote` | Personal job-search and synthesis app | Separate project; local Rails route is documented in the URL map |

@@ -18,8 +18,10 @@ work-extension repository at `${ZDOTS_WORK_EXT:-~/.config/zdots-work}`. It has
 its own history and remote; it is never a platform submodule. Do not reuse a
 previous employer's extension or copy its runtime state to the new role.
 
-For an end-to-end, deterministic AI agent orchestration runbook that executes this setup
-sequence and verifies cross-repo parity, see the [Bootstrap Playbook](bootstrap-playbook.md).
+For an end-to-end, deterministic AI agent orchestration runbook that executes a fresh bootstrap,
+see the [Bootstrap Playbook](bootstrap-playbook.md). When onboarding onto a machine with prior
+developer configurations, pre-installed runtimes (Postgres 17, mise, Colima), or an IT setup log,
+follow the dedicated [Work Migration Playbook](work-migration-playbook.md).
 
 ## Set up the company baseline first
 
@@ -93,9 +95,13 @@ FileVault, SIP, Keychain, network, or employer policy.
 - **Editor AI:** vdots' `editor/llm.lua` invokes `ai-query`, but CodeCompanion
   is configured separately without an explicit adapter in `lua/plugins.lua`.
   Its provider and data path require verification before using work buffers.
-- **Git identity:** verify effective identity and destination in a synthetic
-  work repository and a personal repository. adots machine profile validation
-  alone does not prove Git include rules or SSH account selection are correct.
+- **Git identity & repository delineation:** verify effective identity and destination
+  in both work and personal platform repositories. `~/.config/git/config` enforces
+  work-by-default via `~/.config/git/config.identity` and automatically scopes `just3ws/*`
+  and local platform paths (`~/.config/zsh`, `~/.homegit`, `~/.config/nvim`) to
+  `mike@just3ws.com` via `includeIf`. Verify with `git config user.email` in both contexts
+  before committing. Keep platform tweaks minimal on the work host to avoid complicated,
+  leaky branches, and backport generic deltas cleanly.
 
 If both contexts must run on one Mac, choose the account/data separation first.
 A fresh work shell does not isolate shared home files, Keychain items, editor

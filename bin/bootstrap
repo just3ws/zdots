@@ -548,15 +548,26 @@ _bootstrap_phase "ruby: gems and pg native extension wiring"
 # 7. Ruby gems — AI pipeline, PHI scrubber, DB bridge
 #
 # Uses the mise-managed Ruby pinned in etc/ruby-version — never the system Ruby
-# or any project-activated version. postgresql@18 is keg-only so pg_config is
-# not in PATH; we pass it explicitly so the pg native gem compiles cleanly.
+# or any project-activated version. postgresql is keg-only so pg_config is
+# not always in PATH; we detect it dynamically so the pg native gem compiles cleanly.
 _ruby_ver="$(cat "$REPO_ROOT/etc/ruby-version")"
 _mise_bundle="$HOME/.local/share/mise/installs/ruby/${_ruby_ver}/bin/bundle"
 
 if [ -x "$_mise_bundle" ]; then
   echo "bootstrap: installing Ruby gems (Ruby ${_ruby_ver})..."
   _brew_prefix="$(brew --prefix 2>/dev/null || printf '/opt/homebrew')"
-  _pg_config="${_brew_prefix}/opt/postgresql@18/bin/pg_config"
+  _pg_config=""
+  if [ -n "${PG_CONFIG:-}" ] && [ -x "$PG_CONFIG" ]; then
+    _pg_config="$PG_CONFIG"
+  elif [ -n "${ZDOTS_POSTGRES_VERSION:-}" ] && [ -x "${_brew_prefix}/opt/postgresql@${ZDOTS_POSTGRES_VERSION}/bin/pg_config" ]; then
+    _pg_config="${_brew_prefix}/opt/postgresql@${ZDOTS_POSTGRES_VERSION}/bin/pg_config"
+  elif command -v pg_config >/dev/null 2>&1; then
+    _pg_config="$(command -v pg_config)"
+  elif [ -x "${_brew_prefix}/opt/postgresql@18/bin/pg_config" ]; then
+    _pg_config="${_brew_prefix}/opt/postgresql@18/bin/pg_config"
+  elif [ -x "${_brew_prefix}/opt/postgresql@17/bin/pg_config" ]; then
+    _pg_config="${_brew_prefix}/opt/postgresql@17/bin/pg_config"
+  fi
 
   BUNDLE_GEMFILE="$REPO_ROOT/Gemfile" \
   BUNDLE_BUILD__PG="${_pg_config:+--with-pg-config=${_pg_config}}" \

@@ -121,7 +121,9 @@ brew "pgcli"        # PostgreSQL REPL with autocomplete — replaces raw psql fo
 brew "pgvector" # Open-source vector similarity search for Postgres
 brew "pipx" # Execute binaries from Python packages in isolated environments
 brew "pnpm" # Fast, disk space efficient package manager
-brew "postgresql@18", restart_service: :changed # Object-relational database system
+# PostgreSQL: defaults to 18, but respects existing setups via ZDOTS_POSTGRES_VERSION (e.g. 17) or ZDOTS_SKIP_POSTGRES_BREW=1
+_pg_version = ENV["ZDOTS_POSTGRES_VERSION"] || "18"
+brew "postgresql@#{_pg_version}", restart_service: :changed unless ENV["ZDOTS_SKIP_POSTGRES_BREW"] == "1"
 brew "powerlevel10k" # Theme for zsh
 brew "pre-commit" # Framework for managing multi-language pre-commit hooks
 brew "prettier" # Code formatter for JavaScript, CSS, JSON, GraphQL, Markdown, YAML

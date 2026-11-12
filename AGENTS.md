@@ -152,6 +152,21 @@ the full env-var hook list (`ZDOTS_WORK_EXT`, `ZDOTS_K8S_DEFAULT_NS`,
 this writing; if one is ever needed there, give it the same
 gitignored-local-override treatment, never a tracked identifier.
 
+**Work-machine repository delineation & Git identity boundary.**
+When operating on a work machine, keep personal open-source repos (`zdots`, `adots`,
+`vdots`) strictly delineated from corporate repositories to prevent bidirectional leakage:
+- **No corporate leakage into open-source:** Platform commits must never carry
+  corporate email addresses (`@company.com`), internal hostnames, tenant secrets,
+  or proprietary patterns. Run `bin/secret-scan` before committing.
+- **No personal leakage into work:** Corporate repos must default to the work identity.
+- **Deterministic resolution:** Scoped automatically via `~/.config/git/config`
+  (`includeIf` rules). Any commit inside `~/.config/zsh`, `~/.homegit`, or
+  `~/.config/nvim` resolves to `mike@just3ws.com`; all corporate repos default to
+  the work identity. Verify with `git config user.email` before creating commits.
+- **Keep tweaks minimal:** Do not undertake broad platform refactoring on a work host.
+  Restrict changes to necessary portability or environment accommodations, and
+  backport generic improvements upstream via the migration report.
+
 ## 2. Token Optimization (RTK)
 
 **Rule:** Always proxy high-output commands through `rtk`.

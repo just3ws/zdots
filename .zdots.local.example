@@ -30,6 +30,8 @@ ZDOTS_CONTEXT=home
 # Override here if your setup differs (e.g., different PG port, named user).
 # ---------------------------------------------------------------------------
 # ZDOTS_MIGRATION_URL=postgresql:///my
+# ZDOTS_POSTGRES_VERSION=17               # Set if using PostgreSQL 17 (default: 18)
+# ZDOTS_SKIP_POSTGRES_BREW=1             # Set to 1 if Postgres is already installed and managed externally
 
 # ---------------------------------------------------------------------------
 # AI security boundary (NON-NEGOTIABLE on a new machine)
@@ -56,6 +58,15 @@ ZDOTS_AI_MODE=local
 # ZDOTS_AI_ENDPOINT=http://127.0.0.1:11500
 # ZDOTS_AI_EMBED_ENDPOINT=http://127.0.0.1:11501
 # ZDOTS_AI_PROFILE=qwen3-8b
+
+# ---------------------------------------------------------------------------
+# Colima VM sizing & hardware tuning (M5 / 24GB+ machines)
+# ---------------------------------------------------------------------------
+# ZDOTS_COLIMA_CPU=6                      # Default: 4
+# ZDOTS_COLIMA_MEMORY=10                  # Default: 8 (GiB) — 10-12 on 24GB hosts
+# ZDOTS_COLIMA_DISK=100                   # Default: 60 (GiB) — 100-150 on 1TB hosts
+# ZDOTS_COLIMA_KUBERNETES=1               # Default: 1 (k3s bundled alongside Docker)
+# ZDOTS_SPEC_DECODING=1                   # Enable speculative decoding (supported on 24GB)
 
 # ---------------------------------------------------------------------------
 # PHI safety controls (relevant when ZDOTS_CONTEXT=work or near regulated data)
