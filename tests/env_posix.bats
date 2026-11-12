@@ -124,3 +124,13 @@ EOF
   local val=$(echo "$output" | tail -n 1)
   [[ "$val" =~ ^[0-9a-f]{16}$ ]]
 }
+
+@test "env.sh: keeps path_helper system paths such as /usr/local/bin on macOS" {
+  [ -x /usr/libexec/path_helper ] || skip "path_helper is macOS-only"
+  run bash -c '
+    export ZDOTDIR="$1"; . "$1/env.sh" >/dev/null 2>&1
+    case ":$PATH:" in *":/usr/local/bin:"*) echo present ;; *) echo missing ;; esac
+  ' _ "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]}-1]}" == "present" ]
+}

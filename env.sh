@@ -305,8 +305,16 @@ _zdots_path_add() {
   esac
 }
 
-# Core system paths first (to ensure basic tools are available)
-PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+# Core system paths first (to ensure basic tools are available). On macOS seed
+# them from path_helper (/etc/paths, /etc/paths.d) so vendor and MDM installs in
+# /usr/local/bin — e.g. the official 1Password CLI `op` — stay reachable; zdots'
+# own directories are prepended below and still take precedence.
+if [ -x /usr/libexec/path_helper ]; then
+  # Empty PATH for path_helper only, so it emits the system list alone.
+  eval "$(PATH='' /usr/libexec/path_helper -s)"
+else
+  PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+fi
 
 # 9a. Legacy/Explicit Overrides (Lower precedence than Service Providers)
 if [ -n "${HOMEBREW_PREFIX:-}" ]; then
