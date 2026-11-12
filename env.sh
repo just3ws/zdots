@@ -227,7 +227,17 @@ else
   unset RIPGREP_CONFIG_PATH
 fi
 unset _ripgrep_config
-export WGETRC="$XDG_CONFIG_HOME/wget/wgetrc"
+# wget refuses to run, and python complains on every start, when these name a
+# missing file — so export the XDG rc only once it exists.
+_wgetrc="$XDG_CONFIG_HOME/wget/wgetrc"
+if [ -r "${WGETRC:-}" ]; then
+  : # Keep a valid caller-supplied rc.
+elif [ -r "$_wgetrc" ]; then
+  export WGETRC="$_wgetrc"
+else
+  unset WGETRC
+fi
+unset _wgetrc
 export IRBRC="$XDG_CONFIG_HOME/irb/irbrc"
 export LESSHISTFILE="$XDG_STATE_HOME/less/history"
 export MYSQL_HISTFILE="$XDG_STATE_HOME/mysql/history"
@@ -236,7 +246,15 @@ export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
 export PSQLRC="$XDG_CONFIG_HOME/psql/psqlrc"
 export PSQL_HISTORY="$XDG_STATE_HOME/psql/history"
 export SQLITE_HISTORY="$XDG_STATE_HOME/sqlite/history"
-export PYTHONSTARTUP="$XDG_CONFIG_HOME/python/pythonrc"
+_pythonrc="$XDG_CONFIG_HOME/python/pythonrc"
+if [ -r "${PYTHONSTARTUP:-}" ]; then
+  : # Keep a valid caller-supplied startup file.
+elif [ -r "$_pythonrc" ]; then
+  export PYTHONSTARTUP="$_pythonrc"
+else
+  unset PYTHONSTARTUP
+fi
+unset _pythonrc
 export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
 # A legacy-only root stays authoritative until it is migrated: redirecting would
 # hide its profiles and contexts (e.g. an employer-provisioned ~/.aws or ~/.docker).

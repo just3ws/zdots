@@ -190,3 +190,26 @@ EOF
     [ "$status" -eq 0 ] || { echo "bash cannot parse $f: $output"; return 1; }
   done
 }
+
+@test "env.sh: WGETRC and PYTHONSTARTUP stay unset when their rc files are missing" {
+  local home="$BATS_TEST_TMPDIR/rc-missing"
+  mkdir -p "$home"
+  run env -u XDG_ROOT -u XDG_CONFIG_HOME -u WGETRC -u PYTHONSTARTUP HOME="$home" bash -c '
+    export ZDOTDIR="$1"; . "$1/env.sh" >/dev/null 2>&1
+    echo "${WGETRC-unset} ${PYTHONSTARTUP-unset}"
+  ' _ "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]}-1]}" == "unset unset" ]
+}
+
+@test "env.sh: WGETRC and PYTHONSTARTUP point at the XDG rc files when present" {
+  local home="$BATS_TEST_TMPDIR/rc-present"
+  mkdir -p "$home/.config/wget" "$home/.config/python"
+  : > "$home/.config/wget/wgetrc"; : > "$home/.config/python/pythonrc"
+  run env -u XDG_ROOT -u XDG_CONFIG_HOME -u WGETRC -u PYTHONSTARTUP HOME="$home" bash -c '
+    export ZDOTDIR="$1"; . "$1/env.sh" >/dev/null 2>&1
+    echo "$WGETRC $PYTHONSTARTUP"
+  ' _ "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]}-1]}" == "$home/.config/wget/wgetrc $home/.config/python/pythonrc" ]
+}
