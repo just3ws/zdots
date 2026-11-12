@@ -105,7 +105,8 @@ _zdots_trace_send_otlp() {
   local payload=$(printf '{"resourceSpans":[{"resource":%s,"scopeSpans":[{"spans":[{"traceId":"%s","spanId":"%s","name":"%s","kind":1,"startTimeUnixNano":"%s","endTimeUnixNano":"%s","attributes":[{"key":"process.command_line","value":{"stringValue":"%s"}},{"key":"event.type","value":{"stringValue":"%s"}}]}]}]}]}' \
     "$_ZDOTS_OTEL_RESOURCE_JSON" "$ZDOTS_TRACE_ID" "$ZDOTS_SPAN_ID" "$safe_span" "$start_time_nano" "$end_time_nano" "$safe_cmd" "$safe_event")
 
-  # Send asynchronously (background)
+  # Send asynchronously (background). `& disown`, not `&!`: bash sources this
+  # file too (env.sh via ~/.bashrc) and cannot parse the zsh-only form.
   command curl -s -X POST -H "Content-Type: application/json" \
-    -d "$payload" "$OTEL_EXPORTER_OTLP_ENDPOINT/v1/traces" >/dev/null 2>&1 &!
+    -d "$payload" "$OTEL_EXPORTER_OTLP_ENDPOINT/v1/traces" >/dev/null 2>&1 & disown
 }

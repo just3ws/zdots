@@ -182,3 +182,11 @@ EOF
   [ "$status" -eq 0 ]
   [ "${lines[${#lines[@]}-1]}" == "absent" ]
 }
+
+@test "providers: every provider file parses under bash (env.sh sources them via ~/.bashrc)" {
+  local f
+  for f in "$ZDOTDIR"/providers/*/*.zsh; do
+    run bash -n "$f"
+    [ "$status" -eq 0 ] || { echo "bash cannot parse $f: $output"; return 1; }
+  done
+}

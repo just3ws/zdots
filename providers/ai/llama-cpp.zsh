@@ -25,7 +25,7 @@ zdots_ai_init() {
       # Write result to a temp file; parent shell picks it up on next `ai` call.
       printf '1' >| "${TMPDIR:-/tmp}/zdots_ai_up.$$" 2>/dev/null || true
     fi
-  ) &!
+  ) & disown  # not `&!`: bash sources this file too (env.sh) and cannot parse it
 
   _ZDOTS_AI_INITIALIZED=1
 }
