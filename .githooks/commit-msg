@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+# commit-msg — refuse AI-tool attribution in commit messages (operator rule,
+# AGENTS.md "No AI Attribution, Anywhere"). Human co-authors pass untouched.
+# Shared verbatim by zdots, adots and vdots; keep the copies identical.
+msg_file="$1"
+pattern='^[[:space:]]*co-authored-by:.*(claude|anthropic|openai|chatgpt|codex|gemini|copilot|aider|cursor|gpt-[0-9]|noreply@anthropic\.com)|generated (with|by) \[?(claude|codex|gemini|copilot|aider|cursor|chatgpt|ai\b)|🤖|claude\.ai/code'
+if grep -v '^#' "$msg_file" | grep -qiE "$pattern"; then
+  echo "commit-msg: AI attribution is not allowed (AGENTS.md: No AI Attribution, Anywhere):" >&2
+  grep -v '^#' "$msg_file" | grep -niE "$pattern" | sed 's/^/  /' >&2
+  exit 1
+fi
+exit 0

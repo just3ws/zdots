@@ -138,6 +138,12 @@ carries no advertising. Authorship is the operator's: let the repo's scoped git
 identity author the commit. (Do not rewrite existing history to remove old
 trailers — that stays deferred per operator.)
 
+Enforced, not just stated: `.githooks/commit-msg` (shared verbatim by zdots,
+adots and vdots) rejects AI-tool co-author trailers, "Generated with …" lines,
+🤖 badges and session links. Enable it once per clone with
+`git config core.hooksPath .githooks` (adots: `$HOME/.githooks`). The global
+Codex and Gemini instructions in adots carry the same rule for every repo.
+
 ## 1. Orientation
 
 Run these to understand the current state of the machine:
