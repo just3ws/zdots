@@ -342,6 +342,7 @@ Do **not** replace `~/.config/mise/config.toml` with the version tracked in `ado
    ```bash
    chmod g-w "$(brew --prefix)/share"
    ```
+3. **Fonts.** If iTerm2 shows Menlo instead of FiraCode Nerd Font Mono, macOS has not activated the cask fonts in `~/Library/Fonts` (`system_profiler SPFontsDataType` lists none from that folder; the files are valid and quarantined from download). Install them with Font Book, or register them for the user through CoreText (`CTFontManagerRegisterFontsForURL(…, .user, …)`, which leaves quarantine intact). iTerm2 resolves the font on its next profile reload. The iTerm2 Dynamic Profiles themselves (including the durable tmux profile) come from adots.
 
 ---
 
