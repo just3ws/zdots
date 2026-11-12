@@ -117,6 +117,11 @@ zdots_svc_restart() {
 # Observability (OTLP tracing)
 # ---------------------------------------------------------------------------
 
+# zdots_svc_now_ns - current UNIX epoch timestamp in nanoseconds.
+zdots_svc_now_ns() {
+  python3 -c "import time; print(int(time.time() * 1e9))" 2>/dev/null || date +%s000000000
+}
+
 # zdots_svc_emit_span <name> <start_ts_nano> <end_ts_nano> [key=value ...]
 # Emits a basic OTLP trace span to the local collector.
 # Attributes are passed as key=value pairs; values may contain '='.
@@ -125,9 +130,23 @@ zdots_svc_emit_span() {
   shift 3
 
   local otlp_endpoint="${ZDOTS_OTLP_ENDPOINT:-http://127.0.0.1:4318}"
-  if [[ -z "${ZDOTS_TRACE_ID:-}" ]]; then return 0; fi
+  local tid="${ZDOTS_TRACE_ID:-}"
+  local psid="${ZDOTS_PARENT_SPAN_ID:-}"
+  if [[ -z "$tid" && "${TRACEPARENT:-}" =~ ^00-([0-9a-fA-F]{32})-([0-9a-fA-F]{16})-[0-9a-fA-F]{2}$ ]]; then
+    tid="${BASH_REMATCH[1]}"
+    [[ -z "$psid" ]] && psid="${BASH_REMATCH[2]}"
+  elif [[ -z "$psid" && "${TRACEPARENT:-}" =~ ^00-([0-9a-fA-F]{32})-([0-9a-fA-F]{16})-[0-9a-fA-F]{2}$ ]]; then
+    psid="${BASH_REMATCH[2]}"
+  fi
+  if [[ -z "$tid" ]]; then return 0; fi
 
-  # Build attributes JSON in a single jq call — one subprocess regardless of
+  local sid="${ZDOTS_SPAN_ID:-}"
+  if [[ -z "$sid" || "$sid" == "$psid" ]]; then
+    sid=$(zdots_svc_new_span_id)
+  fi
+  local svc_name="${ZDOTS_SERVICE_NAME:-${SVC_NAME:-zdots-agent}}"
+
+  # Build attributes JSON in a single jq call - one subprocess regardless of
   # how many key=value pairs are passed.
   local attrs_json
   attrs_json=$(jq -cn '$ARGS.positional | map(
@@ -137,17 +156,19 @@ zdots_svc_emit_span() {
 
   local payload
   payload=$(jq -nc \
+    --arg svc "$svc_name" \
     --arg name "$name" \
-    --arg tid "$ZDOTS_TRACE_ID" \
-    --arg sid "$ZDOTS_SPAN_ID" \
+    --arg tid "$tid" \
+    --arg sid "$sid" \
+    --arg psid "$psid" \
     --arg start "$start_ns" \
     --arg end "$end_ns" \
     --argjson attrs "$attrs_json" \
     '{
       resourceSpans: [{
-        resource: { attributes: [{ key: "service.name", value: { stringValue: "zdots-agent" } }] },
+        resource: { attributes: [{ key: "service.name", value: { stringValue: $svc } }] },
         scopeSpans: [{
-          spans: [{
+          spans: [({
             traceId: $tid,
             spanId: $sid,
             name: $name,
@@ -155,7 +176,7 @@ zdots_svc_emit_span() {
             endTimeUnixNano: $end,
             attributes: $attrs,
             status: { code: 1 }
-          }]
+          } + (if ($psid | length) > 0 then { parentSpanId: $psid } else {} end))]
         }]
       }]
     }')

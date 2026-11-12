@@ -32,26 +32,47 @@ module Zdots
 
       def perform_with_otel
         tracer = OpenTelemetry.tracer_provider.tracer("zdots-jobs")
+        parent_ctx = extract_parent_trace_context
 
-        # Link to the trace_id stored in the job if available
-        # (Though claim_next_job updates it to the worker's current trace)
-
-        tracer.in_span("job.perform", attributes: {
-                         "job.id" => job.id.to_s,
-                         "job.type" => job.type
-                       }) do |span|
-          Zdots::PipelineEvents.emit(:started, job)
-          result = run
-          job.complete!(result)
-          Zdots::PipelineEvents.emit(:succeeded, job)
-          result
-        rescue StandardError => e
-          span.record_exception(e)
-          span.status = OpenTelemetry::Trace::Status.error(e.message)
-          job.fail!(e.message)
-          Zdots::PipelineEvents.emit(:failed, job, error: e)
-          raise e
+        with_optional_context(parent_ctx) do
+          tracer.in_span("job.perform", attributes: {
+                           "job.id" => job.id.to_s,
+                           "job.type" => job.type,
+                           "pv.run_id" => job.payload.to_h["panoramic_run_id"]
+                         }.compact) do |span|
+            Zdots::PipelineEvents.emit(:started, job)
+            result = run
+            job.complete!(result)
+            Zdots::PipelineEvents.emit(:succeeded, job)
+            result
+          rescue StandardError => e
+            span.record_exception(e)
+            span.status = OpenTelemetry::Trace::Status.error(e.message)
+            job.fail!(e.message)
+            Zdots::PipelineEvents.emit(:failed, job, error: e)
+            raise e
+          end
         end
+      end
+
+      def extract_parent_trace_context
+        pl = job.payload.to_h
+        tp = pl["traceparent"].to_s
+        if tp.empty? && pl["trace_id"].to_s.match?(/\A[0-9a-f]{32}\z/i)
+          psid = pl["parent_span_id"].to_s.match?(/\A[0-9a-f]{16}\z/i) ? pl["parent_span_id"] : "0000000000000001"
+          tp = "00-#{pl['trace_id'].downcase}-#{psid.downcase}-01"
+        end
+        return nil unless tp.match?(/\A00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}\z/i)
+
+        OpenTelemetry.propagation.extract({ "traceparent" => tp.downcase })
+      rescue StandardError
+        nil
+      end
+
+      def with_optional_context(ctx)
+        return yield unless ctx
+
+        OpenTelemetry::Context.with_current(ctx) { yield }
       end
 
       def run

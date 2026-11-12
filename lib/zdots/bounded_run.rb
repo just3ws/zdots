@@ -32,7 +32,12 @@ module Zdots
   # Returns [output_string, Process::Status]. Raises BoundedTimeout on timeout.
   def self.run_bounded(*cmd, timeout:, stdin_data: nil, merge_err: false)
     opener = merge_err ? Open3.method(:popen2e) : Open3.method(:popen2)
-    opener.call(*cmd, pgroup: true) do |stdin, out, wait_thr|
+    env = subprocess_otel_env
+    if cmd.first.is_a?(Hash)
+      env = env.merge(cmd.shift)
+    end
+    spawn_args = env.empty? ? cmd : [env, *cmd]
+    opener.call(*spawn_args, pgroup: true) do |stdin, out, wait_thr|
       reader = Thread.new { out.read }
       begin
         stdin.write(stdin_data) if stdin_data
@@ -52,6 +57,24 @@ module Zdots
       end
       [reader.value, wait_thr.value]
     end
+  end
+
+  def self.subprocess_otel_env
+    return {} unless defined?(OpenTelemetry::Trace)
+
+    span = OpenTelemetry::Trace.current_span
+    return {} unless span&.context&.valid?
+
+    tid = span.context.hex_trace_id
+    sid = span.context.hex_span_id
+    {
+      "TRACEPARENT" => "00-#{tid}-#{sid}-01",
+      "ZDOTS_TRACE_ID" => tid,
+      "ZDOTS_PARENT_SPAN_ID" => sid,
+      "ZDOTS_SPAN_ID" => sid
+    }
+  rescue StandardError
+    {}
   end
 
   # Signal the child's whole process group (negative pid). ESRCH = the group

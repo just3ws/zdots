@@ -63,7 +63,8 @@ module Zdots
         @profile  = payload["profile"] || "standard"
         @panoramic_context = payload.slice(
           "panoramic_journey_id", "panoramic_run_id", "panoramic_correlation_id",
-          "panoramic_workflow_id", "panoramic_flow_id", "panoramic_run_class"
+          "panoramic_workflow_id", "panoramic_flow_id", "panoramic_run_class",
+          "traceparent", "trace_id", "parent_span_id"
         ).compact
         @src      = Models::MediaSource[@mid] or raise "media_source not found: #{@mid}"
         @out_base = File.join(RETENTION_ROOT, @mid.to_s)
@@ -343,13 +344,28 @@ module Zdots
         pr = upsert_run(@mid, name, panoramic_run_id: @panoramic_context&.fetch("panoramic_run_id", nil))
         pr.update(status: "running", started_at: Sequel::CURRENT_TIMESTAMP, error_message: nil)
         narrate("▶ #{name} started")
-        result = yield
-        pr.update(status: "done", finished_at: Sequel::CURRENT_TIMESTAMP,
-                  artifact_path: result[:path],
-                  content_hash: result[:path] ? Digest::SHA256.hexdigest(File.read(result[:path])) : nil,
-                  run_params: Sequel.pg_jsonb((result[:params] || {}).merge(@panoramic_context || {})))
-        narrate("✓ #{name} done")
-        result[:path]
+        tracer = OpenTelemetry.tracer_provider.tracer("zdots-ingest")
+        span_attrs = {
+          "ingest.stage" => name,
+          "media_source.id" => @mid.to_s,
+          "pv.run_id" => @panoramic_context&.fetch("panoramic_run_id", nil)
+        }.compact
+        tracer.in_span("ingest_media.stage.#{name}", attributes: span_attrs) do |span|
+          result = yield
+          trace_fields = {}
+          if span&.context&.valid?
+            trace_fields["trace_id"] = span.context.hex_trace_id
+            trace_fields["span_id"] = span.context.hex_span_id
+          elsif @panoramic_context && @panoramic_context["trace_id"]
+            trace_fields["trace_id"] = @panoramic_context["trace_id"]
+          end
+          pr.update(status: "done", finished_at: Sequel::CURRENT_TIMESTAMP,
+                    artifact_path: result[:path],
+                    content_hash: result[:path] ? Digest::SHA256.hexdigest(File.read(result[:path])) : nil,
+                    run_params: Sequel.pg_jsonb((result[:params] || {}).merge(@panoramic_context || {}).merge(trace_fields)))
+          narrate("✓ #{name} done")
+          result[:path]
+        end
       rescue Sequel::NoExistingObject => e
         warn "pipeline_run was deleted, assuming restart/cancel"
         raise e

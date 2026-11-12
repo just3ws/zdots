@@ -85,6 +85,17 @@ Content is PGP-encrypted at rest. `zdots-brain` handles decrypt transparently.
 
 ---
 
+## Bootstrapping a Work Computer Safely with AI Agents
+
+When migrating or bootstrapping `zdots`, `adots`, `vdots`, and `my` onto a corporate or pre-configured work Mac:
+1. Follow **[docs/work-migration-playbook.md](../../../docs/work-migration-playbook.md)** (and **[docs/work-profile.md](../../../docs/work-profile.md)**). For a clean-slate OS install, use **[docs/bootstrap-playbook.md](../../../docs/bootstrap-playbook.md)**.
+2. Ensure `~/.config/zsh/.zdots.local` is created **before** `bin/bootstrap` with `ZDOTS_CONTEXT=work`, `ZDOTS_AI_MODE=local`, `ZDOTS_CAPTURE_ENABLED=0`, `ZDOTS_CMD_ANALYTICS=0`, `ZDOTS_HISTORY_REDACT=1`, and `ZDOTS_POSTGRES_VERSION=17` (when Postgres 17 is present).
+3. **Audit Before Action (Phase 1):** Ingest the onboarding log (`~/.local/state/work-onboarding.log`), probe existing `brew`, `mise`, `colima`, `pg_config`, and `~/.ssh`, and present the **Reconciliation Matrix** before mutating any package or dotfile.
+4. **Zero Clobbering:** Back up existing dotfiles first, perform a three-way merge on `~/.config/mise/config.toml`, and selectively restore `adots` without overwriting corporate `~/.ssh` or 1Password agent configs.
+5. **Zero Personal Vault Leakage:** Never clone the personal `~/my` repository onto a work machine. Scaffold `~/my` exclusively with `adots-my prepare --apply` and validate with `adots-my doctor` and `adots-profile validate`.
+
+---
+
 ## Workflow Pattern
 
 ```bash

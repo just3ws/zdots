@@ -679,6 +679,22 @@ module Zdots
 
         record_panoramic_correlation(media_source_id, meta)
 
+        traceparent = meta["traceparent"].presence rescue (meta["traceparent"] || ENV["TRACEPARENT"])
+        trace_id = meta["trace_id"] || ENV["ZDOTS_TRACE_ID"]
+        parent_span_id = meta["parent_span_id"] || ENV["ZDOTS_PARENT_SPAN_ID"]
+        if trace_id.to_s.empty? && traceparent.to_s =~ /\A00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}\z/i
+          trace_id = Regexp.last_match(1).downcase
+          parent_span_id ||= Regexp.last_match(2).downcase
+        end
+        panoramic_meta = meta.slice(
+          "panoramic_journey_id", "panoramic_run_id", "panoramic_correlation_id",
+          "panoramic_workflow_id", "panoramic_flow_id", "panoramic_run_class"
+        ).merge(
+          "traceparent" => traceparent,
+          "trace_id" => trace_id,
+          "parent_span_id" => parent_span_id
+        ).compact
+
         # Sovereign authoring bypass: if caller already supplied verified raw transcript
         # and WebVTT (e.g. media-pipeline on-device ztranscribe from local master),
         # pre-seed the raw artifact and mark raw stage done to eliminate redundant
@@ -697,21 +713,20 @@ module Zdots
             media_source_id: media_source_id, stage: "raw", chunk_index: nil,
             panoramic_run_id: meta["panoramic_run_id"]
           )
+          raw_params = { "profile" => profile, "seeded_from" => "media-pipeline" }.merge(panoramic_meta)
+          raw_params["span_id"] ||= parent_span_id if parent_span_id
           raw_run.update(
             status: "done",
+            started_at: raw_run.started_at || Sequel::CURRENT_TIMESTAMP,
             artifact_path: txt_path,
             content_hash: Digest::SHA256.hexdigest(meta["transcript_text"]),
-            run_params: Sequel.pg_jsonb({ "profile" => profile, "seeded_from" => "media-pipeline" }),
+            run_params: Sequel.pg_jsonb(raw_params),
             finished_at: Sequel::CURRENT_TIMESTAMP
           )
           puts "zdots-ingest-media: pre-seeded raw transcript artifact (#{txt_path})."
         end
 
-        payload     = { "media_source_id" => media_source_id, "profile" => profile }
-        payload.merge!(meta.slice(
-          "panoramic_journey_id", "panoramic_run_id", "panoramic_correlation_id",
-          "panoramic_workflow_id", "panoramic_flow_id", "panoramic_run_class"
-        ).compact)
+        payload     = { "media_source_id" => media_source_id, "profile" => profile }.merge(panoramic_meta)
         # Diarization speaker-count hint from the caller (site: interviewees + 1).
         # Tenant data — passed through, never computed here. Consumed by ingest_media#diarize_audio.
         ns = meta["num_speakers"]
@@ -722,9 +737,9 @@ module Zdots
         # empty ON CONFLICT update is invalid SQL — bare insert_conflict = DO NOTHING (cf. cmd_enqueue).
         # --force also refreshes payload: the fingerprint is URI-only, so a re-enqueue would
         # otherwise keep the previous payload and silently drop an updated num_speakers.
-        ds = ds.insert_conflict(target: :fingerprint, update: RESET_JOB.merge(payload: pg_payload)) if force
+        ds = ds.insert_conflict(target: :fingerprint, update: RESET_JOB.merge(payload: pg_payload, trace_id: trace_id)) if force
         ds = ds.insert_conflict(target: :fingerprint) unless force
-        job_id = ds.insert(type: "ingest_media", payload: pg_payload, priority: 10, fingerprint: fingerprint)
+        job_id = ds.insert(type: "ingest_media", payload: pg_payload, priority: 10, fingerprint: fingerprint, trace_id: trace_id)
         puts "zdots-ingest-media: job #{job_id ? "enqueued (#{job_id})" : 'already queued (idempotent)'}."
       end
     rescue JSON::ParserError

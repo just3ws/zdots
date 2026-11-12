@@ -14,11 +14,17 @@ links:
 # Zdots: The Deepened Shell Platform
 
 ```bash
-# Cold start — new machine to fully operational in one command:
+# Path A — Pre-Configured Work Computer (Safe AI Agent Integration):
+git clone https://github.com/just3ws/zdots.git ~/.config/zsh
+cp ~/.config/zsh/.zdots.local.example ~/.config/zsh/.zdots.local
+# Set ZDOTS_CONTEXT=work (and ZDOTS_POSTGRES_VERSION=17 if applicable) in ~/.config/zsh/.zdots.local,
+# then hand off to your AI agent with docs/work-migration-playbook.md
+
+# Path B — Fresh Personal Machine Cold Start:
 git clone https://github.com/just3ws/zdots.git ~/.config/zsh && ~/.config/zsh/bin/bootstrap
 ```
 
-> **Work machine?** Create `.zdots.local` with `ZDOTS_CONTEXT=work` before running bootstrap. See [SETUP.md](SETUP.md).
+> **Integrating into an existing work computer with AI agents?** Follow the **[Work Machine Migration & AI Agent Onboarding Playbook](docs/work-migration-playbook.md)** (and [Work & Personal Setup Contract](docs/work-profile.md)). It enforces audit-before-action setup log ingestion, a Reconciliation Matrix approval gate, non-destructive `adots` selective restore (protecting corporate `~/.ssh`, 1Password, and `mise` runtimes), PostgreSQL 17 dynamic binding, PHI-safe local AI posture (`ZDOTS_CONTEXT=work`), and zero personal vault leakage (`adots-my prepare --apply`). For a clean-slate machine, see [SETUP.md](SETUP.md) and the [Fresh Machine Bootstrap Playbook](docs/bootstrap-playbook.md).
 
 > Local AI · PHI-safe · OTel-instrumented · local model capability probe · Bats suite · single-command restore
 
@@ -312,6 +318,9 @@ make bootstrap          # Full platform installation & model hydration
 zdots-ctl status        # Confirm entire stack is green
 ```
 
+*   [docs/work-migration-playbook.md](docs/work-migration-playbook.md) — **Work Machine Migration & AI Agent Onboarding Playbook (Canonical safe integration into existing work systems)**.
+*   [docs/bootstrap-playbook.md](docs/bootstrap-playbook.md) — **Fresh Machine Bootstrap & AI Agent Orchestration Playbook**.
+*   [docs/work-profile.md](docs/work-profile.md) — **Work and personal setup, four-repository split, and PHI isolation boundaries**.
 *   [docs/lifecycle.md](docs/lifecycle.md) — **Project lifecycle, setup, and tutorial (NEW)**.
 *   [docs/TUTORIAL_ZDOTS_ONBOARDING.md](docs/TUTORIAL_ZDOTS_ONBOARDING.md) — End-to-end onboarding, capability map, and core workflows.
 *   [docs/TUTORIAL_GITHUB_SSH_KEYS.md](docs/TUTORIAL_GITHUB_SSH_KEYS.md) — Explicit GitHub SSH setup and rotation for home/work accounts.

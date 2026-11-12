@@ -527,8 +527,21 @@ set +e
 # llama.cpp is the canonical local backend (primary integration). The MLX
 # experiment was archived to experiments/mlx/; Apple-native inference will arrive
 # via apfel as that capability matures.
+_AIQ_SPAN_READY=false
+if [[ -n "${TRACEPARENT:-}" || -n "${ZDOTS_TRACE_ID:-}" ]] && [[ -r "${_SCRIPT_DIR}/../lib/svc-health.bash" ]]; then
+  # shellcheck source=../lib/svc-health.bash
+  source "${_SCRIPT_DIR}/../lib/svc-health.bash"
+  _AIQ_START_NS=$(zdots_svc_now_ns)
+  _AIQ_SPAN_READY=true
+fi
 RAW_RESPONSE=$(aiq_submit "$SYS_TMP" "$USER_TMP" "$ENDPOINT" "$MODEL" "$TIMEOUT")
 SUBMIT_EXIT=$?
+if [[ "$_AIQ_SPAN_READY" == "true" ]]; then
+  _AIQ_END_NS=$(zdots_svc_now_ns)
+  ZDOTS_SERVICE_NAME="${ZDOTS_SERVICE_NAME:-ai-query}" ZDOTS_SPAN_ID=$(zdots_svc_new_span_id) \
+    zdots_svc_emit_span "ai_query.submit" "$_AIQ_START_NS" "$_AIQ_END_NS" \
+    "ai.mode=$MODE" "ai.model=$MODEL" "ai.input_bytes=${norm_bytes:-0}" "ai.exit_code=$SUBMIT_EXIT"
+fi
 
 set -e
 

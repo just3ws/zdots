@@ -167,6 +167,10 @@ When operating on a work machine, keep personal open-source repos (`zdots`, `ado
   Restrict changes to necessary portability or environment accommodations, and
   backport generic improvements upstream via the migration report.
 
+**Bootstrapping onto a new or pre-configured work computer with AI agents:**
+- **Pre-configured work computer (`docs/work-migration-playbook.md`):** Always follow the 10-phase [Work Machine Migration & AI Agent Onboarding Playbook](docs/work-migration-playbook.md). Never run an unconditional `adots` restore or overwrite pre-existing corporate `~/.ssh`, 1Password agent wiring, `~/.gitconfig`, or `~/.config/mise/config.toml`. Configure `~/.config/zsh/.zdots.local` with `ZDOTS_CONTEXT=work` (and `ZDOTS_POSTGRES_VERSION=17` when PostgreSQL 17 is installed) **before** running `bin/bootstrap`, pause after Phase 1 to present the **Reconciliation Matrix** for operator approval, scaffold `~/my` exclusively via `adots-my prepare --apply` (never clone the personal `~/my` vault), and conclude with the Phase 10 Upstream Reconciliation & Delta Report.
+- **Fresh machine (`docs/bootstrap-playbook.md`):** Use the [Fresh Machine Bootstrap Playbook](docs/bootstrap-playbook.md) and [Work & Personal Setup Contract](docs/work-profile.md).
+
 ## 2. Token Optimization (RTK)
 
 **Rule:** Always proxy high-output commands through `rtk`.
@@ -244,7 +248,7 @@ colima-status health       # exit 0 = up; exit 1 = down
 - **Knowledge Base:** Use `zdots-ctx query`, `zdots-ctx query --semantic`, and `zdots-ctx hydrate` before claiming missing context. See [docs/wiki/AI-and-Knowledge-Layer.md](docs/wiki/AI-and-Knowledge-Layer.md).
 - **Observability:** This is an observable session linked to the shell via `gemini-invoke`. Every tool call you make is tracked.
 - **Standards:** Follow the [Zsh Quality Rubric](docs/zsh-quality-rubric.md).
-- **Setup:** See [SETUP.md](SETUP.md) for new machine setup.
+- **Setup & Work Migration:** See [SETUP.md](SETUP.md), [docs/work-migration-playbook.md](docs/work-migration-playbook.md), [docs/bootstrap-playbook.md](docs/bootstrap-playbook.md), and [docs/work-profile.md](docs/work-profile.md).
 - **Testing:** See [docs/testing.md](docs/testing.md).
 
 ---
