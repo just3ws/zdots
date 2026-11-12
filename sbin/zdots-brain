@@ -679,6 +679,34 @@ module Zdots
 
         record_panoramic_correlation(media_source_id, meta)
 
+        # Sovereign authoring bypass: if caller already supplied verified raw transcript
+        # and WebVTT (e.g. media-pipeline on-device ztranscribe from local master),
+        # pre-seed the raw artifact and mark raw stage done to eliminate redundant
+        # yt-dlp internet re-downloads and second-pass GPU transcription.
+        if meta["transcript_text"].to_s.strip.length.positive?
+          retention_root = File.expand_path(ENV["ZDOTS_INGEST_SOURCES_DIR"] || "~/.local/state/zdots/ingest-sources")
+          out_base = File.join(retention_root, media_source_id.to_s)
+          FileUtils.mkdir_p(out_base)
+          txt_path = File.join(out_base, "#{meta['source_id']}.txt")
+          File.write(txt_path, meta["transcript_text"])
+          if meta["transcript_vtt"].to_s.strip.length.positive?
+            vtt_path = File.join(out_base, "#{meta['source_id']}.vtt")
+            File.write(vtt_path, meta["transcript_vtt"])
+          end
+          raw_run = Zdots::Models::PipelineRun.find_or_create(
+            media_source_id: media_source_id, stage: "raw", chunk_index: nil,
+            panoramic_run_id: meta["panoramic_run_id"]
+          )
+          raw_run.update(
+            status: "done",
+            artifact_path: txt_path,
+            content_hash: Digest::SHA256.hexdigest(meta["transcript_text"]),
+            run_params: Sequel.pg_jsonb({ "profile" => profile, "seeded_from" => "media-pipeline" }),
+            finished_at: Sequel::CURRENT_TIMESTAMP
+          )
+          puts "zdots-ingest-media: pre-seeded raw transcript artifact (#{txt_path})."
+        end
+
         payload     = { "media_source_id" => media_source_id, "profile" => profile }
         payload.merge!(meta.slice(
           "panoramic_journey_id", "panoramic_run_id", "panoramic_correlation_id",
