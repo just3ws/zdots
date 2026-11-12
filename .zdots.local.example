@@ -149,6 +149,7 @@ ZDOTS_AI_MODE=local
 # ZDOTS_LOCAL_BIN=0             # no cd hook prepending $PWD/bin
 # export HOMEBREW_ZDOTS_SKIP_1PASSWORD_INSTALL=1   # MDM installs 1Password and its CLI
 # export HOMEBREW_ZDOTS_SKIP_CHROME_INSTALL=1      # MDM installs Chrome
+# export OP_BIOMETRIC_UNLOCK_ENABLED=true          # op can't read 1Password's settings (macOS app-data protection)
 
 # ---------------------------------------------------------------------------
 # Work-extension layer (Z-262, AGENTS.md §10) — the ONLY sanctioned place a

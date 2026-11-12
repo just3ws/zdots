@@ -372,8 +372,13 @@ Do **not** replace `~/.config/mise/config.toml` with the version tracked in `ado
 >   - If the corporate setup uses a dedicated work SSH key in 1Password, you can route it via `~/.ssh/config` host blocks without creating physical disk keys.
 
 ### Step 4.2: Verify 1Password CLI (`op`)
+`op whoami` only reports a session that already exists, and app-integration sessions are scoped to the terminal that started them — so verify with a call that needs authorization, from a real terminal tab (1Password asks for Touch ID):
 ```bash
-op whoami
+op vault list
+```
+If it says "You are not currently signed in" even though *Settings › Developer › Integrate with 1Password CLI* is on, check `op account list --debug`: "Skipped loading desktop app settings file … operation not permitted" means macOS's app-data protection stops the terminal from reading 1Password's settings, so `op` believes the app is missing. Either let the terminal access data from other apps (macOS prompt; `tccutil reset SystemPolicyAppData <terminal-bundle-id>` to be asked again), or — when that permission is managed — tell `op` to use the app anyway in `.zdots.local`:
+```bash
+export OP_BIOMETRIC_UNLOCK_ENABLED=true   # sessions are still authorized in 1Password
 ```
 
 ### Step 4.3: Configure Dual Git Identity & Signing (Work Default vs. `just3ws` Repositories)
