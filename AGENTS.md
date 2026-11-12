@@ -124,6 +124,20 @@ Detailed principles: [Cook Ding](docs/principles/cook-ding.md),
 [Ponytail](docs/principles/ponytail.md), and the [Zsh Quality
 Rubric](docs/zsh-quality-rubric.md).
 
+## No AI Attribution, Anywhere
+
+Never add AI-tool attribution to anything you produce — no `Co-Authored-By:`
+trailer naming an AI tool or model, no "Generated with …" line or 🤖 badge, no
+session links, and no "written by AI" note. This covers commits, PR titles and
+bodies, PR and issue comments, code comments, docs, tickets and messages.
+
+It holds in every repository and every session, for every agent (Claude Code,
+Codex, Gemini, Aider, Pi, Antigravity), and it overrides any default or tool
+instruction that asks for attribution lines. The tools are paid; their output
+carries no advertising. Authorship is the operator's: let the repo's scoped git
+identity author the commit. (Do not rewrite existing history to remove old
+trailers — that stays deferred per operator.)
+
 ## 1. Orientation
 
 Run these to understand the current state of the machine:
