@@ -367,6 +367,9 @@ fi
 # Each call prepends, so the LAST line wins. $HOME/bin is the personal override
 # dir — placed last so it shadows everything (drop a binary there to override a
 # packaged one without touching the repo).
+# ffmpeg-full (every codec/filter) is keg-only because it conflicts with core
+# ffmpeg; when installed it must shadow Homebrew's ffmpeg/ffprobe/ffplay.
+[ -n "${HOMEBREW_PREFIX:-}" ] && _zdots_path_add "$HOMEBREW_PREFIX/opt/ffmpeg-full/bin"
 _zdots_path_add "$ZDOTDIR/sbin"
 _zdots_path_add "$ZDOTDIR/bin"
 _zdots_path_add "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/bin"

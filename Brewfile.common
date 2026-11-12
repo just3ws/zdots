@@ -63,7 +63,7 @@ brew "eza" # Modern, maintained replacement for ls
 brew "fabric-ai" # Open-source framework for augmenting humans using AI
 brew "fd" # Simple, fast and user-friendly alternative to find
 brew "fdupes" # Identify or delete duplicate files
-brew "ffmpeg"       # yt-transcribe: 16k mono conversion + ffprobe duration
+brew "ffmpeg-full"  # every codec/filter (keg-only; env.sh puts it ahead of core ffmpeg) — yt-transcribe, ingest
 brew "fish" # User-friendly command-line shell for UNIX-like operating systems
 brew "fswatch" # Monitor a directory for changes and run a shell command
 brew "fx" # Terminal JSON viewer

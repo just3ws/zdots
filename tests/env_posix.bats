@@ -213,3 +213,10 @@ EOF
   [ "$status" -eq 0 ]
   [ "${lines[${#lines[@]}-1]}" == "$home/.config/wget/wgetrc $home/.config/python/pythonrc" ]
 }
+
+@test "env.sh: keg-only ffmpeg-full wins over Homebrew's core ffmpeg when installed" {
+  [ -d /opt/homebrew/opt/ffmpeg-full/bin ] || skip "ffmpeg-full not installed"
+  run bash -c 'export ZDOTDIR="$1"; . "$1/env.sh" >/dev/null 2>&1; command -v ffmpeg' _ "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]}-1]}" == "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg" ]
+}
