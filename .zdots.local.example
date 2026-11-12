@@ -32,6 +32,9 @@ ZDOTS_CONTEXT=home
 # ZDOTS_MIGRATION_URL=postgresql:///my
 # ZDOTS_POSTGRES_VERSION=17               # Set if using PostgreSQL 17 (default: 18)
 # ZDOTS_SKIP_POSTGRES_BREW=1             # Set to 1 if Postgres is already installed and managed externally
+# brew bundle only sees HOMEBREW_-prefixed variables (Homebrew scrubs the rest
+# of the environment), so the Brewfile needs the prefixed, exported form too:
+# export HOMEBREW_ZDOTS_POSTGRES_VERSION=17 HOMEBREW_ZDOTS_SKIP_POSTGRES_BREW=1
 
 # ---------------------------------------------------------------------------
 # AI security boundary (NON-NEGOTIABLE on a new machine)
@@ -129,12 +132,23 @@ ZDOTS_AI_MODE=local
 # ---------------------------------------------------------------------------
 # Work context overrides (only relevant when ZDOTS_CONTEXT=work)
 # Keep corporate identity and network config here, not in the shared repo.
+# Git identity: do not export GIT_AUTHOR_EMAIL / GIT_COMMITTER_EMAIL here — they
+# override the includeIf scoping that keeps platform repos on the personal
+# identity. Put the work address in ~/.config/git/config.identity instead.
 # ---------------------------------------------------------------------------
-# GIT_AUTHOR_EMAIL=firstname.lastname@company.com
-# GIT_COMMITTER_EMAIL=firstname.lastname@company.com
 # HTTP_PROXY=http://corporate-proxy:8080
 # HTTPS_PROXY=http://corporate-proxy:8080
 # NO_PROXY=localhost,127.0.0.1,.internal,.corp
+
+# ---------------------------------------------------------------------------
+# Managed (MDM) Macs — let the employer baseline win where it already covers a
+# need. See docs/work-migration-playbook.md.
+# ---------------------------------------------------------------------------
+# ZDOTS_GIT_CONFIG_GLOBAL=0     # employer manages ~/.gitconfig (identity, signing): read it too
+# ZDOTS_WORK_RELATIVE_PATH=0    # no ./bin, ./node_modules/.bin, … entries on PATH
+# ZDOTS_LOCAL_BIN=0             # no cd hook prepending $PWD/bin
+# export HOMEBREW_ZDOTS_SKIP_1PASSWORD_INSTALL=1   # MDM installs 1Password and its CLI
+# export HOMEBREW_ZDOTS_SKIP_CHROME_INSTALL=1      # MDM installs Chrome
 
 # ---------------------------------------------------------------------------
 # Work-extension layer (Z-262, AGENTS.md §10) — the ONLY sanctioned place a

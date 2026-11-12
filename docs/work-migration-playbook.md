@@ -30,7 +30,7 @@ It prevents common migration hazards:
 When an AI agent is pointed to this playbook on GitHub or local disk, it MUST adhere to these rules at every step:
 
 1. **Stop and Ask on Ambiguity (Never Guess):**
-   - Whenever an environment value, file conflict, or policy choice is ambiguous (e.g., what corporate `GIT_AUTHOR_EMAIL` to set in `.zdots.local`, where the IT onboarding log is located, whether an existing runtime pin or Homebrew formula is required by a company repo, or how to resolve a dotfile diff), **pause and ask the user before making changes**.
+   - Whenever an environment value, file conflict, or policy choice is ambiguous (e.g., which work email belongs in `~/.config/git/config.identity`, where the IT onboarding log is located, whether an existing runtime pin or Homebrew formula is required by a company repo, or how to resolve a dotfile diff), **pause and ask the user before making changes**.
 2. **Audit First, Backup Second, Mutate Third:**
    - Never run an unconditional `bin/bootstrap` or `git checkout -- .` in `$HOME` on a pre-existing machine.
    - Complete Phase 1 (non-destructive inventory) and present the **Reconciliation Matrix** to the user. Wait for explicit user confirmation before modifying packages or dotfiles.
@@ -40,6 +40,8 @@ When an AI agent is pointed to this playbook on GitHub or local disk, it MUST ad
    - **Runtimes (`mise`):** Perform a three-way merge on `~/.config/mise/config.toml` so all corporate project language versions remain intact.
    - **Database (`PostgreSQL`):** Detect the installed PostgreSQL version (`pg_config` / `postgresql@17`) and set `ZDOTS_POSTGRES_VERSION` accordingly instead of forcing a conflicting version.
    - **Homebrew & Nginx:** Never run `sudo brew services` (which corrupts `/opt/homebrew` ownership); manage root `nginx` via `nginx-ctl` or `sudo launchctl kickstart`.
+   - **Employer baseline wins:** Where the employer's setup already covers a need (tagged shell-entry lines, `~/.gitconfig` identity and commit signing, `~/.aws`, `~/.docker`, Colima sizing, PostgreSQL, MDM-managed apps), bind zdots to it instead of replacing it. If the employer ships a compliance check (e.g. a setup script's `--check` mode), record its result before Phase 2 and treat "still green from a fresh zdots shell" as a hard gate in Phase 9.
+   - **Never on a managed machine:** `adots-doctor --fix` (it replaces `~/.zshenv` with the zdots symlink), `brew bundle cleanup`, or `brew bundle` without `--no-upgrade`.
 4. **Strict Work/Personal & PHI Isolation:**
    - Enforce `ZDOTS_CONTEXT=work`, `ZDOTS_AI_MODE=local`, `ZDOTS_CAPTURE_ENABLED=0`, `ZDOTS_CMD_ANALYTICS=0`, and `ZDOTS_HISTORY_REDACT=1` in `~/.config/zsh/.zdots.local`.
    - **Never** clone `github.com/just3ws/my` onto a work machine; scaffold `~/my` exclusively with `adots-my prepare --apply`.
@@ -82,7 +84,7 @@ The target machine is significantly more capable than the 16GB / 256GB storage-c
 
 ## Phase 0: Pre-Flight & Context Handshake (Agent or Operator)
 
-If `~/.config/zsh` or `~/.config/zsh/.zdots.local` does not exist yet when the AI agent starts, the agent executes these steps **after asking the user** for their work `GIT_AUTHOR_EMAIL` and (if applicable) the location of any initial IT onboarding log.
+If `~/.config/zsh` or `~/.config/zsh/.zdots.local` does not exist yet when the AI agent starts, the agent executes these steps **after asking the user** for their work email (for `~/.config/git/config.identity`, Phase 4) and (if applicable) the location of any initial IT onboarding log.
 
 ### 0.1: Locate Setup Log (If Available)
 Check whether an initial developer onboarding log file (e.g. `onboarding.log` or `setup.log`) is present at `~/.local/state/work-onboarding.log`, or ask the user for its path if they have one:
@@ -100,7 +102,7 @@ cd ~/.config/zsh
 ```
 
 ### 0.3: Initialize Machine Posture BEFORE Bootstrap
-Create and configure `~/.config/zsh/.zdots.local` immediately (ask the user for `GIT_AUTHOR_EMAIL` if not yet known):
+Create and configure `~/.config/zsh/.zdots.local` immediately:
 ```bash
 cp -n ~/.config/zsh/.zdots.local.example ~/.config/zsh/.zdots.local
 ```
@@ -114,15 +116,27 @@ ZDOTS_CMD_ANALYTICS=0
 ZDOTS_HISTORY_REDACT=1
 
 # PostgreSQL 17 Dynamic Binding
-ZDOTS_POSTGRES_VERSION=17
+export ZDOTS_POSTGRES_VERSION=17
 # Uncomment if Postgres 17 is already running as a system/brew service:
-# ZDOTS_SKIP_POSTGRES_BREW=1
+# export ZDOTS_SKIP_POSTGRES_BREW=1
+# brew bundle only sees HOMEBREW_* variables (Homebrew scrubs the rest of the
+# environment before evaluating a Brewfile), so export the prefixed form too:
+export HOMEBREW_ZDOTS_POSTGRES_VERSION=17
+# export HOMEBREW_ZDOTS_SKIP_POSTGRES_BREW=1
 
-# Corporate Git Identity
-GIT_AUTHOR_EMAIL="first.last@company.com"
-GIT_COMMITTER_EMAIL="first.last@company.com"
+# Git identity: do NOT set GIT_AUTHOR_EMAIL / GIT_COMMITTER_EMAIL here. Exported,
+# they override the includeIf scoping that keeps platform repos personal; the
+# work email goes in ~/.config/git/config.identity (Phase 4.3).
 
-# M5 MBP Hardware Sizing (24GB RAM / 1TB Storage)
+# Managed (MDM) Mac switches — see Phase 4.3, 5.2 and the 1Password notes:
+# ZDOTS_GIT_CONFIG_GLOBAL=0     # employer manages ~/.gitconfig (identity, signing)
+# ZDOTS_WORK_RELATIVE_PATH=0    # no ./bin, ./node_modules/.bin, … entries on PATH
+# ZDOTS_LOCAL_BIN=0             # no cd hook prepending $PWD/bin
+# export HOMEBREW_ZDOTS_SKIP_1PASSWORD_INSTALL=1 HOMEBREW_ZDOTS_SKIP_CHROME_INSTALL=1
+
+# Colima sizing — if the employer setup already runs a Colima VM, record its
+# existing sizing here instead (the employer baseline wins; resizing restarts
+# the VM). Otherwise, for an M5 MBP (24GB RAM / 1TB Storage):
 ZDOTS_COLIMA_CPU=6                          # Up from 4 on 16GB
 ZDOTS_COLIMA_MEMORY=10                      # 10GB for heavy multi-container stacks (up from 8)
 ZDOTS_COLIMA_DISK=100                       # 100GB container storage (up from 60)
@@ -218,9 +232,13 @@ BACKUP_DIR="$HOME/.it-backup-$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 
 # Backup dotfiles that adots or bootstrap might touch
-for f in .zshrc .bashrc .bash_profile .profile .gitconfig .npmrc .zshenv; do
+for f in .zshrc .bashrc .bash_profile .profile .gitconfig .npmrc .zshenv .zprofile; do
   [ -f "$HOME/$f" ] && cp -p "$HOME/$f" "$BACKUP_DIR/"
 done
+
+# Tool configs that zdots redirects to XDG paths (config only — never ~/.aws/sso or credentials)
+[ -f "$HOME/.docker/config.json" ] && { mkdir -p "$BACKUP_DIR/docker"; cp -p "$HOME/.docker/config.json" "$BACKUP_DIR/docker/"; }
+[ -f "$HOME/.aws/config" ] && { mkdir -p "$BACKUP_DIR/aws"; cp -p "$HOME/.aws/config" "$BACKUP_DIR/aws/"; }
 
 # Backup mise config
 if [ -d "$HOME/.config/mise" ]; then
@@ -243,18 +261,21 @@ echo "Pre-flight snapshot saved to $BACKUP_DIR"
 
 ### Step 3.1: Audit & Update `Brewfile.work`
 1. Check that `Brewfile.work` and `Brewfile.common` contain **no `mas` lines**.
-2. If the setup log or `brew leaves` showed useful corporate utilities, add them to `Brewfile.work`.
+2. If the setup log or `brew leaves` showed useful *generic* utilities, add them to `Brewfile.work`. Employer-specific packages (and anything the employer baseline already provides) belong in a machine Brewfile in the work-extension layer instead — see step 6.
 3. If PostgreSQL 17 is already installed and managed via Homebrew or system launchd:
    - Ensure `ZDOTS_POSTGRES_VERSION=17` is in `~/.config/zsh/.zdots.local`.
    - Set `ZDOTS_SKIP_POSTGRES_BREW=1` if you do not want Homebrew Bundle to attempt service adjustments on Postgres.
+   - **Export both under a `HOMEBREW_` prefix too** (`HOMEBREW_ZDOTS_POSTGRES_VERSION`, `HOMEBREW_ZDOTS_SKIP_POSTGRES_BREW`): Homebrew scrubs every other variable before it evaluates a Brewfile, so without the prefix the switch is silently ignored and `brew bundle` installs **and starts** `postgresql@18` on port 5432. Prove it before installing: `brew bundle list --formula --file=~/.config/zsh/Brewfile.work | grep postgresql`.
 4. Run bundle check first:
    ```bash
    brew bundle check --file=~/.config/zsh/Brewfile.work || true
    ```
-5. Install missing work packages:
+5. Install missing work packages without upgrading anything the employer installed:
    ```bash
-   brew bundle --file=~/.config/zsh/Brewfile.work
+   brew bundle --no-upgrade --file=~/.config/zsh/Brewfile.work
    ```
+6. **When the employer baseline overlaps the platform list** (MDM-managed apps such as browsers or 1Password, a version manager that already provides a tool, e.g. `tfenv` vs `terraform`, services you must not start), generate a curated machine Brewfile in the work-extension layer (`${ZDOTS_WORK_EXT:-~/.config/zdots-work}/Brewfile`) from `brew bundle list --tap|--formula|--cask` minus the exclusions, plus the employer baseline, with no `restart_service`. Point `HOMEBREW_BUNDLE_FILE` at it in `.zdots.local` (env.sh keeps a non-zdots value) and install with `brew bundle --no-upgrade`. Never run `brew bundle cleanup` against a Brewfile that omits the employer baseline.
+7. **Keg-only formulae the employer linked** (e.g. `postgresql@17`, so `psql`/`pg_config` are on PATH) must be listed with `link: true` — `brew bundle` silently **unlinks** a keg-only formula listed without it. Record `ls -l "$(brew --prefix)"/bin/{psql,pg_config}` before the first bundle and compare after.
 
 ### Step 3.2: Foundational RTK (Reduced Token Kernel) Verification
 `rtk` is a core platform requirement for token efficiency. It intercepts verbose terminal outputs and compresses them before they hit LLM context windows:
@@ -301,6 +322,12 @@ Do **not** replace `~/.config/mise/config.toml` with the version tracked in `ado
    export DOCKER_HOST="unix://$(colima-status socket)"
    docker ps
    ```
+4. **Keep employer-provisioned config roots authoritative.** `env.sh` redirects `DOCKER_CONFIG` and `AWS_CONFIG_FILE` to `~/.config/{docker,aws}`; a legacy-only `~/.docker` or `~/.aws` (e.g. a `colima` docker context, the compose plugin directory, SSO profiles) stays in effect until an XDG root exists. On a managed machine, alias the XDG roots to the employer's instead of moving them, so every shell and GUI app sees one config:
+   ```bash
+   [ -e ~/.config/docker ] || ln -s ~/.docker ~/.config/docker
+   [ -e ~/.config/aws ] || ln -s ~/.aws ~/.config/aws
+   ```
+   `adots-doctor` accepts the docker alias on the `work` profile.
 
 ---
 
@@ -338,12 +365,13 @@ op whoami
 
 **The Multi-Context Separation Contract:**
 The operator uses their `just3ws` GitHub account for both personal platform repositories and corporate organization repositories:
-- Commits to corporate repositories (or any newly created repo on the machine) must strictly use the **work identity** (`GIT_AUTHOR_EMAIL="first.last@company.com"`).
+- Commits to corporate repositories (or any newly created repo on the machine) must strictly use the **work identity** (`first.last@company.com`).
 - Commits to personal platform repositories (`zdots`, `adots`, `vdots`, and any `just3ws/*` repo) must strictly use the **personal identity** (`mike@just3ws.com`), avoiding any leak of `mike@just3ws.com` into work projects or corporate emails into public personal repos.
 
 1. **Configure Machine Default Identity (`~/.config/git/config.identity`):**
+   Use the work email confirmed with the user in Phase 0 (`.zdots.local` is a shell file, not git config, so `git config -f` cannot read it):
    ```bash
-   WORK_EMAIL="$(git config -f ~/.config/zsh/.zdots.local --get GIT_AUTHOR_EMAIL)"
+   WORK_EMAIL="first.last@company.com"   # confirmed with the user
    cat << EOF > ~/.config/git/config.identity
    [user]
    	name = Mike Hall
@@ -389,6 +417,15 @@ The operator uses their `just3ws` GitHub account for both personal platform repo
    # git config --global user.signingkey "ssh-ed25519 ..."
    ```
 
+   **When the employer setup manages `~/.gitconfig`** (identity plus 1Password signing, often verified by a compliance check that reads `git config --global` *without includes*): keep that file as-is — including its `user.signingkey = key::…` form and `gpg.ssh.program` — and do not restore adots' `.gitconfig` over it. Instead:
+   - set `ZDOTS_GIT_CONFIG_GLOBAL=0` in `.zdots.local`, otherwise `.zshenv` exports `GIT_CONFIG_GLOBAL` and git ignores `~/.gitconfig` in every zdots shell;
+   - append the adots include **at the end** of `~/.gitconfig` (exactly this indentation, which `adots-doctor` looks for), so the includeIf scoping is applied after the employer's `[user]` block and still wins in platform repos:
+     ```gitconfig
+     [include]
+       path = ~/.config/git/config
+     ```
+   - mark the divergent file `skip-worktree` in adots (`adots-git update-index --skip-worktree .gitconfig`) so the employer block can never be committed to the public repo.
+
 5. **Mandatory Identity Verification Gate:**
    The agent MUST prove that both identities resolve cleanly before proceeding:
    ```bash
@@ -399,8 +436,14 @@ The operator uses their `just3ws` GitHub account for both personal platform repo
      exit 1
    fi
 
-   # Test B: Corporate/default repo (MUST resolve to work email)
-   WORK_EMAIL_CONF="$(git config -f ~/.config/git/config.identity user.email)"
+   # Test B: Corporate/default repo (MUST resolve to work email). Resolve it the
+   # way git does inside a real work repo, not by reading the identity file.
+   WORK_REPO="$HOME/dev/<a-company-repo>"   # any cloned corporate repository
+   WORK_EMAIL_CONF="$(git -C "$WORK_REPO" config user.email)"
+   if [ "$WORK_EMAIL_CONF" = "mike@just3ws.com" ]; then
+     echo "ERROR: Corporate repo resolved to the personal identity"
+     exit 1
+   fi
    echo "Platform identity verified: $PLATFORM_EMAIL (in ~/.config/zsh)"
    echo "Work default identity verified: $WORK_EMAIL_CONF (for corporate repositories)"
    ```
@@ -417,18 +460,28 @@ fi
 ```
 
 ### Step 5.2: Selective Diff & Restore (DO NOT Run Unconditional Restore)
-Inspect differences between `adots` HEAD and the work machine's `$HOME`:
+A bare clone has no index, so first load HEAD into the index (this touches no file in `$HOME`), keep `$HOME`'s untracked files out of status, and enable the tracked pre-commit guard; then inspect differences between `adots` HEAD and the work machine's `$HOME`:
 ```bash
+GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git reset -q
+GIT_DIR=$HOME/.homegit git config --local status.showUntrackedFiles no
+GIT_DIR=$HOME/.homegit git config --local core.hooksPath "$HOME/.githooks"
 GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git status -s
 ```
+` D` = absent (safe to restore), ` M` / ` T` = collides with an existing file (merge, never overwrite).
 * **For new utility files (e.g. `.ripgreprc`, `.config/bat`, `.config/ghostty`):**
   Restore safely:
   ```bash
   GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git checkout HEAD -- <path>
   ```
-* **For colliding shell files (`.zshrc`, `.bashrc`, `.profile`):**
-  Do **not** overwrite. Ensure the work shell sources `~/.config/zsh/.zshenv` or uses standard zdots entrypoints.
+* **For colliding shell files (`.zshenv`, `.zshrc`, `.bashrc`, `.profile`):**
+  Do **not** overwrite. When an employer setup owns `~/.zshenv` (and checks its lines), keep it and append one bridge line as the **last step of the migration** (it switches every new shell to zdots):
+  ```bash
+  [ -r "$HOME/.config/zsh/.zshenv" ] && source "$HOME/.config/zsh/.zshenv"
+  ```
+  zdots then sets `ZDOTDIR`, so `~/.zprofile` / `~/.zshrc` stop being read: confirm their settings are covered (1Password agent socket, mise shims re-added after `path_helper`). `adots-doctor` accepts this bridge on the `work` profile; never run `adots-doctor --fix` here. `bin/check` will still list `~/.zprofile` / `~/.zshrc` as "errant… delete" — on a managed machine keep them: they are inert under `ZDOTDIR`, and the employer's setup checks their lines.
+* **For `~/.config/git/config`:** restore it only after `git-delta`, `neovim` and `git-lfs` are installed — git reads the XDG config immediately, and it sets `core.pager = delta`, `core.editor = nvim` and `interactive.diffFilter`.
 * **For `~/.config/mise/config.toml`:** Keep the merged version created in Phase 3.
+* **Mark every intentionally divergent tracked file** `skip-worktree` (e.g. `.gitconfig`, `.zshenv`, `.config/adots/profile`, and any deferred file) so `adots status` stays clean and nothing employer-specific can be committed.
 
 ### Step 5.3: Set Machine Profile
 ```bash
@@ -459,7 +512,9 @@ adots-my prepare --dry-run
 # 2. Apply directory scaffolding and VERSION epoch marker
 adots-my prepare --apply
 
-# 3. Initialize fresh work-local Git repository
+# 3. Initialize fresh work-local Git repository — no remote. On the `work`
+#    profile, adots-my doctor treats "no origin" as the expected state and fails
+#    if the personal vault's remote is ever added.
 if [ ! -d "$HOME/my/.git" ]; then
   cd "$HOME/my"
   git init -b main
@@ -498,9 +553,17 @@ if [ -x "$MISE_BUNDLE" ]; then
     "$MISE_BUNDLE" install
 fi
 ```
+`pg` ≥ 1.6 resolves to a precompiled `arm64-darwin` gem that bundles its own libpq (18.x), so `BUNDLE_BUILD__PG` has no effect; that client works with a PostgreSQL 17 server. Force a source build (`BUNDLE_FORCE_RUBY_PLATFORM=true`) only if libpq version parity is required.
 
 ### Step 7.3: Initialize `my` Database Migrations
-Ensure the `my` database exists on Postgres 17 and run migrations:
+Before migrating:
+- **The server must run the installed minor version.** If Homebrew upgraded `postgresql@17` while its service kept running, the old binary loads the new keg's libraries and `plpgsql` fails (`Symbol not found`). Compare `psql -Atc 'select version()'` with `brew list --versions postgresql@17`; if they differ and nothing is connected, `brew services restart postgresql@17` (as the user, never `sudo`).
+- **Migrations need `ZDOTS_DB_ENCRYPTION_KEY`** (it encrypts the PHI-sensitive Knowledge Layer columns). With the operator's approval, create a machine-local key — never reuse another machine's — and back it up in the operator's password manager:
+  ```bash
+  zdots-keychain add ZDOTS_DB_ENCRYPTION_KEY "$(openssl rand -hex 32)"
+  ```
+
+Ensure the `my` database exists on Postgres 17 and run migrations (from a shell that has loaded `env.sh`, which pulls the key from Keychain):
 ```bash
 createdb my 2>/dev/null || true
 ~/.config/zsh/bin/zdots-ctx migrate
@@ -511,6 +574,9 @@ createdb my 2>/dev/null || true
 ## Phase 8: Local TLS Edge & Nginx Reverse Proxy Setup (Full Machine Parity)
 
 To establish full operational parity with the primary machine, local services must be fronted over secure HTTPS via `*.localhost` (RFC 6761, no `/etc/hosts` editing needed).
+
+> [!CAUTION]
+> **Check before claiming ports 80/443 or the trust store.** Work application stacks often bind host ports 80/443 themselves (e.g. a `docker compose` web proxy); a root nginx on the same ports breaks them. Grep the work repos' compose files for `"80:` / `"443:` and check `lsof -nP -iTCP:80 -iTCP:443 -sTCP:LISTEN` first. `mkcert -install` adds a root CA to the System keychain — on an MDM-managed Mac, get the operator's explicit approval, and offer to defer this phase (or use non-conflicting ports) when local services are not yet needed.
 
 ### Step 8.1: Install & Trust Local CA (`mkcert`)
 `mkcert` creates a local certificate authority and installs it into the macOS System Keychain and local browser NSS stores:
@@ -594,6 +660,13 @@ zdots-ctl check
 adots-profile validate
 adots-my doctor
 colima-status --json
+
+# 3. Employer baseline still green — from FRESH shells of every kind, because
+#    login and non-login shells read different startup files:
+#    rerun the employer's compliance check (if any) from `zsh -lic`, and confirm
+#    for `zsh -c`, `zsh -lc`, `zsh -ic` and `bash -lc` that SSH_AUTH_SOCK is the
+#    1Password agent, `command -v op` resolves, GIT_CONFIG_GLOBAL is unset when
+#    ZDOTS_GIT_CONFIG_GLOBAL=0, and docker/aws still see the employer's contexts.
 ```
 
 ### Post-Migration Sign-Off Checklist
@@ -604,8 +677,9 @@ colima-status --json
 - [ ] `mise` configuration preserved all work project language versions.
 - [ ] Colima healthy with authoritative socket discovery and tuned M5 sizing.
 - [ ] PostgreSQL 17 bound cleanly to native gems and `my` database migrated.
-- [ ] Local TLS (`mkcert`) and root `nginx` active with 6 HTTPS `.localhost` endpoints verified.
-- [ ] `adots-my doctor` reports 0 failures.
+- [ ] Local TLS (`mkcert`) and root `nginx` active with 6 HTTPS `.localhost` endpoints verified — or Phase 8 explicitly deferred by the operator.
+- [ ] `adots-my doctor` reports 0 failures (on `work`, a missing `~/my` remote is expected).
+- [ ] The employer's compliance check (if any) is as green as it was before Phase 2.
 
 ---
 
