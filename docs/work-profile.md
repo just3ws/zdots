@@ -107,7 +107,7 @@ If both contexts must run on one Mac, choose the account/data separation first.
 A fresh work shell does not isolate shared home files, Keychain items, editor
 state, or existing Platform Services and databases.
 
-## Review evidence — 2026-11-06
+## Review evidence: 2026-11-06
 
 The review covered tracked setup/load paths in all four repositories without
 opening employer extension contents, vault contents, credentials, or local

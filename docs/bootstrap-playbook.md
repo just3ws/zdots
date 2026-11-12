@@ -7,14 +7,36 @@ audience: Platform Operator & Coding Agents
 
 # Zdots Machine Bootstrap & AI Agent Orchestration Playbook
 
-This playbook defines the exact sequence for bringing up a fresh macOS machine to full operational parity with your existing environment across all four platform repositories (`zdots`, `adots`, `vdots`, `my`), while strictly enforcing work/home isolation, security boundaries, and zero personal data leakage.
+This playbook defines the exact sequence for bringing up a fresh macOS machine to full operational parity across all four platform repositories (`zdots`, `adots`, `vdots`, `my`), while strictly enforcing work/home isolation, security boundaries, and zero personal data leakage.
 
 > [!IMPORTANT]
-> **Pre-Configured Work Machines:** If you are migrating onto a corporate-managed Mac that already has existing developer configurations, runtimes (e.g. PostgreSQL 17, mise, Colima), 1Password, an existing `~/.ssh` directory, or an IT onboarding log, follow the dedicated **[Work Machine Migration Playbook](work-migration-playbook.md)** instead. That playbook handles audit-before-action log parsing, non-destructive `adots` diffing, and PostgreSQL 17 dynamic extension wiring.
+> **Single-Link AI Agent Entrypoint:** You can hand this file directly to an AI coding agent via its GitHub URL (`https://github.com/just3ws/zdots/blob/main/docs/bootstrap-playbook.md` or raw `https://raw.githubusercontent.com/just3ws/zdots/main/docs/bootstrap-playbook.md`) even before `zdots` is cloned locally. The agent will follow the **Agent Behavioral Contract & Ambiguity Protocol** below, inspect the machine, ask you to resolve any ambiguities, complete Phase 0 with your confirmation, and execute Phases 1 through 6 safely.
 
-It is structured in two parts:
-1. **Phase 0: The Human Handshake**: Manual prerequisites you perform at the keyboard before delegating.
-2. **Phases 1–6: The Agent Playbook**: Deterministic steps, prompts, and verification gates that an AI coding agent (Claude Code, Antigravity, etc.) can execute autonomously.
+> [!WARNING]
+> **Pre-Configured or Existing Machines:** If this machine already has existing developer configurations, runtimes (e.g. PostgreSQL 17, mise, Colima), 1Password, an existing `~/.ssh` directory, or an IT onboarding log, the agent MUST switch immediately to the **[Work Machine Migration Playbook](work-migration-playbook.md)** (`https://raw.githubusercontent.com/just3ws/zdots/main/docs/work-migration-playbook.md`). Never run an unconditional `bin/bootstrap` over a pre-configured machine.
+
+---
+
+## 0. Agent Behavioral Contract: Play Nice & Ask on Ambiguity
+
+When an AI agent reads this playbook from GitHub or local disk, it operates under the following non-negotiable behavioral rules:
+
+1. **Ask the User When Ambiguity Exists (Zero Assumptions):**
+   - Before writing `.zdots.local` or mutating the system, if any setting is ambiguous or unspecified (such as whether `ZDOTS_CONTEXT` is `work` or `home`, what corporate `GIT_AUTHOR_EMAIL` to configure, whether a corporate proxy is needed, or whether an existing tool/dotfile should be kept), **stop and ask the user directly**.
+2. **Auto-Detect New vs. Pre-Existing Machine State First:**
+   - Before cloning or running `bin/bootstrap`, probe `~/.zshrc`, `~/.gitconfig`, `~/.ssh/config`, `~/.config/mise/config.toml`, `brew leaves`, `mise ls`, and `pg_isready`.
+   - If pre-existing developer toolchains, SSH keys/agents, or custom dotfiles are present, **do not run unconditional `bin/bootstrap`**. Notify the user and transition to `docs/work-migration-playbook.md` so all existing configurations are backed up and three-way merged.
+3. **Play Nice with the Host OS & Existing Setup:**
+   - Back up any pre-existing `$HOME` dotfiles to `~/.it-backup-$(date +%Y%m%d_%H%M%S)/` before modifying or linking anything.
+   - Never overwrite `~/.ssh/config`, 1Password SSH agent sockets, or corporate certificates.
+   - Never run `sudo brew services` (which corrupts `/opt/homebrew` permissions); use `nginx-ctl` or `sudo launchctl kickstart` for root daemons.
+4. **Strict Work/Personal & PHI Isolation:**
+   - On any `work` machine, configure `.zdots.local` with `ZDOTS_CONTEXT=work`, `ZDOTS_AI_MODE=local`, `ZDOTS_CAPTURE_ENABLED=0`, `ZDOTS_CMD_ANALYTICS=0`, and `ZDOTS_HISTORY_REDACT=1` **before** executing `bin/bootstrap`.
+   - Never clone the personal `github.com/just3ws/my` vault onto a work machine; always scaffold `~/my` via `adots-my prepare --apply`.
+   - Never read `.zdots.secrets`, `.env` files, private keys, or PHI-shaped data into context.
+5. **Follow Platform Conventions:**
+   - Manage `$HOME` dotfiles strictly through `adots` / `adots-git` wrappers (never raw `git` in `$HOME`, and never look for retired `gdots` or `tdots` repositories, which are consolidated into `adots`).
+   - Once `rtk` is installed, proxy high-output git, container, and directory commands through `rtk` (`rtk git status`, `rtk git diff`, `rtk docker ps`).
 
 ---
 
@@ -30,35 +52,43 @@ It is structured in two parts:
 
 ---
 
-## Phase 0: The Human Handshake (Manual Setup)
+## Phase 0: Pre-Flight & Context Handshake (Agent or Operator)
 
-Perform these steps before starting any AI agent session.
+If `~/.config/zsh` or `~/.config/zsh/.zdots.local` does not exist yet when the agent starts, the agent executes these steps **after asking the user** to confirm `ZDOTS_CONTEXT` (`work` vs `home`), `GIT_AUTHOR_EMAIL` (if `work`), and whether any existing dotfiles are present.
 
-### Step 0.1: macOS Prerequisites
-Open Terminal and install Command Line Tools and Homebrew:
+### Step 0.1: macOS Prerequisites & Baseline Check
+Verify Command Line Tools, Homebrew, and check whether the machine already has existing configurations:
 ```bash
-xcode-select --install
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+xcode-select -p || xcode-select --install
+command -v brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Probe for pre-existing developer state (if found, switch to docs/work-migration-playbook.md):
+ls -la ~/.zshrc ~/.gitconfig ~/.ssh/config ~/.config/mise/config.toml 2>/dev/null || true
 ```
 
 ### Step 0.2: Clone `zdots` (The Seed Repo)
-Clone `zdots` to its canonical location under XDG config:
+Clone `zdots` to its canonical location under XDG config if not already present:
 ```bash
-git clone https://github.com/just3ws/zdots.git ~/.config/zsh
+if [ ! -d "$HOME/.config/zsh/.git" ]; then
+  git clone https://github.com/just3ws/zdots.git ~/.config/zsh
+fi
 cd ~/.config/zsh
 ```
 
 ### Step 0.3: Define Machine Context BEFORE Running Bootstrap
-Bootstrap reads `.zdots.local` at launch. **You must configure this before running `bin/bootstrap`**, otherwise `ZDOTS_CONTEXT` defaults to `home`.
+Bootstrap reads `.zdots.local` at launch. **You must configure this before running `bin/bootstrap`**, otherwise `ZDOTS_CONTEXT` defaults to `home`. If `.zdots.local` does not exist, ask the user for any missing values (such as their work email) before creating it:
 
 ```bash
-cp ~/.config/zsh/.zdots.local.example ~/.config/zsh/.zdots.local
-$EDITOR ~/.config/zsh/.zdots.local
+cp -n ~/.config/zsh/.zdots.local.example ~/.config/zsh/.zdots.local
 ```
 
 **For a Work Machine:**
 ```bash
 ZDOTS_CONTEXT=work
+ZDOTS_AI_MODE=local
+ZDOTS_CAPTURE_ENABLED=0
+ZDOTS_CMD_ANALYTICS=0
+ZDOTS_HISTORY_REDACT=1
 GIT_AUTHOR_EMAIL="first.last@company.com"
 GIT_COMMITTER_EMAIL="first.last@company.com"
 # If corporate machine runs PostgreSQL 17 (instead of default 18):
@@ -74,33 +104,27 @@ GIT_COMMITTER_EMAIL="first.last@company.com"
 ZDOTS_CONTEXT=home
 ```
 
-### Step 0.4: Corporate IT Dotfile Pre-flight
-`bin/bootstrap` automatically clones and restores `adots` to `$HOME`. On a corporate Mac with pre-installed IT management profiles, back up any collision-prone files:
+### Step 0.4: Pre-flight Dotfile Backup
+`bin/bootstrap` automatically clones and restores `adots` to `$HOME`. Always back up any pre-existing files first:
 ```bash
-mkdir -p ~/.it-backup-$(date +%Y%m%d)
-cp -p ~/.zshrc ~/.bashrc ~/.gitconfig ~/.it-backup-*/ 2>/dev/null || true
+mkdir -p ~/.it-backup-$(date +%Y%m%d_%H%M%S)
+cp -p ~/.zshrc ~/.bashrc ~/.gitconfig ~/.zshenv ~/.it-backup-*/ 2>/dev/null || true
 ```
 
 ---
 
-## Phase 1: AI Agent Handoff
+## Phase 1: Single-Prompt AI Agent Invocation
 
-Once Phase 0 is complete, start your coding agent (e.g. `claude`, `agy`, or Antigravity IDE) in `~/.config/zsh` and provide the following prompt:
+You can launch your coding agent (Claude Code, Gemini CLI, Codex, or Antigravity) from anywhere on the machine and simply point it at this playbook on GitHub:
 
 ````markdown
-You are bootstrapping this machine to full platform parity.
-Follow the playbook at `~/.config/zsh/docs/bootstrap-playbook.md`.
+Read https://raw.githubusercontent.com/just3ws/zdots/main/docs/bootstrap-playbook.md and follow it to bootstrap this machine safely. Ask me whenever there is any ambiguity before making changes.
+````
 
-Context:
-- `~/.config/zsh/.zdots.local` has been created.
-- Review `ZDOTS_CONTEXT` from `.zdots.local`.
-- If `ZDOTS_CONTEXT=work`:
-  - Never clone `github.com/just3ws/my` onto this machine.
-  - Create the `~/my` skeleton using `adots-my prepare --apply`.
-  - Maintain PHI-safe defaults: no session residue capture, local AI only.
-  - Set `adots-profile work`.
+If `~/.config/zsh` is already cloned locally:
 
-Execute Phases 2 through 6 sequentially, verifying each gate before continuing.
+````markdown
+Read ~/.config/zsh/docs/bootstrap-playbook.md and follow it to bootstrap this machine safely. Ask me whenever there is any ambiguity before making changes.
 ````
 
 ---

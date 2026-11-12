@@ -8,7 +8,10 @@ canonical: true
 
 # Work Machine Migration & AI Agent Onboarding Playbook
 
-This playbook provides deterministic instructions for an AI agent (Claude Code, Antigravity, etc.) to safely evaluate, reconcile, and configure `zdots`, `adots`, and `vdots` on a corporate-managed Mac with pre-existing developer configurations.
+This playbook provides deterministic instructions for an AI agent (Claude Code, Gemini CLI, Codex, or Antigravity) to safely evaluate, reconcile, and configure `zdots`, `adots`, and `vdots` on a corporate-managed or pre-existing Mac with prior developer configurations.
+
+> [!IMPORTANT]
+> **Single-Link AI Agent Entrypoint:** You only need to tell your AI agent to read this file from GitHub (`https://github.com/just3ws/zdots/blob/main/docs/work-migration-playbook.md` or raw `https://raw.githubusercontent.com/just3ws/zdots/main/docs/work-migration-playbook.md`), even before `zdots` is cloned locally. The agent will follow the **Agent Behavioral Contract & Ambiguity Protocol** below, inspect the existing machine non-destructively, ask you whenever anything is ambiguous, complete Phase 0 with your confirmation, present the Phase 1 Reconciliation Matrix for approval, and execute Phases 2 through 10 safely.
 
 It prevents common migration hazards:
 1. **Zero Overwrite of IT Configurations:** Protects pre-existing shell setups, corporate `~/.ssh`, and 1Password integrations.
@@ -19,6 +22,32 @@ It prevents common migration hazards:
 6. **Zero Personal Data Leakage:** Enforces `my.structure.v1` skeleton scaffolding without ever cloning the personal `~/my` vault.
 7. **Local TLS Edge & Nginx Parity:** Sets up `mkcert` and root `nginx` to provide the 6 foundational `*.localhost` service endpoints over HTTPS without corrupting Homebrew file ownership.
 8. **Token Optimization (RTK):** Mandates `rtk` proxying for git/container inspection to preserve context window budgets.
+
+---
+
+## 0. Agent Behavioral Contract: Play Nice & Ask on Ambiguity
+
+When an AI agent is pointed to this playbook on GitHub or local disk, it MUST adhere to these rules at every step:
+
+1. **Stop and Ask on Ambiguity (Never Guess):**
+   - Whenever an environment value, file conflict, or policy choice is ambiguous (e.g., what corporate `GIT_AUTHOR_EMAIL` to set in `.zdots.local`, where the IT onboarding log is located, whether an existing runtime pin or Homebrew formula is required by a company repo, or how to resolve a dotfile diff), **pause and ask the user before making changes**.
+2. **Audit First, Backup Second, Mutate Third:**
+   - Never run an unconditional `bin/bootstrap` or `git checkout -- .` in `$HOME` on a pre-existing machine.
+   - Complete Phase 1 (non-destructive inventory) and present the **Reconciliation Matrix** to the user. Wait for explicit user confirmation before modifying packages or dotfiles.
+   - Always create a timestamped snapshot in `~/.it-backup-$(date +%Y%m%d_%H%M%S)/` (Phase 2) before touching any file.
+3. **Play Nice with Pre-Existing Developer Tooling:**
+   - **SSH & 1Password:** Never run `github-keygen` if 1Password or corporate SSH keys are present; never overwrite `~/.ssh/config`.
+   - **Runtimes (`mise`):** Perform a three-way merge on `~/.config/mise/config.toml` so all corporate project language versions remain intact.
+   - **Database (`PostgreSQL`):** Detect the installed PostgreSQL version (`pg_config` / `postgresql@17`) and set `ZDOTS_POSTGRES_VERSION` accordingly instead of forcing a conflicting version.
+   - **Homebrew & Nginx:** Never run `sudo brew services` (which corrupts `/opt/homebrew` ownership); manage root `nginx` via `nginx-ctl` or `sudo launchctl kickstart`.
+4. **Strict Work/Personal & PHI Isolation:**
+   - Enforce `ZDOTS_CONTEXT=work`, `ZDOTS_AI_MODE=local`, `ZDOTS_CAPTURE_ENABLED=0`, `ZDOTS_CMD_ANALYTICS=0`, and `ZDOTS_HISTORY_REDACT=1` in `~/.config/zsh/.zdots.local`.
+   - **Never** clone `github.com/just3ws/my` onto a work machine; scaffold `~/my` exclusively with `adots-my prepare --apply`.
+   - **Never** read `.zdots.secrets`, `.env` files, private SSH keys, or PHI-shaped files into LLM prompts/context.
+   - Configure dual Git identity (`includeIf`) so corporate repositories use the work email while `just3ws/*` platform repositories (`zdots`, `adots`, `vdots`) resolve to `mike@just3ws.com`.
+5. **Follow Platform Conventions:**
+   - Use `adots` / `adots-git` wrappers for `$HOME` dotfile operations (never raw `git` in `$HOME`, and never search for retired `gdots` or `tdots` repos).
+   - Once `rtk` is available, proxy verbose commands through `rtk` (`rtk git status`, `rtk git diff`, `rtk docker ps`).
 
 ---
 
@@ -51,28 +80,31 @@ The target machine is significantly more capable than the 16GB / 256GB storage-c
 
 ---
 
-## Phase 0: Operator Handshake (Manual Setup)
+## Phase 0: Pre-Flight & Context Handshake (Agent or Operator)
 
-Perform these steps before starting the AI agent session on the work Mac:
+If `~/.config/zsh` or `~/.config/zsh/.zdots.local` does not exist yet when the AI agent starts, the agent executes these steps **after asking the user** for their work `GIT_AUTHOR_EMAIL` and (if applicable) the location of any initial IT onboarding log.
 
-### 0.1: Ensure Setup Log is Accessible
-Place the initial developer onboarding log file (e.g. `onboarding.log` or `setup.log`) at a known path, such as:
+### 0.1: Locate Setup Log (If Available)
+Check whether an initial developer onboarding log file (e.g. `onboarding.log` or `setup.log`) is present at `~/.local/state/work-onboarding.log`, or ask the user for its path if they have one:
 ```bash
-~/.local/state/work-onboarding.log
+ls -la ~/.local/state/work-onboarding.log 2>/dev/null || true
 ```
 
 ### 0.2: Clone `zdots` (Seed Repository)
+If `~/.config/zsh` is not yet cloned, clone it now:
 ```bash
-git clone https://github.com/just3ws/zdots.git ~/.config/zsh
+if [ ! -d "$HOME/.config/zsh/.git" ]; then
+  git clone https://github.com/just3ws/zdots.git ~/.config/zsh
+fi
 cd ~/.config/zsh
 ```
 
 ### 0.3: Initialize Machine Posture BEFORE Bootstrap
-Bootstrap reads `.zdots.local` at launch. Create and configure it immediately:
+Create and configure `~/.config/zsh/.zdots.local` immediately (ask the user for `GIT_AUTHOR_EMAIL` if not yet known):
 ```bash
-cp ~/.config/zsh/.zdots.local.example ~/.config/zsh/.zdots.local
+cp -n ~/.config/zsh/.zdots.local.example ~/.config/zsh/.zdots.local
 ```
-Edit `~/.config/zsh/.zdots.local` with these minimum entries:
+Ensure `~/.config/zsh/.zdots.local` contains these minimum entries:
 ```bash
 # Core Machine Posture (NON-NEGOTIABLE)
 ZDOTS_CONTEXT=work
@@ -107,25 +139,18 @@ ZDOTS_AI_PROFILE=work-light                 # 4B always-on reasoning default (~4
 
 ---
 
-## Prompt to Hand Off to the AI Agent
+## Single-Prompt AI Agent Invocation
 
-Start your AI agent in `~/.config/zsh` and provide the following prompt:
+You only need to give your AI agent a single instruction pointing to the GitHub URL (even before cloning anything locally):
 
 ````markdown
-You are performing a safe, evaluated migration of the zdots, adots, and vdots platform onto this pre-configured work machine.
-Follow the playbook at `~/.config/zsh/docs/work-migration-playbook.md`.
+Read https://raw.githubusercontent.com/just3ws/zdots/main/docs/work-migration-playbook.md and follow it to safely integrate the platform into this pre-existing machine. Play nice with existing configurations and ask me whenever there is any ambiguity before making changes.
+````
 
-Context & Constraints:
-- Initial developer setup log is located at: `~/.local/state/work-onboarding.log` (or inspect the path provided by the operator).
-- `~/.config/zsh/.zdots.local` is pre-configured with `ZDOTS_CONTEXT=work` and `ZDOTS_POSTGRES_VERSION=17`.
-- Explicit preferences: Homebrew, mise, and Colima (NO Docker Desktop).
-- App Store is unavailable: No `mas` packages or App Store-dependent casks may be installed.
-- Do NOT run blind restores or overwrite existing `~/.ssh` or `~/.config/mise/config.toml`.
-- Never clone `github.com/just3ws/my` onto this machine; use `adots-my prepare --apply`.
+Or if `~/.config/zsh` is already cloned on disk:
 
-Execute Phases 1 through 10 sequentially:
-1. Report the Reconciliation Matrix after Phase 1 and wait for confirmation before mutating packages or dotfiles.
-2. At the end (Phase 10), generate the comprehensive Upstream Reconciliation & Delta Report so the operator can reconcile improvements back into the upstream repository.
+````markdown
+Read ~/.config/zsh/docs/work-migration-playbook.md and follow it to safely integrate the platform into this pre-existing machine. Play nice with existing configurations and ask me whenever there is any ambiguity before making changes.
 ````
 
 ---
@@ -598,7 +623,7 @@ mkdir -p "$(dirname "$REPORT_FILE")"
 The agent writes the following markdown structure into `$REPORT_FILE`:
 
 ```markdown
-# Work Machine Migration Delta Report — YYYY-MM-DD
+# Work Machine Migration Delta Report: YYYY-MM-DD
 
 ## 1. Executive Summary
 - **Execution Date:** YYYY-MM-DD
