@@ -6,6 +6,13 @@
 #
 # Ordering: taps first (so tapped formulae resolve), then brews, then casks.
 
+# Homebrew scrubs the environment before it evaluates a Brewfile — only
+# HOMEBREW_* variables survive — so each zdots switch is also read under that
+# prefix (export HOMEBREW_ZDOTS_POSTGRES_VERSION=17 in .zdots.local).
+def zdots_flag(name)
+  ENV["HOMEBREW_#{name}"] || ENV[name]
+end
+
 # ── Taps ──
 tap "romkatv/powerlevel10k" # Powerlevel10k formula tap
 
@@ -83,6 +90,7 @@ brew "htop" # Improved top (interactive process viewer)
 brew "hyperfine" # Command-line benchmarking tool
 brew "imagemagick" # Tools and libraries to manipulate images in select formats
 brew "jemalloc" # Implementation of malloc emphasizing fragmentation avoidance
+brew "libyaml" # YAML parser — Ruby's psych links it when mise builds Ruby from source
 brew "jless" # Command-line pager for JSON data
 brew "jq" # Lightweight and flexible command-line JSON processor
 brew "k6" # Modern load testing tool, using Go and JavaScript
@@ -122,8 +130,8 @@ brew "pgvector" # Open-source vector similarity search for Postgres
 brew "pipx" # Execute binaries from Python packages in isolated environments
 brew "pnpm" # Fast, disk space efficient package manager
 # PostgreSQL: defaults to 18, but respects existing setups via ZDOTS_POSTGRES_VERSION (e.g. 17) or ZDOTS_SKIP_POSTGRES_BREW=1
-_pg_version = ENV["ZDOTS_POSTGRES_VERSION"] || "18"
-brew "postgresql@#{_pg_version}", restart_service: :changed unless ENV["ZDOTS_SKIP_POSTGRES_BREW"] == "1"
+_pg_version = zdots_flag("ZDOTS_POSTGRES_VERSION") || "18"
+brew "postgresql@#{_pg_version}", restart_service: :changed unless zdots_flag("ZDOTS_SKIP_POSTGRES_BREW") == "1"
 brew "powerlevel10k" # Theme for zsh
 brew "pre-commit" # Framework for managing multi-language pre-commit hooks
 brew "prettier" # Code formatter for JavaScript, CSS, JSON, GraphQL, Markdown, YAML
@@ -200,7 +208,7 @@ cask "dbeaver-community" # Universal database tool and SQL client
 cask "firefox" # Web browser
 cask "font-fira-code-nerd-font" # programming font for terminal and editor
 cask "font-meslo-lg-nerd-font" # Powerlevel10k glyph and prompt font
-cask "google-chrome" # Web browser
+cask "google-chrome" unless zdots_flag("ZDOTS_SKIP_CHROME_INSTALL") == "1" # Web browser (MDM-managed Macs often ship it)
 cask "iterm2" # Terminal emulator as alternative to Apple's Terminal app
 cask "itermai" # Enable generative AI features in iTerm2
 cask "marked-app" # Previewer for Markdown, MultiMarkdown and other text markup languages

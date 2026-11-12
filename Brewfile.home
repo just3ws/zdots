@@ -49,7 +49,10 @@ brew "kcov" # Code coverage tester for compiled programs, Python, and shell scri
 # otelcol-contrib is intentionally absent — custom binary managed by
 # bin/otel-collector install (not available via Homebrew)
 cask "1password" # Password manager that keeps all passwords secure behind one password
-cask "1password-cli" # Command-line interface for 1Password
+# The official CLI installer puts a real `op` in /usr/local/bin and keeps it
+# updated; a cask copy earlier on PATH would shadow it.
+_op_official = File.file?("/usr/local/bin/op") && !File.symlink?("/usr/local/bin/op")
+cask "1password-cli" unless _op_official # Command-line interface for 1Password
 cask "android-platform-tools" # Android SDK component
 cask "codex" # OpenAI's coding agent that runs in your terminal
 cask "codexbar" # Menu bar app for tracking agentic coding limits and usage
