@@ -329,6 +329,20 @@ Do **not** replace `~/.config/mise/config.toml` with the version tracked in `ado
    ```
    `adots-doctor` accepts the docker alias on the `work` profile.
 
+### Step 3.5: Recreate What Skipping `bin/bootstrap` Leaves Out
+1. **XDG directories.** `env.sh` points history and config variables (`PSQL_HISTORY`, `LESSHISTFILE`, `NODE_REPL_HISTORY`, `SQLITE_HISTORY`, `MYSQL_HISTFILE`, `BUNDLE_USER_CONFIG`, `GNUPGHOME`, …) at directories that bootstrap's step 2 creates. Without them, histories are silently not saved. The step is additive, so replay it (owner-only):
+   ```bash
+   umask 077
+   mkdir -p ~/.config/{npm,bundle,python} \
+     ~/.local/state/{zsh,less,node,psql,mysql,sqlite} \
+     ~/.local/share/{zsh,go,gem,python,pnpm,cargo,rustup,gnupg}
+   chmod 700 ~/.config ~/.cache ~/.local/state ~/.local/share
+   ```
+2. **`compinit: insecure directories` prompt.** If `compaudit` (run in an interactive shell) lists `"$(brew --prefix)/share"` as group-writable, apply Homebrew's documented fix rather than `ZDOTS_COMPLETION_PERMISSIVE=1` — `compinit -i` silences the prompt by skipping the insecure directory's completions (brew, git, docker…). On a managed Mac the admin group holds IT accounts, so group write there is a real injection path:
+   ```bash
+   chmod g-w "$(brew --prefix)/share"
+   ```
+
 ---
 
 ## Phase 4: SSH, 1Password & Git Identity
