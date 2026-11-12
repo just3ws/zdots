@@ -53,9 +53,14 @@ if [[ -n "${CODEX_SANDBOX:-}" ]]; then
   export MISE_CACHE_DIR="${${TMPDIR:-/tmp}%/}/mise-cache"
 fi
 
-# Git identity configuration (XDG compliant)
-: "${GIT_CONFIG_GLOBAL:=$XDG_CONFIG_HOME/git/config}"
-export GIT_CONFIG_GLOBAL
+# Git identity configuration (XDG compliant). Where an employer manages
+# ~/.gitconfig (identity, commit signing), set ZDOTS_GIT_CONFIG_GLOBAL=0 in
+# .zdots.local: git then reads it alongside ~/.config/git/config instead of
+# ignoring it.
+if [[ "${ZDOTS_GIT_CONFIG_GLOBAL:-1}" == "1" ]]; then
+  : "${GIT_CONFIG_GLOBAL:=$XDG_CONFIG_HOME/git/config}"
+  export GIT_CONFIG_GLOBAL
+fi
 
 # Machine-specific overrides (gitignored). Sourced last, at .zshenv time —
 # before conf.d/compinit — so local fpath/completion additions take effect.
