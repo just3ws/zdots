@@ -5,6 +5,11 @@
 # added last time, and never adopts a $PWD/bin that is already on PATH from
 # somewhere else (env.sh §9c, .zshrc.local — e.g. ~/.config/nvim/bin). Those
 # stay put when you leave the repo. See Z-338 for the eviction bug this fixes.
+#
+# Set ZDOTS_LOCAL_BIN=0 in .zdots.local where a project's bin/ must not shadow
+# host commands (repos that let untrusted agents or scripts write into the tree).
+
+[[ "${ZDOTS_LOCAL_BIN:-1}" == "1" ]] || return 0
 
 _zdots_local_bin_added=""   # the entry THIS hook prepended; "" when none
 

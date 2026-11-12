@@ -156,3 +156,29 @@ EOF
   [ "$status" -eq 0 ]
   [ "${lines[${#lines[@]}-1]}" == "$home/.config/aws/config $home/.config/docker" ]
 }
+
+@test "env.sh: work-context relative PATH entries stay on by default" {
+  local fixture="$BATS_TEST_TMPDIR/work-relpath-default"
+  mkdir -p "$fixture"
+  cp "$ZDOTDIR/.zdots.env" "$ZDOTDIR/.zdots.work" "$fixture/"
+  printf 'ZDOTS_CONTEXT=work\n' > "$fixture/.zdots.local"
+  run bash -c '
+    export ZDOTDIR="$1"; unset ZDOTS_WORK_RELATIVE_PATH; . "$2/env.sh" >/dev/null 2>&1
+    case ":$PATH:" in *":./bin:"*) echo present ;; *) echo absent ;; esac
+  ' _ "$fixture" "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]}-1]}" == "present" ]
+}
+
+@test "env.sh: ZDOTS_WORK_RELATIVE_PATH=0 drops work-context relative PATH entries" {
+  local fixture="$BATS_TEST_TMPDIR/work-relpath-off"
+  mkdir -p "$fixture"
+  cp "$ZDOTDIR/.zdots.env" "$ZDOTDIR/.zdots.work" "$fixture/"
+  printf 'ZDOTS_CONTEXT=work\nZDOTS_WORK_RELATIVE_PATH=0\n' > "$fixture/.zdots.local"
+  run bash -c '
+    export ZDOTDIR="$1"; . "$2/env.sh" >/dev/null 2>&1
+    case ":$PATH:" in *":./bin:"*|*":./node_modules/.bin:"*) echo present ;; *) echo absent ;; esac
+  ' _ "$fixture" "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]}-1]}" == "absent" ]
+}

@@ -71,3 +71,16 @@ teardown() { rm -rf "$TMP"; }
   [ "$status" -eq 0 ]
   [[ "$(tr ':' '\n' <<<"$output" | grep -c "^$TMP/repo-a/bin$")" == "1" ]]
 }
+
+@test "ZDOTS_LOCAL_BIN=0 leaves the hook out entirely" {
+  run zsh -df -c "ZDOTS_LOCAL_BIN=0
+autoload -Uz add-zsh-hook
+typeset -U path
+source '$HOOK'
+cd '$TMP/repo-a'
+(( \${+functions[_zdots_chpwd_local_bin]} )) && print -r -- hooked
+print -rn -- \$PATH"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *hooked* ]]
+  [[ "$output" != *"$TMP/repo-a/bin"* ]]
+}

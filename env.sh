@@ -362,14 +362,18 @@ if [ "${ZDOTS_CONTEXT:-home}" = "work" ]; then
   # (no -d check). Listed low→high precedence; each prepend makes the next-listed
   # win, so the final order is ./bin ./sbin ./node_modules/.bin ./.venv/bin
   # ./venv/bin ./vendor/bin. Gated to work: relative PATH entries are only safe
-  # in project dirs you control (cwd-shadowing risk).
-  for _rel in ./vendor/bin ./venv/bin ./.venv/bin ./node_modules/.bin ./sbin ./bin; do
-    case ":$PATH:" in
-      *":$_rel:"*) ;;
-      *) PATH="$_rel:$PATH" ;;
-    esac
-  done
-  unset _rel
+  # in project dirs you control (cwd-shadowing risk). Set
+  # ZDOTS_WORK_RELATIVE_PATH=0 where a project tree may hold files you did not
+  # review (dependency install scripts, sandboxed agents writing into the repo).
+  if [ "${ZDOTS_WORK_RELATIVE_PATH:-1}" = "1" ]; then
+    for _rel in ./vendor/bin ./venv/bin ./.venv/bin ./node_modules/.bin ./sbin ./bin; do
+      case ":$PATH:" in
+        *":$_rel:"*) ;;
+        *) PATH="$_rel:$PATH" ;;
+      esac
+    done
+    unset _rel
+  fi
   # work org tooling
   case ":$PATH:" in
     *":$HOME/github.com/work/bin:"*) ;;
