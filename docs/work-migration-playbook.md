@@ -494,8 +494,9 @@ adots-profile validate
 if [ ! -d "$HOME/.config/nvim" ]; then
   git clone https://github.com/just3ws/vdots.git "$HOME/.config/nvim"
 fi
-# Headless plugin sync
-nvim --headless "+Lazy! sync" +qa
+# vdots uses Neovim's built-in vim.pack (not lazy.nvim): the first start
+# installs every plugin into stdpath("data")/site/pack. A clean run prints nothing.
+nvim --headless +qa
 ```
 
 ---
