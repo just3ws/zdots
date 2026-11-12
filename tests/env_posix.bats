@@ -134,3 +134,25 @@ EOF
   [ "$status" -eq 0 ]
   [ "${lines[${#lines[@]}-1]}" == "present" ]
 }
+
+@test "env.sh: a legacy-only ~/.aws or ~/.docker is not hidden by the XDG redirect" {
+  local home="$BATS_TEST_TMPDIR/legacy-home"
+  mkdir -p "$home/.aws" "$home/.docker"
+  run env -u XDG_ROOT -u XDG_CONFIG_HOME HOME="$home" bash -c '
+    export ZDOTDIR="$1"; . "$1/env.sh" >/dev/null 2>&1
+    echo "${AWS_CONFIG_FILE-unset} ${DOCKER_CONFIG-unset}"
+  ' _ "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]}-1]}" == "unset unset" ]
+}
+
+@test "env.sh: XDG redirects for AWS and Docker apply once the XDG root exists" {
+  local home="$BATS_TEST_TMPDIR/xdg-home"
+  mkdir -p "$home/.config/aws" "$home/.config/docker" "$home/.aws" "$home/.docker"
+  run env -u XDG_ROOT -u XDG_CONFIG_HOME HOME="$home" bash -c '
+    export ZDOTDIR="$1"; . "$1/env.sh" >/dev/null 2>&1
+    echo "$AWS_CONFIG_FILE $DOCKER_CONFIG"
+  ' _ "$ZDOTDIR"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]}-1]}" == "$home/.config/aws/config $home/.config/docker" ]
+}

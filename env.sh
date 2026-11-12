@@ -238,6 +238,10 @@ export PSQL_HISTORY="$XDG_STATE_HOME/psql/history"
 export SQLITE_HISTORY="$XDG_STATE_HOME/sqlite/history"
 export PYTHONSTARTUP="$XDG_CONFIG_HOME/python/pythonrc"
 export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
+# A legacy-only root stays authoritative until it is migrated: redirecting would
+# hide its profiles and contexts (e.g. an employer-provisioned ~/.aws or ~/.docker).
+[ -d "$XDG_CONFIG_HOME/aws" ] || [ ! -d "$HOME/.aws" ] || unset AWS_CONFIG_FILE AWS_SHARED_CREDENTIALS_FILE
+[ -d "$DOCKER_CONFIG" ] || [ ! -d "$HOME/.docker" ] || unset DOCKER_CONFIG
 
 # 5. General Environment
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
