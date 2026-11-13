@@ -582,11 +582,12 @@ SERVICES
   otel      otel-collector — Telemetry           port 4318   [aliases: telemetry]
   colima    Colima VM      — Docker runtime                  [aliases: vm, docker]
   nginx     nginx          — TLS reverse proxy   80/443      [aliases: web, proxy]
-  postgres  postgresql@18  — `my` database       port 5432   [aliases: pg, db]
+  postgres  postgresql@V   — `my` database       port 5432   [aliases: pg, db]
   redis     redis          — analytics cache     port 6379   [aliases: cache, kv]
   worker    zdots-worker   — async job queue drain            [aliases: jobs]
 
 NOTE
+  V is ZDOTS_POSTGRES_VERSION (default 18); `zsvc list` shows the resolved name.
   nginx is a root (system-domain) LaunchDaemon and uses sudo via nginx-ctl.
   postgres/redis are user LaunchAgents managed directly via launchctl.
   zsvc verifies registration and component health. For branch readiness, run:

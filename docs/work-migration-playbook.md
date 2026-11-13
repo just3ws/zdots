@@ -626,12 +626,12 @@ fi
 ```
 
 ### Step 8.3: Validate & Start Nginx LaunchDaemon (Root Domain)
-Nginx must bind privileged ports 80 and 443, so it runs as a root LaunchDaemon (`/Library/LaunchDaemons/homebrew.mxcl.nginx.plist`).
+Nginx must bind privileged ports 80 and 443, so it runs as a root LaunchDaemon (`/Library/LaunchDaemons/sh.brew.nginx.plist`; Homebrew before 7 named it `homebrew.mxcl.nginx`, and `nginx-ctl` resolves either).
 
 > [!CAUTION]
 > **DO NOT USE `sudo brew services restart nginx`**
 > Running `sudo brew services` executes Homebrew commands as root, corrupting ownership across `/opt/homebrew` and breaking subsequent `brew install` / `brew link`.
-> ALWAYS use `nginx-ctl` or `sudo launchctl kickstart -k system/homebrew.mxcl.nginx`.
+> ALWAYS use `nginx-ctl` or `sudo launchctl kickstart -k system/sh.brew.nginx`.
 
 1. Validate nginx configuration syntax:
    ```bash
@@ -639,7 +639,7 @@ Nginx must bind privileged ports 80 and 443, so it runs as a root LaunchDaemon (
    ```
 2. Bootstrap and start the root daemon:
    ```bash
-   sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist 2>/dev/null || sudo launchctl kickstart -k system/homebrew.mxcl.nginx
+   sudo launchctl load /Library/LaunchDaemons/sh.brew.nginx.plist 2>/dev/null || sudo launchctl kickstart -k system/sh.brew.nginx
    ```
 3. Verify nginx status:
    ```bash

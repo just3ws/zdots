@@ -51,6 +51,8 @@ ZDOTS_SVC_BIN="${_SVC_REG_ZDOTDIR}/bin"
 _SVC_REG_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
 _SVC_REG_JUST3WS_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/just3ws"
 _SVC_REG_BREW="$(brew --prefix 2>/dev/null || printf '/opt/homebrew')"
+# shellcheck source=lib/brew-label.bash
+source "${_SVC_REG_ZDOTDIR}/lib/brew-label.bash"
 
 declare -ag ZDOTS_SVC_ALL=()
 declare -Ag ZDOTS_SVC_ALIAS=()
@@ -111,22 +113,11 @@ _svc_reg "otel|otel-collector|com.zdots.otel-collector|${_SVC_REG_STATE}/otel-co
 _svc_reg "o2|openobserve|com.zdots.openobserve|${_SVC_REG_STATE}/openobserve.log|openobserve-ctl|http://127.0.0.1:5080|launchd|1|openobserve observability obs telemetry-ui|install|start|stop|restart|status|health|logs||zdots_probe_o2"
 _svc_reg "jaeger|jaeger|com.zdots.jaeger|${_SVC_REG_STATE}/jaeger.log|jaeger-ctl|http://127.0.0.1:16686|launchd|1|jaeger tracing jaeger-ui|install|start|stop|restart|status|health|logs||zdots_probe_jaeger"
 _svc_reg "colima|colima|com.zdots.colima-autostart||colima||colima|1|vm docker||start|stop||status||logs||zdots_probe_colima|optional"
-# Homebrew's launchd label: sh.brew.<formula> since Homebrew 7, homebrew.mxcl.<formula>
-# before. Use whichever plist is installed (user agent or system daemon); default
-# to the current prefix.
-_zdots_brew_label() {
-  local f="$1" d
-  for d in "$HOME/Library/LaunchAgents" /Library/LaunchDaemons; do
-    [[ -f "$d/homebrew.mxcl.$f.plist" && ! -f "$d/sh.brew.$f.plist" ]] && { printf 'homebrew.mxcl.%s' "$f"; return; }
-    [[ -f "$d/sh.brew.$f.plist" ]] && { printf 'sh.brew.%s' "$f"; return; }
-  done
-  printf 'sh.brew.%s' "$f"
-}
-_svc_reg "nginx|nginx|$(_zdots_brew_label nginx)|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.localhost (+ llama/embed/o2/zdots.localhost)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate|zdots_probe_nginx"
+_svc_reg "nginx|nginx|$(zdots_brew_label nginx)|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.localhost (+ llama/embed/o2/zdots.localhost)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate|zdots_probe_nginx"
 _pg_ver="${ZDOTS_POSTGRES_VERSION:-18}"
-_svc_reg "postgres|postgresql@${_pg_ver}|$(_zdots_brew_label "postgresql@${_pg_ver}")|${_SVC_REG_BREW}/var/log/postgresql@${_pg_ver}.log||postgresql:///my (:5432)|plist|1|postgresql pg db database||start|stop|restart|status|health|||zdots_probe_postgres"
+_svc_reg "postgres|postgresql@${_pg_ver}|$(zdots_brew_label "postgresql@${_pg_ver}")|${_SVC_REG_BREW}/var/log/postgresql@${_pg_ver}.log||postgresql:///my (:5432)|plist|1|postgresql pg db database||start|stop|restart|status|health|||zdots_probe_postgres"
 unset _pg_ver
-_svc_reg "redis|redis|$(_zdots_brew_label redis)|${_SVC_REG_BREW}/var/log/redis.log||127.0.0.1:6379|plist|1|cache kv||start|stop|restart|status|health|||zdots_probe_redis"
+_svc_reg "redis|redis|$(zdots_brew_label redis)|${_SVC_REG_BREW}/var/log/redis.log||127.0.0.1:6379|plist|1|cache kv||start|stop|restart|status|health|||zdots_probe_redis"
 _svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.log|zdots-worker|jobs queue (my)|launchd|1|jobs brain-worker|install|start|stop|restart|status|health|logs||zdots_probe_worker"
 _svc_reg "status|zdots-statusd|com.zdots.statusd|${_SVC_REG_STATE}/zdots-statusd.log|zdots-statusd-ctl|http://127.0.0.1:${ZDOTS_STATUS_PORT:-11600}|launchd|1|statusd statusd-ctl control-plane dashboard|install|start|stop|restart|status|health|logs||zdots_probe_status"
 _svc_reg "gemstash|gemstash|com.zdots.gemstash|${_SVC_REG_STATE}/gemstash.log|gemstash-ctl|http://127.0.0.1:9292|launchd|1|gems gem-cache rubygems gem-proxy|install|start|stop|restart|status|health|logs||zdots_probe_gemstash"

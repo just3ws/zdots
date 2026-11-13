@@ -13,7 +13,9 @@ trap '' PIPE
 
 BREW_PREFIX="$(brew --prefix 2>/dev/null || printf /opt/homebrew)"
 BREW_USER="${USER}"
-NGINX_SVC="homebrew.mxcl.nginx"
+# shellcheck source=lib/brew-label.bash
+source "${ZDOTDIR:-$HOME/.config/zsh}/lib/brew-label.bash"
+NGINX_SVC="$(zdots_brew_label nginx)"
 NGINX_LOG_DIR="${BREW_PREFIX}/var/log/nginx"
 NGINX_LAUNCHAGENT="${HOME}/Library/LaunchAgents/${NGINX_SVC}.plist"
 SYSTEM_LAUNCHDAEMON="/Library/LaunchDaemons/${NGINX_SVC}.plist"

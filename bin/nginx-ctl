@@ -20,7 +20,9 @@ trap '' PIPE
 
 BREW_PREFIX="$(brew --prefix 2>/dev/null || printf /opt/homebrew)"
 NGINX_BIN="${BREW_PREFIX}/opt/nginx/bin/nginx"
-LABEL="homebrew.mxcl.nginx"
+# shellcheck source=lib/brew-label.bash
+source "${ZDOTDIR:-$HOME/.config/zsh}/lib/brew-label.bash"
+LABEL="$(zdots_brew_label nginx)"
 PLIST="/Library/LaunchDaemons/${LABEL}.plist"
 ERR_LOG="${BREW_PREFIX}/var/log/nginx/error.log"
 ACC_LOG="${BREW_PREFIX}/var/log/nginx/access.log"

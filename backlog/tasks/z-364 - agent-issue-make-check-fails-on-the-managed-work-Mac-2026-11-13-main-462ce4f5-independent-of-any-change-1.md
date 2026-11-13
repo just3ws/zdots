@@ -44,5 +44,5 @@ Tests that read machine state instead of fixtures:
 - platform_e2e uses ZDOTS_POSTGRES_VERSION; services-tier, live-bus, empty-lessons and ztask platform checks skip with reasons when those were never provisioned.
 - The zdots_rw fence test skips only when postgres is externally managed (ZDOTS_SKIP_POSTGRES_BREW=1) and that server trusts loopback.
 Machine provisioning (not in the diff): installed requirements-lock.txt into mise python (uv, 458 MB); ran zdots-index-tools (119 methodologies); created ~/.local/share/pnpm/bin.
-Not changed: nginx-ctl and nginx-repair still use the homebrew.mxcl.nginx label (they run sudo launchctl and nginx is not installed here to test); zsvc help text still says postgresql@18.
+Follow-up (same PR): lib/brew-label.bash now resolves the label for the registry, nginx-ctl, nginx-repair and bootstrap's nginx hints (tests/brew_label.bats); docs and zsvc help no longer hardcode homebrew.mxcl.* or postgresql@18. The nginx scripts' sudo paths were not run (nginx is not installed here).
 <!-- SECTION:FINAL_SUMMARY:END -->

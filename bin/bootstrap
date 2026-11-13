@@ -540,8 +540,11 @@ if command -v nginx >/dev/null 2>&1; then
   if nginx -t 2>/dev/null; then
     echo "bootstrap: nginx config valid."
     echo "bootstrap: MANUAL STEP REQUIRED: start nginx on port 80."
-    echo "           Run: sudo launchctl load /Library/LaunchDaemons/homebrew.mxcl.nginx.plist"
-    echo "           NOTE: use 'sudo launchctl kickstart -k system/homebrew.mxcl.nginx' for restarts."
+    # shellcheck source=lib/brew-label.bash
+    . "${REPO_ROOT}/lib/brew-label.bash"
+    _nginx_label="$(zdots_brew_label nginx)"
+    echo "           Run: sudo launchctl load /Library/LaunchDaemons/${_nginx_label}.plist"
+    echo "           NOTE: use 'sudo launchctl kickstart -k system/${_nginx_label}' for restarts."
     echo "           Do NOT use 'sudo brew services restart nginx' — it takes root ownership of"
     echo "           Homebrew paths and breaks subsequent 'brew link' and 'brew install' operations."
   else

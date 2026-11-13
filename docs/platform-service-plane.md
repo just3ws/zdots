@@ -112,9 +112,13 @@ sequenceDiagram
 | `otel-collector` | `otel-collector` / `zsvc otel` | user LaunchAgent `com.zdots.otel-collector` | OTLP HTTP `:4318` | `~/.local/state/zsh/otel-collector.log` |
 | `o2` (OpenObserve) | `openobserve-ctl` / `zsvc o2` | user LaunchAgent `com.zdots.openobserve` | `:5080/healthz` | `~/.local/state/zsh/openobserve.log` |
 | `colima` | `colima` / `zsvc colima` | Colima VM state (optional; container workloads) | `colima status` | `colima logs` |
-| `nginx` | `nginx-ctl` / `zsvc status nginx` | root LaunchDaemon `homebrew.mxcl.nginx` | `:80` listener and host probes | Homebrew nginx logs |
-| `postgresql@18` | `zsvc postgres` | user LaunchAgent `homebrew.mxcl.postgresql@18` | `pg_isready` and `zdots-ctx status` | Homebrew Postgres log |
-| `redis` | `zsvc redis` | user LaunchAgent `homebrew.mxcl.redis` | `redis-cli PING` | Homebrew Redis log |
+| `nginx` | `nginx-ctl` / `zsvc status nginx` | root LaunchDaemon `sh.brew.nginx`¹ | `:80` listener and host probes | Homebrew nginx logs |
+| `postgresql@<V>` | `zsvc postgres` | user LaunchAgent `sh.brew.postgresql@<V>`¹ | `pg_isready` and `zdots-ctx status` | Homebrew Postgres log |
+| `redis` | `zsvc redis` | user LaunchAgent `sh.brew.redis`¹ | `redis-cli PING` | Homebrew Redis log |
+
+¹ Homebrew 7 names service labels `sh.brew.<formula>`; older releases used
+`homebrew.mxcl.<formula>`. `lib/brew-label.bash` resolves whichever plist is
+installed. `<V>` is `ZDOTS_POSTGRES_VERSION` (default 18).
 
 ## Control Script Patterns
 
