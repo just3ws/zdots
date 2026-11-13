@@ -8,6 +8,14 @@ setup() {
   CAP="$REPO_ROOT/bin/capabilities"
 }
 
+# These read (and the layover test writes) the live bus in the context DB.
+# Skip them where the bus was never provisioned: no busdriver participant
+# means the coordinator has never run on this machine.
+require_live_bus() {
+  "$REPO_ROOT/bin/bus" passengers 2>/dev/null | grep -q 'busdriver' \
+    || skip "live bus not provisioned (no busdriver participant; see: bus driver start)"
+}
+
 @test "bus-schedule: --help exits 0" {
   run "$BIN" --help
   [ "$status" -eq 0 ]
@@ -111,6 +119,7 @@ setup() {
 }
 
 @test "bus: passengers lists participants" {
+  require_live_bus
   BUS="$REPO_ROOT/bin/bus"
   run "$BUS" passengers
   [ "$status" -eq 0 ]
@@ -119,6 +128,7 @@ setup() {
 }
 
 @test "bus: conversations shows active thread wire" {
+  require_live_bus
   BUS="$REPO_ROOT/bin/bus"
   run "$BUS" conversations
   [ "$status" -eq 0 ]
@@ -126,6 +136,7 @@ setup() {
 }
 
 @test "bus: logbook displays documented entries" {
+  require_live_bus
   BUS="$REPO_ROOT/bin/bus"
   run "$BUS" logbook
   [ "$status" -eq 0 ]
@@ -144,6 +155,7 @@ setup() {
 }
 
 @test "bus: ticket inspects participant auth token" {
+  require_live_bus
   BUS="$REPO_ROOT/bin/bus"
   run "$BUS" ticket mike
   [ "$status" -eq 0 ]
@@ -151,6 +163,7 @@ setup() {
 }
 
 @test "bus: layover and in-service lifecycle" {
+  require_live_bus
   BUS="$REPO_ROOT/bin/bus"
   run "$BUS" layover "Testing layover lifecycle" --eta 15m
   [ "$status" -eq 0 ]

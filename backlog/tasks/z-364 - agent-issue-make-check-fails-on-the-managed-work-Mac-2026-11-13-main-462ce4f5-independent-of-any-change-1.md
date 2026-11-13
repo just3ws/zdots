@@ -3,9 +3,10 @@ id: Z-364
 title: >-
   [agent-issue] make check fails on the managed work Mac (2026-11-13, main
   462ce4f5) independent of any change: (1)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-13T17:54:00Z'
+updated_date: '2026-11-13T19:22:00Z'
 labels:
   - agent-reported
   - error
@@ -27,3 +28,21 @@ make check fails on the managed work Mac (2026-11-13, main 462ce4f5) independent
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Fixed forward on operator instruction (2026-11-13). make check on the managed Mac: 888 ok, 0 failed, 60 skipped with stated reasons.
+Code fixes:
+- zdots-endpoints: --help no longer dies under pipefail when nginx serves no vhosts (empty server_name scan).
+- nginx-regen-certs: --dry-run resolves SANs without an existing cert; a real run still requires one.
+- svc-registry: Homebrew 7 launchd labels (sh.brew.<formula>, falling back to homebrew.mxcl.<formula>), so zsvc sees brew-run postgres/redis/nginx.
+- Gemfile: declare sqlite3 (zdots-brain sync-history needs it; it had only arrived via ~/.default-gems).
+Tests that read machine state instead of fixtures:
+- adots_my_structure pins its own profile (work, no remote) instead of reading this machine's.
+- update_local_logging stubs pi on PATH.
+- platform_e2e uses ZDOTS_POSTGRES_VERSION; services-tier, live-bus, empty-lessons and ztask platform checks skip with reasons when those were never provisioned.
+- The zdots_rw fence test skips only when postgres is externally managed (ZDOTS_SKIP_POSTGRES_BREW=1) and that server trusts loopback.
+Machine provisioning (not in the diff): installed requirements-lock.txt into mise python (uv, 458 MB); ran zdots-index-tools (119 methodologies); created ~/.local/share/pnpm/bin.
+Not changed: nginx-ctl and nginx-repair still use the homebrew.mxcl.nginx label (they run sudo launchctl and nginx is not installed here to test); zsvc help text still says postgresql@18.
+<!-- SECTION:FINAL_SUMMARY:END -->

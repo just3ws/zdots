@@ -94,7 +94,12 @@ for arg in "$@"; do
 done
 
 command -v mkcert >/dev/null 2>&1 || _die "mkcert not installed (brew install mkcert)"
-[[ -f "$CERT" ]] || _die "current cert not found: $CERT"
+# A real run backs up the current cert first, so it needs one. A dry run only
+# reads it for the SAN union and can resolve from live sources without it.
+if [[ ! -f "$CERT" ]]; then
+  $DRY_RUN || _die "current cert not found: $CERT"
+  _info "no current cert at $CERT; resolving SANs from live sources only"
+fi
 
 # Deploy tracked vhosts first so a newly added server_name is on disk before
 # we scan for it below.

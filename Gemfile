@@ -15,6 +15,8 @@ gem "opentelemetry-sdk"
 gem "pg"
 gem "ruby_llm"
 gem "sequel"
+# zdots-brain sync-history reads the shell-analytics SQLite buffer.
+gem "sqlite3"
 
 group :test do
   gem "bundler-audit", require: false

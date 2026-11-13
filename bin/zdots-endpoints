@@ -70,7 +70,7 @@ _link() { printf '\e]8;;%s\e\\%s\e]8;;\e\\' "$1" "$2"; }
 vhosts=""
 if [[ -d "$NGINX_SERVERS" ]]; then
   vhosts="$(grep -rhE '^\s*server_name' "$NGINX_SERVERS" 2>/dev/null \
-    | sed -E 's/^\s*server_name\s+//; s/;.*//' | tr ' ' '\n' | sort -u)"
+    | sed -E 's/^\s*server_name\s+//; s/;.*//' | tr ' ' '\n' | sort -u || true)"
 fi
 _has_vhost() { printf '%s\n' "$vhosts" | grep -qx "$1"; }
 

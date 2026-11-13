@@ -12,7 +12,15 @@ teardown() {
 }
 
 @test "zdots-update-local: dry-run log includes nested phase and step context" {
+  # The pi phase only runs (and logs) commands when a pi CLI is found; a stub
+  # keeps the test independent of whether pi is installed. Dry run: nothing
+  # under ~/.pi is touched.
+  mkdir -p "$TMP_LOG_DIR/bin"
+  printf '#!/bin/sh\nexit 0\n' > "$TMP_LOG_DIR/bin/pi"
+  chmod +x "$TMP_LOG_DIR/bin/pi"
+
   run env \
+    PATH="$TMP_LOG_DIR/bin:$PATH" \
     ZDOTS_LOG_DIR="$TMP_LOG_DIR" \
     ZDOTS_TRANSCRIPT_TEE=0 \
     "$REPO_ROOT/bin/zdots-update-local" \

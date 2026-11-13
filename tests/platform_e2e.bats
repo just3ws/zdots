@@ -17,6 +17,9 @@ setup() {
   CTX="$REPO_ROOT/bin/zdots-ctx"
   PSQL_OSUSER=( psql -X -q -A -t my )   # OS user over socket (trust, superuser)
   RW_PW="$(security find-generic-password -s zdots -a ZDOTS_RW_PASSWORD -w 2>/dev/null || true)"
+  # Same version resolution as lib/svc-registry.bash (a machine may bind to an
+  # existing postgres via ZDOTS_POSTGRES_VERSION).
+  PG_SVC="postgresql@${ZDOTS_POSTGRES_VERSION:-18}"
 }
 
 _have() { command -v "$1" >/dev/null 2>&1; }
@@ -26,7 +29,7 @@ _have() { command -v "$1" >/dev/null 2>&1; }
 @test "zsvc list reports all seven platform services" {
   run "$ZSVC" list
   [ "$status" -eq 0 ]
-  for svc in llama-server llama-embed otel-collector colima nginx postgresql@18 redis; do
+  for svc in llama-server llama-embed otel-collector colima nginx "$PG_SVC" redis; do
     [[ "$output" == *"$svc"* ]] || { echo "missing service in list: $svc"; false; }
   done
 }
@@ -34,10 +37,22 @@ _have() { command -v "$1" >/dev/null 2>&1; }
 @test "zsvc list shows core services running" {
   run "$ZSVC" list
   [ "$status" -eq 0 ]
-  for svc in llama-server postgresql@18 redis nginx; do
+  for svc in llama-server "$PG_SVC"; do
     echo "$output" | grep -E "^${svc}[[:space:]]+running" || {
       echo "service not running: $svc"; false; }
   done
+  # redis and nginx belong to the optional services tier: a machine may defer
+  # it. Registered means it must be running; never registered skips.
+  local absent=()
+  for svc in redis nginx; do
+    if echo "$output" | grep -qE "^${svc}[[:space:]]+not-registered"; then
+      absent+=("$svc")
+    else
+      echo "$output" | grep -E "^${svc}[[:space:]]+running" || {
+        echo "service not running: $svc"; false; }
+    fi
+  done
+  (( ${#absent[@]} == 0 )) || skip "services tier not provisioned: ${absent[*]}"
 }
 
 @test "zsvc help lists nginx, postgres, redis (discoverable)" {
@@ -59,7 +74,7 @@ _have() { command -v "$1" >/dev/null 2>&1; }
 
 @test "zsvc aliases resolve (db -> postgres, cache -> redis)" {
   run "$ZSVC" status db
-  [[ "$output" == *postgresql@18* ]]
+  [[ "$output" == *"$PG_SVC"* ]]
   run "$ZSVC" status cache
   [[ "$output" == *redis* ]]
 }
@@ -67,7 +82,7 @@ _have() { command -v "$1" >/dev/null 2>&1; }
 @test "zsvc logs all reports central log sources" {
   run "$ZSVC" logs all --paths
   [ "$status" -eq 0 ]
-  for svc in llama-server llama-embed otel-collector nginx postgresql@18 redis; do
+  for svc in llama-server llama-embed otel-collector nginx "$PG_SVC" redis; do
     [[ "$output" == *"$svc"* ]] || { echo "missing log source: $svc"; false; }
   done
 }
@@ -86,7 +101,7 @@ _have() { command -v "$1" >/dev/null 2>&1; }
 @test "zsvc health reports services and local URLs" {
   run "$ZSVC" health
   [[ "$output" == *llama-server* ]]
-  [[ "$output" == *postgresql@18* ]]
+  [[ "$output" == *"$PG_SVC"* ]]
   [[ "$output" == *redis* ]]
   [[ "$output" == *llama.localhost* ]]
   [[ "$output" == *my.localhost* ]]
@@ -110,6 +125,12 @@ _have() { command -v "$1" >/dev/null 2>&1; }
 
 @test "ztask health proves task orchestration dependencies" {
   run "$ZTASK" health --json
+  # platform_ready needs the optional services tier (O2, otel, redis); a
+  # machine may defer it. Everything else must still hold.
+  if printf '%s\n' "$output" | jq -e '.platform_ready == false' >/dev/null; then
+    printf '%s\n' "$output" | jq -e '.brain_ready and .hydration_ready' >/dev/null
+    skip "services tier not provisioned (platform_ready=false; see zdots-ctl status)"
+  fi
   [ "$status" -eq 0 ]
   printf '%s\n' "$output" | jq -e '
     .healthy == true and
@@ -162,7 +183,9 @@ _have() { command -v "$1" >/dev/null 2>&1; }
   [ "$status" -eq 0 ]
   [ "$output" -ge 32 ]
   run "${PSQL_OSUSER[@]}" -c "select count(*) from lessons;"
-  [ "$output" -ge 1 ]
+  [ "$status" -eq 0 ]
+  # Lessons accrue from use; a newly provisioned machine has none yet.
+  [ "$output" -ge 1 ] || skip "no lessons captured yet on this machine"
 }
 
 @test "core tooling methodologies are present by slug" {
@@ -183,6 +206,11 @@ _have() { command -v "$1" >/dev/null 2>&1; }
 @test "passwordless connection as zdots_rw is REJECTED (fence is real)" {
   # -w: never prompt; empty PGPASSWORD so it cannot pick one up.
   run env PGPASSWORD= psql -w -X -tAc "select 1" "postgresql://zdots_rw@127.0.0.1/my"
+  # A postgres zdots doesn't manage (ZDOTS_SKIP_POSTGRES_BREW=1) keeps its own
+  # pg_hba.conf; if that trusts loopback, there is no fence to prove here.
+  if [[ "$status" -eq 0 && "${ZDOTS_SKIP_POSTGRES_BREW:-0}" == "1" ]]; then
+    skip "externally managed postgres trusts loopback: zdots_rw needs no password on this machine"
+  fi
   [ "$status" -ne 0 ]
   [[ "$output" == *"password"* || "$output" == *"authentication"* ]]
 }

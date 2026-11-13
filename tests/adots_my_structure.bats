@@ -16,7 +16,11 @@ setup_my_repo() {
   git -C "$MY_ROOT" init -q
   git -C "$MY_ROOT" config user.name "Codex Test"
   git -C "$MY_ROOT" config user.email "codex@example.com"
-  git -C "$MY_ROOT" remote add origin https://github.com/just3ws/my.git
+  # Pin the profile instead of reading this machine's: a work profile expects a
+  # work-local ~/my with no origin remote (and rejects the personal vault), so
+  # the skeleton/migration contract runs the same on every machine.
+  export ADOTS_PROFILE_FILE="$BATS_TEST_TMPDIR/adots-profile"
+  printf 'work\n' > "$ADOTS_PROFILE_FILE"
 }
 
 @test "adots-my prepare dry-run reports the planned skeleton without mutating" {
