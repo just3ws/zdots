@@ -58,10 +58,10 @@ if [[ -r "$ZDOTDIR/providers/tools/opencode.zsh" ]] && ! typeset -f zopencode >/
   }
 fi
 
-if [[ -r "$ZDOTDIR/providers/tools/apfel.zsh" ]] && ! typeset -f zapfel >/dev/null 2>&1; then
+if [[ -r "$ZDOTDIR/providers/tools/apple-fm.zsh" ]] && ! typeset -f zapfel >/dev/null 2>&1; then
   zapfel() {
     unfunction zapfel 2>/dev/null || true
-    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/apfel.zsh" zapfel "$@"
+    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/apple-fm.zsh" zapfel "$@"
   }
 fi
 

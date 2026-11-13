@@ -110,7 +110,49 @@ zaider() {
     printf 'zaider: warning: ~/.aider.model.metadata.json missing — context window unknown to Aider\n' >&2
   fi
 
-  aider "$@"
+  # Weak model (commit messages, chat summaries) on Apple's on-device model,
+  # served on loopback for this session only, so llama.cpp keeps its capacity
+  # for the main model. Falls back to the local weak model when unavailable.
+  # ZDOTS_AIDER_WEAK=local skips it.
+  local _fm_dir=""
+  if [[ "$_mode" == "local" && "${ZDOTS_AIDER_WEAK:-apple}" == "apple" ]]; then
+    _zdots_aider_apple_weak && _fm_dir="$_ZDOTS_AIDER_FM_DIR"
+  fi
+
+  if [[ -z "$_fm_dir" ]]; then
+    aider "$@"
+    return
+  fi
+  local _rc=0
+  AIDER_WEAK_MODEL="openai/system" \
+  AIDER_MODEL_SETTINGS_FILE="${_fm_dir}/model.settings.yml" \
+  AIDER_MODEL_METADATA_FILE="${_fm_dir}/model.metadata.json" \
+    aider "$@" || _rc=$?
+  zdots_fm_serve_stop
+  rm -rf "$_fm_dir"
+  return "$_rc"
+}
+
+# _zdots_aider_apple_weak — start the loopback fm server and set
+# _ZDOTS_AIDER_FM_DIR to a temp dir holding aider's weak-model settings and
+# metadata. Call it directly, not in $(...): the server PID must stay in this
+# shell so zaider can stop it.
+_zdots_aider_apple_weak() {
+  typeset -g _ZDOTS_AIDER_FM_DIR=""
+  typeset -f zdots_fm_serve_start >/dev/null 2>&1 \
+    || source "${ZDOTDIR}/providers/tools/apple-fm.zsh" 2>/dev/null \
+    || return 1
+  local rc=0
+  zdots_fm_serve_start 2>/dev/null || rc=$?
+  if (( rc == 3 )); then
+    print -u2 'zaider: Apple weak model refused (fm config could route off this Mac); using the local weak model.'
+  fi
+  (( rc == 0 )) || return 1
+  local dir
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/zaider-fm.XXXXXX")" || { zdots_fm_serve_stop; return 1; }
+  _zdots_fm_aider_files "$ZDOTS_FM_SERVE_PORT" "${dir}/model.settings.yml" \
+    "${dir}/model.metadata.json" "${AIDER_MODEL_METADATA_FILE:-}"
+  _ZDOTS_AIDER_FM_DIR="$dir"
 }
 
 # laid — "Low-load Aider". Runs with lower CPU priority and tighter

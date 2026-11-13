@@ -5,9 +5,10 @@
 _zai() {
   _arguments -s \
     '(- *)'{-h,--help}'[show help]' \
-    '(--pi --aider)--local[local llama.cpp via zdots-ask (default)]' \
-    '(--local --aider)--pi[zpi — explore / read / plan]' \
-    '(--local --pi)--aider[zaider — edit / patch / commit]' \
+    '(--apple --pi --aider)--local[local llama.cpp via zdots-ask (default)]' \
+    '(--local --pi --aider)--apple[zapfel — Apple on-device model, quick text]' \
+    '(--local --apple --aider)--pi[zpi — explore / read / plan]' \
+    '(--local --apple --pi)--aider[zaider — edit / patch / commit]' \
     '--dry-run[print the routing decision; run nothing]' \
     '*:task:'
 }

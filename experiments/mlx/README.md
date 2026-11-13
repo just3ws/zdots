@@ -5,8 +5,8 @@ Archived 2026-06-14. Preserved for future analysis; **not active, not on `PATH`*
 ## Why archived
 
 llama.cpp is the **primary local LLM backend**. Emerging Apple-Silicon-native
-inference will arrive through **apfel** (Apple Intelligence) as that capability
-matures — not through this MLX prototype. The harnesses (Pi, Aider, OpenCode) sit
+inference runs through Apple's own `fm` CLI (Apple Intelligence; see
+`providers/tools/apple-fm.zsh`) — not through this MLX prototype. The harnesses (Pi, Aider, OpenCode) sit
 in front of llama.cpp; the backing infrastructure stays llama.cpp + the emerging
 Apple-native path. This experiment was in the way of that work, so it was contained
 here for historical reference.

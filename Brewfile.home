@@ -7,7 +7,6 @@ instance_eval(File.read(File.expand_path("Brewfile.common", File.dirname(__FILE_
 
 # ── home-only packages ──
 brew "age"          # file encryption and identity tooling
-brew "apfel"        # active local Apple Intelligence provider
 brew "bc"           # calculator used by local scripts
 brew "chromaprint" # Core component of the AcoustID project (Audio fingerprinting)
 brew "cpp-httplib" # C++ header-only HTTP/HTTPS server and client library

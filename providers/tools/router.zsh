@@ -1,7 +1,7 @@
 # providers/tools/router.zsh — zai engine router.
 #
-# One explicit dispatcher across the local LLM, Pi, and Aider. Local is the
-# default; Pi and Aider are opt-in by flag. A local advisory classifier suggests
+# One explicit dispatcher across the local LLM, Apple's on-device model, Pi,
+# and Aider. Local is the default; the others are opt-in by flag. A local advisory classifier suggests
 # a better-fit engine but NEVER switches automatically — no silent escalation.
 # No cloud engine is routed here. Cloud use stays an explicit, separate lane.
 #
@@ -12,6 +12,7 @@
 #
 # Usage:
 #   zai "summarize this output"            # local (default)
+#   zai --apple "draft a commit message"   # Apple on-device model, quick text
 #   zai --pi "explain the capture flow"    # explore / plan
 #   zai --aider "add --json to bin/zsvc"   # edit / patch / commit
 #   zai --dry-run --aider "refactor X"     # show the decision, run nothing
@@ -26,6 +27,7 @@ Usage:
 
 Engines (default: --local):
   --local         local llama.cpp via zdots-ask         (default)
+  --apple         zapfel — Apple on-device model, quick text (local)
   --pi            zpi    — explore / read / plan          (local)
   --aider         zaider — edit / patch / commit          (local)
   --dry-run       print the routing decision; run nothing
@@ -64,6 +66,7 @@ zai() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --local)       engine=local;       shift ;;
+      --apple)       engine=apple;       shift ;;
       --pi)          engine=pi;          shift ;;
       --aider)       engine=aider;       shift ;;
       --dry-run)     dry=1;              shift ;;
@@ -105,6 +108,9 @@ zai() {
   case "$engine" in
     local)
       "${zdotdir}/bin/zdots-ask" "$task" ;;
+    apple)
+      typeset -f zapfel >/dev/null 2>&1 || source "${zdotdir}/providers/tools/apple-fm.zsh"
+      zapfel "$task" ;;
     pi)
       zpi ${task:+"$task"} ;;
     aider)

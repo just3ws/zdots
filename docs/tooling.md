@@ -81,9 +81,9 @@ The zdots-specific stack. Every agent session should orient here first.
 | Capability doc | `llama-caps` | Full endpoint/capability/constraint doc for local stack |
 | llama MCP server | `llama-mcp` | MCP stdio server: health, config, test, snippet tools for compatible clients |
 | Context MCP server | `ctx-mcp` | MCP stdio server: query/capture knowledge base from AI agents |
-| Aider (local) | `zaider` | Aider wired to local llama.cpp — file editing + git |
+| Aider (local) | `zaider` | Aider wired to local llama.cpp — file editing + git. Its weak model (commit messages, chat summaries) uses Apple's on-device model through a loopback `fm serve` for the session; `ZDOTS_AIDER_WEAK=local` keeps it on llama.cpp |
 | Pi coding agent | `zpi "prompt"` | Interactive session agent (earendil pi) |
-| Apple Intelligence | `zapfel` | On-device one-shot inference through the Message Hygiene Pipeline; interactive, file, MCP, and server modes are refused |
+| Apple Intelligence | `zapfel`, `zai --apple` | On-device one-shot inference (Apple's `fm`, ~1 s, ~8K-token context) through the Message Hygiene Pipeline. Locked to the on-device model: always `--model system`, and refused when `fm config` names a default provider or an off-device model. fm options are refused. Needs `sudo fm license` once per machine |
 | GitHub Models | `zgh "prompt"` | One-shot cloud inference, phi-scrubbed; `zgh --models` lists the catalog |
 | Gemini CLI | `gemini` | Google Gemini from the shell |
 | Kimi CLI | `kimi` | MoonshotAI from the shell |

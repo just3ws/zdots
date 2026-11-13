@@ -525,8 +525,8 @@ fi
 set +e
 
 # llama.cpp is the canonical local backend (primary integration). The MLX
-# experiment was archived to experiments/mlx/; Apple-native inference will arrive
-# via apfel as that capability matures.
+# experiment was archived to experiments/mlx/; Apple-native inference runs through
+# Apple's fm CLI (providers/tools/apple-fm.zsh: zapfel, zai --apple).
 _AIQ_SPAN_READY=false
 if [[ -n "${TRACEPARENT:-}" || -n "${ZDOTS_TRACE_ID:-}" ]] && [[ -r "${_SCRIPT_DIR}/../lib/svc-health.bash" ]]; then
   # shellcheck source=../lib/svc-health.bash
