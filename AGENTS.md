@@ -144,6 +144,18 @@ adots and vdots) rejects AI-tool co-author trailers, "Generated with …" lines,
 `git config core.hooksPath .githooks` (adots: `$HOME/.githooks`). The global
 Codex and Gemini instructions in adots carry the same rule for every repo.
 
+## Signed Commits
+
+Commits and tags in zdots, adots, vdots and my are signed with the operator's
+1Password SSH key; the machine's git config does the signing, not the agent.
+Never bypass it (`--no-gpg-sign`, `-c commit.gpgsign=false`, unsetting the
+key): on failure, stop and report. Warn the operator before a commit, amend or
+rebase that will prompt for Touch ID, verify every commit is signed before
+pushing, and merge by fast-forward so signatures survive. Agents that cannot
+reach 1Password (headless, remote, CI) push a branch for the operator to
+re-sign. Setup, verification and troubleshooting:
+[docs/commit-signing.md](docs/commit-signing.md).
+
 ## 1. Orientation
 
 Run these to understand the current state of the machine:

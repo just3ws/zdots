@@ -429,7 +429,8 @@ The operator uses their `just3ws` GitHub account for both personal platform repo
    	path = ~/.config/git/config.identity.home
    ```
 
-4. **1Password SSH Commit Signing:**
+4. **1Password SSH Commit Signing** (full agent guidance, verification and
+   troubleshooting: [commit-signing.md](commit-signing.md)):
    ```bash
    git config --global gpg.format ssh
    git config --global commit.gpgsign true
