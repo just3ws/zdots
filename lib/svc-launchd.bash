@@ -5,6 +5,7 @@
 #   zdots_svc_launchd_register  — write a launchd plist
 #   zdots_svc_launchd_start     — bootstrap or kickstart a service
 #   zdots_svc_launchd_stop      — bootout a service
+#   zdots_svc_launchd_require_loaded — fail unless launchd has the job loaded
 #   zdots_svc_launchd_status    — echo "running|false <pid>"
 #
 # Depends on: svc-health.bash (sourced below)
@@ -224,6 +225,15 @@ zdots_svc_launchd_stop() {
     sleep 0.2
   done
   _svc_warn "${label} still present ~30s after bootout; proceeding anyway"
+}
+
+# Fail (with a warning) unless launchd has the job loaded. Installers call this
+# after start so a lost bootstrap is reported instead of "started" (Z-362).
+zdots_svc_launchd_require_loaded() {
+  local label="$1"
+  launchctl print "$(_zdots_svc_launchd_target "$label")" >/dev/null 2>&1 && return 0
+  _svc_warn "${label} is not loaded after start"
+  return 1
 }
 
 zdots_svc_launchd_status() {

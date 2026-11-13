@@ -254,14 +254,19 @@ install_llama() {
     exit 1
   fi
 
-  # (Re-)register plist. Unload first if already loaded so the updated plist takes effect.
+  # (Re-)register plist. Unload first if already loaded so the updated plist
+  # takes effect. The stop waits until launchd has dropped the old job: a bare
+  # bootout returns while it is still SIGTERMed, and the start then trusts a
+  # KeepAlive that no longer exists, leaving nothing loaded (Z-362).
   if [[ -f "$PLIST_FILE" ]]; then
-    launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
+    zdots_svc_launchd_stop "$PLIST_LABEL"
   fi
   _register_plist
 
   printf 'llama-ctl: loading service...\n' >&2
   zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
+  zdots_svc_launchd_require_loaded "$PLIST_LABEL" \
+    || { printf 'llama-ctl: error: service not loaded — rerun: llama-ctl server install\n' >&2; exit 1; }
   _wait_inference "${AI_ENDPOINT:-http://127.0.0.1:11500}" "$LOG_FILE"
   printf 'llama-ctl: server started\n' >&2
 }
@@ -526,7 +531,7 @@ model_download_all() {
     fi
     if [[ -f "$MODELS_DIR/$file" ]]; then
       printf 'llama-ctl: profile %s: %s already downloaded — skipping\n' "$p" "$file" >&2
-      zdots_model_verify "$MODELS_DIR/$file" "$file" || rc=1
+      zdots_model_verify "$MODELS_DIR/$file" "$file" "$repo" || rc=1
     else
       printf 'llama-ctl: profile %s: downloading %s\n' "$p" "$file" >&2
       zdots_model_download "$repo" "$file" "$MODELS_DIR" || rc=1
@@ -838,15 +843,18 @@ install_embed() {
   # become an outage.
   _require_embed_model
 
-  # (Re-)register plist; unload first if already loaded.
+  # (Re-)register plist; unload first if already loaded, waiting until launchd
+  # has dropped the old job (Z-362).
   if [[ -f "$EMBED_PLIST_FILE" ]]; then
-    launchctl bootout "gui/$(id -u)/${EMBED_PLIST_LABEL}" 2>/dev/null || true
+    zdots_svc_launchd_stop "$EMBED_PLIST_LABEL"
   fi
   _register_embed_plist
 
   if [[ -f "$model_path" ]]; then
     printf 'llama-ctl: loading embed service...\n' >&2
     zdots_svc_launchd_start "$EMBED_PLIST_LABEL" "$EMBED_PLIST_FILE"
+    zdots_svc_launchd_require_loaded "$EMBED_PLIST_LABEL" \
+      || { printf 'llama-ctl: error: embed service not loaded — rerun: llama-ctl embed install\n' >&2; exit 1; }
     printf 'llama-ctl: embed server started on %s\n' "$EMBED_ENDPOINT" >&2
     # Block until it actually serves (or warn on timeout) — install should not
     # report success while the endpoint is still loading.

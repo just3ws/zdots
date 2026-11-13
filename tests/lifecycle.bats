@@ -63,3 +63,44 @@ launchctl() {
   [ "$status" -eq 0 ]
   [ "$output" = "false " ]
 }
+
+# Z-362: bootout returns while the job still shows as SIGTERMed. A start in that
+# window trusts KeepAlive, which bootout has already removed, so nothing loads.
+# stop() must wait until the job is gone so the following start bootstraps.
+@test "lifecycle: stop waits out a lingering SIGTERMed job so start bootstraps (Z-362)" {
+  export LINGER="$BATS_TEST_TMPDIR/linger" CALLS="$BATS_TEST_TMPDIR/calls"
+  printf '3' > "$LINGER"
+  launchctl() {
+    echo "$1" >> "$CALLS"
+    case "$1" in
+      bootout) return 0 ;;
+      print)
+        local n; n=$(cat "$LINGER")
+        if (( n > 0 )); then
+          printf '%s' $((n - 1)) > "$LINGER"
+          printf 'state = SIGTERMed\npid = 999\n'; return 0
+        fi
+        [[ -f "$BATS_TEST_TMPDIR/booted" ]] && { printf 'state = running\npid = 42\n'; return 0; }
+        return 1 ;;
+      bootstrap) touch "$BATS_TEST_TMPDIR/booted"; return 0 ;;
+      *) return 0 ;;
+    esac
+  }
+  sleep() { :; }
+  zdots_svc_launchd_stop "slow-label"
+  zdots_svc_launchd_start "slow-label" "$TEST_PLIST"
+  grep -q '^bootstrap$' "$CALLS"
+  run zdots_svc_launchd_require_loaded "slow-label"
+  [ "$status" -eq 0 ]
+}
+
+@test "lifecycle: require_loaded fails when the job is not loaded" {
+  run zdots_svc_launchd_require_loaded "dead-label"
+  [ "$status" -ne 0 ]
+}
+
+@test "llama-ctl installers use the waiting stop and confirm the job loaded (Z-362)" {
+  ! grep -q 'launchctl bootout "gui/$(id -u)/${PLIST_LABEL}"' "$REPO_ROOT/bin/llama-ctl"
+  ! grep -q 'launchctl bootout "gui/$(id -u)/${EMBED_PLIST_LABEL}"' "$REPO_ROOT/bin/llama-ctl"
+  [ "$(grep -c 'zdots_svc_launchd_require_loaded' "$REPO_ROOT/bin/llama-ctl")" -ge 2 ]
+}
