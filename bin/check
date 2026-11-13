@@ -594,8 +594,17 @@ if command -v shellcheck >/dev/null 2>&1; then
   fi
 fi
 
+# A managed machine keeps the employer's ~/.zshenv and hands off to zdots with
+# one uncommented line (docs/work-migration-playbook.md, Phase 5):
+#   [ -r "$HOME/.config/zsh/.zshenv" ] && source "$HOME/.config/zsh/.zshenv"
+zshenv_bridges_to_zdots() {
+  [[ -f "$HOME/.zshenv" ]] \
+    && grep -v '^[[:space:]]*#' "$HOME/.zshenv" | grep -Fq 'source "$HOME/.config/zsh/.zshenv"'
+}
+
 if [[ -f "$HOME/.zshenv" && "${ZDOTS_CHECK_VERIFY_BOOTSTRAP:-1}" == "1" ]]; then
-  if ! grep -Eq '(^|[[:space:]])ZDOTDIR=.*\.config/zsh|Bootstrap Zdots' "$HOME/.zshenv"; then
+  if ! zshenv_bridges_to_zdots \
+    && ! grep -Eq '(^|[[:space:]])ZDOTDIR=.*\.config/zsh|Bootstrap Zdots' "$HOME/.zshenv"; then
     echo "check: warning: ~/.zshenv may not be using zdots bootstrap/source-of-truth" >&2
   fi
 fi
@@ -605,6 +614,12 @@ assert_no_home_zsh_configs() {
   for f in .zshrc .zprofile .zlogin .zlogout; do
     [[ -f "$HOME/$f" ]] && errant+=("$HOME/$f")
   done
+  # The bridge sets ZDOTDIR first, so zsh never reads these; the employer's
+  # setup may still check their lines, so they stay.
+  if (( ${#errant[@]} > 0 )) && zshenv_bridges_to_zdots; then
+    echo "check: ok: ${(j:, :)errant[@]/#$HOME/~} kept (inert: ~/.zshenv hands off to zdots)"
+    return 0
+  fi
   if (( ${#errant[@]} > 0 )); then
     echo "check: errant zsh config files in \$HOME (loaded by zsh before ZDOTDIR):" >&2
     printf '  %s\n' "${errant[@]}" >&2
