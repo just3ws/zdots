@@ -248,7 +248,7 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 | `zsvc map` | `bin/zsvc map --json` | "You are here" discovery card per service — purpose, API kind, auth, health path, runnable example, dependencies; for external tools/AI adopting a service |
 | `zdots-statusd` | `zsvc start status` | Control-plane console at zdots.localhost (:11600), interactive `/map`, and sanitized LAN Atlas at `lan.just3ws.com` — independent of context-engine/PG |
 | `log-rotate` | `log-rotate otel-collector` | Compress + truncate a service log in place (no restart; safe for open fds) |
-| `gemstash-ctl` | `zsvc start gemstash` | RubyGems caching proxy + private gem host on loopback :9292; Postgres-backed (dedicated `gemstash` DB), bundler mirrors through it |
+| `gemstash-ctl` | `zsvc start gemstash` | RubyGems caching proxy + private gem host on loopback, `ZDOTS_GEMSTASH_HOST`:`ZDOTS_GEMSTASH_PORT` (default 127.0.0.1:9292; non-loopback hosts are refused); Postgres-backed (dedicated `gemstash` DB), launchd KeepAlive. The Bundler mirror is per machine (`~/.config/bundle/config`) |
 | `gemstash-metadata` | `gemstash-metadata \| duckdb -c "…"` | Extract cached gemspec metadata (licenses/authors/deps) as NDJSON for analytics |
 | `nginx` | (managed via launchctl) | TLS reverse proxy for local service hostnames |
 | `mkcert` | `mkcert -install` | Local CA + certs for `*.local` hostnames |

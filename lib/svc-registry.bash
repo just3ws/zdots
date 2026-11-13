@@ -120,7 +120,9 @@ unset _pg_ver
 _svc_reg "redis|redis|$(zdots_brew_label redis)|${_SVC_REG_BREW}/var/log/redis.log||127.0.0.1:6379|plist|1|cache kv||start|stop|restart|status|health|||zdots_probe_redis"
 _svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.log|zdots-worker|jobs queue (my)|launchd|1|jobs brain-worker|install|start|stop|restart|status|health|logs||zdots_probe_worker"
 _svc_reg "status|zdots-statusd|com.zdots.statusd|${_SVC_REG_STATE}/zdots-statusd.log|zdots-statusd-ctl|http://127.0.0.1:${ZDOTS_STATUS_PORT:-11600}|launchd|1|statusd statusd-ctl control-plane dashboard|install|start|stop|restart|status|health|logs||zdots_probe_status"
-_svc_reg "gemstash|gemstash|com.zdots.gemstash|${_SVC_REG_STATE}/gemstash.log|gemstash-ctl|http://127.0.0.1:9292|launchd|1|gems gem-cache rubygems gem-proxy|install|start|stop|restart|status|health|logs||zdots_probe_gemstash"
+_gs_host="${ZDOTS_GEMSTASH_HOST:-127.0.0.1}"; [[ "$_gs_host" == *:* ]] && _gs_host="[$_gs_host]"
+_svc_reg "gemstash|gemstash|com.zdots.gemstash|${_SVC_REG_STATE}/gemstash.log|gemstash-ctl|http://${_gs_host}:${ZDOTS_GEMSTASH_PORT:-9292}|launchd|1|gems gem-cache rubygems gem-proxy|install|start|stop|restart|status|health|logs||zdots_probe_gemstash"
+unset _gs_host
 _svc_reg "coordinator|bus-coordinator|com.zdots.bus-coordinator|${_SVC_REG_STATE}/bus-coordinator.log|bus-coordinator-ctl|optional bus AI responder|launchd|1|bus-coordinator busdriver bot|install|start|stop|restart|status|health|logs||zdots_probe_coordinator|optional"
 # Health-only platform services (not zsvc lifecycle-managed):
 _svc_reg "ctx|context-engine|||zdots-ctx|postgres|derived|0|intelligence|||||||||zdots_probe_ctx"

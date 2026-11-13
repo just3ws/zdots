@@ -564,3 +564,27 @@ _wait_for_unified_log_marker() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"RESIDENT-OK"* ]]
 }
+
+# A connection string blocks only when it carries a password; the password-free
+# user@host form (e.g. a documented default URL) is redacted and passes.
+@test "phi_registry: password-free conn string is redacted, not suppressed" {
+  run bash -c "printf 'postgresql://zdots_rw@/my' | zdots-phi-scrub --check"
+  [ "$status" -ne 0 ]
+  run bash -c "printf 'default: postgresql://zdots_rw@/my' | zdots-phi-scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED-CONN]"* ]]
+  [[ "$output" != *"zdots_rw"* ]]
+}
+
+@test "phi_registry: conn string with an empty user but a password still fails hard" {
+  run bash -c "printf 'redis://:s3cret@127.0.0.1:6379/0' | zdots-phi-scrub"
+  [ "$status" -ne 0 ]
+  [[ "$output" != *"s3cret"* ]]
+}
+
+@test "phi_registry: user@host:port without a password is redacted, not suppressed" {
+  run bash -c "printf 'postgresql://app@db.internal:5432/prod' | zdots-phi-scrub"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[REDACTED-CONN]"* ]]
+  [[ "$output" != *"db.internal"* ]]
+}

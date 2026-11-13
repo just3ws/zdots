@@ -64,3 +64,47 @@ teardown() { rm -rf "$TMP"; }
   [[ "$output" == *'"licenses":["MIT"]'* ]]
   [[ "$output" == *'"rake"'* ]]
 }
+
+# Host and port are settings (ZDOTS_GEMSTASH_HOST / ZDOTS_GEMSTASH_PORT),
+# loopback only, defaulting to 127.0.0.1:9292.
+@test "gemstash-ctl init binds 127.0.0.1:9292 by default" {
+  run env -u ZDOTS_GEMSTASH_HOST -u ZDOTS_GEMSTASH_PORT HOME="$TMP" "$CTL" init
+  [ "$status" -eq 0 ]
+  grep -qx ':bind: tcp://127.0.0.1:9292' "$TMP/.gemstash/config.yml"
+}
+
+@test "gemstash-ctl init uses the configured loopback host and port" {
+  run env HOME="$TMP" ZDOTS_GEMSTASH_HOST=localhost ZDOTS_GEMSTASH_PORT=44292 "$CTL" init
+  [ "$status" -eq 0 ]
+  grep -qx ':bind: tcp://localhost:44292' "$TMP/.gemstash/config.yml"
+}
+
+@test "gemstash-ctl init brackets an IPv6 loopback host" {
+  run env HOME="$TMP" ZDOTS_GEMSTASH_HOST=::1 ZDOTS_GEMSTASH_PORT=44292 "$CTL" init
+  [ "$status" -eq 0 ]
+  grep -qx ':bind: tcp://\[::1\]:44292' "$TMP/.gemstash/config.yml"
+}
+
+@test "gemstash-ctl refuses a non-loopback host" {
+  run env HOME="$TMP" ZDOTS_GEMSTASH_HOST=0.0.0.0 "$CTL" init
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"loopback"* ]]
+  [ ! -f "$TMP/.gemstash/config.yml" ]
+}
+
+@test "gemstash-ctl refuses a port outside 1-65535" {
+  run env HOME="$TMP" ZDOTS_GEMSTASH_PORT=70000 "$CTL" init
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"port"* ]]
+}
+
+@test "gemstash-ctl status reports the configured endpoint" {
+  run env HOME="$TMP" ZDOTS_GEMSTASH_PORT=44292 "$CTL" status --json
+  [[ "$output" == *"127.0.0.1:44292"* ]]
+}
+
+@test "svc-registry and svc-map use the configured gemstash port" {
+  run bash -c "export ZDOTS_GEMSTASH_PORT=44292; source '$REPO_ROOT/lib/svc-registry.bash'; printf '%s\n' \"\${ZDOTS_SVC_ENDPOINT[gemstash]}\""
+  [ "$output" = "http://127.0.0.1:44292" ]
+  ! grep -q '127.0.0.1:9292' "$REPO_ROOT/lib/svc-map.bash"
+}

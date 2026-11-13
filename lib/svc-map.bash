@@ -51,7 +51,7 @@ _svc_map "postgres|Knowledge-layer store — database 'my'|sql|zdots_ro (read) /
 _svc_map "redis|Command-analytics cache buffer|redis|none (loopback-trusted)|PING|redis-cli -h 127.0.0.1 -p 6379 KEYS 'zdots:cmds:*'||"
 _svc_map "worker|Async job queue drain for context-engine (my)|process|n/a (no network endpoint)|process alive||postgres|"
 _svc_map "status|Control-plane console — service/launchd/log health and LAN System Atlas|http+html|none (localhost console; LAN map is read-only)|/healthz|curl -s http://127.0.0.1:11600/healthz||docs/system-atlas.md"
-_svc_map "gemstash|RubyGems caching proxy + private gem host|http|none (loopback-trusted)|/|curl -s http://127.0.0.1:9292/||"
+_svc_map "gemstash|RubyGems caching proxy + private gem host|http|none (loopback-trusted)|/|curl -s http://127.0.0.1:${ZDOTS_GEMSTASH_PORT:-9292}/||"
 _svc_map "coordinator|Cross-session agent message bus and transit coordinator|cli+ipc|none (local user)|bus-coordinator-ctl status|bus route|redis|docs/message-bus.md"
 _svc_map "ctx|Context-engine query/hydrate surface over the knowledge layer|cli|none (local user)|zdots-ctx status|zdots-ctx query <term>|postgres|docs/wiki/AI-and-Knowledge-Layer.md"
 

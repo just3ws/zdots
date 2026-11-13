@@ -84,7 +84,9 @@ EOF
   chmod +x "$STUB_BIN/yq" "$STUB_BIN/fabric-ai"
 
   export ZDOTDIR="$ZDOTDIR"
-  PATH="$STUB_BIN:$PATH" run "$ZDOTDIR/bin/zdots-ask" "test prompt"
+  # Empty stdin: ai-query reads piped input, and an inherited open stdin
+  # (a CI runner's socket) would block the test forever.
+  PATH="$STUB_BIN:$PATH" run "$ZDOTDIR/bin/zdots-ask" "test prompt" </dev/null
   grep -q "ai_query" "$TEST_TRACES_FILE"
 }
 

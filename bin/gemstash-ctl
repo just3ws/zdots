@@ -15,8 +15,10 @@
 #         2.8.2 no longer daemonizes, so launchd (KeepAlive) supervises it
 #         directly. Not meant to be run by hand.
 #
-# The service binds loopback only (127.0.0.1:9292); nginx terminates TLS for
-# https://gemstash.localhost (Z-205 cutover, etc/nginx/servers/gemstash.conf).
+# The service binds loopback only: ZDOTS_GEMSTASH_HOST (127.0.0.1, localhost or
+# ::1) and ZDOTS_GEMSTASH_PORT, default 127.0.0.1:9292. gemstash serves gems
+# without auth, so a non-loopback host is refused. Where nginx runs, it
+# terminates TLS for https://gemstash.localhost (etc/nginx/servers/gemstash.conf).
 # Bundler's mirror stays on the raw loopback URL — Ruby's OpenSSL cannot see
 # the mkcert CA. No secrets in the plist: Postgres auth is peer/trust as the
 # OS user over the local socket.
@@ -34,7 +36,8 @@ PLIST_LABEL="com.zdots.gemstash"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 BASE_PATH="$HOME/.gemstash"
 CONFIG_FILE="$BASE_PATH/config.yml"
-PORT=9292
+HOST="${ZDOTS_GEMSTASH_HOST:-127.0.0.1}"
+PORT="${ZDOTS_GEMSTASH_PORT:-9292}"
 
 # shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
 SVC_NAME="gemstash"
@@ -45,6 +48,20 @@ source "${ZDOTDIR}/lib/svc-process.bash"
 
 _die()  { printf 'gemstash-ctl: error: %s\n' "$*" >&2; exit 1; }
 _info() { printf 'gemstash-ctl: %s\n' "$*" >&2; }
+
+# The host as it appears in a URL (IPv6 in brackets).
+URL_HOST="$HOST"; [[ "$HOST" == *:* ]] && URL_HOST="[$HOST]"
+ENDPOINT="http://${URL_HOST}:${PORT}"
+
+_check_bind() {
+  case "$HOST" in
+    127.0.0.1|localhost|::1) ;;
+    *) _die "ZDOTS_GEMSTASH_HOST must be loopback (127.0.0.1, localhost or ::1), got: $HOST" ;;
+  esac
+  if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
+    _die "ZDOTS_GEMSTASH_PORT must be a port number 1-65535, got: $PORT"
+  fi
+}
 
 usage() {
   cat <<EOF
@@ -57,7 +74,7 @@ Service Lifecycle:
   stop      Unload and stop the service
   restart   stop then start
   status    Show service state and process info
-  health    Exit 0 if the service answers on 127.0.0.1:${PORT}, else exit 1
+  health    Exit 0 if the service answers on ${ENDPOINT}, else exit 1
   logs      Tail the service log
   run       launchd entry point — set up env, exec gemstash (foreground)
             (internal; do not run by hand)
@@ -66,7 +83,8 @@ Options:
   --json      Output status/health as JSON (valid for status, health)
   -h, --help  Show this help
 
-Caching gem proxy on 127.0.0.1:${PORT}, backed by the 'gemstash' Postgres DB.
+Caching gem proxy on ${ENDPOINT} (ZDOTS_GEMSTASH_HOST/PORT), backed by the
+'gemstash' Postgres DB.
 Manage it via \`zsvc <verb> gemstash\`; this script is the authoritative ctl.
 EOF
 }
@@ -75,6 +93,7 @@ EOF
 # (gemstash does not expand ~), but we derive it from \$HOME so the generator
 # stays portable across machines.
 cmd_init() {
+  _check_bind
   mkdir -p "$BASE_PATH"
   cat > "$CONFIG_FILE" <<EOF
 ---
@@ -83,7 +102,7 @@ cmd_init() {
 :db_adapter: postgres
 :db_url: postgres:///gemstash
 :base_path: "${BASE_PATH}"
-:bind: tcp://127.0.0.1:${PORT}
+:bind: tcp://${URL_HOST}:${PORT}
 :rubygems_url: https://rubygems.org
 # Single-process Puma (no cluster/fork): gemstash's own default is 1, but
 # Puma treats any workers > 0 as clustered and forks a worker via
@@ -154,7 +173,7 @@ cmd_status() {
   running=$(echo "$state" | awk '{print $1}')
   pid=$(echo "$state" | awk '{print $2}')
 
-  zdots_svc_print_status "$json" "$running" "$pid" "http://127.0.0.1:${PORT}" "$LOG_FILE" \
+  zdots_svc_print_status "$json" "$running" "$pid" "$ENDPOINT" "$LOG_FILE" \
     "launchd=$([[ -f "$PLIST_FILE" ]] && echo true || echo false)"
 }
 
@@ -163,9 +182,9 @@ cmd_health() {
   [[ "${1:-}" == "--json" ]] && json=true
 
   local healthy=false
-  curl -sf --max-time 3 "http://127.0.0.1:${PORT}/" >/dev/null 2>&1 && healthy=true
+  curl -sf --max-time 3 "$ENDPOINT/" >/dev/null 2>&1 && healthy=true
 
-  zdots_svc_print_health "$json" "$healthy" "http://127.0.0.1:${PORT}"
+  zdots_svc_print_health "$json" "$healthy" "$ENDPOINT"
 }
 
 cmd_logs() {

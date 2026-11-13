@@ -122,10 +122,19 @@ patterns:
     weight: 60
     trace_targets: [http.target, http.url, url.full, name, db.statement, exception.message, exception.stacktrace]
 
+  # A connection string with a password (user:secret@, or :secret@ with an
+  # empty user) is a credential: block the whole input.
   - name: conn_string
-    regex: '(postgresql|mysql|redis)://[^@[:space:]]+@[^[:space:]]*'
+    regex: '(postgresql|mysql|redis)://[^:@/[:space:]]*:[^@[:space:]]*@[^[:space:]]*'
     replace: '[REDACTED-CONN]'
     suppress: true
+    weight: 85
+
+  # Without a password (user@host, e.g. a documented default URL) it names a
+  # user and host but carries no secret: redact it and let the text through.
+  - name: conn_string_user
+    regex: '(postgresql|mysql|redis)://[^@[:space:]]+@[^[:space:]]*'
+    replace: '[REDACTED-CONN]'
     weight: 85
 
   # STRUCTURAL: bare record ids in URL path segments are PHI by POSITION, not token
