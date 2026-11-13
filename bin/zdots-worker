@@ -95,6 +95,17 @@ cmd_run() {
   export ZDOTS_AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
   export ZDOTS_AI_EMBED_ENDPOINT="${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}"
 
+  # Ensure keg-only ffmpeg-full shadows core Homebrew ffmpeg/ffprobe for all
+  # worker jobs (ingest_media, extract_moment, publisher) even if the launchd
+  # plist PATH was captured before ffmpeg-full was installed.
+  for _ff_bin in "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/ffmpeg-full/bin" "/usr/local/opt/ffmpeg-full/bin"; do
+    if [[ -d "$_ff_bin" && ":${PATH:-}:" != *":$_ff_bin:"* ]]; then
+      export PATH="$_ff_bin:${PATH:-/usr/bin:/bin}"
+      break
+    fi
+  done
+  unset _ff_bin
+
   # Secrets the worker needs, loaded from Keychain at runtime so they never land
   # in the plist: ZDOTS_DB_ENCRYPTION_KEY (distill jobs, encrypted Lesson writes)
   # and HUGGINGFACE_TOKEN (ingest_media diarize stage, gated pyannote model).

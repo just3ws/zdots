@@ -209,6 +209,7 @@ mkdir -p \
   "$HOME/.local/state/less" \
   "$HOME/.local/state/node" \
   "$HOME/.local/state/psql" \
+  "$HOME/.local/state/sqlite" \
   "$HOME/.local/share/zsh" \
   "$HOME/.local/share/go" \
   "$HOME/.local/share/gem" \
@@ -299,10 +300,24 @@ touch "$HOME/.config/git/config" "$HOME/.config/git/ignore"
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$REPO_ROOT" config --local core.hooksPath .githooks
 fi
+if [ -d "$HOME/.homegit" ]; then
+  git --git-dir="$HOME/.homegit" config --local core.hooksPath "$HOME/.githooks"
+fi
+if [ -d "$HOME/.config/nvim/.git" ]; then
+  git -C "$HOME/.config/nvim" config --local core.hooksPath .githooks
+fi
 
 _bootstrap_phase "toolchain: Homebrew bundle"
 
 # 5. Toolchain — Homebrew packages
+# Forward ZDOTS_* switches under HOMEBREW_ZDOTS_* so Brewfile evaluation sees them.
+for _zflag in ZDOTS_POSTGRES_VERSION ZDOTS_SKIP_POSTGRES_BREW ZDOTS_SKIP_1PASSWORD_INSTALL ZDOTS_SKIP_CHROME_INSTALL; do
+  eval "_zval=\"\${${_zflag}:-}\""
+  if [ -n "$_zval" ]; then
+    export "HOMEBREW_${_zflag}=${_zval}"
+  fi
+done
+unset _zflag _zval
 echo "bootstrap: installing Homebrew packages (this may take a while)..."
 brew bundle --file "$BREWFILE"
 

@@ -8,6 +8,16 @@
 # layer captures metadata; the Ruby `zdots-brain ingest-media` owns the DB write.
 set -euo pipefail
 
+# Prefer keg-only ffmpeg-full ahead of core Homebrew ffmpeg/ffprobe when invoked
+# outside an interactive zdots shell.
+for _ff_bin in "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/ffmpeg-full/bin" "/usr/local/opt/ffmpeg-full/bin"; do
+  if [[ -d "$_ff_bin" && ":${PATH:-}:" != *":$_ff_bin:"* ]]; then
+    export PATH="$_ff_bin:${PATH:-/usr/bin:/bin}"
+    break
+  fi
+done
+unset _ff_bin
+
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 BRAIN="${ZDOTDIR}/sbin/zdots-brain"
 

@@ -17,16 +17,12 @@ tap "hashicorp/tap"           # Terraform and other HashiCorp tools
 # otelcol-contrib is intentionally absent — custom binary managed by
 # bin/otel-collector install (not available via Homebrew)
 
-cask "openvpn-connect"   # corporate VPN client — network access to work infrastructure
-
 # 1Password — credentials and SSH agent integration
 cask "1password" unless zdots_flag("ZDOTS_SKIP_1PASSWORD_INSTALL") == "1"
 # The official CLI installer (and MDM-managed installs) put a real `op` binary in
 # /usr/local/bin and keep it updated; a cask copy earlier on PATH would shadow it.
 _op_official = File.file?("/usr/local/bin/op") && !File.symlink?("/usr/local/bin/op")
 cask "1password-cli" unless zdots_flag("ZDOTS_SKIP_1PASSWORD_INSTALL") == "1" || _op_official
-
-brew "mysql-client"      # MySQL/MariaDB CLI — for work app databases; personal stack is Postgres-only
 
 vscode "github.copilot-chat" # GitHub Copilot Chat extension for VS Code
 

@@ -61,7 +61,7 @@ case "${1:-}" in
 esac
 
 # Ensure standard platform paths are available when invoked by GUI SwiftBar
-export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$HOME/.local/bin:$HOME/.config/zsh/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
+export PATH="/opt/homebrew/opt/ffmpeg-full/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$HOME/.local/bin:$HOME/.config/zsh/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"

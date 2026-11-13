@@ -240,7 +240,6 @@ fi
 unset _wgetrc
 export IRBRC="$XDG_CONFIG_HOME/irb/irbrc"
 export LESSHISTFILE="$XDG_STATE_HOME/less/history"
-export MYSQL_HISTFILE="$XDG_STATE_HOME/mysql/history"
 export NODE_REPL_HISTORY="$XDG_STATE_HOME/node/repl_history"
 export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
 export PSQLRC="$XDG_CONFIG_HOME/psql/psqlrc"

@@ -89,10 +89,11 @@ ZDOTS_AI_MODE=local
 ZDOTS_CAPTURE_ENABLED=0
 ZDOTS_CMD_ANALYTICS=0
 ZDOTS_HISTORY_REDACT=1
-GIT_AUTHOR_EMAIL="first.last@company.com"
-GIT_COMMITTER_EMAIL="first.last@company.com"
+# Git identity: do NOT set GIT_AUTHOR_EMAIL / GIT_COMMITTER_EMAIL here. Exported,
+# they override the includeIf scoping that keeps platform repos on the personal
+# identity; put the work address in ~/.config/git/config.identity instead.
 # If corporate machine runs PostgreSQL 17 (instead of default 18):
-# ZDOTS_POSTGRES_VERSION=17
+# export ZDOTS_POSTGRES_VERSION=17 HOMEBREW_ZDOTS_POSTGRES_VERSION=17
 # If corporate proxy is required:
 # HTTP_PROXY=http://proxy.company.internal:8080
 # HTTPS_PROXY=http://proxy.company.internal:8080
@@ -223,8 +224,8 @@ adots-my: summary: 11 passed, 0 warning(s), 0 failure(s)
 Neovim configuration is synchronized from `vdots`. The agent must verify that editor AI integrations respect the machine posture:
 
 ```bash
-# 1. Headless plugin sync
-nvim --headless "+Lazy! sync" +qa
+# 1. Headless plugin sync (vdots uses built-in vim.pack, not lazy.nvim)
+nvim --headless +qa
 
 # 2. Verify AI routing
 # Ensure CodeCompanion / ai-query defaults to local model or approved endpoint

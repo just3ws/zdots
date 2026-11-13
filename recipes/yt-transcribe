@@ -7,12 +7,22 @@
 # speaker identification.
 #
 # DEPENDENCIES:
-# - yt-dlp, ffmpeg, whisper.cpp (via selected Brewfile.home/work)
+# - yt-dlp, ffmpeg-full, whisper.cpp (via selected Brewfile.home/work)
 # - bin/whisper-ctl (for model management)
 # - bin/diarize (for optional speaker labeling)
 
 set -euo pipefail
 trap '' PIPE
+
+# Prefer keg-only ffmpeg-full ahead of core Homebrew ffmpeg/ffprobe even when
+# invoked from a non-login daemon or subprocess that did not source env.sh.
+for _ff_bin in "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/ffmpeg-full/bin" "/usr/local/opt/ffmpeg-full/bin"; do
+  if [[ -d "$_ff_bin" && ":${PATH:-}:" != *":$_ff_bin:"* ]]; then
+    export PATH="$_ff_bin:${PATH:-/usr/bin:/bin}"
+    break
+  fi
+done
+unset _ff_bin
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 WHISPER_CTL="${ZDOTDIR}/bin/whisper-ctl"
