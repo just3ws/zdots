@@ -74,17 +74,19 @@ profiles:
     description: "Ultra-lightweight Qwen2.5. Perfect for background tasks."
 
   work-light:
-    model_file: "Qwen_Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
-    hf_repo: "bartowski/Qwen_Qwen3-4B-Thinking-2507-GGUF"
+    model_file: "Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+    hf_repo: "bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF"
     # No draft_model — spec decoding off; a 0.6B draft barely helps a 4B target
     # and just costs memory on a contended machine.
     size_gb: 2.5
     ctx_size: 16384
     n_gpu_layers: 99
-    description: "Qwen3-4B-Thinking-2507. WORK DEFAULT for contended machines:
-      dedicated always-on reasoning, same Qwen3 family as 8B/14B, ~4GB resident
-      (model+KV) so embed/Colima/Rails get headroom. Reserve qwen3-14b
-      (ZDOTS_AI_PROFILE=qwen3-14b) for idle/high-quality work."
+    # Instruct, not Thinking: zdots turns thinking off on every call, and the
+    # Thinking-2507 build ignores that and reasons past the client timeout (Z-361.01).
+    description: "Qwen3-4B-Instruct-2507. WORK DEFAULT for contended machines:
+      non-reasoning, same Qwen3 family as 8B/14B, ~4GB resident (model+KV) so
+      embed/Colima/Rails get headroom. Reserve qwen3-8b/qwen3-14b
+      (ZDOTS_AI_PROFILE=...) for machines with RAM to spare."
 
   work-light-phi:
     model_file: "microsoft_Phi-4-mini-reasoning-Q4_K_M.gguf"

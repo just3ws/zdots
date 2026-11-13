@@ -1,10 +1,11 @@
 ---
 id: Z-361
 title: Local AI modernization for the 16 GB baseline
-status: To Do
+status: In Progress
 assignee:
   - '@mike'
 created_date: '2026-11-13T17:22:00Z'
+updated_date: '2026-11-13T17:22:00Z'
 labels:
   - ai-tooling
 dependencies: []

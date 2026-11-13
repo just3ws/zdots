@@ -140,7 +140,7 @@ export HOMEBREW_ZDOTS_POSTGRES_VERSION=17
 ZDOTS_COLIMA_CPU=6                          # Up from 4 on 16GB
 ZDOTS_COLIMA_MEMORY=10                      # 10GB for heavy multi-container stacks (up from 8)
 ZDOTS_COLIMA_DISK=100                       # 100GB container storage (up from 60)
-ZDOTS_AI_PROFILE=work-light                 # 4B always-on reasoning default (~4GB footprint)
+ZDOTS_AI_PROFILE=work-light                 # 4B non-reasoning default (~4GB footprint)
 # Or for higher reasoning capacity when idle:
 # ZDOTS_AI_PROFILE=qwen3-14b
 # ZDOTS_SPEC_DECODING=1                     # Speculative decoding fits in 24GB
