@@ -17,6 +17,10 @@ Gemini-specific operation.
 - Use `ack` when it provides the needed search; `rg` is the maintained fallback.
 - Follow the task's local data boundary. Never put PHI, credentials, or secret
   values into a remote Gemini session.
+- **OMP & Cross-Agent Integration**: See [OMP.md](OMP.md) and
+  [docs/agents/ai-surface.md](docs/agents/ai-surface.md). Global `rtk hook gemini`
+  is active in `~/.gemini/hooks/`; keep `google-gemini-cli` OAuth synced for
+  Home OMP routing (`omp-gateway-ctl login google-gemini-cli`).
 
 See [AGENTS.md](AGENTS.md) for shared safety and workflow rules and
 [docs/tooling.md](docs/tooling.md) for the command catalog.

@@ -323,13 +323,26 @@ Do **not** set `DATABASE_URL` — it has no owner in this stack and causes confu
 
 ## 8. AI Stack
 
-Local inference is the default (`ZDOTS_AI_MODE=local`). Cloud calls are opt-in
-through the explicit Pi and Aider lanes documented in `PI.md` and `AIDER.md`;
-their credentials come from Keychain. Interactive cloud prompts are not
-scrubbed, so never include PHI, secrets, or credentials.
+Local inference is the default (`ZDOTS_AI_MODE=local`). **Oh-My-Pi (`zomp`)** is the
+primary multi-role AI coding surface, unifying local `llama.cpp` with frontier
+models; see [OMP.md](OMP.md) and [docs/agents/ai-surface.md](docs/agents/ai-surface.md).
+- **Work (`ZDOTS_CONTEXT=work`)**: **Claude Code + Local LLM (`llama.cpp`)** is the
+  immediate primary pair (`zomp` runs strictly local `--offline` unless an
+  employer-sanctioned `ZDOTS_WORK_AI_GATEWAY_URL` is set). Cloud consumer lanes
+  (`--hybrid`, `--or`, `omp-gateway-ctl import-keychain`) are hard-blocked.
+- **Home**: **OMP (`zomp --hybrid`) + `omp-gateway-ctl`** (`127.0.0.1:11509`/`11510`)
+  routes `smol` tasks to local `llama.cpp` ($0, zero quota burn) and `default`/`plan`/`slow`
+  across authenticated frontier accounts (Gemini, Codex, Copilot, OpenRouter, HF)
+  with automatic `429` rollover.
+
+Legacy/auxiliary lanes (`zpi`, `zaider`) remain documented in `PI.md` and `AIDER.md`;
+interactive cloud prompts are not scrubbed, so never include PHI, secrets, or credentials.
 
 | Tool | Purpose | Invocation |
 |---|---|---|
+| `zomp` | Primary multi-role AI agent (`OMP.md`) | `zomp` (local), `zomp --hybrid` (home), `zomp --work-gateway` (work) |
+| `omp-gateway-ctl` | Loopback multi-account broker/gateway | `omp-gateway-ctl status\|start\|login\|accounts` |
+| `zai` | Unified local engine router | `zai [--local\|--apple\|--pi\|--omp\|--aider] "task"` |
 | `ai-query` | Scripted / piped inference | `ai-query "prompt"` or `cmd \| ai-query "task"` |
 | `zdots-ask` | Domain-aware prompt router (local LLM) | `zdots-ask "prompt"` or `zdots-ask --domain ruby "..."` |
 | `zdots-quiz` | 14-case capability probe for local model | `zdots-quiz --quick` (3 cases) or `zdots-quiz` (full) |
