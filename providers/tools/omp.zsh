@@ -82,7 +82,9 @@ zdots_omp_init() {
 
   export PI_TELEMETRY=0
   export PI_CODING_AGENT_DIR="$_profile_dir"
-  export PI_SMOL_MODEL="${PI_SMOL_MODEL:-llamacpp/local}"
+  if [[ "$_mode" != "hybrid" ]]; then
+    export PI_SMOL_MODEL="${PI_SMOL_MODEL:-llamacpp/local}"
+  fi
 }
 
 zomp() {
@@ -129,7 +131,6 @@ zomp() {
     hybrid)
       _omp_args+=(
         --config "${ZDOTDIR}/etc/omp/config.home.yml"
-        --smol "llamacpp/local"
       )
       ;;
     or)

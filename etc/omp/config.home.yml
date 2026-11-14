@@ -1,35 +1,43 @@
 # etc/omp/config.home.yml — Hybrid Local + Multi-Account Frontier posture (Home-only).
 # Guarded by zdots_cloud_lane_guard (hard-blocked when ZDOTS_CONTEXT=work).
-# Routes smol/background housekeeping to local llama.cpp (127.0.0.1:11500/v1) for $0/zero quota burn,
-# and routes default/plan/slow across authenticated frontier accounts with automatic 429 fallback.
+# Routes smol/background housekeeping to Apple on-device Foundation Models ($0, zero quota burn,
+# fallback to local llama.cpp at 127.0.0.1:11500/v1), and routes default/plan/slow/task/vision
+# across authenticated frontier accounts with automatic 429 fallback.
 modelRoles:
-  default: google-gemini-cli/gemini-2.5-pro
-  smol: llamacpp/local
-  slow: google-gemini-cli/gemini-2.5-pro
-  plan: google-gemini-cli/gemini-2.5-pro
-  task: google-gemini-cli/gemini-2.5-flash
+  default: github-copilot/claude-sonnet-4.6
+  plan: github-copilot/claude-opus-4.8
+  slow: openai-codex/gpt-6-astra
+  task: github-copilot/gemini-3.8-flash
+  smol: apple/on-device
+  vision: github-copilot/gemini-3.1-pro-preview
 
 retry:
   fallbackChains:
     default:
-      - openai-codex/gpt-5.2
+      - openai-codex/gpt-6.1-sol
       - github-copilot/gpt-4.1
       - openrouter/google/gemini-2.5-pro
       - llamacpp/local
-    slow:
-      - openai-codex/gpt-5.2
+    plan:
+      - openai-codex/gpt-6-astra
+      - github-copilot/claude-sonnet-4.6
       - openrouter/google/gemini-2.5-pro
       - llamacpp/local
-    plan:
-      - openai-codex/gpt-5.2
+    slow:
+      - openai-codex/gpt-5.6-sol
+      - github-copilot/claude-opus-4.8
       - openrouter/google/gemini-2.5-pro
+      - llamacpp/local
+    task:
+      - github-copilot/claude-haiku-4.5
+      - apple/on-device
       - llamacpp/local
     smol:
-      - google-gemini-cli/gemini-2.5-flash
-      - openrouter/google/gemini-2.5-flash
-    task:
-      - openrouter/google/gemini-2.5-flash
       - llamacpp/local
+      - github-copilot/claude-haiku-4.5
+    vision:
+      - apple/on-device
+      - openrouter/google/gemini-2.5-pro
 
 browser:
   enabled: false
