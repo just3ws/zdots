@@ -54,11 +54,21 @@ omp-gateway-ctl accounts             # Show provider usage limits across authent
 |---|---|---|
 | **Oh-My-Pi (`omp` / `zomp`)** | Primary Home orchestrator + Work local runner | Global `rtk.ts` (`~/.omp/agent/extensions/rtk.ts`, auto-linked into `zomp` profiles); reads `AGENTS.md`, `.agents/skills/`, `graphify-out/`, `groma/`, `backlog/`. |
 | **Claude Code (`claude`)** | Primary Work coding agent | Global `rtk hook claude` + `@RTK.md` in `~/.claude/`; reads `CLAUDE.md`/`AGENTS.md` and `.agents/skills/`. Transfer sessions to OMP via `omp --from-claude`. |
-| **Gemini CLI (`gm` / `gemini-invoke`)** | Google Gemini + MCP (`ctx-mcp`, `llama-mcp`) | Global `rtk hook gemini` in `~/.gemini/hooks/`; reads `GEMINI.md` / `AGENTS.md` and `graphify query`. At Home, sync `google-gemini-cli` into `omp-gateway-ctl`. |
+| **Gemini CLI (`gm` / `gemini-invoke`)** | Google Gemini + MCP (`ctx-mcp`, `llama-mcp`) | Global `rtk hook gemini` in `~/.gemini/hooks/`; reads `GEMINI.md` / `AGENTS.md` and `graphify query`. At Home, sync `google-gemini-cli` into `omp-gateway-ctl`. (`antigravity-cli` is also listed in `omp auth-broker list` with upstream's `(at your own risk)` caveat for future Home evaluation.) |
 | **Codex CLI (`codex`)** | OpenAI Codex terminal agent | Global `rtk hook codex` in `~/.codex/hooks.json` + `@RTK.md`; reads `AGENTS.md` and `.agents/skills/`. Transfer sessions to OMP via `omp --from-codex`. |
 | **Local LLM (`llama.cpp`)** | Always-on loopback inference (`127.0.0.1:11500/v1`) | Managed via `llama-ctl start`; serves `zdots-ask`, `ai-query`, `zaider`, `zpi`, and OMP's `smol` role (`llamacpp/local`) in both Home and Work contexts. |
 
-## 5. Home vs. Work Isolation Rules
+## 5. Work-Machine Investigation Checklist (Claude Code + Local LLM + OMP)
+
+When evaluating `zomp` on a `ZDOTS_CONTEXT=work` machine alongside Claude Code:
+
+1. **Pull latest `adots` & `zdots`**: `adots-git pull && git -C ~/.config/zsh pull` (ensures `OMP.md`, `providers/tools/omp.zsh`, `bin/omp-gateway-ctl`, and `docs/agents/ai-surface.md` are present).
+2. **Install runtime dependencies**: `brew bundle --file ~/.config/zsh/Brewfile.common` (or `npm install -g @oh-my-pi/pi-coding-agent` + `mise install bun@1.4.4`).
+3. **Verify work boundary enforcement**: Confirm `zomp --hybrid` and `omp-gateway-ctl import-keychain` refuse to run when `ZDOTS_CONTEXT=work`.
+4. **Test strictly-local `zomp`**: With `llama-ctl start`, run `zomp -p "ping"` (`--offline --no-judge --no-spotlight` on `127.0.0.1:11500/v1`).
+5. **Evaluate corporate gateway options (if available)**: Check whether employer provides an internal gateway (`ZDOTS_WORK_AI_GATEWAY_URL`, `NODE_EXTRA_CA_CERTS`, `CLAUDE_CODE_USE_FOUNDRY` / `ANTHROPIC_BASE_URL`) compatible with `zomp --work-gateway`, and test `zomp --from-claude` for importing Claude Code sessions into local OMP.
+
+## 6. Home vs. Work Isolation Rules
 
 - **Profile Isolation**: `zomp` isolates credentials and sessions per lane under
   `${XDG_STATE_HOME}/omp/profiles/zdots-{local,hybrid,or,work-gateway}`.
