@@ -18,12 +18,17 @@ zdots_omp_init() {
   local _mode="${1:-local}"
   local _omp_root="${XDG_STATE_HOME:-$HOME/.local/state}/omp"
   local _profile_dir="${_omp_root}/profiles/zdots-${_mode}/agent"
-  mkdir -p "${_profile_dir}/sessions"
+  mkdir -p "${_profile_dir}/sessions" "${_profile_dir}/extensions"
 
   # Ensure local models.json is present in the profile so `llamacpp/local` is always defined.
   if [[ -r "${ZDOTDIR}/etc/omp/models.local.json" && ! -f "${_profile_dir}/models.json" ]]; then
     cp "${ZDOTDIR}/etc/omp/models.local.json" "${_profile_dir}/models.json"
     chmod 600 "${_profile_dir}/models.json" 2>/dev/null || true
+  fi
+
+  # Link the global RTK extension into the isolated profile so every zomp lane uses rtk.
+  if [[ -f "$HOME/.omp/agent/extensions/rtk.ts" ]]; then
+    ln -sf "$HOME/.omp/agent/extensions/rtk.ts" "${_profile_dir}/extensions/rtk.ts"
   fi
 
   case "$_mode" in
