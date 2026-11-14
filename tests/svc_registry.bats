@@ -39,10 +39,10 @@ setup() {
 
 # ── Managed set ─────────────────────────────────────────────────────────────
 
-@test "registry: managed list is the thirteen zsvc-controllable services in order" {
+@test "registry: managed list is the eleven zsvc-controllable services in order" {
   run zdots_svc_managed
   [ "$status" -eq 0 ]
-  expected=$'llama\nembed\notel\no2\njaeger\ncolima\nnginx\npostgres\nredis\nworker\nstatus\ngemstash\ncoordinator'
+  expected=$'llama\nembed\notel\no2\ncolima\nnginx\npostgres\nredis\nworker\nstatus\ngemstash'
   [ "$output" = "$expected" ]
 }
 
@@ -67,8 +67,32 @@ setup() {
   [ "${ZDOTS_SVC_CTL[postgres]}" = "" ]
   [ "${ZDOTS_SVC_START[embed]}" = "start-embed" ]
   [ "$(zdots_svc_health_policy colima)" = optional ]
-  [ "$(zdots_svc_health_policy coordinator)" = optional ]
   [ "$(zdots_svc_health_policy postgres)" = required ]
+  [ "$(zdots_svc_tier postgres)" = core ]
+  [ "$(zdots_svc_tier llama)" = core ]
+  [ "$(zdots_svc_tier otel)" = services ]
+  [ "$(zdots_svc_tier o2)" = services ]
+  [ "$(zdots_svc_tier nginx)" = ingress ]
+  [ "$(zdots_svc_tier colima)" = optional ]
+}
+
+@test "registry: registered-policy services degrade to optional when not-registered" {
+  zdots_svc_state() { printf 'not-registered\t-'; }
+  [ "$(zdots_svc_health_policy nginx)" = optional ]
+  [ "$(zdots_svc_health_policy otel)" = optional ]
+  [ "$(zdots_svc_health_policy o2)" = optional ]
+  [ "$(zdots_svc_health_policy redis)" = optional ]
+  # Core required services remain required even if not-registered
+  [ "$(zdots_svc_health_policy postgres)" = required ]
+  [ "$(zdots_svc_health_policy llama)" = required ]
+}
+
+@test "registry: registered-policy services resolve to required when registered" {
+  zdots_svc_state() { printf 'running\t1234'; }
+  [ "$(zdots_svc_health_policy nginx)" = required ]
+  [ "$(zdots_svc_health_policy otel)" = required ]
+  [ "$(zdots_svc_health_policy o2)" = required ]
+  [ "$(zdots_svc_health_policy redis)" = required ]
 }
 
 @test "registry: probe functions are defined" {

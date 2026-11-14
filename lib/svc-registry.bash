@@ -60,24 +60,33 @@ declare -Ag ZDOTS_SVC_DISPLAY=()  ZDOTS_SVC_LABEL=()    ZDOTS_SVC_LOG=()
 declare -Ag ZDOTS_SVC_CTL=()      ZDOTS_SVC_ENDPOINT=() ZDOTS_SVC_TYPE=()
 declare -Ag ZDOTS_SVC_MANAGED=()
 declare -Ag ZDOTS_SVC_HEALTH_POLICY=()
+declare -Ag ZDOTS_SVC_TIER=()
 declare -Ag ZDOTS_SVC_INSTALL=()  ZDOTS_SVC_START=()    ZDOTS_SVC_STOP=()
 declare -Ag ZDOTS_SVC_RESTART=()  ZDOTS_SVC_STATUS=()   ZDOTS_SVC_HEALTH=()
 declare -Ag ZDOTS_SVC_LOGS=()     ZDOTS_SVC_VALIDATE=()
 declare -Ag ZDOTS_SVC_PROBE_FN=()  # Function name for health probe dispatch
 declare -Ag _ZDOTS_PROBE_DISPATCH=()  # Built at load time: maps service → probe function
 
-# _svc_reg "name|display|label|log|ctl|endpoint|type|managed|aliases|install|start|stop|restart|status|health|logs|validate|probe_fn|health_policy"
+# _svc_reg "name|display|label|log|ctl|endpoint|type|managed|aliases|install|start|stop|restart|status|health|logs|validate|probe_fn|health_policy|tier"
 # Empty fields are allowed (||). ctl is a bin/ basename or empty. aliases is a
 # space-separated list within its field. probe_fn is the function name that will
 # be called to check service health (e.g., "zdots_probe_llama").
+# health_policy: required | optional | registered (required when registered in
+# launchd, optional when not-registered so deferred tiers degrade gracefully).
+# tier: core | services | ingress | optional
 _svc_reg() {
   local name display label log ctl endpoint type managed aliases \
-        install start stop restart status health logs validate probe_fn health_policy a
+        install start stop restart status health logs validate probe_fn health_policy tier a
   IFS='|' read -r name display label log ctl endpoint type managed aliases \
-        install start stop restart status health logs validate probe_fn health_policy <<< "$1"
+        install start stop restart status health logs validate probe_fn health_policy tier <<< "$1"
   health_policy="${health_policy:-required}"
-  [[ "$health_policy" == required || "$health_policy" == optional ]] || {
+  [[ "$health_policy" == required || "$health_policy" == optional || "$health_policy" == registered ]] || {
     printf 'svc-registry: invalid health policy for %s: %s\n' "$name" "$health_policy" >&2
+    return 1
+  }
+  tier="${tier:-services}"
+  [[ "$tier" == core || "$tier" == services || "$tier" == ingress || "$tier" == optional ]] || {
+    printf 'svc-registry: invalid tier for %s: %s\n' "$name" "$tier" >&2
     return 1
   }
 
@@ -90,6 +99,7 @@ _svc_reg() {
   ZDOTS_SVC_TYPE[$name]="$type"
   ZDOTS_SVC_MANAGED[$name]="$managed"
   ZDOTS_SVC_HEALTH_POLICY[$name]="$health_policy"
+  ZDOTS_SVC_TIER[$name]="$tier"
   ZDOTS_SVC_INSTALL[$name]="$install"
   ZDOTS_SVC_START[$name]="$start"
   ZDOTS_SVC_STOP[$name]="$stop"
@@ -106,26 +116,31 @@ _svc_reg() {
 
 # ── The catalog ─────────────────────────────────────────────────────────────
 # Endpoints resolve from the same env vars both consumers already honour.
-# Fields: name|display|label|log|ctl|endpoint|type|managed|aliases|install|start|stop|restart|status|health|logs|validate|probe_fn
-_svc_reg "llama|llama-server|com.zdots.llama-server|${_SVC_REG_STATE}/llama-server.log|llama-ctl|${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}|launchd|1|llama-server ai server|install|start|stop|restart|status|health|logs|validate|zdots_probe_llama"
-_svc_reg "embed|llama-embed|com.zdots.llama-embed|${_SVC_REG_STATE}/llama-embed.log|llama-ctl|${ZDOTS_AI_EMBED_ENDPOINT:-http://127.0.0.1:11501}|launchd|1|llama-embed embedding|install-embed|start-embed|stop-embed|restart-embed|status-embed||||zdots_probe_embed"
-_svc_reg "otel|otel-collector|com.zdots.otel-collector|${_SVC_REG_STATE}/otel-collector.log|otel-collector|http://127.0.0.1:4318|launchd|1|otel-collector telemetry collector|install|start|stop|restart|status|health|logs|validate|zdots_probe_otel"
-_svc_reg "o2|openobserve|com.zdots.openobserve|${_SVC_REG_STATE}/openobserve.log|openobserve-ctl|http://127.0.0.1:5080|launchd|1|openobserve observability obs telemetry-ui|install|start|stop|restart|status|health|logs||zdots_probe_o2"
-_svc_reg "jaeger|jaeger|com.zdots.jaeger|${_SVC_REG_STATE}/jaeger.log|jaeger-ctl|http://127.0.0.1:16686|launchd|1|jaeger tracing jaeger-ui|install|start|stop|restart|status|health|logs||zdots_probe_jaeger"
-_svc_reg "colima|colima|com.zdots.colima-autostart||colima||colima|1|vm docker||start|stop||status||logs||zdots_probe_colima|optional"
-_svc_reg "nginx|nginx|$(zdots_brew_label nginx)|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.localhost (+ llama/embed/o2/zdots.localhost)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate|zdots_probe_nginx"
-_pg_ver="${ZDOTS_POSTGRES_VERSION:-18}"
-_svc_reg "postgres|postgresql@${_pg_ver}|$(zdots_brew_label "postgresql@${_pg_ver}")|${_SVC_REG_BREW}/var/log/postgresql@${_pg_ver}.log||postgresql:///my (:5432)|plist|1|postgresql pg db database||start|stop|restart|status|health|||zdots_probe_postgres"
-unset _pg_ver
-_svc_reg "redis|redis|$(zdots_brew_label redis)|${_SVC_REG_BREW}/var/log/redis.log||127.0.0.1:6379|plist|1|cache kv||start|stop|restart|status|health|||zdots_probe_redis"
-_svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.log|zdots-worker|jobs queue (my)|launchd|1|jobs brain-worker|install|start|stop|restart|status|health|logs||zdots_probe_worker"
-_svc_reg "status|zdots-statusd|com.zdots.statusd|${_SVC_REG_STATE}/zdots-statusd.log|zdots-statusd-ctl|http://127.0.0.1:${ZDOTS_STATUS_PORT:-11600}|launchd|1|statusd statusd-ctl control-plane dashboard|install|start|stop|restart|status|health|logs||zdots_probe_status"
+# Fields: name|display|label|log|ctl|endpoint|type|managed|aliases|install|start|stop|restart|status|health|logs|validate|probe_fn|health_policy|tier
+_ai_host="${ZDOTS_AI_HOST:-127.0.0.1}"; [[ "$_ai_host" == *:* ]] && _ai_host="[$_ai_host]"
+_embed_host="${ZDOTS_AI_EMBED_HOST:-127.0.0.1}"; [[ "$_embed_host" == *:* ]] && _embed_host="[$_embed_host]"
+_otel_host="${ZDOTS_OTEL_HOST:-127.0.0.1}"; [[ "$_otel_host" == *:* ]] && _otel_host="[$_otel_host]"
+_o2_host="${ZDOTS_O2_HOST:-127.0.0.1}"; [[ "$_o2_host" == *:* ]] && _o2_host="[$_o2_host]"
+_st_host="${ZDOTS_STATUS_HOST:-127.0.0.1}"; [[ "$_st_host" == *:* ]] && _st_host="[$_st_host]"
 _gs_host="${ZDOTS_GEMSTASH_HOST:-127.0.0.1}"; [[ "$_gs_host" == *:* ]] && _gs_host="[$_gs_host]"
-_svc_reg "gemstash|gemstash|com.zdots.gemstash|${_SVC_REG_STATE}/gemstash.log|gemstash-ctl|http://${_gs_host}:${ZDOTS_GEMSTASH_PORT:-9292}|launchd|1|gems gem-cache rubygems gem-proxy|install|start|stop|restart|status|health|logs||zdots_probe_gemstash"
-unset _gs_host
-_svc_reg "coordinator|bus-coordinator|com.zdots.bus-coordinator|${_SVC_REG_STATE}/bus-coordinator.log|bus-coordinator-ctl|optional bus AI responder|launchd|1|bus-coordinator busdriver bot|install|start|stop|restart|status|health|logs||zdots_probe_coordinator|optional"
+_rd_host="${ZDOTS_REDIS_HOST:-127.0.0.1}"; [[ "$_rd_host" == *:* ]] && _rd_host="[$_rd_host]"
+_pg_ver="${ZDOTS_POSTGRES_VERSION:-18}"
+
+_svc_reg "llama|llama-server|com.zdots.llama-server|${_SVC_REG_STATE}/llama-server.log|llama-ctl|${ZDOTS_AI_ENDPOINT:-http://${_ai_host}:${ZDOTS_AI_PORT:-11500}}|launchd|1|llama-server ai server|install|start|stop|restart|status|health|logs|validate|zdots_probe_llama|required|core"
+_svc_reg "embed|llama-embed|com.zdots.llama-embed|${_SVC_REG_STATE}/llama-embed.log|llama-ctl|${ZDOTS_AI_EMBED_ENDPOINT:-http://${_embed_host}:${ZDOTS_AI_EMBED_PORT:-11501}}|launchd|1|llama-embed embedding|install-embed|start-embed|stop-embed|restart-embed|status-embed||||zdots_probe_embed|registered|core"
+_svc_reg "otel|otel-collector|com.zdots.otel-collector|${_SVC_REG_STATE}/otel-collector.log|otel-collector|${ZDOTS_OTLP_ENDPOINT:-http://${_otel_host}:${ZDOTS_OTEL_HTTP_PORT:-4318}}|launchd|1|otel-collector telemetry collector|install|start|stop|restart|status|health|logs|validate|zdots_probe_otel|registered|services"
+_svc_reg "o2|openobserve|com.zdots.openobserve|${_SVC_REG_STATE}/openobserve.log|openobserve-ctl|${ZDOTS_O2_ENDPOINT:-http://${_o2_host}:${ZDOTS_O2_PORT:-5080}}|launchd|1|openobserve observability obs telemetry-ui|install|start|stop|restart|status|health|logs||zdots_probe_o2|registered|services"
+_svc_reg "colima|colima|com.zdots.colima-autostart||colima||colima|1|vm docker||start|stop||status||logs||zdots_probe_colima|optional|optional"
+_svc_reg "nginx|nginx|$(zdots_brew_label nginx)|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.localhost (+ llama/embed/o2/zdots.localhost)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate|zdots_probe_nginx|registered|ingress"
+_svc_reg "postgres|postgresql@${_pg_ver}|$(zdots_brew_label "postgresql@${_pg_ver}")|${_SVC_REG_BREW}/var/log/postgresql@${_pg_ver}.log||postgresql:///my (:${ZDOTS_PG_PORT:-5432})|plist|1|postgresql pg db database||start|stop|restart|status|health|||zdots_probe_postgres|required|core"
+_svc_reg "redis|redis|$(zdots_brew_label redis)|${_SVC_REG_BREW}/var/log/redis.log||${_rd_host}:${ZDOTS_REDIS_PORT:-6379}|plist|1|cache kv||start|stop|restart|status|health|||zdots_probe_redis|registered|services"
+_svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.log|zdots-worker|jobs queue (my)|launchd|1|jobs brain-worker|install|start|stop|restart|status|health|logs||zdots_probe_worker|registered|core"
+_svc_reg "status|zdots-statusd|com.zdots.statusd|${_SVC_REG_STATE}/zdots-statusd.log|zdots-statusd-ctl|http://${_st_host}:${ZDOTS_STATUS_PORT:-11600}|launchd|1|statusd statusd-ctl control-plane dashboard|install|start|stop|restart|status|health|logs||zdots_probe_status|registered|services"
+_svc_reg "gemstash|gemstash|com.zdots.gemstash|${_SVC_REG_STATE}/gemstash.log|gemstash-ctl|http://${_gs_host}:${ZDOTS_GEMSTASH_PORT:-9292}|launchd|1|gems gem-cache rubygems gem-proxy|install|start|stop|restart|status|health|logs||zdots_probe_gemstash|registered|services"
 # Health-only platform services (not zsvc lifecycle-managed):
-_svc_reg "ctx|context-engine|||zdots-ctx|postgres|derived|0|intelligence|||||||||zdots_probe_ctx"
+_svc_reg "ctx|context-engine|||zdots-ctx|postgres|derived|0|intelligence|||||||||zdots_probe_ctx|required|core"
+
+unset _ai_host _embed_host _otel_host _o2_host _st_host _gs_host _rd_host _pg_ver
 
 # ── Lookups ─────────────────────────────────────────────────────────────────
 
@@ -190,10 +205,6 @@ zdots_probe_o2() {
   curl -sf --max-time 3 "${ZDOTS_SVC_ENDPOINT[o2]}/healthz" >/dev/null 2>&1
 }
 
-zdots_probe_jaeger() {
-  curl -sf --max-time 3 "${ZDOTS_SVC_ENDPOINT[jaeger]}/" >/dev/null 2>&1
-}
-
 zdots_probe_colima() {
   colima status >/dev/null 2>&1
 }
@@ -220,10 +231,6 @@ zdots_probe_status() {
 
 zdots_probe_gemstash() {
   curl -sf --max-time 3 "${ZDOTS_SVC_ENDPOINT[gemstash]}/" >/dev/null 2>&1
-}
-
-zdots_probe_coordinator() {
-  "${ZDOTS_SVC_BIN}/bus-coordinator-ctl" health >/dev/null 2>&1
 }
 
 zdots_probe_ctx() {
@@ -269,7 +276,30 @@ zdots_svc_healthy() {
 
 zdots_svc_health_policy() {
   local name; name="$(zdots_svc_resolve "$1")" || return 0
-  printf '%s' "${ZDOTS_SVC_HEALTH_POLICY[$name]:-required}"
+  local policy="${ZDOTS_SVC_HEALTH_POLICY[$name]:-required}"
+  if [[ "$policy" == "registered" ]]; then
+    local st
+    st="$(zdots_svc_state "$name")"
+    if [[ "${st%%$'\t'*}" == "not-registered" ]]; then
+      printf 'optional'
+    else
+      printf 'required'
+    fi
+    return 0
+  fi
+  printf '%s' "$policy"
+}
+
+zdots_svc_tier() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 0
+  printf '%s' "${ZDOTS_SVC_TIER[$name]:-services}"
+}
+
+zdots_svc_registered() {
+  local name; name="$(zdots_svc_resolve "$1")" || return 1
+  local st
+  st="$(zdots_svc_state "$name")"
+  [[ "${st%%$'\t'*}" != "not-registered" ]]
 }
 
 # ── Descriptor accessors (avoid direct array access) ──────────────────────────

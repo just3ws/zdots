@@ -28,7 +28,10 @@ LOG_FILE="$STATE/zdots-statusd.log"
 PLIST_LABEL="com.zdots.statusd"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 SERVER="$ZDOTDIR/bin/zdots-statusd"
+HOST="${ZDOTS_STATUS_HOST:-127.0.0.1}"
 PORT="${ZDOTS_STATUS_PORT:-11600}"
+URL_HOST="$HOST"; [[ "$HOST" == *:* ]] && URL_HOST="[$HOST]"
+ENDPOINT="http://${URL_HOST}:${PORT}"
 
 # shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
 SVC_NAME="zdots-statusd"
@@ -39,6 +42,16 @@ source "${ZDOTDIR}/lib/svc-process.bash"
 
 _die()  { printf 'zdots-statusd-ctl: error: %s\n' "$*" >&2; exit 1; }
 _info() { printf 'zdots-statusd-ctl: %s\n' "$*" >&2; }
+
+_check_bind() {
+  case "$HOST" in
+    127.0.0.1|localhost|::1) ;;
+    *) _die "ZDOTS_STATUS_HOST must be loopback (127.0.0.1, localhost or ::1), got: $HOST" ;;
+  esac
+  if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
+    _die "ZDOTS_STATUS_PORT must be a port number 1-65535, got: $PORT"
+  fi
+}
 
 usage() {
   cat <<EOF
@@ -72,8 +85,9 @@ EOF
 # captured into the plist at install time so the server can shell out to
 # zdots-ctl / zsvc / launchctl exactly as the interactive shell does.
 cmd_run() {
+  _check_bind
   cd "$ZDOTDIR" || _die "cannot cd to $ZDOTDIR"
-  export ZDOTDIR ZDOTS_STATUS_PORT="$PORT"
+  export ZDOTDIR ZDOTS_STATUS_HOST="$HOST" ZDOTS_STATUS_PORT="$PORT"
   if command -v mise >/dev/null 2>&1; then
     exec mise exec -- "$SERVER"
   fi
@@ -81,15 +95,17 @@ cmd_run() {
 }
 
 cmd_install() {
+  _check_bind
   [[ "$OS" == "darwin" ]] || _die "launchd service is macOS-only (nothing to install on $OS)"
   [[ -x "$SERVER" ]] || _die "zdots-statusd not found or not executable: $SERVER"
   mkdir -p "$STATE"
-  ZDOTS_SVC_ENV_KEYS="HOME PATH ZDOTDIR" \
+  ZDOTS_SVC_ENV_KEYS="HOME PATH ZDOTDIR ZDOTS_STATUS_HOST ZDOTS_STATUS_PORT" \
     zdots_svc_launchd_register \
       "$PLIST_LABEL" "$PLIST_FILE" "$ZDOTDIR/bin/zdots-statusd-ctl" "$LOG_FILE" "run"
 }
 
 cmd_start() {
+  _check_bind
   [[ "$OS" == "darwin" ]] || _die "macOS-only"
   if [[ ! -f "$PLIST_FILE" ]]; then
     _info "plist missing — running install first"
@@ -112,7 +128,7 @@ cmd_status() {
   running=$(echo "$state" | awk '{print $1}')
   pid=$(echo "$state" | awk '{print $2}')
 
-  zdots_svc_print_status "$json" "$running" "$pid" "http://127.0.0.1:${PORT}" "$LOG_FILE" \
+  zdots_svc_print_status "$json" "$running" "$pid" "$ENDPOINT" "$LOG_FILE" \
     "launchd=$([[ -f "$PLIST_FILE" ]] && echo true || echo false)"
 }
 
@@ -121,9 +137,9 @@ cmd_health() {
   [[ "${1:-}" == "--json" ]] && json=true
 
   local healthy=false
-  curl -sf --max-time 3 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1 && healthy=true
+  curl -sf --max-time 3 "${ENDPOINT}/healthz" >/dev/null 2>&1 && healthy=true
 
-  zdots_svc_print_health "$json" "$healthy" "http://127.0.0.1:${PORT}"
+  zdots_svc_print_health "$json" "$healthy" "$ENDPOINT"
 }
 
 cmd_logs() {

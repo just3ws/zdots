@@ -5,19 +5,19 @@ module Zdots
     SERVICES = {
       llama_cpp: {
         title: "llama.cpp (AI inference)",
-        endpoint: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500"),
+        endpoint: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://#{ENV.fetch('ZDOTS_AI_HOST', '127.0.0.1')}:#{ENV.fetch('ZDOTS_AI_PORT', '11500')}"),
         start_cmd: "llama-ctl start",
         status_cmd: "llama-ctl status"
       },
       otelcol: {
         title: "otelcol-contrib (OTel collector)",
-        endpoint: "http://127.0.0.1:4318",
-        grpc_endpoint: "grpc://127.0.0.1:4317",
+        endpoint: ENV.fetch("ZDOTS_OTLP_ENDPOINT", "http://#{ENV.fetch('ZDOTS_OTEL_HOST', '127.0.0.1')}:#{ENV.fetch('ZDOTS_OTEL_HTTP_PORT', '4318')}"),
+        grpc_endpoint: "grpc://#{ENV.fetch('ZDOTS_OTEL_HOST', '127.0.0.1')}:#{ENV.fetch('ZDOTS_OTEL_GRPC_PORT', '4317')}",
         start_cmd: "otel-collector start"
       },
       openobserve: {
         title: "OpenObserve (logs/metrics/traces, native)",
-        url: "http://127.0.0.1:5080",
+        url: ENV.fetch("ZDOTS_O2_ENDPOINT", "http://#{ENV.fetch('ZDOTS_O2_HOST', '127.0.0.1')}:#{ENV.fetch('ZDOTS_O2_PORT', '5080')}"),
         credentials: "root@zdots.local / Keychain ZDOTS_O2_ROOT_PASSWORD",
         start_cmd: "zsvc start o2"
       },

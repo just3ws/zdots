@@ -39,10 +39,10 @@ done
 # ---------------------------------------------------------------------------
 # Live status probes (all silent — results stored in variables)
 # ---------------------------------------------------------------------------
-AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
-OTEL_ENDPOINT="http://127.0.0.1:4318"
-O2_URL="http://127.0.0.1:5080"
-JAEGER_URL="http://127.0.0.1:16686"
+AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://${ZDOTS_AI_HOST:-127.0.0.1}:${ZDOTS_AI_PORT:-11500}}"
+OTEL_ENDPOINT="${ZDOTS_OTLP_ENDPOINT:-http://${ZDOTS_OTEL_HOST:-127.0.0.1}:${ZDOTS_OTEL_HTTP_PORT:-4318}}"
+O2_URL="${ZDOTS_O2_ENDPOINT:-http://${ZDOTS_O2_HOST:-127.0.0.1}:${ZDOTS_O2_PORT:-5080}}"
+STATUS_URL="http://${ZDOTS_STATUS_HOST:-127.0.0.1}:${ZDOTS_STATUS_PORT:-11600}"
 LOG_DIR="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
 AGENT_ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 LOG_ANALYZER="${AGENT_ZDOTDIR}/bin/zdots-log-analyze"
@@ -62,7 +62,6 @@ AI_UP=false
 AI_MODEL_ID="unknown"
 OTEL_UP=false
 O2_UP=false
-JAEGER_UP=false
 COLIMA_UP=false
 
 CONTROL_STATUS_JSON=""
@@ -81,8 +80,6 @@ if [ -n "$CONTROL_STATUS_JSON" ] && printf '%s\n' "$CONTROL_STATUS_JSON" | jq -e
   OTEL_ENDPOINT=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.otlp_endpoint // "'"$OTEL_ENDPOINT"'"')
   O2_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.openobserve // false')
   O2_URL=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.o2_url // "'"$O2_URL"'"')
-  JAEGER_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.jaeger // false')
-  JAEGER_URL=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.jaeger_url // "'"$JAEGER_URL"'"')
   COLIMA_UP=$(printf '%s\n' "$CONTROL_STATUS_JSON" | jq -r '.colima // false')
 else
   if curl -sf -m 2 "${AI_ENDPOINT}/health" >/dev/null 2>&1; then
@@ -97,10 +94,6 @@ else
 
   if curl -sf -m 2 "${O2_URL}/healthz" >/dev/null 2>&1; then
     O2_UP=true
-  fi
-
-  if curl -sf -m 2 "${JAEGER_URL}/" >/dev/null 2>&1; then
-    JAEGER_UP=true
   fi
 
   # Colima is optional now (container workloads only, not observability).
@@ -143,8 +136,7 @@ if $JSON; then
     --argjson colima_up    "$COLIMA_UP" \
     --argjson o2_up        "$O2_UP" \
     --arg     o2_url       "$O2_URL" \
-    --argjson jaeger_up    "$JAEGER_UP" \
-    --arg     jaeger_url   "$JAEGER_URL" \
+    --arg     status_url   "$STATUS_URL" \
     --argjson whisper_up   "$WHISPER_UP" \
     --argjson fabric_up    "$FABRIC_UP" \
     --arg     current_user "$CURRENT_USER" \
@@ -164,8 +156,7 @@ if $JSON; then
         fabric_ai:   { up: $fabric_up,                                           start: "brew install fabric-ai" },
         otelcol:     { up: $otel_up,    endpoint: $otel_ep,                      start: "otel-collector start" },
         colima:      { up: $colima_up,                                            start: "colima start" },
-        openobserve: { up: $o2_up,      url: $o2_url,                            start: "zsvc start o2" },
-        jaeger:      { up: $jaeger_up,  url: $jaeger_url, vhost: "https://jaeger.localhost", start: "zsvc start jaeger" }
+        openobserve: { up: $o2_up,      url: $o2_url,                            start: "zsvc start o2" }
       },
       ai: {
         mode:              $ai_mode,
@@ -185,9 +176,7 @@ if $JSON; then
         otlp_grpc_endpoint:  "grpc://127.0.0.1:4317",
         protocol:            "http/protobuf",
         backend:             "openobserve",
-        ui_url:              $o2_url,
-        jaeger_url:          $jaeger_url,
-        jaeger_vhost:        "https://jaeger.localhost"
+        ui_url:              $o2_url
       },
       env: {
         ZDOTS_DATABASE_URL:            "postgresql://zdots_rw@/my",
@@ -228,17 +217,14 @@ if $JSON; then
         note: "Available to compatible MCP clients when registered in their client configuration"
       },
       discovery: {
-        man:                  "https://zdots.localhost/man (or: man <cmd> locally)",
-        docs:                 "https://zdots.localhost/docs (or: docs/*.md)",
-        help:                 "https://zdots.localhost/help (or: zdots help <cmd>)",
-        backlog:              "https://zdots.localhost/backlog (read-only board)",
-        theme:                "https://zdots.localhost/theme/palette.json (Kanagawa Wave)",
+        man:                  ($status_url + "/man (or: man <cmd> locally)"),
+        docs:                 ($status_url + "/docs (or: docs/*.md)"),
+        help:                 ($status_url + "/help (or: zdots help <cmd>)"),
+        backlog:              ($status_url + "/backlog (read-only board)"),
+        theme:                ($status_url + "/theme/palette.json (Kanagawa Wave)"),
         services:             "zsvc map --json (purpose/auth/example per service)",
         vocabulary:           "zdots-ctx concept <slug> | concept resolve <word>",
-        bus:                  "zdots-bus (or: bus) [route|stops|stop|read|watch|post|ask|sign|driver]",
-        bus_schedule:         "bus-schedule [--json] (local message bus route guide & chat snapshot)",
-        bus_snapshot_dir:     "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/bus-schedule",
-        external_agents_note: "Tenant/corporate AI sessions on this machine: reads above are free (loopback-trusted, no PHI). Route requests/questions through ${ZDOTS_WORK_EXT:-~/.config/zdots-work}/handoffs/, not the Message Bus or zdots-issue directly."
+        external_agents_note: "Tenant/corporate AI sessions on this machine: reads above are free (loopback-trusted, no PHI). Route requests/questions through ${ZDOTS_WORK_EXT:-~/.config/zdots-work}/handoffs/."
       },
       database: {
         name:           "my",
@@ -422,13 +408,7 @@ else
   printf '%s\n' "$(_down "OpenObserve (logs/metrics/traces)")"
 fi
 
-if $JAEGER_UP; then
-  printf '%s  %s (https://jaeger.localhost)\n' "$(_ok "Jaeger (tracing/service map/SPM)")" "$JAEGER_URL"
-else
-  printf '%s\n' "$(_down "Jaeger (tracing/service map/SPM)")"
-fi
-
-if ! $AI_UP || ! $OTEL_UP || ! $O2_UP || ! $JAEGER_UP; then
+if ! $AI_UP || ! $OTEL_UP || ! $O2_UP; then
   printf '\n  To bring everything up: zdots-ctl up\n'
 fi
 
@@ -576,65 +556,6 @@ instead of hand-rolling direct-LLM calls. Add a profile by dropping a prompt
 at etc/prompts/jobs/transform/<name>.txt — no code change needed.
 EOF
 
-_head "Message Bus — zdots-ctx"
-
-cat <<'EOF'
-Local channels + threaded persistent messages for agent (and human)
-collaboration on this machine. Postgres is the source of truth; Redis
-pub/sub gives live delivery to whatever is actively watching. See
-docs/message-bus.md for the full model.
-
-  bus                             instant route guide & snapshot (~/.local/state/zsh/bus-schedule)
-  bus stops [--unread|--waiting]  stops overview (or: bus stop <channel> to inspect)
-  bus read <channel> [--unread]   read channel messages
-  bus watch <channel>             live tail follower (Ctrl-C to stop)
-  bus post <channel> <text>       post message (--type STATUS/QUESTION/PROPOSAL/ACK)
-  bus ask <channel> <question>    ask @busdriver a question on <channel>
-  bus sign                        tap on the sign: Busdriver policy & road rules
-  bus driver [status|logs|ping]   manage busdriver coordinator daemon
-
-Underlying knowledge layer interface (zdots-ctx):
-  zdots-ctx bus-register <name> [--kind agent|human]  once per identity
-  zdots-ctx bus-create-channel <name> [topic...]
-  zdots-ctx bus-set-protocol <channel> <text...>  engagement protocol: on-topic, evidence standard
-  zdots-ctx bus-post <channel> <text> [--type KIND] [--thread ID] [--as PARTICIPANT]
-  zdots-ctx bus-read <channel> [--since ID | --unread] [--thread ID] [--tag T] [--mention N] [--type KIND] [--search TERM]
-  zdots-ctx bus-watch <channel>   unread history, then live tail (Ctrl-C to stop)
-  zdots-ctx bus-chats [--unread|--waiting|--pending|--stale]  overview of unread & pending messages
-  bus-schedule [--json]           instant agent frontpage / snapshot guide (~/.local/state/zsh/bus-schedule)
-
-Background coordinator: `busdriver` (managed via `zsvc status coordinator` or `bus driver status`). Watches channels,
-answers queries lyrically, documents issues, and points passengers to the right track (zero side-effects).
-
-#tag / @mention in a posted body are auto-extracted (filter with --tag/--mention);
---type on bus-post records a message kind (STATUS/PROPOSAL/CORRECTION/QUESTION/ACK,
-freeform), shown as a [KIND] prefix; --type on bus-read filters by that kind.
-None of this pushes to anyone — it's filtering for whoever reads, not a
-subscription system.
-
-Set ZDOTS_BUS_PARTICIPANT once per session instead of passing --as every call.
-
-Web console: https://my.localhost/bus — channel list with unread counts,
-threads, and a compose box, over the same Zdots::Bus code path. Posts as the
-operator only.
-
-Posting is authenticated (Z-310, 2026-08-23). Register once with
-`zdots-ctx bus-register <name>`; the token lands in your Keychain and
-Bus.post reads it back. An unregistered name is refused rather than
-created. Reading stays open — it claims no identity.
-
-Three things this does NOT give you. Messages posted before 2026-08-23
-carry no proof of authorship, so never cite older bus traffic as evidence
-that a peer agent did something. The Keychain is per-user, not
-per-process: another local process running as this user can still read
-your token, so forgery is deliberate now, not impossible. And auth proves
-WHO posted, not that WHAT they posted is true (2026-08-25: two authenticated
-cross-repo peers both thanked zdots for infra work that never happened,
-traced to nothing in git log) — verify a claim about this repo's own state
-against git/backlog before repeating it, even from a trusted, authenticated
-name.
-EOF
-
 _head "Observability — OTel + OpenObserve"
 
 cat <<EOF
@@ -642,7 +563,7 @@ Architecture:
   Your app → OTLP (http/protobuf :4318 or gRPC :4317)
            → otelcol-contrib (host, native)
            → OpenObserve (native binary, :5080)
-           → UI / logs / metrics / traces at o2.localhost
+           → UI / logs / metrics / traces at ${O2_URL}
 
 CONNECT YOUR APP — set these env vars:
   export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_ENDPOINT}"
@@ -652,10 +573,6 @@ OPENOBSERVE:  ${O2_URL}  (login: root@zdots.local, password in Keychain)
   - Traces → OpenObserve
   - Logs   → OpenObserve
   - Metrics → OpenObserve (includes RED metrics auto-derived from traces)
-
-JAEGER:       ${JAEGER_URL}  (https://jaeger.localhost)
-  - Service Map / System Architecture DAG: https://jaeger.localhost/
-  - Service Performance Monitoring (SPM):  https://jaeger.localhost/monitor
 
 VERIFY CONNECTIVITY:
   curl -sf ${OTEL_ENDPOINT}/v1/traces \

@@ -44,6 +44,10 @@ if ARGV.first =~ /\A(-h|--help)\z/
   exit 0
 end
 
+HOST   = ENV["ZDOTS_STATUS_HOST"] || "127.0.0.1"
+unless %w[127.0.0.1 localhost ::1].include?(HOST)
+  abort "zdots-statusd: error: ZDOTS_STATUS_HOST must be loopback (127.0.0.1, localhost or ::1), got: #{HOST}"
+end
 PORT   = (ENV["ZDOTS_STATUS_PORT"] || "11600").to_i
 ZDOTS  = ENV["ZDOTDIR"] || File.expand_path("#{__dir__}/..")
 BIN    = File.join(ZDOTS, "bin")
@@ -982,8 +986,8 @@ def respond_bytes(client, bytes, type, filename: nil)
   client.write bytes
 end
 
-server = TCPServer.new("127.0.0.1", PORT)
-warn "zdots-statusd listening on http://127.0.0.1:#{PORT}"
+server = TCPServer.new(HOST, PORT)
+warn "zdots-statusd listening on http://#{HOST}:#{PORT}"
 loop do
   client = server.accept
   begin

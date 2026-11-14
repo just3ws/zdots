@@ -8,7 +8,7 @@
     <array>
         <string>/bin/zsh</string>
         <string>-c</string>
-        <string>log-rotate otel-collector; log-rotate openobserve; log-rotate llama-server; log-rotate llama-embed; log-rotate gemstash; log-rotate worker; log-rotate bus-coordinator; log-rotate index-tools; log-rotate jaeger; log-rotate statusd</string>
+        <string>log-rotate otel-collector; log-rotate openobserve; log-rotate llama-server; log-rotate llama-embed; log-rotate gemstash; log-rotate worker; log-rotate index-tools; log-rotate statusd</string>
     </array>
     <!-- Daily: cap high-volume service logs before the recording day. -->
     <key>StartCalendarInterval</key>

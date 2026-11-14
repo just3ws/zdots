@@ -26,9 +26,3 @@ term_file_link() {
   local text="${2:-$path}"
   term_link "file://${path}" "$text"
 }
-
-term_bus_channel_link() {
-  local channel="$1"
-  local text="${2:-$channel}"
-  term_link "https://my.localhost/bus#${channel}" "$text"
-}

@@ -3,6 +3,7 @@
 # This provider manages environment variables for whisper-ctl.
 
 zdots_whisper_init() {
+  export ZDOTS_ZTRANSCRIBE_ROOT="${ZDOTS_ZTRANSCRIBE_ROOT:-$HOME/github.com/just3ws/ztranscribe}"
   export ZDOTS_WHISPER_PROFILE="${ZDOTS_WHISPER_PROFILE:-standard}"
   export ZDOTS_WHISPER_MODELS_DIR="${ZDOTS_WHISPER_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/whisper-cpp/models}"
 

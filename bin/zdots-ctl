@@ -39,7 +39,6 @@ AI_ENDPOINT="$(zdots_svc_endpoint llama)"
 EMBED_ENDPOINT="$(zdots_svc_endpoint embed)"
 OTLP_ENDPOINT="$(zdots_svc_endpoint otel)"
 O2_ENDPOINT="$(zdots_svc_endpoint o2)"
-JAEGER_ENDPOINT="$(zdots_svc_endpoint jaeger)"
 REDIS_HOST="${ZDOTS_REDIS_HOST:-127.0.0.1}"
 REDIS_PORT="${ZDOTS_REDIS_PORT:-6379}"
 WAIT_TIMEOUT="${ZDOTS_BOOT_TIMEOUT:-90}"
@@ -72,7 +71,6 @@ _ai_socket_up()  { zdots_svc_loopback_listening "$AI_ENDPOINT"; }
 _embed_up()      { zdots_svc_healthy embed; }
 _otel_up()       { zdots_svc_healthy otel; }
 _o2_up()         { zdots_svc_healthy o2; }
-_jaeger_up()     { zdots_svc_healthy jaeger; }
 _colima_up()     { zdots_svc_healthy colima; }
 _ctx_up()        { zdots_svc_healthy ctx; }
 _redis_up()      { zdots_svc_healthy redis; }
@@ -113,30 +111,22 @@ cmd_up() {
   _section "Bringing platform up"
   zdots_trace_log "platform_up" "start"
 
-  # 1. OpenObserve (native observability backend)
+  # 1. OpenObserve (optional services tier — start only if registered)
   if _o2_up; then
     _ok "OpenObserve already up"
-  else
+  elif zdots_svc_registered o2 || [[ -f "$HOME/Library/LaunchAgents/com.zdots.openobserve.plist" ]]; then
     _info "starting OpenObserve..."
     "$BIN/openobserve-ctl" start
     _wait_for "OpenObserve" "${O2_ENDPOINT}/healthz" 60
     _ok "OpenObserve up"
+  else
+    _info "OpenObserve not registered — skipping (optional services tier)"
   fi
 
-  # 2. Jaeger (native tracing & service map backend)
-  if _jaeger_up; then
-    _ok "Jaeger already up"
-  elif [ -x "$BIN/jaeger-ctl" ]; then
-    _info "starting Jaeger..."
-    "$BIN/jaeger-ctl" start
-    _wait_for "Jaeger" "${JAEGER_ENDPOINT}/" 30
-    _ok "Jaeger up"
-  fi
-
-  # 3. otel-collector (forwards to OpenObserve & Jaeger)
+  # 2. otel-collector (optional telemetry forwarder — start only if registered)
   if _otel_up; then
     _ok "otel-collector already running"
-  else
+  elif zdots_svc_registered otel || [[ -f "$HOME/Library/LaunchAgents/com.zdots.otel-collector.plist" ]]; then
     _info "starting otel-collector..."
     "$BIN/otel-collector" start
     sleep 2
@@ -145,6 +135,8 @@ cmd_up() {
     else
       _warn "otel-collector did not start — run: otel-collector install"
     fi
+  else
+    _info "otel-collector not registered — skipping (optional services tier)"
   fi
 
   # 3. AI server (independent). llama-ctl start now blocks on inference readiness
@@ -213,8 +205,6 @@ cmd_down() {
   "$BIN/llama-ctl" stop 2>/dev/null || true
   _info "stopping OpenObserve..."
   "$BIN/openobserve-ctl" stop 2>/dev/null || true
-  _info "stopping Jaeger..."
-  "$BIN/jaeger-ctl" stop 2>/dev/null || true
   _ok "platform down"
   zdots_trace_log "platform_down" "complete"
 }
@@ -248,9 +238,8 @@ cmd_status() {
   local json=false
   [[ "${1:-}" == "--json" ]] && json=true
 
-  local o2_up jaeger_up ai_up ai_socket_up embed_up otel_up colima_up ctx_up redis_up worker_up
+  local o2_up ai_up ai_socket_up embed_up otel_up colima_up ctx_up redis_up worker_up
   _o2_up      && o2_up=true     || o2_up=false
-  _jaeger_up  && jaeger_up=true || jaeger_up=false
   _ai_up      && ai_up=true     || ai_up=false
   _ai_socket_up && ai_socket_up=true || ai_socket_up=false
   _embed_up   && embed_up=true  || embed_up=false
@@ -266,10 +255,15 @@ cmd_status() {
       | jq -r '.data[0].id // "local"' 2>/dev/null || echo "local")
   fi
 
+  local core_ready=false
+  if [[ "$ctx_up" == "true" ]] && [[ "$ai_up" == "true" || "${ZDOTS_AI_MODE:-local}" == "none" ]]; then
+    core_ready=true
+  fi
+
   if $json; then
-    printf '{"colima":%s,"openobserve":%s,"jaeger":%s,"otel_collector":%s,"ai_server":%s,"ai_http_healthy":%s,"ai_socket_listening":%s,"embed_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"worker":%s,"o2_url":"%s","jaeger_url":"%s","ai_endpoint":"%s","embed_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
-      "$colima_up" "$o2_up" "$jaeger_up" "$otel_up" "$ai_up" "$ai_up" "$ai_socket_up" "$embed_up" "$ai_model" "$ctx_up" "$redis_up" "$worker_up" \
-      "$O2_ENDPOINT" "$JAEGER_ENDPOINT" "$AI_ENDPOINT" "$EMBED_ENDPOINT" "$OTLP_ENDPOINT" "$REDIS_HOST" "$REDIS_PORT"
+    printf '{"core_ready":%s,"colima":%s,"openobserve":%s,"otel_collector":%s,"ai_server":%s,"ai_http_healthy":%s,"ai_socket_listening":%s,"embed_server":%s,"ai_model":"%s","intelligence_suite":%s,"cache":%s,"worker":%s,"o2_url":"%s","ai_endpoint":"%s","embed_endpoint":"%s","otlp_endpoint":"%s","redis_host":"%s","redis_port":%s}\n' \
+      "$core_ready" "$colima_up" "$o2_up" "$otel_up" "$ai_up" "$ai_up" "$ai_socket_up" "$embed_up" "$ai_model" "$ctx_up" "$redis_up" "$worker_up" \
+      "$O2_ENDPOINT" "$AI_ENDPOINT" "$EMBED_ENDPOINT" "$OTLP_ENDPOINT" "$REDIS_HOST" "$REDIS_PORT"
     return
   fi
 
@@ -280,7 +274,6 @@ cmd_status() {
   printf 'zdots-ctl: platform status\n'
   printf '  %-20s %s  %s\n' "colima"         "$(_sym "$colima_up")" "$([ "$colima_up" = true ] && echo up || echo down)"
   printf '  %-20s %s  %s\n' "OpenObserve"    "$(_sym "$o2_up")"    "$O2_ENDPOINT"
-  printf '  %-20s %s  %s\n' "Jaeger"         "$(_sym "$jaeger_up")" "$JAEGER_ENDPOINT"
   printf '  %-20s %s  %s\n' "otel-collector" "$(_sym "$otel_up")"  "$OTLP_ENDPOINT"
   printf '  %-20s %s  %s (socket: %s)\n' "AI server" "$(_sym "$ai_up")" "$AI_ENDPOINT" "$ai_socket_up"
   printf '  %-20s %s  %s\n' "embed server"   "$(_sym "$embed_up")" "$EMBED_ENDPOINT"
@@ -310,17 +303,27 @@ cmd_check() {
 
   printf 'zdots-ctl check — %s\n\n' "$(date '+%Y-%m-%d %H:%M:%S')"
 
-  # ── Required tools ─────────────────────────────────────────────────────────
-  printf 'Required tools\n'
-  for tool in brew git curl jq yq colima docker llama-server otelcol-contrib nginx mkcert; do
+  # ── Required tools (Core Tier) ─────────────────────────────────────────────
+  printf 'Required tools (Core)\n'
+  for tool in brew git curl jq yq llama-server; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      _chk_pass "$tool  $(command -v "$tool")"
+    else
+      _chk_fail "$tool  not found"
+      _fix "brew install $tool"
+    fi
+  done
+
+  # ── Optional tools (Services & Ingress Tiers) ──────────────────────────────
+  printf '\nOptional tools (Services & Ingress)\n'
+  for tool in otelcol-contrib colima docker nginx mkcert; do
     if command -v "$tool" >/dev/null 2>&1; then
       _chk_pass "$tool  $(command -v "$tool")"
     elif [[ "$tool" == "nginx" ]] && curl -sI --max-time 1 http://127.0.0.1 2>/dev/null | grep -qi '^Server: nginx'; then
       # nginx run as root (sudo brew services) — binary not in user PATH; detect via HTTP probe
       _chk_pass "$tool  running as system service (port 80)"
     else
-      _chk_fail "$tool  not found"
-      _fix "brew install $tool"
+      _chk_pass "$tool  not installed (optional tier)"
     fi
   done
 
@@ -417,9 +420,11 @@ cmd_check() {
 
   if _o2_up; then
     _chk_pass "OpenObserve  reachable ($O2_ENDPOINT)"
-  else
+  elif zdots_svc_registered o2; then
     _chk_warn "OpenObserve  unreachable"
     _fix "zsvc start o2  (or: zdots-ctl up)"
+  else
+    _chk_pass "OpenObserve  not registered (optional services tier)"
   fi
 
   # Colima is no longer part of the observability plane (native binaries now).
@@ -432,9 +437,11 @@ cmd_check() {
 
   if _otel_up; then
     _chk_pass "otel-collector  running"
-  else
+  elif zdots_svc_registered otel; then
     _chk_warn "otel-collector  not running"
     _fix "zdots-ctl up"
+  else
+    _chk_pass "otel-collector  not registered (optional services tier)"
   fi
 
   if _worker_up; then
@@ -512,39 +519,43 @@ cmd_check() {
 
   if _redis_up; then
     _chk_pass "cache  Redis reachable (${REDIS_HOST}:${REDIS_PORT})"
-  else
+  elif zdots_svc_registered redis; then
     _chk_warn "cache  Redis unreachable — analytics writes fall back to SQLite"
-    _fix "brew services start redis"
+    _fix "zsvc start redis"
+  else
+    _chk_pass "cache  Redis not registered — analytics writes use SQLite directly"
   fi
 
-  # ── Local proxy (nginx + mkcert + /etc/hosts) ─────────────────────────────
-  printf '\nLocal proxy\n'
+  # ── Local proxy (nginx + mkcert + /etc/hosts — Optional Ingress Tier) ──────
+  printf '\nLocal proxy (optional ingress tier)\n'
 
-  # nginx should run on port 80 (managed via launchctl, not brew services).
-  # Always probe via HTTP — binary not in user PATH when managed via sudo brew
-  # services. Never gate on symlink existence; symlinks are unreliable across
-  # brew upgrades (may be removed or root-owned after sudo service restart).
+  # nginx may run on port 80 (managed via launchctl) when the optional ingress
+  # tier is provisioned. When nginx is not registered, skip cleanly so headless
+  # or work machines without 80/443 root ingress pass with zero errors/warnings.
   local nginx_server_header
   nginx_server_header=$(curl -sI --max-time 2 http://127.0.0.1 2>/dev/null | grep -i '^Server:' | head -1) || true
   if echo "$nginx_server_header" | grep -qi nginx; then
     _chk_pass "nginx  running on port 80"
     # Config valid by definition when serving — sudo nginx -t can't run non-interactively
     _chk_pass "nginx config  valid (inferred — service is running)"
-  else
-    _chk_warn "nginx  not running"
-    _fix "sudo brew services start nginx"
-      # Only validate config when nginx is stopped — helps diagnose startup failures
+  elif zdots_svc_registered nginx; then
+    _chk_warn "nginx  registered but not running"
+    _fix "zsvc start nginx"
+    if command -v nginx >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
       local nginx_t_rc=0
-      sudo nginx -t >/dev/null 2>&1 || nginx_t_rc=$?
+      sudo -n nginx -t >/dev/null 2>&1 || nginx_t_rc=$?
       if [[ $nginx_t_rc -eq 0 ]]; then
         _chk_pass "nginx config  valid (nginx stopped but config is clean)"
       elif [[ $nginx_t_rc -ne 126 ]]; then
         _chk_fail "nginx config  invalid"
         _fix "sudo nginx -t  (see errors above)"
       fi
+    fi
+  else
+    _chk_pass "nginx  not registered (direct loopback mode)"
   fi
 
-  # mkcert local CA trusted in system keychain
+  # mkcert local CA trusted in system keychain (only relevant when ingress is active or mkcert is installed)
   if command -v mkcert >/dev/null 2>&1; then
     local mkcert_root; mkcert_root=$(mkcert -CAROOT 2>/dev/null) || true
     if [[ -f "${mkcert_root}/rootCA.pem" ]]; then
@@ -563,13 +574,17 @@ cmd_check() {
     local cert_file="${brew_pfx}/etc/nginx/certs/zdots-local.pem"
     if [[ -f "$cert_file" ]]; then
       _chk_pass "nginx TLS certs  present ($cert_file)"
-    else
+    elif zdots_svc_registered nginx; then
       _chk_warn "nginx TLS certs  missing"
       _fix "run bin/bootstrap  or: mkcert -cert-file ${cert_file} -key-file ${brew_pfx}/etc/nginx/certs/zdots-local-key.pem llama.localhost embed.localhost o2.localhost zdots.localhost gemstash.localhost my.localhost localhost 127.0.0.1"
+    else
+      _chk_pass "nginx TLS certs  not provisioned (direct loopback mode)"
     fi
-  else
+  elif zdots_svc_registered nginx; then
     _chk_warn "mkcert  not installed"
     _fix "brew install mkcert && mkcert -install"
+  else
+    _chk_pass "mkcert  not installed (direct loopback mode)"
   fi
 
   # No /etc/hosts check: every vhost is a .localhost name now (decision-011/

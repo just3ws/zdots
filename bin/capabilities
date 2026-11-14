@@ -270,25 +270,17 @@ else
     echo "  ${CYAN}Trace File:${RESET}   $_z_trace_file [${YELLOW}missing${RESET}]"
   fi
 fi
-# Observability backends (OpenObserve & Jaeger)
+# Observability backend (OpenObserve)
 _o2_live=0
-if curl -sf -m 2 "http://127.0.0.1:5080/healthz" >/dev/null 2>&1; then
+_o2_url="${ZDOTS_O2_ENDPOINT:-http://${ZDOTS_O2_HOST:-127.0.0.1}:${ZDOTS_O2_PORT:-5080}}"
+if curl -sf -m 2 "${_o2_url}/healthz" >/dev/null 2>&1; then
   _o2_live=1
-fi
-_jaeger_live=0
-if curl -sf -m 2 "http://127.0.0.1:16686/" >/dev/null 2>&1; then
-  _jaeger_live=1
 fi
 if [ "$OUTPUT_FORMAT" = "text" ]; then
   if [ "$_o2_live" = "1" ]; then
-    printf "  %bOpenObserve:%b   %bonline%b (http://127.0.0.1:5080)\n" "$CYAN" "$RESET" "$GREEN" "$RESET"
+    printf "  %bOpenObserve:%b   %bonline%b (%s)\n" "$CYAN" "$RESET" "$GREEN" "$RESET" "$_o2_url"
   else
     printf "  %bOpenObserve:%b   %boffline%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
-  fi
-  if [ "$_jaeger_live" = "1" ]; then
-    printf "  %bJaeger:%b        %bonline%b (https://jaeger.localhost · :16686)\n" "$CYAN" "$RESET" "$GREEN" "$RESET"
-  else
-    printf "  %bJaeger:%b        %boffline%b\n" "$CYAN" "$RESET" "$YELLOW" "$RESET"
   fi
 fi
 
@@ -349,13 +341,6 @@ if [ "$OUTPUT_FORMAT" = "text" ]; then
       errors=$((errors + 1))
     fi
   done
-
-  # Message bus route guide & schedule snapshot
-  if [ -x "${ZDOTDIR}/bin/zdots-bus" ] || [ -x "${ZDOTDIR}/bin/bus" ]; then
-    printf "  %-15s : %bonline%b (zdots-bus · bus · bus-schedule · %s/bus-schedule)\n" "bus schedule" "$GREEN" "$RESET" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
-  elif [ -x "${ZDOTDIR}/bin/bus-schedule" ]; then
-    printf "  %-15s : %bonline%b (bus-schedule · %s/bus-schedule)\n" "bus schedule" "$GREEN" "$RESET" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
-  fi
 fi
 
 # 6. Tool Verification (The "Reality")
@@ -417,7 +402,6 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
       --arg last_trace "$_ts" \
       --arg trace_age "$_trace_age_seconds" \
       --arg o2_live "$_o2_live" \
-      --arg jaeger_live "$_jaeger_live" \
       --arg ctx_live "$_ctx_live" \
       --arg ctx_db "$_ctx_db" \
       --arg ctx_pending "$_ctx_pending" \
@@ -468,8 +452,7 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
           trace_file: $trace_file,
           last_trace: $last_trace,
           last_trace_age_seconds: $trace_age,
-          openobserve: ($o2_live | tonumber),
-          jaeger: ($jaeger_live | tonumber)
+          openobserve: ($o2_live | tonumber)
         },
         diagnostics: {
           log_analyzer: ($diag_available | tonumber),
@@ -478,16 +461,6 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
           analyze_update: "zdots-log-analyze update",
           analyze_bootstrap: "zdots-log-analyze bootstrap",
           analyze_upgrade: "zdots-log-analyze upgrade"
-        },
-        message_bus: {
-          cli: "zdots-bus",
-          cli_alias: "bus",
-          cli_dsl: "zdots-bus [route|stops|stop|read|watch|post|ask|sign|driver] (or: bus ...)",
-          bus_schedule: "bus-schedule",
-          bus_schedule_json: "bus-schedule --json",
-          snapshot_dir: "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/bus-schedule",
-          route_guide: "${XDG_STATE_HOME:-$HOME/.local/state}/zsh/bus-schedule/ROUTE.md",
-          web_console: "https://my.localhost/bus"
         },
         brain: {
           intelligence_live: ($ctx_live | tonumber),

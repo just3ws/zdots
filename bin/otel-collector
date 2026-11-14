@@ -34,8 +34,25 @@ PHI_COMPILE="${ZDOTDIR:-$(pwd)}/bin/zdots-otel-phi-compile"
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.log"
 PLIST_LABEL="com.zdots.otel-collector"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
-OTLP_ENDPOINT="http://127.0.0.1:4318"
+OTEL_HOST="${ZDOTS_OTEL_HOST:-127.0.0.1}"
+OTEL_HTTP_PORT="${ZDOTS_OTEL_HTTP_PORT:-4318}"
+OTEL_GRPC_PORT="${ZDOTS_OTEL_GRPC_PORT:-4317}"
+URL_HOST="$OTEL_HOST"; [[ "$OTEL_HOST" == *:* ]] && URL_HOST="[$OTEL_HOST]"
+OTLP_ENDPOINT="${ZDOTS_OTLP_ENDPOINT:-http://${URL_HOST}:${OTEL_HTTP_PORT}}"
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
+_check_bind() {
+  case "$OTEL_HOST" in
+    127.0.0.1|localhost|::1) ;;
+    *) _die "ZDOTS_OTEL_HOST must be loopback (127.0.0.1, localhost or ::1), got: $OTEL_HOST" ;;
+  esac
+  if ! [[ "$OTEL_HTTP_PORT" =~ ^[0-9]+$ ]] || (( OTEL_HTTP_PORT < 1 || OTEL_HTTP_PORT > 65535 )); then
+    _die "ZDOTS_OTEL_HTTP_PORT must be a port number 1-65535, got: $OTEL_HTTP_PORT"
+  fi
+  if ! [[ "$OTEL_GRPC_PORT" =~ ^[0-9]+$ ]] || (( OTEL_GRPC_PORT < 1 || OTEL_GRPC_PORT > 65535 )); then
+    _die "ZDOTS_OTEL_GRPC_PORT must be a port number 1-65535, got: $OTEL_GRPC_PORT"
+  fi
+}
 
 # App request-log tail (filelog/app receiver in the config). Generic +
 # override-able so no app-specific path is baked into the platform config —
@@ -164,6 +181,7 @@ cmd_install() {
 # Internal launchd target: load the OpenObserve OTLP basic-auth from Keychain so
 # the credential is never written to the config file or the plist, then exec.
 cmd_serve() {
+  _check_bind
   [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
   local o2_pw
   o2_pw="$(/usr/bin/security find-generic-password -s zdots -a ZDOTS_O2_ROOT_PASSWORD -w 2>/dev/null || true)"
@@ -180,6 +198,7 @@ cmd_serve() {
 }
 
 cmd_start() {
+  _check_bind
   [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
   _compile_phi || _die "failed to compile PHI scrub layer — refusing to start (would ship unscrubbed telemetry)"
 

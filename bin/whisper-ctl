@@ -8,6 +8,10 @@
 set -euo pipefail
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+ZDOTS_ZTRANSCRIBE_ROOT="${ZDOTS_ZTRANSCRIBE_ROOT:-$HOME/github.com/just3ws/ztranscribe}"
+if [[ -x "${ZDOTS_ZTRANSCRIBE_ROOT}/bin/whisper-ctl" && "${ZTRANSCRIBE_DELEGATED:-0}" != "1" ]]; then
+  ZTRANSCRIBE_DELEGATED=1 ZTRANSCRIBE_ROOT="$ZDOTS_ZTRANSCRIBE_ROOT" exec "${ZDOTS_ZTRANSCRIBE_ROOT}/bin/whisper-ctl" "$@"
+fi
 META_LIB="$ZDOTDIR/lib/metadata.bash"
 # Source the model store
 # shellcheck source=lib/model-store.bash

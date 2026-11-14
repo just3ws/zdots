@@ -33,10 +33,24 @@ PLIST_LABEL="com.zdots.openobserve"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 
 # Loopback bind (PHI). HTTP serves both the UI and OTLP ingest; gRPC is OTLP too.
-HTTP_ADDR="127.0.0.1"
-HTTP_PORT="5080"
-GRPC_PORT="5081"
-ENDPOINT="http://${HTTP_ADDR}:${HTTP_PORT}"
+HTTP_ADDR="${ZDOTS_O2_HOST:-127.0.0.1}"
+HTTP_PORT="${ZDOTS_O2_PORT:-5080}"
+GRPC_PORT="${ZDOTS_O2_GRPC_PORT:-5081}"
+URL_HOST="$HTTP_ADDR"; [[ "$HTTP_ADDR" == *:* ]] && URL_HOST="[$HTTP_ADDR]"
+ENDPOINT="${ZDOTS_O2_ENDPOINT:-http://${URL_HOST}:${HTTP_PORT}}"
+
+_check_bind() {
+  case "$HTTP_ADDR" in
+    127.0.0.1|localhost|::1) ;;
+    *) _die "ZDOTS_O2_HOST must be loopback (127.0.0.1, localhost or ::1), got: $HTTP_ADDR" ;;
+  esac
+  if ! [[ "$HTTP_PORT" =~ ^[0-9]+$ ]] || (( HTTP_PORT < 1 || HTTP_PORT > 65535 )); then
+    _die "ZDOTS_O2_PORT must be a port number 1-65535, got: $HTTP_PORT"
+  fi
+  if ! [[ "$GRPC_PORT" =~ ^[0-9]+$ ]] || (( GRPC_PORT < 1 || GRPC_PORT > 65535 )); then
+    _die "ZDOTS_O2_GRPC_PORT must be a port number 1-65535, got: $GRPC_PORT"
+  fi
+}
 
 # Keychain-backed root credentials (never written to the plist).
 ROOT_EMAIL="root@zdots.local"
@@ -157,6 +171,7 @@ cmd_install() {
 # Internal launchd target: set env from Keychain + exec the binary.
 cmd_serve() {
   zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+  _check_bind
   [ -x "$BINARY" ] || _die "binary not found. Run 'openobserve-ctl install' first."
   mkdir -p "$DATA_DIR"
   export ZO_ROOT_USER_EMAIL="$ROOT_EMAIL"
@@ -177,6 +192,7 @@ cmd_serve() {
 }
 
 cmd_start() {
+  _check_bind
   [ -x "$BINARY" ] || _die "binary not found. Run 'openobserve-ctl install' first."
   zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"
 }

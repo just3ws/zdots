@@ -115,7 +115,6 @@ _have() { command -v "$1" >/dev/null 2>&1; }
     and ([.services[].name] | index("nginx"))
     and ([.services[].name] | index("redis"))
     and ([.services[] | select(.name == "colima" and .policy == "optional")] | length == 1)
-    and ([.services[] | select(.name == "coordinator" and .policy == "optional")] | length == 1)
     and ([.services[] | select(.name == "postgres" and .policy == "required")] | length == 1)
     and ([.local_urls[].name] | index("llama.localhost"))
     and ([.local_urls[].name] | index("my.localhost"))

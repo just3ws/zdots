@@ -44,7 +44,6 @@ case "${1:-}" in
   lan)
     sudo install -m 0644 "$TEMPLATE" "$ACTIVE"
     info 'LAN enabled: https://observability.lan.phalanxduel.com/'
-    info 'Jaeger: https://observability.lan.phalanxduel.com/jaeger/'
     info 'next: nginx-regen-certs && nginx-ctl validate && nginx-ctl reload'
     ;;
   -h|--help) usage ;;

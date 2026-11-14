@@ -43,7 +43,7 @@ setup() {
   [[ "$output" =~ "Platform Subsystems" ]]
   [[ "$output" =~ "AI Inference" ]]
   [[ "$output" =~ "Embeddings Engine" ]]
-  [[ "$output" =~ "Message Bus" ]]
+  [[ "$output" =~ "Async Pipeline Worker" ]]
 
   # Dropdown must contain doctor and actions
   [[ "$output" =~ "Platform Doctor:" ]]

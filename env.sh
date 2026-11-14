@@ -261,7 +261,7 @@ export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
 [ -d "$DOCKER_CONFIG" ] || [ ! -d "$HOME/.docker" ] || unset DOCKER_CONFIG
 
 # 5. General Environment
-export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
+export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-${ZDOTS_OTLP_ENDPOINT:-http://${ZDOTS_OTEL_HOST:-127.0.0.1}:${ZDOTS_OTEL_HTTP_PORT:-4318}}}"
 # shellcheck disable=SC2034  # intentionally not exported — must not bleed into child processes
 OTEL_SERVICE_NAME="zdots-shell"
 export LANG='en_US.UTF-8'
@@ -342,7 +342,7 @@ if [ -n "${HOMEBREW_PREFIX:-}" ]; then
   _zdots_path_add "$HOMEBREW_PREFIX/bin"
   _zdots_path_add "$HOMEBREW_PREFIX/sbin"
   _zdots_path_add "$HOMEBREW_PREFIX/opt/openjdk/bin"
-  _zdots_path_add "$HOMEBREW_PREFIX/opt/postgresql@18/bin"
+  _zdots_path_add "$HOMEBREW_PREFIX/opt/postgresql@${ZDOTS_POSTGRES_VERSION:-18}/bin"
   _zdots_path_add "$HOMEBREW_PREFIX/opt/rustup/bin"
 fi
 _zdots_path_add "$CARGO_HOME/bin"
@@ -369,6 +369,7 @@ fi
 # ffmpeg-full (every codec/filter) is keg-only because it conflicts with core
 # ffmpeg; when installed it must shadow Homebrew's ffmpeg/ffprobe/ffplay.
 [ -n "${HOMEBREW_PREFIX:-}" ] && _zdots_path_add "$HOMEBREW_PREFIX/opt/ffmpeg-full/bin"
+_zdots_path_add "${ZDOTS_ZTRANSCRIBE_ROOT:-$HOME/github.com/just3ws/ztranscribe}/bin"
 _zdots_path_add "$ZDOTDIR/sbin"
 _zdots_path_add "$ZDOTDIR/bin"
 _zdots_path_add "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/bin"

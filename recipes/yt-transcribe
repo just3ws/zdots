@@ -25,6 +25,10 @@ done
 unset _ff_bin
 
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+ZDOTS_ZTRANSCRIBE_ROOT="${ZDOTS_ZTRANSCRIBE_ROOT:-$HOME/github.com/just3ws/ztranscribe}"
+if [[ -x "${ZDOTS_ZTRANSCRIBE_ROOT}/recipes/yt-transcribe" && "${ZTRANSCRIBE_DELEGATED:-0}" != "1" ]]; then
+  ZTRANSCRIBE_DELEGATED=1 ZTRANSCRIBE_ROOT="$ZDOTS_ZTRANSCRIBE_ROOT" exec "${ZDOTS_ZTRANSCRIBE_ROOT}/recipes/yt-transcribe" "$@"
+fi
 WHISPER_CTL="${ZDOTDIR}/bin/whisper-ctl"
 DIARIZE="${ZDOTDIR}/bin/diarize"
 AI_QUERY="${ZDOTDIR}/bin/ai-query"

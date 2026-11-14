@@ -204,7 +204,7 @@ _known_gap() {
     zdots zdots-artifact zdots-debrief zdots-snapshot zdots-search zdots-draft zdots-publish
     zdots-help zdots-watch zdots-usage zdots-swiftbar zdots-vault-doctor
     zdots-storage zdots-hygiene zdots-check zdots-lake zdots-sql-lint ztranscribe
-    bus bus-coordinator-ctl bus-schedule jaeger-ctl observability-mode zdots-bus
+    observability-mode
   )
 
   local missing=()

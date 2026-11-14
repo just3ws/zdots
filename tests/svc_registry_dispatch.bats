@@ -64,11 +64,6 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "registry: jaeger probe function exists" {
-  run bash -c "source $ZDOTDIR/lib/svc-registry.bash && declare -f zdots_probe_jaeger >/dev/null"
-  [ "$status" -eq 0 ]
-}
-
 @test "registry: colima probe function exists" {
   run bash -c "source $ZDOTDIR/lib/svc-registry.bash && declare -f zdots_probe_colima >/dev/null"
   [ "$status" -eq 0 ]
@@ -144,19 +139,14 @@ setup() {
   skip "Requires creating a temporary modified registry"
 }
 
-@test "registry: coordinator probe function exists" {
-  run bash -c "source $ZDOTDIR/lib/svc-registry.bash && declare -f zdots_probe_coordinator >/dev/null"
-  [ "$status" -eq 0 ]
-}
-
 @test "registry: dispatch table construction is idempotent" {
   # Load the registry twice and verify dispatch tables are identical
   run bash -c "
     source $ZDOTDIR/lib/svc-registry.bash
     table1=\"\$(printf '%s\n' \"\${!_ZDOTS_PROBE_DISPATCH[@]}\" | sort | md5sum)\"
     # Can't reload the same module, so just verify the table is complete
-    # (13 managed services + ctx health-only probe)
-    [[ \${#_ZDOTS_PROBE_DISPATCH[@]} -eq 14 ]]
+    # (11 managed services + ctx health-only probe)
+    [[ \${#_ZDOTS_PROBE_DISPATCH[@]} -eq 12 ]]
   "
   [ "$status" -eq 0 ]
 }

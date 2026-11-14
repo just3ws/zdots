@@ -5,7 +5,7 @@
 # 1. Platform overall health and Astronomicon epoch.
 # 2. Transcription system status (whisper.cpp engine, active models, active
 #    decodes, pipeline runs, retention store, and interactive actions).
-# 3. Platform subsystems matrix (local AI, embeddings, message bus, worker,
+# 3. Platform subsystems matrix (local AI, embeddings, worker,
 #    Colima Docker, and observability).
 # 4. Usage headline and fast diagnostic click-throughs.
 #
@@ -42,7 +42,6 @@ Subsystems Monitored:
   🎙️ Whisper    Local audio transcription (whisper.cpp / whisper-ctl)
   🤖 Local AI    Inference server (llama-server / llama-ctl, port 11500)
   🧠 Embeddings  Local embedding server (nomic-embed, port 11501)
-  🚌 Message Bus Transit coordinator & bus-bot (bus / busdriver)
   ⚙️ Worker      Async background queue runner (zdots-worker)
   🐳 Colima      Container runtime (Docker socket)
   📊 Observability OpenObserve log/metric engine & OTel Collector
@@ -214,9 +213,6 @@ pgrep -f 'llama-server.*(--port 11500|--alias (local|ai|default))' >/dev/null 2>
 embed_running=0
 pgrep -f 'llama-server.*(--port 11501|--alias embed)' >/dev/null 2>&1 && embed_running=1
 
-bus_running=0
-pgrep -f 'bus-bot|busdriver|bus-coordinator' >/dev/null 2>&1 && bus_running=1
-
 worker_running=0
 pgrep -f 'zdots-brain worker' >/dev/null 2>&1 && worker_running=1
 
@@ -277,7 +273,6 @@ echo "Platform Subsystems | size=12 font=bold"
 echo "-- 🎙️ Whisper Transcription: ${tx_status_short} | color=${tx_color} bash=${ZDOTDIR}/bin/whisper-ctl param0=config terminal=true"
 echo "-- 🤖 AI Inference (11500): $([[ $ai_running -eq 1 ]] && echo 'Online' || echo 'Standby') | color=$([[ $ai_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/llama-ctl param0=status terminal=true"
 echo "-- 🧠 Embeddings Engine (11501): $([[ $embed_running -eq 1 ]] && echo 'Online' || echo 'Standby') | color=$([[ $embed_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/llama-ctl param0=status terminal=true"
-echo "-- 🚌 Message Bus Transit: $([[ $bus_running -eq 1 ]] && echo 'In Service' || echo 'Stopped') | color=$([[ $bus_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/bus param0=status terminal=true"
 echo "-- ⚙️ Async Pipeline Worker: $([[ $worker_running -eq 1 ]] && echo 'Running' || echo 'Stopped') | color=$([[ $worker_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/zsvc param0=status param1=worker terminal=true"
 echo "-- 🐳 Colima Container Engine: $([[ $colima_running -eq 1 ]] && echo 'Active' || echo 'Offline') | color=$([[ $colima_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/colima-status terminal=true"
 echo "-- 📊 Observability (OpenObserve): $([[ $o2_running -eq 1 ]] && echo 'Active' || echo 'Offline') | color=$([[ $o2_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/openobserve-ctl param0=status terminal=true"
