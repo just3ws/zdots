@@ -1,0 +1,101 @@
+module Zdots
+  module Contracts
+    class Error < StandardError
+    end
+
+    class IngestMediaPayload < Data
+      PROFILES: Array[String]
+      PANORAMIC_KEYS: Array[String]
+
+      type profile_name = "standard" | "max-accuracy" | "light"
+      type job_payload_hash = Hash[String, String | Integer]
+
+      def self.from_hash: (Object, ?env: Hash[String, String?]) -> instance
+      def self.new: (
+        source_uri: String,
+        source_type: String?,
+        source_id: String?,
+        title: String?,
+        duration_sec: Integer?,
+        profile: profile_name,
+        force: bool,
+        primer_text: String?,
+        tags: Array[String],
+        num_speakers: Integer?,
+        transcript_text: String?,
+        transcript_vtt: String?,
+        source_snapshot: Hash[String, untyped],
+        panoramic_meta: Hash[String, String]
+      ) -> instance
+
+      attr_reader source_uri: String
+      attr_reader source_type: String?
+      attr_reader source_id: String?
+      attr_reader title: String?
+      attr_reader duration_sec: Integer?
+      attr_reader profile: profile_name
+      attr_reader force: bool
+      attr_reader primer_text: String?
+      attr_reader tags: Array[String]
+      attr_reader num_speakers: Integer?
+      attr_reader transcript_text: String?
+      attr_reader transcript_vtt: String?
+      attr_reader source_snapshot: Hash[String, untyped]
+      attr_reader panoramic_meta: Hash[String, String]
+
+      def job_payload: (media_source_id: Integer) -> job_payload_hash
+    end
+  end
+
+  module PipelineEvents
+    EVENTS: Array[String]
+
+    type event_name = "started" | "succeeded" | "failed"
+    type payload_hash = Hash[String, String | Integer]
+
+    class Record < Data
+      def self.new: (
+        ts: Object,
+        job_id: Object,
+        job_type: Object,
+        event: Object,
+        ?attempt: Integer?,
+        ?media_source_id: Integer?,
+        ?error_class: String?
+      ) -> instance
+      def initialize: (
+        ts: Object,
+        job_id: Object,
+        job_type: Object,
+        event: Object,
+        ?attempt: Integer?,
+        ?media_source_id: Integer?,
+        ?error_class: String?
+      ) -> void
+
+      attr_reader ts: String
+      attr_reader job_id: String
+      attr_reader job_type: String
+      attr_reader event: event_name
+      attr_reader attempt: Integer?
+      attr_reader media_source_id: Integer?
+      attr_reader error_class: String?
+
+      def to_payload: () -> payload_hash
+    end
+
+    def self.path: () -> String
+    def self.build_record: (String | Symbol, untyped, ?error: Exception?, ?now: Time) -> Record
+    def self.emit: (String | Symbol, untyped, ?error: Exception?) -> void
+  end
+
+  module AI
+    module PhiScrubber
+      class SuppressedError < StandardError
+      end
+
+      def self.suppressed?: (String?) -> bool
+      def self.call: (String?) -> String
+    end
+  end
+end

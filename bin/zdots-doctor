@@ -143,6 +143,7 @@ if [[ -r "$_zdots_ver_file" ]]; then
 
   _check_beacon_file "vdots" "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/VERSION"
   _check_beacon_file "my" "$HOME/my/VERSION"
+  _check_beacon_file "ztranscribe" "${ZDOTS_ZTRANSCRIBE_ROOT:-$HOME/github.com/just3ws/ztranscribe}/VERSION"
   _check_beacon_file "media-pipeline" "${MEDIA_PIPELINE_ROOT:-$HOME/github.com/just3ws/media-pipeline}/VERSION"
   _check_beacon_file "just3ws site" "${JUST3WS_SITE_ROOT:-$HOME/github.com/just3ws/just3ws.github.io}/VERSION"
 

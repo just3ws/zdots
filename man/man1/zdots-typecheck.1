@@ -1,0 +1,27 @@
+.Dd November 14, 2026
+.Dt ZDOTS-TYPECHECK 1
+.Os
+.Sh NAME
+.Nm zdots-typecheck
+.Nd validate RBS signatures and run Zdots seam contract specs
+.Sh SYNOPSIS
+.Nm
+.Op Fl h | Fl -help
+.Sh DESCRIPTION
+.Nm
+validates the RBS type signatures under
+.Pa sig/
+using
+.Ql rbs -I sig validate
+and executes the Zdots seam contract test suite under
+.Ql rbs/test/setup
+runtime instrumentation.
+No database or background services are required.
+.Sh OPTIONS
+.Bl -tag -width "--help"
+.It Fl h , Fl -help
+Show usage and exit.
+.El
+.Sh SEE ALSO
+.Xr zdots-check 1 ,
+.Xr zdots-doctor 1

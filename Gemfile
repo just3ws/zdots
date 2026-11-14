@@ -20,6 +20,7 @@ gem "sqlite3"
 
 group :test do
   gem "bundler-audit", require: false
+  gem "rbs", "~> 4.2", require: false
   gem "rspec"
   gem "rubocop", require: false
   gem "simplecov", require: false

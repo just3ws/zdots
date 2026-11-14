@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# ---
+# id: zdots-typecheck
+# title: "RBS Signature Validation & Runtime Contract Check"
+# purpose: Validate sig/*.rbs and run Zdots contract specs under rbs/test runtime instrumentation.
+# ---
+# bin/zdots-typecheck — Validate RBS signatures and execute contract specs with RBS runtime checks.
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+cd "$ZDOTDIR"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  cat <<'EOF'
+Usage: zdots-typecheck [-h|--help]
+
+Validate RBS signatures in sig/ and run Zdots seam contract specs with RBS
+runtime type instrumentation (rbs/test/setup). No database or external daemons
+are required.
+
+Options:
+  -h, --help  Show this help message
+EOF
+  exit 0
+fi
+
+./bin/zdots-ruby -S rbs -I sig validate
+RBS_TEST_TARGET='Zdots::Contracts::*,Zdots::PipelineEvents*' \
+  RBS_TEST_OPT='-I sig' \
+  RBS_TEST_RAISE=true \
+  RBS_TEST_LOGLEVEL=error \
+  ./bin/zdots-ruby -r rbs/test/setup -Ilib:spec -S rspec \
+  spec/zdots/contracts/zdots_contracts_spec.rb

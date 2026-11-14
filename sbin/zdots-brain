@@ -33,6 +33,7 @@ end
 $stdout.sync = true
 
 require_relative "../lib/zdots"
+require_relative "../lib/zdots/contracts/ingest_media_payload"
 require_relative "../lib/zdots/models/job"
 require_relative "../lib/zdots/models/media_source"
 require_relative "../lib/zdots/models/pipeline_run"
@@ -577,12 +578,13 @@ module Zdots
     # JSON on stdin, captured by bin/zdots-ingest-media) and enqueue its job.
     # media_sources is the dedup anchor (unique source_uri); --force reprocesses.
     def cmd_ingest_media(_args)
-      meta    = JSON.parse($stdin.read)
-      uri     = meta.fetch("source_uri")
-      force   = meta["force"] == true
-      profile = meta["profile"] || "standard"
-      tags = Array(meta["tags"]).map { |tag| tag.to_s.strip }.reject(&:empty?).uniq
-      primer_text = meta["primer_text"].to_s.strip
+      meta     = JSON.parse($stdin.read)
+      contract = Zdots::Contracts::IngestMediaPayload.from_hash(meta)
+      uri      = contract.source_uri
+      force    = contract.force
+      profile  = contract.profile
+      tags     = contract.tags
+      primer_text = contract.primer_text.to_s
       existing = Zdots::Models::MediaSource.first(source_uri: uri)
 
       if existing && !force
@@ -623,39 +625,27 @@ module Zdots
 
         record_panoramic_correlation(media_source_id, meta)
 
-        traceparent = meta["traceparent"].presence rescue (meta["traceparent"] || ENV["TRACEPARENT"])
-        trace_id = meta["trace_id"] || ENV["ZDOTS_TRACE_ID"]
-        parent_span_id = meta["parent_span_id"] || ENV["ZDOTS_PARENT_SPAN_ID"]
-        if trace_id.to_s.empty? && traceparent.to_s =~ /\A00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}\z/i
-          trace_id = Regexp.last_match(1).downcase
-          parent_span_id ||= Regexp.last_match(2).downcase
-        end
-        panoramic_meta = meta.slice(
-          "panoramic_journey_id", "panoramic_run_id", "panoramic_correlation_id",
-          "panoramic_workflow_id", "panoramic_flow_id", "panoramic_run_class"
-        ).merge(
-          "traceparent" => traceparent,
-          "trace_id" => trace_id,
-          "parent_span_id" => parent_span_id
-        ).compact
+        panoramic_meta = contract.panoramic_meta
+        parent_span_id = panoramic_meta["parent_span_id"]
+        trace_id       = panoramic_meta["trace_id"]
 
         # Sovereign authoring bypass: if caller already supplied verified raw transcript
         # and WebVTT (e.g. media-pipeline on-device ztranscribe from local master),
         # pre-seed the raw artifact and mark raw stage done to eliminate redundant
         # yt-dlp internet re-downloads and second-pass GPU transcription.
-        if meta["transcript_text"].to_s.strip.length.positive?
+        if contract.transcript_text
           retention_root = File.expand_path(ENV["ZDOTS_INGEST_SOURCES_DIR"] || "~/.local/state/zdots/ingest-sources")
           out_base = File.join(retention_root, media_source_id.to_s)
           FileUtils.mkdir_p(out_base)
-          txt_path = File.join(out_base, "#{meta['source_id']}.txt")
-          File.write(txt_path, meta["transcript_text"])
-          if meta["transcript_vtt"].to_s.strip.length.positive?
-            vtt_path = File.join(out_base, "#{meta['source_id']}.vtt")
-            File.write(vtt_path, meta["transcript_vtt"])
+          txt_path = File.join(out_base, "#{contract.source_id}.txt")
+          File.write(txt_path, contract.transcript_text)
+          if contract.transcript_vtt
+            vtt_path = File.join(out_base, "#{contract.source_id}.vtt")
+            File.write(vtt_path, contract.transcript_vtt)
           end
           raw_run = Zdots::Models::PipelineRun.find_or_create(
             media_source_id: media_source_id, stage: "raw", chunk_index: nil,
-            panoramic_run_id: meta["panoramic_run_id"]
+            panoramic_run_id: panoramic_meta["panoramic_run_id"]
           )
           raw_params = { "profile" => profile, "seeded_from" => "media-pipeline" }.merge(panoramic_meta)
           raw_params["span_id"] ||= parent_span_id if parent_span_id
@@ -663,18 +653,14 @@ module Zdots
             status: "done",
             started_at: raw_run.started_at || Sequel::CURRENT_TIMESTAMP,
             artifact_path: txt_path,
-            content_hash: Digest::SHA256.hexdigest(meta["transcript_text"]),
+            content_hash: Digest::SHA256.hexdigest(contract.transcript_text),
             run_params: Sequel.pg_jsonb(raw_params),
             finished_at: Sequel::CURRENT_TIMESTAMP
           )
           puts "zdots-ingest-media: pre-seeded raw transcript artifact (#{txt_path})."
         end
 
-        payload     = { "media_source_id" => media_source_id, "profile" => profile }.merge(panoramic_meta)
-        # Diarization speaker-count hint from the caller (site: interviewees + 1).
-        # Tenant data — passed through, never computed here. Consumed by ingest_media#diarize_audio.
-        ns = meta["num_speakers"]
-        payload["num_speakers"] = ns if ns.is_a?(Integer) && ns.positive?
+        payload     = contract.job_payload(media_source_id: media_source_id)
         pg_payload  = Sequel.pg_jsonb(payload)
         fingerprint = Digest::MD5.hexdigest("ingest_media#{uri}")
         ds = Zdots::Models::Job.dataset

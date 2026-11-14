@@ -49,7 +49,7 @@ module Zdots
       # Returns true if input matches a suppress pattern, false otherwise.
       # Exit code: 0 → match (return true); 1 → no match (return false).
       def self._check_suppress(text)
-        output, status = Open3.capture2("zdots-phi-scrub --check", stdin_data: text)
+        _output, status = Open3.capture2("zdots-phi-scrub --check", stdin_data: text)
         status.success? # exit 0 = success = match = true
       rescue StandardError => e
         raise SuppressedError, "failed to check suppress pattern: #{e.message}"

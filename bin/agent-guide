@@ -148,7 +148,7 @@ if $JSON; then
         scheme:      "imperial-calver",
         my_contract: $my_contract,
         my_version:  $my_platform_version,
-        versioned_surfaces: ["zdots", "adots", "my", "vdots", "media-pipeline", "just3ws.github.io"]
+        versioned_surfaces: ["zdots", "adots", "my", "vdots", "ztranscribe", "media-pipeline", "just3ws.github.io"]
       },
       services: {
         llama_cpp:   { up: $ai_up,      endpoint: $ai_ep,     model: $ai_model, start: "llama-ctl start" },

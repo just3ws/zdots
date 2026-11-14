@@ -99,6 +99,7 @@ def platform_versions
     "adots" => File.join(Dir.home, "VERSION"),
     "my" => File.join(Dir.home, "my", "VERSION"),
     "vdots" => File.join(config_home, "nvim", "VERSION"),
+    "ztranscribe" => File.join(ENV.fetch("ZDOTS_ZTRANSCRIBE_ROOT", File.join(Dir.home, "github.com", "just3ws", "ztranscribe")), "VERSION"),
     "media-pipeline" => File.join(ENV.fetch("MEDIA_PIPELINE_ROOT", File.join(Dir.home, "github.com", "just3ws", "media-pipeline")), "VERSION"),
     "just3ws.github.io" => File.join(ENV.fetch("JUST3WS_SITE_ROOT", File.join(Dir.home, "github.com", "just3ws", "just3ws.github.io")), "VERSION")
   }
@@ -161,7 +162,7 @@ def topology_page
   beacon = versions["zdots"]
   version_cards = [
     ["zdots", "zdots"], ["adots", "adots"], ["my", "my"], ["vdots", "vdots"],
-    ["media-pipeline", "media-pipeline"], ["just3ws.github.io", "just3ws site"]
+    ["ztranscribe", "ztranscribe"], ["media-pipeline", "media-pipeline"], ["just3ws.github.io", "just3ws site"]
   ].map do |key, label|
     version = versions[key]
     state = version.nil? ? "missing" : version == beacon ? "aligned" : "drift"

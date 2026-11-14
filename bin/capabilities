@@ -427,7 +427,7 @@ if [ "$OUTPUT_FORMAT" = "json" ]; then
           scheme: "imperial-calver",
           my_contract: $my_contract,
           my_version: $my_platform_version,
-          versioned_surfaces: ["zdots", "adots", "my", "vdots", "media-pipeline", "just3ws.github.io"]
+          versioned_surfaces: ["zdots", "adots", "my", "vdots", "ztranscribe", "media-pipeline", "just3ws.github.io"]
         },
         profile: $profile,
         os: $os,

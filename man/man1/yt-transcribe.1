@@ -92,11 +92,13 @@ Override the active whisper profile and model directory.
 .It Ev ZDOTS_YTDLP_COOKIES_FROM_BROWSER
 Browser to read live cookies from for bot-gated sources
 .Pq e.g. Va chrome , Va firefox , Va safari .
-Valid only in interactive shells; background launchd agents are blocked from browser directories by macOS TCC.
+Valid only in interactive shells; background launchd agents are blocked from
+browser directories by macOS TCC.
 .It Ev ZDOTS_YTDLP_COOKIES_FILE
 Path to Netscape-format
 .Pa cookies.txt
-file for yt-dlp. Preferred for background workers.
+file for yt-dlp.
+Preferred for background workers.
 .El
 .Sh DIAGNOSTICS
 Any unrecognized
