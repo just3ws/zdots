@@ -70,7 +70,15 @@ RAILS_ENV=development bundle exec database_consistency
 
 ---
 
-## 3. System Map Documentation
+## 3. C4 Architecture & AST Graph Integration (`Groma.md` + `graphify`)
+
+Alongside database ERDs and model annotations, every repository maintains:
+- **Groma.md (`groma/config.json`, `groma/architecture.json`)**: C4 system, container, and component topology coupled with `Backlog.md` (`workSource: backlog`). Run `groma scan --plain` to refresh AST-discovered components and verify architectural boundaries.
+- **Graphify (`graphify-out/graph.json`, `graphify-out/GRAPH_REPORT.md`)**: AST call/import knowledge graph with community detection and god-node analysis. Run `graphify update .` after structural changes and query via `graphify query "<question>"` or `graphify path "<A>" "<B>"`.
+
+---
+
+## 4. System Map Documentation
 
 Each application maintains its architectural topology in `docs/architecture/system-map.md`, covering:
 - Visual cartography index with diagram links.

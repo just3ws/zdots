@@ -1,0 +1,35 @@
+.Dd November 14, 2026
+.Dt ZDOTS-SKILLS-SYNC 1
+.Os
+.Sh NAME
+.Nm zdots-skills-sync
+.Nd synchronize and verify canonical Human-AI reasoning skills
+.Sh SYNOPSIS
+.Nm
+.Op Fl -check
+.Op Fl -json
+.Op Fl h | Fl -help
+.Op Ar REPO_PATH ...
+.Sh DESCRIPTION
+.Nm
+treats
+.Pa ~/.config/zsh/.agents/skills/
+as the single source of truth for the 17 canonical Human-AI reasoning skills
+and synchronizes or checks them across all platform and project repositories
+without deleting repository-specific skills.
+.Sh OPTIONS
+.Bl -tag -width "--check"
+.It Fl -check
+Verify whether target repositories match the canonical skills without writing
+changes.
+Exits non-zero when drift is detected.
+.It Fl -json
+Emit a machine-readable JSON summary of checked and synchronized repositories.
+.It Fl h , Fl -help
+Show usage and exit.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr zdots-check 1 ,
+.Xr zdots-doctor 1

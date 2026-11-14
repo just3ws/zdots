@@ -224,3 +224,7 @@ cask "stats" # System monitor for the menu bar
 cask "vimr" # GUI for the Neovim text editor
 # cask "visual-studio-code"
 # cask "opencode-desktop"   # OpenCode GUI (pairs with the opencode CLI)
+npm "groma.md" # Live C4 architecture map stored as OKF Markdown in Git (pairs with backlog-md)
+npm "@oh-my-pi/pi-coding-agent" # Oh-My-Pi (omp): multi-role coding agent + local multi-account auth-broker/gateway
+
+

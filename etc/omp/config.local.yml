@@ -1,0 +1,13 @@
+# etc/omp/config.local.yml — Strictly local Oh-My-Pi (omp) posture for zdots.
+# Safe on both Home and Work (ZDOTS_CONTEXT=work) machines: zero cloud egress.
+modelRoles:
+  default: llamacpp/local
+  smol: llamacpp/local
+  slow: llamacpp/local
+  plan: llamacpp/local
+  task: llamacpp/local
+
+browser:
+  enabled: false
+computer:
+  enabled: false

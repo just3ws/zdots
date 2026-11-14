@@ -470,3 +470,9 @@ operational samples before proposing numeric SLO targets. `mp panoramic runs`,
 `journey`, `compare`, and `calibrate` are read-only. `evaluate-slos` writes
 window results but sends no Alerts under the default calibration-only policy.
 Never use `zdots-ctx worker status`: it starts a worker in this environment.
+
+<!-- groma:start -->
+## Groma
+
+This project uses Groma. Before you scan, inspect, or curate architecture, or change files for a Backlog task, run `groma agent-instructions` and read the guide it names for that job. When it reports a first scan, ask the user whether they want you to curate the architecture. Do not edit Groma-owned architecture files directly.
+<!-- groma:end -->

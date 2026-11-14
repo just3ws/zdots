@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+# bin/omp-gateway-ctl — Control plane for Oh-My-Pi loopback auth-broker (11509) and auth-gateway (11510).
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/omp"
+RUN_DIR="${STATE_ROOT}/run"
+LOG_DIR="${STATE_ROOT}/logs"
+
+BROKER_HOST="127.0.0.1"
+BROKER_PORT="${ZDOTS_OMP_BROKER_PORT:-11509}"
+GATEWAY_HOST="127.0.0.1"
+GATEWAY_PORT="${ZDOTS_OMP_GATEWAY_PORT:-11510}"
+
+BROKER_PID_FILE="${RUN_DIR}/auth-broker.pid"
+GATEWAY_PID_FILE="${RUN_DIR}/auth-gateway.pid"
+
+usage() {
+  cat <<'EOF'
+Usage: omp-gateway-ctl <command> [options]
+
+Manage the local loopback Oh-My-Pi (omp) multi-account credential broker
+(127.0.0.1:11509) and OpenAI-compatible model router gateway (127.0.0.1:11510).
+
+Commands:
+  status [--json]       Report loopback broker and gateway status
+  start                 Start loopback auth-broker and auth-gateway daemons
+  stop                  Stop loopback auth-broker and auth-gateway daemons
+  restart               Restart loopback auth-broker and auth-gateway daemons
+  login [PROVIDER]      Authenticate an account in the active profile broker
+  import-keychain       Import Keychain API keys into the Home profile broker (Home-only)
+  check [--strict]      Probe configured credentials across accounts
+  accounts              Show usage and account limits across providers
+  -h, --help            Show this help message
+EOF
+}
+
+active_profile() {
+  if [[ "${ZDOTS_CONTEXT:-personal}" == "work" ]]; then
+    printf 'zdots-local'
+  else
+    printf 'zdots-hybrid'
+  fi
+}
+
+profile_agent_dir() {
+  local prof
+  prof="$(active_profile)"
+  printf '%s/profiles/%s/agent' "$STATE_ROOT" "$prof"
+}
+
+is_pid_alive() {
+  local pid_file="$1"
+  [[ -f "$pid_file" ]] || return 1
+  local pid
+  pid="$(cat "$pid_file" 2>/dev/null || true)"
+  [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+port_listening() {
+  local host="$1"
+  local port="$2"
+  nc -z "$host" "$port" >/dev/null 2>&1
+}
+
+cmd_status() {
+  local json_out=0
+  [[ "${1:-}" == "--json" ]] && json_out=1
+
+  local broker_up="false"
+  local gateway_up="false"
+  port_listening "$BROKER_HOST" "$BROKER_PORT" && broker_up="true"
+  port_listening "$GATEWAY_HOST" "$GATEWAY_PORT" && gateway_up="true"
+
+  local prof
+  prof="$(active_profile)"
+
+  if (( json_out )); then
+    jq -n \
+      --arg profile "$prof" \
+      --arg context "${ZDOTS_CONTEXT:-personal}" \
+      --arg broker_bind "${BROKER_HOST}:${BROKER_PORT}" \
+      --arg gateway_bind "${GATEWAY_HOST}:${GATEWAY_PORT}" \
+      --arg gateway_url "http://${GATEWAY_HOST}:${GATEWAY_PORT}/v1" \
+      --argjson broker_running "$broker_up" \
+      --argjson gateway_running "$gateway_up" \
+      '{
+        profile: $profile,
+        context: $context,
+        broker: { bind: $broker_bind, running: $broker_running },
+        gateway: { bind: $gateway_bind, url: $gateway_url, running: $gateway_running }
+      }'
+  else
+    printf 'Profile:  %s (context=%s)\n' "$prof" "${ZDOTS_CONTEXT:-personal}"
+    printf 'Broker:   %s:%s (running=%s)\n' "$BROKER_HOST" "$BROKER_PORT" "$broker_up"
+    printf 'Gateway:  http://%s:%s/v1 (running=%s)\n' "$GATEWAY_HOST" "$GATEWAY_PORT" "$gateway_up"
+  fi
+}
+
+cmd_start() {
+  local agent_dir
+  agent_dir="$(profile_agent_dir)"
+  mkdir -p "$RUN_DIR" "$LOG_DIR" "$agent_dir"
+  export PI_CODING_AGENT_DIR="$agent_dir"
+
+  if ! port_listening "$BROKER_HOST" "$BROKER_PORT"; then
+    nohup omp auth-broker serve --bind="${BROKER_HOST}:${BROKER_PORT}" \
+      >>"${LOG_DIR}/auth-broker.log" 2>&1 &
+    echo $! >"$BROKER_PID_FILE"
+    sleep 0.5
+  fi
+
+  if ! port_listening "$GATEWAY_HOST" "$GATEWAY_PORT"; then
+    nohup omp auth-gateway serve --bind="${GATEWAY_HOST}:${GATEWAY_PORT}" --no-auth \
+      >>"${LOG_DIR}/auth-gateway.log" 2>&1 &
+    echo $! >"$GATEWAY_PID_FILE"
+    sleep 0.5
+  fi
+
+  cmd_status
+}
+
+cmd_stop() {
+  local pid_file pid
+  for pid_file in "$GATEWAY_PID_FILE" "$BROKER_PID_FILE"; do
+    if is_pid_alive "$pid_file"; then
+      pid="$(cat "$pid_file")"
+      kill "$pid" 2>/dev/null || true
+      rm -f "$pid_file"
+    fi
+  done
+  cmd_status
+}
+
+cmd_import_keychain() {
+  if [[ "${ZDOTS_CONTEXT:-personal}" == "work" ]]; then
+    printf 'omp-gateway-ctl: import-keychain refused on work machine (ZDOTS_CONTEXT=work).\n' >&2
+    exit 3
+  fi
+
+  local agent_dir
+  agent_dir="$(profile_agent_dir)"
+  mkdir -p "$agent_dir"
+  export PI_CODING_AGENT_DIR="$agent_dir"
+
+  local kcmd="${ZDOTS_KEYCHAIN_CMD:-zdots-keychain}"
+  if command -v "$kcmd" >/dev/null 2>&1; then
+    local or_k gem_k oai_k hf_k
+    or_k="$("$kcmd" get OPENROUTER_API_KEY 2>/dev/null || true)"
+    gem_k="$("$kcmd" get GEMINI_API_KEY 2>/dev/null || true)"
+    oai_k="$("$kcmd" get OPENAI_API_KEY 2>/dev/null || true)"
+    hf_k="$("$kcmd" get HF_TOKEN 2>/dev/null || true)"
+    [[ -n "$or_k" ]] && export OPENROUTER_API_KEY="$or_k"
+    [[ -n "$gem_k" ]] && export GEMINI_API_KEY="$gem_k"
+    [[ -n "$oai_k" ]] && export OPENAI_API_KEY="$oai_k"
+    [[ -n "$hf_k" ]] && export HF_TOKEN="$hf_k"
+  fi
+
+  omp auth-broker migrate --from-local --include-env "$@"
+}
+
+cmd="${1:-status}"
+shift || true
+
+case "$cmd" in
+  -h|--help|help)
+    usage
+    exit 0
+    ;;
+  status)
+    cmd_status "${1:-}"
+    ;;
+  start)
+    cmd_start
+    ;;
+  stop)
+    cmd_stop
+    ;;
+  restart)
+    cmd_stop >/dev/null
+    cmd_start
+    ;;
+  login)
+    agent_dir="$(profile_agent_dir)"
+    mkdir -p "$agent_dir"
+    export PI_CODING_AGENT_DIR="$agent_dir"
+    omp auth-broker login "$@"
+    ;;
+  import-keychain)
+    cmd_import_keychain "$@"
+    ;;
+  check)
+    agent_dir="$(profile_agent_dir)"
+    mkdir -p "$agent_dir"
+    export PI_CODING_AGENT_DIR="$agent_dir"
+    omp auth-gateway check "$@"
+    ;;
+  accounts|usage)
+    agent_dir="$(profile_agent_dir)"
+    mkdir -p "$agent_dir"
+    export PI_CODING_AGENT_DIR="$agent_dir"
+    omp usage "$@"
+    ;;
+  *)
+    printf 'omp-gateway-ctl: unknown command: %s\n' "$cmd" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

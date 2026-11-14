@@ -29,6 +29,7 @@ Engines (default: --local):
   --local         local llama.cpp via zdots-ask         (default)
   --apple         zapfel — Apple on-device model, quick text (local)
   --pi            zpi    — explore / read / plan          (local)
+  --omp           zomp   — multi-role IDE/LSP coding agent (local)
   --aider         zaider — edit / patch / commit          (local)
   --dry-run       print the routing decision; run nothing
   -h, --help      this help
@@ -68,6 +69,7 @@ zai() {
       --local)       engine=local;       shift ;;
       --apple)       engine=apple;       shift ;;
       --pi)          engine=pi;          shift ;;
+      --omp)         engine=omp;         shift ;;
       --aider)       engine=aider;       shift ;;
       --dry-run)     dry=1;              shift ;;
       -h|--help)     _zai_usage; return 0 ;;
@@ -78,8 +80,8 @@ zai() {
   done
 
   local task="${(j: :)rest}"
-  # Pi and Aider can launch interactively with no task; local needs one.
-  if [[ -z "$task" && "$engine" != "pi" && "$engine" != "aider" ]]; then
+  # Pi, OMP, and Aider can launch interactively with no task; local needs one.
+  if [[ -z "$task" && "$engine" != "pi" && "$engine" != "omp" && "$engine" != "aider" ]]; then
     _zai_usage >&2; return 2
   fi
 
@@ -113,6 +115,9 @@ zai() {
       zapfel "$task" ;;
     pi)
       zpi ${task:+"$task"} ;;
+    omp)
+      typeset -f zomp >/dev/null 2>&1 || source "${zdotdir}/providers/tools/omp.zsh"
+      zomp ${task:+"$task"} ;;
     aider)
       if [[ -n "$task" ]]; then zaider --message "$task"; else zaider; fi ;;
   esac

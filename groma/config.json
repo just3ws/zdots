@@ -1,0 +1,43 @@
+{
+  "scanners": [
+    {
+      "id": "go",
+      "source": "@groma/scanner-go@0.2.3",
+      "include": [
+        "**/*.go",
+        "**/go.mod"
+      ],
+      "exclude": [
+        "vendor/"
+      ]
+    },
+    {
+      "id": "python",
+      "source": "@groma/scanner-python@0.2.3",
+      "include": [
+        "**/*.py",
+        "**/pyproject.toml",
+        "**/setup.cfg",
+        "**/requirements.txt"
+      ],
+      "exclude": [
+        ".venv/",
+        "venv/",
+        "__pycache__/",
+        "test/",
+        "tests/",
+        "test_*.py",
+        "*_test.py",
+        "conftest.py",
+        "build/",
+        "dist/"
+      ]
+    }
+  ],
+  "workSources": [
+    {
+      "id": "backlog",
+      "version": "1.55.3"
+    }
+  ]
+}

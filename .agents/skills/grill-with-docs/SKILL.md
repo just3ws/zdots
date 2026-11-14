@@ -21,12 +21,22 @@ During codebase exploration, also look for existing documentation:
 
 ### File structure
 
-Most repos have a single context:
+Most repos have a single context combined with `Backlog.md`, `Groma.md`, and `graphify`:
 
 ```
 /
 ├── CONTEXT.md
+├── backlog/
+│   ├── config.yml
+│   ├── tasks/
+│   └── decisions/                    ← Backlog.md decision records
+├── groma/
+│   ├── config.json
+│   └── architecture.json             ← C4 system/container/component model
+├── graphify-out/
+│   └── graph.json                    ← AST & call/import knowledge graph
 ├── docs/
+│   ├── agents/                       ← issue-tracker, triage-labels, domain
 │   └── adr/
 │       ├── 0001-event-sourced-orders.md
 │       └── 0002-postgres-for-write-model.md
@@ -49,7 +59,7 @@ If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The ma
 │       └── docs/adr/
 ```
 
-Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
+Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. When `graphify-out/graph.json` exists, query it first (`graphify query`, `graphify path`, `graphify explain`) to verify actual code relationships before asking the user or trusting prose. When `groma/architecture.json` exists, check the C4 container and component IDs affected by the design.
 
 ## During the session
 
@@ -75,14 +85,16 @@ When a term is resolved, update `CONTEXT.md` right there. Don't batch these up �
 
 `CONTEXT.md` should be totally devoid of implementation details. Do not treat `CONTEXT.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
 
-### Offer ADRs sparingly
+### Offer ADRs / Backlog Decisions sparingly
 
-Only offer to create an ADR when all three are true:
+Only offer to create an ADR or Backlog decision when all three are true:
 
 1. **Hard to reverse** — the cost of changing your mind later is meaningful
 2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
 3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
 
-If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+If any of the three is missing, skip the ADR. When recording a decision:
+- Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md) (`docs/adr/`), or record it via `backlog decision create "<title>"` in `backlog/decisions/` when the repo tracks decisions in `Backlog.md`.
+- Reference the affected `Groma.md` C4 container/component IDs from `groma/architecture.json` so architectural decisions remain linked to the C4 model.
 
 </supporting-info>

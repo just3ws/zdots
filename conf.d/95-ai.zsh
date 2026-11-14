@@ -37,6 +37,13 @@ if [[ -r "$ZDOTDIR/providers/tools/pi.zsh" ]] && ! typeset -f zpi >/dev/null 2>&
   }
 fi
 
+if [[ -r "$ZDOTDIR/providers/tools/omp.zsh" ]] && ! typeset -f zomp >/dev/null 2>&1; then
+  zomp() {
+    unfunction zomp 2>/dev/null || true
+    _zdots_lazy_tool_provider "$ZDOTDIR/providers/tools/omp.zsh" zomp "$@"
+  }
+fi
+
 if [[ -r "$ZDOTDIR/providers/tools/aider.zsh" ]] && ! typeset -f zaider >/dev/null 2>&1; then
   zaider() {
     unfunction zaider 2>/dev/null || true

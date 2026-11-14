@@ -1,0 +1,47 @@
+.Dd November 14, 2026
+.Dt OMP-GATEWAY-CTL 1
+.Os
+.Sh NAME
+.Nm omp-gateway-ctl
+.Nd manage the local loopback Oh-My-Pi multi-account broker and OpenAI gateway
+.Sh SYNOPSIS
+.Nm
+.Ar command
+.Op Ar options ...
+.Sh DESCRIPTION
+.Nm
+manages the local loopback Oh-My-Pi
+.Pq Nm omp
+credential broker on
+.Ql 127.0.0.1:11509
+and OpenAI-compatible multi-account model gateway on
+.Ql 127.0.0.1:11510 .
+It enforces profile isolation between
+.Ql ZDOTS_CONTEXT=work
+and personal Home environments.
+.Sh COMMANDS
+.Bl -tag -width "import-keychain"
+.It Cm status Op Fl -json
+Report loopback broker and gateway status.
+.It Cm start
+Start the loopback broker and OpenAI-compatible gateway daemons.
+.It Cm stop
+Stop the loopback broker and gateway daemons.
+.It Cm restart
+Restart the loopback broker and gateway daemons.
+.It Cm login Op Ar provider
+Authenticate a provider account in the active profile broker.
+.It Cm import-keychain
+Import API keys from macOS Keychain into the Home profile broker.
+Refused when
+.Ql ZDOTS_CONTEXT=work .
+.It Cm check Op Fl -strict
+Probe configured credentials across accounts.
+.It Cm accounts
+Display usage and rate-limit status across authenticated accounts.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr llama-ctl 1 ,
+.Xr zdots-ctl 1

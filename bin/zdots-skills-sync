@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+# bin/zdots-skills-sync — Synchronize and verify canonical agent skills across platform repositories.
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+CANONICAL_SKILLS_DIR="${ZDOTDIR}/.agents/skills"
+
+CANONICAL_SKILLS=(
+  caveman
+  diagnose
+  graphify
+  grill-me
+  grill-with-docs
+  handoff
+  improve-codebase-architecture
+  ponytail
+  prototype
+  setup-matt-pocock-skills
+  system-cartography
+  tdd
+  to-issues
+  to-prd
+  triage
+  write-a-skill
+  zoom-out
+)
+
+DEFAULT_REPOS=(
+  "$HOME/.config/nvim"
+  "$HOME/my"
+  "$HOME/github.com/just3ws/ztranscribe"
+  "$HOME/github.com/just3ws/media-pipeline"
+  "$HOME/github.com/just3ws/dehum"
+  "$HOME/github.com/just3ws/hallway"
+  "$HOME/github.com/phalanxduel/game"
+  "$HOME/github.com/phalanxduel/site"
+  "$HOME/github.com/wwworkremote/wwworkremote"
+  "$HOME/github.com/just3ws/just3ws.github.io"
+)
+
+usage() {
+  cat <<'EOF'
+Usage: zdots-skills-sync [--check] [--json] [REPO_PATH...]
+
+Synchronize or verify the 17 canonical Human-AI reasoning skills from
+~/.config/zsh/.agents/skills/ across all system repositories without removing
+repo-specific skills.
+
+Options:
+  --check       Verify whether target repositories match canonical skills (no writes)
+  --json        Emit machine-readable JSON summary
+  -h, --help    Show this help message
+EOF
+}
+
+mode="sync"
+json_out=0
+target_repos=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --check)
+      mode="check"
+      shift
+      ;;
+    --json)
+      json_out=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      printf 'zdots-skills-sync: unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      target_repos+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ ${#target_repos[@]} -eq 0 ]]; then
+  target_repos=("${DEFAULT_REPOS[@]}")
+fi
+
+if [[ ! -d "$CANONICAL_SKILLS_DIR" ]]; then
+  printf 'zdots-skills-sync: canonical skills directory missing: %s\n' "$CANONICAL_SKILLS_DIR" >&2
+  exit 1
+fi
+
+drift_count=0
+synced_count=0
+checked_repos=0
+results_json="[]"
+
+skill_matches() {
+  local src="$1"
+  local dst="$2"
+  [[ -d "$dst" ]] || return 1
+  local rel src_file dst_file
+  while IFS= read -r -d '' src_file; do
+    rel="${src_file#"$src"/}"
+    dst_file="${dst}/${rel}"
+    [[ -f "$dst_file" ]] || return 1
+    cmp -s "$src_file" "$dst_file" || return 1
+  done < <(find "$src" -type f -print0)
+  return 0
+}
+
+for repo in "${target_repos[@]}"; do
+  [[ -d "$repo" ]] || continue
+  checked_repos=$((checked_repos + 1))
+  repo_skills_dir="${repo}/.agents/skills"
+  repo_drift=0
+  repo_updated=0
+
+  if [[ "$mode" == "sync" ]]; then
+    mkdir -p "$repo_skills_dir"
+  fi
+
+  for skill in "${CANONICAL_SKILLS[@]}"; do
+    src="${CANONICAL_SKILLS_DIR}/${skill}"
+    dst="${repo_skills_dir}/${skill}"
+    [[ -d "$src" ]] || continue
+
+    if ! skill_matches "$src" "$dst"; then
+      if [[ "$mode" == "check" ]]; then
+        repo_drift=$((repo_drift + 1))
+        drift_count=$((drift_count + 1))
+      else
+        mkdir -p "$dst"
+        cp -R "${src}/." "$dst/"
+        repo_updated=$((repo_updated + 1))
+        synced_count=$((synced_count + 1))
+      fi
+    fi
+  done
+
+  if (( json_out )); then
+    results_json="$(jq -c \
+      --arg repo "$repo" \
+      --arg mode "$mode" \
+      --argjson drift "$repo_drift" \
+      --argjson updated "$repo_updated" \
+      '. + [{repo: $repo, mode: $mode, drift: $drift, updated: $updated}]' <<<"$results_json")"
+  else
+    if [[ "$mode" == "check" ]]; then
+      printf '[%s] drift=%d\n' "$repo" "$repo_drift"
+    else
+      printf '[%s] synced=%d\n' "$repo" "$repo_updated"
+    fi
+  fi
+done
+
+if (( json_out )); then
+  jq -n \
+    --arg mode "$mode" \
+    --arg canonical_dir "$CANONICAL_SKILLS_DIR" \
+    --argjson skill_count "${#CANONICAL_SKILLS[@]}" \
+    --argjson checked_repos "$checked_repos" \
+    --argjson drift_count "$drift_count" \
+    --argjson synced_count "$synced_count" \
+    --argjson repos "$results_json" \
+    '{mode: $mode, canonical_dir: $canonical_dir, skill_count: $skill_count, checked_repos: $checked_repos, drift_count: $drift_count, synced_count: $synced_count, repos: $repos}'
+fi
+
+if [[ "$mode" == "check" && "$drift_count" -gt 0 ]]; then
+  exit 1
+fi
+exit 0
