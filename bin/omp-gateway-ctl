@@ -49,6 +49,19 @@ profile_agent_dir() {
   printf '%s/profiles/%s/agent' "$STATE_ROOT" "$prof"
 }
 
+export_broker_env() {
+  local agent_dir
+  agent_dir="$(profile_agent_dir)"
+  mkdir -p "$agent_dir"
+  export PI_CODING_AGENT_DIR="$agent_dir"
+  export OMP_AUTH_BROKER_URL="http://${BROKER_HOST}:${BROKER_PORT}"
+  local tok
+  tok="$(omp auth-broker token 2>/dev/null || true)"
+  if [[ -n "$tok" ]]; then
+    export OMP_AUTH_BROKER_TOKEN="$tok"
+  fi
+}
+
 is_pid_alive() {
   local pid_file="$1"
   [[ -f "$pid_file" ]] || return 1
@@ -98,16 +111,15 @@ cmd_status() {
 }
 
 cmd_start() {
-  local agent_dir
-  agent_dir="$(profile_agent_dir)"
-  mkdir -p "$RUN_DIR" "$LOG_DIR" "$agent_dir"
-  export PI_CODING_AGENT_DIR="$agent_dir"
+  mkdir -p "$RUN_DIR" "$LOG_DIR"
+  export_broker_env
 
   if ! port_listening "$BROKER_HOST" "$BROKER_PORT"; then
     nohup omp auth-broker serve --bind="${BROKER_HOST}:${BROKER_PORT}" \
       >>"${LOG_DIR}/auth-broker.log" 2>&1 &
     echo $! >"$BROKER_PID_FILE"
-    sleep 0.5
+    sleep 1
+    export_broker_env
   fi
 
   if ! port_listening "$GATEWAY_HOST" "$GATEWAY_PORT"; then
@@ -138,10 +150,11 @@ cmd_import_keychain() {
     exit 3
   fi
 
-  local agent_dir
-  agent_dir="$(profile_agent_dir)"
-  mkdir -p "$agent_dir"
-  export PI_CODING_AGENT_DIR="$agent_dir"
+  if ! port_listening "$BROKER_HOST" "$BROKER_PORT"; then
+    cmd_start >/dev/null
+  else
+    export_broker_env
+  fi
 
   local kcmd="${ZDOTS_KEYCHAIN_CMD:-zdots-keychain}"
   if command -v "$kcmd" >/dev/null 2>&1; then
@@ -181,24 +194,18 @@ case "$cmd" in
     cmd_start
     ;;
   login)
-    agent_dir="$(profile_agent_dir)"
-    mkdir -p "$agent_dir"
-    export PI_CODING_AGENT_DIR="$agent_dir"
+    export_broker_env
     omp auth-broker login "$@"
     ;;
   import-keychain)
     cmd_import_keychain "$@"
     ;;
   check)
-    agent_dir="$(profile_agent_dir)"
-    mkdir -p "$agent_dir"
-    export PI_CODING_AGENT_DIR="$agent_dir"
+    export_broker_env
     omp auth-gateway check "$@"
     ;;
   accounts|usage)
-    agent_dir="$(profile_agent_dir)"
-    mkdir -p "$agent_dir"
-    export PI_CODING_AGENT_DIR="$agent_dir"
+    export_broker_env
     omp usage "$@"
     ;;
   *)

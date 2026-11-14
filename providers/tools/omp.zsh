@@ -116,7 +116,6 @@ zomp() {
   case "$_mode" in
     local)
       _omp_args+=(
-        --profile "zdots-local"
         --config "${ZDOTDIR}/etc/omp/config.local.yml"
         --model "llamacpp/local"
         --smol "llamacpp/local"
@@ -129,14 +128,12 @@ zomp() {
       ;;
     hybrid)
       _omp_args+=(
-        --profile "zdots-hybrid"
         --config "${ZDOTDIR}/etc/omp/config.home.yml"
         --smol "llamacpp/local"
       )
       ;;
     or)
       _omp_args+=(
-        --profile "zdots-or"
         --config "${ZDOTDIR}/etc/omp/config.home.yml"
         --model "openrouter/${_or_model}"
         --smol "llamacpp/local"
@@ -144,7 +141,6 @@ zomp() {
       ;;
     work-gateway)
       _omp_args+=(
-        --profile "zdots-work-gateway"
         --config "${ZDOTDIR}/etc/omp/config.local.yml"
         --smol "llamacpp/local"
         --offline
