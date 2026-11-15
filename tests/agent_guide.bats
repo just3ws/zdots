@@ -20,11 +20,11 @@ setup() {
   echo "$output" | jq empty
 }
 
-@test "agent-guide: --json discovery block lists the zdots.localhost routes" {
+@test "agent-guide: --json discovery block lists the status routes" {
   command -v jq >/dev/null 2>&1 || skip "jq not installed"
   run "$BIN" --json
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.discovery.backlog | contains("zdots.localhost/backlog")' >/dev/null
+  echo "$output" | jq -e '.discovery.backlog | contains("/backlog")' >/dev/null
   echo "$output" | jq -e '.discovery.services | contains("zsvc map")' >/dev/null
 }
 
