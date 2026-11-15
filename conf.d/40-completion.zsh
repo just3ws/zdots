@@ -1,6 +1,6 @@
 fpath=(
-  $ZDOTDIR/bin
   $ZDOTDIR/functions/enabled
+  $ZDOTDIR/bin
   $HOMEBREW_PREFIX/share/zsh-completions
   $fpath
 )

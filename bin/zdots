@@ -5,24 +5,38 @@
 # Additive thin router — every existing zdots-* binary keeps working unchanged.
 # New capabilities land as nouns/verbs under this spine, not new top-level binaries.
 
+zdotdir="${ZDOTDIR:-$HOME/.config/zsh}"
 noun="${1:-}"
 
 case "$noun" in
   -h|--help|"")
+    if [[ -x "$zdotdir/bin/zdots-help" && -f "$zdotdir/bin/zdots-help" ]]; then
+      exec "$zdotdir/bin/zdots-help"
+    fi
     printf 'usage: zdots <noun> [verb] [args...]\n\n'
     printf 'nouns:\n'
-    for bin in "${ZDOTDIR:-$HOME/.config/zsh}/bin"/zdots-*; do
-      [[ -x "$bin" ]] && printf '  %s\n' "${bin##*/zdots-}"
+    for bin in "$zdotdir"/bin/zdots-*(N-*); do
+      printf '  %s\n' "${bin##*/zdots-}"
     done
+    printf '\nrun: zdots help <noun> for details\n'
     exit 0
     ;;
   *)
     target="zdots-${noun}"
-    if ! command -v "$target" &>/dev/null; then
-      logger -t zdots "noun-miss: $noun${*:+ (args: $*)}"  # desire-path sensor (Z-177)
+    exec_target=""
+    if [[ "$noun" != */* ]]; then
+      if [[ -x "$zdotdir/bin/$target" && -f "$zdotdir/bin/$target" ]]; then
+        exec_target="$zdotdir/bin/$target"
+      elif command -v -- "$target" &>/dev/null; then
+        exec_target="$target"
+      fi
+    fi
+
+    if [[ -z "$exec_target" ]]; then
+      logger -t zdots "noun-miss: $noun"  # desire-path sensor (Z-177); omit args to avoid logging secrets/PHI
       printf 'zdots: unknown noun "%s"\n' "$noun" >&2
-      local suggestions=()
-      for _b in "${ZDOTDIR:-$HOME/.config/zsh}/bin"/zdots-*; do
+      typeset -a suggestions=()
+      for _b in "$zdotdir"/bin/zdots-*(N-*); do
         _n="${_b##*/zdots-}"
         [[ "$_n" == *"$noun"* ]] && suggestions+=("$_n")
       done
@@ -31,6 +45,6 @@ case "$noun" in
       exit 1
     fi
     shift
-    exec "$target" "$@"
+    exec "$exec_target" "$@"
     ;;
 esac

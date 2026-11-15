@@ -39,7 +39,7 @@ for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --check)   CHECK_ONLY=1 ;;
-    -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) awk 'NR>1 && /^#/{sub(/^# ?/,""); print; next} NR>1{exit}' "$0"; exit 0 ;;
     *) printf 'zdots-ruby-bump: unknown argument: %s\n' "$arg" >&2; exit 1 ;;
   esac
 done

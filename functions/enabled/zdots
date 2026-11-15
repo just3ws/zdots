@@ -1,0 +1,12 @@
+#autoload
+# zdots — interactive shell wrapper around bin/zdots.
+# When invoked with no arguments on a TTY outside $ZDOTDIR, jump to $ZDOTDIR.
+# Otherwise (with arguments, piped/redirected, or already in $ZDOTDIR),
+# delegate to bin/zdots.
+
+local zdotdir="${ZDOTDIR:-$HOME/.config/zsh}"
+if (( $# == 0 )) && [[ -t 0 && -t 1 && "${PWD:A}" != "${zdotdir:A}" ]]; then
+  cd -- "$zdotdir"
+  return $?
+fi
+command "$zdotdir/bin/zdots" "$@"
