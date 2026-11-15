@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctlstatus"
 )
 
 func usage() string {
@@ -93,94 +95,32 @@ func Run(args []string) int {
 		}
 	}()
 
-	// 2. zdots-ctl status --json (with fallback probes)
+	// 2. in-process ctlstatus probe (replaces zdots-ctl status --json subprocess)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		ctl := filepath.Join(zdotdir, "bin", "zdots-ctl")
-		if info, err := os.Stat(ctl); err == nil && !info.IsDir() && (info.Mode()&0o111) != 0 {
-			out := runCmd(5*time.Second, ctl, "status", "--json")
-			var st struct {
-				AIServer          bool   `json:"ai_server"`
-				AISocketListening bool   `json:"ai_socket_listening"`
-				AIModel           string `json:"ai_model"`
-				AIEndpoint        string `json:"ai_endpoint"`
-				OTelCollector     bool   `json:"otel_collector"`
-				OTLPEndpoint      string `json:"otlp_endpoint"`
-				OpenObserve       bool   `json:"openobserve"`
-				O2URL             string `json:"o2_url"`
-				Colima            bool   `json:"colima"`
-			}
-			if json.Unmarshal(out, &st) == nil {
-				aiUp = st.AIServer || st.AISocketListening
-				if st.AIModel != "" && st.AIModel != "unknown" {
-					aiModelID = st.AIModel
-				} else {
-					aiModelID = envOr("ZDOTS_AI_MODEL", "local")
-				}
-				if st.AIEndpoint != "" {
-					aiEndpoint = st.AIEndpoint
-				}
-				otelUp = st.OTelCollector
-				if st.OTLPEndpoint != "" {
-					otelEndpoint = st.OTLPEndpoint
-				}
-				o2Up = st.OpenObserve
-				if st.O2URL != "" {
-					o2URL = st.O2URL
-				}
-				colimaUp = st.Colima
-				if colimaUp && !jsonMode {
-					colimaSock = strings.TrimSpace(string(runCmd(2*time.Second, "colima-status", "socket")))
-				}
-				return
-			}
+		st := ctlstatus.Probe(zdotdir)
+		aiUp = st.AIServer || st.AISocketListening
+		if st.AIModel != "" && st.AIModel != "unknown" {
+			aiModelID = st.AIModel
+		} else {
+			aiModelID = envOr("ZDOTS_AI_MODEL", "local")
 		}
-
-		// Fallback probes if zdots-ctl is missing or returned invalid JSON.
-		var fw sync.WaitGroup
-		fw.Add(4)
-		go func() {
-			defer fw.Done()
-			if httpOK(aiEndpoint+"/health", 2*time.Second) {
-				aiUp = true
-				aiModelID = "local"
-				if out := httpBody(aiEndpoint+"/v1/models", 2*time.Second); len(out) > 0 {
-					var m struct {
-						Data []struct {
-							ID string `json:"id"`
-						} `json:"data"`
-					}
-					if json.Unmarshal(out, &m) == nil && len(m.Data) > 0 && m.Data[0].ID != "" {
-						aiModelID = m.Data[0].ID
-					}
-				}
-			}
-		}()
-		go func() {
-			defer fw.Done()
-			out := runCmd(2*time.Second, "launchctl", "list", "com.zdots.otel-collector")
-			if strings.Contains(string(out), `"PID"`) {
-				otelUp = true
-			}
-		}()
-		go func() {
-			defer fw.Done()
-			if httpOK(o2URL+"/healthz", 2*time.Second) {
-				o2Up = true
-			}
-		}()
-		go func() {
-			defer fw.Done()
-			out := runCmd(2*time.Second, "colima", "status")
-			if strings.Contains(string(out), "is running") {
-				colimaUp = true
-				if !jsonMode {
-					colimaSock = strings.TrimSpace(string(runCmd(2*time.Second, "colima-status", "socket")))
-				}
-			}
-		}()
-		fw.Wait()
+		if st.AIEndpoint != "" {
+			aiEndpoint = st.AIEndpoint
+		}
+		otelUp = st.OTelCollector
+		if st.OTLPEndpoint != "" {
+			otelEndpoint = st.OTLPEndpoint
+		}
+		o2Up = st.OpenObserve
+		if st.O2URL != "" {
+			o2URL = st.O2URL
+		}
+		colimaUp = st.Colima
+		if colimaUp && !jsonMode {
+			colimaSock = strings.TrimSpace(string(runCmd(2*time.Second, "colima-status", "socket")))
+		}
 	}()
 
 	// 3. Tool presence checks

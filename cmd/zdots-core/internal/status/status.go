@@ -15,6 +15,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctlstatus"
 )
 
 const (
@@ -238,33 +240,16 @@ func (s *state) probeAll(includeShell bool) {
 }
 
 func (s *state) probeServices() {
-	s.aiUp = false
-	s.aiModel = "unknown"
-	s.otelUp = false
-	s.colimaUp = false
-	s.o2Up = false
-
-	ctl := filepath.Join(s.zdotdir, "bin", "zdots-ctl")
-	out := runCmd(5*time.Second, ctl, "status", "--json")
-	if len(out) == 0 {
-		return
+	res := ctlstatus.Probe(s.zdotdir)
+	s.aiUp = res.AIServer
+	if res.AIModel != "" {
+		s.aiModel = res.AIModel
+	} else {
+		s.aiModel = "unknown"
 	}
-	var res struct {
-		AIServer      bool   `json:"ai_server"`
-		AIModel       string `json:"ai_model"`
-		OTelCollector bool   `json:"otel_collector"`
-		Colima        bool   `json:"colima"`
-		OpenObserve   bool   `json:"openobserve"`
-	}
-	if json.Unmarshal(out, &res) == nil {
-		s.aiUp = res.AIServer
-		if res.AIModel != "" {
-			s.aiModel = res.AIModel
-		}
-		s.otelUp = res.OTelCollector
-		s.colimaUp = res.Colima
-		s.o2Up = res.OpenObserve
-	}
+	s.otelUp = res.OTelCollector
+	s.colimaUp = res.Colima
+	s.o2Up = res.OpenObserve
 }
 
 func (s *state) probeStorage() {
