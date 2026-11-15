@@ -32,14 +32,15 @@ changes to it must be reconciled with those owners and validated through
 | `wwworkremote.localhost`, `wwwr.localhost` | WWWorkRemote project aliases | `/` → Rails app :31000 | Active project-owned `lan.wwworkremote.com` |
 | `media-pipeline.localhost`, `pipeline.localhost` | media-pipeline project aliases | `/`, `/live/`, `/cable` → media-pipeline :32000 | Active `media-pipeline.lan.just3ws.com`; `pipeline.lan.just3ws.com` is a candidate |
 | `hister.localhost`, `www.hister.localhost` | Hister search / project | `/` static UI; search/API routes → Hister :4433 | Candidate `hister.lan.just3ws.com`; not routed yet |
-| `www.just3ws.localhost`, `just3ws.localhost` | just3ws portfolio / project | `/` static Jekyll site; bare name redirects to `www` (live streaming moved to `media-pipeline.localhost`) | Candidate `www.lan.just3ws.com`; not routed yet |
+| `www.just3ws.localhost`, `just3ws.localhost` | just3ws portfolio / project | `/` static Jekyll site; bare name redirects to `www` (live streaming moved to `media-pipeline.localhost`) | Active `www.lan.just3ws.com` |
 | `phalanxduel.localhost`, `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Phalanx Duel / project | game :5173; admin :3103; demo :3333; telemetry :4318 / :5080 | Active project-owned `lan.phalanxduel.com`, `www.lan.phalanxduel.com`, `play.lan.phalanxduel.com`, `admin.lan.phalanxduel.com` |
 | `observability.lan.phalanxduel.com` | Phalanx Duel observability gateway | `/` → OpenObserve :5080; `/jaeger/` → Jaeger :16686 | Active project-owned route |
 
 The hostname families are intentionally split by ownership. Shared system
 applications use `*.localhost` locally and candidate single-label
-`*.lan.just3ws.com` names on the LAN. Only `lan.just3ws.com` and
-`media-pipeline.lan.just3ws.com` currently have shared-family nginx routes.
+`*.lan.just3ws.com` names on the LAN. Only `lan.just3ws.com`,
+`www.lan.just3ws.com`, and `media-pipeline.lan.just3ws.com` currently have
+shared-family nginx routes.
 Phalanx Duel keeps its `*.lan.phalanxduel.com` family, including the
 path-routed observability gateway; WWWorkRemote keeps `lan.wwworkremote.com`.
 The Atlas source vhost allows only `/map` and `/map.json` on

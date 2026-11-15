@@ -245,16 +245,20 @@
       "description": "Static portfolio and public media surfaces.",
       "hosts": [
         "just3ws.localhost",
-        "www.just3ws.localhost"
-      ],
-      "lan_alias_candidates": [
+        "www.just3ws.localhost",
         "www.lan.just3ws.com"
+      ],
+      "lan_hosts": [
+        {
+          "host": "www.lan.just3ws.com",
+          "status": "active"
+        }
       ],
       "routes": [
         {
           "path": "/",
           "target": "nginx static files",
-          "host": "www.just3ws.localhost",
+          "host": "www.just3ws.localhost · www.lan.just3ws.com",
           "note": "Bare just3ws.localhost redirects to the canonical www host"
         }
       ]
