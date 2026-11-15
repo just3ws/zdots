@@ -277,14 +277,8 @@ def topology_page
 
         <nav class="system-links" aria-label="System views">
           <a data-local-only href="https://zdots.localhost/">zdots control plane · this Mac</a>
-          <a data-local-only href="https://my.localhost/panoramic">Context Engine Panoramic View · this Mac</a>
-          <a data-local-only href="https://my.localhost/platform">Service health · this Mac</a>
           <a href="https://media-pipeline.lan.just3ws.com">Media Pipeline · LAN</a>
-          <a href="https://lan.wwworkremote.com">WWWorkRemote · LAN</a>
           <a href="https://lan.phalanxduel.com">Phalanx Duel · LAN</a>
-          <a href="https://observability.lan.phalanxduel.com">Observability · LAN</a>
-          <a data-local-only href="https://o2.localhost">OpenObserve · this Mac</a>
-          <a data-local-only href="https://jaeger.localhost">Jaeger · this Mac</a>
         </nav>
 
         <section class="domain-families" aria-label="Hostname families">#{family_cards}</section>

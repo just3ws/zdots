@@ -45,7 +45,6 @@ else
     "$HOME/Library/LaunchAgents/com.zdots.${SERVICE}.plist" \
     "$HOME/Library/LaunchAgents/com.my.${SERVICE}.plist" \
     "$HOME/Library/LaunchAgents/com.just3ws.${SERVICE}.plist" \
-    "$HOME/Library/LaunchAgents/com.wwworkremote.${SERVICE}.plist" \
     "$HOME/Library/LaunchAgents/${SERVICE}.plist"; do
     if [[ -f "$p" ]]; then
       PLIST="$p"

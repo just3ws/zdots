@@ -34,7 +34,6 @@ DEFAULT_REPOS=(
   "$HOME/github.com/just3ws/hallway"
   "$HOME/github.com/phalanxduel/game"
   "$HOME/github.com/phalanxduel/site"
-  "$HOME/github.com/wwworkremote/wwworkremote"
   "$HOME/github.com/just3ws/just3ws.github.io"
 )
 
