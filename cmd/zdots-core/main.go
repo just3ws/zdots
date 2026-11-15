@@ -11,6 +11,7 @@ import (
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/doctor"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/logs"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/status"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/statusd"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/zsvc"
 )
@@ -28,6 +29,7 @@ Applets:
   zdots-doctor    System health check ("brew doctor" for zdots)
   zdots-logs      Centralized log operations for all zdots-managed services
   zdots-status    Live TUI dashboard for Zdots platform health
+  zdots-statusd   Loopback HTTP control-plane console (127.0.0.1:11600)
   zdots-storage   Multi-bucket system storage monitoring & budget attestation
   zsvc            Unified service control for zdots-managed services
 
@@ -51,6 +53,8 @@ func main() {
 		os.Exit(logs.Run(os.Args[1:]))
 	case "zdots-status":
 		os.Exit(status.Run(os.Args[1:]))
+	case "zdots-statusd":
+		os.Exit(statusd.Run(os.Args[1:]))
 	case "zdots-storage":
 		os.Exit(storage.Run(os.Args[1:]))
 	case "zsvc":
@@ -76,6 +80,8 @@ func main() {
 			os.Exit(logs.Run(os.Args[2:]))
 		case "zdots-status":
 			os.Exit(status.Run(os.Args[2:]))
+		case "zdots-statusd":
+			os.Exit(statusd.Run(os.Args[2:]))
 		case "zdots-storage":
 			os.Exit(storage.Run(os.Args[2:]))
 		case "zsvc":
