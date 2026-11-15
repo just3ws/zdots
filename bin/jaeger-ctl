@@ -17,6 +17,7 @@ ARCH=$(uname -m)
 [ "$ARCH" = "x86_64" ] && ARCH="amd64"
 [ "$ARCH" = "aarch64" ] && ARCH="arm64"
 
+# shellcheck disable=SC2034 # referenced indirectly via ${!sha_var} in cmd_install
 TARBALL_SHA256_darwin_arm64="fb661d1a680697f9d1134b221fa3b99c9e0b58fad96de5982589e0d343a5b448"
 
 ZDOTDIR="${ZDOTDIR:-$(cd "$(dirname "$0")/.." && pwd)}"
