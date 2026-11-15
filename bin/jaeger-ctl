@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# bin/jaeger-ctl — Manage the bare-metal Jaeger v2 tracing backend.
+#
+# Receives OTLP traces downstream from otel-collector on 127.0.0.1:14317 and
+# serves the Jaeger UI on 127.0.0.1:16686 (https://jaeger.localhost).
+#
+# GRAMMAR:
+#   install / start / stop / restart / status / health / logs / validate
+#   serve — internal launchd entrypoint
+
+set -euo pipefail
+trap '' PIPE
+
+VERSION="2.23.0"
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+[ "$ARCH" = "x86_64" ] && ARCH="amd64"
+[ "$ARCH" = "aarch64" ] && ARCH="arm64"
+
+TARBALL_SHA256_darwin_arm64="fb661d1a680697f9d1134b221fa3b99c9e0b58fad96de5982589e0d343a5b448"
+
+ZDOTDIR="${ZDOTDIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+INSTALL_DIR="${HOME}/.local/bin"
+BINARY="${INSTALL_DIR}/jaeger"
+CONFIG_FILE="${ZDOTDIR}/etc/jaeger.yaml"
+LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/jaeger.log"
+PLIST_LABEL="com.zdots.jaeger"
+PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
+HOST="${ZDOTS_JAEGER_HOST:-127.0.0.1}"
+UI_PORT="${ZDOTS_JAEGER_UI_PORT:-16686}"
+ENDPOINT="${ZDOTS_JAEGER_ENDPOINT:-http://${HOST}:${UI_PORT}}"
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
+# shellcheck disable=SC2034 # consumed by sourced lifecycle helpers
+SVC_NAME="jaeger"
+# shellcheck source=lib/svc-launchd.bash
+source "${ZDOTDIR}/lib/svc-launchd.bash"
+# shellcheck source=lib/svc-process.bash
+source "${ZDOTDIR}/lib/svc-process.bash"
+source "${ZDOTDIR}/lib/cli-help.bash"
+
+_die()  { printf 'jaeger-ctl: error: %s\n' "$*" >&2; exit 1; }
+_info() { printf 'jaeger-ctl: %s\n' "$*" >&2; }
+
+_check_bind() {
+  case "$HOST" in
+    127.0.0.1|localhost|::1) ;;
+    *) _die "ZDOTS_JAEGER_HOST must be loopback (127.0.0.1, localhost or ::1), got: $HOST" ;;
+  esac
+}
+
+usage() {
+  cat <<EOF
+Usage: jaeger-ctl <command> [--json]
+
+Service Lifecycle:
+  install   Download + sha-verify Jaeger v${VERSION} and register launchd
+  start     Load and start Jaeger
+  stop      Unload and stop Jaeger
+  restart   stop then start
+  status    Show Jaeger state and process info
+  health    Exit 0 if Jaeger UI endpoint responds, else 1
+  logs      Tail the Jaeger log
+  validate  Validate etc/jaeger.yaml
+
+Options:
+  --json      Output status/health as JSON
+  -h, --help  Show this help
+
+Endpoints:
+  UI:        ${ENDPOINT} (https://jaeger.localhost via nginx)
+  OTLP gRPC: 127.0.0.1:14317 (downstream of otel-collector)
+EOF
+}
+
+_install_plist() {
+  mkdir -p "$(dirname "$PLIST_FILE")" "$(dirname "$LOG_FILE")"
+  cat > "$PLIST_FILE" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${PLIST_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${SELF}</string>
+        <string>serve</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+    <key>StandardOutPath</key>
+    <string>${LOG_FILE}</string>
+    <key>StandardErrorPath</key>
+    <string>${LOG_FILE}</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${HOME}</string>
+        <key>ZDOTDIR</key>
+        <string>${ZDOTDIR}</string>
+    </dict>
+</dict>
+</plist>
+EOF
+  _info "[ok] service registered at $PLIST_FILE"
+}
+
+cmd_install() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+  _check_bind
+  [ "$OS" = "darwin" ] || _die "bare-metal install supports macOS only"
+  mkdir -p "$INSTALL_DIR"
+  if [ ! -x "$BINARY" ] || ! "$BINARY" version 2>/dev/null | grep -q "v${VERSION}"; then
+    local url="https://github.com/jaegertracing/jaeger/releases/download/v${VERSION}/jaeger-${VERSION}-${OS}-${ARCH}.tar.gz"
+    local tmp_dir; tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' RETURN
+    _info "installing v${VERSION} for ${OS}/${ARCH}..."
+    curl -fL --progress-bar "$url" -o "$tmp_dir/jaeger.tar.gz" || _die "download failed"
+    tar -xzf "$tmp_dir/jaeger.tar.gz" -C "$tmp_dir" "jaeger-${VERSION}-${OS}-${ARCH}/jaeger"
+    local sha_var="TARBALL_SHA256_${OS}_${ARCH}"
+    local expected="${!sha_var:-}"
+    if [ -n "$expected" ]; then
+      local actual; actual="$(shasum -a 256 "$tmp_dir/jaeger-${VERSION}-${OS}-${ARCH}/jaeger" | awk '{print $1}')"
+      [ "$actual" = "$expected" ] || _die "checksum mismatch: expected $expected, got $actual"
+    fi
+    mv "$tmp_dir/jaeger-${VERSION}-${OS}-${ARCH}/jaeger" "$BINARY"
+    chmod +x "$BINARY"
+    _info "[ok] installed binary to $BINARY"
+  else
+    _info "jaeger v${VERSION} already installed"
+  fi
+  _install_plist
+}
+
+cmd_serve() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+  _check_bind
+  [ -x "$BINARY" ] || _die "binary not found. Run 'jaeger-ctl install' first."
+  exec "$BINARY" --config="file:${CONFIG_FILE}"
+}
+
+cmd_validate() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+  [ -x "$BINARY" ] || _die "binary not found. Run 'jaeger-ctl install' first."
+  "$BINARY" validate --config="file:${CONFIG_FILE}"
+}
+
+cmd_start()   { zdots_cli_wants_help "${1:-}" && { usage; exit 0; }; _check_bind; _install_plist; zdots_svc_launchd_start "$PLIST_LABEL" "$PLIST_FILE"; }
+cmd_stop()    { zdots_cli_wants_help "${1:-}" && { usage; exit 0; }; zdots_svc_launchd_stop "$PLIST_LABEL"; }
+cmd_restart() { zdots_cli_wants_help "${1:-}" && { usage; exit 0; }; cmd_stop || true; sleep 1; cmd_start; }
+cmd_health()  { zdots_cli_wants_help "${1:-}" && { usage; exit 0; }; curl -sf --max-time 3 "${ENDPOINT}/" >/dev/null 2>&1; }
+cmd_logs()    { zdots_cli_wants_help "${1:-}" && { usage; exit 0; }; [ -f "$LOG_FILE" ] || _die "no log at $LOG_FILE"; tail -n 100 -f "$LOG_FILE"; }
+
+cmd_status() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+  local json_mode=0
+  [[ "${1:-}" == "--json" ]] && json_mode=1
+  local pid; pid="$(pgrep -f "${BINARY} --config=" 2>/dev/null | head -n1 || true)"
+  local healthy=false
+  cmd_health && healthy=true
+  if [[ $json_mode -eq 1 ]]; then
+    jq -n --argjson running "$([[ -n "$pid" ]] && echo true || echo false)" --arg pid "${pid:-}" --arg endpoint "$ENDPOINT" --argjson healthy "$healthy" \
+      '{running: $running, pid: ($pid | if . == "" then null else tonumber end), endpoint: $endpoint, healthy: $healthy}'
+  elif [[ -n "$pid" ]]; then
+    printf 'jaeger-ctl: [ok]  running (PID: %s)\nendpoint     %s\nlog          %s\nhealthy      %s\n' "$pid" "$ENDPOINT" "$LOG_FILE" "$healthy"
+  else
+    printf 'jaeger-ctl: stopped\nendpoint     %s\n' "$ENDPOINT"
+    return 1
+  fi
+}
+
+case "${1:-status}" in
+  install)  shift; cmd_install "$@" ;;
+  start)    shift; cmd_start "$@" ;;
+  stop)     shift; cmd_stop "$@" ;;
+  restart)  shift; cmd_restart "$@" ;;
+  status)   shift; cmd_status "$@" ;;
+  health)   shift; cmd_health "$@" ;;
+  logs)     shift; cmd_logs "$@" ;;
+  validate) shift; cmd_validate "$@" ;;
+  serve)    shift; cmd_serve "$@" ;;
+  -h|--help) usage; exit 0 ;;
+  *) printf 'jaeger-ctl: unknown command: %s\n' "$1" >&2; usage >&2; exit 1 ;;
+esac

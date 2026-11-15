@@ -1,0 +1,40 @@
+# etc/jaeger.yaml — Bare-metal Jaeger v2 downstream of otel-collector
+# Receives OTLP traces on 127.0.0.1:14317 and serves UI on 127.0.0.1:16686.
+
+service:
+  telemetry:
+    logs:
+      level: warn
+    metrics:
+      level: none
+  extensions: [jaeger_storage, jaeger_query]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]
+
+extensions:
+  jaeger_query:
+    storage:
+      traces: memstore
+    http:
+      endpoint: "127.0.0.1:16686"
+  jaeger_storage:
+    backends:
+      memstore:
+        memory:
+          max_traces: 50000
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "127.0.0.1:14317"
+
+processors:
+  batch:
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: memstore

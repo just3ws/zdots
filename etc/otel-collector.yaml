@@ -208,17 +208,24 @@ exporters:
     rotation:
       max_megabytes: 128
       max_backups: 2
+  # Bare-metal Jaeger v2 downstream (127.0.0.1:14317)
+  otlp_grpc/jaeger:
+    endpoint: "127.0.0.1:14317"
+    tls:
+      insecure: true
+    sending_queue:
+      enabled: true
 
 service:
   telemetry:
     logs:
       level: warn
   pipelines:
-    # Traces from apps → spanmetrics connector → rotated local file
+    # Traces from apps → spanmetrics connector → rotated local file + Jaeger
     traces:
       receivers: [otlp]
       processors: [resourcedetection, batch]
-      exporters: [debug, file, spanmetrics]
+      exporters: [debug, file, otlp_grpc/jaeger, spanmetrics]
     # Metrics from apps + host + spanmetrics → rotated local file
     metrics:
       receivers: [otlp, hostmetrics, spanmetrics]

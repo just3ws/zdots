@@ -2,9 +2,8 @@
 # bin/otel-collector — Manage the bare-metal OpenTelemetry Collector.
 #
 # RATIONALE:
-# To maintain high shell performance, we use a local bare-metal collector
-# on the host. It receives OTLP spans from the shell and apps, buffers them,
-# and forwards them to the native OpenObserve backend (:5080).
+# On the host, it receives OTLP spans from the shell and apps, buffers them,
+# and exports them to rotated local JSON files and optional downstream Jaeger.
 #
 # GRAMMAR:
 # Service lifecycle verbs are consistent with llama-ctl and local-ci:
@@ -15,7 +14,7 @@ set -euo pipefail
 # SIGPIPE: write failures from broken pipes (e.g. | head) exit cleanly.
 trap '' PIPE
 
-VERSION="0.148.0"
+VERSION="0.165.0"
 DISTRO="otelcol-contrib"
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)

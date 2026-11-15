@@ -145,8 +145,8 @@ setup() {
     source $ZDOTDIR/lib/svc-registry.bash
     table1=\"\$(printf '%s\n' \"\${!_ZDOTS_PROBE_DISPATCH[@]}\" | sort | md5sum)\"
     # Can't reload the same module, so just verify the table is complete
-    # (11 managed services + ctx health-only probe)
-    [[ \${#_ZDOTS_PROBE_DISPATCH[@]} -eq 12 ]]
+    # (12 managed services + ctx health-only probe)
+    [[ \${#_ZDOTS_PROBE_DISPATCH[@]} -eq 13 ]]
   "
   [ "$status" -eq 0 ]
 }

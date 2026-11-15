@@ -1,0 +1,29 @@
+.TH JAEGER-CTL 1 "2026-11-15" "zdots" "zdots manual"
+.SH NAME
+jaeger-ctl \- Service Lifecycle:
+.SH SYNOPSIS
+See OPTIONS below (generated from \fBjaeger-ctl --help\fR).
+.SH OPTIONS
+.nf
+Usage: jaeger-ctl <command> [--json]
+
+Service Lifecycle:
+  install   Download + sha-verify Jaeger v2.23.0 and register launchd
+  start     Load and start Jaeger
+  stop      Unload and stop Jaeger
+  restart   stop then start
+  status    Show Jaeger state and process info
+  health    Exit 0 if Jaeger UI endpoint responds, else 1
+  logs      Tail the Jaeger log
+  validate  Validate etc/jaeger.yaml
+
+Options:
+  --json      Output status/health as JSON
+  -h, --help  Show this help
+
+Endpoints:
+  UI:        http://127.0.0.1:16686 (https://jaeger.localhost via nginx)
+  OTLP gRPC: 127.0.0.1:14317 (downstream of otel-collector)
+.fi
+.SH SEE ALSO
+agent-guide(1), zdots-doctor(1)
