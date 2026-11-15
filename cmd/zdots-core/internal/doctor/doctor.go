@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/logs"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
 
@@ -939,11 +940,7 @@ func checkObservability(cfg envConfig) *sectionResult {
 
 func checkLogs(cfg envConfig) *sectionResult {
 	s := &sectionResult{title: "Log sizes"}
-	if _, err := exec.LookPath("zdots-logs"); err != nil {
-		s.warnLine("zdots-logs not in PATH — skipping log size check")
-		return s
-	}
-	out, rc := runCmdOut(5*time.Second, "zdots-logs", "check")
+	out, rc := logs.CheckText()
 	s.raw(out)
 	if rc != 0 {
 		if strings.Contains(out, "CRITICAL") {
