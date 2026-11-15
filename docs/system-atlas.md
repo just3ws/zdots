@@ -122,7 +122,6 @@ flowchart TB
     Nginx -->|jaeger.localhost| Jaeger
     Nginx -->|gemstash.localhost| Gemstash[Gemstash :9292]
     Nginx -->|Phalanx play /otel/| OTel
-    Nginx -->|portfolio /api/live/| Live[Portfolio stream :7025]
     Context --> PG[(PostgreSQL :5432 / database my)]
     Context --> Bus[Message Bus coordinator · optional]
     Bus --> PG

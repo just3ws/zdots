@@ -119,7 +119,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Platform version — all six versioned surfaces share one Astronomicon epoch.
+# Platform version — all seven versioned surfaces share one Astronomicon epoch.
 # `my` retains its independent structure contract and content boundary.
 # See backlog/decisions/decision-007.
 # ---------------------------------------------------------------------------

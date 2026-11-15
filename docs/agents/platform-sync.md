@@ -104,18 +104,18 @@ Push only repos with `ahead>0`. adots pushes through the bare invocation:
 
 ## Beacon (Astronomicon)
 
-The following six versioned surfaces share ONE imperial-CalVer stamp per release:
-zdots, adots, my, vdots, media-pipeline, and just3ws.github.io. The just3ws.com
+The following seven versioned surfaces share ONE imperial-CalVer stamp per release:
+zdots, adots, my, vdots, ztranscribe, media-pipeline, and just3ws.github.io. The just3ws.com
 site and its localhost/LAN aliases are one repository surface. `my` carries the
 same `VERSION` epoch and keeps its independent `my.structure.v1` contract and
 per-environment content. `adots-my prepare --apply` seeds a new my environment
 from the installed zdots beacon.
 
 SwiftBar is a consumer of the zdots beacon, not a separately versioned repo. It
-shows the current epoch and opens `zdots-doctor` for the six-surface drift check.
+shows the current epoch and opens `zdots-doctor` for the seven-surface drift check.
 
 At release, calculate one value with `imperial-date`, write it to the root
-`VERSION` file in each of the six repos, commit each exact marker with its scoped
+`VERSION` file in each of the seven repos, commit each exact marker with its scoped
 work, then push. Use `adots-git` for the home-directory repo. Run `zdots-doctor`
 after all markers are committed. Refresh `CHANGELOG.md` where the repo maintains
 one; `make changelog` updates zdots (decision-007). A missing peer marker is
@@ -129,6 +129,6 @@ reported as rollout pending; a differing marker is deploy drift.
 - **Don't reach across boundaries.** A change one repo needs from another is an
   issue to file, not a cross-repo edit (peer architecture; AGENTS.md §5).
 - `bin/secret-scan` before any commit (these repos touch `$HOME` — the PHI/secret surface).
-- Report the six versioned surfaces plus SwiftBar's inherited zdots epoch when
+- Report the seven versioned surfaces plus SwiftBar's inherited zdots epoch when
   version alignment is in scope. Anything dirty gets a
   one-line "whose / what", not silence; CI gets success/failure, not just "ran".

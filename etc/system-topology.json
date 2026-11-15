@@ -264,12 +264,6 @@
           "target": "nginx static files",
           "host": "www.just3ws.localhost",
           "note": "Bare just3ws.localhost redirects to the canonical www host"
-        },
-        {
-          "path": "/api/live/",
-          "target": "127.0.0.1:7025",
-          "host": "www.just3ws.localhost",
-          "note": "SSE / WebSocket dashboard stream"
         }
       ]
     },
