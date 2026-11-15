@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
 )
 
 const (
@@ -186,27 +188,23 @@ func Run(args []string) int {
 		}()
 	}
 
-	// 6. zdots-storage --json (only needed for JSON output)
+	// 6. storage collection in-process (only needed for JSON output)
 	if outputFormat == "json" {
-		storageCmd := filepath.Join(zdotdir, "bin", "zdots-storage")
-		if isExecFile(storageCmd) {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				out := bytes.TrimSpace(runCmd(15*time.Second, storageCmd, "--json"))
-				if len(out) == 0 {
-					return
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			reserveGB := int64(45)
+			if rStr := getEnv("ZDOTS_STORAGE_RESERVE_GB", ""); rStr != "" {
+				if parsed, err := strconv.ParseInt(rStr, 10, 64); err == nil && parsed >= 0 {
+					reserveGB = parsed
 				}
-				var m map[string]any
-				if json.Unmarshal(out, &m) == nil {
-					_, hasDisk := m["disk_available_gb"]
-					_, hasBuckets := m["buckets"]
-					if hasDisk && hasBuckets {
-						storageRaw = json.RawMessage(out)
-					}
-				}
-			}()
-		}
+			}
+			myRoot := getEnv("ZDOTS_MY_ROOT", filepath.Join(home, "my"))
+			rep := storage.Collect(home, zdotdir, myRoot, reserveGB)
+			if b, err := json.Marshal(rep); err == nil {
+				storageRaw = json.RawMessage(b)
+			}
+		}()
 	}
 
 	// 7. colima-status --json (only needed for text output)

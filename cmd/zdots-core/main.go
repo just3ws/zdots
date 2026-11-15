@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/capabilities"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
 )
 
 func usage() {
@@ -16,6 +17,7 @@ Invoke via symlink (e.g. capabilities) or directly as: zdots-core <applet>.
 
 Applets:
   capabilities    Environment health and service contract validator
+  zdots-storage   Multi-bucket system storage monitoring & budget attestation
 
 Options:
   -h, --help      Show this help
@@ -27,6 +29,8 @@ func main() {
 	switch invoked {
 	case "capabilities":
 		os.Exit(capabilities.Run(os.Args[1:]))
+	case "zdots-storage":
+		os.Exit(storage.Run(os.Args[1:]))
 	default:
 		if len(os.Args) < 2 {
 			usage()
@@ -38,6 +42,8 @@ func main() {
 			os.Exit(0)
 		case "capabilities":
 			os.Exit(capabilities.Run(os.Args[2:]))
+		case "zdots-storage":
+			os.Exit(storage.Run(os.Args[2:]))
 		default:
 			fmt.Fprintf(os.Stderr, "zdots-core: unknown applet %q\n", os.Args[1])
 			usage()
