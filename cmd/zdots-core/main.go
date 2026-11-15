@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/agentguide"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/capabilities"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/status"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
@@ -17,6 +18,7 @@ Multicall Go binary for performance-critical zdots platform commands.
 Invoke via symlink (e.g. capabilities) or directly as: zdots-core <applet>.
 
 Applets:
+  agent-guide     Live service status and usage guidance for AI agents
   capabilities    Environment health and service contract validator
   zdots-status    Live TUI dashboard for Zdots platform health
   zdots-storage   Multi-bucket system storage monitoring & budget attestation
@@ -29,6 +31,8 @@ Options:
 func main() {
 	invoked := filepath.Base(os.Args[0])
 	switch invoked {
+	case "agent-guide":
+		os.Exit(agentguide.Run(os.Args[1:]))
 	case "capabilities":
 		os.Exit(capabilities.Run(os.Args[1:]))
 	case "zdots-status":
@@ -44,6 +48,8 @@ func main() {
 		case "-h", "--help":
 			usage()
 			os.Exit(0)
+		case "agent-guide":
+			os.Exit(agentguide.Run(os.Args[2:]))
 		case "capabilities":
 			os.Exit(capabilities.Run(os.Args[2:]))
 		case "zdots-status":
