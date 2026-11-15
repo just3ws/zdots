@@ -9,6 +9,7 @@ import (
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/capabilities"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctl"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/doctor"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/hygiene"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/llamacaps"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/logs"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/o2query"
@@ -31,6 +32,7 @@ Applets:
   llama-caps      Capability report for local llama.cpp inference service
   zdots-ctl       Zdots platform orchestrator and health checker
   zdots-doctor    System health check ("brew doctor" for zdots)
+  zdots-hygiene   Unified system storage hygiene & eviction routine
   zdots-logs      Centralized log operations for all zdots-managed services
   zdots-o2-query  Read-only OpenObserve log and trace query tool
   zdots-status    Live TUI dashboard for Zdots platform health
@@ -57,6 +59,8 @@ func main() {
 		os.Exit(ctl.Run(os.Args[1:]))
 	case "zdots-doctor":
 		os.Exit(doctor.Run(os.Args[1:]))
+	case "zdots-hygiene":
+		os.Exit(hygiene.Run(os.Args[1:]))
 	case "zdots-logs":
 		os.Exit(logs.Run(os.Args[1:]))
 	case "zdots-o2-query":
@@ -90,6 +94,8 @@ func main() {
 			os.Exit(ctl.Run(os.Args[2:]))
 		case "zdots-doctor":
 			os.Exit(doctor.Run(os.Args[2:]))
+		case "zdots-hygiene":
+			os.Exit(hygiene.Run(os.Args[2:]))
 		case "zdots-logs":
 			os.Exit(logs.Run(os.Args[2:]))
 		case "zdots-o2-query":
