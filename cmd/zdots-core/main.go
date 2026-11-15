@@ -9,6 +9,7 @@ import (
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/capabilities"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctl"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/doctor"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/llamacaps"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/logs"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/status"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/statusd"
@@ -25,6 +26,7 @@ Invoke via symlink (e.g. capabilities) or directly as: zdots-core <applet>.
 Applets:
   agent-guide     Live service status and usage guidance for AI agents
   capabilities    Environment health and service contract validator
+  llama-caps      Capability report for local llama.cpp inference service
   zdots-ctl       Zdots platform orchestrator and health checker
   zdots-doctor    System health check ("brew doctor" for zdots)
   zdots-logs      Centralized log operations for all zdots-managed services
@@ -45,6 +47,8 @@ func main() {
 		os.Exit(agentguide.Run(os.Args[1:]))
 	case "capabilities":
 		os.Exit(capabilities.Run(os.Args[1:]))
+	case "llama-caps":
+		os.Exit(llamacaps.Run(os.Args[1:]))
 	case "zdots-ctl":
 		os.Exit(ctl.Run(os.Args[1:]))
 	case "zdots-doctor":
@@ -72,6 +76,8 @@ func main() {
 			os.Exit(agentguide.Run(os.Args[2:]))
 		case "capabilities":
 			os.Exit(capabilities.Run(os.Args[2:]))
+		case "llama-caps":
+			os.Exit(llamacaps.Run(os.Args[2:]))
 		case "zdots-ctl":
 			os.Exit(ctl.Run(os.Args[2:]))
 		case "zdots-doctor":
