@@ -15,6 +15,7 @@ import (
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/status"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/statusd"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/swiftbar"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/zsvc"
 )
 
@@ -35,6 +36,7 @@ Applets:
   zdots-status    Live TUI dashboard for Zdots platform health
   zdots-statusd   Loopback HTTP control-plane console (127.0.0.1:11600)
   zdots-storage   Multi-bucket system storage monitoring & budget attestation
+  zdots-swiftbar  SwiftBar menu-bar platform & transcription pulse
   zsvc            Unified service control for zdots-managed services
 
 Options:
@@ -65,6 +67,8 @@ func main() {
 		os.Exit(statusd.Run(os.Args[1:]))
 	case "zdots-storage":
 		os.Exit(storage.Run(os.Args[1:]))
+	case "zdots-swiftbar":
+		os.Exit(swiftbar.Run(os.Args[1:]))
 	case "zsvc":
 		os.Exit(zsvc.Run(os.Args[1:]))
 	default:
@@ -96,6 +100,8 @@ func main() {
 			os.Exit(statusd.Run(os.Args[2:]))
 		case "zdots-storage":
 			os.Exit(storage.Run(os.Args[2:]))
+		case "zdots-swiftbar":
+			os.Exit(swiftbar.Run(os.Args[2:]))
 		case "zsvc":
 			os.Exit(zsvc.Run(os.Args[2:]))
 		default:
