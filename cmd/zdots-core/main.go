@@ -12,6 +12,7 @@ import (
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/logs"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/status"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/zsvc"
 )
 
 func usage() {
@@ -28,6 +29,7 @@ Applets:
   zdots-logs      Centralized log operations for all zdots-managed services
   zdots-status    Live TUI dashboard for Zdots platform health
   zdots-storage   Multi-bucket system storage monitoring & budget attestation
+  zsvc            Unified service control for zdots-managed services
 
 Options:
   -h, --help      Show this help
@@ -51,6 +53,8 @@ func main() {
 		os.Exit(status.Run(os.Args[1:]))
 	case "zdots-storage":
 		os.Exit(storage.Run(os.Args[1:]))
+	case "zsvc":
+		os.Exit(zsvc.Run(os.Args[1:]))
 	default:
 		if len(os.Args) < 2 {
 			usage()
@@ -74,6 +78,8 @@ func main() {
 			os.Exit(status.Run(os.Args[2:]))
 		case "zdots-storage":
 			os.Exit(storage.Run(os.Args[2:]))
+		case "zsvc":
+			os.Exit(zsvc.Run(os.Args[2:]))
 		default:
 			fmt.Fprintf(os.Stderr, "zdots-core: unknown applet %q\n", os.Args[1])
 			usage()

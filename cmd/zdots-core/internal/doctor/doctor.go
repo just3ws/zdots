@@ -19,6 +19,7 @@ import (
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctl"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/logs"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/zsvc"
 )
 
 const (
@@ -741,12 +742,7 @@ func checkWork(cfg envConfig) *sectionResult {
 
 func checkServices(cfg envConfig) *sectionResult {
 	s := &sectionResult{title: "Services"}
-	if _, err := exec.LookPath("zsvc"); err == nil {
-		out, _ := runCmdOut(4*time.Second, "zsvc", "list")
-		s.raw(out)
-	} else {
-		s.warnLine("zsvc  not in PATH")
-	}
+	s.raw(zsvc.ListText(cfg.zdotdir))
 
 	candidates := []string{
 		"llama-server", "llama-embed", "otel-collector", "worker", "statusd",
