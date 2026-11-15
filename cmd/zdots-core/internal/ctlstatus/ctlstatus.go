@@ -22,6 +22,7 @@ import (
 type Status struct {
 	CoreReady         bool   `json:"core_ready"`
 	Colima            bool   `json:"colima"`
+	Jaeger            bool   `json:"jaeger"`
 	OpenObserve       bool   `json:"openobserve"`
 	OTelCollector     bool   `json:"otel_collector"`
 	AIServer          bool   `json:"ai_server"`
@@ -33,6 +34,7 @@ type Status struct {
 	Cache             bool   `json:"cache"`
 	Worker            bool   `json:"worker"`
 	O2URL             string `json:"o2_url"`
+	JaegerURL         string `json:"jaeger_url"`
 	AIEndpoint        string `json:"ai_endpoint"`
 	EmbedEndpoint     string `json:"embed_endpoint"`
 	OTLPEndpoint      string `json:"otlp_endpoint"`
@@ -58,6 +60,7 @@ func ProbeWithTracer(zdotdir string, tr *otel.Tracer, parent *otel.Span) Status 
 	embedEndpoint := envOr("ZDOTS_AI_EMBED_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_EMBED_HOST", "127.0.0.1"), envOr("ZDOTS_EMBED_PORT", "11501")))
 	otlpEndpoint := envOr("ZDOTS_OTLP_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_OTEL_HOST", "127.0.0.1"), envOr("ZDOTS_OTEL_HTTP_PORT", "4318")))
 	o2Endpoint := envOr("ZDOTS_O2_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_O2_HOST", "127.0.0.1"), envOr("ZDOTS_O2_PORT", "5080")))
+	jaegerEndpoint := envOr("ZDOTS_JAEGER_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_JAEGER_HOST", "127.0.0.1"), envOr("ZDOTS_JAEGER_UI_PORT", "16686")))
 	redisHost := envOr("ZDOTS_REDIS_HOST", "127.0.0.1")
 	redisPort := 6379
 	if p, err := strconv.Atoi(envOr("ZDOTS_REDIS_PORT", "6379")); err == nil && p > 0 {
@@ -67,6 +70,7 @@ func ProbeWithTracer(zdotdir string, tr *otel.Tracer, parent *otel.Span) Status 
 	st := Status{
 		AIModel:       "unknown",
 		O2URL:         o2Endpoint,
+		JaegerURL:     jaegerEndpoint,
 		AIEndpoint:    aiEndpoint,
 		EmbedEndpoint: embedEndpoint,
 		OTLPEndpoint:  otlpEndpoint,
@@ -121,13 +125,22 @@ func ProbeWithTracer(zdotdir string, tr *otel.Tracer, parent *otel.Span) Status 
 		sp.End(st.EmbedServer, "")
 	}()
 
-	// 4. OpenObserve HTTP health
+	// 4. OpenObserve HTTP health (retired — kept for JSON schema compatibility)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sp := startProbeSpan(tr, parent, "probe.openobserve")
 		st.OpenObserve = httpOK(o2Endpoint+"/healthz", 2*time.Second)
 		sp.End(st.OpenObserve, "")
+	}()
+
+	// 4b. Jaeger HTTP health
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.jaeger")
+		st.Jaeger = httpOK(jaegerEndpoint+"/", 2*time.Second)
+		sp.End(st.Jaeger, "")
 	}()
 
 	// 5. otel-collector launchd

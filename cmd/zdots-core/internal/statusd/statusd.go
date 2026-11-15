@@ -679,7 +679,7 @@ func (e *serverEnv) renderConsole(live bool) string {
 		up    bool
 	}{
 		{"Colima (Docker VM)", st.Colima},
-		{"OpenObserve", st.OpenObserve},
+		{"Jaeger", st.Jaeger},
 		{"OTel Collector", st.OTelCollector},
 		{"Inference (llama.cpp)", st.AIServer},
 		{"Embed server", st.EmbedServer},

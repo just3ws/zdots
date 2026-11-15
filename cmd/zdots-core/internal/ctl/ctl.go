@@ -215,7 +215,7 @@ func cmdStatus(c cfg, args []string, tr *otel.Tracer, parent *otel.Span) int {
 		upDown = "up"
 	}
 	fmt.Printf("  %-20s %s  %s\n", "colima", sym(st.Colima), upDown)
-	fmt.Printf("  %-20s %s  %s\n", "OpenObserve", sym(st.OpenObserve), st.O2URL)
+	fmt.Printf("  %-20s %s  %s\n", "jaeger", sym(st.Jaeger), st.JaegerURL)
 	fmt.Printf("  %-20s %s  %s\n", "otel-collector", sym(st.OTelCollector), st.OTLPEndpoint)
 	fmt.Printf("  %-20s %s  %s (socket: %v)\n", "AI server", sym(st.AIServer), st.AIEndpoint, st.AISocketListening)
 	fmt.Printf("  %-20s %s  %s\n", "embed server", sym(st.EmbedServer), st.EmbedEndpoint)
@@ -223,7 +223,7 @@ func cmdStatus(c cfg, args []string, tr *otel.Tracer, parent *otel.Span) int {
 	fmt.Printf("  %-20s %s  %s:%d\n", "cache", sym(st.Cache), st.RedisHost, st.RedisPort)
 	fmt.Printf("  %-20s %s  %s\n", "worker", sym(st.Worker), "jobs queue (my)")
 
-	if !st.OpenObserve || !st.AIServer || !st.EmbedServer || !st.OTelCollector {
+	if !st.AIServer || !st.EmbedServer || !st.OTelCollector {
 		fmt.Println("\nzdots-ctl: to start all: zdots-ctl up")
 	}
 	return 0
@@ -585,13 +585,13 @@ func chkStorage(c cfg) chkSection {
 func chkServices(c cfg, st ctlstatus.Status) chkSection {
 	var s chkSection
 	s.info("Service health")
-	if st.OpenObserve {
-		s.pass(fmt.Sprintf("OpenObserve  reachable (%s)", c.o2Endpoint))
-	} else if svcRegistered(c, "com.zdots.openobserve") {
-		s.warn("OpenObserve  unreachable")
-		s.fix("zsvc start o2  (or: zdots-ctl up)")
+	if st.Jaeger {
+		s.pass(fmt.Sprintf("Jaeger  reachable (%s)", st.JaegerURL))
+	} else if svcRegistered(c, "com.zdots.jaeger") {
+		s.warn("Jaeger  unreachable")
+		s.fix("zsvc start jaeger")
 	} else {
-		s.pass("OpenObserve  not registered (optional services tier)")
+		s.pass("Jaeger  not registered (optional services tier)")
 	}
 
 	if st.Colima {

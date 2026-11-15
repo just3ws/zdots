@@ -155,7 +155,7 @@ func Run(args []string) int {
 		home:       home,
 		xdgState:   xdgState,
 		aiEndpoint: aiEndpoint,
-		o2URL:      "http://127.0.0.1:5080",
+		o2URL:      "http://127.0.0.1:16686",
 		aiModel:    "unknown",
 		tr:         otel.New("zdots-status"),
 	}
@@ -266,7 +266,10 @@ func (s *state) probeServices(parent *otel.Span) {
 	}
 	s.otelUp = res.OTelCollector
 	s.colimaUp = res.Colima
-	s.o2Up = res.OpenObserve
+	s.o2Up = res.Jaeger
+	if res.JaegerURL != "" {
+		s.o2URL = res.JaegerURL
+	}
 }
 
 func (s *state) probeStorage() {
@@ -480,10 +483,10 @@ func (s *state) draw(once bool, interval int) {
 	}
 	if s.o2Up {
 		fmt.Printf("  %s  %s  %s%s%s\n",
-			tagUp(), field(w, "OpenObserve"), dim, s.o2URL, reset)
+			tagUp(), field(w, "Jaeger"), dim, s.o2URL, reset)
 	} else {
-		fmt.Printf("  %s  %s  %szsvc start o2%s\n",
-			tagDown(), field(w, "OpenObserve"), dim, reset)
+		fmt.Printf("  %s  %s  %szsvc start jaeger%s\n",
+			tagDown(), field(w, "Jaeger"), dim, reset)
 	}
 
 	printSection("Shell", cols)
