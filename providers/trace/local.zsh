@@ -33,7 +33,10 @@ _zdots_trace_file_init() {
   # already-open shells keep appending to the .old inode until they restart —
   # the pre-existing tradeoff, unchanged.
   if [[ -z "${_zdots_trace_fd:-}" ]]; then
+    local _saved_err
+    exec {_saved_err}>&2
     exec {_zdots_trace_fd}>>"$_zdots_trace_file" 2>/dev/null || _zdots_trace_fd=""
+    exec 2>&${_saved_err} {_saved_err}>&-
   fi
 }
 

@@ -51,8 +51,11 @@ typeset -g _phi_srv_pid= _phi_srv_in= _phi_srv_out= _phi_srv_mtime=
 typeset -g _phi_srv_status= _phi_srv_payload=
 
 _phi_srv_stop() {
+  local _saved_err
+  exec {_saved_err}>&2
   [[ -n "$_phi_srv_in"  ]] && exec {_phi_srv_in}<&- 2>/dev/null
   [[ -n "$_phi_srv_out" ]] && exec {_phi_srv_out}>&- 2>/dev/null
+  exec 2>&${_saved_err} {_saved_err}>&-
   [[ -n "$_phi_srv_pid" ]] && kill -- "$_phi_srv_pid" 2>/dev/null
   _phi_srv_pid= _phi_srv_in= _phi_srv_out=
 }
@@ -69,7 +72,13 @@ _phi_srv_start() {
   _phi_srv_pid=$!
   # Move the coproc fds to plain descriptors: frees the shell's only coproc
   # slot for user code and pins our pipes against any later coproc.
-  { exec {_phi_srv_in}<&p {_phi_srv_out}>&p; } 2>/dev/null || { _phi_srv_stop; return 1; }
+  # Note: `exec ... 2>/dev/null` without a command permanently redirects shell
+  # fd 2 in Zsh, so save and restore fd 2 explicitly.
+  local _saved_err _rc=0
+  exec {_saved_err}>&2
+  exec {_phi_srv_in}<&p {_phi_srv_out}>&p 2>/dev/null || _rc=$?
+  exec 2>&${_saved_err} {_saved_err}>&-
+  (( _rc == 0 )) || { _phi_srv_stop; return 1; }
   disown %% 2>/dev/null
   return 0
 }
