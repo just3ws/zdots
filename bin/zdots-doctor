@@ -437,7 +437,7 @@ fi
 # optional services tier labels are expected whenever their plist is installed
 # in ~/Library/LaunchAgents/ (catching unloaded/drifted services without
 # false-positive warnings on machines that defer optional tiers).
-_lc_candidates=(llama-server llama-embed otel-collector openobserve worker statusd
+_lc_candidates=(llama-server llama-embed otel-collector worker statusd
   gemstash log-rotate embed-tripwire colima-autostart)
 _lc_expected=()
 for _lc in "${_lc_candidates[@]}"; do
@@ -538,54 +538,17 @@ unset _tw_log
 # ---------------------------------------------------------------------------
 _section "Observability"
 
-_o2_ep="${ZDOTS_O2_ENDPOINT:-http://${ZDOTS_O2_HOST:-127.0.0.1}:${ZDOTS_O2_PORT:-5080}}"
-if curl -sf -m 3 "${_o2_ep}/healthz" >/dev/null 2>&1; then
-  _pass "OpenObserve  healthy (${_o2_ep})"
-  # PHI: must bind loopback only, never 0.0.0.0
-  _o2_port="${ZDOTS_O2_PORT:-5080}"
-  if command -v lsof >/dev/null 2>&1; then
-    if lsof -nP -iTCP:"${_o2_port}" -sTCP:LISTEN 2>/dev/null | grep -q "127.0.0.1:${_o2_port}"; then
-      _pass "OpenObserve bind  loopback only (127.0.0.1)"
-    elif lsof -nP -iTCP:"${_o2_port}" -sTCP:LISTEN 2>/dev/null | grep -q "\\*:${_o2_port}\\|0.0.0.0:${_o2_port}"; then
-      _fail "OpenObserve bind  listening on all interfaces — PHI violation"
-      _fix  "ensure ZO_HTTP_ADDR=127.0.0.1 (openobserve-ctl serve) then: zsvc restart o2"
-    fi
-  fi
-  unset _o2_port
-elif [[ -f "$HOME/Library/LaunchAgents/com.zdots.openobserve.plist" ]]; then
-  _warn "OpenObserve  not reachable"
-  _fix  "zsvc start o2   (diagnose: zsvc diag o2)"
-else
-  _skip "OpenObserve  not provisioned (optional services tier)"
-fi
-
-# Drift guardrail (Z-156): the disposable O2 store crept to 17 GB once when the
-# spanmetrics duration_bucket series ran unbounded. Warn before it fills the disk
-# again so retention/connector tuning is caught drifting, not discovered full.
-_o2_data="${XDG_DATA_HOME:-$HOME/.local/share}/openobserve"
-_o2_warn_gb="${ZDOTS_O2_SIZE_WARN_GB:-8}"
-if [[ -d "$_o2_data" ]]; then
-  _o2_mb=$(du -sm "$_o2_data" 2>/dev/null | awk '{print $1}')
-  if [[ -n "$_o2_mb" ]] && (( _o2_mb > _o2_warn_gb * 1024 )); then
-    _warn "OpenObserve store  $(( _o2_mb / 1024 )) GB exceeds ${_o2_warn_gb} GB — telemetry volume drift"
-    _fix  "lower ZDOTS_O2_RETENTION_DAYS or tune spanmetrics (Z-156); reclaim now: openobserve-ctl reinit"
-  else
-    _pass "OpenObserve store  $(( _o2_mb )) MB (under ${_o2_warn_gb} GB cap)"
-  fi
-fi
-
-# Collector must export to OpenObserve, not the retired LGTM stack
+# Collector must export to rotated local JSON files (O2/LGTM retired)
 _otel_cfg="${ZDOTDIR}/etc/otel-collector.yaml"
 if [[ -f "$_otel_cfg" ]]; then
-  # Exporter is named otlp_http/openobserve in the config (underscore) — match that.
-  if grep -q 'otlp_http/openobserve' "$_otel_cfg" && ! grep -qiE 'otlp_?http/lgtm|exporters:.*lgtm' "$_otel_cfg"; then
-    _pass "collector  exports to OpenObserve"
+  if grep -q 'file/logs:' "$_otel_cfg" && grep -q 'file/metrics:' "$_otel_cfg" && ! grep -qiE 'otlp_?http/(openobserve|lgtm)|exporters:.*lgtm' "$_otel_cfg"; then
+    _pass "collector  exports to rotated local files"
   else
-    _warn "collector  config still references the retired LGTM exporter"
-    _fix  "repoint etc/otel-collector.yaml at OpenObserve — see docs/openobserve.md"
+    _warn "collector  config still references retired O2/LGTM exporter"
+    _fix  "route etc/otel-collector.yaml pipelines to rotated local file exporters"
   fi
 fi
-unset _o2_ep _otel_cfg
+unset _otel_cfg
 
 # ---------------------------------------------------------------------------
 # Log sizes (zdots-logs check)
@@ -683,6 +646,30 @@ fi
 
 # ---------------------------------------------------------------------------
 _section "Work-data boundary"
+
+# ---------------------------------------------------------------------------
+# Git hooks alignment across platform repos
+# ---------------------------------------------------------------------------
+_section "Git hooks alignment"
+
+for _repo in \
+  "$ZDOTDIR" \
+  "$HOME/my" \
+  "$HOME/.config/nvim" \
+  "$HOME/github.com/just3ws/ztranscribe" \
+  "$HOME/github.com/just3ws/just3ws.github.io"
+do
+  [[ -d "$_repo/.git" ]] || continue
+  _rname="$(basename "$_repo")"
+  _hp="$(git -C "$_repo" config --get core.hooksPath 2>/dev/null || true)"
+  if [[ "$_hp" == ".githooks" ]]; then
+    _pass "hooks  ${_rname} (core.hooksPath=.githooks)"
+  else
+    _warn "hooks  ${_rname} core.hooksPath='${_hp:-unset}' (expected .githooks)"
+    _fix  "git -C ${_repo} config core.hooksPath .githooks"
+  fi
+done
+unset _repo _rname _hp
 
 # ---------------------------------------------------------------------------
 # JSON output (if requested)

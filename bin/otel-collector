@@ -178,17 +178,10 @@ cmd_install() {
   _compile_phi || _die "failed to compile PHI scrub layer"
 }
 
-# Internal launchd target: load the OpenObserve OTLP basic-auth from Keychain so
-# the credential is never written to the config file or the plist, then exec.
+# Internal launchd target: exec the PHI-compiled collector config.
 cmd_serve() {
   _check_bind
   [ -x "$BINARY" ] || _die "binary not found. Run 'otel-collector install' first."
-  local o2_pw
-  o2_pw="$(/usr/bin/security find-generic-password -s zdots -a ZDOTS_O2_ROOT_PASSWORD -w 2>/dev/null || true)"
-  if [ -n "$o2_pw" ]; then
-    ZDOTS_O2_OTLP_AUTH="Basic $(printf '%s' "root@zdots.local:${o2_pw}" | base64 | tr -d '\n')"
-    export ZDOTS_O2_OTLP_AUTH
-  fi
   # Fail closed: run the compiled config (PHI scrub at ingest), never the raw
   # base. start/validate/install regenerate it in the foreground; if it is
   # somehow missing here, refuse rather than ship unscrubbed telemetry.

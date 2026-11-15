@@ -1,8 +1,8 @@
 # etc/otel-collector.yaml — Full-context local observability collector
 #
-# Architecture: Bare-metal collector on host → OpenObserve (native, :5080)
-# Receives: OTLP push (apps), host metrics, container stats, log files
-# Exports:  Debug log, local file (rotated), OpenObserve (OTLP HTTP)
+# Architecture: Bare-metal collector on host → local rotated JSONL files
+# Receives: OTLP push (apps), host metrics, log files
+# Exports:  Debug log, local rotated JSON files (traces, metrics, logs, diag)
 
 receivers:
   # Application telemetry (traces, metrics, logs via OTLP gRPC + HTTP)
@@ -190,6 +190,16 @@ exporters:
     rotation:
       max_megabytes: 10
       max_backups: 3
+  file/metrics:
+    path: "${env:HOME}/.local/state/zsh/collector-metrics.json"
+    rotation:
+      max_megabytes: 10
+      max_backups: 3
+  file/logs:
+    path: "${env:HOME}/.local/state/zsh/collector-logs.json"
+    rotation:
+      max_megabytes: 10
+      max_backups: 3
   # Raw per-run diagnostic tap. Full-fidelity, NO phi scrub (see the */diag pipelines).
   # LOCAL diagnostic-exercise-runner only; the tenant's scenario runner slices per-run
   # windows out of this file by byte offset. Generous rotation so a serial run never rotates mid-flight.
@@ -198,41 +208,27 @@ exporters:
     rotation:
       max_megabytes: 128
       max_backups: 2
-  # OpenObserve (native, :5080). OTLP HTTP ingest under /api/<org>; the otlphttp
-  # exporter appends /v1/{traces,metrics,logs}. Basic-auth is injected from the
-  # Keychain at boot by `otel-collector serve` (env ZDOTS_O2_OTLP_AUTH) so the
-  # credential never lands in this file or the launchd plist. Default empty keeps
-  # `otel-collector validate` working without the env set.
-  otlp_http/openobserve:
-    endpoint: "http://127.0.0.1:5080/api/default"
-    headers:
-      Authorization: "${env:ZDOTS_O2_OTLP_AUTH:-}"
-      stream-name: "default"
-    retry_on_failure:
-      enabled: true
-    sending_queue:
-      enabled: true
 
 service:
   telemetry:
     logs:
       level: warn
   pipelines:
-    # Traces from apps → spanmetrics connector → OpenObserve
+    # Traces from apps → spanmetrics connector → rotated local file
     traces:
       receivers: [otlp]
       processors: [resourcedetection, batch]
-      exporters: [debug, file, otlp_http/openobserve, spanmetrics]
-    # Metrics from apps + host + containers + spanmetrics
+      exporters: [debug, file, spanmetrics]
+    # Metrics from apps + host + spanmetrics → rotated local file
     metrics:
       receivers: [otlp, hostmetrics, spanmetrics]
       processors: [resourcedetection, batch]
-      exporters: [debug, otlp_http/openobserve]
-    # Logs from apps + log files
+      exporters: [debug, file/metrics]
+    # Logs from apps + log files → rotated local file
     logs:
       receivers: [otlp, filelog/app]
       processors: [resource/applogs, resourcedetection, batch]
-      exporters: [debug, otlp_http/openobserve]
+      exporters: [debug, file/logs]
     # Raw diagnostic taps — same receivers as the live trio, batch only (no phi), raw → file/diag.
     # The /diag suffix dodges the phi-compiler's name=="traces"/"logs" injection gates. Task 2
     # also exempts these from the otherwise-unconditional redaction/phi. O2 path is untouched.

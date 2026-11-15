@@ -138,7 +138,7 @@ _svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.lo
 _svc_reg "status|zdots-statusd|com.zdots.statusd|${_SVC_REG_STATE}/zdots-statusd.log|zdots-statusd-ctl|http://${_st_host}:${ZDOTS_STATUS_PORT:-11600}|launchd|1|statusd statusd-ctl control-plane dashboard|install|start|stop|restart|status|health|logs||zdots_probe_status|registered|services"
 _svc_reg "gemstash|gemstash|com.zdots.gemstash|${_SVC_REG_STATE}/gemstash.log|gemstash-ctl|http://${_gs_host}:${ZDOTS_GEMSTASH_PORT:-9292}|launchd|1|gems gem-cache rubygems gem-proxy|install|start|stop|restart|status|health|logs||zdots_probe_gemstash|registered|services"
 # Health-only platform services (not zsvc lifecycle-managed):
-_svc_reg "ctx|context-engine|||zdots-ctx|postgres|derived|0|intelligence|||||||||zdots_probe_ctx|required|core"
+_svc_reg "ctx|zdots-ctx|||zdots-ctx|postgres|derived|0|intelligence|||||||||zdots_probe_ctx|required|core"
 
 unset _ai_host _embed_host _otel_host _o2_host _st_host _gs_host _rd_host _pg_ver
 

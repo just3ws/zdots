@@ -41,7 +41,7 @@ declare -A LABEL=(
   [o2.localhost]="OpenObserve (logs/metrics/traces)"
   [zdots.localhost]="Observable Control Plane status console"
   [gemstash.localhost]="RubyGems caching proxy"
-  [my.localhost]="context-engine (prod)"
+  [my.localhost]="Knowledge Layer (retired/local)"
   [hister.localhost]="Hister personal search engine"
   [just3ws.localhost]="just3ws portfolio & oral history archive"
 )

@@ -219,8 +219,8 @@ pgrep -f 'zdots-brain worker' >/dev/null 2>&1 && worker_running=1
 colima_running=0
 [[ -S "$HOME/.colima/default/docker.sock" || -S "$HOME/.config/colima/default/docker.sock" ]] && colima_running=1
 
-o2_running=0
-pgrep -f 'openobserve' >/dev/null 2>&1 && o2_running=1
+otel_running=0
+pgrep -f 'otelcol-contrib' >/dev/null 2>&1 && otel_running=1
 
 # ── 4. Menu Bar Title (Iconography & Status) ──────────────────────────────────
 # Format: <Platform Glyph> <Transcription Glyph> [<Elapsed/Target>]
@@ -275,7 +275,7 @@ echo "-- 🤖 AI Inference (11500): $([[ $ai_running -eq 1 ]] && echo 'Online' |
 echo "-- 🧠 Embeddings Engine (11501): $([[ $embed_running -eq 1 ]] && echo 'Online' || echo 'Standby') | color=$([[ $embed_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/llama-ctl param0=status terminal=true"
 echo "-- ⚙️ Async Pipeline Worker: $([[ $worker_running -eq 1 ]] && echo 'Running' || echo 'Stopped') | color=$([[ $worker_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/zsvc param0=status param1=worker terminal=true"
 echo "-- 🐳 Colima Container Engine: $([[ $colima_running -eq 1 ]] && echo 'Active' || echo 'Offline') | color=$([[ $colima_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/colima-status terminal=true"
-echo "-- 📊 Observability (OpenObserve): $([[ $o2_running -eq 1 ]] && echo 'Active' || echo 'Offline') | color=$([[ $o2_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/openobserve-ctl param0=status terminal=true"
+echo "-- 📊 Telemetry Collector (4318): $([[ $otel_running -eq 1 ]] && echo 'Active' || echo 'Offline') | color=$([[ $otel_running -eq 1 ]] && echo 'green' || echo 'gray') bash=${ZDOTDIR}/bin/otel-collector param0=status terminal=true"
 echo "---"
 
 # ── 7. Dropdown: Platform Doctor & Health ─────────────────────────────────────

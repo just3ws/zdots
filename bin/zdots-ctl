@@ -222,8 +222,6 @@ cmd_install() {
   "$BIN/llama-ctl" install
   _info "installing embed server..."
   "$BIN/llama-ctl" install-embed
-  _info "installing OpenObserve..."
-  "$BIN/openobserve-ctl" install
   _info "installing otel-collector..."
   "$BIN/otel-collector" install
   _info "installing worker..."

@@ -1,14 +1,10 @@
 #!/usr/bin/env zsh
-# bin/local-ci — Colima maintenance + local CI (act).
+# bin/local-ci — Bare-metal platform CI + optional Colima/act runner.
 #
-# Observability runs natively on otel-collector + OpenObserve (`zsvc o2`,
-# `openobserve-ctl`; see docs/openobserve.md). The containerized LGTM stack
-# (Grafana/Loki/Tempo/Mimir) it once managed is fully removed (Z-134).
-#
-# Colima provides the container runtime (managed by `zsvc colima`); this tool
-# is its maintenance surface plus the `act` GitHub-Actions runner.
+# Observability runs natively on otel-collector → rotated local JSON files.
 #
 # GRAMMAR:
+#   platform — run bare-metal local CI across platform repos (no Docker)
 #   prune    — reclaim Docker space (dry-run first; -f to execute)
 #   rebuild  — delete and recreate the Colima VM (destructive)
 #   run      — run GitHub Actions locally via act
@@ -60,6 +56,7 @@ Maintenance:
   rebuild   Delete and recreate the Colima VM — DESTRUCTIVE
 
 CI:
+  platform    Run bare-metal local CI across platform repos (no Docker)
   run [args]  Run GitHub Actions locally via act
 
 Options:
@@ -70,7 +67,7 @@ Environment:
   ZDOTS_CI_MEMORY  RAM in GB         (default: 4)
   ZDOTS_CI_DISK    Disk in GB        (default: 60)
 
-Observability is native (otel-collector + OpenObserve): use 'zsvc o2'.
+Observability is native (otel-collector -> rotated local JSON files).
 EOF
 }
 
@@ -122,11 +119,36 @@ cmd_run() {
     "$@"
 }
 
+cmd_platform() {
+  zdots_cli_wants_help "${1:-}" && { usage; exit 0; }
+  local rc=0
+  local -a checks=(
+    "$HOME/.config/zsh:bin/secret-scan && bats tests/docs_contract.bats tests/svc_registry.bats tests/agent_guide.bats"
+    "$HOME/my:./bin/check"
+    "$HOME/.config/nvim:./test/lint.sh && ./test/run.sh"
+    "$HOME/github.com/just3ws/ztranscribe:bats tests/ztranscribe.bats"
+    "$HOME/github.com/just3ws/just3ws.github.io:bundle exec rspec"
+  )
+  local entry dir cmd
+  for entry in "${checks[@]}"; do
+    dir="${entry%%:*}"
+    cmd="${entry#*:}"
+    [[ -d "$dir" ]] || continue
+    _info "checking $(basename "$dir")..."
+    if ! (cd "$dir" && eval "$cmd"); then
+      _info "FAIL: $(basename "$dir")"
+      rc=1
+    fi
+  done
+  return "$rc"
+}
+
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
 
 case "${1:-}" in
+  platform)     shift; cmd_platform "$@" ;;
   prune)        shift; cmd_prune "$@" ;;
   rebuild)      shift; cmd_rebuild "$@" ;;
   run)          shift; cmd_run "$@" ;;
