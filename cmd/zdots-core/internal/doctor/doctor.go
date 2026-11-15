@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctl"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/logs"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
@@ -965,8 +966,7 @@ func checkRuntime(cfg envConfig) *sectionResult {
 		s.skip("skipped  (--no-runtime)")
 		return s
 	}
-	ctlBin := filepath.Join(cfg.binDir, "zdots-ctl")
-	out, rc := runCmdOut(15*time.Second, ctlBin, "check")
+	out, rc := ctl.CheckText(cfg.zdotdir)
 	s.raw(out)
 	s.runtimeRC = rc
 	warnRe := regexp.MustCompile(`([0-9]+) warning`)
