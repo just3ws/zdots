@@ -776,3 +776,19 @@ Before finalizing the report, the agent must run the zdots secret scanner to ens
 
 ### Step 10.3: Operator Presentation
 Present the summary of `$REPORT_FILE` directly in the session so the operator can inspect the deltas before signing off.
+
+---
+
+## Ongoing Updates (Migrating Forward)
+
+Once a work host is onboarded, pull upstream `zdots` updates without re-running `bin/bootstrap`:
+
+```zsh
+git -C ~/.config/zsh pull --ff-only
+make -C ~/.config/zsh update-local   # runs zdots-update-local
+exec zsh
+```
+
+- **`git pull --ff-only`:** Keeps fast-forward history intact (preserving signed upstream commits) and avoids unexpected merge commits on the work host.
+- **`zdots-update-local`:** Reconciles machine-local generated state (completion dumps, `.zwc` caches, tooling index) without touching corporate `~/.ssh`, `~/.gitconfig`, or `.zdots.local`.
+- **`exec zsh`:** Reloads `fpath` ordering, `functions/enabled/*` autoloads (such as the `zdots` TTY `cd` wrapper), and refreshed completions in the active shell.

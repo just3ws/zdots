@@ -83,6 +83,10 @@ Complete the PHI checklist in [SETUP.md](../SETUP.md) and verify the actual
 machine before using work data. Repository tests do not verify a new host's
 FileVault, SIP, Keychain, network, or employer policy.
 
+To pull upstream `zdots` updates on an already-onboarded work host without
+re-running `bin/bootstrap`, see the [Ongoing Updates](work-migration-playbook.md#ongoing-updates-migrating-forward)
+section (`git -C ~/.config/zsh pull --ff-only && make -C ~/.config/zsh update-local && exec zsh`).
+
 ## Gaps to resolve before calling onboarding ready
 
 - **Managed home files:** bootstrap needs a reviewed selective/skip restore
