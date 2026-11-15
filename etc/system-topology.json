@@ -164,9 +164,7 @@
       "health_url": "http://127.0.0.1:7010/up",
       "description": "Knowledge Layer interface, service health, Panoramic View, and diagnostic workflows.",
       "hosts": [
-        "my.localhost",
-        "my.local",
-        "dev.my.local"
+        "my.localhost"
       ],
       "lan_alias_candidates": [
         "my.lan.just3ws.com"
@@ -177,12 +175,6 @@
           "target": "127.0.0.1:7010",
           "host": "my.localhost",
           "note": "Context Engine / Rails routes including /panoramic and /platform"
-        },
-        {
-          "path": "/",
-          "target": "unix:/tmp/my_dev.sock",
-          "host": "dev.my.local",
-          "note": "Legacy development cockpit"
         }
       ]
     },

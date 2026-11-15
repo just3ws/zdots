@@ -29,8 +29,6 @@ changes to it must be reconciled with those owners and validated through
 | `lan.just3ws.com` | Trusted-LAN System Atlas; root opens `/map`, only `/map` and `/map.json` are served | statusd :11600, sanitized routes only | Active |
 | `gemstash.localhost` | RubyGems cache / zdots | Gemstash :9292 | Candidate `gemstash.lan.just3ws.com`; not routed yet |
 | `my.localhost` | Knowledge Layer console / my | context-engine :7010; Rails routes include `/panoramic` and `/platform` | Candidate `my.lan.just3ws.com`; not routed yet |
-| `my.local` | Legacy context-engine alias | Redirects to `my.localhost`; currently responds | Local alias only |
-| `dev.my.local` | Legacy context-engine development hostname | `/` to `/tmp/my_dev.sock` in `my.conf`; currently unreachable (`000`, no `/etc/hosts` or mDNS entry) | Local alias only |
 | `wwworkremote.localhost`, `wwwr.localhost` | WWWorkRemote project aliases | `/` → Rails app :31000 | Active project-owned `lan.wwworkremote.com` |
 | `media-pipeline.localhost`, `pipeline.localhost` | media-pipeline project aliases | `/`, `/live/`, `/cable` → media-pipeline :32000 | Active `media-pipeline.lan.just3ws.com`; `pipeline.lan.just3ws.com` is a candidate |
 | `hister.localhost`, `www.hister.localhost` | Hister search / project | `/` static UI; search/API routes → Hister :4433 | Candidate `hister.lan.just3ws.com`; not routed yet |
@@ -113,13 +111,12 @@ nginx-ctl validate        # sudo nginx -t
 
 | Host / boundary | Current evidence | Next decision |
 |---|---|---|
-| `dev.my.local` | Still present in the tracked context-engine source and deployed nginx config; `zdots-endpoints` reports 502 because `/tmp/my_dev.sock` has no healthy upstream | Retire the stale vhost and its certificate name, or restore a real dev cockpit. No change made here |
+| `my.local`, `dev.my.local` | Retired (`*.local` deprecated in favor of `*.localhost`); removed from `my.conf` | Run `nginx-regen-certs --prune` to drop from TLS cert SANs |
 | `wwworkremote.localhost`, `wwwr.localhost` | Both return 502 while the optional local Rails app is stopped | Expected for an on-demand project; start its native app when needed. Do not treat this as a zdots platform outage |
 | `play.phalanxduel.localhost`, `admin.phalanxduel.localhost` | Both return 502 while local game/admin development servers are stopped | Expected for on-demand project development; production deploy is independent and uses Fly's remote build path |
 | `media-pipeline.localhost` | Endpoint probe reaches the app but reports its mkcert certificate as untrusted | Check local CA trust with `mkcert -install` if browsers reject the route; no trust-store change was made |
 | `media-pipeline.lan.just3ws.com` | LAN DNS, trusted TLS certificate, Nginx vhost, and Rails host allowlist are active; `/up` returns 200 from `10.36.1.149` | Keep the DNS record pointed at the Mac's current LAN address and confirm `/up` after host or certificate changes |
 | `lan.just3ws.com` | Active on this Mac; `/` redirects to `/map`, `/map.json` returns a sanitized snapshot, and `/docs` returns 404 | Verify DNS and certificate trust from each LAN client |
-| `my.local` | Redirects to the healthy `my.localhost` cockpit | Keep as a compatibility alias or retire it with a coordinated config/certificate update |
 | `grafana.local`, `lgtm.local` | `/etc/hosts` still maps both to 127.0.0.1, but neither has an nginx vhost; Z-134 retired the services | Remove the stale mappings via privileged host-config maintenance; Z-356 tracks this. No change made here |
 | Deployed nginx files | Each project owns its source; nginx serves copies under `/opt/homebrew/etc/nginx/servers/` | After a source change, sync/validate and reload through `zsvc reload nginx`; root lifecycle needs sudo |
 | Retired certificate names | `nginx-regen-certs --dry-run --prune` reports three removable SANs; the current shared certificate still contains them | Review the dry-run and apply `nginx-regen-certs --prune` when ready |
