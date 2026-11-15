@@ -11,6 +11,7 @@ import (
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/doctor"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/llamacaps"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/logs"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/o2query"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/status"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/statusd"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
@@ -30,6 +31,7 @@ Applets:
   zdots-ctl       Zdots platform orchestrator and health checker
   zdots-doctor    System health check ("brew doctor" for zdots)
   zdots-logs      Centralized log operations for all zdots-managed services
+  zdots-o2-query  Read-only OpenObserve log and trace query tool
   zdots-status    Live TUI dashboard for Zdots platform health
   zdots-statusd   Loopback HTTP control-plane console (127.0.0.1:11600)
   zdots-storage   Multi-bucket system storage monitoring & budget attestation
@@ -55,6 +57,8 @@ func main() {
 		os.Exit(doctor.Run(os.Args[1:]))
 	case "zdots-logs":
 		os.Exit(logs.Run(os.Args[1:]))
+	case "zdots-o2-query":
+		os.Exit(o2query.Run(os.Args[1:]))
 	case "zdots-status":
 		os.Exit(status.Run(os.Args[1:]))
 	case "zdots-statusd":
@@ -84,6 +88,8 @@ func main() {
 			os.Exit(doctor.Run(os.Args[2:]))
 		case "zdots-logs":
 			os.Exit(logs.Run(os.Args[2:]))
+		case "zdots-o2-query":
+			os.Exit(o2query.Run(os.Args[2:]))
 		case "zdots-status":
 			os.Exit(status.Run(os.Args[2:]))
 		case "zdots-statusd":
