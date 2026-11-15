@@ -104,20 +104,20 @@ module RubyAudit
     def lockfile_gems
       @lockfile_gems ||= begin
         f = root / "Gemfile.lock"
-        next nil unless f.exist?
+        if f.exist?
+          gems = {}
+          in_specs = false
+          f.each_line do |line|
+            in_specs = true  if ["GEM", "specs:"].include?(line.strip)
+            in_specs = false if in_specs && line =~ /\A[A-Z]/ && line.strip != "specs:"
+            next unless in_specs
 
-        gems = {}
-        in_specs = false
-        f.each_line do |line|
-          in_specs = true  if ["GEM", "specs:"].include?(line.strip)
-          in_specs = false if in_specs && line =~ /\A[A-Z]/ && line.strip != "specs:"
-          next unless in_specs
-
-          if line =~ /^\s{4}(\S+)\s+\(([\d.]+)\)/
-            gems[Regexp.last_match(1)] = Regexp.last_match(2)
+            if line =~ /^\s{4}(\S+)\s+\(([\d.]+)\)/
+              gems[Regexp.last_match(1)] = Regexp.last_match(2)
+            end
           end
+          gems
         end
-        gems
       end
     end
   end
