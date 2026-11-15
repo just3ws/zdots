@@ -792,3 +792,16 @@ exec zsh
 - **`git pull --ff-only`:** Keeps fast-forward history intact (preserving signed upstream commits) and avoids unexpected merge commits on the work host.
 - **`zdots-update-local`:** Reconciles machine-local generated state (completion dumps, `.zwc` caches, tooling index) without touching corporate `~/.ssh`, `~/.gitconfig`, or `.zdots.local`.
 - **`exec zsh`:** Reloads `fpath` ordering, `functions/enabled/*` autoloads (such as the `zdots` TTY `cd` wrapper), and refreshed completions in the active shell.
+
+### Go Toolchain & Compiled Binaries (`bin/` & `cmd/`)
+
+- **Zero-runtime adoption:** Prebuilt `darwin/arm64` binaries (`bin/zdots-core`, `bin/zdots-phi-scrub`, `bin/zdots-buffer-drain`, `bin/zdots-secret-scan`) and multicall symlinks (`bin/capabilities -> zdots-core`, `bin/zdots-storage -> zdots-core`) are tracked in `bin/`, so `git pull --ff-only` activates them immediately on Apple Silicon Macs with no Go runtime required.
+- **Toolchain precedence (`mise` over Homebrew):** `mise.toml` pins `go = "1.26.3"` and `GOPATH = "{{env.HOME}}/go"`, taking precedence over `brew "go"` in `Brewfile.common`. During Phase 3 (`mise` reconciliation), preserve the `go` pin in `mise.toml` alongside any employer-required Go version in project `.mise.toml` / `.tool-versions`.
+- **Rebuilding from source (if required by architecture or corporate policy):**
+  - `cmd/zdots-core` uses only the Go standard library (zero external module fetches, builds offline/behind corporate proxies):
+    ```zsh
+    go build -C ~/.config/zsh/cmd/zdots-core -ldflags="-s -w" -o ../../bin/zdots-core .
+    ln -sf zdots-core ~/.config/zsh/bin/capabilities
+    ln -sf zdots-core ~/.config/zsh/bin/zdots-storage
+    ```
+  - Standalone modules (`cmd/zdots-phi-scrub`, `cmd/zdots-buffer-drain`, `cmd/zdots-secret-scan`) can be tested/rebuilt from their respective `cmd/<name>` directories (`go test ./... && go build -ldflags="-s -w" -o ../../bin/<name> .`).
