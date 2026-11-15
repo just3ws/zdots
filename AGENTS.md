@@ -207,6 +207,10 @@ When operating on a work machine, keep personal open-source repos (`zdots`, `ado
 
 **Rule:** Always proxy high-output commands through `rtk`.
 
+- **Automatic hook layer:** `~/.gemini/hooks/rtk-hook-gemini.sh` (`rtk hook gemini`) rewrites supported commands (`git`, `rg`, `grep`, `ls`, `docker`, `rspec`, etc.) before execution, and `~/.gemini/hooks/rtk-summary-gemini.sh` wraps single high-output platform checks (`bats`, `bin/check`, `zdots-doctor`, `zdots-ctl status`) in `rtk summary`.
+- **Explicit proxy:** Prefix compound chains (`&&`, `|`), `tokei`, and any other noisy/custom commands with `rtk` (`rtk summary --shell zsh '...'`, `rtk tokei`) directly so intent is explicit and hook gaps are covered.
+- **Escape hatch:** Use `rtk bypass <cmd>` only when condensed output hides required detail (empty, garbled, or contradicting exit code).
+
 | Workflow | Patterns |
 |---|---|
 | **Git** | `rtk git status`, `rtk git diff`, `rtk git log` |
