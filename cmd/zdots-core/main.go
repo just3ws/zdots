@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/capabilities"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/status"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
 )
 
@@ -17,6 +18,7 @@ Invoke via symlink (e.g. capabilities) or directly as: zdots-core <applet>.
 
 Applets:
   capabilities    Environment health and service contract validator
+  zdots-status    Live TUI dashboard for Zdots platform health
   zdots-storage   Multi-bucket system storage monitoring & budget attestation
 
 Options:
@@ -29,6 +31,8 @@ func main() {
 	switch invoked {
 	case "capabilities":
 		os.Exit(capabilities.Run(os.Args[1:]))
+	case "zdots-status":
+		os.Exit(status.Run(os.Args[1:]))
 	case "zdots-storage":
 		os.Exit(storage.Run(os.Args[1:]))
 	default:
@@ -42,6 +46,8 @@ func main() {
 			os.Exit(0)
 		case "capabilities":
 			os.Exit(capabilities.Run(os.Args[2:]))
+		case "zdots-status":
+			os.Exit(status.Run(os.Args[2:]))
 		case "zdots-storage":
 			os.Exit(storage.Run(os.Args[2:]))
 		default:
