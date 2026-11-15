@@ -95,6 +95,7 @@ func Run(args []string) int {
 		myPlatformVersion = "unknown"
 		diskAvail         = "unknown"
 		o2Live            = 0
+		jaegerLive        = 0
 		aiLive            = 0
 		ctxLive           = 0
 		ctxDB             = "unknown"
@@ -145,13 +146,21 @@ func Run(args []string) int {
 		}
 	}()
 
-	// 3. OpenObserve /healthz
+	// 3. OpenObserve /healthz (legacy) & Jaeger UI /
 	o2URL := getEnv("ZDOTS_O2_ENDPOINT", fmt.Sprintf("http://%s:%s", getEnv("ZDOTS_O2_HOST", "127.0.0.1"), getEnv("ZDOTS_O2_PORT", "5080")))
+	jaegerURL := getEnv("ZDOTS_JAEGER_ENDPOINT", fmt.Sprintf("http://%s:%s", getEnv("ZDOTS_JAEGER_HOST", "127.0.0.1"), getEnv("ZDOTS_JAEGER_UI_PORT", "16686")))
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if httpOK(o2URL+"/healthz", 2*time.Second) {
 			o2Live = 1
+		}
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if httpOK(jaegerURL+"/", 2*time.Second) {
+			jaegerLive = 1
 		}
 	}()
 
@@ -397,10 +406,10 @@ func Run(args []string) int {
 		} else {
 			fmt.Printf("  %sTrace File:%s   %s [%smissing%s]\n", cyan, reset, traceFile, yellow, reset)
 		}
-		if o2Live == 1 {
-			fmt.Printf("  %sOpenObserve:%s   %sonline%s (%s)\n", cyan, reset, green, reset, o2URL)
+		if jaegerLive == 1 {
+			fmt.Printf("  %sJaeger:%s        %sonline%s (%s)\n", cyan, reset, green, reset, jaegerURL)
 		} else {
-			fmt.Printf("  %sOpenObserve:%s   %soffline%s\n", cyan, reset, yellow, reset)
+			fmt.Printf("  %sJaeger:%s        %soffline%s\n", cyan, reset, yellow, reset)
 		}
 		if serviceAI != "" && serviceAI != "none" {
 			fmt.Printf("  %sAI Service:%s    %s [model: %s]\n", cyan, reset, serviceAI, getEnv("ZDOTS_AI_MODEL", "unknown"))
@@ -472,6 +481,7 @@ func Run(args []string) int {
 				TraceFile:           traceFile,
 				LastTrace:           lastTraceTS,
 				LastTraceAgeSeconds: traceAgeSeconds,
+				Jaeger:              jaegerLive,
 				OpenObserve:         o2Live,
 			},
 			Diagnostics: diagInfo{
@@ -571,6 +581,7 @@ type obsInfo struct {
 	TraceFile           string `json:"trace_file"`
 	LastTrace           string `json:"last_trace"`
 	LastTraceAgeSeconds string `json:"last_trace_age_seconds"`
+	Jaeger              int    `json:"jaeger"`
 	OpenObserve         int    `json:"openobserve"`
 }
 

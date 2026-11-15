@@ -59,6 +59,7 @@ func Run(args []string) int {
 	aiEndpoint := envOr("ZDOTS_AI_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_AI_HOST", "127.0.0.1"), envOr("ZDOTS_AI_PORT", "11500")))
 	otelEndpoint := envOr("ZDOTS_OTLP_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_OTEL_HOST", "127.0.0.1"), envOr("ZDOTS_OTEL_HTTP_PORT", "4318")))
 	o2URL := envOr("ZDOTS_O2_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_O2_HOST", "127.0.0.1"), envOr("ZDOTS_O2_PORT", "5080")))
+	jaegerURL := envOr("ZDOTS_JAEGER_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_JAEGER_HOST", "127.0.0.1"), envOr("ZDOTS_JAEGER_UI_PORT", "16686")))
 	statusURL := fmt.Sprintf("http://%s:%s", envOr("ZDOTS_STATUS_HOST", "127.0.0.1"), envOr("ZDOTS_STATUS_PORT", "11600"))
 
 	platformVersion := readTrimmedOr(filepath.Join(zdotdir, "VERSION"), "unknown")
@@ -70,6 +71,7 @@ func Run(args []string) int {
 		aiModelID         = "unknown"
 		otelUp            = false
 		o2Up              = false
+		jaegerUp          = false
 		colimaUp          = false
 		whisperUp         = false
 		fabricUp          = false
@@ -122,6 +124,10 @@ func Run(args []string) int {
 		if st.O2URL != "" {
 			o2URL = st.O2URL
 		}
+		jaegerUp = st.Jaeger
+		if st.JaegerURL != "" {
+			jaegerURL = st.JaegerURL
+		}
 		colimaUp = st.Colima
 		if colimaUp && !jsonMode {
 			colimaSock = strings.TrimSpace(string(runCmd(2*time.Second, "colima-status", "socket")))
@@ -164,6 +170,7 @@ func Run(args []string) int {
 				FabricAI:    simpleService{Up: fabricUp, Start: "brew install fabric-ai"},
 				OTelCol:     endpointService{Up: otelUp, Endpoint: otelEndpoint, Start: "otel-collector start"},
 				Colima:      simpleService{Up: colimaUp, Start: "colima start"},
+				Jaeger:      o2Service{Up: jaegerUp, URL: jaegerURL, Start: "zsvc start jaeger"},
 				OpenObserve: o2Service{Up: o2Up, URL: o2URL, Start: "zsvc start o2"},
 			},
 			AI: aiBlock{
@@ -183,8 +190,8 @@ func Run(args []string) int {
 				OTLPHTTPEndpoint: otelEndpoint,
 				OTLPGRPCEndpoint: "grpc://127.0.0.1:4317",
 				Protocol:         "http/protobuf",
-				Backend:          "openobserve",
-				UIURL:            o2URL,
+				Backend:          "jaeger",
+				UIURL:            jaegerURL,
 			},
 			Env: envBlock{
 				ZDOTSDatabaseURL:         "postgresql://zdots_rw@/my",
@@ -271,17 +278,17 @@ func Run(args []string) int {
 		_ = enc.Encode(payload)
 		rootSpan.SetAttr("ai_up", aiUp)
 		rootSpan.SetAttr("otel_up", otelUp)
-		rootSpan.SetAttr("o2_up", o2Up)
+		rootSpan.SetAttr("jaeger_up", jaegerUp)
 		rootSpan.SetAttr("colima_up", colimaUp)
 		rootSpan.End(true, "")
 		tr.Flush(250 * time.Millisecond)
 		return 0
 	}
 
-	printHuman(platformVersion, myPlatformVersion, myContract, logDir, aiUp, aiModelID, aiEndpoint, otelUp, otelEndpoint, colimaUp, colimaSock, o2Up, o2URL, fabricUp)
+	printHuman(platformVersion, myPlatformVersion, myContract, logDir, aiUp, aiModelID, aiEndpoint, otelUp, otelEndpoint, colimaUp, colimaSock, jaegerUp, jaegerURL, fabricUp)
 	rootSpan.SetAttr("ai_up", aiUp)
 	rootSpan.SetAttr("otel_up", otelUp)
-	rootSpan.SetAttr("o2_up", o2Up)
+	rootSpan.SetAttr("jaeger_up", jaegerUp)
 	rootSpan.SetAttr("colima_up", colimaUp)
 	rootSpan.End(true, "")
 	tr.Flush(250 * time.Millisecond)
@@ -316,6 +323,7 @@ type servicesBlock struct {
 	FabricAI    simpleService   `json:"fabric_ai"`
 	OTelCol     endpointService `json:"otelcol"`
 	Colima      simpleService   `json:"colima"`
+	Jaeger      o2Service       `json:"jaeger"`
 	OpenObserve o2Service       `json:"openobserve"`
 }
 
@@ -448,7 +456,7 @@ func printHuman(
 	aiUp bool, aiModelID, aiEndpoint string,
 	otelUp bool, otelEndpoint string,
 	colimaUp bool, colimaSock string,
-	o2Up bool, o2URL string,
+	jaegerUp bool, jaegerURL string,
 	fabricUp bool,
 ) {
 	fmt.Print(bold("=== Zdots Agent Guide ==="))
@@ -570,12 +578,12 @@ the collector or OpenObserve are down.
 	} else {
 		fmt.Printf("%s\n", down("Colima (container runtime)"))
 	}
-	if o2Up {
-		fmt.Printf("%s  %s\n", ok("OpenObserve (logs/metrics/traces)"), o2URL)
+	if jaegerUp {
+		fmt.Printf("%s  %s\n", ok("Jaeger (distributed traces)"), jaegerURL)
 	} else {
-		fmt.Printf("%s\n", down("OpenObserve (logs/metrics/traces)"))
+		fmt.Printf("%s\n", down("Jaeger (distributed traces)"))
 	}
-	if !aiUp || !otelUp || !o2Up {
+	if !aiUp || !otelUp || !jaegerUp {
 		fmt.Println("\n  To bring everything up: zdots-ctl up")
 	}
 
@@ -714,21 +722,19 @@ instead of hand-rolling direct-LLM calls. Add a profile by dropping a prompt
 at etc/prompts/jobs/transform/<name>.txt — no code change needed.
 `)
 
-	head("Observability — OTel + OpenObserve")
+	head("Observability — OTel + Jaeger + Rotated JSON Files")
 	fmt.Printf(`Architecture:
   Your app → OTLP (http/protobuf :4318 or gRPC :4317)
-           → otelcol-contrib (host, native)
-           → OpenObserve (native binary, :5080)
-           → UI / logs / metrics / traces at %s
+           → otelcol-contrib (host, native, PHI-scrubbed at ingest)
+           → rotated local JSON files + Jaeger (%s)
 
 CONNECT YOUR APP — set these env vars:
   export OTEL_EXPORTER_OTLP_ENDPOINT="%s"
   export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
 
-OPENOBSERVE:  %s  (login: root@zdots.local, password in Keychain)
-  - Traces → OpenObserve
-  - Logs   → OpenObserve
-  - Metrics → OpenObserve (includes RED metrics auto-derived from traces)
+JAEGER UI:  %s
+  - Traces → Jaeger (:16686 / https://jaeger.localhost)
+  - Logs/Metrics → rotated local OTel files in ~/.local/state/zsh/
 
 VERIFY CONNECTIVITY:
   curl -sf %s/v1/traces \
@@ -742,21 +748,17 @@ COLLECTOR MANAGEMENT:
   otel-collector stop             stop host collector
   otel-collector restart          restart (picks up config changes)
   otel-collector health           exits 0=up, 1=down
-  otel-collector health --json    same, as JSON
   otel-collector validate         validate etc/otel-collector.yaml
   otel-collector logs             tail collector log
   otel-collector install          first-time: install otelcol-contrib binary
 
-OBSERVABILITY MANAGEMENT (OpenObserve, native):
-  zsvc start o2                   start OpenObserve
-  zsvc stop o2                    stop it
-  zsvc status o2                  state + health
-  zsvc logs o2                    tail the log
-  openobserve-ctl reinit          wipe + recreate root from Keychain
+JAEGER MANAGEMENT (native):
+  zsvc start jaeger               start Jaeger
+  zsvc stop jaeger                stop it
+  zsvc status jaeger              state + health
+  zsvc logs jaeger                tail the log
   otel-smoke --verify             emit a test batch and confirm it landed
-
-Full guide: docs/openobserve.md
-`, o2URL, otelEndpoint, o2URL, otelEndpoint)
+`, jaegerURL, otelEndpoint, jaegerURL, otelEndpoint)
 
 	head("Filesystem Doctrine — The Idiot Test")
 	fmt.Print(`This machine survived a near-total home-directory wipe on 2026-05-25 when an
