@@ -20,6 +20,7 @@ zdots_ai_init() {
   # Non-blocking boot-time health check. We do NOT block startup — set a
   # flag in the background so the first explicit `ai` call does a live check.
   export _ZDOTS_AI_SERVER_UP=0
+  [[ -n "${ZSH_VERSION:-}" ]] && setopt localoptions nomonitor nonotify
   (
     if curl -sf -m 2 "$ZDOTS_AI_ENDPOINT/health" >/dev/null 2>&1; then
       # Write result to a temp file; parent shell picks it up on next `ai` call.

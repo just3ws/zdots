@@ -107,6 +107,7 @@ _zdots_trace_send_otlp() {
 
   # Send asynchronously (background). `& disown`, not `&!`: bash sources this
   # file too (env.sh via ~/.bashrc) and cannot parse the zsh-only form.
+  [[ -n "${ZSH_VERSION:-}" ]] && setopt localoptions nomonitor nonotify
   command curl -s -X POST -H "Content-Type: application/json" \
     -d "$payload" "$OTEL_EXPORTER_OTLP_ENDPOINT/v1/traces" >/dev/null 2>&1 & disown
 }

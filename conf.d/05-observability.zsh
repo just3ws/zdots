@@ -28,6 +28,7 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
   # Hook: Command Result (Post-execution: Error Tracing + Cognitive Load)
   _zdots_trace_precmd() {
     local last_status=$?
+    setopt localoptions nomonitor nonotify
     export ZDOTS_LAST_EXIT="$last_status"
 
     # 1. Error Tracing
@@ -90,15 +91,18 @@ if [[ -n "$(command -v zdots_trace_init)" ]]; then
     # $OSTYPE is a Zsh built-in — no fork needed for OS name.
     local _os_name="${OSTYPE%%[0-9.]*}"
 
-    (
-      OTEL_SERVICE_NAME="$OTEL_SERVICE_NAME" \
-      OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4317" \
-      otel-cli span \
-        --name "shell.heartbeat" \
-        --attrs "profile=${ZDOTS_ENV_PROFILE:-unknown},os=${_os_name},sys.load_avg=$load_avg" \
-        --force-trace-id "$ZDOTS_TRACE_ID" \
-        --force-span-id "$ZDOTS_SPAN_ID" \
-        >/dev/null 2>&1
-    ) &!
+    () {
+      setopt localoptions nomonitor nonotify
+      (
+        OTEL_SERVICE_NAME="$OTEL_SERVICE_NAME" \
+        OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4317" \
+        otel-cli span \
+          --name "shell.heartbeat" \
+          --attrs "profile=${ZDOTS_ENV_PROFILE:-unknown},os=${_os_name},sys.load_avg=$load_avg" \
+          --force-trace-id "$ZDOTS_TRACE_ID" \
+          --force-span-id "$ZDOTS_SPAN_ID" \
+          >/dev/null 2>&1
+      ) &!
+    }
   fi
 fi

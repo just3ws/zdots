@@ -150,11 +150,14 @@ _zca_precmd() {
     args_esc="$(_zca_sql_esc "$args")"
     profile_esc="$(_zca_sql_esc "$profile")"
 
-    (
-      sqlite3 "$db" 2>/dev/null \
-        "INSERT OR IGNORE INTO command_runs(session_id,ts,cwd,cmd,args,exit_code,duration_ms,profile) \
-         VALUES('${session_esc}',${ts},'${cwd_esc}','${cmd_esc}','${args_esc}',${exit_code},${duration_ms},'${profile_esc}');"
-    ) &!
+    () {
+      setopt localoptions nomonitor nonotify
+      (
+        sqlite3 "$db" 2>/dev/null \
+          "INSERT OR IGNORE INTO command_runs(session_id,ts,cwd,cmd,args,exit_code,duration_ms,profile) \
+           VALUES('${session_esc}',${ts},'${cwd_esc}','${cmd_esc}','${args_esc}',${exit_code},${duration_ms},'${profile_esc}');"
+      ) &!
+    }
   fi
 
   _ZCA_CMD=""
