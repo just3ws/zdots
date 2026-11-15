@@ -1,13 +1,21 @@
 #!/usr/bin/env zsh
-# .githooks/pre-commit — fast gate: flag-audit only when bin/ is touched.
+# .githooks/pre-commit — fast staged gates (secret-scan, flag-audit, graph-audit).
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-# Skip unless a staged path lives under bin/ — keeps the common commit fast.
-if ! git diff --cached --name-only | grep -qE '^bin/'; then
-  exit 0
+staged="$(git diff --cached --name-only --diff-filter=ACM)"
+[[ -z "$staged" ]] && exit 0
+
+if [[ -x bin/secret-scan ]]; then
+  ./bin/secret-scan
 fi
 
-exec bats tests/flag_audit.bats
+if printf '%s\n' "$staged" | grep -qE '^bin/'; then
+  bats tests/flag_audit.bats
+fi
+
+if printf '%s\n' "$staged" | grep -qE '^lib/zdots/' && [[ -f graphify-out/graph.json ]]; then
+  ./bin/zdots-graph-audit --no-build
+fi
