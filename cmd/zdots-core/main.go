@@ -7,6 +7,7 @@ import (
 
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/agentguide"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/capabilities"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/doctor"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/status"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
 )
@@ -20,6 +21,7 @@ Invoke via symlink (e.g. capabilities) or directly as: zdots-core <applet>.
 Applets:
   agent-guide     Live service status and usage guidance for AI agents
   capabilities    Environment health and service contract validator
+  zdots-doctor    System health check ("brew doctor" for zdots)
   zdots-status    Live TUI dashboard for Zdots platform health
   zdots-storage   Multi-bucket system storage monitoring & budget attestation
 
@@ -35,6 +37,8 @@ func main() {
 		os.Exit(agentguide.Run(os.Args[1:]))
 	case "capabilities":
 		os.Exit(capabilities.Run(os.Args[1:]))
+	case "zdots-doctor":
+		os.Exit(doctor.Run(os.Args[1:]))
 	case "zdots-status":
 		os.Exit(status.Run(os.Args[1:]))
 	case "zdots-storage":
@@ -52,6 +56,8 @@ func main() {
 			os.Exit(agentguide.Run(os.Args[2:]))
 		case "capabilities":
 			os.Exit(capabilities.Run(os.Args[2:]))
+		case "zdots-doctor":
+			os.Exit(doctor.Run(os.Args[2:]))
 		case "zdots-status":
 			os.Exit(status.Run(os.Args[2:]))
 		case "zdots-storage":
