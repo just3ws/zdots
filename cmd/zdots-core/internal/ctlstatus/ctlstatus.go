@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
 
 // Status mirrors the JSON schema emitted by `zdots-ctl status --json`.
@@ -40,6 +42,18 @@ type Status struct {
 
 // Probe concurrently checks all platform services and returns the aggregate status.
 func Probe(zdotdir string) Status {
+	return ProbeWithTracer(zdotdir, nil, nil)
+}
+
+func startProbeSpan(tr *otel.Tracer, parent *otel.Span, name string) *otel.Span {
+	if tr == nil {
+		return nil
+	}
+	return tr.Start(name, parent)
+}
+
+// ProbeWithTracer concurrently checks all platform services while optionally recording child spans.
+func ProbeWithTracer(zdotdir string, tr *otel.Tracer, parent *otel.Span) Status {
 	aiEndpoint := envOr("ZDOTS_AI_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_AI_HOST", "127.0.0.1"), envOr("ZDOTS_AI_PORT", "11500")))
 	embedEndpoint := envOr("ZDOTS_AI_EMBED_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_EMBED_HOST", "127.0.0.1"), envOr("ZDOTS_EMBED_PORT", "11501")))
 	otlpEndpoint := envOr("ZDOTS_OTLP_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_OTEL_HOST", "127.0.0.1"), envOr("ZDOTS_OTEL_HTTP_PORT", "4318")))
@@ -66,6 +80,7 @@ func Probe(zdotdir string) Status {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.llama_http")
 		if httpOK(aiEndpoint+"/health", 2*time.Second) {
 			st.AIServer = true
 			st.AIHTTPHealthy = true
@@ -81,54 +96,69 @@ func Probe(zdotdir string) Status {
 				}
 			}
 		}
+		sp.SetAttr("healthy", st.AIServer)
+		sp.SetAttr("ai_model", st.AIModel)
+		sp.End(st.AIServer, "")
 	}()
 
 	// 2. llama.cpp loopback TCP socket listening
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.llama_tcp")
 		if addr := hostPortFromURL(aiEndpoint, "127.0.0.1:11500"); tcpOpen(addr, 500*time.Millisecond) {
 			st.AISocketListening = true
 		}
+		sp.End(st.AISocketListening, "")
 	}()
 
 	// 3. embed server HTTP health
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.embed")
 		st.EmbedServer = httpOK(embedEndpoint+"/health", 2*time.Second)
+		sp.End(st.EmbedServer, "")
 	}()
 
 	// 4. OpenObserve HTTP health
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.openobserve")
 		st.OpenObserve = httpOK(o2Endpoint+"/healthz", 2*time.Second)
+		sp.End(st.OpenObserve, "")
 	}()
 
 	// 5. otel-collector launchd
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.otel_launchd")
 		st.OTelCollector = launchdRunning("com.zdots.otel-collector")
+		sp.End(st.OTelCollector, "")
 	}()
 
 	// 6. worker launchd
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.worker_launchd")
 		st.Worker = launchdRunning("com.zdots.worker")
+		sp.End(st.Worker, "")
 	}()
 
 	// 7. Colima
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.colima")
 		colimaBin := filepath.Join(zdotdir, "bin", "colima-status")
 		if info, err := os.Stat(colimaBin); err == nil && !info.IsDir() && (info.Mode()&0o111) != 0 {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			st.Colima = exec.CommandContext(ctx, colimaBin, "health").Run() == nil
+			sp.End(st.Colima, "")
 			return
 		}
 		if _, err := exec.LookPath("colima-status"); err == nil {
@@ -136,28 +166,34 @@ func Probe(zdotdir string) Status {
 			defer cancel()
 			st.Colima = exec.CommandContext(ctx, "colima-status", "health").Run() == nil
 		}
+		sp.End(st.Colima, "")
 	}()
 
 	// 8. Intelligence suite (Postgres `my`)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.postgres")
 		if _, err := exec.LookPath("pg_isready"); err == nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			if exec.CommandContext(ctx, "pg_isready", "-q", "-d", "my").Run() == nil {
 				st.IntelligenceSuite = true
+				sp.End(true, "")
 				return
 			}
 		}
 		st.IntelligenceSuite = tcpOpen("127.0.0.1:5432", 500*time.Millisecond)
+		sp.End(st.IntelligenceSuite, "")
 	}()
 
 	// 9. Redis cache
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sp := startProbeSpan(tr, parent, "probe.redis")
 		st.Cache = redisPing(net.JoinHostPort(redisHost, strconv.Itoa(redisPort)), 500*time.Millisecond)
+		sp.End(st.Cache, "")
 	}()
 
 	wg.Wait()

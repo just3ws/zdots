@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctlstatus"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
 
 const (
@@ -87,6 +88,8 @@ type state struct {
 
 	// shell
 	startupMS string
+
+	tr *otel.Tracer
 }
 
 // Run executes the zdots-status command and returns the process exit code.
@@ -154,6 +157,7 @@ func Run(args []string) int {
 		aiEndpoint: aiEndpoint,
 		o2URL:      "http://127.0.0.1:5080",
 		aiModel:    "unknown",
+		tr:         otel.New("zdots-status"),
 	}
 
 	if once || !runTput("smcup") {
@@ -206,13 +210,18 @@ func Run(args []string) int {
 }
 
 func (s *state) probeAll(includeShell bool) {
+	var sp *otel.Span
+	if s.tr != nil {
+		sp = s.tr.Start("status.probe", nil)
+		sp.SetAttr("include_shell", includeShell)
+	}
 	var wg sync.WaitGroup
 
 	// Services + storage (storage depends on colimaUp)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		s.probeServices()
+		s.probeServices(sp)
 		s.probeStorage()
 	}()
 
@@ -237,10 +246,18 @@ func (s *state) probeAll(includeShell bool) {
 	}
 
 	wg.Wait()
+	if s.tr != nil && sp != nil {
+		sp.SetAttr("ai_up", s.aiUp)
+		sp.SetAttr("otel_up", s.otelUp)
+		sp.SetAttr("colima_up", s.colimaUp)
+		sp.SetAttr("o2_up", s.o2Up)
+		sp.End(true, "")
+		s.tr.Flush(250 * time.Millisecond)
+	}
 }
 
-func (s *state) probeServices() {
-	res := ctlstatus.Probe(s.zdotdir)
+func (s *state) probeServices(parent *otel.Span) {
+	res := ctlstatus.ProbeWithTracer(s.zdotdir, s.tr, parent)
 	s.aiUp = res.AIServer
 	if res.AIModel != "" {
 		s.aiModel = res.AIModel

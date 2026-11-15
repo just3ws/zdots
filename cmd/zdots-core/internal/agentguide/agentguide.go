@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctlstatus"
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
 
 func usage() string {
@@ -44,6 +45,10 @@ func Run(args []string) int {
 			return 1
 		}
 	}
+
+	tr := otel.New("agent-guide")
+	rootSpan := tr.Start("agent_guide.run", nil)
+	rootSpan.SetAttr("json_mode", jsonMode)
 
 	home, _ := os.UserHomeDir()
 	zdotdir := envOr("ZDOTDIR", filepath.Join(home, ".config", "zsh"))
@@ -99,7 +104,7 @@ func Run(args []string) int {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		st := ctlstatus.Probe(zdotdir)
+		st := ctlstatus.ProbeWithTracer(zdotdir, tr, rootSpan)
 		aiUp = st.AIServer || st.AISocketListening
 		if st.AIModel != "" && st.AIModel != "unknown" {
 			aiModelID = st.AIModel
@@ -264,10 +269,22 @@ func Run(args []string) int {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(payload)
+		rootSpan.SetAttr("ai_up", aiUp)
+		rootSpan.SetAttr("otel_up", otelUp)
+		rootSpan.SetAttr("o2_up", o2Up)
+		rootSpan.SetAttr("colima_up", colimaUp)
+		rootSpan.End(true, "")
+		tr.Flush(250 * time.Millisecond)
 		return 0
 	}
 
 	printHuman(platformVersion, myPlatformVersion, myContract, logDir, aiUp, aiModelID, aiEndpoint, otelUp, otelEndpoint, colimaUp, colimaSock, o2Up, o2URL, fabricUp)
+	rootSpan.SetAttr("ai_up", aiUp)
+	rootSpan.SetAttr("otel_up", otelUp)
+	rootSpan.SetAttr("o2_up", o2Up)
+	rootSpan.SetAttr("colima_up", colimaUp)
+	rootSpan.End(true, "")
+	tr.Flush(250 * time.Millisecond)
 	return 0
 }
 

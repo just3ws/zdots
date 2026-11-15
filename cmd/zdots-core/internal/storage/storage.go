@@ -13,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
 
 const (
@@ -137,7 +139,16 @@ func Run(args []string) int {
 		myRoot = filepath.Join(home, "my")
 	}
 
+	tr := otel.New("zdots-storage")
+	rootSpan := tr.Start("storage.collect", nil)
+	rootSpan.SetAttr("json_mode", jsonMode)
+	rootSpan.SetAttr("reserve_gb", reserveGB)
+
 	rep := Collect(home, zdotdir, myRoot, reserveGB)
+	rootSpan.SetAttr("disk_available_gb", rep.DiskAvailableGB)
+	rootSpan.SetAttr("root_status", rep.RootStatus)
+	rootSpan.End(true, "")
+	tr.Flush(250 * time.Millisecond)
 
 	if jsonMode {
 		enc := json.NewEncoder(os.Stdout)

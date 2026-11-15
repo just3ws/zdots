@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
 )
 
@@ -58,6 +59,10 @@ func Run(args []string) int {
 			return 1
 		}
 	}
+
+	tr := otel.New("capabilities")
+	rootSpan := tr.Start("platform.health", nil)
+	rootSpan.SetAttr("output_format", outputFormat)
 
 	home, _ := os.UserHomeDir()
 	zdotdir := os.Getenv("ZDOTDIR")
@@ -491,23 +496,18 @@ func Run(args []string) int {
 		_ = enc.Encode(payload)
 	}
 
-	// Self-reporting (OTel Platform Node), non-blocking.
-	if _, err := exec.LookPath("otel-cli"); err == nil {
-		st := "error"
-		if errors == 0 {
-			st = "ok"
-		}
-		traceID := getEnv("ZDOTS_TRACE_ID", "00000000000000000000000000000000")
-		attrs := fmt.Sprintf("profile=%s,os=%s,disk.avail=%s,ai.status=%d",
-			getEnv("ZDOTS_ENV_PROFILE", "unknown"), unameOS, diskAvail, aiLive)
-		cmd := exec.Command("otel-cli", "span",
-			"--name", "platform.health",
-			"--attrs", attrs,
-			"--force-trace-id", traceID,
-			"--status", st,
-		)
-		_ = cmd.Start()
+	// Self-reporting (native OTLP/HTTP JSON), bounded timeout.
+	rootSpan.SetAttr("profile", getEnv("ZDOTS_ENV_PROFILE", "unknown"))
+	rootSpan.SetAttr("os", unameOS)
+	rootSpan.SetAttr("disk.avail", diskAvail)
+	rootSpan.SetAttr("ai.status", aiLive)
+	rootSpan.SetAttr("health_errors", errors)
+	if errors == 0 {
+		rootSpan.End(true, "")
+	} else {
+		rootSpan.End(false, fmt.Sprintf("%d service contract violation(s)", errors))
 	}
+	tr.Flush(250 * time.Millisecond)
 
 	if errors > 0 {
 		if outputFormat == "text" {
