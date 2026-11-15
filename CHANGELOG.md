@@ -41,6 +41,22 @@ content.
 - *(atlas)* Add LAN system map
 - *(atlas)* Map hostname routes and ports
 - *(theme)* Self-host craftsmanship font
+- *(platform)* Align Astronomicon surfaces
+- *(aliases)* Add my directory shortcut
+- *(work)* Add work migration playbook, postgres 17 support, and identity delineation
+- *(otel,docs)* Propagate W3C traceparent across ztranscribe/worker and highlight work migration playbook
+- *(env)* Add opt-outs for project-local PATH entries
+- *(git)* Let ZDOTS_GIT_CONFIG_GLOBAL=0 keep ~/.gitconfig in play
+- *(env)* Prefer ffmpeg-full over core ffmpeg
+- *(hooks)* Reject AI attribution in commit messages
+- *(env)* Prioritize ffmpeg-full across daemons and prune openvpn/mysql
+- *(ai)* Apple on-device engine via fm, locked to the device
+- Configurable loopback gemstash; redact password-free conn strings
+- *(platform)* Add RBS seam contracts (zdots-typecheck) and track ztranscribe in Astronomicon
+- *(agents)* Integrate Oh-My-Pi (zomp), Groma.md, and canonical skills sync
+- *(omp)* Link global rtk extension into isolated zomp profiles
+- *(omp)* Configure hybrid role defaults with apple/on-device smol
+- *(ai)* Support macOS 27 fm available in apple-fm and add --apfel/--gateway to ai-query
 
 ### 🐛 Bug Fixes
 
@@ -64,6 +80,19 @@ content.
 - *(ingest)* Detect incomplete child bundle
 - *(worker)* Reject stray arguments
 - *(panoramic)* Preserve run context
+- *(work-profile)* Disable capture on new work hosts
+- *(env)* Seed PATH from path_helper so /usr/local/bin tools stay reachable
+- *(env)* Keep a legacy-only ~/.aws or ~/.docker authoritative
+- *(providers)* Keep provider files parseable by bash
+- *(brew)* Read zdots switches through Homebrew's environment filter
+- *(env)* Export WGETRC and PYTHONSTARTUP only when the rc exists
+- *(check)* Accept the managed-machine ~/.zshenv bridge
+- *(ai)* Work-light uses Qwen3-4B-Instruct-2507, not the Thinking build
+- Make check passes on machines that defer the services tier
+- *(services)* Resolve Homebrew launchd labels in one place
+- *(llama)* Installs always load the service; model checks fail closed
+- *(omp)* Export broker env in omp-gateway-ctl and honor PI_CODING_AGENT_DIR in zomp
+- *(aliases)* Unshadow system, Homebrew, and zdots commands
 
 ### 💼 Other
 
@@ -72,6 +101,7 @@ content.
 ### 🚜 Refactor
 
 - *(docs)* Remove stale audit and narrative artifacts
+- *(platform)* Decouple core tiers, retire bus/jaeger, parameterize loopback ports, and wire ztranscribe plugin
 
 ### 📚 Documentation
 
@@ -126,6 +156,24 @@ content.
 - *(media-pipeline)* Triage stale failed jobs
 - *(network)* Record media pipeline LAN route
 - *(theme)* Map generated dashboard tokens
+- *(panoramic)* Clarify workflow context
+- Clarify portfolio ownership lineage
+- *(github)* Add public metadata runbook
+- *(bootstrap)* Add machine bootstrap and AI agent orchestration playbook
+- *(backlog)* Track lived-history timeline and hydration auth tasks
+- *(panoramic)* Mirror ztranscribe.v1 BPMN flow definition
+- *(bootstrap)* Add single-link GitHub AI agent entrypoints and ambiguity protocol
+- *(work)* Correct the work-migration playbook from a managed-Mac run
+- *(work)* Install vdots plugins with vim.pack, not Lazy
+- *(work)* Replay bootstrap's XDG step and fix compinit permissions
+- *(work)* Activate cask fonts macOS left unregistered
+- *(work)* Verify the 1Password CLI with an authorized call
+- *(agents)* Forbid AI attribution in everything agents produce
+- *(signing)* Agent guidance for signed commits across the platform
+- Add GitHub account hygiene tutorial
+- *(agents)* Document OMP primary AI surface and Home/Work agent integration
+- *(omp)* Add work investigation checklist, antigravity-cli note, and Z-368
+- *(omp)* Clarify antigravity-cli OAuth deprecation in OMP
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -165,6 +213,9 @@ content.
 - Keep GitHub gate lightweight
 - *(release)* Align beacon to 0835026.M3
 - *(release)* Align Astronomicon 0838026.M3
+- *(backlog)* File Z-361 — local AI modernization for the 16 GB baseline
+- *(backlog)* Mark Z-361.01 done
+- *(backlog)* Pause Z-361; file Z-365 high-port nginx (deferred)
 ## [0668026.M3] - 2026-09-01
 
 ### 🚀 Features
