@@ -25,12 +25,11 @@ fi
 
 if command -v tldr >/dev/null 2>&1; then
   alias tldr='tldr --color always'
-  alias help='tldr'
 fi
 
 if command -v lazygit >/dev/null 2>&1; then alias lg='lazygit'; fi
 if command -v btm >/dev/null 2>&1; then alias top='btm'; alias htop='btm'; fi
-if command -v hyperfine >/dev/null 2>&1; then alias bench='hyperfine'; fi
+# `bench` intentionally unaliased — bin/bench owns the Zdots Startup Benchmark.
 
 # Navigation & UI
 # k reassigned to kubectl (k8s native ergonomics, conf.d/71-shell-tools.zsh); use Ctrl-L / `clear` to clear.
@@ -67,11 +66,12 @@ fi
 if command -v pnpm >/dev/null 2>&1; then
   alias p='pnpm'
   alias px='pnpm dlx'
-  alias pr='pnpm run'
+  # `pr`, `ps`, `pv` intentionally unaliased — system/Homebrew own `pr`, `ps`, `pv`.
+  alias prun='pnpm run'
   alias pinstall='pnpm install'
-  alias ps='pnpm start'
+  alias pstart='pnpm start'
   alias pt='pnpm test'
-  alias pv='pnpm verify:all'
+  alias pverify='pnpm verify:all'
 fi
 
 if command -v docker >/dev/null 2>&1; then
@@ -85,7 +85,8 @@ fi
 
 if command -v fly >/dev/null 2>&1; then
   alias fl='fly logs'
-  alias fd='fly deploy'
+  # `fd` intentionally unaliased — fd (fd-find) owns the `fd` binary.
+  alias flyd='fly deploy'
   alias fs='fly status'
   # Project-specific shorthands (active only in phalanxduel)
   if [ -f fly.staging.toml ]; then
@@ -101,12 +102,9 @@ if command -v gemini >/dev/null 2>&1; then alias gm='gemini-invoke gemini'; fi
 
 # Colima / Docker storage hygiene (256GB primary — prune aggressively)
 if command -v colima >/dev/null 2>&1; then
-  alias colima-status='colima status'
+  # `colima-status` and `docker-reclaim` are provided by bin/ on PATH — do not shadow them.
   # Disk summary: show what Docker is consuming inside the Colima VM
   alias docker-df='docker system df'
-  # Full reclaim: containers + images + volumes + build cache + fstrim.
-  # Dry run by default; pass -f to execute. See bin/docker-reclaim.
-  alias docker-reclaim='docker-reclaim'
 fi
 
 # Modern DSL Patterns
@@ -118,9 +116,8 @@ alias path='echo $PATH | tr ":" "\n"'
 #   idate --decode 0452026.M3   decode back to Gregorian (±1d)
 alias idate='imperial-date'
 
-# Recipes (not on PATH; referenced by full path).
+# Recipes (bin/ztranscribe is on PATH as a symlink to recipes/yt-transcribe).
 #   ztranscribe <url> | --from-wav <wav> --output-base <base>   (man yt-transcribe)
-alias ztranscribe='${ZDOTDIR}/recipes/yt-transcribe'
 
 # Utility Functions
 ff() { find "${2:-.}" -type f -iname "*$1*"; }
