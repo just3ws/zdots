@@ -62,3 +62,7 @@ jobs:
       - name: Test shared RE2 registry
         run: go test ./...
         working-directory: pkg/re2registry
+
+      - name: Test zdots-core multicall binary
+        run: go test ./...
+        working-directory: cmd/zdots-core

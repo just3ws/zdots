@@ -208,6 +208,7 @@ _known_gap() {
     zdots-help zdots-watch zdots-usage zdots-swiftbar zdots-vault-doctor
     zdots-storage zdots-hygiene zdots-check zdots-lake zdots-sql-lint ztranscribe
     observability-mode zdots-typecheck omp-gateway-ctl zdots-skills-sync
+    zdots-core
   )
 
   local missing=()
