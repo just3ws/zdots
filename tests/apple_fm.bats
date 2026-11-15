@@ -175,3 +175,17 @@ run_zaider() {
   [[ "$output" == *"weak=unset"* ]]
   [[ "$output" == *"refused"* ]]
 }
+
+@test "guard passes with macOS 27 fm available subcommand" {
+  cat > "$FM_STUB" <<'SH'
+#!/bin/sh
+echo "$*" >> "$FM_LOG"
+case "$1" in
+  available) echo "System model available"; exit 0 ;;
+  *) exit 1 ;;
+esac
+SH
+  chmod +x "$FM_STUB"
+  run_fm "zdots_fm_guard"
+  [ "$status" -eq 0 ]
+}

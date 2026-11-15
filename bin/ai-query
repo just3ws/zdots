@@ -115,6 +115,8 @@ Options:
   --mode MODE              Select operating mode (see above)
   --model NAME             Model alias (default: ${MODEL})
   --endpoint URL           Server base URL (default: ${ENDPOINT})
+  --apfel                  Route to local Apfel endpoint (127.0.0.1:11434, apple-foundationmodel)
+  --gateway                Route to local OMP gateway (127.0.0.1:11510, public/non-private only)
   --max-bytes N            Hard input ceiling in bytes (default: ${AIQ_MAX_BYTES})
   --timeout N              Curl request timeout in seconds (default: ${TIMEOUT})
   --from-file PATH         Read PATH as the DATA block (same pipeline as stdin;
@@ -177,6 +179,16 @@ while [[ $# -gt 0 ]]; do
     --mode)          MODE="$2";           shift 2 ;;
     --model|-m)      MODEL="$2";          shift 2 ;;
     --endpoint|-e)   ENDPOINT="$2";       shift 2 ;;
+    --apfel)
+      ENDPOINT="http://127.0.0.1:11434"
+      MODEL="apple-foundationmodel"
+      shift
+      ;;
+    --gateway)
+      ENDPOINT="http://127.0.0.1:${ZDOTS_OMP_GATEWAY_PORT:-11510}"
+      [[ "$MODEL" == "local" ]] && MODEL="${ZDOTS_GATEWAY_MODEL:-github-copilot/claude-sonnet-4.6}"
+      shift
+      ;;
     --max-bytes)     AIQ_MAX_BYTES="$2";  shift 2 ;;
     --timeout)       TIMEOUT="$2";        shift 2 ;;
     --from-file)     OPT_FROM_FILE="$2";  shift 2 ;;

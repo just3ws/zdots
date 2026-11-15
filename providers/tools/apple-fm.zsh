@@ -24,9 +24,19 @@
 # zdots_fm_guard — succeed only when the on-device model is usable and fm
 # cannot route a call off this Mac. 127 = unavailable, 3 = refused.
 zdots_fm_guard() {
-  local fm="${ZDOTS_FM_BIN:-/usr/bin/fm}" provider model
+  local fm="${ZDOTS_FM_BIN:-/usr/bin/fm}" avail_out provider model
   if [[ ! -x "$fm" ]]; then
     print -u2 "apple-fm: $fm not found (needs macOS 27 with Apple Intelligence)."
+    return 127
+  fi
+  # macOS 27 fm CLI uses `fm available` (no `models` or `config` subcommands);
+  # zapfel pins `--model system` and `fm serve` binds 127.0.0.1 only.
+  avail_out="$(NO_COLOR=1 "$fm" available 2>/dev/null)"
+  if [[ -n "$avail_out" ]]; then
+    if [[ "$avail_out" == *"available"* && "$avail_out" != *"unavailable"* ]]; then
+      return 0
+    fi
+    print -u2 'apple-fm: on-device model unavailable (Apple Intelligence off, unsupported Mac, or `sudo fm license` not accepted).'
     return 127
   fi
   if ! NO_COLOR=1 "$fm" models 2>/dev/null | grep -q '✓ system'; then
@@ -82,7 +92,11 @@ zapfel() {
       print 'usage: zapfel "prompt"  |  command | zapfel "task"  |  zapfel --model-info'
       return 0 ;;
     --model-info)
-      zdots_fm_guard
+      zdots_fm_guard || return $?
+      if NO_COLOR=1 "$fm" available 2>/dev/null | grep -q 'available'; then
+        NO_COLOR=1 "$fm" available
+        return $?
+      fi
       NO_COLOR=1 "$fm" models; NO_COLOR=1 "$fm" config list
       return $? ;;
     --) shift ;;
