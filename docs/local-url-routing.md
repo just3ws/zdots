@@ -24,13 +24,13 @@ changes to it must be reconciled with those owners and validated through
 | Host(s) | Purpose / owner | Backend / request route | LAN hostname |
 |---------|-----------------|-------------------------|--------------|
 | `llama.localhost`, `embed.localhost` | Local inference / zdots | llama :11500; embeddings :11501 | Candidate `llama.lan.just3ws.com`, `embed.lan.just3ws.com`; not routed yet |
-| `o2.localhost`, `jaeger.localhost` | Observability / zdots | OpenObserve :5080; Jaeger :16686 | Candidate `o2.lan.just3ws.com`, `jaeger.lan.just3ws.com`; not routed yet |
+| `o2.localhost`, `jaeger.localhost` | Observability / zdots | OpenObserve :5080; Jaeger :16686 (on-demand via Colima; returns 502 when Colima is down) | Candidate `o2.lan.just3ws.com`, `jaeger.lan.just3ws.com`; not routed yet |
 | `zdots.localhost` | zdots status console | statusd :11600 | Candidate `zdots.lan.just3ws.com`; not routed yet |
 | `lan.just3ws.com` | Trusted-LAN System Atlas; root opens `/map`, only `/map` and `/map.json` are served | statusd :11600, sanitized routes only | Active |
 | `gemstash.localhost` | RubyGems cache / zdots | Gemstash :9292 | Candidate `gemstash.lan.just3ws.com`; not routed yet |
 | `my.localhost` | Knowledge Layer console / my | context-engine :7010; Rails routes include `/panoramic` and `/platform` | Candidate `my.lan.just3ws.com`; not routed yet |
 | `my.local` | Legacy context-engine alias | Redirects to `my.localhost`; currently responds | Local alias only |
-| `dev.my.local` | Legacy context-engine development hostname | `/` to `/tmp/my_dev.sock`; endpoint probe currently returns 502 | Local alias only |
+| `dev.my.local` | Legacy context-engine development hostname | `/` to `/tmp/my_dev.sock` in `my.conf`; currently unreachable (`000`, no `/etc/hosts` or mDNS entry) | Local alias only |
 | `wwworkremote.localhost`, `wwwr.localhost` | WWWorkRemote project aliases | `/` → Rails app :31000 | Active project-owned `lan.wwworkremote.com` |
 | `media-pipeline.localhost`, `pipeline.localhost` | media-pipeline project aliases | `/`, `/live/`, `/cable` → media-pipeline :32000 | Active `media-pipeline.lan.just3ws.com`; `pipeline.lan.just3ws.com` is a candidate |
 | `hister.localhost`, `www.hister.localhost` | Hister search / project | `/` static UI; search/API routes → Hister :4433 | Candidate `hister.lan.just3ws.com`; not routed yet |
