@@ -208,6 +208,7 @@ cask "dbeaver-community" # Universal database tool and SQL client
 cask "firefox" # Web browser
 cask "font-fira-code-nerd-font" # programming font for terminal and editor
 cask "font-meslo-lg-nerd-font" # Powerlevel10k glyph and prompt font
+cask "github" # GitHub Desktop: see branches, changes and pull requests per repo
 cask "google-chrome" unless zdots_flag("ZDOTS_SKIP_CHROME_INSTALL") == "1" # Web browser (MDM-managed Macs often ship it)
 cask "iterm2" # Terminal emulator as alternative to Apple's Terminal app
 cask "itermai" # Enable generative AI features in iTerm2
