@@ -70,3 +70,84 @@ func TestJSONOutputAndTraceLog(t *testing.T) {
 		t.Fatalf("expected doctor_check event in traces.jsonl, got %s", string(traceBytes))
 	}
 }
+
+func TestLoadAcceptsParsesPrefixesAndReasons(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "accept")
+	body := "# host accept list\n\n~/.zshrc  # employer baseline owns it\nmkcert CA\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := loadAccepts(path)
+	if len(got) != 2 {
+		t.Fatalf("got %d entries, want 2: %+v", len(got), got)
+	}
+	if got[0].prefix != "~/.zshrc" || got[0].reason != "employer baseline owns it" {
+		t.Fatalf("entry 0 = %+v", got[0])
+	}
+	if got[1].prefix != "mkcert CA" || got[1].reason != "" {
+		t.Fatalf("entry 1 = %+v", got[1])
+	}
+	if loadAccepts(filepath.Join(t.TempDir(), "missing")) != nil {
+		t.Fatal("a missing accept file should yield no entries")
+	}
+}
+
+func TestApplyAcceptsMovesMatchingWarningsOutOfTheCount(t *testing.T) {
+	s := &sectionResult{title: "t"}
+	s.warnLine("/home/u/.zshrc  present — loaded before ZDOTDIR")
+	s.warnLine("mkcert CA  not generated yet")
+	s.fix("mkcert-ctl init")
+	s.warnLine("Pi models  missing")
+	s.fix("zdots-update-local")
+	s.failLine("mkcert CA  broken")
+	n := applyAccepts([]*sectionResult{s, nil}, []acceptEntry{
+		{prefix: "~/.zshrc", reason: "baseline"},
+		{prefix: "mkcert CA"},
+	}, "/home/u")
+	if n != 2 || s.warn != 1 || s.accepted != 2 || s.fail != 1 {
+		t.Fatalf("n=%d warn=%d accepted=%d fail=%d, want 2/1/2/1", n, s.warn, s.accepted, s.fail)
+	}
+	var kinds []lineKind
+	for _, l := range s.lines {
+		kinds = append(kinds, l.kind)
+	}
+	want := []lineKind{kindAccept, kindAccept, kindWarn, kindFix, kindFail}
+	if len(kinds) != len(want) {
+		t.Fatalf("line kinds = %v, want %v (accepted fix hints dropped)", kinds, want)
+	}
+	for i := range want {
+		if kinds[i] != want[i] {
+			t.Fatalf("line kinds = %v, want %v", kinds, want)
+		}
+	}
+	if !strings.Contains(s.lines[0].text, "— accepted: baseline") {
+		t.Fatalf("accepted line lost its reason: %q", s.lines[0].text)
+	}
+}
+
+func TestCheckAIToolsSkipsPiWhenNotInstalled(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("PATH", t.TempDir())
+	s := checkAITools(envConfig{home: home})
+	for _, l := range s.lines {
+		if l.kind == kindWarn && strings.HasPrefix(l.text, "Pi ") {
+			t.Fatalf("pi absent but doctor warned: %q", l.text)
+		}
+	}
+}
+
+func TestAddRuntimeOutputMakesWarnLinesAcceptable(t *testing.T) {
+	s := &sectionResult{title: "runtime"}
+	addRuntimeOutput(s, "  [PASS] intelligence  connected\n  [WARN] mkcert CA  not generated yet\n  [WARN] OTLP pipeline  skipped\nzdots-ctl check: passed with 2 warning(s)\n")
+	if s.warn != 2 {
+		t.Fatalf("warn = %d, want 2 (counted once, not twice)", s.warn)
+	}
+	if n := applyAccepts([]*sectionResult{s}, []acceptEntry{{prefix: "mkcert CA"}}, ""); n != 1 || s.warn != 1 {
+		t.Fatalf("accepted=%d warn=%d, want 1/1", n, s.warn)
+	}
+	s2 := &sectionResult{title: "runtime"}
+	addRuntimeOutput(s2, "zdots-ctl check: passed with 3 warning(s)\n")
+	if s2.warn != 3 {
+		t.Fatalf("summary-only output: warn = %d, want 3", s2.warn)
+	}
+}

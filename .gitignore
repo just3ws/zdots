@@ -18,6 +18,7 @@ fzfrc.local
 gha-creds-*.json
 .zdots.secrets
 .zdots.local
+.zdots.doctor-accept
 
 # Ephemeral telemetry data
 traces-collected.json

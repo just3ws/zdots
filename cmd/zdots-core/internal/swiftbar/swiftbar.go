@@ -30,6 +30,9 @@ var (
 	embedProcRe   = regexp.MustCompile(`llama-server.*(--port 11501|--alias embed)`)
 	workerProcRe  = regexp.MustCompile(`zdots-brain worker`)
 	otelProcRe    = regexp.MustCompile(`otelcol-contrib`)
+	pgProcRe      = regexp.MustCompile(`/bin/postgres -D `)
+	jaegerProcRe  = regexp.MustCompile(`(^|/)jaeger( |$)`)
+	gemstashBind  = regexp.MustCompile(`(?m)^:?bind:\s*"?tcp://([^"\s]+)`)
 	fileFlagRe    = regexp.MustCompile(`--file\s+([^\s]+)`)
 	outBaseRe     = regexp.MustCompile(`--output-base\s+([^\s]+)`)
 	usageTopRe    = regexp.MustCompile(`^\s*([0-9]+)\s+(.*)$`)
@@ -122,6 +125,16 @@ func runWithIO(args []string, stdout, stderr io.Writer, procLister func() []proc
 	embedRunning := false
 	workerRunning := false
 	otelRunning := false
+	pgRunning := false
+	jaegerRunning := false
+	gemstashRunning := false
+	// SwiftBar runs without the shell environment, so take gemstash's port
+	// from its own config; puma's process title carries the bind address.
+	gemstashAddr := readGemstashBind(home)
+	gemstashPort := "9292"
+	if i := strings.LastIndex(gemstashAddr, ":"); i >= 0 {
+		gemstashPort = gemstashAddr[i+1:]
+	}
 
 	for _, p := range procs {
 		if !txActive && p.pid != selfPID && whisperProcRe.MatchString(p.args) {
@@ -140,6 +153,16 @@ func runWithIO(args []string, stdout, stderr io.Writer, procLister func() []proc
 		}
 		if !otelRunning && otelProcRe.MatchString(p.args) {
 			otelRunning = true
+		}
+		if !pgRunning && pgProcRe.MatchString(p.args) {
+			pgRunning = true
+		}
+		if !jaegerRunning && jaegerProcRe.MatchString(p.args) {
+			jaegerRunning = true
+		}
+		if !gemstashRunning && gemstashAddr != "" && strings.HasPrefix(p.args, "puma ") &&
+			strings.Contains(p.args, "(tcp://"+gemstashAddr+")") {
+			gemstashRunning = true
 		}
 	}
 
@@ -161,6 +184,8 @@ func runWithIO(args []string, stdout, stderr io.Writer, procLister func() []proc
 
 	lastTxJob, lastTxEvent, lastTxTS, lastTxFailed := readLastPipelineEvent(pipelineEvents)
 	ingestCount := countDirs(filepath.Join(zdotsStateDir, "ingest-sources"))
+	// Never set up: no model on disk, nothing ingested, no pipeline history.
+	txSetUp := modelInstalled || len(listBinModels(modelsDir)) > 0 || ingestCount > 0 || lastTxJob != ""
 
 	var txGlyph, txStatusShort, txDesc, txColor string
 	switch {
@@ -174,6 +199,11 @@ func runWithIO(args []string, stdout, stderr io.Writer, procLister func() []proc
 		txStatusShort = "missing cli"
 		txDesc = "whisper-cli not installed"
 		txColor = "red"
+	case !txSetUp:
+		txGlyph = ""
+		txStatusShort = "not set up"
+		txDesc = "Not set up on this host (no model, no ingest history): whisper-ctl to start"
+		txColor = "gray"
 	case !modelInstalled:
 		txGlyph = "🎙️⚠️"
 		txStatusShort = "missing model"
@@ -202,6 +232,8 @@ func runWithIO(args []string, stdout, stderr io.Writer, procLister func() []proc
 	// ── 4. Menu Bar Title ──────────────────────────────────────────────────────
 	if txActive {
 		fmt.Fprintf(stdout, "%s 🎙️⚡ %s\n", platGlyph, txEtime)
+	} else if txGlyph == "" {
+		fmt.Fprintln(stdout, platGlyph)
 	} else if txGlyph != "🎙️" {
 		fmt.Fprintf(stdout, "%s %s\n", platGlyph, txGlyph)
 	} else {
@@ -252,6 +284,9 @@ func runWithIO(args []string, stdout, stderr io.Writer, procLister func() []proc
 	fmt.Fprintf(stdout, "-- 🧠 Embeddings Engine (11501): %s | color=%s bash=%s/bin/llama-ctl param0=status terminal=true\n", stateLabel(embedRunning, "Online", "Standby"), stateColor(embedRunning, "green", "gray"), zdotDir)
 	fmt.Fprintf(stdout, "-- ⚙️ Async Pipeline Worker: %s | color=%s bash=%s/bin/zsvc param0=status param1=worker terminal=true\n", stateLabel(workerRunning, "Running", "Stopped"), stateColor(workerRunning, "green", "gray"), zdotDir)
 	fmt.Fprintf(stdout, "-- 🐳 Colima Container Engine: %s | color=%s bash=%s/bin/colima-status terminal=true\n", stateLabel(colimaRunning, "Active", "Offline"), stateColor(colimaRunning, "green", "gray"), zdotDir)
+	fmt.Fprintf(stdout, "-- 🐘 Postgres (5432): %s | color=%s bash=%s/bin/zsvc param0=status param1=postgres terminal=true\n", stateLabel(pgRunning, "Running", "Stopped"), stateColor(pgRunning, "green", "gray"), zdotDir)
+	fmt.Fprintf(stdout, "-- 💎 gemstash (%s): %s | color=%s bash=%s/bin/zsvc param0=status param1=gemstash terminal=true\n", gemstashPort, stateLabel(gemstashRunning, "Running", "Stopped"), stateColor(gemstashRunning, "green", "gray"), zdotDir)
+	fmt.Fprintf(stdout, "-- 🔭 Jaeger (16686): %s | color=%s href=http://127.0.0.1:16686\n", stateLabel(jaegerRunning, "Active", "Offline"), stateColor(jaegerRunning, "green", "gray"))
 	fmt.Fprintf(stdout, "-- 📊 Telemetry Collector (4318): %s | color=%s bash=%s/bin/otel-collector param0=status terminal=true\n", stateLabel(otelRunning, "Active", "Offline"), stateColor(otelRunning, "green", "gray"), zdotDir)
 	fmt.Fprintln(stdout, "---")
 
@@ -603,4 +638,17 @@ func emptyAsQ(s string) string {
 		return "?"
 	}
 	return s
+}
+
+// readGemstashBind returns gemstash's host:port from ~/.gemstash/config.yml
+// (":bind: tcp://127.0.0.1:44292"), or "" when gemstash is not configured.
+func readGemstashBind(home string) string {
+	b, err := os.ReadFile(filepath.Join(home, ".gemstash", "config.yml"))
+	if err != nil {
+		return ""
+	}
+	if m := gemstashBind.FindSubmatch(b); m != nil {
+		return string(m[1])
+	}
+	return ""
 }

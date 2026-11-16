@@ -796,6 +796,7 @@ exec zsh
   export ZDOTS_UPDATE_LOCAL_SKIP="brew python llama fabric pi gemini otel"
   ```
   With `ZDOTS_CONTEXT=work`, the brew phase (when it runs) uses `brew bundle --no-upgrade`, so it installs missing packages but never upgrades the baseline's. Pass `--skip-<phase>` for one-off skips; drop a name from the list when that phase is needed (for example `llama` after a model or plist change).
+- **Health signal on a managed host:** `zdots-doctor` (and through it `zdots-watch` and the SwiftBar pulse) reads an optional, gitignored `.zdots.doctor-accept`. Each line is a warning prefix (`~` for `$HOME`) plus `# reason`; matching warnings print as `[accept]` and stop counting, so the menu bar turns green on a host whose differences are deliberate (employer-owned `~/.zshrc`, a local-only `~/my`, no `*.localhost`). Failures are never accepted. Install the scheduled detectors with `zdots-watch --install` (daily doctor) and `zdots-watch --install-check` (nightly suite) so the pulse has fresh state.
 - **`exec zsh`:** Reloads `fpath` ordering, `functions/enabled/*` autoloads (such as the `zdots` TTY `cd` wrapper), and refreshed completions in the active shell.
 
 ### Go Toolchain & Compiled Binaries (`bin/` & `cmd/`)

@@ -53,6 +53,7 @@ const (
 	kindFail
 	kindFix
 	kindRaw
+	kindAccept
 )
 
 type lineItem struct {
@@ -66,6 +67,7 @@ type sectionResult struct {
 	pass      int
 	warn      int
 	fail      int
+	accepted  int
 	adotsRC   int
 	adotsMyRC int
 	runtimeRC int
@@ -207,6 +209,8 @@ func Run(args []string) int {
 	}
 	wg.Wait()
 
+	totalAccepted := applyAccepts(results, loadAccepts(acceptFile(cfg)), cfg.home)
+
 	var totalPass, totalWarn, totalFail, adotsRC, adotsMyRC, runtimeRC int
 	for _, r := range results {
 		if r == nil {
@@ -241,7 +245,11 @@ func Run(args []string) int {
 	rootSpan.End(totalFail == 0 && runtimeRC == 0, "")
 	tr.Flush(250 * time.Millisecond)
 
-	totalChecks := totalPass + totalWarn + totalFail
+	totalChecks := totalPass + totalWarn + totalFail + totalAccepted
+	acceptedNote := ""
+	if totalAccepted > 0 {
+		acceptedNote = fmt.Sprintf(" (%d accepted)", totalAccepted)
+	}
 	appendTraceLog(cfg.xdgState, "doctor_check", fmt.Sprintf("complete status=%s checks=%d", statusStr, totalChecks))
 
 	if jsonMode {
@@ -276,11 +284,11 @@ func Run(args []string) int {
 	fmt.Println()
 	fmt.Println(strings.Repeat("━", 59))
 	if totalFail == 0 && totalWarn == 0 && runtimeRC == 0 {
-		fmt.Printf("zdots doctor: all %d checks passed\n", totalChecks)
+		fmt.Printf("zdots doctor: all %d checks passed%s\n", totalChecks, acceptedNote)
 	} else if totalFail == 0 && runtimeRC == 0 {
-		fmt.Printf("zdots doctor: %d passed · %d warning(s) · 0 failures\n", totalPass, totalWarn)
+		fmt.Printf("zdots doctor: %d passed · %d warning(s) · 0 failures%s\n", totalPass, totalWarn, acceptedNote)
 	} else {
-		fmt.Printf("zdots doctor: %d passed · %d warning(s) · %d failure(s)\n", totalPass, totalWarn, totalFail)
+		fmt.Printf("zdots doctor: %d passed · %d warning(s) · %d failure(s)%s\n", totalPass, totalWarn, totalFail, acceptedNote)
 	}
 
 	if totalFail == 0 && runtimeRC == 0 {
@@ -314,6 +322,10 @@ func printSection(r *sectionResult, quiet bool) {
 			fmt.Printf("  %s[warn] %s%s\n", clrWarn, clrRst, l.text)
 		case kindFail:
 			fmt.Printf("  %s[FAIL] %s%s\n", clrErr, clrRst, l.text)
+		case kindAccept:
+			if !quiet {
+				fmt.Printf("  [accept] %s\n", l.text)
+			}
 		case kindFix:
 			fmt.Printf("         fix: %s\n", l.text)
 		case kindRaw:
@@ -568,8 +580,13 @@ func checkXDG(cfg envConfig) *sectionResult {
 func checkAITools(cfg envConfig) *sectionResult {
 	s := &sectionResult{title: "AI tools"}
 	piAgent := filepath.Join(cfg.home, ".pi", "agent")
+	_, piErr := exec.LookPath("pi")
+	_, piDirErr := os.Stat(piAgent)
+	piInstalled := piErr == nil || piDirErr == nil
 
-	if data, err := os.ReadFile(filepath.Join(piAgent, "settings.json")); err == nil {
+	if !piInstalled {
+		s.skip("Pi  not installed (no pi on PATH, no ~/.pi/agent)")
+	} else if data, err := os.ReadFile(filepath.Join(piAgent, "settings.json")); err == nil {
 		var doc struct {
 			DefaultThinkingLevel string `json:"defaultThinkingLevel"`
 		}
@@ -588,7 +605,9 @@ func checkAITools(cfg envConfig) *sectionResult {
 		s.fix("zdots-update-local")
 	}
 
-	if data, err := os.ReadFile(filepath.Join(piAgent, "models.json")); err == nil {
+	if !piInstalled {
+		// Reported once above.
+	} else if data, err := os.ReadFile(filepath.Join(piAgent, "models.json")); err == nil {
 		var doc struct {
 			Providers struct {
 				Llamacpp struct {
@@ -963,11 +982,30 @@ func checkRuntime(cfg envConfig) *sectionResult {
 		return s
 	}
 	out, rc := ctl.CheckText(cfg.zdotdir)
-	s.raw(out)
 	s.runtimeRC = rc
+	addRuntimeOutput(s, out)
+	return s
+}
+
+// runtimeWarnRe matches a zdots-ctl check warning line ("  [WARN] label  detail").
+var runtimeWarnRe = regexp.MustCompile(`^\s*\[WARN\]\s+(.+?)\s*$`)
+
+// addRuntimeOutput records zdots-ctl check output: each [WARN] line becomes a
+// warning (so a host accept list can match it); other lines stay raw. When the
+// output has no [WARN] lines, the summary's warning count is used instead.
+func addRuntimeOutput(s *sectionResult, out string) {
+	warnLines := 0
+	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+		if m := runtimeWarnRe.FindStringSubmatch(line); m != nil {
+			s.warnLine(m[1])
+			warnLines++
+		} else {
+			s.raw(line)
+		}
+	}
 	warnRe := regexp.MustCompile(`([0-9]+) warning`)
 	failRe := regexp.MustCompile(`([0-9]+) failure`)
-	if matches := warnRe.FindAllStringSubmatch(out, -1); len(matches) > 0 {
+	if matches := warnRe.FindAllStringSubmatch(out, -1); len(matches) > 0 && warnLines == 0 {
 		if n, err := strconv.Atoi(matches[len(matches)-1][1]); err == nil {
 			s.warn += n
 		}
@@ -977,7 +1015,6 @@ func checkRuntime(cfg envConfig) *sectionResult {
 			s.fail += n
 		}
 	}
-	return s
 }
 
 func checkPeer(cfg envConfig) *sectionResult {
@@ -1103,4 +1140,88 @@ func envOr(k, fallback string) string {
 func fileExists(p string) bool {
 	_, err := os.Stat(p)
 	return err == nil
+}
+
+// acceptEntry is one line of a host's doctor accept list: warnings whose text
+// starts with prefix (with $HOME written as ~) are expected on this host.
+type acceptEntry struct{ prefix, reason string }
+
+// acceptFile is the host's accept list: ZDOTS_DOCTOR_ACCEPT_FILE, or the
+// gitignored $ZDOTDIR/.zdots.doctor-accept.
+func acceptFile(cfg envConfig) string {
+	return envOr("ZDOTS_DOCTOR_ACCEPT_FILE", filepath.Join(cfg.zdotdir, ".zdots.doctor-accept"))
+}
+
+// loadAccepts reads "prefix  # reason" lines; blank lines and # comments are
+// skipped. A missing file means nothing is accepted.
+func loadAccepts(path string) []acceptEntry {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var out []acceptEntry
+	for _, raw := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		prefix, reason, _ := strings.Cut(line, "#")
+		prefix = strings.TrimSpace(prefix)
+		if prefix != "" {
+			out = append(out, acceptEntry{prefix: prefix, reason: strings.TrimSpace(reason)})
+		}
+	}
+	return out
+}
+
+// applyAccepts turns accepted warnings into [accept] lines so they no longer
+// count as warnings, and returns how many it accepted. Failures are never
+// accepted.
+func applyAccepts(results []*sectionResult, accepts []acceptEntry, home string) int {
+	if len(accepts) == 0 {
+		return 0
+	}
+	n := 0
+	for _, r := range results {
+		if r == nil {
+			continue
+		}
+		kept := r.lines[:0]
+		dropFix := false
+		for _, l := range r.lines {
+			if l.kind == kindFix && dropFix {
+				continue // the fix hint of an accepted warning
+			}
+			dropFix = false
+			if l.kind != kindWarn {
+				kept = append(kept, l)
+				continue
+			}
+			text := l.text
+			if home != "" {
+				text = strings.ReplaceAll(text, home, "~")
+			}
+			accepted := false
+			for _, a := range accepts {
+				if !strings.HasPrefix(text, a.prefix) {
+					continue
+				}
+				note := " — accepted"
+				if a.reason != "" {
+					note += ": " + a.reason
+				}
+				kept = append(kept, lineItem{kindAccept, text + note})
+				r.warn--
+				r.accepted++
+				n++
+				accepted, dropFix = true, true
+				break
+			}
+			if !accepted {
+				kept = append(kept, l)
+			}
+		}
+		r.lines = kept
+	}
+	return n
 }

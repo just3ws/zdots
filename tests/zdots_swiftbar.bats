@@ -22,7 +22,12 @@ setup() {
 }
 
 @test "zdots-swiftbar: emits valid SwiftBar dialect with rich transcription telemetry" {
-  run "$REPO_ROOT/bin/zdots-swiftbar"
+  # Hermetic: a models dir with the active model, so transcription is set up
+  # whatever this machine has installed.
+  tmp_models="$(mktemp -d)"
+  printf 'model' > "$tmp_models/test-model.bin"
+  run env ZDOTS_WHISPER_MODELS_DIR="$tmp_models" ZDOTS_WHISPER_MODEL_FILE="test-model.bin" "$REPO_ROOT/bin/zdots-swiftbar"
+  rm -rf "$tmp_models"
   [ "$status" -eq 0 ]
 
   # Menu bar line must contain platform health and transcription iconography
@@ -53,7 +58,10 @@ setup() {
 }
 
 @test "zdots-swiftbar: flags missing model cleanly when model file is nonexistent" {
+  # Another model on disk means transcription is set up, so a missing active
+  # model is a real warning (a host with no models at all shows "not set up").
   tmp_models="$(mktemp -d)"
+  printf 'model' > "$tmp_models/other-model.bin"
   run env ZDOTS_WHISPER_MODELS_DIR="$tmp_models" ZDOTS_WHISPER_MODEL_FILE="nonexistent.bin" "$REPO_ROOT/bin/zdots-swiftbar"
   rm -rf "$tmp_models"
   [ "$status" -eq 0 ]
