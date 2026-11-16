@@ -32,7 +32,7 @@ setup() {
   command -v jq >/dev/null 2>&1 || skip "jq not installed"
   run "$REPO_ROOT/bin/zsvc" map --json
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.services | length == 11' >/dev/null
+  echo "$output" | jq -e '.services | length == 12' >/dev/null
 }
 
 @test "zsvc map llama --json includes purpose, auth, and example" {

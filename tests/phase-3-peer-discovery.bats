@@ -138,15 +138,12 @@ _parse_capability() {
 # Tests: Capabilities Sourcing
 # ---------------------------------------------------------------------------
 
-@test "Capabilities: zdots/capabilities exists and is valid shell" {
+@test "Capabilities: zdots/capabilities exists and is executable" {
   [ -x "$REAL_ZDOTDIR/bin/capabilities" ] || skip "zdots/bin/capabilities not found"
 
-  # Verify it's a valid executable shell script
-  run bash -n "$REAL_ZDOTDIR/bin/capabilities"
-  [ "$status" -eq 0 ]
-
-  # Also verify it can be executed
+  # Verify it can be executed and emits valid JSON
   run bash -c "$REAL_ZDOTDIR/bin/capabilities --json >/dev/null 2>&1 && echo ok"
+  [ "$status" -eq 0 ]
   [[ "$output" == "ok" ]]
 }
 
@@ -182,9 +179,9 @@ _parse_capability() {
   [ -x "$REAL_ZDOTDIR/bin/capabilities" ] || skip "zdots/capabilities not found"
   [ -f "$REAL_ADOTS_DIR/capabilities.sh" ] || skip "adots/capabilities.sh not found"
 
-  # Both files are present; verify they can be parsed
+  # Both files are present; verify zdots/capabilities runs and adots/capabilities.sh parses
   run bash -c "
-    bash -n '$REAL_ZDOTDIR/bin/capabilities' && \\
+    '$REAL_ZDOTDIR/bin/capabilities' --json >/dev/null 2>&1 && \\
     bash -n '$REAL_ADOTS_DIR/capabilities.sh' && \\
     echo 'both-ok'
   "

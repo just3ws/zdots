@@ -190,7 +190,10 @@ func loadCtx(zdotdirOverride string) envCtx {
 			Endpoint: envOr("ZDOTS_JAEGER_ENDPOINT", fmt.Sprintf("http://%s:%s", jaegerHost, envOr("ZDOTS_JAEGER_UI_PORT", "16686"))),
 			Type:     "launchd", Managed: true, Aliases: []string{"tracing", "trace-ui"},
 			Install: "install", Start: "start", Stop: "stop", Restart: "restart", Status: "status", Health: "status", Logs: "logs", Validate: "validate",
-			HealthPolicy: "registered",
+			HealthPolicy: "registered", Detail: "Jaeger UI",
+			Purpose:    "Distributed trace storage and query UI", APIKind: "http", Auth: "none (loopback-trusted)",
+			HealthPath: "/", Example: "curl -s http://127.0.0.1:16686/api/services", DependsOn: []string{"otel"},
+			Docs:       "docs/otel-collector-guide.md",
 		},
 		{
 			Name: "o2", Display: "openobserve", Label: "com.zdots.openobserve",
