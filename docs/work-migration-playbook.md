@@ -653,7 +653,7 @@ The platform edge routes friendly HTTPS `.localhost` domains to their local runt
 |---|---|---|---|
 | **Local AI Inference** | `https://llama.localhost` | `127.0.0.1:11500` | `curl -sk https://llama.localhost/health` |
 | **Local Embeddings** | `https://embed.localhost` | `127.0.0.1:11501` | `curl -sk https://embed.localhost/health` |
-| **OpenObserve (Telemetry UI)** | `https://o2.localhost` | `127.0.0.1:5080` | `curl -sk https://o2.localhost/` |
+| **OpenObserve (Retired — legacy route)** | `https://o2.localhost` | `127.0.0.1:5080` | Retired in favor of Jaeger (`:16686`) + rotated OTel JSON files |
 | **Jaeger (Tracing UI)** | `https://jaeger.localhost` | `127.0.0.1:16686` | `curl -sk https://jaeger.localhost/` |
 | **Status / Control Plane** | `https://zdots.localhost` | `127.0.0.1:11600` | `curl -sk https://zdots.localhost/healthz` |
 | **Knowledge Layer Cockpit** | `https://my.localhost` | Socket/Port 5432 / app | `curl -sk https://my.localhost/` |
@@ -795,13 +795,12 @@ exec zsh
 
 ### Go Toolchain & Compiled Binaries (`bin/` & `cmd/`)
 
-- **Zero-runtime adoption:** Prebuilt `darwin/arm64` binaries (`bin/zdots-core`, `bin/zdots-phi-scrub`, `bin/zdots-buffer-drain`, `bin/zdots-secret-scan`) and multicall symlinks (`bin/capabilities -> zdots-core`, `bin/zdots-storage -> zdots-core`) are tracked in `bin/`, so `git pull --ff-only` activates them immediately on Apple Silicon Macs with no Go runtime required.
+- **Zero-runtime adoption:** Prebuilt `darwin/arm64` binaries (`bin/zdots-core`, `bin/zdots-phi-scrub`, `bin/zdots-buffer-drain`, `bin/zdots-secret-scan`) and the 13 `zdots-core` multicall symlinks (`agent-guide`, `capabilities`, `llama-caps`, `zdots-ctl`, `zdots-doctor`, `zdots-hygiene`, `zdots-logs`, `zdots-o2-query`, `zdots-status`, `zdots-statusd`, `zdots-storage`, `zdots-swiftbar`, `zsvc`) are tracked in `bin/`, so `git pull --ff-only` activates them immediately on Apple Silicon Macs with no Go runtime required.
+- **Automatic host-arch fallback & verification:** On non-Apple-Silicon hosts (Intel Mac, Linux/WSL), `bin/bootstrap` (Phase 12) detects when `bin/zdots-core` cannot run on the host OS/arch and rebuilds it in place if `go` is installed; `bin/check` (`assert_zdots_core_runnable`) verifies `bin/zdots-core --help` succeeds before push.
 - **Toolchain precedence (`mise` over Homebrew):** `mise.toml` pins `go = "1.26.3"` and `GOPATH = "{{env.HOME}}/go"`, taking precedence over `brew "go"` in `Brewfile.common`. During Phase 3 (`mise` reconciliation), preserve the `go` pin in `mise.toml` alongside any employer-required Go version in project `.mise.toml` / `.tool-versions`.
 - **Rebuilding from source (if required by architecture or corporate policy):**
   - `cmd/zdots-core` uses only the Go standard library (zero external module fetches, builds offline/behind corporate proxies):
     ```zsh
     go build -C ~/.config/zsh/cmd/zdots-core -ldflags="-s -w" -o ../../bin/zdots-core .
-    ln -sf zdots-core ~/.config/zsh/bin/capabilities
-    ln -sf zdots-core ~/.config/zsh/bin/zdots-storage
     ```
   - Standalone modules (`cmd/zdots-phi-scrub`, `cmd/zdots-buffer-drain`, `cmd/zdots-secret-scan`) can be tested/rebuilt from their respective `cmd/<name>` directories (`go test ./... && go build -ldflags="-s -w" -o ../../bin/<name> .`).
