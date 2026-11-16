@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -602,8 +603,12 @@ type brainInfo struct {
 	MCPCtx              int    `json:"mcp_ctx"`
 }
 
-// loadEnvWithManifest reads os.Environ() and overlays simple KEY=VALUE / export KEY=VALUE
-// lines from manifestPath (matching sh sourcing .zdots.env).
+// loadEnvWithManifest reads os.Environ() and fills in keys it lacks from the
+// top-level KEY=VALUE / export KEY=VALUE lines of manifestPath. The shell has
+// usually sourced .zdots.env already, so exported values win. Lines inside
+// if/case blocks are skipped (their conditions need a shell), ${NAME:-default}
+// resolves like the shell, and other expansions are left out rather than
+// copied through as literal text.
 func loadEnvWithManifest(manifestPath string) map[string]string {
 	m := make(map[string]string)
 	for _, e := range os.Environ() {
@@ -615,9 +620,23 @@ func loadEnvWithManifest(manifestPath string) map[string]string {
 	if err != nil {
 		return m
 	}
+	depth := 0
 	for _, raw := range strings.Split(string(data), "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		switch word, _, _ := strings.Cut(line, " "); strings.TrimSuffix(word, ";") {
+		case "if", "case":
+			depth++
+			continue
+		case "fi", "esac":
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth > 0 {
 			continue
 		}
 		line = strings.TrimPrefix(line, "export ")
@@ -631,12 +650,23 @@ func loadEnvWithManifest(manifestPath string) map[string]string {
 		if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'')) {
 			v = v[1 : len(v)-1]
 		}
-		if k != "" {
+		if sm := manifestDefault.FindStringSubmatch(v); sm != nil {
+			v = sm[2]
+			if ev := m[sm[1]]; ev != "" {
+				v = ev
+			}
+		} else if strings.ContainsAny(v, "$`") {
+			continue
+		}
+		if k != "" && m[k] == "" {
 			m[k] = v
 		}
 	}
 	return m
 }
+
+// manifestDefault matches a whole ${NAME:-literal} value.
+var manifestDefault = regexp.MustCompile(`^\$\{([A-Za-z_][A-Za-z0-9_]*):-([^$` + "`" + `}]*)\}$`)
 
 func runCmd(timeout time.Duration, name string, args ...string) []byte {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
