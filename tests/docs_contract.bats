@@ -49,6 +49,7 @@ _known_gap() {
     ruby-audit
     ruby-audit-batch
     ruby-audit-diff
+    tx
     whisper-ctl
     zdash
     zdots-eval
@@ -121,6 +122,7 @@ _known_gap() {
     man/man1/ztask.1
     man/man1/zdash.1
     man/man1/zdots-log-analyze.1
+    man/man1/tx.1
     man/man8/zdots-ctl.8
     man/man8/llama-ctl.8
     man/man8/otel-collector.8
@@ -209,6 +211,7 @@ _known_gap() {
     zdots-storage zdots-hygiene zdots-check zdots-lake zdots-sql-lint ztranscribe
     observability-mode zdots-typecheck omp-gateway-ctl zdots-skills-sync
     zdots-core
+    tx
   )
 
   local missing=()

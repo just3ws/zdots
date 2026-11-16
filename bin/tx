@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# bin/tx — one way into tmux sessions, from a shell, from inside tmux, or from a
+# terminal emulator's launch command.
+#
+# tmux refuses `tmux new -s x` inside tmux (the nesting guard), and a terminal
+# profile that always runs `tmux new-session -A -s main` sends every new
+# window, tab and split back into the same session. tx handles both:
+#
+#   tx                  inside tmux: session picker; outside: list sessions
+#   tx <name>           attach to <name>, creating it in the current directory
+#                       if needed. Inside tmux it switches this client instead
+#                       of nesting.
+#   tx -                inside tmux: back to the previous session (prefix ⌫)
+#   tx --landing        for terminal launch commands (iTerm2, Ghostty). The
+#                       first window attaches to the landing session. Every
+#                       later window or tab gets a new tmux window in that
+#                       session, shown through its own grouped view
+#                       (<landing>-N), so it survives a terminal restart like
+#                       the rest of tmux. Views nobody shows any more (closed
+#                       tabs) are removed the next time a view is opened; their
+#                       windows stay in the landing session.
+#   tx -h, --help       show this help
+#
+# Environment:
+#   ZDOTS_TMUX_LANDING  landing session name (default: main)
+#   TX_TMUX             tmux binary or wrapper script (default: tmux; tests
+#                       point it at a wrapper that uses a private socket)
+
+set -euo pipefail
+
+TMUX_BIN="${TX_TMUX:-tmux}"
+LANDING="${ZDOTS_TMUX_LANDING:-main}"
+
+usage() {
+  sed -n '2,/^$/{s/^# \{0,1\}//;p;}' "$0" | sed '$d'
+  printf '\nUsage: tx [<session> | - | --landing | -h]\n'
+}
+
+t() { "$TMUX_BIN" "$@"; }
+
+login_shell() {
+  local sh="${SHELL:-/bin/zsh}"
+  exec "$sh" -l
+}
+
+case "${1:-}" in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  --landing)
+    command -v "$TMUX_BIN" >/dev/null 2>&1 || login_shell
+    # A client already shows the landing session: open a new window in it
+    # through a grouped view (shares its windows, keeps its own current window).
+    # Views stay while unattached, so switching to another session and back
+    # (prefix ⌫) returns to the same window; stale ones are pruned here.
+    if [[ -n "$(t list-clients -t "=$LANDING" -F x 2>/dev/null)" ]]; then
+      t list-sessions -F '#{session_name}	#{session_group}	#{session_attached}' 2>/dev/null |
+        while IFS=$'\t' read -r s g a; do
+          if [[ "$g" == "$LANDING" && "$s" != "$LANDING" && "$a" == 0 ]]; then
+            t kill-session -t "=$s" || true
+          fi
+        done
+      exec "$TMUX_BIN" new-session -t "=$LANDING" \; new-window -c "$PWD"
+    fi
+    exec "$TMUX_BIN" new-session -A -s "$LANDING"
+    ;;
+  "")
+    if [[ -n "${TMUX:-}" ]]; then
+      exec "$TMUX_BIN" choose-tree -Zs
+    fi
+    t list-sessions 2>/dev/null || echo "tx: no tmux sessions (start one: tx <name>)"
+    ;;
+  -)
+    if [[ -z "${TMUX:-}" ]]; then
+      echo "tx: '-' switches back to the previous session from inside tmux" >&2
+      exit 2
+    fi
+    # The previous session may be a closed ⌘T view; fall back to the landing session.
+    t switch-client -l 2>/dev/null || exec "$TMUX_BIN" switch-client -t "=$LANDING"
+    ;;
+  -*)
+    echo "tx: unknown option: $1" >&2
+    usage >&2
+    exit 2
+    ;;
+  *)
+    name="$1"
+    if ! t has-session -t "=$name" 2>/dev/null; then
+      t new-session -d -s "$name" -c "$PWD"
+    fi
+    if [[ -n "${TMUX:-}" ]]; then
+      exec "$TMUX_BIN" switch-client -t "=$name"
+    fi
+    exec "$TMUX_BIN" attach-session -t "=$name"
+    ;;
+esac

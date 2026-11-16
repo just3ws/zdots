@@ -1,0 +1,69 @@
+.Dd November 16, 2026
+.Dt TX 1
+.Os zdots
+.Sh NAME
+.Nm tx
+.Nd one way into tmux sessions from a shell, inside tmux, or a terminal launch
+.Sh SYNOPSIS
+.Nm
+.Op Ar session
+.Nm
+.Cm -
+.Nm
+.Fl -landing
+.Nm
+.Op Fl h | Fl -help
+.Sh DESCRIPTION
+.Nm
+attaches to tmux sessions the same way everywhere.
+.Pp
+With a
+.Ar session
+name it attaches to that session, creating it in the current directory if it
+does not exist. Inside tmux it switches the current client instead, because
+tmux refuses to start a session inside another one.
+.Pp
+With no arguments it opens the session picker inside tmux, or lists the
+sessions outside it.
+.Pp
+With
+.Cm -
+it switches back to the previous session (inside tmux only).
+.Pp
+.Fl -landing
+is for terminal emulator launch commands (iTerm2 profiles, Ghostty's
+.Cm command ) .
+It attaches to the landing session only when no client shows it yet; otherwise
+it starts a plain login shell. The first terminal window therefore lands in
+tmux, and later windows, tabs and splits are fresh local shells from which
+.Nm Ar name
+reaches any other session.
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl -landing
+Attach to the landing session if no client shows it, else exec a login shell.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ZDOTS_TMUX_LANDING
+.It Ev ZDOTS_TMUX_LANDING
+Landing session name. Default:
+.Ql main .
+.It Ev TX_TMUX
+tmux binary or wrapper script. Default:
+.Ql tmux .
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+tx                 # pick a session (inside tmux) or list them
+tx notes           # go to the notes session, creating it here if needed
+tx --landing       # in a terminal profile's launch command
+.Ed
+.Sh SEE ALSO
+.Xr tmux 1
+.Pp
+The tmux configuration and key bindings
+.Pq prefix N, prefix s, prefix Backspace
+are documented in
+.Pa ~/.config/tmux/README.md .
