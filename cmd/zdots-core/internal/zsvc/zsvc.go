@@ -230,7 +230,7 @@ func loadCtx(zdotdirOverride string) envCtx {
 			Endpoint: fmt.Sprintf("postgresql:///my (:%s)", envOr("ZDOTS_PG_PORT", "5432")),
 			Type:     "plist", Managed: true, Aliases: []string{"postgresql", "pg", "db", "database"},
 			Start: "start", Stop: "stop", Restart: "restart", Status: "status", Health: "status",
-			HealthPolicy: "required", Detail: "pg_isready",
+			HealthPolicy: "required", Detail: "pg_isready: accepting connections",
 			Purpose: "Knowledge-layer store — database 'my'", APIKind: "sql", Auth: "zdots_ro (read) / zdots_rw (write) via scram-sha-256",
 			HealthPath: "pg_isready", Example: "psql -U zdots_ro my", Docs: "docs/wiki/AI-and-Knowledge-Layer.md",
 		},

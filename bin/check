@@ -643,6 +643,16 @@ assert_colima_xdg() {
 }
 assert_colima_xdg
 
+assert_zdots_core_runnable() {
+  if [[ -f "$REPO_ROOT/cmd/zdots-core/go.mod" ]]; then
+    if [[ ! -x "$REPO_ROOT/bin/zdots-core" ]] || ! "$REPO_ROOT/bin/zdots-core" --help >/dev/null 2>&1; then
+      echo "check: bin/zdots-core is missing or not runnable on this host; rebuild with: (cd cmd/zdots-core && go build -o ../../bin/zdots-core .)" >&2
+      exit 1
+    fi
+  fi
+}
+assert_zdots_core_runnable
+
 if [[ "${ZDOTS_CHECK_REPORT_STARTUP:-0}" == "1" ]]; then
   report_startup_timing
 fi

@@ -693,4 +693,22 @@ else
   echo "bootstrap: gh not found — skipping extension install."
 fi
 
+_bootstrap_phase "go: zdots-core multicall binary"
+
+# 12. Build bin/zdots-core for the host OS/arch if missing or unrunnable here.
+if [ -f "$REPO_ROOT/cmd/zdots-core/go.mod" ]; then
+  if [ ! -x "$REPO_ROOT/bin/zdots-core" ] || ! "$REPO_ROOT/bin/zdots-core" --help >/dev/null 2>&1; then
+    if command -v go >/dev/null 2>&1; then
+      echo "bootstrap: building bin/zdots-core for $(uname -s)/$(uname -m)..."
+      (cd "$REPO_ROOT/cmd/zdots-core" && go build -o "$REPO_ROOT/bin/zdots-core" .) \
+        && echo "bootstrap: built bin/zdots-core." \
+        || echo "bootstrap: warning: failed to build bin/zdots-core" >&2
+    else
+      echo "bootstrap: warning: bin/zdots-core missing or incompatible and 'go' not found" >&2
+    fi
+  else
+    echo "bootstrap: bin/zdots-core ok."
+  fi
+fi
+
 echo "bootstrap: complete. Restart your shell or run 'exec zsh'."
