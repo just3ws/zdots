@@ -21,6 +21,18 @@ ARCH=$(uname -m)
 [ "$ARCH" = "x86_64" ] && ARCH="amd64"
 [ "$ARCH" = "aarch64" ] && ARCH="arm64"
 
+# Release tarball checksums, from the upstream <tarball>.sha256 assets for
+# v${VERSION}. Bump them with VERSION. An unpinned OS/arch fails closed unless
+# ZDOTS_OTEL_ALLOW_UNVERIFIED=1.
+# shellcheck disable=SC2034 # referenced indirectly via ${!sha_var} in cmd_install
+TARBALL_SHA256_darwin_arm64="f9a0ed310e9beeb0fabca9d9c24bd0d3467f6339e3207710dbd66a6adf1298f6"
+# shellcheck disable=SC2034
+TARBALL_SHA256_darwin_amd64="7d14e5c14bcb930d55f2bd5d3fbb3734be5fd2889698488e65e488efda5473c9"
+# shellcheck disable=SC2034
+TARBALL_SHA256_linux_arm64="376420729c862230807bc89811d07d10031eaeca3f6481fe371a2bdcefd2c8fa"
+# shellcheck disable=SC2034
+TARBALL_SHA256_linux_amd64="bd6e73d94bf3359ad6fac25529a8ee308adb9b0b8a0e8af034ed3891fbe5aa33"
+
 INSTALL_DIR="${HOME}/.local/bin"
 BINARY="${INSTALL_DIR}/${DISTRO}"
 CONFIG_FILE="${ZDOTDIR:-$(pwd)}/etc/otel-collector.yaml"
@@ -139,6 +151,7 @@ Options:
 
 Environment:
   ZDOTDIR  Repository root (config file: \$ZDOTDIR/etc/otel-collector.yaml)
+  ZDOTS_OTEL_ALLOW_UNVERIFIED=1  Install a tarball with no pinned checksum
 EOF
 }
 
@@ -155,7 +168,17 @@ cmd_install() {
   tmp_dir=$(mktemp -d)
   trap '[[ -n "${tmp_dir:-}" ]] && rm -rf "$tmp_dir"' EXIT
 
-  if curl -L "$url" -o "${tmp_dir}/otel.tar.gz"; then
+  if curl -fL "$url" -o "${tmp_dir}/otel.tar.gz"; then
+    local sha_var="TARBALL_SHA256_${OS}_${ARCH}" actual
+    local expected="${!sha_var:-}"
+    actual="$(shasum -a 256 "${tmp_dir}/otel.tar.gz" | awk '{print $1}')"
+    if [ -z "$expected" ]; then
+      [ "${ZDOTS_OTEL_ALLOW_UNVERIFIED:-0}" = "1" ] \
+        || _die "no pinned checksum for ${OS}/${ARCH} (sha256 $actual); set ZDOTS_OTEL_ALLOW_UNVERIFIED=1 to install anyway"
+      _info "warning: installing unverified ${OS}/${ARCH} tarball (sha256 $actual)"
+    elif [ "$actual" != "$expected" ]; then
+      _die "checksum mismatch for $url: expected $expected, got $actual"
+    fi
     tar -xzf "${tmp_dir}/otel.tar.gz" -C "$tmp_dir"
     mv "${tmp_dir}/${DISTRO}" "$BINARY"
     chmod +x "$BINARY"
