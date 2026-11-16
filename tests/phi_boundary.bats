@@ -357,6 +357,36 @@ _wait_for_unified_log_marker() {
   [[ "$output" == *"history_redacted"* ]]
 }
 
+@test "phi_history: resident scrubber cold start does not print the overhead warning" {
+  run zsh -c '
+    zmodload zsh/datetime
+    source '"$ZDOTDIR"'/conf.d/55-phi-history.zsh
+    shell_hook_metrics_record() { :; }
+    # Make the (re)start of the resident scrubber slower than the print threshold.
+    functions -c _phi_srv_start _phi_srv_start_real
+    _phi_srv_start() { sleep 0.05; _phi_srv_start_real; }
+    zshaddhistory "git status" 2>&1
+    echo "return:$?"
+    _phi_srv_stop
+  '
+  [[ "$output" == *"return:0"* ]]
+  [[ "$output" != *"overhead"* ]]
+}
+
+@test "phi_history: slow call on a warm resident scrubber still warns" {
+  run zsh -c '
+    zmodload zsh/datetime
+    source '"$ZDOTDIR"'/conf.d/55-phi-history.zsh
+    shell_hook_metrics_record() { :; }
+    zshaddhistory "git status" 2>/dev/null   # warm the resident scrubber
+    functions -c _phi_srv_scrub _phi_srv_scrub_real
+    _phi_srv_scrub() { sleep 0.05; _phi_srv_scrub_real "$@"; }
+    zshaddhistory "git status" 2>&1
+    _phi_srv_stop
+  '
+  [[ "$output" == *"phi-history:"*"overhead"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # ZDOTS_LAST_COMMAND truncation
 # ---------------------------------------------------------------------------

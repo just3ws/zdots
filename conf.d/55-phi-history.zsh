@@ -48,7 +48,7 @@ fi
 # Kill switch: ZDOTS_PHI_COPROC=0.
 zmodload -F zsh/stat b:zstat 2>/dev/null
 typeset -g _phi_srv_pid= _phi_srv_in= _phi_srv_out= _phi_srv_mtime=
-typeset -g _phi_srv_status= _phi_srv_payload=
+typeset -g _phi_srv_status= _phi_srv_payload= _phi_srv_cold=0
 
 _phi_srv_stop() {
   local _saved_err
@@ -87,12 +87,14 @@ _phi_srv_start() {
 # _phi_srv_payload. Non-zero return = resident path unavailable this command.
 _phi_srv_scrub() {
   local -a _st
+  _phi_srv_cold=0
   if [[ -n "$_phi_srv_pid" ]] && zstat -A _st +mtime "${ZDOTDIR}/etc/phi-patterns.yaml" 2>/dev/null \
      && [[ "${_st[1]}" != "$_phi_srv_mtime" ]]; then
     _phi_srv_stop # registry changed — respawn to load fresh patterns
   fi
   if [[ -z "$_phi_srv_pid" ]] || ! kill -0 "$_phi_srv_pid" 2>/dev/null; then
     _phi_srv_stop
+    _phi_srv_cold=1 # this call pays the ~25ms spawn (first command, or after idle exit)
     _phi_srv_start || return 1
   fi
   printf '%s\0' "$1" >&"$_phi_srv_out" 2>/dev/null || { _phi_srv_stop; return 1; }
@@ -175,9 +177,10 @@ zshaddhistory() {
     return 1
   fi
 
-  # Performance guard — warn if hook exceeded 1ms on a clean command
+  # Performance guard — record overhead over 1ms on a clean command; print only
+  # when a warm resident scrubber was slow (a cold start is expected to be).
   _phi_history_maybe_record_overhead "clean" "$elapsed" "$threshold_ms" "$ts_ms"
-  (( elapsed > print_threshold_ms )) && print -u2 "zdots: phi-history: ${elapsed}ms overhead (threshold ${print_threshold_ms}ms)" || true
+  (( elapsed > print_threshold_ms && ! _phi_srv_cold )) && print -u2 "zdots: phi-history: ${elapsed}ms overhead (threshold ${print_threshold_ms}ms)" || true
 
   return 0
 }
