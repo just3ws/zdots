@@ -106,9 +106,12 @@ teardown() {
 }
 
 @test "log-rotate: resolves com.my.* service plists" {
-  defaults write "$HOME/Library/LaunchAgents/com.my.custom-app" \
+  # A temp HOME: the fake plist must never land in the real ~/Library/LaunchAgents.
+  local home="$TMP_DIR/home"
+  mkdir -p "$home/Library/LaunchAgents"
+  defaults write "$home/Library/LaunchAgents/com.my.custom-app" \
     StandardErrorPath "$FAKE_LOG"
-  run log-rotate custom-app --dry-run
+  HOME="$home" run log-rotate custom-app --dry-run
   [ "$status" -eq 1 ]
   [[ "$output" =~ "$FAKE_LOG" ]]
 }
