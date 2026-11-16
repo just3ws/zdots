@@ -68,7 +68,9 @@ _phi_srv_start() {
   else
     _phi_srv_mtime=0
   fi
-  coproc zdots-phi-scrub --serve 2>/dev/null
+  # Idle exit after 8h, not the binary's 300s default: each respawn costs the
+  # next command ~25-55ms, and an idle server is ~15MB that dies with its shell.
+  coproc ZDOTS_PHI_SERVE_IDLE="${ZDOTS_PHI_SERVE_IDLE:-28800}" zdots-phi-scrub --serve 2>/dev/null
   _phi_srv_pid=$!
   # Move the coproc fds to plain descriptors: frees the shell's only coproc
   # slot for user code and pins our pipes against any later coproc.
@@ -105,6 +107,11 @@ _phi_srv_scrub() {
   [[ "$_phi_srv_status" == (0|2) ]] || { _phi_srv_stop; return 1; }
   return 0
 }
+
+# Start the resident scrubber with the shell, so its startup overlaps the
+# first prompt instead of delaying the first command. Starting doesn't wait
+# for the server; a failure here just leaves the lazy start in _phi_srv_scrub.
+[[ "${ZDOTS_PHI_COPROC:-1}" == "1" ]] && { _phi_srv_start || true; }
 
 _phi_history_maybe_record_overhead() {
   local metric_status="$1"

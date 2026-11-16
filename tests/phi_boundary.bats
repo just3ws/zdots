@@ -365,6 +365,7 @@ _wait_for_unified_log_marker() {
     # Make the (re)start of the resident scrubber slower than the print threshold.
     functions -c _phi_srv_start _phi_srv_start_real
     _phi_srv_start() { sleep 0.05; _phi_srv_start_real; }
+    _phi_srv_stop   # as after an idle exit: the next command restarts it
     zshaddhistory "git status" 2>&1
     echo "return:$?"
     _phi_srv_stop
@@ -385,6 +386,29 @@ _wait_for_unified_log_marker() {
     _phi_srv_stop
   '
   [[ "$output" == *"phi-history:"*"overhead"* ]]
+}
+
+@test "phi_history: resident scrubber starts with the shell, so the first command is warm" {
+  run zsh -c '
+    zmodload zsh/datetime
+    source '"$ZDOTDIR"'/conf.d/55-phi-history.zsh
+    shell_hook_metrics_record() { :; }
+    [[ -n "$_phi_srv_pid" ]] && kill -0 "$_phi_srv_pid" && echo "started"
+    zshaddhistory "git status" 2>&1
+    echo "cold:$_phi_srv_cold"
+    _phi_srv_stop
+  '
+  [[ "$output" == *"started"* ]]
+  [[ "$output" == *"cold:0"* ]]
+}
+
+@test "phi_history: resident scrubber idles out after 8h unless overridden" {
+  run zsh -c '
+    source '"$ZDOTDIR"'/conf.d/55-phi-history.zsh
+    ps -E -o command= -p "$_phi_srv_pid" | tr " " "\n" | grep "^ZDOTS_PHI_SERVE_IDLE="
+    _phi_srv_stop
+  '
+  [[ "$output" == *"ZDOTS_PHI_SERVE_IDLE=28800"* ]]
 }
 
 # ---------------------------------------------------------------------------
