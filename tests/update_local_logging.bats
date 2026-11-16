@@ -19,7 +19,9 @@ teardown() {
   printf '#!/bin/sh\nexit 0\n' > "$TMP_LOG_DIR/bin/pi"
   chmod +x "$TMP_LOG_DIR/bin/pi"
 
+  # -u: a host's machine-local skip list (e.g. "pi") would drop the phase under test.
   run env \
+    -u ZDOTS_UPDATE_LOCAL_SKIP \
     PATH="$TMP_LOG_DIR/bin:$PATH" \
     ZDOTS_LOG_DIR="$TMP_LOG_DIR" \
     ZDOTS_TRANSCRIPT_TEE=0 \
