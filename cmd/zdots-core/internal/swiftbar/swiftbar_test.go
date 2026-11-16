@@ -89,6 +89,47 @@ func TestTranscriptionNotSetUpStaysQuiet(t *testing.T) {
 	}
 }
 
+// The same never-set-up host without whisper-cli (CI runners, most work Macs)
+// is still just "not set up", not a red missing-CLI failure.
+func TestTranscriptionNotSetUpWithoutCLIStaysQuiet(t *testing.T) {
+	orig := whisperCLI
+	whisperCLI = func() string { return "" }
+	t.Cleanup(func() { whisperCLI = orig })
+	TestTranscriptionNotSetUpStaysQuiet(t)
+}
+
+// A host that did set transcription up (a model on disk) and then lost
+// whisper-cli still reports the missing CLI in the title.
+func TestTranscriptionSetUpWithoutCLIReportsMissing(t *testing.T) {
+	orig := whisperCLI
+	whisperCLI = func() string { return "" }
+	t.Cleanup(func() { whisperCLI = orig })
+
+	stateHome := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(stateHome, "zsh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stateHome, "zsh", "zdots-watch.state"),
+		[]byte("ts=2026-11-16T00:00:00\nrc=0\npass=40\nwarn=0\nfail=0\ncaps_errors=0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	models := t.TempDir()
+	if err := os.WriteFile(filepath.Join(models, "ggml-large-v3-turbo.bin"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_STATE_HOME", stateHome)
+	t.Setenv("ZDOTS_WHISPER_MODELS_DIR", models)
+
+	var out, errBuf bytes.Buffer
+	if code := runWithIO(nil, &out, &errBuf, func() []processInfo { return nil }); code != 0 {
+		t.Fatalf("exit %d: %s", code, errBuf.String())
+	}
+	title, _, _ := strings.Cut(out.String(), "\n")
+	if title != "🟢 🎙️❌" {
+		t.Fatalf("title = %q, want the missing-CLI glyph", title)
+	}
+}
+
 // Postgres, gemstash (port from ~/.gemstash/config.yml) and Jaeger appear in
 // the subsystem list from the process table alone.
 func TestSubsystemsIncludePostgresGemstashJaeger(t *testing.T) {

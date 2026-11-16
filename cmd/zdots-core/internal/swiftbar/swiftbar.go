@@ -169,7 +169,7 @@ func runWithIO(args []string, stdout, stderr io.Writer, procLister func() []proc
 	colimaRunning := isSocket(filepath.Join(home, ".colima", "default", "docker.sock")) ||
 		isSocket(filepath.Join(home, ".config", "colima", "default", "docker.sock"))
 
-	whisperBin := findWhisperCLI()
+	whisperBin := whisperCLI()
 
 	whisperProfile := envOr("ZDOTS_WHISPER_PROFILE", "standard")
 	defModel, profDesc := whisperProfileDefaults(whisperProfile)
@@ -194,16 +194,18 @@ func runWithIO(args []string, stdout, stderr io.Writer, procLister func() []proc
 		txStatusShort = "transcribing"
 		txDesc = fmt.Sprintf("Transcribing (%s) · %s", txDetail, txEtime)
 		txColor = "orange"
+	case !txSetUp:
+		// Before the CLI check: a host that never used transcription has
+		// nothing broken, whether or not whisper-cli is installed.
+		txGlyph = ""
+		txStatusShort = "not set up"
+		txDesc = "Not set up on this host (no model, no ingest history): whisper-ctl to start"
+		txColor = "gray"
 	case whisperBin == "":
 		txGlyph = "🎙️❌"
 		txStatusShort = "missing cli"
 		txDesc = "whisper-cli not installed"
 		txColor = "red"
-	case !txSetUp:
-		txGlyph = ""
-		txStatusShort = "not set up"
-		txDesc = "Not set up on this host (no model, no ingest history): whisper-ctl to start"
-		txColor = "gray"
 	case !modelInstalled:
 		txGlyph = "🎙️⚠️"
 		txStatusShort = "missing model"
@@ -457,6 +459,10 @@ func deriveTxDetail(cmd string) string {
 		return "audio decode"
 	}
 }
+
+// whisperCLI is swapped in tests: the /opt/homebrew fallback makes the real
+// lookup depend on the host, not just PATH.
+var whisperCLI = findWhisperCLI
 
 func findWhisperCLI() string {
 	if p, err := exec.LookPath("whisper-cli"); err == nil {
