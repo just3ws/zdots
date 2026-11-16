@@ -790,7 +790,12 @@ exec zsh
 ```
 
 - **`git pull --ff-only`:** Keeps fast-forward history intact (preserving signed upstream commits) and avoids unexpected merge commits on the work host.
-- **`zdots-update-local`:** Reconciles machine-local generated state (completion dumps, `.zwc` caches, tooling index) without touching corporate `~/.ssh`, `~/.gitconfig`, or `.zdots.local`.
+- **`zdots-update-local`:** Never touches `~/.ssh`, `~/.gitconfig`, or `.zdots.local`, but it is broader than cache regeneration. Its phases run `brew bundle`, `mise install`, default gems, the Python lockfile, `llama-ctl install` (restarts the llama services), fabric, pi, aider and Gemini config, otel validation, the tooling index, and `make check-fast`. Run `bin/zdots-update-local --dry-run` to see exactly what a pull would do.
+- **Managed hosts:** list the phases the employer baseline owns, or that this host does not use, in `.zdots.local` so a plain `make update-local` skips them every time:
+  ```zsh
+  export ZDOTS_UPDATE_LOCAL_SKIP="brew python llama fabric pi gemini otel"
+  ```
+  With `ZDOTS_CONTEXT=work`, the brew phase (when it runs) uses `brew bundle --no-upgrade`, so it installs missing packages but never upgrades the baseline's. Pass `--skip-<phase>` for one-off skips; drop a name from the list when that phase is needed (for example `llama` after a model or plist change).
 - **`exec zsh`:** Reloads `fpath` ordering, `functions/enabled/*` autoloads (such as the `zdots` TTY `cd` wrapper), and refreshed completions in the active shell.
 
 ### Go Toolchain & Compiled Binaries (`bin/` & `cmd/`)

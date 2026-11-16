@@ -25,6 +25,7 @@ SKIP_GEMINI=0
 SKIP_CHECK=0
 SKIP_PYTHON=0
 SKIP_INDEX_TOOLS=0
+SKIP_PI=0
 PHASE_TOTAL=14
 PHASE_INDEX=0
 PHASE_DONE=0
@@ -61,6 +62,7 @@ Options:
   --skip-gems       Skip default gem installation
   --skip-llama      Skip llama plist regeneration
   --skip-fabric     Skip fabric-ai pattern update
+  --skip-pi         Skip pi model config reconciliation
   --skip-aider      Skip Aider model metadata reconciliation
   --skip-gemini     Skip Gemini MCP registration
   --skip-python     Skip Python deps (uv pip install -r requirements.txt)
@@ -68,6 +70,12 @@ Options:
   --skip-otel       Skip otel-collector validation
   --skip-check      Skip make check-fast
   -h, --help        Show this help
+
+Machine-local skips:
+  ZDOTS_UPDATE_LOCAL_SKIP="brew llama …" (export it in .zdots.local) skips
+  phases on every run, so a plain make update-local stays safe on a managed
+  host. Names: brew mise gems python llama fabric pi aider gemini otel
+  index-tools check. On ZDOTS_CONTEXT=work, brew bundle runs with --no-upgrade.
 
 Logs:
   ${XDG_STATE_HOME:-~/.local/state}/zsh/zdots-update-local-*.log
@@ -88,6 +96,7 @@ while [[ $# -gt 0 ]]; do
     --skip-gems)  SKIP_GEMS=1 ;;
     --skip-llama) SKIP_LLAMA=1 ;;
     --skip-fabric) SKIP_FABRIC=1 ;;
+    --skip-pi)    SKIP_PI=1 ;;
     --skip-aider) SKIP_AIDER=1 ;;
     --skip-gemini) SKIP_GEMINI=1 ;;
     --skip-python) SKIP_PYTHON=1 ;;
@@ -99,6 +108,31 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+# Machine-local skips (2 = from ZDOTS_UPDATE_LOCAL_SKIP, 1 = from a flag).
+for _skip in ${ZDOTS_UPDATE_LOCAL_SKIP:-}; do
+  case "$_skip" in
+    brew)        [[ "$SKIP_BREW" -eq 0 ]] && SKIP_BREW=2 ;;
+    mise)        [[ "$SKIP_MISE" -eq 0 ]] && SKIP_MISE=2 ;;
+    gems)        [[ "$SKIP_GEMS" -eq 0 ]] && SKIP_GEMS=2 ;;
+    python)      [[ "$SKIP_PYTHON" -eq 0 ]] && SKIP_PYTHON=2 ;;
+    llama)       [[ "$SKIP_LLAMA" -eq 0 ]] && SKIP_LLAMA=2 ;;
+    fabric)      [[ "$SKIP_FABRIC" -eq 0 ]] && SKIP_FABRIC=2 ;;
+    pi)          [[ "$SKIP_PI" -eq 0 ]] && SKIP_PI=2 ;;
+    aider)       [[ "$SKIP_AIDER" -eq 0 ]] && SKIP_AIDER=2 ;;
+    gemini)      [[ "$SKIP_GEMINI" -eq 0 ]] && SKIP_GEMINI=2 ;;
+    otel)        [[ "$SKIP_OTEL" -eq 0 ]] && SKIP_OTEL=2 ;;
+    index-tools) [[ "$SKIP_INDEX_TOOLS" -eq 0 ]] && SKIP_INDEX_TOOLS=2 ;;
+    check)       [[ "$SKIP_CHECK" -eq 0 ]] && SKIP_CHECK=2 ;;
+    *) printf 'zdots-update-local: unknown phase in ZDOTS_UPDATE_LOCAL_SKIP: %s\n' "$_skip" >&2; exit 1 ;;
+  esac
+done
+unset _skip
+
+# skip_why VALUE FLAG — the reason shown when a phase is skipped.
+skip_why() {
+  [[ "$1" -eq 2 ]] && printf 'ZDOTS_UPDATE_LOCAL_SKIP' || printf '%s' "$2"
+}
 
 if [[ ! -d "$ZDOTDIR" ]]; then
   printf 'zdots-update-local: error: ZDOTDIR does not exist: %s\n' "$ZDOTDIR" >&2
@@ -291,12 +325,18 @@ if [[ "$SKIP_BREW" -eq 0 ]]; then
     esac
     log "selected Brewfile=$brewfile context=${ZDOTS_CONTEXT:-home}"
     step "run brew bundle"
-    run brew bundle --file "$brewfile"
+    # A work host's packages are owned by the employer baseline: install what
+    # is missing, never upgrade.
+    if [[ "${ZDOTS_CONTEXT:-home}" == "work" ]]; then
+      run brew bundle --no-upgrade --file "$brewfile"
+    else
+      run brew bundle --file "$brewfile"
+    fi
   else
     warn "brew not found; skipping brew bundle"
   fi
 else
-  warn "skipping brew phase (--skip-brew)"
+  warn "skipping brew phase ($(skip_why "${SKIP_BREW}" --skip-brew))"
 fi
 
 phase "mise: install pinned runtimes"
@@ -309,7 +349,7 @@ if [[ "$SKIP_MISE" -eq 0 ]]; then
     warn "mise not found; skipping mise install"
   fi
 else
-  warn "skipping mise phase (--skip-mise)"
+  warn "skipping mise phase ($(skip_why "${SKIP_MISE}" --skip-mise))"
 fi
 
 phase "ruby-gems: install default gems into current Ruby"
@@ -368,7 +408,7 @@ if [[ "$SKIP_GEMS" -eq 0 ]]; then
   fi
   unset _gems_file
 else
-  warn "skipping ruby-gems phase (--skip-gems)"
+  warn "skipping ruby-gems phase ($(skip_why "${SKIP_GEMS}" --skip-gems))"
 fi
 
 phase "python: install deps from requirements-lock.txt"
@@ -394,7 +434,7 @@ if [[ "$SKIP_PYTHON" -eq 0 ]]; then
   fi
   unset _lock_file _req_file _install_file
 else
-  warn "skipping python phase (--skip-python)"
+  warn "skipping python phase ($(skip_why "${SKIP_PYTHON}" --skip-python))"
 fi
 
 phase "llama: regenerate launchd plists"
@@ -421,7 +461,7 @@ if [[ "$SKIP_LLAMA" -eq 0 ]]; then
     warn "bin/llama-ctl not executable; skipping llama plist regeneration"
   fi
 else
-  warn "skipping llama phase (--skip-llama)"
+  warn "skipping llama phase ($(skip_why "${SKIP_LLAMA}" --skip-llama))"
 fi
 
 phase "fabric: refresh local pattern library"
@@ -479,43 +519,47 @@ if [[ "$SKIP_FABRIC" -eq 0 ]]; then
     warn "fabric-ai not found; skipping pattern update"
   fi
 else
-  warn "skipping fabric phase (--skip-fabric)"
+  warn "skipping fabric phase ($(skip_why "${SKIP_FABRIC}" --skip-fabric))"
 fi
 
 phase "pi: reconcile local llama.cpp model config"
-step "locate pi CLI"
-PI_AGENT_DIR="$HOME/.pi/agent"
-pi_bin="$(command -v pi 2>/dev/null || true)"
-if [[ -z "$pi_bin" ]]; then
-  pi_bin="$(find "$HOME/.local/share/mise/installs/node" -path '*/bin/pi' -type f 2>/dev/null | sort -V | tail -1 || true)"
-fi
-
-if [[ -n "$pi_bin" ]]; then
-  AI_BASE="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/v1"
-  log "pi binary=$pi_bin"
-  step "ensure Pi agent directory"
-  run mkdir -p "$PI_AGENT_DIR"
-  
-  step "reconcile Pi settings and models from etc/pi-agent.yaml"
-  if [[ "$DRY_RUN" -eq 0 ]]; then
-      # Generate settings.json (mikefarah yq defaults to YAML output; force JSON)
-      yq -o=json '.settings' "$ZDOTDIR/etc/pi-agent.yaml" > "$PI_AGENT_DIR/settings.json"
-
-      # Generate models.json with dynamic endpoint injection for llamacpp.
-      # mikefarah yq (not jq): env vars via strenv(), -o=json for JSON output.
-      base="$AI_BASE" yq -n -o=json \
-        'load("'"$ZDOTDIR"'/etc/pi-agent.yaml") as $cfg
-         | {"providers": $cfg.provider}
-         | .providers.llamacpp.baseUrl = strenv(base)' \
-        > "$PI_AGENT_DIR/models.json"
-      log "updated ~/.pi/agent/ settings and models using etc/pi-agent.yaml"
-  else
-      log "dry-run: would update ~/.pi/agent/ configs"
+if [[ "$SKIP_PI" -eq 0 ]]; then
+  step "locate pi CLI"
+  PI_AGENT_DIR="$HOME/.pi/agent"
+  pi_bin="$(command -v pi 2>/dev/null || true)"
+  if [[ -z "$pi_bin" ]]; then
+    pi_bin="$(find "$HOME/.local/share/mise/installs/node" -path '*/bin/pi' -type f 2>/dev/null | sort -V | tail -1 || true)"
   fi
+
+  if [[ -n "$pi_bin" ]]; then
+    AI_BASE="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}/v1"
+    log "pi binary=$pi_bin"
+    step "ensure Pi agent directory"
+    run mkdir -p "$PI_AGENT_DIR"
+  
+    step "reconcile Pi settings and models from etc/pi-agent.yaml"
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+        # Generate settings.json (mikefarah yq defaults to YAML output; force JSON)
+        yq -o=json '.settings' "$ZDOTDIR/etc/pi-agent.yaml" > "$PI_AGENT_DIR/settings.json"
+
+        # Generate models.json with dynamic endpoint injection for llamacpp.
+        # mikefarah yq (not jq): env vars via strenv(), -o=json for JSON output.
+        base="$AI_BASE" yq -n -o=json \
+          'load("'"$ZDOTDIR"'/etc/pi-agent.yaml") as $cfg
+           | {"providers": $cfg.provider}
+           | .providers.llamacpp.baseUrl = strenv(base)' \
+          > "$PI_AGENT_DIR/models.json"
+        log "updated ~/.pi/agent/ settings and models using etc/pi-agent.yaml"
+    else
+        log "dry-run: would update ~/.pi/agent/ configs"
+    fi
+  else
+    warn "pi not found; skipping Pi config reconciliation"
+  fi
+  unset PI_AGENT_DIR pi_bin AI_BASE
 else
-  warn "pi not found; skipping Pi config reconciliation"
+  warn "skipping pi phase ($(skip_why "${SKIP_PI}" --skip-pi))"
 fi
-unset PI_AGENT_DIR pi_bin AI_BASE
 
 phase "aider: reconcile model metadata for context-window budgeting"
 if [[ "$SKIP_AIDER" -eq 0 ]]; then
@@ -558,7 +602,7 @@ AIDER_META
   fi
   unset _aider_bin
 else
-  warn "skipping aider phase (--skip-aider)"
+  warn "skipping aider phase ($(skip_why "${SKIP_AIDER}" --skip-aider))"
 fi
 
 phase "gemini-mcp: register zdots MCP servers with Gemini CLI"
@@ -571,7 +615,7 @@ if [[ "$SKIP_GEMINI" -eq 0 ]]; then
     log "gemini CLI not found; skipping MCP registration"
   fi
 else
-  warn "skipping gemini-mcp phase (--skip-gemini)"
+  warn "skipping gemini-mcp phase ($(skip_why "${SKIP_GEMINI}" --skip-gemini))"
 fi
 
 phase "otel: validate collector config"
@@ -584,7 +628,7 @@ if [[ "$SKIP_OTEL" -eq 0 ]]; then
     warn "bin/otel-collector not executable; skipping otel validation"
   fi
 else
-  warn "skipping otel phase (--skip-otel)"
+  warn "skipping otel phase ($(skip_why "${SKIP_OTEL}" --skip-otel))"
 fi
 
 phase "index-tools: refresh platform command catalog in context engine"
@@ -596,7 +640,7 @@ if [[ "$SKIP_INDEX_TOOLS" -eq 0 ]]; then
     warn "zdots-index-tools not found in PATH; skipping"
   fi
 else
-  warn "skipping index-tools phase (--skip-index-tools)"
+  warn "skipping index-tools phase ($(skip_why "${SKIP_INDEX_TOOLS}" --skip-index-tools))"
 fi
 
 phase "checks: make check-fast"
@@ -609,7 +653,7 @@ if [[ "$SKIP_CHECK" -eq 0 ]]; then
     warn "make not found; skipping check-fast"
   fi
 else
-  warn "skipping check phase (--skip-check)"
+  warn "skipping check phase ($(skip_why "${SKIP_CHECK}" --skip-check))"
 fi
 
 phase "handoff: log location for Pi/HI analysis"
