@@ -1,5 +1,6 @@
 # etc/jaeger.yaml — Bare-metal Jaeger v2 downstream of otel-collector
-# Receives OTLP traces on 127.0.0.1:14317 and serves UI on 127.0.0.1:16686.
+# Receives OTLP traces on 127.0.0.1:14317, serves the UI on 127.0.0.1:16686 and
+# the query gRPC API on 127.0.0.1:16685. Every listener is loopback-only.
 
 service:
   telemetry:
@@ -20,6 +21,9 @@ extensions:
       traces: memstore
     http:
       endpoint: "127.0.0.1:16686"
+    # Without an explicit endpoint the query gRPC API binds every interface.
+    grpc:
+      endpoint: "127.0.0.1:16685"
   jaeger_storage:
     backends:
       memstore:
