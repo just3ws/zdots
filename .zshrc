@@ -46,6 +46,10 @@ fi
 # iTerm2 shell integration is only useful in a real ZLE session under iTerm2.
 # Must live here (not conf.d): iTerm2's installer greps .zshrc for this string
 # and appends an unguarded source line if it's missing.
-if [[ "$TERM_PROGRAM" == "iTerm.app" && -o interactive && -o zle && -r "${ZDOTDIR}/.iterm2_shell_integration.zsh" ]]; then
-  source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
+# Inside tmux TERM_PROGRAM is tmux's own; LC_TERMINAL still names iTerm2.
+if [[ ( "$TERM_PROGRAM" == "iTerm.app" || "$LC_TERMINAL" == "iTerm2" ) && -o interactive && -o zle ]]; then
+  # Utilities (imgcat, it2*): the app's own copies track its version; the
+  # vendored scripts cover a machine without iTerm2 in /Applications.
+  path+=( /Applications/iTerm.app/Contents/Resources/utilities(N/) "${ZDOTDIR}/.iterm2"(N/) )
+  [[ -r "${ZDOTDIR}/.iterm2_shell_integration.zsh" ]] && source "${ZDOTDIR}/.iterm2_shell_integration.zsh"
 fi

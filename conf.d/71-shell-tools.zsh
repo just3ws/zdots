@@ -71,6 +71,18 @@ if command -v broot >/dev/null 2>&1; then
   alias br='broot'
 fi
 
+# y: yazi, then stay in the directory it was in at quit (upstream's wrapper).
+if (( $+commands[yazi] )); then
+  y() {
+    local tmp cwd
+    tmp="$(mktemp -t yazi-cwd.XXXXXX)" || return
+    command yazi "$@" --cwd-file="$tmp"
+    IFS= read -r -d '' cwd <"$tmp"
+    [[ -n "$cwd" && "$cwd" != "$PWD" && -d "$cwd" ]] && builtin cd -- "$cwd"
+    command rm -f -- "$tmp"
+  }
+fi
+
 # k8s native ergonomics
 if command -v kubectl >/dev/null 2>&1; then
   alias k=kubectl

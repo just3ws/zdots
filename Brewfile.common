@@ -135,10 +135,12 @@ brew "postgresql@#{_pg_version}", restart_service: :changed unless zdots_flag("Z
 brew "powerlevel10k" # Theme for zsh
 brew "pre-commit" # Framework for managing multi-language pre-commit hooks
 brew "prettier" # Code formatter for JavaScript, CSS, JSON, GraphQL, Markdown, YAML
+brew "poppler"      # yazi: PDF previews (pdftoppm)
 brew "pv" # Monitor data's progress through a pipe
 brew "ranger" # File browser
 brew "redis", restart_service: :changed # Persistent key-value database, with built-in net interface
 brew "rename" # Perl-powered file rename script with many helpful built-ins
+brew "resvg"        # yazi: SVG previews
 brew "repomix" # Pack repository contents into a single AI-friendly file
 brew "ripgrep" # Search tool like grep and The Silver Searcher
 brew "rsync" # Utility that provides fast incremental file transfer
@@ -182,6 +184,7 @@ brew "xcodegen" # Generate your Xcode project from a spec file and your folder s
 brew "xmlstarlet" # XML command-line utilities
 brew "yamllint" # Linter for YAML files
 brew "yarn" # JavaScript package manager
+brew "yazi"         # File manager with image/video/Markdown previews (`y`; config in adots)
 brew "yq" # Process YAML, JSON, XML, CSV and properties documents from the CLI
 brew "yt-dlp" # Feature-rich command-line audio/video downloader
 brew "zoxide" # Shell extension to navigate your filesystem faster

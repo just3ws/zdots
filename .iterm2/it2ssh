@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+unset OS_ACTIVITY_DT_MODE
+
+# ssh prints its usage and fails, which would end this script (set -e, pipefail) with ssh's
+# status before it reached `exit 1`.
+if [ "$#" -eq 0 ]; then
+    ssh 2>&1 | sed -e 's/usage: ssh/usage: it2ssh/' >&2 || true
+    exit 1
+fi
+
+function print_osc() {
+    if [[ $TERM == screen* ]]; then
+        printf "\033Ptmux;\033\033]"
+    else
+        printf "\033]"
+    fi
+}
+
+# More of the tmux workaround described above.
+function print_st() {
+    if [[ $TERM == screen* ]]; then
+        printf "\a\033\\"
+    else
+        printf "\a"
+    fi
+}
+
+mkdir -p ~/.ssh/controlmasters
+CONTROL_PATH="$HOME/.ssh/controlmasters/%r@%h:%p"
+
+if command -v base64 > /dev/null 2> /dev/null; then
+    base64_encode() { command base64 | command tr -d \\n\\r; }
+    base64_decode() { command base64 -d; }
+elif command -v b64encode > /dev/null 2> /dev/null; then
+    base64_encode() { command b64encode - | command sed '1d;$d' | command tr -d \\n\\r; }
+    base64_decode() { command fold -w 76 | command b64decode -r; }
+else
+    die "base64 executable not present on local host"
+fi
+
+eval_cmd=\''eval "$(echo "$0")"'\'
+
+SSH=${SSH:-/usr/bin/ssh}
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  TOKEN=""
+  SOCKETS=(~/.config/iterm2/sockets/secrets ~/.iterm2/sockets/secrets ~/.iterm2-1/sockets/secrets)
+  if [ -n "${IT2_SUITE:-}" ]; then
+      SOCKETS=("$HOME/.config/$IT2_SUITE/sockets/secrets" "${SOCKETS[@]}")
+  fi
+  for SOCKET in "${SOCKETS[@]}"
+  do
+      [ -z "$TOKEN" ] && TOKEN=$(/usr/bin/nc -U "$SOCKET" || true)
+  done
+else
+  TOKEN="none"
+fi
+
+
+if [ ! -d ~/.ssh ]; then
+    mkdir ~/.ssh
+    chmod 700 ~/.ssh
+fi
+
+
+# it2ssh's own option, accepted only first so it can never be mistaken for an ssh option or a
+# word of the remote command: don't load shell integration (or upload it2) on the host. iTerm2
+# otherwise does; an SSH profile passes this when its "Load shell integration automatically" is
+# off. Reported to iTerm2 in SendConductor, never passed to ssh.
+SEND_CONDUCTOR_PARAMS="v=3"
+if [[ "${1:-}" == "--no-shell-integration" ]]; then
+    SEND_CONDUCTOR_PARAMS="v=3;si=0"
+    shift
+    if [ "$#" -eq 0 ]; then
+        ssh 2>&1 | sed -e 's/usage: ssh/usage: it2ssh [--no-shell-integration]/' >&2 || true
+        exit 1
+    fi
+fi
+
+# Anywhere ssh would read an option (among the options, or after the host, where ssh keeps
+# reading options until the first word that isn't one, unless they were ended with --) the flag
+# can only be a misplaced it2ssh option. Going ahead would quietly load shell integration after
+# all, so refuse. Elsewhere it is a word of the remote command.
+misplaced_flag() {
+    echo "it2ssh: --no-shell-integration must be the first argument, before any ssh options and the host." >&2
+    exit 1
+}
+
+requote() {
+  printf "%q " "$@"
+}
+
+SSHARGS=$(requote "$@" | base64_encode)
+UNIQUEID=${RANDOM}${RANDOM}
+
+USER_ARGS=()
+HOSTNAME=""
+COMMAND=()
+ARGS_ALLOWED=1
+EXPECT_VALUE=0
+BOOLEAN_ARGS=$("$SSH" 2>&1 | tr -d '\n' | sed -e 's/^[^[]*\[-*\([a-z0-9A-Z]*\).*/\1/' || true)
+# ssh's getopt also takes -1 and -2, which its usage line leaves out.
+BOOLEAN_ARGS="${BOOLEAN_ARGS}12"
+HAS_T=0
+SAW_DDASH=0
+# Whether ssh would still read the next word after the host as an option, and whether that word
+# is the value of the option before it.
+POST_HOST_OPTIONS=1
+POST_HOST_VALUE=0
+
+# Whether an option word ($1, like -t, -tv or -p) leaves its value to the next word: getopt reads
+# letters until one that takes a value, which takes the rest of the word, or the next word if
+# nothing is left.
+option_wants_next_word() {
+    local word="$1"
+    local i
+    for ((i = 1; i < ${#word}; i++)); do
+        case "$BOOLEAN_ARGS" in
+            *"${word:i:1}"*) ;;
+            *) [[ $((i + 1)) == ${#word} ]] && return 0
+               return 1 ;;
+        esac
+    done
+    return 1
+}
+
+while [[ $# -gt 0 ]]; do
+    if [[ $EXPECT_VALUE == 1 ]]; then
+        USER_ARGS+=("$1")
+        EXPECT_VALUE=0
+    elif [[ $ARGS_ALLOWED == 0 ]]; then
+        if [[ $HOSTNAME == "" ]]; then
+            HOSTNAME="$1"
+        else
+            if [[ $SAW_DDASH == 0 && $POST_HOST_OPTIONS == 1 ]]; then
+                if [[ $POST_HOST_VALUE == 1 ]]; then
+                    POST_HOST_VALUE=0
+                elif [[ "$1" == "--" ]]; then
+                    POST_HOST_OPTIONS=0
+                elif [[ "$1" == "--no-shell-integration" ]]; then
+                    misplaced_flag
+                elif [[ "$1" == -?* ]]; then
+                    if option_wants_next_word "$1"; then
+                        POST_HOST_VALUE=1
+                    fi
+                else
+                    POST_HOST_OPTIONS=0
+                fi
+            fi
+            COMMAND+=("$1")
+        fi
+    else
+        case $1 in
+            -N|-n|-f|-G)
+                echo "it2sh is meant for interactive use via SSH only and is not compatible with the $1 argument."
+                exit 1
+                ;;
+            --)
+                ARGS_ALLOWED=0
+                SAW_DDASH=1
+                ;;
+            --no-shell-integration)
+                misplaced_flag
+                ;;
+            -t)
+                HAS_T=1
+                USER_ARGS+=("-t")
+                ;;
+            -*)
+                LETTER="${1:1}"
+                if (printf %s "$BOOLEAN_ARGS" | grep "$LETTER"  > /dev/null 2>&1)
+                then
+                    EXPECT_VALUE=0
+                else
+                    EXPECT_VALUE=1
+                fi
+                USER_ARGS+=("$1")
+                ;;
+            *)
+                ARGS_ALLOWED=0
+                HOSTNAME="$1"
+                ;;
+        esac
+    fi
+    shift
+done
+
+if [[ $HAS_T == 0 ]]; then
+    USER_ARGS+=("-t")
+fi
+
+# Here we do /usr/bin/env sh rather than exec sh to avoid adding this command
+# to the login shell's history.
+ENCODED_BA=$(printf %s "$BOOLEAN_ARGS" | base64_encode)
+
+# Send arguments to conductor.sh
+myenv=$(command env | base64_encode)
+osc=$(print_osc)
+st=$(print_st)
+intro=$(
+printf "%s" "$osc"
+printf "1337;Env=report=all:"
+printf "%s" "$myenv"
+printf "%s" "$st"
+
+printf "%s" "$osc"
+printf "1337;it2ssh=$TOKEN ${UNIQUEID} $ENCODED_BA $SSHARGS"
+printf "%s" "$st"
+
+printf "%s" "$osc"
+printf "1337;SendConductor=%s" "$SEND_CONDUCTOR_PARAMS"
+printf "%s" "$st"
+)
+
+if [[ $TERM == screen* ]]; then
+    st='\a\033\\'
+else
+    st='\a'
+fi
+send_conductor='printf "%s '"$intro"'"'
+
+# Run a command on the remote host that instructs iTerm2 to send a script, then reads the script and executes it.
+# I tried many ways to concatenate s and l and this is the only one that works on both Ubuntu 18 and Ubuntu 20.
+esc=$(printf "\033")
+sanitized="stty -echo -isig; $send_conductor"';s="";IFS=""; while read -r l;do [ "$l" = "-- BEGIN CONDUCTOR --" ]&&break; done; while read -r l; do [ "$l" = "'$esc'" ]&&break; s=$(printf "%s\n%s" "$s" "$l"); done; unset IFS; s=$(echo "$s" | { command -v base64 > /dev/null 2> /dev/null && command base64 -d || { command -v b64encode > /dev/null 2> /dev/null && command fold -w 76 | command b64decode -r; } || echo "echo base64 not available on remote host"; }); eval "$s"'
+
+# If ssh gets a signal, let it2ssh keep running.
+set +e
+
+$SSH \
+"${USER_ARGS[@]}" \
+-- \
+"$HOSTNAME" \
+exec \
+sh \
+-c \
+"$eval_cmd" \
+\'"$sanitized"\'
+ssh_status=$?
+
+
+stty_settings=$(command stty -g)
+cleanup() {
+  command stty "$stty_settings"
+}
+trap "cleanup" EXIT
+# Read bytes rather than lines: iTerm2 answers an EndSSH it doesn't recognize
+# (e.g., ssh never connected) with a bare ^C, which ends no line.
+command stty -isig -echo -icanon min 1 time 0
+
+print_osc
+printf "1337;EndSSH=%s" "${UNIQUEID}"
+print_st
+
+# Uses dd because bash's read -n turns isig back on, so a ^C would kill us.
+read_byte() {
+    c=$(command dd bs=1 count=1 2>/dev/null; printf x)
+    c=${c%x}
+    [ -n "$c" ]
+}
+
+# If ssh dies after send_conductor is sent, we don't want conductor.sh to go to
+# the command line. Read until iTerm2 answers EndSSH with a ^C or a blank line.
+line=""
+while read_byte; do
+    case "$c" in
+        $'\003')
+            # A connection iTerm2 knows gets ^C and a newline. Consume the newline
+            # so it doesn't reach the shell; a bare ^C is followed by nothing.
+            command stty min 0 time 1
+            read_byte || true
+            break
+            ;;
+        $'\n')
+            [ -z "$line" ] && break
+            line=""
+            ;;
+        *)
+            line="$line$c"
+            ;;
+    esac
+done
+
+cleanup
+exit "$ssh_status"

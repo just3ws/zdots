@@ -228,6 +228,7 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 | `bat` | `bat bin/zdots-ctx` | `cat` with syntax highlighting and line numbers |
 | `eza` | `eza -la --git` | `ls` with git status, icons, tree view |
 | `fd` | `fd '\.bats$' tests/` | Fast `find` alternative |
+| `yazi` | `y [dir]` | File manager: previews images and videos (iTerm2 inline images, also inside tmux), PDFs and glow-rendered Markdown; Enter opens text in nvim; quitting leaves the shell in the last directory. Config in adots (`~/.config/yazi`). Blocky images inside tmux mean the session predates tmux's `TERM_PROGRAM` pass-through; open a new session (`~/.config/tmux/README.md`, passthrough) |
 | `dasel` | `dasel -f file.yaml '.key'` | Query/update YAML/JSON/TOML/CSV from the CLI |
 | `miller` (mlr) | `mlr --csv stats1 -a mean -f duration_ms` | CSV/JSON analytics pipelines |
 | `gron` | `gron response.json \| grep token` | Make JSON greppable |
@@ -248,6 +249,9 @@ profiles launch `tx --landing`; the tmux config and its README are in adots
 | `tx -` | `tx -` | Inside tmux: back to the previous session |
 | tmux keys | `prefix + N` / `prefix + s` / `prefix + ⌫` | New session by name in the current directory and switch to it / pick a session / back to the previous session |
 | text selection | hold `⌥` while dragging | iTerm2's own selection instead of tmux's mouse capture (tmux `mouse on` stays) |
+| iTerm2 integration | `imgcat`, `it2*` | Loads in any interactive shell whose outer terminal is iTerm2 (`TERM_PROGRAM=iTerm.app`, or `LC_TERMINAL=iTerm2` inside tmux). Utilities come from the app bundle, falling back to the vendored scripts in `.iterm2/` (text only, refreshed from the app; no binaries) |
+
+**iTerm2 inside plain tmux:** images and other passthrough escapes reach iTerm2 (`imgcat`, yazi previews, badges, notifications). The shell-integration marks don't: plain tmux drops them, so iTerm2's command marks, ⌘⇧↑/↓ prompt jumps, command status and per-directory history work only outside tmux or in tmux integration mode (`tmux -CC`), which this setup doesn't use.
 
 ## Infrastructure & Services
 
