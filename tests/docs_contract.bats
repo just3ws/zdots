@@ -31,6 +31,7 @@ _known_gap() {
     alias-suggest
     bootstrap
     capabilities
+    colima-autostart
     commit-msg
     diff-review
     docker-reclaim
@@ -212,6 +213,7 @@ _known_gap() {
     observability-mode zdots-typecheck omp-gateway-ctl zdots-skills-sync
     zdots-core
     tx
+    colima-autostart
   )
 
   local missing=()

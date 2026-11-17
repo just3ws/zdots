@@ -7,7 +7,6 @@
 # while allowing the docs contract to pass during staged rollout.
 
 check: shell integrity runner invoked by make/CI; not --help-aware z-119
-colima-autostart: launchd daemon; no interactive --help contract z-119
 ctx-mcp: MCP stdio server; no --help contract by design z-119
 ctx-mcp-register: registration tool; --help not implemented z-119
 diarize: uv Python script; --help triggers dependency download z-119

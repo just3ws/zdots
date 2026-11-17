@@ -107,8 +107,16 @@ _store() {
 # ---------------------------------------------------------------------------
 # Per-command indexing
 # ---------------------------------------------------------------------------
+KNOWN_GAPS="$ZDOTDIR/docs/generated/docs-contract-known-gaps.txt"
+
 _help_for() {
-  local cmd="$1"
+  local cmd="$1" gap
+  # Known gaps are commands that act on any invocation (start a VM, a server,
+  # a scan, a download); calling them with --help would run them for real.
+  if [[ -r "$KNOWN_GAPS" ]] && gap=$(grep -m1 "^${cmd}:" "$KNOWN_GAPS"); then
+    printf '%s (no safe --help; not run while indexing)\n' "${gap#*: }"
+    return 0
+  fi
   timeout "$CMD_TIMEOUT" "$ZDOTDIR/bin/$cmd" --help 2>&1 \
     || timeout "$CMD_TIMEOUT" "$ZDOTDIR/bin/$cmd" -h 2>&1 \
     || printf '(no --help available for %s)\n' "$cmd"

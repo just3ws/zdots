@@ -4,6 +4,19 @@
 
 set -eu
 
+case "${1:-}" in
+  -h | --help)
+    cat <<'EOF'
+Usage: colima-autostart
+
+Start Colima (if it isn't running) and the services that depend on it.
+Runs at login from launchd (com.zdots.colima-autostart); takes no options.
+Log: ${XDG_STATE_HOME:-~/.local/state}/zsh/colima-autostart.log
+EOF
+    exit 0
+    ;;
+esac
+
 # Ensure Homebrew and common paths are available (for launchd)
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 LOG="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/colima-autostart.log"
