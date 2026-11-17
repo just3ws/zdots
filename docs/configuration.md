@@ -1,5 +1,10 @@
 # Configuration Reference
 
+Configuration is environment variables: `.zdots.env` declares them and
+`capabilities` validates them, so that pair is the schema of record. A
+structured JSON config (`docs/config-schema.json`, 2026-06) was designed but
+never built or read by anything; it was removed on 2026-11-17.
+
 Zdots uses a hierarchical configuration system.
 
 ## 1. Environment Variables
