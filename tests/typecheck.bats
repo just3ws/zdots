@@ -7,7 +7,12 @@
 setup() {
   load "setup.bash"
   setup_environment
-  BUNDLE_GEMFILE="$REPO_ROOT/Gemfile" bundle exec rbs --version >/dev/null 2>&1 || skip "rbs not installed (bundle install)"
+  # The Gemfile declares rbs, so a host that can't load it fails here rather
+  # than skipping: a skipped gate reads as green and is never applied.
+  BUNDLE_GEMFILE="$REPO_ROOT/Gemfile" bundle exec rbs --version >/dev/null 2>&1 || {
+    echo "rbs can't be loaded through Bundler: run 'bundle install' in $REPO_ROOT" >&2
+    return 1
+  }
 }
 
 @test "zdots-typecheck: RBS validates and the contracts pass under RBS runtime checks" {

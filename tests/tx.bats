@@ -6,7 +6,8 @@
 setup() {
   load "setup.bash"
   setup_environment
-  command -v tmux >/dev/null 2>&1 || skip "tmux not installed"
+  # tmux is in the Brewfile; missing means the platform is not installed, not a reason to skip.
+  command -v tmux >/dev/null 2>&1 || { echo "tmux not found: brew bundle --no-upgrade" >&2; return 1; }
   SOCK="tx-test-$$-${BATS_TEST_NUMBER}"
   LOG="$BATS_TEST_TMPDIR/tmux.log"
   WRAP="$BATS_TEST_TMPDIR/tmux-wrap"

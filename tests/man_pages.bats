@@ -9,7 +9,8 @@ setup() {
 }
 
 @test "every man page lints clean with mandoc (errors fail)" {
-  command -v mandoc >/dev/null 2>&1 || skip "mandoc not installed"
+  # mandoc ships with macOS; missing means a broken host, not a reason to skip.
+  command -v mandoc >/dev/null 2>&1 || { echo "mandoc not found (macOS ships it at /usr/bin/mandoc)" >&2; return 1; }
   local bad=""
   while IFS= read -r page; do
     out="$(mandoc -Tlint -W error "$page" 2>&1)" || bad="$bad\n$out"

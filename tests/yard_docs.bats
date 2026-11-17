@@ -5,7 +5,12 @@
 setup() {
   load "setup.bash"
   setup_environment
-  BUNDLE_GEMFILE="$REPO_ROOT/Gemfile" bundle exec yard --version >/dev/null 2>&1 || skip "yard not installed (bundle install)"
+  # The Gemfile declares yard, so a host that can't load it fails here rather
+  # than skipping: a skipped gate reads as green and is never applied.
+  BUNDLE_GEMFILE="$REPO_ROOT/Gemfile" bundle exec yard --version >/dev/null 2>&1 || {
+    echo "yard can't be loaded through Bundler: run 'bundle install' in $REPO_ROOT" >&2
+    return 1
+  }
 }
 
 @test "YARD coverage of lib/ is at or above the recorded floor" {
