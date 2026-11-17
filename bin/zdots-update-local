@@ -315,14 +315,9 @@ if [[ "$SKIP_BREW" -eq 0 ]]; then
   step "detect Homebrew"
   if command -v brew >/dev/null 2>&1; then
     step "select context Brewfile"
-    case "${ZDOTS_CONTEXT:-home}" in
-      work) brewfile="$ZDOTDIR/Brewfile.work" ;;
-      *)    brewfile="$ZDOTDIR/Brewfile.home" ;;
-    esac
-    case "${HOMEBREW_BUNDLE_FILE:-}" in
-      ""|"$ZDOTDIR/Brewfile"|"$ZDOTDIR/Brewfile.home"|"$ZDOTDIR/Brewfile.work") ;;
-      *) brewfile="$HOMEBREW_BUNDLE_FILE" ;;
-    esac
+    # shellcheck source=lib/brewfile.bash
+    . "$ZDOTDIR/lib/brewfile.bash"
+    brewfile="$(zdots_brewfile "$ZDOTDIR")"
     log "selected Brewfile=$brewfile context=${ZDOTS_CONTEXT:-home}"
     step "run brew bundle"
     # A work host's packages are owned by the employer baseline: install what
