@@ -40,6 +40,23 @@ for fn in $ZDOTDIR/functions/enabled/*(.x); do
   autoload -Uz "${fn:t}"
 done
 
+# Every zdots command completes: commands without a dedicated _<cmd> get
+# _gnu_generic (options parsed from --help). Docs-contract known gaps are left
+# out: their "--help" is a real invocation, which TAB must never trigger.
+if (( ${+functions[compdef]} )); then
+  () {
+    local f name gapfile="$ZDOTDIR/docs/generated/docs-contract-known-gaps.txt"
+    local -a gaps
+    [[ -r "$gapfile" ]] && gaps=(${${(M)${(f)"$(<$gapfile)"}:#[^#]*:*}%%:*})
+    for f in "$ZDOTDIR"/bin/*(-.x); do
+      name="${f:t}"
+      [[ "$name" == *.(py|rb) || -n "${_comps[$name]:-}" ]] && continue
+      (( ${gaps[(Ie)$name]} )) && continue
+      compdef _gnu_generic "$name"
+    done
+  }
+fi
+
 autoload -Uz colors && colors
 if [[ -n "${LS_COLORS:-}" ]]; then
   zstyle ':completion:*:default' list-colors "${(s.:.)LS_COLORS}"
