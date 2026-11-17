@@ -1,12 +1,35 @@
 #!/usr/bin/env bats
-# tests/completions.bats — every zdots command completes. Dedicated _<cmd>
-# completions keep theirs; the rest get _gnu_generic (options from --help).
-# Docs-contract known gaps get none: completing them would run their "--help",
-# which for them is a real invocation.
+# tests/completions.bats — structural gate for functions/enabled/_* (Z-233).
+#
+# WHAT: every completion file parses clean and declares its command.
+# WHY: the old command-qc gate SOURCED the files, which executes the trailing
+# `_<cmd> "$@"` outside compsys — _arguments always errors there and the exit
+# code was just whichever statement ran last. Parse-only is the honest signal.
+#
+# Coverage: every zdots command completes. Dedicated _<cmd> completions keep
+# theirs; the rest get _gnu_generic (options from --help). Docs-contract known
+# gaps get none: completing them would run their "--help", which for them is a
+# real invocation.
+
+ZDOTS="${BATS_TEST_DIRNAME}/.."
 
 setup() {
   load "setup.bash"
   setup_environment
+}
+
+@test "completions: every file parses (zsh -n)" {
+  for f in "$ZDOTS"/functions/enabled/_*; do
+    run zsh -n "$f"
+    [ "$status" -eq 0 ] || { echo "parse failure: $f"; return 1; }
+  done
+}
+
+@test "completions: every file opens with a #compdef header" {
+  for f in "$ZDOTS"/functions/enabled/_*; do
+    run head -1 "$f"
+    [[ "$output" == "#compdef"* ]] || { echo "missing #compdef: $f"; return 1; }
+  done
 }
 
 _comps_for_bin() {
@@ -17,12 +40,6 @@ _comps_for_bin() {
     source "$ZDOTDIR/conf.d/40-completion.zsh"
     for f in "$ZDOTDIR"/bin/*(-.x); do print -r -- "${f:t} ${_comps[${f:t}]:--}"; done
   '
-}
-
-@test "every completion file parses" {
-  for f in "$REPO_ROOT"/functions/enabled/_*; do
-    zsh -n "$f"
-  done
 }
 
 @test "every zdots command has a completion, except known gaps" {
