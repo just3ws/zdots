@@ -1,4 +1,4 @@
-.TH ZDOTS-WATCH 1 "2026-11-15" "zdots" "zdots manual"
+.TH ZDOTS-WATCH 1 "2026-11-17" "zdots" "zdots manual"
 .SH NAME
 zdots-watch \- Scheduled health detectors. Notifies (macOS) ONLY on worsening transitions;
 .SH SYNOPSIS
@@ -9,8 +9,8 @@ Usage: zdots-watch [run|run-check|status|--install|--uninstall|--install-check|-
 
 Scheduled health detectors. Notifies (macOS) ONLY on worsening transitions;
 improvements and steady state update the state files silently.
-  doctor loop : new [FAIL]/[warn] or more capability contract errors (/Users/mike/.local/state/zsh/zdots-watch.state)
-  suite loop  : new failing bin/check test, by NAME (/Users/mike/.local/state/zsh/zdots-watch-check.state)
+  doctor loop : new [FAIL]/[warn] or more capability contract errors (~/.local/state/zsh/zdots-watch.state)
+  suite loop  : new failing bin/check test, by NAME (~/.local/state/zsh/zdots-watch-check.state)
 
 Commands:
   run               one doctor cycle + notify-on-worsening (what launchd calls)
@@ -26,7 +26,7 @@ Commands:
 Knobs: ZDOTS_WATCH_INTERVAL (seconds, default 86400),
        ZDOTS_WATCH_CHECK_HOUR (default 3), ZDOTS_WATCH_CHECK_CMD (test seam),
        ZDOTS_WATCH_KEEP (evidence files kept per detector, default 7).
-Evidence: full run output persisted under /Users/mike/.local/state/zsh/zdots-watch-runs
+Evidence: full run output persisted under ~/.local/state/zsh/zdots-watch-runs
 .fi
 .SH SEE ALSO
 agent-guide(1), zdots-doctor(1)

@@ -14,6 +14,7 @@ set -euo pipefail
 ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
 MAN1="$ZDOTDIR/man/man1"
 MAN8="$ZDOTDIR/man/man8"
+KNOWN_GAPS="$ZDOTDIR/docs/generated/docs-contract-known-gaps.txt"
 mkdir -p "$MAN1"
 
 usage() {
@@ -48,8 +49,19 @@ for cmd in "$ZDOTDIR"/bin/*; do
     continue
   fi
 
-  # timeout + closed stdin: a --help that serves, prompts, or forks must not hang the sweep.
-  help_text="$(timeout 10 "$cmd" --help </dev/null 2>&1 | head -80 || true)"
+  # Known gaps act on any invocation (bin/check runs the whole suite), so their
+  # "--help" output is a real run: never capture it.
+  if gap="$(grep -m1 "^${name}:" "$KNOWN_GAPS" 2>/dev/null)"; then
+    help_text="$(printf 'See the source: bin/%s\n(no safe --help: %s)' "$name" "${gap#*: }")"
+  else
+    # timeout + closed stdin: a --help that serves, prompts, or forks must not hang the sweep.
+    # Strip terminal escapes (OSC such as iTerm2's 1337, CSI colours) and other
+    # control characters: they break roff and can carry host details.
+    help_text="$(timeout 10 "$cmd" --help </dev/null 2>&1 | head -80 \
+      | LC_ALL=C sed -e $'s/\x1b\\][^\x07]*\x07//g' -e $'s/\x1b\\[[0-9;?]*[ -/]*[@-~]//g' \
+      | LC_ALL=C tr -d '\000-\010\013\014\016-\037' \
+      | sed -e "s|$ZDOTDIR/bin/||g" -e "s|$HOME|~|g" || true)"
+  fi
   [[ -n "$help_text" ]] || help_text="See the source: bin/$name"
 
   # Description: first non-empty line that isn't the Usage line.

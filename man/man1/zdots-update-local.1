@@ -1,4 +1,4 @@
-.TH ZDOTS-UPDATE-LOCAL 1 "2026-11-15" "zdots" "zdots manual"
+.TH ZDOTS-UPDATE-LOCAL 1 "2026-11-17" "zdots" "zdots manual"
 .SH NAME
 zdots-update-local \- Reconcile machine\-local generated state after pulling zdots updates.
 .SH SYNOPSIS
@@ -30,6 +30,7 @@ Options:
   --skip-gems       Skip default gem installation
   --skip-llama      Skip llama plist regeneration
   --skip-fabric     Skip fabric-ai pattern update
+  --skip-pi         Skip pi model config reconciliation
   --skip-aider      Skip Aider model metadata reconciliation
   --skip-gemini     Skip Gemini MCP registration
   --skip-python     Skip Python deps (uv pip install -r requirements.txt)
@@ -38,9 +39,15 @@ Options:
   --skip-check      Skip make check-fast
   -h, --help        Show this help
 
+Machine-local skips:
+  ZDOTS_UPDATE_LOCAL_SKIP="brew llama …" (export it in .zdots.local) skips
+  phases on every run, so a plain make update-local stays safe on a managed
+  host. Names: brew mise gems python llama fabric pi aider gemini otel
+  index-tools check. On ZDOTS_CONTEXT=work, brew bundle runs with --no-upgrade.
+
 Logs:
-  /Users/mike/.local/state/zsh/zdots-update-local-*.log
-  /Users/mike/.local/state/zsh/zdots-update-local-*.summary.md
+  ~/.local/state/zsh/zdots-update-local-*.log
+  ~/.local/state/zsh/zdots-update-local-*.summary.md
   Override directory with ZDOTS_LOG_DIR.
 
 Diagnostics:
