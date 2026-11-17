@@ -1,0 +1,6 @@
+--no-output
+--no-cache
+--markup markdown
+lib/zdots.rb
+lib/zdots/**/*.rb
+lib/ruby_audit/**/*.rb

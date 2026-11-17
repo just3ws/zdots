@@ -2,7 +2,7 @@
 SHELL := /bin/sh
 ZDOTDIR ?= $(HOME)/.config/zsh
 
-.PHONY: bootstrap update-local check check-fast test docs-contract flag-audit docs-diagrams health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
+.PHONY: bootstrap update-local check check-fast test docs-contract docs-coverage flag-audit docs-diagrams health bench upgrade upgrade-dry map search refactor context tags stats ci-up ci-down ci-status ci-run ci-clean ctx-status
 
 # ------------------------------------------------------------------------------
 # CORE & VALIDATION
@@ -26,6 +26,12 @@ test:
 
 docs-contract:
 	bats $(ZDOTDIR)/tests/docs_contract.bats
+
+# YARD coverage of lib/: what's undocumented, then the floor check
+# (docs/generated/yard-coverage-baseline.txt; raise it as coverage rises).
+docs-coverage:
+	@cd $(ZDOTDIR) && BUNDLE_GEMFILE=$(ZDOTDIR)/Gemfile bundle exec yard stats --list-undoc
+	bats $(ZDOTDIR)/tests/yard_docs.bats
 
 flag-audit:
 	bats $(ZDOTDIR)/tests/flag_audit.bats

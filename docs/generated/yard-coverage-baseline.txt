@@ -1,0 +1,3 @@
+# YARD documentation coverage floor for lib/ (tests/yard_docs.bats). Raise it
+# when coverage goes up; never lower it.
+43.26

@@ -54,3 +54,6 @@ ONBOARDING.md
 coverage/
 HUMAN.md
 HUMAN.answered.md
+
+# YARD cache (make docs-coverage)
+.yardoc/
