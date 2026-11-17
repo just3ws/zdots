@@ -1,4 +1,4 @@
-.Dd November 14, 2026
+.Dd November 17, 2026
 .Dt ZDOTS-TYPECHECK 1
 .Os
 .Sh NAME
@@ -6,6 +6,7 @@
 .Nd validate RBS signatures and run Zdots seam contract specs
 .Sh SYNOPSIS
 .Nm
+.Op Fl -coverage
 .Op Fl h | Fl -help
 .Sh DESCRIPTION
 .Nm
@@ -18,10 +19,24 @@ and executes the Zdots seam contract test suite under
 runtime instrumentation.
 No database or background services are required.
 .Sh OPTIONS
-.Bl -tag -width "--help"
+.Bl -tag -width "--coverage"
+.It Fl -coverage
+Report how many of the classes and modules defined in
+.Pa lib/
+are declared in
+.Pa sig/ .
+The first line is
+.Ql rbs coverage: N/M (P%) ;
+each class or module without a signature follows as
+.Ql missing: Name .
+.Ic make typecheck
+and
+.Pa tests/typecheck.bats
+fail when the percentage drops below the floor in
+.Pa docs/generated/rbs-coverage-baseline.txt .
 .It Fl h , Fl -help
 Show usage and exit.
 .El
 .Sh SEE ALSO
-.Xr zdots-check 1 ,
+.Xr check 1 ,
 .Xr zdots-doctor 1

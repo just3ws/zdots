@@ -1,0 +1,4 @@
+# RBS coverage floor: share of lib/ classes and modules declared in sig/
+# (tests/typecheck.bats, `bin/zdots-typecheck --coverage`). Raise it when you
+# add signatures; never lower it.
+14.06

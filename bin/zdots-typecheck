@@ -13,16 +13,50 @@ cd "$ZDOTDIR"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   cat <<'EOF'
-Usage: zdots-typecheck [-h|--help]
+Usage: zdots-typecheck [--coverage] [-h|--help]
 
 Validate RBS signatures in sig/ and run Zdots seam contract specs with RBS
 runtime type instrumentation (rbs/test/setup). No database or external daemons
 are required.
 
 Options:
+  --coverage  Report how many lib/ classes and modules sig/ declares, and list
+              the missing ones (first line: "rbs coverage: N/M (P%)")
   -h, --help  Show this help message
 EOF
   exit 0
+fi
+
+if [[ "${1:-}" == "--coverage" ]]; then
+  # Defined: every class/module in lib/ (Prism, fully qualified by nesting).
+  # Declared: every class/module name loaded from sig/.
+  exec ./bin/zdots-ruby -e '
+    require "prism"
+    require "rbs"
+    defined = []
+    walk = lambda do |node, ns|
+      next unless node.is_a?(Prism::Node)
+      if node.is_a?(Prism::ClassNode) || node.is_a?(Prism::ModuleNode)
+        name = [*ns, node.constant_path.slice].join("::")
+        defined << name
+        node.body&.compact_child_nodes&.each { |c| walk.(c, name.split("::")) }
+      else
+        node.compact_child_nodes.each { |c| walk.(c, ns) }
+      end
+    end
+    Dir["lib/zdots.rb", "lib/zdots/**/*.rb", "lib/ruby_audit/**/*.rb"].sort.each do |f|
+      walk.(Prism.parse_file(f).value, [])
+    end
+    defined = defined.uniq.sort
+    loader = RBS::EnvironmentLoader.new(core_root: nil)
+    loader.add(path: Pathname("sig"))
+    env = RBS::Environment.from_loader(loader).resolve_type_names
+    declared = env.class_decls.keys.map { |n| n.to_s.delete_prefix("::") }
+    covered = defined & declared
+    pct = defined.empty? ? 100.0 : (100.0 * covered.size / defined.size).round(2)
+    puts "rbs coverage: #{covered.size}/#{defined.size} (#{pct}%)"
+    (defined - declared).each { |n| puts "missing: #{n}" }
+  '
 fi
 
 ./bin/zdots-ruby -S rbs -I sig validate
