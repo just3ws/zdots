@@ -237,17 +237,18 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 
 ## Terminal & tmux Sessions
 
-One way into tmux on every surface (iTerm2, Ghostty, any shell). The terminal
-profiles launch `tx --landing`; the tmux config and its README are in adots
+One way into tmux on every surface (iTerm2, Ghostty, any shell). The durable
+iTerm2 profile (`zdots tmux (Craftsmanship)`) launches `tx --landing` (Ghostty
+opens a plain shell for broadcast); the tmux config and its README are in adots
 (`~/.config/tmux/`).
 
 | Tool | Command | Purpose |
 |------|---------|---------|
 | `tx` | `tx <name>` | Attach to session `<name>`, creating it in the current directory if needed. Inside tmux it switches the client instead of nesting (tmux refuses `tmux new` inside tmux) |
 | `tx` | `tx` | Inside tmux: session picker (`choose-tree`). Outside: list sessions |
-| `tx --landing` | terminal launch command | Attach to the landing session (`ZDOTS_TMUX_LANDING`, default `main`) only when no client shows it yet; otherwise a plain login shell. The first window lands in tmux; later windows, tabs and splits are fresh shells |
+| `tx --landing` | terminal launch command | First window attaches to the landing session (`ZDOTS_TMUX_LANDING`, default `main`); every later window or tab gets a new tmux window in that session via a grouped view (`<landing>-N`), pruning unattached views |
 | `tx -` | `tx -` | Inside tmux: back to the previous session |
-| tmux keys | `prefix + N` / `prefix + s` / `prefix + ⌫` | New session by name in the current directory and switch to it / pick a session / back to the previous session |
+| tmux keys | `prefix + N` / `prefix + s` / `prefix + ⌫` | Prefix is `Ctrl-Space`: new session by name in the current directory and switch to it / pick a session / back to the previous session |
 | text selection | hold `⌥` while dragging | iTerm2's own selection instead of tmux's mouse capture (tmux `mouse on` stays) |
 | iTerm2 integration | `imgcat`, `it2*` | Loads in any interactive shell whose outer terminal is iTerm2 (`TERM_PROGRAM=iTerm.app`, or `LC_TERMINAL=iTerm2` inside tmux). Utilities come from the app bundle, falling back to the vendored scripts in `.iterm2/` (text only, refreshed from the app; no binaries) |
 

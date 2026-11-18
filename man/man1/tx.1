@@ -1,4 +1,4 @@
-.Dd November 16, 2026
+.Dd November 17, 2026
 .Dt TX 1
 .Os zdots
 .Sh NAME
@@ -31,17 +31,19 @@ With
 it switches back to the previous session (inside tmux only).
 .Pp
 .Fl -landing
-is for terminal emulator launch commands (iTerm2 profiles, Ghostty's
-.Cm command ) .
-It attaches to the landing session only when no client shows it yet; otherwise
-it starts a plain login shell. The first terminal window therefore lands in
-tmux, and later windows, tabs and splits are fresh local shells from which
-.Nm Ar name
-reaches any other session.
+is for terminal emulator launch commands (iTerm2's durable tmux profile).
+The first window attaches to the landing session.
+Every later window or tab gets a new tmux window in that session, shown through
+its own grouped view
+.Pq Ao landing Ac Ns -N ,
+so it survives a terminal restart like the rest of tmux.
+Unattached grouped views are pruned the next time a view is opened, while their
+windows stay in the landing session.
 .Sh OPTIONS
 .Bl -tag -width Fl
 .It Fl -landing
-Attach to the landing session if no client shows it, else exec a login shell.
+Attach to the landing session, or open a new window via a grouped view
+if a client already shows it.
 .It Fl h , Fl -help
 Show usage.
 .El
