@@ -342,7 +342,7 @@ Do **not** replace `~/.config/mise/config.toml` with the version tracked in `ado
    ```bash
    chmod g-w "$(brew --prefix)/share"
    ```
-3. **Fonts & tmux.** If iTerm2 shows Menlo instead of FiraCode Nerd Font Mono, macOS has not activated the cask fonts in `~/Library/Fonts` (`system_profiler SPFontsDataType` lists none from that folder; the files are valid and quarantined from download). Install them with Font Book, or register them for the user through CoreText (`CTFontManagerRegisterFontsForURL(…, .user, …)`, which leaves quarantine intact). iTerm2 resolves the font on its next profile reload. The iTerm2 Dynamic Profiles themselves (including the durable `tx --landing` tmux profile) come from adots. Because tmux uses `Ctrl-Space` as its prefix (`~/.config/tmux/README.md`), disable macOS's *Select the previous input source* (`Ctrl-Space`) shortcut in *System Settings › Keyboard › Keyboard Shortcuts › Input Sources* (`defaults read com.apple.symbolichotkeys AppleSymbolicHotKeys | grep -A1 '60 ='` shows `enabled = 0`).
+3. **Fonts & tmux.** If iTerm2 shows Menlo instead of FiraCode Nerd Font Mono, macOS has not activated the cask fonts in `~/Library/Fonts` (`system_profiler SPFontsDataType` lists none from that folder; the files are valid and quarantined from download). Install them with Font Book, or register them for the user through CoreText (`CTFontManagerRegisterFontsForURL(…, .user, …)`, which leaves quarantine intact). iTerm2 resolves the font on its next profile reload. The iTerm2 Dynamic Profiles themselves (including the durable `tx --landing` tmux profile) come from adots. tmux uses its default `Ctrl-b` prefix (`~/.config/tmux/README.md`), so no macOS shortcut needs changing.
 
 ---
 

@@ -248,7 +248,7 @@ opens a plain shell for broadcast); the tmux config and its README are in adots
 | `tx` | `tx` | Inside tmux: session picker (`choose-tree`). Outside: list sessions |
 | `tx --landing` | terminal launch command | First window attaches to the landing session (`ZDOTS_TMUX_LANDING`, default `main`); every later window or tab gets a new tmux window in that session via a grouped view (`<landing>-N`), pruning unattached views |
 | `tx -` | `tx -` | Inside tmux: back to the previous session |
-| tmux keys | `prefix + N` / `prefix + s` / `prefix + ⌫` | Prefix is `Ctrl-Space`: new session by name in the current directory and switch to it / pick a session / back to the previous session |
+| tmux keys | `prefix + N` / `prefix + s` / `prefix + ⌫` | Prefix is `Ctrl-b` (tmux's default): new session by name in the current directory and switch to it / pick a session / back to the previous session |
 | text selection | hold `⌥` while dragging | iTerm2's own selection instead of tmux's mouse capture (tmux `mouse on` stays) |
 | iTerm2 integration | `imgcat`, `it2*` | Loads in any interactive shell whose outer terminal is iTerm2 (`TERM_PROGRAM=iTerm.app`, or `LC_TERMINAL=iTerm2` inside tmux). Utilities come from the app bundle, falling back to the vendored scripts in `.iterm2/` (text only, refreshed from the app; no binaries) |
 
