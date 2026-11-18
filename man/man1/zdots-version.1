@@ -1,0 +1,84 @@
+.Dd November 17, 2026
+.Dt ZDOTS-VERSION 1
+.Os zdots
+.Sh NAME
+.Nm zdots-version
+.Nd report and self-validate the shared Astronomicon epoch
+.Sh SYNOPSIS
+.Nm
+.Op Cm show | status | check | align Op Ar epoch
+.Op Fl c | Fl -check
+.Op Fl s | Fl -strict
+.Op Fl q | Fl -quiet
+.Op Fl v | Fl -verbose
+.Op Fl n | Fl -dry-run
+.Op Fl -json
+.Op Fl h | Fl -help
+.Nm zdots
+.Fl -version
+.Op Ar options
+.Sh DESCRIPTION
+.Nm
+reads the Imperial CalVer beacon
+.Pq Pa $ZDOTDIR/VERSION
+and reports or self-validates alignment across the seven Astronomicon
+surfaces:
+.Ql zdots ,
+.Ql adots ,
+.Ql vdots ,
+.Ql my ,
+.Ql ztranscribe ,
+.Ql media-pipeline ,
+and
+.Ql just3ws.github.io .
+.Sh COMMANDS
+.Bl -tag -width "align [epoch]"
+.It Cm show
+Print the beacon version
+.Pq default .
+.It Cm status
+Print the beacon, today's
+.Xr imperial-date 1 ,
+and per-surface alignment.
+.It Cm check
+Self-validate that the beacon matches
+.Ql CFFFYYY.M#
+and every present surface matches the beacon.
+Exits non-zero on drift.
+.It Cm align Op Ar epoch
+Stamp today's
+.Xr imperial-date 1
+.Pq or Ar epoch
+into every present surface's
+.Pa VERSION
+file.
+.El
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl c , Fl -check
+Alias for
+.Cm check .
+.It Fl s , Fl -strict
+Fail
+.Cm check
+if any surface
+.Pa VERSION
+file is absent.
+.It Fl q , Fl -quiet
+Suppress output during
+.Cm check .
+.It Fl v , Fl -verbose
+Include the surface table with
+.Cm show .
+.It Fl n , Fl -dry-run
+Preview
+.Cm align
+changes without writing files.
+.It Fl -json
+Emit machine-readable JSON status.
+.It Fl h , Fl -help
+Show usage.
+.El
+.Sh SEE ALSO
+.Xr imperial-date 1 ,
+.Xr zdots-doctor 8

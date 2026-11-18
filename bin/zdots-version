@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# bin/zdots-version — Astronomicon version beacon and self-validation tool.
+#
+# Reads the shared Imperial CalVer beacon (CFFFYYY.M#) from $ZDOTDIR/VERSION,
+# reports or stamps alignment across the seven versioned platform surfaces
+# (zdots, adots, vdots, my, ztranscribe, media-pipeline, just3ws.github.io),
+# and self-validates alignment for CI, bin/check, and platform tooling.
+
+set -euo pipefail
+
+ZDOTDIR="${ZDOTDIR:-$HOME/.config/zsh}"
+BEACON_FILE="$ZDOTDIR/VERSION"
+IMPERIAL_RE='^[0-9]{7}\.M[0-9]+$'
+
+usage() {
+  cat <<'EOF'
+Usage: zdots-version [COMMAND] [OPTIONS]
+       zdots --version [OPTIONS]
+
+Report and self-validate the shared Astronomicon (Imperial CalVer) epoch.
+
+Commands:
+  show                Print the zdots beacon version (default)
+  status              Show beacon, today's imperial-date, and all 7 surfaces
+  check               Self-validate beacon format and surface alignment
+  align [EPOCH]       Stamp today's imperial-date (or EPOCH) across surfaces
+
+Options:
+  -c, --check         Alias for `check`
+  -s, --strict        With check: fail if any surface VERSION file is absent
+  -q, --quiet         With check: suppress output, exit status only
+  -v, --verbose       With show: include per-surface alignment table
+  -n, --dry-run       With align: print planned updates without writing files
+  --json              Emit machine-readable JSON status
+  -h, --help          Show this help
+
+Surfaces:
+  zdots, adots, vdots, my, ztranscribe, media-pipeline, just3ws.github.io
+EOF
+}
+
+is_valid_epoch() {
+  [[ "${1:-}" =~ $IMPERIAL_RE ]]
+}
+
+read_trimmed() {
+  local f="$1"
+  [[ -f "$f" ]] || return 1
+  tr -d '[:space:]' <"$f"
+}
+
+today_epoch() {
+  if [[ -x "$ZDOTDIR/bin/imperial-date" ]]; then
+    "$ZDOTDIR/bin/imperial-date" 2>/dev/null || true
+  elif command -v imperial-date >/dev/null 2>&1; then
+    imperial-date 2>/dev/null || true
+  fi
+}
+
+surface_specs() {
+  local xdg_cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
+  printf '%s\t%s\n' \
+    "zdots"             "$BEACON_FILE" \
+    "adots"             "${ZDOTS_ADOTS_VERSION:-$HOME/VERSION}" \
+    "vdots"             "$xdg_cfg/nvim/VERSION" \
+    "my"                "$HOME/my/VERSION" \
+    "ztranscribe"       "${ZDOTS_ZTRANSCRIBE_ROOT:-$HOME/github.com/just3ws/ztranscribe}/VERSION" \
+    "media-pipeline"    "${MEDIA_PIPELINE_ROOT:-$HOME/github.com/just3ws/media-pipeline}/VERSION" \
+    "just3ws.github.io" "${JUST3WS_SITE_ROOT:-$HOME/github.com/just3ws/just3ws.github.io}/VERSION"
+}
+
+CMD="show"
+STRICT=0
+QUIET=0
+VERBOSE=0
+DRY_RUN=0
+JSON=0
+EPOCH_ARG=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    show|status|check|align) CMD="$1" ;;
+    -c|--check) CMD="check" ;;
+    -s|--strict) STRICT=1 ;;
+    -q|--quiet) QUIET=1 ;;
+    -v|--verbose) VERBOSE=1 ;;
+    -n|--dry-run) DRY_RUN=1 ;;
+    --json) JSON=1 ;;
+    -*)
+      printf 'zdots-version: unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ "$CMD" == "align" && -z "$EPOCH_ARG" ]]; then
+        EPOCH_ARG="$1"
+      else
+        printf 'zdots-version: unexpected argument: %s\n' "$1" >&2
+        usage >&2
+        exit 2
+      fi
+      ;;
+  esac
+  shift
+done
+
+beacon=""
+if [[ -f "$BEACON_FILE" ]]; then
+  beacon="$(read_trimmed "$BEACON_FILE" || true)"
+fi
+
+if [[ "$CMD" == "align" ]]; then
+  target="${EPOCH_ARG:-$(today_epoch)}"
+  if ! is_valid_epoch "$target"; then
+    printf 'zdots-version: invalid Astronomicon epoch: %s\n' "${target:-<empty>}" >&2
+    exit 1
+  fi
+  updated=0
+  while IFS=$'\t' read -r name path; do
+    dir="$(dirname "$path")"
+    if [[ ! -d "$dir" ]]; then
+      printf '  [skip] %-18s %s (directory absent)\n' "$name" "$path"
+      continue
+    fi
+    cur=""
+    [[ -f "$path" ]] && cur="$(read_trimmed "$path" || true)"
+    if [[ "$cur" == "$target" ]]; then
+      printf '  [ok]   %-18s %s (%s)\n' "$name" "$target" "$path"
+      continue
+    fi
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      printf '  [plan] %-18s %s -> %s (%s)\n' "$name" "${cur:-<none>}" "$target" "$path"
+    else
+      printf '%s\n' "$target" >"$path"
+      printf '  [set]  %-18s %s -> %s (%s)\n' "$name" "${cur:-<none>}" "$target" "$path"
+    fi
+    updated=$((updated + 1))
+  done < <(surface_specs)
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    printf 'Aligned %d surface(s) to %s\n' "$updated" "$target"
+  fi
+  exit 0
+fi
+
+# Collect surface status for show/status/check/json.
+aligned=1
+drift_count=0
+absent_count=0
+rows=()
+
+if ! is_valid_epoch "$beacon"; then
+  aligned=0
+fi
+
+while IFS=$'\t' read -r name path; do
+  val=""
+  state="absent"
+  if [[ -f "$path" ]]; then
+    val="$(read_trimmed "$path" || true)"
+    if [[ -n "$beacon" && "$val" == "$beacon" ]]; then
+      state="in_sync"
+    else
+      state="drift"
+      aligned=0
+      drift_count=$((drift_count + 1))
+    fi
+  elif [[ "$name" == "adots" && -d "$HOME/.homegit" ]] && command -v adots-git >/dev/null 2>&1; then
+    val="$(adots-git show HEAD:VERSION 2>/dev/null | tr -d '[:space:]' || true)"
+    if [[ -n "$val" ]]; then
+      if [[ -n "$beacon" && "$val" == "$beacon" ]]; then
+        state="in_sync"
+      else
+        state="drift"
+        aligned=0
+        drift_count=$((drift_count + 1))
+      fi
+    else
+      absent_count=$((absent_count + 1))
+      [[ "$STRICT" -eq 1 ]] && aligned=0
+    fi
+  else
+    absent_count=$((absent_count + 1))
+    [[ "$STRICT" -eq 1 ]] && aligned=0
+  fi
+  rows+=("${name}|${val}|${state}|${path}")
+done < <(surface_specs)
+
+if [[ "$JSON" -eq 1 ]]; then
+  today="$(today_epoch)"
+  aligned_bool="false"
+  [[ "$aligned" -eq 1 ]] && aligned_bool="true"
+  printf '{\n'
+  printf '  "beacon": "%s",\n' "$beacon"
+  printf '  "today": "%s",\n' "$today"
+  printf '  "scheme": "imperial-calver",\n'
+  printf '  "aligned": %s,\n' "$aligned_bool"
+  printf '  "drift_count": %d,\n' "$drift_count"
+  printf '  "absent_count": %d,\n' "$absent_count"
+  printf '  "surfaces": [\n'
+  i=0
+  total="${#rows[@]}"
+  for row in "${rows[@]}"; do
+    IFS='|' read -r name val state path <<<"$row"
+    i=$((i + 1))
+    comma=","
+    [[ "$i" -eq "$total" ]] && comma=""
+    printf '    {"name": "%s", "version": "%s", "status": "%s", "path": "%s"}%s\n' \
+      "$name" "$val" "$state" "$path" "$comma"
+  done
+  printf '  ]\n}\n'
+  if [[ "$CMD" == "check" && "$aligned" -ne 1 ]]; then
+    exit 1
+  fi
+  exit 0
+fi
+
+if [[ "$CMD" == "show" && "$VERBOSE" -eq 0 ]]; then
+  if [[ -z "$beacon" ]]; then
+    printf 'zdots-version: missing VERSION beacon at %s\n' "$BEACON_FILE" >&2
+    exit 1
+  fi
+  printf '%s\n' "$beacon"
+  exit 0
+fi
+
+if [[ "$QUIET" -eq 0 ]]; then
+  today="$(today_epoch)"
+  printf 'Astronomicon beacon : %s\n' "${beacon:-<missing>}"
+  [[ -n "$today" ]] && printf 'Imperial date today : %s\n' "$today"
+  for row in "${rows[@]}"; do
+    IFS='|' read -r name val state path <<<"$row"
+    case "$state" in
+      in_sync) printf '  [ok]     %-18s %s\n' "$name" "$val" ;;
+      drift)   printf '  [drift]  %-18s %s (expected %s)\n' "$name" "${val:-<empty>}" "${beacon:-<missing>}" ;;
+      absent)  printf '  [absent] %-18s %s\n' "$name" "$path" ;;
+    esac
+  done
+fi
+
+if [[ "$CMD" == "check" && "$aligned" -ne 1 ]]; then
+  exit 1
+fi
+exit 0

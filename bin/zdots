@@ -21,6 +21,10 @@ case "$noun" in
     printf '\nrun: zdots help <noun> for details\n'
     exit 0
     ;;
+  -V|--version)
+    shift
+    exec "$zdotdir/bin/zdots-version" "$@"
+    ;;
   *)
     target="zdots-${noun}"
     exec_target=""

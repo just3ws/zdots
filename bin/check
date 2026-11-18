@@ -653,6 +653,17 @@ assert_zdots_core_runnable() {
 }
 assert_zdots_core_runnable
 
+assert_astronomicon_alignment() {
+  if [[ -x "$REPO_ROOT/bin/zdots-version" ]]; then
+    if ! ZDOTDIR="$REPO_ROOT" "$REPO_ROOT/bin/zdots-version" --check --quiet; then
+      echo "check: Astronomicon version alignment failed (run: zdots version status)" >&2
+      ZDOTDIR="$REPO_ROOT" "$REPO_ROOT/bin/zdots-version" --check >&2 || true
+      exit 1
+    fi
+  fi
+}
+assert_astronomicon_alignment
+
 if [[ "${ZDOTS_CHECK_REPORT_STARTUP:-0}" == "1" ]]; then
   report_startup_timing
 fi
