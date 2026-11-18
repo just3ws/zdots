@@ -240,6 +240,11 @@ if [ ! -d "$HOME/.homegit" ]; then
     || echo "bootstrap: WARNING: adots clone failed — run: git clone --bare https://github.com/just3ws/adots.git ~/.homegit"
 fi
 if [ -d "$HOME/.homegit" ]; then
+  # A bare clone has no fetch rule; without one origin/main never moves.
+  # shellcheck source=lib/adots.bash
+  . "${REPO_ROOT}/lib/adots.bash"
+  adots_ensure_fetch_rule "$HOME/.homegit" \
+    || echo "bootstrap: WARNING: adots fetch rule not set — see lib/adots.bash"
   GIT_DIR="$HOME/.homegit" GIT_WORK_TREE="$HOME" git restore --source=HEAD -- . 2>/dev/null \
     && echo "bootstrap: adots files restored." \
     || echo "bootstrap: WARNING: adots restore failed — run: GIT_DIR=~/.homegit GIT_WORK_TREE=~ git restore --source=HEAD -- ."
