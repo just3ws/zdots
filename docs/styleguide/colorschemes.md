@@ -145,7 +145,7 @@ Reference this when adding a surface or auditing coverage.
 | nvim | vdots `kanagawa.nvim` | `colors.theme.wave.ui.bg=#1A1B2F` |
 | bat | `assets/kanagawa-wave/Kanagawa-Wave.tmTheme` | `bat --theme` |
 | ghostty | `assets/kanagawa-wave/ghostty-kanagawa-wave` | `theme =` |
-| Alfred | `assets/kanagawa-wave/alfred-kanagawa-wave.json` | appearance |
+| Alfred | `assets/kanagawa-wave/Kanagawa Wave.alfredappearance`, `assets/kanagawa-lotus/Kanagawa Lotus.alfredappearance` | appearance files; double-click to import, then assign one to dark and one to light |
 | lazygit | `assets/kanagawa-wave/lazygit-kanagawa-wave.yml` | `gui.theme` |
 | k9s | `~/.config/k9s/skins/kanagawa.yaml` | `ui.skin` |
 | gh-dash / delta | `~/.config/gh-dash`, git `[delta]` | theme colors |
