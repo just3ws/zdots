@@ -100,7 +100,6 @@ brew "terraform" # Infrastructure-as-code tool for work cloud resources
 # profile; include this block only on a machine that actively operates clusters.
 # They use the active kubeconfig context (aws-vault + eksctl for EKS auth).
 
-brew "kubernetes-cli"   # kubectl — the base client
 brew "k9s"              # terminal UI for cluster navigation/triage
 brew "kubectx"          # fast context + namespace switching (ships kubens)
 brew "helm"             # chart install/upgrade/rollback

@@ -189,6 +189,7 @@ sqlite-utils query ~/.local/state/zdots/history.sqlite3 \
 |------|---------|---------|
 | `bandwhich` | `sudo bandwhich` | Per-process network monitor — verify AI stays on loopback |
 | `secret-scan` | `bin/secret-scan` | High-confidence credential leak detection (AWS, GitHub, SSH) |
+| `zdots-sanitize` | `bin/zdots-sanitize scan <dir>` | Anonymized secret scan + surgical redactor for archived Ruby/Rails codebases |
 | `gitleaks` | `gitleaks detect` | Git history secret scan |
 | `trufflehog` | `trufflehog git file://.` | Deep entropy-based secret scan |
 | `syft` | `syft .` | SBOM generation for supply chain auditing |
@@ -259,6 +260,7 @@ opens a plain shell for broadcast); the tmux config and its README are in adots
 | Tool | Command | Purpose |
 |------|---------|---------|
 | `colima` | `zsvc start colima` / `zsvc stop colima` | Optional, on-demand Docker runtime; disabled at login on this host |
+| `kubectl` | `kubectl get pods` (`kubernetes-cli`) | Kubernetes CLI paired with `colima` in `Brewfile.common` for local container/k8s work |
 | `lazydocker` | `lzd` | TUI for Docker containers and images |
 | `docker` / `docker-compose` | `docker compose up` | Container management |
 | `otel-collector` | `bin/otel-collector start` | Bare-metal OTel collector (managed, not Homebrew) |

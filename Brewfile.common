@@ -43,7 +43,8 @@ brew "btop" # Resource monitor. C++ version and continuation of bashtop and bpyt
 brew "librsvg" # Library to render SVG files using Cairo
 brew "chafa" # Versatile and fast Unicode/ASCII/ANSI graphics renderer
 brew "cmake" # Cross-platform make
-brew "colima"      # on-demand local container VM; bare-metal work is the default
+brew "colima"         # on-demand local container VM; bare-metal work is the default
+brew "kubernetes-cli" # kubectl — paired with colima for local container/k8s work
 brew "coreutils" # GNU File, Shell, and Text utilities
 brew "csvlens" # Command-line csv viewer
 brew "curl" # Get a file from an HTTP, HTTPS or FTP server
