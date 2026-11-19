@@ -233,6 +233,22 @@ type themeData struct {
 	Tokens  map[string]string `json:"tokens"`
 }
 
+// yamlScalar returns a YAML value without its quotes or a trailing comment.
+// A quoted value ends at its closing quote; a bare one ends where " #" starts.
+func yamlScalar(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) > 0 && (s[0] == '"' || s[0] == '\'') {
+		if end := strings.IndexByte(s[1:], s[0]); end >= 0 {
+			return s[1 : 1+end]
+		}
+		return s[1:]
+	}
+	if i := strings.Index(s, " #"); i >= 0 {
+		s = s[:i]
+	}
+	return strings.TrimSpace(s)
+}
+
 func (e *serverEnv) loadTheme() (*themeData, error) {
 	name := envOr("ZDOTS_THEME", "kanagawa-wave")
 	raw, err := os.ReadFile(filepath.Join(e.zdotdir, "etc", "themes", name+".yaml"))
@@ -276,7 +292,7 @@ func (e *serverEnv) loadTheme() (*themeData, error) {
 		case "palette", "tokens":
 			if idx := strings.IndexByte(tr, ':'); idx > 0 {
 				k := strings.Trim(strings.TrimSpace(tr[:idx]), `"'`)
-				v := strings.Trim(strings.TrimSpace(tr[idx+1:]), `"'#`)
+				v := strings.TrimPrefix(yamlScalar(tr[idx+1:]), "#")
 				if section == "palette" {
 					td.Palette[k] = v
 				} else {
@@ -285,8 +301,7 @@ func (e *serverEnv) loadTheme() (*themeData, error) {
 			}
 		case "ansi":
 			if strings.HasPrefix(tr, "- ") {
-				v := strings.Trim(strings.TrimSpace(strings.TrimPrefix(tr, "- ")), `"'`)
-				td.ANSI = append(td.ANSI, v)
+				td.ANSI = append(td.ANSI, yamlScalar(strings.TrimPrefix(tr, "- ")))
 			}
 		}
 	}
