@@ -43,6 +43,16 @@ unset _zdots_theme_dircolors_file
 if [[ -n "${ZDOTS_THEME:-}" && -r "$ZDOTDIR/assets/$ZDOTS_THEME/shell-colors.zsh" ]]; then
   source "$ZDOTDIR/assets/$ZDOTS_THEME/shell-colors.zsh"
 fi
+
+# delta and lazygit can't follow the terminal's light or dark mode themselves,
+# so the shell names the scheme for them. delta reads the feature of that name
+# from git config; lazygit layers the generated theme over its own config.
+if [[ -n "${ZDOTS_THEME:-}" ]]; then
+  export DELTA_FEATURES="+$ZDOTS_THEME"
+  if [[ -r "$ZDOTDIR/assets/$ZDOTS_THEME/lazygit-$ZDOTS_THEME.yml" ]]; then
+    export LG_CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/lazygit/config.yml,$ZDOTDIR/assets/$ZDOTS_THEME/lazygit-$ZDOTS_THEME.yml"
+  fi
+fi
 # Correctness and behavior
 export DISABLE_SPRING=true
 export CORRECT_IGNORE='_*'

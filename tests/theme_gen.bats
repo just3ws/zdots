@@ -22,3 +22,13 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"kanagawa-wave"* ]]
 }
+
+@test "theme-gen: kanagawa-lotus surfaces are in sync with their source" {
+  run ruby "$REPO_ROOT/bin/zdots-theme-gen" kanagawa-lotus --check
+  [ "$status" -eq 0 ]
+}
+
+@test "theme-gen: lotus and wave name the same colours, so one template set serves both" {
+  run ruby -ryaml -e 'w, l = %w[kanagawa-wave kanagawa-lotus].map { YAML.safe_load_file("#{ARGV[0]}/etc/themes/#{it}.yaml")["palette"].keys }; missing = w - l; abort(missing.join(" ")) unless missing.empty?' "$REPO_ROOT"
+  [ "$status" -eq 0 ]
+}

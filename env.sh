@@ -270,7 +270,20 @@ export VISUAL="$EDITOR"
 export PGPASSFILE="$XDG_CONFIG_HOME/pgpass"
 export DOCKER_CLI_HINTS=false
 export ENABLE_LSP_TOOL=1
-export ZDOTS_THEME="${ZDOTS_THEME:-kanagawa-wave}"
+# Kanagawa follows the macOS appearance: Lotus in light, Wave in dark. The name
+# is worked out in every shell, because an inherited value (tmux keeps the one
+# its server started with) would pin the old mode. Any other ZDOTS_THEME is a
+# deliberate pin and is left alone.
+case "${ZDOTS_THEME:-}" in
+  "" | kanagawa-wave | kanagawa-lotus)
+    if [ -x /usr/bin/defaults ] && ! /usr/bin/defaults read -g AppleInterfaceStyle >/dev/null 2>&1; then
+      ZDOTS_THEME=kanagawa-lotus
+    else
+      ZDOTS_THEME=kanagawa-wave
+    fi
+    ;;
+esac
+export ZDOTS_THEME
 
 # 6. Language-Specific XDG Alignment
 export PNPM_HOME="$XDG_DATA_HOME/pnpm"

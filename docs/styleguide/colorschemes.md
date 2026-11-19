@@ -158,6 +158,26 @@ App-level source files live under `assets/kanagawa-wave/`; the commemorative
 
 ---
 
+## 4a. Light and dark — one family, two variants
+
+Kanagawa is the one family. **Wave** is the dark variant and **Lotus**
+(`etc/themes/kanagawa-lotus.yaml`) the light one. Lotus uses Wave's colour
+names, each with the same job and its Lotus value, so one set of templates
+renders both (`tests/theme_gen.bats` checks the names match).
+
+| Surface | How it picks light or dark |
+|---|---|
+| iTerm2 | one profile holds both colour sets and follows the macOS appearance |
+| tmux | palette files `kanagawa-wave.conf` / `kanagawa-lotus.conf`, loaded when the terminal reports its theme |
+| zsh (prompt, highlighting, `LS_COLORS`, fzf) | `env.sh` sets `ZDOTS_THEME` from the macOS appearance in every new shell |
+| delta, lazygit | the shell names the scheme (`DELTA_FEATURES`, `LG_CONFIG_FILE`) |
+| bat | `--theme=auto` with a light and a dark theme |
+| Neovim | `background` selects Lotus or Wave |
+| btop | the terminal's own 16 colours (TTY theme) |
+
+A shell that is already open keeps its colours until it is restarted. Any other
+`ZDOTS_THEME` value is a pin and is left alone.
+
 ## 5. Accessibility (WCAG 2.1 AA)
 
 Verified pairs (computed sRGB contrast):
