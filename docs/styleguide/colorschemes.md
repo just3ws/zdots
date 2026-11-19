@@ -141,7 +141,7 @@ Reference this when adding a surface or auditing coverage.
 | LSCOLORS (BSD) | `conf.d/30-env.zsh` | `kanagawa-*` block |
 | fzf | `fzfrc` | `--color` opts |
 | prompt | `assets/kanagawa-wave/p10k-overrides.zsh` | ANSI palette indices |
-| iTerm2 | `assets/kanagawa-wave/Kanagawa-Wave.itermcolors` | color preset (import) |
+| iTerm2 | `assets/kanagawa-wave/Kanagawa-Wave.itermcolors`, `assets/kanagawa-lotus/Kanagawa-Lotus.itermcolors` | the two colour sets the dynamic profile holds (dark and light); not imported as presets |
 | nvim | vdots `kanagawa.nvim` | `colors.theme.wave.ui.bg=#1A1B2F` |
 | bat | `assets/kanagawa-wave/Kanagawa-Wave.tmTheme` | `bat --theme` |
 | ghostty | `assets/kanagawa-wave/ghostty-kanagawa-wave` | `theme =` |
