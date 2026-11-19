@@ -1,3 +1,11 @@
+# Load the folder's .envrc before the instant prompt starts watching the console:
+# direnv's "loading" lines print here, and its hook (conf.d/71-shell-tools.zsh)
+# finds the environment already loaded and stays quiet. Powerlevel10k's README
+# gives this split for direnv.
+if [[ -o interactive ]] && (( ${+commands[direnv]} )); then
+  emulate zsh -c "$(direnv export zsh)"
+fi
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.config/zsh/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
