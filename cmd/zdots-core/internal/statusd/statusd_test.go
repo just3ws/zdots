@@ -27,10 +27,11 @@ func TestRoutesAndBacklog404(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(tmp, "etc", "themes"), 0o755)
 	_ = os.WriteFile(filepath.Join(tmp, "VERSION"), []byte("0873026.M3\n"), 0o644)
 	_ = os.WriteFile(filepath.Join(tmp, "etc", "system-topology.json"), []byte(`{"nodes":[],"links":[]}`), 0o644)
-	_ = os.WriteFile(filepath.Join(tmp, "etc", "themes", "kanagawa-wave.yaml"), []byte("slug: kanagawa-wave\ntitle: Kanagawa Wave\npalette:\n  bg: \"1f1f28\"\ntokens:\n  bg: bg\nansi:\n  - bg\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tmp, "etc", "themes", "kanagawa-wave.yaml"), []byte("slug: kanagawa-wave\ntitle: Kanagawa Wave\npalette:\n  bg: \"1f1f28\"       # ground\ntokens:\n  bg: bg       # AA note\nansi:\n  - bg       # 0  black\n"), 0o644)
 	_ = os.WriteFile(filepath.Join(tmp, "backlog", "tasks", "Z-1.md"), []byte("---\nid: Z-1\ntitle: Test Task\nstatus: To Do\npriority: high\n---\nHello body\n"), 0o644)
 
 	t.Setenv("ZDOTDIR", tmp)
+	t.Setenv("ZDOTS_THEME", "kanagawa-wave")
 	t.Setenv("ZDOTS_STATUS_HOST", "127.0.0.1")
 	t.Setenv("ZDOTS_NO_OTEL", "1")
 	t.Setenv("ZDOTS_AI_PORT", "59981")
@@ -81,5 +82,9 @@ func TestRoutesAndBacklog404(t *testing.T) {
 	var td themeData
 	if err := json.Unmarshal(rec.Body.Bytes(), &td); err != nil || td.Slug != "kanagawa-wave" {
 		t.Fatalf("unexpected palette.json: %v %+v", err, td)
+	}
+	// Values carry no trailing YAML comment: the source files annotate nearly every line.
+	if td.Palette["bg"] != "1f1f28" || td.Tokens["bg"] != "bg" || len(td.ANSI) != 1 || td.ANSI[0] != "bg" {
+		t.Fatalf("palette.json kept a comment: palette=%q tokens=%q ansi=%q", td.Palette["bg"], td.Tokens["bg"], td.ANSI)
 	}
 }
