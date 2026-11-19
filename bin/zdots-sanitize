@@ -1,0 +1,537 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# zdots-sanitize — Recursively scan a directory (with Ruby/Rails focus) for
+# potential secrets/credentials, emit an anonymized report (never containing raw
+# secret values), and surgically anonymize or purge approved findings.
+
+require "digest"
+require "fileutils"
+require "json"
+require "optparse"
+require "pathname"
+require "set"
+require "time"
+
+module ZdotsSanitize
+  VERSION = "1.0.0"
+
+  DEFAULT_EXCLUDED_DIRS = Set.new(%w[
+    .git .hg .svn node_modules tmp log coverage vendor/bundle .bundle
+    public/assets public/packs dist build
+  ]).freeze
+
+  LOCKFILES = Set.new(%w[
+    Gemfile.lock package-lock.json yarn.lock pnpm-lock.yaml Cargo.lock
+    poetry.lock composer.lock
+  ]).freeze
+
+  TEST_DIR_RE = %r{(?:\A|/)(?:spec|test|tests|features|fixtures|factories)(?:/|\z)}i
+
+  PLACEHOLDER_RE = /\A(?:
+    changeme|change_me|example|sample|dummy|placeholder|test|testing|fake|
+    redact(?:ed)?|none|null|nil|true|false|undefined|
+    your[-_].*|my[-_].*|insert[-_].*|replace[-_].*|
+    x{4,}|\*{4,}|\.{3,}|<[^>]+>|\$\{[^}]+\}|%\{[^}]+\}|<%=.*%>
+  )\z/ix
+
+  SENSITIVE_FILES = [
+    { rule: "rails_master_key_file", regex: %r{(?:\A|/)config/(?:master\.key|credentials/[^/]+\.key)\z}, confidence: "high", action: "delete_file" },
+    { rule: "env_file", regex: %r{(?:\A|/)\.env(?:\.[^/]+)?\z}, exclude_regex: /\.(?:example|sample|template|dist)\z/i, confidence: "high", action: "review" },
+    { rule: "private_key_file", regex: %r{(?:\A|/)[^/]+\.(?:pem|key|p12|pfx)\z|(?:\A|/)(?:id_rsa|id_ed25519)\z}, confidence: "high", action: "delete_file" },
+    { rule: "local_db_file", regex: %r{(?:\A|/)[^/]+\.(?:sqlite3?|dump)\z}, confidence: "medium", action: "review" }
+  ].freeze
+
+  # Each rule has:
+  #   rule: identifier
+  #   regex: Regexp; if capture group 1 exists, group 1 is the secret span; else group 0
+  #   confidence: "high" | "medium" | "low"
+  #   action: default suggested action ("anonymize" | "review")
+  SPAN_RULES = [
+    { rule: "aws_access_key", regex: /\b((?:AKIA|ASIA)[0-9A-Z]{16})\b/, confidence: "high", action: "anonymize" },
+    { rule: "github_token", regex: /\b(gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/, confidence: "high", action: "anonymize" },
+    { rule: "slack_token", regex: /\b(xox[baprs]-[A-Za-z0-9-]{10,})\b/, confidence: "high", action: "anonymize" },
+    { rule: "stripe_live_key", regex: /\b([rs]k_live_[0-9a-zA-Z]{16,})\b/, confidence: "high", action: "anonymize" },
+    { rule: "openai_key", regex: /\b(sk-(?:proj-)?[A-Za-z0-9_-]{20,})\b/, confidence: "high", action: "anonymize" },
+    { rule: "anthropic_key", regex: /\b(sk-ant-[A-Za-z0-9_-]{20,})\b/, confidence: "high", action: "anonymize" },
+    { rule: "sendgrid_key", regex: /\b(SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,})\b/, confidence: "high", action: "anonymize" },
+    { rule: "twilio_key", regex: /\b(SK[0-9a-fA-F]{32})\b/, confidence: "high", action: "anonymize" },
+    { rule: "gcp_api_key", regex: /\b(AIza[0-9A-Za-z_-]{35})\b/, confidence: "high", action: "anonymize" },
+    { rule: "google_oauth", regex: /\b(ya29\.[0-9A-Za-z_-]+)\b/, confidence: "high", action: "anonymize" },
+    { rule: "sentry_dsn", regex: %r{(https://[0-9a-f]{16,}@(?:o\d+\.ingest\.)?sentry\.io/\d+)}, confidence: "high", action: "anonymize" },
+    { rule: "jwt_token", regex: /\b(eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b/, confidence: "high", action: "anonymize" },
+    { rule: "private_key_block", regex: /(-----BEGIN (?:RSA |OPENSSH |EC |DSA |PGP |ENCRYPTED )?PRIVATE KEY-----)/, confidence: "high", action: "review" },
+    {
+      rule: "url_credentials",
+      regex: %r{(?:postgres(?:ql)?|mysql2?|redis|rediss|mongodb(?:\+srv)?|amqps?|https?)://[^/\s:@]+:([^@\s"'`]+)@[^\s"'`]+}i,
+      confidence: "high",
+      action: "anonymize"
+    },
+    {
+      rule: "rails_secret_key_base",
+      regex: /\bsecret_key_base\s*(?:=|:|=>)\s*["']?([^\s#"']{16,})["']?/i,
+      confidence: "high",
+      action: "anonymize"
+    },
+    {
+      rule: "rails_secret_token",
+      regex: /\bsecret_token\s*(?:=|:|=>)\s*["']?([^\s#"']{16,})["']?/i,
+      confidence: "high",
+      action: "anonymize"
+    },
+    {
+      rule: "rails_devise_secret",
+      regex: /(?:Devise\.secret_key|config\.pepper)\s*=\s*["']([^"']{16,})["']/,
+      confidence: "high",
+      action: "anonymize"
+    },
+    {
+      rule: "rails_ar_encryption",
+      regex: /\b(?:primary_key|deterministic_key|key_derivation_salt)\s*(?:=|:|=>)\s*["']?([^\s#"']{16,})["']?/i,
+      confidence: "high",
+      action: "anonymize"
+    },
+    {
+      rule: "ruby_secret_assignment",
+      regex: /\b[A-Za-z0-9_]*(?:password|passwd|secret|api_key|apikey|access_key|secret_key|auth_token|access_token|bearer_token|private_key|signing_secret|webhook_secret|encryption_key|client_secret|master_key|smtp_password|db_password)[A-Za-z0-9_]*\s*(?:=|:|=>)\s*["']([^"']{6,})["']/i,
+      confidence: "medium",
+      action: "review"
+    },
+    {
+      rule: "config_kv_secret",
+      regex: /^\s*(?:export\s+)?[A-Za-z0-9_]*(?:password|passwd|secret|api_key|apikey|access_key|secret_key|auth_token|access_token|private_key|signing_secret|webhook_secret|encryption_key|client_secret|master_key|token)\s*[:=]\s*["']?([^\s#"']{6,})["']?/i,
+      confidence: "medium",
+      action: "review"
+    }
+  ].freeze
+
+  CONFIDENCE_RANK = { "low" => 1, "medium" => 2, "high" => 3 }.freeze
+
+  module_function
+
+  def fingerprint(value)
+    "sha256:#{Digest::SHA256.hexdigest(value)[0, 12]}"
+  end
+
+  def shape_of(value)
+    classes = []
+    classes << "hex" if value.match?(/\A[0-9a-fA-F]+\z/)
+    classes << "digits" if value.match?(/\A\d+\z/)
+    classes << "alnum" if value.match?(/\A[A-Za-z0-9]+\z/) && !classes.include?("hex") && !classes.include?("digits")
+    classes << "base64/token" if classes.empty? && value.match?(/\A[A-Za-z0-9+\/_=-]+\z/)
+    classes << "mixed" if classes.empty?
+    "len=#{value.length}, #{classes.first}"
+  end
+
+  def shannon_entropy(str)
+    return 0.0 if str.empty?
+
+    counts = Hash.new(0)
+    str.each_char { |c| counts[c] += 1 }
+    len = str.length.to_f
+    counts.values.reduce(0.0) do |sum, count|
+      p = count / len
+      sum - p * Math.log2(p)
+    end
+  end
+
+  def binary_file?(path)
+    File.open(path, "rb") do |f|
+      chunk = f.read(4096)
+      return false if chunk.nil?
+
+      chunk.include?("\x00")
+    end
+  rescue StandardError
+    true
+  end
+
+  def placeholder_or_dynamic?(value, line)
+    return true if value.nil? || value.empty?
+    return true if PLACEHOLDER_RE.match?(value)
+    return true if value.start_with?("REDACTED_")
+    return true if line.include?("ENV[") || line.include?("ENV.fetch")
+    return true if line.include?("Rails.application.credentials") || line.include?("Rails.application.secrets")
+    return true if value.match?(/\A\d+\z/) && value.length < 10
+
+    false
+  end
+
+  def redact_line(line, start_col, end_col, id, rule)
+    prefix = line[0...start_col]
+    suffix = line[end_col..]
+    "#{prefix}[REDACTED:#{id}:#{rule}]#{suffix}".rstrip
+  end
+
+  def adjust_confidence(base, rel_path, include_tests)
+    return base if include_tests || base == "high"
+    return "low" if TEST_DIR_RE.match?(rel_path)
+
+    base
+  end
+
+  def walk_files(root, extra_excludes)
+    root_path = Pathname.new(root).realpath
+    files = []
+    stack = [root_path]
+
+    until stack.empty?
+      dir = stack.pop
+      Dir.children(dir).sort.each do |entry|
+        child = dir + entry
+        rel = child.relative_path_from(root_path).to_s
+
+        if child.symlink?
+          next
+        elsif child.directory?
+          next if DEFAULT_EXCLUDED_DIRS.include?(entry) || DEFAULT_EXCLUDED_DIRS.include?(rel)
+          next if extra_excludes.any? { |pat| File.fnmatch?(pat, rel, File::FNM_PATHNAME) || rel.include?(pat) }
+
+          stack.push(child)
+        elsif child.file?
+          next if LOCKFILES.include?(entry)
+          next if extra_excludes.any? { |pat| File.fnmatch?(pat, rel, File::FNM_PATHNAME) || rel.include?(pat) }
+
+          files << [child, rel]
+        end
+      end
+    end
+
+    files.sort_by { |_, rel| rel }
+  end
+
+  def scan_directory(root, min_confidence: "medium", include_tests: false, excludes: [])
+    min_rank = CONFIDENCE_RANK.fetch(min_confidence)
+    findings = []
+    seq = 0
+    files_scanned = 0
+
+    walk_files(root, excludes).each do |abs_path, rel_path|
+      # 1. Whole-file checks
+      file_rule = SENSITIVE_FILES.find do |r|
+        r[:regex].match?(rel_path) && !(r[:exclude_regex]&.match?(rel_path))
+      end
+
+      if file_rule
+        conf = adjust_confidence(file_rule[:confidence], rel_path, include_tests)
+        if CONFIDENCE_RANK[conf] >= min_rank
+          seq += 1
+          id = format("F-%04d", seq)
+          content_hash = Digest::SHA256.file(abs_path).hexdigest[0, 12]
+          findings << {
+            "id" => id,
+            "kind" => "file",
+            "file" => rel_path,
+            "line" => nil,
+            "start_col" => nil,
+            "end_col" => nil,
+            "rule" => file_rule[:rule],
+            "confidence" => conf,
+            "fingerprint" => "sha256:#{content_hash}",
+            "shape" => "bytes=#{File.size(abs_path)}",
+            "redacted_preview" => "[SENSITIVE FILE: #{rel_path}]",
+            "action" => file_rule[:action]
+          }
+        end
+      end
+
+      next if binary_file?(abs_path)
+
+      files_scanned += 1
+      lines = File.read(abs_path, encoding: "UTF-8", invalid: :replace, undef: :replace).lines
+
+      lines.each_with_index do |raw_line, idx|
+        line_no = idx + 1
+        line = raw_line.chomp
+        matched_spans = []
+
+        SPAN_RULES.each do |rule_def|
+          line.scan(rule_def[:regex]) do
+            m = Regexp.last_match
+            grp = m.size > 1 && m[1] ? 1 : 0
+            val = m[grp]
+            next if placeholder_or_dynamic?(val, line)
+
+            start_col = m.begin(grp)
+            end_col = m.end(grp)
+            next if matched_spans.any? { |s, e| start_col < e && end_col > s }
+
+            conf = adjust_confidence(rule_def[:confidence], rel_path, include_tests)
+            next if CONFIDENCE_RANK[conf] < min_rank
+
+            matched_spans << [start_col, end_col]
+            seq += 1
+            id = format("F-%04d", seq)
+            findings << {
+              "id" => id,
+              "kind" => "span",
+              "file" => rel_path,
+              "line" => line_no,
+              "start_col" => start_col,
+              "end_col" => end_col,
+              "rule" => rule_def[:rule],
+              "confidence" => conf,
+              "fingerprint" => fingerprint(val),
+              "shape" => shape_of(val),
+              "redacted_preview" => redact_line(line, start_col, end_col, id, rule_def[:rule]),
+              "action" => rule_def[:action],
+              "replacement" => "REDACTED_#{rule_def[:rule].upcase}_#{id.tr('-', '_')}"
+            }
+          end
+        end
+
+        # High-entropy quoted string fallback (low confidence)
+        next if min_rank > CONFIDENCE_RANK["low"]
+
+        line.scan(/["']([A-Za-z0-9+\/_=-]{24,})["']/) do
+          m = Regexp.last_match
+          val = m[1]
+          start_col = m.begin(1)
+          end_col = m.end(1)
+          next if matched_spans.any? { |s, e| start_col < e && end_col > s }
+          next if placeholder_or_dynamic?(val, line)
+          next if val.include?("/") && val.start_with?("/") # skip absolute/relative paths
+          next if shannon_entropy(val) < 3.8
+
+          matched_spans << [start_col, end_col]
+          seq += 1
+          id = format("F-%04d", seq)
+          findings << {
+            "id" => id,
+            "kind" => "span",
+            "file" => rel_path,
+            "line" => line_no,
+            "start_col" => start_col,
+            "end_col" => end_col,
+            "rule" => "high_entropy_literal",
+            "confidence" => "low",
+            "fingerprint" => fingerprint(val),
+            "shape" => shape_of(val),
+            "redacted_preview" => redact_line(line, start_col, end_col, id, "high_entropy_literal"),
+            "action" => "review",
+            "replacement" => "REDACTED_HIGH_ENTROPY_#{id.tr('-', '_')}"
+          }
+        end
+      end
+    end
+
+    by_conf = findings.group_by { |f| f["confidence"] }.transform_values(&:size)
+    by_rule = findings.group_by { |f| f["rule"] }.transform_values(&:size)
+
+    {
+      "schema_version" => 1,
+      "generated_at" => Time.now.utc.iso8601,
+      "target_dir" => File.realpath(root),
+      "files_scanned" => files_scanned,
+      "total_findings" => findings.size,
+      "counts_by_confidence" => by_conf,
+      "counts_by_rule" => by_rule,
+      "note" => "Anonymized report: raw secret values are never stored. Edit 'action' (anonymize|purge|delete_file|ignore|review) before running 'apply'.",
+      "findings" => findings
+    }
+  end
+
+  def format_markdown(report)
+    out = []
+    out << "# Sanitization Report (Anonymized)"
+    out << ""
+    out << "- **Target**: `#{report['target_dir']}`"
+    out << "- **Generated**: #{report['generated_at']}"
+    out << "- **Files scanned**: #{report['files_scanned']}"
+    out << "- **Total findings**: #{report['total_findings']}"
+    out << "- **By confidence**: #{report['counts_by_confidence'].map { |k, v| "#{k}=#{v}" }.join(', ')}"
+    out << ""
+    out << "| ID | Confidence | Rule | Location | Action | Fingerprint | Redacted Preview |"
+    out << "|---|---|---|---|---|---|---|"
+    report["findings"].each do |f|
+      loc = f["line"] ? "`#{f['file']}:#{f['line']}`" : "`#{f['file']}`"
+      preview = f["redacted_preview"].to_s.gsub("|", "\\|")
+      out << "| #{f['id']} | #{f['confidence']} | #{f['rule']} | #{loc} | #{f['action']} | `#{f['fingerprint']}` | `#{preview}` |"
+    end
+    out.join("\n") + "\n"
+  end
+
+  def apply_report(root, report_path, dry_run: false, backup_dir: nil, force: false)
+    report = JSON.parse(File.read(report_path))
+    findings = report.fetch("findings")
+    root_path = Pathname.new(root).realpath
+
+    mutating = findings.select { |f| %w[anonymize purge delete_file].include?(f["action"]) }
+    if mutating.empty?
+      warn "zdots-sanitize: no findings marked anonymize, purge, or delete_file; nothing to do."
+      return 0
+    end
+
+    file_deletes = mutating.select { |f| f["kind"] == "file" && f["action"] == "delete_file" }
+    span_edits = mutating.select { |f| f["kind"] == "span" && %w[anonymize purge].include?(f["action"]) }
+
+    applied = 0
+    skipped = 0
+
+    span_edits.group_by { |f| f["file"] }.each do |rel_path, items|
+      abs_path = root_path + rel_path
+      unless abs_path.file?
+        warn "zdots-sanitize: SKIP #{rel_path} (file missing)"
+        skipped += items.size
+        next
+      end
+
+      raw = File.read(abs_path, encoding: "UTF-8", invalid: :replace, undef: :replace)
+      lines = raw.lines
+      file_changed = false
+
+      # Sort reverse by line and start_col so offsets stay valid
+      items.sort_by { |f| [-f["line"], -f["start_col"]] }.each do |f|
+        idx = f["line"] - 1
+        if idx < 0 || idx >= lines.size
+          warn "zdots-sanitize: SKIP #{f['id']} (#{rel_path}:#{f['line']} out of range)"
+          skipped += 1
+          next
+        end
+
+        line = lines[idx]
+        s = f["start_col"]
+        e = f["end_col"]
+        current = line[s...e]
+
+        if current.nil? || (!force && fingerprint(current) != f["fingerprint"])
+          warn "zdots-sanitize: SKIP #{f['id']} (#{rel_path}:#{f['line']} fingerprint mismatch; file changed since scan)"
+          skipped += 1
+          next
+        end
+
+        rep = f["action"] == "purge" ? "" : (f["replacement"] || "REDACTED_#{f['rule'].upcase}_#{f['id'].tr('-', '_')}")
+        lines[idx] = "#{line[0...s]}#{rep}#{line[e..]}"
+        file_changed = true
+        applied += 1
+        puts "#{dry_run ? '[DRY-RUN] ' : ''}#{f['action'].upcase} #{f['id']} #{rel_path}:#{f['line']} -> #{rep.empty? ? '<purged>' : rep}"
+      end
+
+      next unless file_changed && !dry_run
+
+      if backup_dir
+        dest = Pathname.new(backup_dir) + rel_path
+        FileUtils.mkdir_p(dest.dirname)
+        FileUtils.cp(abs_path, dest) unless dest.exist?
+      end
+      File.write(abs_path, lines.join)
+    end
+
+    file_deletes.each do |f|
+      rel_path = f["file"]
+      abs_path = root_path + rel_path
+      unless abs_path.file?
+        warn "zdots-sanitize: SKIP #{f['id']} (#{rel_path} missing)"
+        skipped += 1
+        next
+      end
+
+      current_hash = "sha256:#{Digest::SHA256.file(abs_path).hexdigest[0, 12]}"
+      if !force && current_hash != f["fingerprint"]
+        warn "zdots-sanitize: SKIP #{f['id']} (#{rel_path} fingerprint mismatch)"
+        skipped += 1
+        next
+      end
+
+      applied += 1
+      puts "#{dry_run ? '[DRY-RUN] ' : ''}DELETE_FILE #{f['id']} #{rel_path}"
+      next if dry_run
+
+      if backup_dir
+        dest = Pathname.new(backup_dir) + rel_path
+        FileUtils.mkdir_p(dest.dirname)
+        FileUtils.cp(abs_path, dest) unless dest.exist?
+      end
+      File.delete(abs_path)
+    end
+
+    warn "zdots-sanitize: #{dry_run ? 'would apply' : 'applied'}=#{applied} skipped=#{skipped}"
+    skipped.positive? ? 2 : 0
+  end
+end
+
+def print_help
+  puts <<~HELP
+    zdots-sanitize #{ZdotsSanitize::VERSION} — Anonymized secret scanner & surgical redactor (Ruby/Rails aware)
+
+    Usage:
+      zdots-sanitize scan <dir> [options]
+      zdots-sanitize apply <dir> <report.json> [options]
+
+    Scan options:
+      -o, --output PATH           Write report to PATH (default: stdout)
+          --format json|md        Output format: json (default) or md
+          --min-confidence LEVEL  Minimum confidence: high, medium (default), low
+          --include-tests         Do not downgrade spec/test/fixture findings
+          --exclude PATTERN       Additional path/glob to skip (repeatable)
+          --summary               Print anonymized counts to stderr
+
+    Apply options:
+          --dry-run               Preview actions without modifying files
+          --backup-dir PATH       Copy original files to PATH before mutating
+          --force                 Apply even if span fingerprint changed
+
+    Workflow:
+      1. zdots-sanitize scan /path/to/repo -o report.json --summary
+      2. Review report.json (contains zero raw secrets) and set action to:
+         anonymize | purge | delete_file | ignore
+      3. zdots-sanitize apply /path/to/repo report.json --dry-run
+      4. zdots-sanitize apply /path/to/repo report.json --backup-dir /tmp/backup
+  HELP
+end
+
+if ARGV.empty? || ARGV.include?("-h") || ARGV.include?("--help")
+  print_help
+  exit 0
+end
+
+cmd = ARGV.shift
+case cmd
+when "scan"
+  opts = { output: nil, format: "json", min_confidence: "medium", include_tests: false, excludes: [], summary: false }
+  parser = OptionParser.new do |o|
+    o.on("-o", "--output PATH") { |v| opts[:output] = v }
+    o.on("--format FMT", %w[json md]) { |v| opts[:format] = v }
+    o.on("--min-confidence LVL", %w[high medium low]) { |v| opts[:min_confidence] = v }
+    o.on("--include-tests") { opts[:include_tests] = true }
+    o.on("--exclude PAT") { |v| opts[:excludes] << v }
+    o.on("--summary") { opts[:summary] = true }
+  end
+  parser.parse!(ARGV)
+  target = ARGV.shift or abort "zdots-sanitize scan: missing <dir>"
+  abort "zdots-sanitize scan: not a directory: #{target}" unless File.directory?(target)
+
+  report = ZdotsSanitize.scan_directory(
+    target,
+    min_confidence: opts[:min_confidence],
+    include_tests: opts[:include_tests],
+    excludes: opts[:excludes]
+  )
+
+  rendered = opts[:format] == "md" ? ZdotsSanitize.format_markdown(report) : JSON.pretty_generate(report) + "\n"
+  if opts[:output]
+    File.write(opts[:output], rendered)
+  else
+    print rendered
+  end
+
+  if opts[:summary]
+    warn "zdots-sanitize: scanned=#{report['files_scanned']} findings=#{report['total_findings']} (#{report['counts_by_confidence']})"
+  end
+when "apply"
+  opts = { dry_run: false, backup_dir: nil, force: false }
+  parser = OptionParser.new do |o|
+    o.on("--dry-run") { opts[:dry_run] = true }
+    o.on("--backup-dir PATH") { |v| opts[:backup_dir] = v }
+    o.on("--force") { opts[:force] = true }
+  end
+  parser.parse!(ARGV)
+  target = ARGV.shift or abort "zdots-sanitize apply: missing <dir>"
+  report_path = ARGV.shift or abort "zdots-sanitize apply: missing <report.json>"
+  abort "zdots-sanitize apply: not a directory: #{target}" unless File.directory?(target)
+  abort "zdots-sanitize apply: report not found: #{report_path}" unless File.file?(report_path)
+
+  exit ZdotsSanitize.apply_report(target, report_path, **opts)
+else
+  abort "zdots-sanitize: unknown subcommand '#{cmd}' (expected scan or apply; see --help)"
+end

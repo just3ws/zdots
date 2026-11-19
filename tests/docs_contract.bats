@@ -215,6 +215,7 @@ _known_gap() {
     tx
     colima-autostart
     zdots-version
+    zdots-sanitize
   )
 
   local missing=()

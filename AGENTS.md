@@ -271,6 +271,7 @@ colima-status health       # exit 0 = up; exit 1 = down
 | Run tests on save | `watchexec -e zsh,bash,bats -- bats tests/` |
 | Check YAML validity | `yamllint etc/phi-patterns.yaml` |
 | Secret scan before commit | `bin/secret-scan` (or `gitleaks detect`) |
+| Sanitize archived Ruby/Rails repo | `zdots-sanitize scan <dir> -o report.json` (anonymized report + surgical `apply`) |
 | Video/audio knowledge ingest | `zdots-ingest-media <url\|file>` (`ingest-media` skill) |
 | Local audio transcription | `ztranscribe <url>` (`recipes/yt-transcribe`) |
 

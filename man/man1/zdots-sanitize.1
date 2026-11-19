@@ -1,0 +1,99 @@
+.Dd November 18, 2026
+.Dt ZDOTS-SANITIZE 1
+.Os
+.Sh NAME
+.Nm zdots-sanitize
+.Nd anonymized secret scanner and surgical redactor for archived codebases
+.Sh SYNOPSIS
+.Nm
+.Cm scan
+.Ar dir
+.Op Fl o Ar path
+.Op Fl -format Ar json|md
+.Op Fl -min-confidence Ar high|medium|low
+.Op Fl -include-tests
+.Op Fl -exclude Ar pattern
+.Op Fl -summary
+.Nm
+.Cm apply
+.Ar dir
+.Ar report.json
+.Op Fl -dry-run
+.Op Fl -backup-dir Ar path
+.Op Fl -force
+.Sh DESCRIPTION
+.Nm
+recursively scans a target directory (with Ruby and Ruby on Rails awareness)
+for potential credentials, API keys, tokens, private keys, and sensitive
+configuration files, emitting an anonymized report that never contains raw
+secret values.
+After operator review,
+.Cm apply
+surgically anonymizes, purges, or deletes only the approved findings while
+verifying SHA-256 span fingerprints.
+.Sh COMMANDS
+.Bl -tag -width "apply"
+.It Cm scan Ar dir
+Recursively scan
+.Ar dir
+and write an anonymized JSON or Markdown report.
+.It Cm apply Ar dir Ar report.json
+Apply reviewed actions
+.Pq Cm anonymize , Cm purge , Cm delete_file
+from
+.Ar report.json
+to
+.Ar dir .
+Findings marked
+.Cm review
+or
+.Cm ignore
+are left untouched.
+.El
+.Sh OPTIONS
+.Bl -tag -width "--min-confidence LEVEL"
+.It Fl o , Fl -output Ar path
+Write the scan report to
+.Ar path
+instead of stdout.
+.It Fl -format Ar json|md
+Output format for
+.Cm scan :
+.Cm json
+(default) or
+.Cm md .
+.It Fl -min-confidence Ar level
+Minimum confidence threshold:
+.Cm high ,
+.Cm medium
+(default), or
+.Cm low .
+.It Fl -include-tests
+Do not downgrade findings inside test, spec, feature, or fixture directories.
+.It Fl -exclude Ar pattern
+Additional path substring or glob pattern to skip (repeatable).
+.It Fl -summary
+Print anonymized finding counts to stderr.
+.It Fl -dry-run
+Preview
+.Cm apply
+changes without modifying files on disk.
+.It Fl -backup-dir Ar path
+Copy original files to
+.Ar path
+before mutating or deleting them.
+.It Fl -force
+Apply edits even if a span or file SHA-256 fingerprint changed since the scan.
+.It Fl h , Fl -help
+Show usage information and exit.
+.El
+.Sh EXIT STATUS
+.Ex -std
+Returns 2 during
+.Cm apply
+if one or more findings were skipped due to missing files or fingerprint
+mismatches.
+.Sh SEE ALSO
+.Xr secret-scan 1 ,
+.Xr zdots-phi-scrub 1 ,
+.Xr zdots-secret-scan 1

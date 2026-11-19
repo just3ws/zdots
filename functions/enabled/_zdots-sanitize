@@ -1,0 +1,43 @@
+#compdef zdots-sanitize
+# Completion for zdots-sanitize — anonymized secret scanner & surgical redactor.
+
+_zdots-sanitize() {
+  local -a subs
+  subs=(
+    'scan:recursively scan a directory and emit an anonymized report'
+    'apply:surgically anonymize, purge, or delete reviewed findings'
+  )
+
+  if (( CURRENT == 2 )); then
+    _describe -t commands 'zdots-sanitize command' subs
+    return
+  fi
+
+  case "${words[2]}" in
+    scan)
+      _arguments \
+        '(-o --output)'{-o,--output}'[write report to file]:report file:_files' \
+        '--format[output format]:format:(json md)' \
+        '--min-confidence[minimum confidence level]:level:(high medium low)' \
+        '--include-tests[do not downgrade spec/test/fixture findings]' \
+        '*--exclude[additional path/glob to skip]:pattern:' \
+        '--summary[print anonymized counts to stderr]' \
+        '(-h --help)'{-h,--help}'[show help]' \
+        '*:directory:_directories'
+      ;;
+    apply)
+      _arguments \
+        '--dry-run[preview actions without modifying files]' \
+        '--backup-dir[copy original files before mutating]:backup directory:_directories' \
+        '--force[apply even if fingerprint changed]' \
+        '(-h --help)'{-h,--help}'[show help]' \
+        '1:directory:_directories' \
+        '2:report file:_files -g "*.json"'
+      ;;
+    *)
+      _arguments '(-h --help)'{-h,--help}'[show help]'
+      ;;
+  esac
+}
+
+_zdots-sanitize "$@"

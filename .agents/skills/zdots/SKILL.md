@@ -48,6 +48,7 @@ Alerts under the default calibration policy. Do not use
 | `llama-ctl status` | llama.cpp server status |
 | `capabilities --json` | Environment contract |
 | `zdots-ingest-media <url\|file>` | Acquire, transcribe, and ingest media to lessons/embeddings |
+| `zdots-sanitize scan <dir>` | Anonymized secret scan and surgical redactor for archived codebases |
 | `agent-guide` | Full agent usage guide |
 
 ---
