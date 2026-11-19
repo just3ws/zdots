@@ -9,17 +9,7 @@ export ANSIBLE_NOCOWS=1
 export HOMEBREW_BAT=1
 
 export CLICOLOR=1
-if [[ "$ZDOTS_THEME" == "nord" ]]; then
-  _zdots_theme_dircolors_file="${ZDOTDIR}/assets/nord/dir_colors"
-fi
-
-if [[ -r "${_zdots_theme_dircolors_file}" ]]; then
-  if command -v gdircolors >/dev/null 2>&1; then
-    eval "$(gdircolors -b "${_zdots_theme_dircolors_file}")"
-  elif command -v dircolors >/dev/null 2>&1; then
-    eval "$(dircolors -b "${_zdots_theme_dircolors_file}")"
-  fi
-elif command -v vivid >/dev/null 2>&1; then
+if command -v vivid >/dev/null 2>&1; then
   _zdots_lsc_cache="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/ls_colors.${ZDOTS_THEME}"
   if [[ -r "$_zdots_lsc_cache" ]]; then
     export LS_COLORS="$(<"$_zdots_lsc_cache")"
@@ -35,7 +25,6 @@ elif command -v vivid >/dev/null 2>&1; then
   fi
   unset _zdots_lsc_cache
 fi
-unset _zdots_theme_dircolors_file
 
 # Theme shell colors (BSD LSCOLORS + fzf palette) come from the generated
 # artifact (zdots-theme-gen → assets/<scheme>/shell-colors.zsh) so a palette

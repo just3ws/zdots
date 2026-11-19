@@ -8,8 +8,6 @@
 # assets/<scheme>/shell-colors.zsh, sourced by conf.d/30-env.zsh) (Z-257).
 if [[ -n "${ZDOTS_FZF_COLORS:-}" ]]; then
   export FZF_DEFAULT_OPTS="--tiebreak=begin,length $ZDOTS_FZF_COLORS"
-elif [[ "$ZDOTS_THEME" == "nord" ]]; then
-  export FZF_DEFAULT_OPTS='--tiebreak=begin,length --color=fg:#e5e9f0,bg:#2e3440,hl:#81a1c1 --color=fg+:#e5e9f0,bg+:#3b4252,hl+:#81a1c1 --color=info:#eacb8a,prompt:#81a1c1,pointer:#b48ead --color=marker:#a3be8c,spinner:#b48ead,header:#a3be8c'
 fi
 
 export FZF_COMPLETION_TRIGGER='**'

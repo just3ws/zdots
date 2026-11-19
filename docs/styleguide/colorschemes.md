@@ -3,8 +3,8 @@
 Canonical reference for the platform's colorschemes. The platform themes through a
 **semantic token model**: surfaces reference tokens (`--bg`, `--accent`, …), and a
 scheme binds those tokens to palette values. Swapping the binding re-themes every
-surface. **Kanagawa Wave** remains the default terminal scheme, with **nord**
-as an alternate. Browser-based platform surfaces use the separate
+surface. **Kanagawa** is the one terminal family: **Wave** in dark and **Lotus** in
+light (section 4a). Browser-based platform surfaces use the separate
 **Craftsmanship** semantic palette from `etc/themes/craftsmanship.yaml`.
 
 To reference or extend a scheme, start here.
