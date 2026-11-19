@@ -125,12 +125,14 @@ BUILTINS = {
 }.freeze
 
 # --- template renderer -----------------------------------------------------
-# Placeholders: {{name}} -> UPPER hex (no '#'); {{name:lc}} -> lower hex.
+# Placeholders: {{name}} -> UPPER hex (no '#'); {{name:lc}} -> lower hex;
+# {{title}} -> the scheme's title.
 # The template supplies any '#', alpha suffix, and surrounding structure.
 def render_template(t, tmpl)
   pal = t.fetch("palette")
   File.read(File.join(TMPL_DIR, tmpl)).gsub(/\{\{([A-Za-z0-9]+)(?::(lc))?\}\}/) do
     name, filt = Regexp.last_match(1), Regexp.last_match(2)
+    next t.fetch("title") if name == "title"   # {{title}}: the scheme's name, not a colour
     hex = pal[name] or die("template #{tmpl}: unknown palette name '#{name}'")
     filt == "lc" ? hex.downcase : hex
   end

@@ -1,0 +1,65 @@
+{
+  "alfredtheme" : {
+    "result" : {
+      "textSpacing" : 8,
+      "subtext" : {
+        "size" : 16,
+        "colorSelected" : "#624C83A8",
+        "font" : "System Light",
+        "color" : "#8A8980BF"
+      },
+      "shortcut" : {
+        "size" : 32,
+        "colorSelected" : "#6F894EFF",
+        "font" : "System Bold",
+        "color" : "#5E857A4C"
+      },
+      "backgroundSelected" : "#B5CBD2E4",
+      "text" : {
+        "size" : 40,
+        "colorSelected" : "#545464FF",
+        "font" : "System",
+        "color" : "#5454647F"
+      },
+      "iconPaddingHorizontal" : 8,
+      "roundness" : 0,
+      "paddingVertical" : 8,
+      "iconSize" : 88
+    },
+    "search" : {
+      "backgroundSelected" : "#4D699BFF",
+      "paddingHorizontal" : 8,
+      "spacing" : 16,
+      "text" : {
+        "size" : 64,
+        "colorSelected" : "#F2ECBCFF",
+        "font" : "System Bold",
+        "color" : "#545464FF"
+      },
+      "background" : "#F2ECBC3F",
+      "roundness" : 0,
+      "paddingVertical" : 0
+    },
+    "window" : {
+      "color" : "#F2ECBCBF",
+      "paddingHorizontal" : 16,
+      "width" : 768,
+      "borderPadding" : 0,
+      "borderColor" : "#0000007F",
+      "blur" : 0,
+      "roundness" : -42,
+      "paddingVertical" : 16
+    },
+    "credit" : "Mike Hall",
+    "visualEffectMode" : 2,
+    "separator" : {
+      "color" : "#A09CACF3",
+      "thickness" : 0
+    },
+    "scrollbar" : {
+      "color" : "#B35B79FF",
+      "thickness" : 8
+    },
+    "name" : "Kanagawa Lotus Mike Mod"
+  }
+}

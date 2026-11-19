@@ -1,0 +1,16 @@
+{
+  "theme": "base",
+  "themeVariables": {
+    "darkMode": false,
+    "fontFamily": "FiraCode Nerd Font Mono Ret, monospace",
+    "background": "#F2ECBC",
+    "mainBkg": "#C7D7E0",
+    "primaryColor": "#C7D7E0",
+    "primaryBorderColor": "#4D699B",
+    "primaryTextColor": "#545464",
+    "secondaryColor": "#B5CBD2",
+    "tertiaryColor": "#E7DBA0",
+    "lineColor": "#5E857A",
+    "nodeBorder": "#4D699B"
+  }
+}

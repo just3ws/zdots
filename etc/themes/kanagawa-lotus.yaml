@@ -1,0 +1,148 @@
+# Kanagawa Lotus — the light sibling of Kanagawa Wave.
+#
+# Same colour names as kanagawa-wave.yaml, so every template renders unchanged:
+# each name keeps its job (sumiInk3 is the ground, fujiWhite the text,
+# crystalBlue the accent) and takes its Lotus value. The upstream Lotus name is
+# in the comment beside each one. `zdots-theme-gen kanagawa-lotus` renders
+# assets/kanagawa-lotus/.
+#
+# The shell picks Lotus when macOS is in light mode and Wave in dark (env.sh).
+#
+# ATTRIBUTION
+#   Palette: Kanagawa (`lotus` variant) by rebelot (Tommaso Laurenzi).
+#   Upstream: https://github.com/rebelot/kanagawa.nvim
+#   License: MIT — Copyright (c) 2021 Tommaso Laurenzi.
+#   Values are upstream's, unchanged. See docs/styleguide/colorschemes.md.
+slug: kanagawa-lotus
+title: Kanagawa Lotus
+source: rebelot/kanagawa.nvim lotus
+
+palette:
+  sumiInk0: "F2ECBC"       # lotusWhite3: text on a filled pill (the ground colour)
+  sumiInk3: "F2ECBC"       # lotusWhite3: ground / bg
+  sumiInk4: "E7DBA0"       # lotusWhite4: raised surface
+  sumiInk5: "D5CEA3"       # lotusWhite0: borders
+  sumiInk6: "A09CAC"       # lotusViolet1: hairlines / invisibles
+  waveBlue1: "C7D7E0"      # lotusBlue1: panels
+  waveBlue2: "B5CBD2"      # lotusBlue2: selection
+  fujiWhite: "545464"      # lotusInk1: foreground text
+  fujiGray: "8A8980"       # lotusGray3: muted text / comments
+  oldWhite: "716E61"       # lotusGray2: readable muted text
+  crystalBlue: "4D699B"    # lotusBlue4: primary accent
+  springBlue: "6693BF"     # lotusTeal2: bright blue
+  waveAqua1: "597B75"      # lotusAqua: cyan
+  waveAqua2: "5E857A"      # lotusAqua2: bright cyan / types
+  springGreen: "6F894E"    # lotusGreen: success / additions / strings
+  autumnGreen: "6E915F"    # lotusGreen2: bright green
+  carpYellow: "77713F"     # lotusYellow: highlight / warning
+  boatYellow2: "836F4A"    # lotusYellow2: operators
+  surimiOrange: "CC6D00"   # lotusOrange: numbers / options
+  oniViolet: "624C83"      # lotusViolet4: keywords / headings
+  springViolet1: "766B90"  # lotusViolet2
+  springViolet2: "4E8CA2"  # lotusTeal1: punctuation (editor)
+  sakuraPink: "B35B79"     # lotusPink: punctuation (shell)
+  autumnRed: "C84053"      # lotusRed: error / deletions
+  samuraiRed: "E82424"     # lotusRed3: invalid
+  peachRed: "D7474B"       # lotusRed2: unclosed / danger
+  lightRed: "C84053"       # lotusRed: red text on red tint
+  termBlack: "1F1F28"      # upstream's terminal black in Lotus
+  lotusInk2: "43436C"      # upstream's terminal bright white in Lotus
+
+# Terminal ANSI 0-15, in upstream's Lotus order.
+ansi:
+  - termBlack      # 0  black
+  - autumnRed      # 1  red
+  - springGreen    # 2  green
+  - carpYellow     # 3  yellow
+  - crystalBlue    # 4  blue
+  - sakuraPink     # 5  magenta
+  - waveAqua1      # 6  cyan
+  - fujiWhite      # 7  white
+  - fujiGray       # 8  br black
+  - peachRed       # 9  br red
+  - autumnGreen    # 10 br green
+  - boatYellow2    # 11 br yellow
+  - springBlue     # 12 br blue
+  - oniViolet      # 13 br magenta
+  - waveAqua2      # 14 br cyan
+  - lotusInk2      # 15 br white
+
+iterm_slots:
+  Background: sumiInk3
+  Badge: samuraiRed
+  Bold: fujiWhite
+  Cursor: fujiWhite
+  Cursor Guide: sumiInk4
+  Cursor Text: sumiInk3
+  Foreground: fujiWhite
+  Selected Text: fujiWhite
+  Selection: waveBlue2
+  Link: crystalBlue
+
+ghostty_slots:
+  background: sumiInk3
+  foreground: fujiWhite
+  cursor-color: fujiWhite
+  cursor-text: sumiInk3
+  selection-background: waveBlue2
+  selection-foreground: fujiWhite
+
+tokens:
+  bg: sumiInk3
+  surface: sumiInk4
+  border: sumiInk5
+  text: fujiWhite
+  text-dim: oldWhite
+  accent: crystalBlue
+  accent-dim: waveBlue2
+  green: springGreen
+  yellow: carpYellow
+  red: autumnRed
+  red-text: lightRed
+token_literals:
+  mono: "'FiraCode Nerd Font Mono Ret', 'FiraCode Nerd Font Mono', ui-monospace, monospace"
+
+mermaid:
+  background: sumiInk3
+  mainBkg: waveBlue1
+  primaryColor: waveBlue1
+  primaryBorderColor: crystalBlue
+  primaryTextColor: fujiWhite
+  secondaryColor: waveBlue2
+  tertiaryColor: sumiInk4
+  lineColor: waveAqua2
+  nodeBorder: crystalBlue
+mermaid_literals:
+  darkMode: false
+  fontFamily: "FiraCode Nerd Font Mono Ret, monospace"
+
+fzf:
+  fg: fujiWhite
+  bg: sumiInk3
+  hl: crystalBlue
+  fg+: fujiWhite
+  bg+: waveBlue2
+  hl+: springBlue
+  info: carpYellow
+  prompt: springGreen
+  pointer: sakuraPink
+  marker: sakuraPink
+  spinner: carpYellow
+  header: oniViolet
+  border: sumiInk6
+
+# BSD LSCOLORS for native /bin/ls: the same letters as Wave. They name ANSI
+# slots, so they follow the terminal's palette.
+lscolors: "ExGxDxGxGxegedabagacad"
+
+outputs:
+  - {type: builtin, emit: itermcolors, out: "Kanagawa-Lotus.itermcolors"}
+  - {type: builtin, emit: ghostty, out: "ghostty-kanagawa-lotus"}
+  - {type: builtin, emit: css_tokens, out: "tokens.css"}
+  - {type: builtin, emit: mermaid, out: "mermaid-theme.json"}
+  - {type: builtin, emit: shell_colors, out: "shell-colors.zsh"}
+  - {type: template, tmpl: "tmTheme.tmpl", out: "Kanagawa-Lotus.tmTheme"}
+  - {type: template, tmpl: "syntax-highlighting.zsh.tmpl", out: "syntax-highlighting.zsh"}
+  - {type: template, tmpl: "vivid-theme.yml.tmpl", out: "vivid-theme.yml"}
+  - {type: template, tmpl: "lazygit.yml.tmpl", out: "lazygit-kanagawa-lotus.yml"}
+  - {type: template, tmpl: "alfred.json.tmpl", out: "alfred-kanagawa-lotus.json"}
