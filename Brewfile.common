@@ -50,7 +50,6 @@ brew "csvlens" # Command-line csv viewer
 brew "curl" # Get a file from an HTTP, HTTPS or FTP server
 brew "dasel" # JSON, YAML, TOML, XML, and CSV query and modification tool
 brew "dashing" # Generate Dash documentation from HTML files
-brew "diff-so-fancy" # Good-lookin' diffs with diff-highlight and more
 brew "difftastic"   # structural (AST-aware) diffs — easier for agents/humans to read
 brew "direnv" # Load/unload environment variables based on $PWD
 brew "docker" # Pack, ship and run any application as a lightweight container

@@ -209,7 +209,6 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 | `git-cliff` | `git cliff --latest` | CHANGELOG from conventional commits |
 | `git-absorb` | `git absorb` | Auto-fixup: squash staged changes into the right commit |
 | `gh` | `gh pr create`, `gh dash` | GitHub CLI + gh-dash TUI for PR review |
-| `diff-so-fancy` | `git diff --color \| diff-so-fancy` | Opinionated diff post-processor; run by hand, since delta is the configured pager |
 | `ack` / `fack` | `ack <pattern>` / `fack [query]` | High-signal search (Andy Lester's ack) + live streaming fzf search (`^X^A`) & nvim jumping |
 | `fackf` | `fackf` | Fuzzy file search respecting `.ackrc` index via fzf |
 | `acke` | `acke <pattern>` | Search with ack and open matches directly into Neovim quickfix (`nvim -q`) |
