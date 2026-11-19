@@ -238,7 +238,7 @@ Hard-fails on FileVault/SIP disabled or missing `ZDOTS_DB_ENCRYPTION_KEY`.
 ## Terminal & tmux Sessions
 
 One way into tmux on every surface (iTerm2, Ghostty, any shell). The durable
-iTerm2 profile (`zdots tmux (Craftsmanship)`) launches `tx --landing` (Ghostty
+iTerm2 profile (`zdots tmux (Kanagawa)`) launches `tx --landing` (Ghostty
 opens a plain shell for broadcast); the tmux config and its README are in adots
 (`~/.config/tmux/`).
 
