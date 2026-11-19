@@ -145,4 +145,4 @@ outputs:
   - {type: template, tmpl: "syntax-highlighting.zsh.tmpl", out: "syntax-highlighting.zsh"}
   - {type: template, tmpl: "vivid-theme.yml.tmpl", out: "vivid-theme.yml"}
   - {type: template, tmpl: "lazygit.yml.tmpl", out: "lazygit-kanagawa-lotus.yml"}
-  - {type: template, tmpl: "alfred.json.tmpl", out: "alfred-kanagawa-lotus.json"}
+  - {type: template, tmpl: "alfred.json.tmpl", out: "Kanagawa Lotus.alfredappearance"}
