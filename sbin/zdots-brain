@@ -21,6 +21,7 @@ unless ENV["ZDOTS_BRAIN_PINNED"]
   begin
     require "opentelemetry"
     require "sequel"
+    require "dotenv"
   rescue LoadError
     ENV["ZDOTS_BRAIN_PINNED"] = "1"
     exec File.expand_path("../bin/zdots-ruby", __dir__),
