@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "config"
+
 module Zdots
   # Resolve ZDOTS_DATABASE_URL with the zdots_rw password spliced in from macOS
   # Keychain (service "zdots", account ZDOTS_RW_PASSWORD). This is the Ruby twin of
@@ -11,7 +13,7 @@ module Zdots
   # unchanged — so behaviour under pg_hba `trust` (password ignored) is preserved and
   # this is a safe no-op until scram enforcement is turned on.
   def self.database_url
-    url = ENV.fetch("ZDOTS_DATABASE_URL", "postgresql://zdots_rw@/my")
+    url = Zdots::Config.database_url_default
     return url if url =~ %r{://[^/@]*:[^/@]*@} # already has user:pass@
 
     pw = keychain_password("ZDOTS_RW_PASSWORD")

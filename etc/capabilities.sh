@@ -251,8 +251,6 @@ declare -ga ZDOTS_CAPABILITIES_CODE=(
   # Ruby audit suite
   "code:ruby-audit:ruby-audit /path/to/app                 — Full audit: bundler-audit, brakeman, rubocop, reek, flog, flay"
   "code:ruby-audit-interrogate:ruby-audit ... --interrogate — Audit with interactive Pi session"
-  "code:ruby-audit-batch:ruby-audit-batch                  — Batch audit multiple apps"
-  "code:ruby-audit-diff:ruby-audit-diff                    — Audit diff between versions"
 
   # Code review
   "code:diff-review:diff-review                            — Review current diff"
@@ -285,14 +283,7 @@ declare -ga ZDOTS_CAPABILITIES_CONFIG=(
 # Miscellaneous utilities: aliases, benchmarking, log inspection, git operations.
 
 declare -ga ZDOTS_CAPABILITIES_UTILITIES=(
-  # Alias and command discovery
-  "util:alias-suggest:alias-suggest                        — Suggest shell aliases from command history"
-
-  # Benchmarking
-  "util:bench:bench [cmd]                                  — Microbenchmark shell functions (via hyperfine)"
-
-  # Log inspection
-  "util:diarize:diarize                                    — Daily log inspection (interactive)"
+  # Dashboard
   "util:zdash:zdash                                        — Interactive shell analytics dashboard"
 
   # Git and GitHub

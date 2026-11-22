@@ -28,7 +28,6 @@ _known_gap() {
   commands="
     agent-guide
     ai-query
-    alias-suggest
     bootstrap
     capabilities
     colima-autostart
@@ -45,8 +44,6 @@ _known_gap() {
     openobserve-ctl
     otel-collector
     ruby-audit
-    ruby-audit-batch
-    ruby-audit-diff
     tx
     whisper-ctl
     zdash
@@ -76,7 +73,6 @@ _known_gap() {
     history-intelligence
     session-debrief
     zdots-pages
-    bench
     zdots-pattern
     zdots-issue
     imperial-date
@@ -329,9 +325,9 @@ _known_gap() {
 }
 
 @test "docs: every bin command has a man page (zdots-man-gen --check)" {
-  run "$REPO_ROOT/bin/zdots-man-gen" --check
+  run "$REPO_ROOT/libexec/zdots-man-gen" --check
   if [[ "$status" -ne 0 ]]; then
-    printf 'Commands without man pages (run: zdots-man-gen):\n%s\n' "$output" >&2
+    printf 'Commands without man pages (run: libexec/zdots-man-gen):\n%s\n' "$output" >&2
     return 1
   fi
 }

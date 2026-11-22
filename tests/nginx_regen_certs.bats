@@ -4,7 +4,7 @@
 setup() {
   load "setup.bash"
   setup_environment
-  BIN="$REPO_ROOT/bin/nginx-regen-certs"
+  BIN="$REPO_ROOT/libexec/nginx-regen-certs"
 }
 
 @test "nginx-regen-certs --help lists --prune" {

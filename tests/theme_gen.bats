@@ -13,18 +13,18 @@ setup() {
 }
 
 @test "theme-gen: kanagawa-wave surfaces are in sync with their source" {
-  run ruby "$REPO_ROOT/bin/zdots-theme-gen" kanagawa-wave --check
+  run ruby "$REPO_ROOT/libexec/zdots-theme-gen" kanagawa-wave --check
   [ "$status" -eq 0 ]
 }
 
 @test "theme-gen: --list includes kanagawa-wave" {
-  run ruby "$REPO_ROOT/bin/zdots-theme-gen" --list
+  run ruby "$REPO_ROOT/libexec/zdots-theme-gen" --list
   [ "$status" -eq 0 ]
   [[ "$output" == *"kanagawa-wave"* ]]
 }
 
 @test "theme-gen: kanagawa-lotus surfaces are in sync with their source" {
-  run ruby "$REPO_ROOT/bin/zdots-theme-gen" kanagawa-lotus --check
+  run ruby "$REPO_ROOT/libexec/zdots-theme-gen" kanagawa-lotus --check
   [ "$status" -eq 0 ]
 }
 

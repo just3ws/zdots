@@ -28,7 +28,7 @@ setup() {
   fake="$BATS_TEST_TMPDIR/zdots"
   mark="$BATS_TEST_TMPDIR/ran"
   mkdir -p "$fake/bin" "$fake/man/man1" "$fake/docs/generated"
-  cp "$REPO_ROOT/bin/zdots-man-gen" "$fake/bin/"
+  cp "$REPO_ROOT/libexec/zdots-man-gen" "$fake/bin/"
   printf '#!/bin/sh\necho ran >>"%s"\n' "$mark" >"$fake/bin/sidefx"
   printf '#!/bin/sh\nprintf "Usage: noisy\\n\\033]1337;CurrentDir=/Users/someone\\007colour \\033[31mred\\033[0m\\n"\n' >"$fake/bin/noisy"
   chmod +x "$fake/bin/"*

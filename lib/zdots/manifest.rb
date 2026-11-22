@@ -1,29 +1,30 @@
 # frozen_string_literal: true
 
+require_relative "config"
+
 module Zdots
   module Manifest
     SERVICES = {
       llama_cpp: {
         title: "llama.cpp (AI inference)",
-        endpoint: ENV.fetch("ZDOTS_AI_ENDPOINT", "http://#{ENV.fetch('ZDOTS_AI_HOST', '127.0.0.1')}:#{ENV.fetch('ZDOTS_AI_PORT', '11500')}"),
+        endpoint: Zdots::Config.ai_endpoint,
         start_cmd: "llama-ctl start",
         status_cmd: "llama-ctl status"
       },
       otelcol: {
         title: "otelcol-contrib (OTel collector)",
-        endpoint: ENV.fetch("ZDOTS_OTLP_ENDPOINT", "http://#{ENV.fetch('ZDOTS_OTEL_HOST', '127.0.0.1')}:#{ENV.fetch('ZDOTS_OTEL_HTTP_PORT', '4318')}"),
-        grpc_endpoint: "grpc://#{ENV.fetch('ZDOTS_OTEL_HOST', '127.0.0.1')}:#{ENV.fetch('ZDOTS_OTEL_GRPC_PORT', '4317')}",
+        endpoint: Zdots::Config.otlp_endpoint,
+        grpc_endpoint: "grpc://#{Zdots::Config.get('ZDOTS_OTEL_HOST', '127.0.0.1')}:#{Zdots::Config.get('ZDOTS_OTEL_GRPC_PORT', '4317')}",
         start_cmd: "otel-collector start"
       },
-      openobserve: {
-        title: "OpenObserve (logs/metrics/traces, native)",
-        url: ENV.fetch("ZDOTS_O2_ENDPOINT", "http://#{ENV.fetch('ZDOTS_O2_HOST', '127.0.0.1')}:#{ENV.fetch('ZDOTS_O2_PORT', '5080')}"),
-        credentials: "root@zdots.local / Keychain ZDOTS_O2_ROOT_PASSWORD",
-        start_cmd: "zsvc start o2"
+      jaeger: {
+        title: "Jaeger (distributed traces)",
+        url: Zdots::Config.jaeger_endpoint,
+        start_cmd: "zsvc start jaeger"
       },
       intelligence: {
         title: "Intelligence Suite (PostgreSQL)",
-        database: "my",
+        database: Zdots::Config.database_url_default.sub(%r{\A.*/}, "").sub(/\?.*\z/, ""),
         manager: "zdots-ctx"
       }
     }.freeze

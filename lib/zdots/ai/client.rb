@@ -14,11 +14,11 @@ module Zdots
     end
 
     def self.endpoint
-      ENV.fetch("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")
+      Zdots::Config.ai_endpoint
     end
 
     def self.embed_endpoint
-      ENV.fetch("ZDOTS_AI_EMBED_ENDPOINT", "http://127.0.0.1:11501")
+      Zdots::Config.embed_endpoint
     end
 
     def self.embed_client

@@ -384,7 +384,7 @@ module Zdots
       def diarize_audio
         wav = prep_audio
         out = File.join(File.dirname(wav), "diarization.json")
-        diarize = File.join(Zdots::ZDOTDIR, "bin", "diarize")
+        diarize = File.join(Zdots::ZDOTDIR, "libexec", "diarize")
         cmd = [diarize, wav, "--sidecar", out]
         hint = payload["num_speakers"]
         cmd += ["--num-speakers", hint.to_s] if hint
