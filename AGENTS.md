@@ -174,6 +174,7 @@ names it specifically. (`my` at `~/my` is an optional, decoupled private vault
 per ADR-0004 — opt-in via `$ZDOTS_VAULT_ROOT`, not a core platform dependency.)
 
 Current component topology and PATH ownership: [docs/platform-map.md](docs/platform-map.md).
+Platform governance and host/agent contracts: [docs/constitution.md](docs/constitution.md).
 
 **Work-extension hook surface (Z-262).** None of the three core platform repos
 carries any tenant/employer identity — that lives entirely in a separate,

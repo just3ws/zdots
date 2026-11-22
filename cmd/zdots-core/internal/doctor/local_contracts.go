@@ -31,6 +31,57 @@ func lcRun(timeout time.Duration, name string, args ...string) ([]byte, int) {
 // untracked machine-local files and macOS app preferences that zdots depends on
 // (machine profile pointer, .zdots.local, git identity/signing, iTerm2 prefs
 // & DynamicProfiles, rendered LaunchAgents). Never reads .zdots.secrets or .env.
+type beaconTarget struct {
+	label string
+	path  string
+	bare  string
+}
+
+// loadBeaconTargets reads ZDOTS_SURFACES_FILE or ~/.config/adots/surfaces.conf
+// so zdots-doctor checks the exact deployed surfaces (ADR-0004) instead of
+// hardcoding optional vaults like ~/my.
+func loadBeaconTargets(cfg envConfig, xdgCfg string) []beaconTarget {
+	manifest := envOr("ZDOTS_SURFACES_FILE", filepath.Join(xdgCfg, "adots", "surfaces.conf"))
+	b, err := os.ReadFile(manifest)
+	if err != nil {
+		return []beaconTarget{
+			{label: "adots", path: filepath.Join(cfg.home, "VERSION"), bare: filepath.Join(cfg.home, ".homegit")},
+			{label: "vdots", path: filepath.Join(xdgCfg, "nvim", "VERSION")},
+		}
+	}
+	expand := func(s string) string {
+		r := strings.NewReplacer(
+			"$ZDOTDIR", cfg.zdotdir,
+			"${ZDOTDIR}", cfg.zdotdir,
+			"$XDG_CONFIG_HOME", xdgCfg,
+			"${XDG_CONFIG_HOME}", xdgCfg,
+			"$HOME", cfg.home,
+			"${HOME}", cfg.home,
+		)
+		return r.Replace(strings.TrimSpace(s))
+	}
+	var out []beaconTarget
+	for _, raw := range strings.Split(string(b), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) < 2 {
+			continue
+		}
+		t := beaconTarget{
+			label: strings.TrimSpace(fields[0]),
+			path:  expand(fields[1]),
+		}
+		if len(fields) >= 3 && strings.HasPrefix(strings.TrimSpace(fields[2]), "bare:") {
+			t.bare = expand(strings.TrimPrefix(strings.TrimSpace(fields[2]), "bare:"))
+		}
+		out = append(out, t)
+	}
+	return out
+}
+
 func checkLocalContracts(cfg envConfig) *sectionResult {
 	s := &sectionResult{title: "Local & untracked contracts"}
 	xdgConfig := envOr("XDG_CONFIG_HOME", filepath.Join(cfg.home, ".config"))
@@ -41,6 +92,8 @@ func checkLocalContracts(cfg envConfig) *sectionResult {
 	if runtime.GOOS == "darwin" {
 		checkITermContract(s, cfg.home)
 		checkLogRotatePlistContract(s, cfg.home)
+	} else {
+		s.passLine("macOS host contracts  not applicable (" + runtime.GOOS + ")")
 	}
 	return s
 }
@@ -123,7 +176,8 @@ func checkITermContract(s *sectionResult, home string) {
 	dpDir := filepath.Join(home, "Library", "Application Support", "iTerm2", "DynamicProfiles")
 	zdotsDP := filepath.Join(dpDir, "zdots-kanagawa.json")
 	if !lcIsFile(zdotsDP) {
-		return // iTerm2 zdots profile not deployed on this host
+		s.passLine("iterm2 profile not applicable (zdots-kanagawa.json not deployed)")
+		return
 	}
 
 	// Validate Dynamic Profile JSON contract (Wave/Lotus light+dark, Esc+, Recycle CWD, Shell Integration)

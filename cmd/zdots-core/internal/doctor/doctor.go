@@ -391,14 +391,25 @@ func checkBeacon(cfg envConfig) *sectionResult {
 	s.passLine("zdots  " + beacon + "  (the beacon)")
 
 	xdgCfg := envOr("XDG_CONFIG_HOME", filepath.Join(cfg.home, ".config"))
-	targets := []struct{ label, path string }{
-		{"vdots", filepath.Join(xdgCfg, "nvim", "VERSION")},
-		{"my", filepath.Join(cfg.home, "my", "VERSION")},
-		{"ztranscribe", filepath.Join(envOr("ZDOTS_ZTRANSCRIBE_ROOT", filepath.Join(cfg.home, "github.com", "just3ws", "ztranscribe")), "VERSION")},
-		{"media-pipeline", filepath.Join(envOr("MEDIA_PIPELINE_ROOT", filepath.Join(cfg.home, "github.com", "just3ws", "media-pipeline")), "VERSION")},
-		{"just3ws site", filepath.Join(envOr("JUST3WS_SITE_ROOT", filepath.Join(cfg.home, "github.com", "just3ws", "just3ws.github.io")), "VERSION")},
-	}
+	targets := loadBeaconTargets(cfg, xdgCfg)
 	for _, t := range targets {
+		if t.label == "zdots" {
+			continue
+		}
+		if t.bare != "" {
+			adotsVer, _ := runCmdOut(3*time.Second, "git", "--git-dir="+t.bare, "--work-tree="+cfg.home, "show", "HEAD:VERSION")
+			adotsVer = strings.TrimSpace(adotsVer)
+			if adotsVer != "" {
+				if adotsVer == beacon {
+					s.passLine(fmt.Sprintf("%s  %s  (in sync)", t.label, adotsVer))
+				} else {
+					s.warnLine(fmt.Sprintf("%s  %s ≠ beacon %s — deploy drift", t.label, adotsVer, beacon))
+				}
+			} else {
+				s.warnLine(fmt.Sprintf("%s  no committed VERSION — rollout pending", t.label))
+			}
+			continue
+		}
 		if b, err := os.ReadFile(t.path); err == nil {
 			v := strings.TrimSpace(string(b))
 			if v == beacon {
@@ -408,27 +419,6 @@ func checkBeacon(cfg envConfig) *sectionResult {
 			}
 		} else {
 			s.warnLine(fmt.Sprintf("%s  no VERSION at %s — rollout pending", t.label, t.path))
-		}
-	}
-
-	adotsVer, _ := runCmdOut(3*time.Second, "adots-git", "show", "HEAD:VERSION")
-	adotsVer = strings.TrimSpace(adotsVer)
-	if adotsVer != "" {
-		if adotsVer == beacon {
-			s.passLine(fmt.Sprintf("adots  %s  (in sync)", adotsVer))
-		} else {
-			s.warnLine(fmt.Sprintf("adots  %s ≠ beacon %s — deploy drift", adotsVer, beacon))
-		}
-	} else {
-		s.warnLine("adots  no committed VERSION — rollout pending")
-	}
-
-	if b, err := os.ReadFile(filepath.Join(cfg.home, ".config", "nvim", "VERSION")); err == nil {
-		vdotsVer := strings.TrimSpace(string(b))
-		if vdotsVer == beacon {
-			s.passLine(fmt.Sprintf("vdots  %s  (in sync)", vdotsVer))
-		} else if vdotsVer != "" {
-			s.warnLine(fmt.Sprintf("vdots  %s ≠ beacon %s — deploy drift", vdotsVer, beacon))
 		}
 	}
 	return s
