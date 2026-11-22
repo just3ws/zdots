@@ -166,21 +166,22 @@ agent-guide          # detailed usage guide for all services
 ```
 
 **The platform** = `zdots` (`~/.config/zsh`) + `adots` (bare repo `~/.homegit`,
-work-tree `$HOME`) + `my` (`~/my`) + `vdots` (`~/.config/nvim`). This is
-binding: when the operator says "the platform" or "platform-wide" without
-further qualification, it means all four repos, using the per-repo
-invocation table in `docs/agents/platform-sync.md`. Never assume
-"zdots" alone unless the operator names it specifically.
+work-tree `$HOME`) + `vdots` (`~/.config/nvim`). This is binding: when the
+operator says "the platform" or "platform-wide" without further qualification,
+it means all three core repos, using the per-repo invocation table in
+`docs/agents/platform-sync.md`. Never assume "zdots" alone unless the operator
+names it specifically. (`my` at `~/my` is an optional, decoupled private vault
+per ADR-0004 — opt-in via `$ZDOTS_VAULT_ROOT`, not a core platform dependency.)
 
 Current component topology and PATH ownership: [docs/platform-map.md](docs/platform-map.md).
 
-**Work-extension hook surface (Z-262).** None of the four platform repos
+**Work-extension hook surface (Z-262).** None of the three core platform repos
 carries any tenant/employer identity — that lives entirely in a separate,
 untracked repo at `${ZDOTS_WORK_EXT:-~/.config/zdots-work}` (own history, own
 remote, never a submodule), loaded by `conf.d/31-work-ext.zsh` if present.
 See §10 for the PHI-pattern overlay contract and `.zdots.local.example` for
 the full env-var hook list (`ZDOTS_WORK_EXT`, `ZDOTS_K8S_DEFAULT_NS`,
-`ZDOTS_APP_LOG`). adots/my/vdots have no work-extension touchpoints as of
+`ZDOTS_APP_LOG`). adots/vdots have no work-extension touchpoints as of
 this writing; if one is ever needed there, give it the same
 gitignored-local-override treatment, never a tracked identifier.
 

@@ -1,36 +1,40 @@
 ---
 name: platform-sync
-description: Review or push the FULL personal-OS platform — all four repos — with the correct git invocations for each. The platform is zdots (kernel) + adots (home-dir config, a BARE repo) + my (private, nested) + vdots (nvim). Use for "review the platform", "is everything pushed/in sync", "prepare the platform for push", or any cross-repo status/sync check.
+description: Review or push the FULL personal-OS core platform — all three core repos — with the correct git invocations for each. The core platform is zdots (kernel) + adots (home-dir config, a BARE repo) + vdots (nvim); my is an optional decoupled vault (ADR-0004). Use for "review the platform", "is everything pushed/in sync", "prepare the platform for push", or any cross-repo status/sync check.
 ---
 
-# Platform sync — the platform is FOUR repos, checked correctly
+# Platform sync — the core platform is THREE repos, checked correctly
 
 The personal OS is a **balanced relationship: `zdots` is the kernel, `adots` is
 the configuration of the user's home directory.** "The platform" is never one
-repo. Any "is it pushed / in sync?" question spans **four** repos, and **adots
-is a bare repo** — checking it like a normal repo gives a false "not tracked"
-(the documented amnesia failure). This skill encodes the right invocation per repo.
+repo. Any "is it pushed / in sync?" question spans **three** core repos, and
+**adots is a bare repo** — checking it like a normal repo gives a false "not
+tracked" (the documented amnesia failure). This skill encodes the right
+invocation per repo.
 
-## The four repos (memorize the shape)
+## The three core repos (memorize the shape)
 
 | Repo | Role | Where | Git invocation |
 |---|---|---|---|
 | **zdots** | kernel: services, knowledge, CLI | `~/.config/zsh` | normal `git -C ~/.config/zsh …` |
 | **adots** | home-dir config / dotfiles | **bare** `~/.homegit`, work-tree `$HOME` | `GIT_DIR=~/.homegit GIT_WORK_TREE=$HOME git …` (or `homegit` / `adots-git`) |
-| **my** | private knowledge vault + context-engine | `~/my` (nested inside adots' work-tree) | normal `git -C ~/my …` |
 | **vdots** | nvim config | `~/.config/nvim` | normal `git -C ~/.config/nvim …` |
 
+Optional decoupled vault (ADR-0004): `my` (`~/my`, normal `git -C ~/my …`) is
+opt-in via `$ZDOTS_VAULT_ROOT` and tracked separately from the core platform.
+
 **adots has NO `.git` inside `~/.config/adots/`** — that directory is just adots'
-config files (`capabilities.sh`, `profile`, `wiki`). The repo is the bare
-`~/.homegit`. NEVER conclude "adots is untracked" from a missing `.config/adots/.git`.
+config files (`capabilities.sh`, `profiles/`, `surfaces.conf`, `wiki`). The repo
+is the bare `~/.homegit`. NEVER conclude "adots is untracked" from a missing
+`.config/adots/.git`.
 
 ## Status check (read-only review)
 
 For each repo report: branch · ahead/behind upstream · uncommitted count.
 
 ```bash
-# zdots / my / vdots — normal repos (fetch already done: skip -q fetch if just fetched)
-for r in ~/.config/zsh ~/my ~/.config/nvim; do
+# zdots / vdots — normal repos (fetch already done: skip -q fetch if just fetched)
+for r in ~/.config/zsh ~/.config/nvim; do
   git -C "$r" fetch -q origin 2>/dev/null
   echo "$r: branch=$(git -C "$r" branch --show-current 2>/dev/null) ahead=$(git -C "$r" rev-list --count origin/main..HEAD 2>/dev/null) behind=$(git -C "$r" rev-list --count HEAD..origin/main 2>/dev/null) dirty=$(git -C "$r" status --short 2>/dev/null | wc -l | tr -d ' ')"
 done
@@ -42,7 +46,7 @@ echo "adots: branch=$(env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git branch 
 env GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git status --short --untracked-files=no 2>/dev/null | head -10
 ```
 
-**Report format** — 4-row table: repo · sync (ahead/behind) · dirty count · what's dirty.
+**Report format** — 3-row table (plus optional `my` if present and requested): repo · sync (ahead/behind) · dirty count · what's dirty.
 
 ## CI health (don't stop at "the runs exist")
 

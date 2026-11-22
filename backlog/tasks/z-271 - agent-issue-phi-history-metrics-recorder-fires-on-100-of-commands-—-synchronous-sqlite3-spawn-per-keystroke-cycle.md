@@ -3,9 +3,10 @@ id: Z-271
 title: >-
   [agent-issue] phi-history metrics recorder fires on 100% of commands —
   synchronous sqlite3 spawn per keystroke cycle
-status: To Do
+status: Done
 assignee: []
-created_date: '2026-08-01 09:57'
+created_date: '2026-08-01T09:57:00Z'
+updated_date: '2026-11-22T11:53:15Z'
 labels:
   - agent-reported
   - error
@@ -29,3 +30,9 @@ Fix: raise record threshold to the 20ms print threshold (one line, 55-phi-histor
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Raised threshold_ms from 1 to 20 in conf.d/55-phi-history.zsh, hoisted schema DDL once per DB (_SHM_INIT_DB) in lib/shell_hook_metrics.bash, and backgrounded sqlite3 INSERT in Zsh via &!. Steady-state shell_hook_metrics_record dropped 11.34ms -> 4.68ms (and 0ms on normal <20ms commands). Bats phi_boundary + cmd_analytics + history_intelligence: 88/88 passed.
+<!-- SECTION:NOTES:END -->

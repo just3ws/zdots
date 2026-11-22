@@ -6,10 +6,38 @@
 # `zdots-ctx sync-history`.
 
 typeset -g _SHM_DB="${XDG_STATE_HOME:-$HOME/.local/state}/zdots/history.sqlite3"
+typeset -g _SHM_INIT_DB=""
 
 shell_hook_metrics_sql_esc() {
   local s="$1"
   printf '%s' "${s//\'/\'\'}"
+}
+
+_shell_hook_metrics_ensure_schema() {
+  local db="$1"
+  [[ "${_SHM_INIT_DB:-}" == "$db" ]] && return 0
+
+  mkdir -p "${db%/*}" 2>/dev/null
+  sqlite3 "$db" >/dev/null 2>&1 <<'SQL'
+PRAGMA journal_mode=WAL;
+CREATE TABLE IF NOT EXISTS shell_hook_metrics (
+  id           INTEGER PRIMARY KEY,
+  session_id   TEXT    NOT NULL,
+  ts_ms        INTEGER NOT NULL,
+  hook         TEXT    NOT NULL,
+  status       TEXT    NOT NULL,
+  elapsed_ms   INTEGER NOT NULL,
+  threshold_ms INTEGER NOT NULL,
+  host         TEXT,
+  imported_at  INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_shm_hook    ON shell_hook_metrics (hook);
+CREATE INDEX IF NOT EXISTS idx_shm_status  ON shell_hook_metrics (status);
+CREATE INDEX IF NOT EXISTS idx_shm_elapsed ON shell_hook_metrics (elapsed_ms);
+CREATE INDEX IF NOT EXISTS idx_shm_ts      ON shell_hook_metrics (ts_ms);
+CREATE INDEX IF NOT EXISTS idx_shm_session ON shell_hook_metrics (session_id);
+SQL
+  _SHM_INIT_DB="$db"
 }
 
 shell_hook_metrics_record() {
@@ -31,27 +59,17 @@ shell_hook_metrics_record() {
   status_esc="$(shell_hook_metrics_sql_esc "$metric_status")"
   host_esc="$(shell_hook_metrics_sql_esc "$host")"
 
-  mkdir -p "${db%/*}" 2>/dev/null
-  sqlite3 "$db" >/dev/null 2>&1 <<SQL
-PRAGMA journal_mode=WAL;
-CREATE TABLE IF NOT EXISTS shell_hook_metrics (
-  id           INTEGER PRIMARY KEY,
-  session_id   TEXT    NOT NULL,
-  ts_ms        INTEGER NOT NULL,
-  hook         TEXT    NOT NULL,
-  status       TEXT    NOT NULL,
-  elapsed_ms   INTEGER NOT NULL,
-  threshold_ms INTEGER NOT NULL,
-  host         TEXT,
-  imported_at  INTEGER NOT NULL DEFAULT (strftime('%s','now'))
-);
-CREATE INDEX IF NOT EXISTS idx_shm_hook    ON shell_hook_metrics (hook);
-CREATE INDEX IF NOT EXISTS idx_shm_status  ON shell_hook_metrics (status);
-CREATE INDEX IF NOT EXISTS idx_shm_elapsed ON shell_hook_metrics (elapsed_ms);
-CREATE INDEX IF NOT EXISTS idx_shm_ts      ON shell_hook_metrics (ts_ms);
-CREATE INDEX IF NOT EXISTS idx_shm_session ON shell_hook_metrics (session_id);
-INSERT INTO shell_hook_metrics(session_id, ts_ms, hook, status, elapsed_ms, threshold_ms, host)
-VALUES('${session_esc}', ${ts_ms}, '${hook_esc}', '${status_esc}', ${elapsed_ms}, ${threshold_ms}, '${host_esc}');
-SQL
+  _shell_hook_metrics_ensure_schema "$db"
+
+  local sql="INSERT INTO shell_hook_metrics(session_id, ts_ms, hook, status, elapsed_ms, threshold_ms, host) VALUES('${session_esc}', ${ts_ms}, '${hook_esc}', '${status_esc}', ${elapsed_ms}, ${threshold_ms}, '${host_esc}');"
+
+  if [[ -n "${ZSH_VERSION:-}" && "${ZDOTS_SHM_SYNC:-0}" != "1" ]]; then
+    () {
+      setopt localoptions nomonitor nonotify
+      ( sqlite3 "$db" "$sql" >/dev/null 2>&1 ) &!
+    }
+  else
+    sqlite3 "$db" "$sql" >/dev/null 2>&1
+  fi
   return 0
 }

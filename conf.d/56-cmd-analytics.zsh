@@ -62,6 +62,15 @@ _zca_redact() {
   # Pattern source: etc/phi-patterns.yaml. No patterns defined here.
   # Binary: cmd/zdots-phi-scrub/ (canonical, RE2 engine, single source of truth)
 
+  # Fast path: reuse an already-running resident scrubber coproc (Z-283) to avoid
+  # spawning a cold Go binary per command. Guard on _phi_srv_pid so we never start
+  # a new coproc inside a subshell (e.g. $(_zca_redact ...)).
+  if [[ "${ZDOTS_PHI_COPROC:-1}" == "1" && -n "${_phi_srv_pid:-}" ]] && (( $+functions[_phi_srv_scrub] )) && _phi_srv_scrub "$1"; then
+    (( _phi_srv_status == 2 )) && return 2
+    printf '%s\n' "$_phi_srv_payload"
+    return 0
+  fi
+
   if ! command -v zdots-phi-scrub >/dev/null 2>&1; then
     # Binary unavailable — pass through unchanged (non-critical subsystem).
     printf '%s\n' "$1"
@@ -126,8 +135,18 @@ _zca_precmd() {
   [[ -z "$_ZCA_CMD" ]] && return 0
 
   # Suppress-check before any computation — suppressed commands do no work.
+  # Use the resident scrubber directly in the parent shell when available (zero fork);
+  # otherwise fall back to _zca_redact.
   local raw
-  raw="$(_zca_redact "$_ZCA_CMD")" || { _ZCA_CMD=""; return 0; }
+  if [[ "${ZDOTS_PHI_COPROC:-1}" == "1" ]] && (( $+functions[_phi_srv_scrub] )) && _phi_srv_scrub "$_ZCA_CMD"; then
+    if (( _phi_srv_status == 2 )); then
+      _ZCA_CMD=""
+      return 0
+    fi
+    raw="$_phi_srv_payload"
+  else
+    raw="$(_zca_redact "$_ZCA_CMD")" || { _ZCA_CMD=""; return 0; }
+  fi
 
   typeset -i duration_ms=$(( ($EPOCHREALTIME - _ZCA_START) * 1000 ))
   typeset -i ts=$(( $EPOCHREALTIME ))

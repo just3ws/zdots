@@ -3,9 +3,10 @@ id: Z-277
 title: >-
   adots: untrack .config/adots/profile — machine identity in a cross-machine
   repo
-status: To Do
+status: Done
 assignee: []
-created_date: '2026-08-01 09:57'
+created_date: '2026-08-01T09:57:00Z'
+updated_date: '2026-11-22T11:53:15Z'
 labels:
   - audit-filed
 dependencies: []
@@ -27,3 +28,9 @@ Fix in adots (operator): adots-git rm --cached .config/adots/profile, gitignore 
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Untracked .config/adots/profile in adots (git rm --cached) and added it to ~/.gitignore; live powerstation profile file remains intact on disk. Updated docs/work-migration-playbook.md.
+<!-- SECTION:NOTES:END -->

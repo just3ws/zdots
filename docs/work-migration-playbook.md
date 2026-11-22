@@ -502,7 +502,7 @@ GIT_DIR=$HOME/.homegit GIT_WORK_TREE=$HOME git status -s
   zdots then sets `ZDOTDIR`, so `~/.zprofile` / `~/.zshrc` stop being read: confirm their settings are covered (1Password agent socket, mise shims re-added after `path_helper`). `adots-doctor` accepts this bridge on the `work` profile; never run `adots-doctor --fix` here. `bin/check` recognizes the bridge too: it reports `~/.zprofile` / `~/.zshrc` as kept (inert under `ZDOTDIR`) instead of "errant… delete". Keep them — the employer's setup checks their lines.
 * **For `~/.config/git/config`:** restore it only after `git-delta`, `neovim` and `git-lfs` are installed — git reads the XDG config immediately, and it sets `core.pager = delta`, `core.editor = nvim` and `interactive.diffFilter`.
 * **For `~/.config/mise/config.toml`:** Keep the merged version created in Phase 3.
-* **Mark every intentionally divergent tracked file** `skip-worktree` (e.g. `.gitconfig`, `.zshenv`, `.config/adots/profile`, and any deferred file) so `adots status` stays clean and nothing employer-specific can be committed.
+* **Mark every intentionally divergent tracked file** `skip-worktree` (e.g. `.gitconfig`, `.zshenv`, and any deferred file) so `adots status` stays clean and nothing employer-specific can be committed. (`.config/adots/profile` is gitignored/untracked per machine.)
 
 ### Step 5.3: Set Machine Profile
 ```bash

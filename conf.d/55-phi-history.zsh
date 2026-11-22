@@ -126,7 +126,7 @@ _phi_history_maybe_record_overhead() {
 zshaddhistory() {
   local line="${1%%$'\n'}"
   local t0=$EPOCHREALTIME
-  local threshold_ms=1 print_threshold_ms=20 elapsed ts_ms
+  local threshold_ms=20 print_threshold_ms=20 elapsed ts_ms
 
   # Single pass: default mode redacts and also detects suppress patterns.
   #   exit 0 → clean/redacted (stdout holds the result)
@@ -184,7 +184,7 @@ zshaddhistory() {
     return 1
   fi
 
-  # Performance guard — record overhead over 1ms on a clean command; print only
+  # Performance guard — record overhead over 20ms on a clean command; print only
   # when a warm resident scrubber was slow (a cold start is expected to be).
   _phi_history_maybe_record_overhead "clean" "$elapsed" "$threshold_ms" "$ts_ms"
   (( elapsed > print_threshold_ms && ! _phi_srv_cold )) && print -u2 "zdots: phi-history: ${elapsed}ms overhead (threshold ${print_threshold_ms}ms)" || true

@@ -260,6 +260,31 @@ _wait_for_unified_log_marker() {
   [[ "$output" == *"phi-history|clean|18|1"* ]]
 }
 
+@test "shell_hook_metrics: hoists schema init once per DB and records asynchronously in Zsh" {
+  local state_dir
+  state_dir=$(mktemp -d)
+
+  run zsh -c '
+    XDG_STATE_HOME="'"$state_dir"'"
+    ZDOTDIR="'"$ZDOTDIR"'"
+    source "$ZDOTDIR/lib/shell_hook_metrics.bash"
+    shell_hook_metrics_record "phi-history" "clean" 25 20 1700000000001
+    [[ "$_SHM_INIT_DB" == "$XDG_STATE_HOME/zdots/history.sqlite3" ]] || exit 11
+    shell_hook_metrics_record "phi-history" "clean" 30 20 1700000000002
+    count=""
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      count=$(sqlite3 -init /dev/null -batch "$XDG_STATE_HOME/zdots/history.sqlite3" "SELECT count(*) FROM shell_hook_metrics;" 2>/dev/null || true)
+      [[ "$count" == "2" ]] && break
+      sleep 0.1
+    done
+    printf "count=%s\n" "$count"
+    rm -rf "$XDG_STATE_HOME"
+  '
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"count=2"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # PHI history hook
 # ---------------------------------------------------------------------------

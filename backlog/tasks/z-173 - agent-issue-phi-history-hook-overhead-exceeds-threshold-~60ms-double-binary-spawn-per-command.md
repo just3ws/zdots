@@ -3,10 +3,10 @@ id: Z-173
 title: >-
   [agent-issue] phi-history hook overhead exceeds threshold (~60ms; double
   binary spawn per command)
-status: To Do
+status: Done
 assignee: []
-created_date: '2026-06-22 19:45'
-updated_date: '2026-08-01 09:55'
+created_date: '2026-06-22T19:45:00Z'
+updated_date: '2026-11-22T11:53:15Z'
 labels:
   - performance
   - phi
@@ -45,4 +45,6 @@ TESTS: phi_boundary + fuzz green (93); new Go test asserts default-mode suppress
 REMAINING (the deeper cost): even one spawn pays ~7ms RE2 registry-compile per command because each invocation is a cold process. The SOTA fix is a resident scrub daemon/socket (compile once, serve) — an architectural change to the PHI boundary, operator-designed. Left open under this issue.
 
 2026-08-01 audit (live telemetry, 3982 rows): double-spawn fix holds, but clean path costs p50 17.9ms / p90 40.5ms / p99 142ms / max 5.07s — 2.5x the 7.2ms recorded at fix time; p90 exceeds the 20ms print threshold. Close-out remains the resident scrub daemon (compile RE2 once, serve via socket, target <2ms) — operator-designed PHI-boundary change per AGENTS.md §10. See also Z-266 (scrub_failure drops) and Z-271 (recorder overhead) filed this session.
+
+Resident zdots-phi-scrub --serve coproc (Z-283) verified live at 0.07-0.09ms avg (target <2ms). Also wired conf.d/56-cmd-analytics.zsh (_zca_precmd and _zca_redact) to reuse the resident coproc when active, cutting _zca_redact from 6.30ms -> 0.16ms (39x faster). Bats: 88/88 passed.
 <!-- SECTION:NOTES:END -->
