@@ -6,7 +6,7 @@ setup() {
   load "setup"
   setup_environment
   CTL="$REPO_ROOT/bin/gemstash-ctl"
-  META="$REPO_ROOT/bin/gemstash-metadata"
+  META="$REPO_ROOT/libexec/gemstash-metadata"
   TMP="$(mktemp -d)"
 }
 

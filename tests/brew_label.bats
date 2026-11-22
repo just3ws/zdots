@@ -47,7 +47,7 @@ label() {
 
 @test "nginx-ctl and nginx-repair resolve the label instead of hardcoding it" {
   ! grep -q 'homebrew.mxcl.nginx"' "$REPO_ROOT/bin/nginx-ctl"
-  ! grep -q 'homebrew.mxcl.nginx"' "$REPO_ROOT/bin/nginx-repair"
+  ! grep -q 'homebrew.mxcl.nginx"' "$REPO_ROOT/libexec/nginx-repair"
   grep -q 'zdots_brew_label nginx' "$REPO_ROOT/bin/nginx-ctl"
-  grep -q 'zdots_brew_label nginx' "$REPO_ROOT/bin/nginx-repair"
+  grep -q 'zdots_brew_label nginx' "$REPO_ROOT/libexec/nginx-repair"
 }

@@ -38,15 +38,12 @@ _known_gap() {
     history-analyze
     history-import
     hister-sync
-    idiot-test
     llama-caps
     llama-ctl
     local-ci
     nginx-ctl
-    nginx-repair
     openobserve-ctl
     otel-collector
-    otel-smoke
     ruby-audit
     ruby-audit-batch
     ruby-audit-diff
@@ -63,7 +60,6 @@ _known_gap() {
     zdots-keychain
     zdots-log-analyze
     zdots-o2-query
-    zdots-otel-phi-compile
     zdots-quiz
     zdots-status
     zdots-ctl
@@ -77,7 +73,6 @@ _known_gap() {
     ztask
     log-rotate
     zdots-phi-scrub
-    zdots-schema
     history-intelligence
     session-debrief
     zdots-pages
@@ -88,7 +83,6 @@ _known_gap() {
     zdots-search
     zdots-draft
     zdots-publish
-    zdots-typecheck
     omp-gateway-ctl
     zdots-skills-sync
   "
@@ -319,8 +313,8 @@ _known_gap() {
         [[ "$token" == "$a" ]] && allowed=1 && break
       done
       (( allowed )) && continue
-      # must exist in bin/
-      if [[ ! -x "$REPO_ROOT/bin/$token" ]]; then
+      # must exist in bin/ or libexec/ (ADR-0005 tiered surface)
+      if [[ ! -x "$REPO_ROOT/bin/$token" && ! -x "$REPO_ROOT/libexec/$token" ]]; then
         phantom+=("${token} (in $(basename "$doc"))")
       fi
     done < <(grep -ohE '`zdots-[a-z][a-z0-9-]+`' "$doc" 2>/dev/null | sed "s/\`//g" | sort -u)

@@ -16,19 +16,19 @@ setup() {
 }
 
 @test "zdots-typecheck: RBS validates and the contracts pass under RBS runtime checks" {
-  run "$REPO_ROOT/bin/zdots-typecheck"
+  run "$REPO_ROOT/libexec/zdots-typecheck"
   [ "$status" -eq 0 ]
 }
 
 @test "zdots-typecheck --coverage reports declared/defined and the gaps" {
-  run "$REPO_ROOT/bin/zdots-typecheck" --coverage
+  run "$REPO_ROOT/libexec/zdots-typecheck" --coverage
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" =~ ^rbs\ coverage:\ [0-9]+/[0-9]+\ \([0-9.]+%\)$ ]]
   [[ "$output" == *"missing: Zdots::"* ]]
 }
 
 @test "RBS coverage of lib/ is at or above the recorded floor" {
-  run "$REPO_ROOT/bin/zdots-typecheck" --coverage
+  run "$REPO_ROOT/libexec/zdots-typecheck" --coverage
   pct="$(sed -n 's/^rbs coverage: .*(\([0-9.]*\)%)$/\1/p' <<<"${lines[0]}")"
   floor="$(grep -v '^#' "$REPO_ROOT/docs/generated/rbs-coverage-baseline.txt" | head -1)"
   [ -n "$pct" ]

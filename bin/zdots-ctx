@@ -480,11 +480,12 @@ cmd_vault_doctor() {
 # shell-level SQL building complexity, jq/redis-cli dependencies, and quote-escaping bugs.
 # Safe to call when Redis is down — the binary gracefully returns no-op.
 _drain_redis_to_sqlite() {
-  command -v zdots-buffer-drain >/dev/null 2>&1 || return 0
+  local drain_bin="${ZDOTDIR:-$HOME/.config/zsh}/libexec/zdots-buffer-drain"
+  [[ -x "$drain_bin" ]] || return 0
 
   local db_path="${XDG_STATE_HOME:-$HOME/.local/state}/zdots/history.sqlite3"
   local result
-  result=$(zdots-buffer-drain \
+  result=$("$drain_bin" \
     --db-path "$db_path" \
     --redis-host "${ZDOTS_REDIS_HOST:-127.0.0.1}" \
     --redis-port "${ZDOTS_REDIS_PORT:-6379}" 2>/dev/null) || return 0

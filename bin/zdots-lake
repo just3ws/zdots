@@ -14,8 +14,8 @@ import subprocess
 import argparse
 
 def check_readonly(sql_content):
-    """Shell out to zdots-sql-lint (same bin/ dir) to enforce read-only SQL."""
-    lint_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zdots-sql-lint")
+    """Shell out to libexec/zdots-sql-lint to enforce read-only SQL."""
+    lint_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "libexec", "zdots-sql-lint")
     result = subprocess.run(
         [lint_path, "-d", "duckdb", sql_content],
         capture_output=True, text=True

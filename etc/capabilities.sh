@@ -187,8 +187,6 @@ declare -ga ZDOTS_CAPABILITIES_OBSERVABILITY=(
   # Observability queries
   "observability:otel-status:zdots-ctl status               — OTel collector status"
   "observability:otel-query:zdots-o2-query                  — Query OpenObserve for logs/traces"
-  "observability:trace-verify:trace-verify                  — Verify trace data (test mode)"
-  "observability:otel-smoke:otel-smoke                      — Smoke test OTel collection"
 
   # Command analytics
   "observability:history-analyze:history-analyze            — Analyze command history (SQLite)"
@@ -232,7 +230,6 @@ declare -ga ZDOTS_CAPABILITIES_TASKS=(
 declare -ga ZDOTS_CAPABILITIES_SECURITY=(
   # PHI scrubbing and redaction
   "security:phi-scrub:zdots-phi-scrub <text>               — Apply PHI Scrubber (redact protected health info)"
-  "security:phi-compile:zdots-otel-phi-compile             — Compile PHI patterns from etc/phi-patterns.yaml"
   "security:phi-patterns:zdots-pattern                     — Query active PHI patterns"
 
   # Credential management
@@ -272,7 +269,6 @@ declare -ga ZDOTS_CAPABILITIES_CODE=(
 declare -ga ZDOTS_CAPABILITIES_CONFIG=(
   # Configuration management
   "config:status:zdots-status                              — Platform status (services, DB, AI)"
-  "config:schema:zdots-schema                              — Show schema definition"
 
   # Bootstrapping
   "config:bootstrap:bootstrap                              — Initialize or reinitialize shell environment"
@@ -342,7 +338,6 @@ declare -ga ZDOTS_CAPABILITIES_DEVELOPMENT=(
 
   # Observability integration
   "dev:gemini-invoke:gemini-invoke                         — Gemini session invocation hook"
-  "dev:trace-verify:trace-verify                          — Verify trace data integrity"
 
   # Schema and migration introspection
   "dev:ingest-prepare:zdots-ingest-prepare                — Prepare data for database ingest"

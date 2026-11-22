@@ -37,7 +37,7 @@ docs-coverage:
 # lib/ classes and modules lack signatures, then the floor check
 # (docs/generated/rbs-coverage-baseline.txt; raise it as signatures are added).
 typecheck:
-	$(ZDOTDIR)/bin/zdots-typecheck --coverage
+	$(ZDOTDIR)/libexec/zdots-typecheck --coverage
 	bats $(ZDOTDIR)/tests/typecheck.bats
 
 flag-audit:

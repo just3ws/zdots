@@ -41,7 +41,7 @@ CONFIG_FILE="${ZDOTDIR:-$(pwd)}/etc/otel-collector.yaml"
 # in the foreground by start/validate/install where ruby+PATH are present; serve
 # fails closed if it is missing so unscrubbed telemetry never flows.
 GEN_CONFIG="${ZDOTDIR:-$(pwd)}/etc/otel-collector.generated.yaml"
-PHI_COMPILE="${ZDOTDIR:-$(pwd)}/bin/zdots-otel-phi-compile"
+PHI_COMPILE="${ZDOTDIR:-$(pwd)}/libexec/zdots-otel-phi-compile"
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/otel-collector.log"
 PLIST_LABEL="com.zdots.otel-collector"
 PLIST_FILE="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
