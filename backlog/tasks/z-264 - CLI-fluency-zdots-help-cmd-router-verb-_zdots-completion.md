@@ -1,9 +1,10 @@
 ---
 id: Z-264
 title: 'CLI fluency: ''zdots help <cmd>'' router verb + _zdots completion'
-status: To Do
+status: Done
 assignee: []
-created_date: '2026-08-01 09:56'
+created_date: '2026-08-01T09:56:00Z'
+updated_date: '2026-11-22T12:10:35Z'
 labels:
   - enhancement
   - audit-filed
@@ -26,3 +27,9 @@ Fix: bin/zdots-help — man page if present, else <cmd> --help, else zdots-ctx q
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Verified already-implemented bin/zdots-help router and functions/enabled/_zdots completion (man page -> --help -> knowledge layer fallback). Audited under ADR-0005 Phase 1.
+<!-- SECTION:NOTES:END -->

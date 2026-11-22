@@ -6,6 +6,15 @@
 # Ensure files and directories created by the shell are user-only by default.
 umask 077
 
+# 0b. Canonical Platform Defaults (ADR-0005)
+# Single source of truth for loopback ports, endpoints, and DB defaults.
+# Non-clobbering: only fills vars that are currently unset; overridden by
+# .zdots.env, adots profile, .zdots.local, .zdots.work, and caller env.
+if [ -r "${ZDOTDIR:-$HOME/.config/zsh}/etc/defaults.env" ]; then
+  # shellcheck source=/dev/null
+  . "${ZDOTDIR:-$HOME/.config/zsh}/etc/defaults.env"
+fi
+
 # 1. Dependency Manifest (Composition Root)
 # Load environment baseline configuration if it exists.
 if [ -f "${ZDOTDIR:-$HOME/.config/zsh}/.zdots.env" ]; then

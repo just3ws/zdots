@@ -162,7 +162,7 @@ declare -ga ZDOTS_CAPABILITIES_ORCHESTRATION=(
 declare -ga ZDOTS_CAPABILITIES_AI=(
   # Inference interface
   "ai:query:ai-query <prompt>                               — Scripted inference (piped or direct)"
-  "ai:query-piped:cmd | ai-query <task>                     — Pipe output to AI for analysis"
+  "ai:query-piped:ai-query <task> (piped via stdin)         — Pipe output to AI for analysis"
   "ai:ask:zdots-ask <prompt>                                — Domain-aware prompt router (local LLM)"
   "ai:ask-domain:zdots-ask --domain ruby \"...\"            — Route to domain-specific model (ruby, python, etc.)"
 
@@ -326,7 +326,10 @@ declare -ga ZDOTS_CAPABILITIES_DEVELOPMENT=(
   # MCP server registration
   "dev:ctx-mcp-register:ctx-mcp-register                   — Register zdots-ctx as MCP server"
   "dev:llama-mcp:llama-mcp                                 — Register llama-server as MCP server"
-  "dev:pi-ctx-*:pi-ctx-{query,hydrate,status,brief}       — Pi-integrated context operations"
+  "dev:pi-ctx-query:pi-ctx-query                           — Pi-integrated context query"
+  "dev:pi-ctx-hydrate:pi-ctx-hydrate                       — Pi-integrated context hydration"
+  "dev:pi-ctx-status:pi-ctx-status                         — Pi-integrated context status"
+  "dev:pi-ctx-brief:pi-ctx-brief                           — Pi-integrated context brief"
 
   # Background job management (knowledge layer)
   "dev:job-enqueue:zdots-ctx enqueue <type> <payload>     — Enqueue a job for worker processing"

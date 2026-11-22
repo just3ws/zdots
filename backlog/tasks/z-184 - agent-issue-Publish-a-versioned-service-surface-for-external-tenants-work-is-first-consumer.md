@@ -1,11 +1,12 @@
 ---
 id: Z-184
 title: >-
-  [agent-issue] Publish a versioned service surface for external tenants
-  (work is first consumer)
-status: To Do
+  [agent-issue] Publish a versioned service surface for external tenants (work
+  is first consumer)
+status: Done
 assignee: []
-created_date: '2026-06-30 23:28'
+created_date: '2026-06-30T23:28:00Z'
+updated_date: '2026-11-22T12:10:35Z'
 labels:
   - agent-reported
   - request
@@ -29,3 +30,9 @@ Request: have capabilities --json publish a stable, versioned service surface â€
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue â€” wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Published versioned service_surface (schema_version: zdots.surface.v1) in capabilities --json via cmd/zdots-core/internal/capabilities/ (ADR-0005 Phase 1). Reports endpoint/mode/model/database/path/docker_host + standardized status (ready|stopped|disabled) and reason for inference, embeddings, openobserve, jaeger, knowledge, warehouse, and colima, backed by etc/defaults.env + internal/config. Verified via go test ./... and live bin/capabilities --json.
+<!-- SECTION:NOTES:END -->

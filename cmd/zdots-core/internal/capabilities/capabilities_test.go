@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/config"
 )
 
 func TestLoadEnvWithManifest(t *testing.T) {
@@ -22,7 +24,7 @@ ZDOTS_SERVICE_WHISPER=none
 		t.Fatal(err)
 	}
 
-	env := loadEnvWithManifest(manifest)
+	env := config.LoadFile(manifest)
 	if env["ZDOTS_ENV_PROFILE"] != "work" {
 		t.Fatalf("got profile %q, want work", env["ZDOTS_ENV_PROFILE"])
 	}
@@ -46,7 +48,7 @@ func writeManifest(t *testing.T, body string) string {
 // The shell has already sourced .zdots.env, so its exported values win.
 func TestLoadEnvWithManifestEnvironmentWins(t *testing.T) {
 	t.Setenv("ZDOTS_ENV_PROFILE", "macos-standard")
-	env := loadEnvWithManifest(writeManifest(t, `export ZDOTS_ENV_PROFILE="ci-act"`))
+	env := config.LoadFile(writeManifest(t, `export ZDOTS_ENV_PROFILE="ci-act"`))
 	if env["ZDOTS_ENV_PROFILE"] != "macos-standard" {
 		t.Fatalf("got profile %q, want macos-standard", env["ZDOTS_ENV_PROFILE"])
 	}
@@ -58,7 +60,7 @@ func TestLoadEnvWithManifestSkipsConditionalBlocks(t *testing.T) {
 	for _, k := range []string{"ZDOTS_ENV_PROFILE", "ZDOTS_SERVICE_AI", "ZDOTS_SERVICE_PKG"} {
 		t.Setenv(k, "")
 	}
-	env := loadEnvWithManifest(writeManifest(t, `
+	env := config.LoadFile(writeManifest(t, `
 export ZDOTS_ENV_PROFILE="macos-standard"
 if [ "${ACT:-}" = "true" ]; then
   export ZDOTS_ENV_PROFILE="ci-act"
@@ -89,7 +91,7 @@ func TestLoadEnvWithManifestExpansions(t *testing.T) {
 	t.Setenv("ZDOTS_AI_MODE", "")
 	t.Setenv("ZDOTS_MODELS_DIR", "")
 	t.Setenv("ZDOTS_SET_ELSEWHERE", "work")
-	env := loadEnvWithManifest(writeManifest(t, `
+	env := config.LoadFile(writeManifest(t, `
 export ZDOTS_CONTEXT="${ZDOTS_CONTEXT:-home}"
 export ZDOTS_AI_MODE=${ZDOTS_AI_MODE:-local}
 export ZDOTS_SET_ELSEWHERE="${ZDOTS_SET_ELSEWHERE:-home}"

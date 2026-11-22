@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -17,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/config"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/storage"
 )
@@ -71,13 +71,8 @@ func Run(args []string) int {
 		zdotdir = filepath.Join(home, ".config", "zsh")
 	}
 
-	envMap := loadEnvWithManifest(filepath.Join(zdotdir, ".zdots.env"))
-	getEnv := func(key, fallback string) string {
-		if v, ok := envMap[key]; ok && v != "" {
-			return v
-		}
-		return fallback
-	}
+	envMap := config.Load(zdotdir)
+	getEnv := envMap.Get
 
 	if zdotdir == "" {
 		if cwd, err := os.Getwd(); err == nil {
@@ -86,6 +81,7 @@ func Run(args []string) int {
 	}
 	xdgConfig := getEnv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	xdgState := getEnv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
+	xdgData := getEnv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
 	stateZshDir := filepath.Join(xdgState, "zsh")
 
 	platformVersion := readTrimmedOr(filepath.Join(zdotdir, "VERSION"), "unknown")
@@ -96,6 +92,7 @@ func Run(args []string) int {
 		o2Live     = 0
 		jaegerLive = 0
 		aiLive     = 0
+		embedLive  = 0
 		ctxLive    = 0
 		ctxDB      = "unknown"
 		ctxPending = 0
@@ -138,10 +135,12 @@ func Run(args []string) int {
 		}
 	}()
 
-	// 4. AI /health (if enabled)
+	// 4. AI & Embeddings /health (if enabled)
 	serviceAI := getEnv("ZDOTS_SERVICE_AI", "")
-	if serviceAI != "" && serviceAI != "none" {
-		aiEndpoint := getEnv("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")
+	aiMode := getEnv("ZDOTS_AI_MODE", "local")
+	aiEndpoint := getEnv("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")
+	embedEndpoint := getEnv("ZDOTS_AI_EMBED_ENDPOINT", "http://127.0.0.1:11501")
+	if serviceAI != "" && serviceAI != "none" && aiMode != "none" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -149,6 +148,15 @@ func Run(args []string) int {
 				aiLive = 1
 			}
 		}()
+		if outputFormat == "json" {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if httpOK(embedEndpoint+"/health", 2*time.Second) {
+					embedLive = 1
+				}
+			}()
+		}
 	}
 
 	// 5. zdots-ctx status --json
@@ -195,9 +203,9 @@ func Run(args []string) int {
 		}()
 	}
 
-	// 7. colima-status --json (only needed for text output)
+	// 7. colima-status --json (used for both text report and JSON service_surface)
 	colimaBin := filepath.Join(zdotdir, "bin", "colima-status")
-	if outputFormat == "text" && isExecFile(colimaBin) {
+	if isExecFile(colimaBin) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -471,6 +479,24 @@ func Run(args []string) int {
 				MCPLlama:            mcpLlama,
 				MCPCtx:              mcpCtx,
 			},
+			ServiceSurface: buildServiceSurface(surfaceInputs{
+				ServiceAI:     serviceAI,
+				AIMode:        aiMode,
+				AIModel:       getEnv("ZDOTS_AI_MODEL", "unknown"),
+				AIEndpoint:    aiEndpoint,
+				AILive:        aiLive == 1,
+				EmbedEndpoint: embedEndpoint,
+				EmbedLive:     embedLive == 1,
+				O2Endpoint:    o2URL,
+				O2Live:        o2Live == 1,
+				JaegerURL:     jaegerURL,
+				JaegerLive:    jaegerLive == 1,
+				CtxLive:       ctxLive == 1,
+				CtxDB:         ctxDB,
+				WarehousePath: getEnv("ZDOTS_GH_WAREHOUSE", filepath.Join(xdgData, "zdots", "gh", "warehouse.duckdb")),
+				HasColima:     hasColima,
+				Colima:        colimaRes,
+			}),
 			HealthErrors: errors,
 		}
 		enc := json.NewEncoder(os.Stdout)
@@ -523,7 +549,144 @@ type reportJSON struct {
 	Observability       obsInfo         `json:"observability"`
 	Diagnostics         diagInfo        `json:"diagnostics"`
 	Brain               brainInfo       `json:"brain"`
+	ServiceSurface      serviceSurface  `json:"service_surface"`
 	HealthErrors        int             `json:"health_errors"`
+}
+
+// serviceSurface is the versioned external-tenant discovery contract (Z-184, ADR-0005).
+type serviceSurface struct {
+	SchemaVersion string                      `json:"schema_version"`
+	Services      map[string]serviceEntryJSON `json:"services"`
+}
+
+type serviceEntryJSON struct {
+	Endpoint   string `json:"endpoint,omitempty"`
+	Mode       string `json:"mode,omitempty"`
+	Model      string `json:"model,omitempty"`
+	Database   string `json:"database,omitempty"`
+	Path       string `json:"path,omitempty"`
+	DockerHost string `json:"docker_host,omitempty"`
+	Status     string `json:"status"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+type surfaceInputs struct {
+	ServiceAI     string
+	AIMode        string
+	AIModel       string
+	AIEndpoint    string
+	AILive        bool
+	EmbedEndpoint string
+	EmbedLive     bool
+	O2Endpoint    string
+	O2Live        bool
+	JaegerURL     string
+	JaegerLive    bool
+	CtxLive       bool
+	CtxDB         string
+	WarehousePath string
+	HasColima     bool
+	Colima        colimaStatus
+}
+
+func buildServiceSurface(in surfaceInputs) serviceSurface {
+	services := make(map[string]serviceEntryJSON, 7)
+
+	// Inference
+	inf := serviceEntryJSON{Endpoint: in.AIEndpoint, Mode: in.AIMode, Model: in.AIModel}
+	switch {
+	case in.ServiceAI == "" || in.ServiceAI == "none":
+		inf.Status = "disabled"
+		inf.Reason = "ZDOTS_SERVICE_AI=none"
+	case in.AIMode == "none":
+		inf.Status = "disabled"
+		inf.Reason = "ZDOTS_AI_MODE=none"
+	case in.AILive:
+		inf.Status = "ready"
+	default:
+		inf.Status = "stopped"
+		inf.Reason = "healthcheck_failed"
+	}
+	services["inference"] = inf
+
+	// Embeddings
+	emb := serviceEntryJSON{Endpoint: in.EmbedEndpoint, Mode: in.AIMode}
+	switch {
+	case in.ServiceAI == "" || in.ServiceAI == "none":
+		emb.Status = "disabled"
+		emb.Reason = "ZDOTS_SERVICE_AI=none"
+	case in.AIMode == "none":
+		emb.Status = "disabled"
+		emb.Reason = "ZDOTS_AI_MODE=none"
+	case in.EmbedLive:
+		emb.Status = "ready"
+	default:
+		emb.Status = "stopped"
+		emb.Reason = "healthcheck_failed"
+	}
+	services["embeddings"] = emb
+
+	// OpenObserve
+	o2 := serviceEntryJSON{Endpoint: in.O2Endpoint}
+	if in.O2Live {
+		o2.Status = "ready"
+	} else {
+		o2.Status = "stopped"
+		o2.Reason = "healthcheck_failed"
+	}
+	services["openobserve"] = o2
+
+	// Jaeger
+	jg := serviceEntryJSON{Endpoint: in.JaegerURL}
+	if in.JaegerLive {
+		jg.Status = "ready"
+	} else {
+		jg.Status = "stopped"
+		jg.Reason = "healthcheck_failed"
+	}
+	services["jaeger"] = jg
+
+	// Knowledge Layer (zdots-ctx)
+	kn := serviceEntryJSON{Database: in.CtxDB}
+	if in.CtxLive {
+		kn.Status = "ready"
+	} else {
+		kn.Status = "stopped"
+		kn.Reason = "disconnected"
+	}
+	services["knowledge"] = kn
+
+	// GitHub DuckDB warehouse (zdots-gh)
+	wh := serviceEntryJSON{Path: in.WarehousePath}
+	if in.WarehousePath != "" && isRegularFile(in.WarehousePath) {
+		wh.Status = "ready"
+	} else {
+		wh.Status = "stopped"
+		wh.Reason = "warehouse_not_initialized"
+	}
+	services["warehouse"] = wh
+
+	// Colima / Docker
+	col := serviceEntryJSON{}
+	if in.Colima.Socket != "" {
+		col.DockerHost = "unix://" + in.Colima.Socket
+	}
+	switch {
+	case !in.HasColima:
+		col.Status = "disabled"
+		col.Reason = "colima_status_missing"
+	case in.Colima.Healthy:
+		col.Status = "ready"
+	default:
+		col.Status = "stopped"
+		col.Reason = "runtime_stopped"
+	}
+	services["colima"] = col
+
+	return serviceSurface{
+		SchemaVersion: "zdots.surface.v1",
+		Services:      services,
+	}
 }
 
 type platformInfo struct {
@@ -597,71 +760,6 @@ type brainInfo struct {
 	MCPLlama            int    `json:"mcp_llama"`
 	MCPCtx              int    `json:"mcp_ctx"`
 }
-
-// loadEnvWithManifest reads os.Environ() and fills in keys it lacks from the
-// top-level KEY=VALUE / export KEY=VALUE lines of manifestPath. The shell has
-// usually sourced .zdots.env already, so exported values win. Lines inside
-// if/case blocks are skipped (their conditions need a shell), ${NAME:-default}
-// resolves like the shell, and other expansions are left out rather than
-// copied through as literal text.
-func loadEnvWithManifest(manifestPath string) map[string]string {
-	m := make(map[string]string)
-	for _, e := range os.Environ() {
-		if k, v, ok := strings.Cut(e, "="); ok {
-			m[k] = v
-		}
-	}
-	data, err := os.ReadFile(manifestPath)
-	if err != nil {
-		return m
-	}
-	depth := 0
-	for _, raw := range strings.Split(string(data), "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		switch word, _, _ := strings.Cut(line, " "); strings.TrimSuffix(word, ";") {
-		case "if", "case":
-			depth++
-			continue
-		case "fi", "esac":
-			if depth > 0 {
-				depth--
-			}
-			continue
-		}
-		if depth > 0 {
-			continue
-		}
-		line = strings.TrimPrefix(line, "export ")
-		line = strings.TrimSpace(line)
-		k, v, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		k = strings.TrimSpace(k)
-		v = strings.TrimSpace(v)
-		if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'')) {
-			v = v[1 : len(v)-1]
-		}
-		if sm := manifestDefault.FindStringSubmatch(v); sm != nil {
-			v = sm[2]
-			if ev := m[sm[1]]; ev != "" {
-				v = ev
-			}
-		} else if strings.ContainsAny(v, "$`") {
-			continue
-		}
-		if k != "" && m[k] == "" {
-			m[k] = v
-		}
-	}
-	return m
-}
-
-// manifestDefault matches a whole ${NAME:-literal} value.
-var manifestDefault = regexp.MustCompile(`^\$\{([A-Za-z_][A-Za-z0-9_]*):-([^$` + "`" + `}]*)\}$`)
 
 func runCmd(timeout time.Duration, name string, args ...string) []byte {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)

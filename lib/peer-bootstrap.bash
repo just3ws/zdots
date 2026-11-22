@@ -74,18 +74,52 @@ zdots_peer_bootstrap() {
 
   # Attest: entry format "category:operation:command [args] — description";
   # the first word of the third field is the invocable command.
-  local _entry _cmd _att _dec
+  # Special classes (Z-273):
+  #   - metadata:* entries declare VAR=value (attested if non-empty, and existing if path-like)
+  #   - "(function)" entries declare shell functions (attested via typeset -f / declare -F / command -v)
+  _zdots_attest_entry() {
+    local _e="$1" _cat _rest _c _val
+    _cat="${_e%%:*}"
+    _rest="${_e#*:}"; _rest="${_rest#*:}"
+    _c="${_rest%% *}"
+    if [ "$_cat" = "metadata" ]; then
+      case "$_c" in
+        *=*)
+          _val="${_c#*=}"
+          [ -n "$_val" ] || return 1
+          case "$_val" in
+            /*) [ -e "$_val" ] && return 0 || return 1 ;;
+            *)  return 0 ;;
+          esac
+          ;;
+        *) [ -n "$_c" ] && return 0 || return 1 ;;
+      esac
+    fi
+    if command -v "$_c" >/dev/null 2>&1; then
+      return 0
+    fi
+    case "$_e" in
+      *"(function)"*)
+        if [ -n "${ZSH_VERSION:-}" ]; then
+          typeset -f "$_c" >/dev/null 2>&1 && return 0
+        else
+          declare -F "$_c" >/dev/null 2>&1 && return 0
+        fi
+        ;;
+    esac
+    return 1
+  }
+
+  local _entry _att _dec
   _att=0; _dec=${#ZDOTS_CAPABILITIES[@]}
   for _entry in "${ZDOTS_CAPABILITIES[@]}"; do
-    _cmd="${_entry#*:}"; _cmd="${_cmd#*:}"; _cmd="${_cmd%% *}"
-    command -v "$_cmd" >/dev/null 2>&1 && _att=$((_att + 1))
+    _zdots_attest_entry "$_entry" && _att=$((_att + 1))
   done
   export ZDOTS_PEER_CAPS="${_att}/${_dec}"
 
   _att=0; _dec=${#ADOTS_ALL_CAPABILITIES[@]}
   for _entry in "${ADOTS_ALL_CAPABILITIES[@]}"; do
-    _cmd="${_entry#*:}"; _cmd="${_cmd#*:}"; _cmd="${_cmd%% *}"
-    command -v "$_cmd" >/dev/null 2>&1 && _att=$((_att + 1))
+    _zdots_attest_entry "$_entry" && _att=$((_att + 1))
   done
   export ADOTS_PEER_CAPS="${_att}/${_dec}"
 

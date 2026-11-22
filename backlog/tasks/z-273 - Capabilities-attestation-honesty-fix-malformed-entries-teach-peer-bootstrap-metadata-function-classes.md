@@ -3,9 +3,10 @@ id: Z-273
 title: >-
   Capabilities attestation honesty: fix malformed entries + teach peer-bootstrap
   metadata/function classes
-status: To Do
+status: Done
 assignee: []
-created_date: '2026-08-01 09:57'
+created_date: '2026-08-01T09:57:00Z'
+updated_date: '2026-11-22T12:10:35Z'
 labels:
   - enhancement
   - audit-filed
@@ -30,3 +31,9 @@ Fix: (a) normalize the 2 malformed etc/capabilities.sh entries (ai-query as comm
 - [ ] #2 make check passes with output captured in task notes or commit message
 - [ ] #3 All related changes committed — git status clean for files touched by this task
 <!-- DOD:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Normalized malformed entries in etc/capabilities.sh (ai-query piped command word; split pi-ctx brace literal into 4 explicit entries) and taught lib/peer-bootstrap.bash to attest metadata:* VAR=value/path entries and (function) entries. Live attestation improved to ADOTS_PEER_CAPS=32/32 (from 26/32) and ZDOTS_PEER_CAPS=118/123.
+<!-- SECTION:NOTES:END -->
