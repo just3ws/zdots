@@ -11,7 +11,14 @@ links:
 
 # Local AI Routing Layer
 
-Zdots runs a domain-aware routing layer on top of `ai-query` and llama.cpp. Every prompt is classified by domain, enriched with a compact zdots-specific system prompt, and sent to the local Qwen3-8B model. No cloud egress. No frontier model usage for covered tasks.
+`zdots-ask` runs a domain-aware routing layer on top of `ai-query` and llama.cpp.
+It classifies the prompt by domain and selects a compact zdots-specific system
+prompt. The home default is Qwen3-8B; the selected model comes from the active
+profile. This local path has no automatic cloud fallback.
+
+See [Local Model Architecture and Implementation](local-model-architecture.md)
+for runtime ownership, agent and embedding paths, implementation sources, and
+the dated model inventory with exact file fingerprints.
 
 > **Mission**: Maximum trusted usefulness from local hardware. Frontier models are the exception, not the default.
 
@@ -33,7 +40,7 @@ flowchart LR
     end
 
     subgraph Inference["Local Inference (loopback only)"]
-        llama["<b>llama.cpp :11500</b>\nQwen3-8B Q4_K_M + 0.6B draft\n32k ctx · Metal GPU · spec-decoding"]
+        llama["<b>llama.cpp :11500</b>\nHome default: Qwen3-8B Q4_K_M\n32k ctx · Metal GPU · no draft loaded in audit"]
     end
 
     subgraph Tools["Operator Tools"]
@@ -153,7 +160,10 @@ stateDiagram-v2
 
 ## 4. System Prompt Architecture
 
-Four domain prompts in `etc/prompts/`. Each is compact. llama.cpp's built-in prompt cache (enabled by default, 8192 MiB budget) caches the KV prefix after the first call per session; subsequent calls pay near-zero prefill cost. (`--cache-reuse` is not used — it conflicts with speculative decoding.)
+Four domain prompts live in `etc/prompts/`. The audited home chat server used
+`--cache-reuse 256`, with no speculative draft loaded. Prefix reuse depends on
+matching input and runtime cache state; this audit did not measure prefill
+savings. See the [runtime settings](local-model-architecture.md#chat-and-embedding-model-metadata).
 
 All prompts open with the **Caveman Voice** instruction: technical precision, zero filler, code first.
 
@@ -231,7 +241,7 @@ flowchart TD
     D -->|yes| E[Provision\nZDOTS_DB_ENCRYPTION_KEY\nin Keychain]
     E --> F[zdots-ctx migrate\nencrypts PHI columns]
     F --> G
-    D -->|no| G[llama-ctl install\n~5.4 GB · main + draft model]
+    D -->|no| G[Download selected model\nllama-ctl server install]
 
     G --> H[zdots-ctl up]
     H --> I["zdots-ctl check\nFileVault · SIP · Firewall\nAI router · model hash · audit log"]
@@ -245,7 +255,11 @@ flowchart TD
     M -->|yes| O([Fully operational ✓\nzdots-ask ready])
 ```
 
-`llama-ctl install` downloads ~5.4 GB (Qwen3-8B Q4_K_M ~5.0 GB + Qwen3-0.6B draft ~0.4 GB). Start it before other setup steps. Use `llama-ctl model-download --draft` to download only the draft model.
+Use `llama-ctl model-download` to acquire the selected chat model, then
+`llama-ctl server install` to register it. The audited home configuration had
+no draft model configured or installed. `model-download --draft` requests the
+main model plus a draft when the selected profile defines one; it is not a
+draft-only download.
 
 ---
 

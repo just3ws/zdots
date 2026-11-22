@@ -51,6 +51,10 @@ hosting conventions.
 
 ## Runtime topology
 
+The [Local Model Architecture and Implementation](local-model-architecture.md)
+reference traces model selection, chat and embedding Platform Services,
+Apple inference, Whisper transcription, and the dated model inventory.
+
 ### Hostname ownership
 
 The System Atlas records the full host-to-path-to-upstream map. Shared apps

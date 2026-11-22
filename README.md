@@ -65,6 +65,7 @@ Traditional shell configs are **shallow**: a bug in one service's management log
 Zdots includes a production-grade local AI runtime out of the box:
 
 *   **Inference**: llama.cpp. Active model profiles and server settings are defined in [`etc/ai-models.yaml`](etc/ai-models.yaml); see [docs/llama-cpp.md](docs/llama-cpp.md).
+*   **Model architecture and inventory**: [Local Model Architecture and Implementation](docs/local-model-architecture.md) documents caller paths, runtime ownership, exact model metadata, and the dated file audit.
 *   **Transcription**: whisper.cpp for local audio-to-text; see the transcription tooling in [docs/tooling.md](docs/tooling.md).
 *   **Guardrails**: `ai-query` applies the configured security and input-normalization path.
 *   **Workflows**: Audio and media workflows are documented in [docs/ingest-media-pipeline.md](docs/ingest-media-pipeline.md).

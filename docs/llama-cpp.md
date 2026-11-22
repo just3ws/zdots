@@ -15,6 +15,10 @@ links:
 (`ai` function, `history-analyze --ai`, `?` shell assistant) route through a
 local `llama-server` binary via its OpenAI-compatible HTTP API on port 11500.
 
+For model selection, the separate embedding and Apple paths, and a dated
+inventory with exact metadata and file hashes, see
+[Local Model Architecture and Implementation](local-model-architecture.md).
+
 **Managed by** `bin/llama-ctl` — a single control script for install, lifecycle,
 model management, and config.
 **Configured by** `etc/ai-models.yaml` — the single source of truth for all
@@ -144,10 +148,18 @@ Each entry under `profiles:` defines a named model configuration.
 
 | Profile | Model | Size | `ctx_size` | Use |
 |---|---|---|---|---|
-| `standard` | qwen2.5-coder-7b-instruct-q4_k_m.gguf | ~4.7GB | 32768 | Verified 2026 SOTA Coding |
-| `reasoning` | DeepSeek-V3-Q4_K_M.gguf | ~4.8GB | 16384 | Verified 2026 SOTA Reasoning |
-| `constrained` | qwen2.5-coder-1.5b-instruct-q4_k_m.gguf | ~1.1GB | 8192 | Low memory / background tasks |
-| `embed` | nomic-embed-text-v2-moe.Q8_0.gguf | ~512MB | 512 | SOTA MoE Embeddings |
+| `qwen3-8b` | Qwen_Qwen3-8B-Q4_K_M.gguf | ~5.4GB | 32768 | Home default |
+| `qwen3-14b` | Qwen_Qwen3-14B-Q4_K_M.gguf | ~8.5GB | 32768 | Optional larger model |
+| `standard` | qwen2.5-coder-7b-instruct-q4_k_m.gguf | ~4.7GB | 32768 | Rollback profile |
+| `llama-3.1` | Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf | ~4.9GB | 16384 | Optional instruction model |
+| `constrained` | qwen2.5-coder-1.5b-instruct-q4_k_m.gguf | ~1.1GB | 32768 | Low-memory profile |
+| `work-light` | Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf | ~2.5GB | 16384 | Work default |
+| `work-light-phi` | microsoft_Phi-4-mini-reasoning-Q4_K_M.gguf | ~2.5GB | 16384 | Comparison profile |
+| `embed` | nomic-embed-text-v2-moe.Q8_0.gguf | ~0.52GB | 512 | Dedicated embeddings |
+
+Sizes above are registry estimates, not measured file lengths. Declared
+profiles are not necessarily installed; use `llama-ctl model-list` to inspect
+the local store.
 
 ### Server Fields
 
@@ -159,15 +171,15 @@ non-default (e.g. `true`, non-zero, non-empty).
 |---|---|---|---|---|
 | `host` | `127.0.0.1` | `--host` | no | Bind address |
 | `port` | `11500` | `--port` | no | Listen port |
-| `parallel` | `2` | `--parallel` | no | Concurrent decode slots; drop to 1 if OOM |
+| `parallel` | `1` | `--parallel` | no | Concurrent decode slots; profiles can override this |
 | `batch_size` | `2048` | `--batch-size` | no | Logical max tokens per scheduling cycle |
 | `ubatch_size` | `2048` | `--ubatch-size` | no | Physical tokens per Metal kernel dispatch; embedding inputs must fit entirely within this limit |
 | `cache_type_k` | `q8_0` | `--cache-type-k` | no | KV cache K dtype; q8_0 saves ~1GB vs f16 |
 | `cache_type_v` | `q8_0` | `--cache-type-v` | no | KV cache V dtype |
 | `cache_reuse` | `256` | `--cache-reuse` | yes (non-zero) | Min prefix length (tokens) to trigger KV reuse |
-| `n_predict` | `2048` | `--predict` | yes (non -1) | Per-request generation cap; -1 = unlimited |
+| `n_predict` | `-1` | `--predict` | yes (non -1) | Per-request generation cap; -1 = unlimited |
 | `alias` | `"local"` | `--alias` | yes (non-empty) | Stable API-facing model name |
-| `embeddings` | `true` | `--embeddings` | yes (true) | Enable `/v1/embeddings` endpoint |
+| `embeddings` | `false` | `--embeddings` | yes (true) | Chat server setting; dedicated embeddings run on port 11501 |
 | `pooling` | `mean` | `--pooling` | with embeddings | Token vector pooling strategy |
 | `flash_attn` | `true` | `--flash-attn on` | yes (true) | Flash Attention; 2–4x KV cache reduction |
 | `metrics` | `true` | `--metrics` | yes (true) | Prometheus endpoint at `/metrics` |
