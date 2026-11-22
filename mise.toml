@@ -17,7 +17,7 @@
 # The pinned version must match etc/ruby-version — update both together.
 
 [tools]
-ruby   = "4.0.9"   # latest stable; auto-bumped by upgrade-mise, matches etc/ruby-version
+ruby   = "4.0.10"   # latest stable; auto-bumped by upgrade-mise, matches etc/ruby-version
 node   = "26.13.0" # current LTS; keep platform repos aligned
 bun    = "1.4.4"   # required by @oh-my-pi/pi-coding-agent (omp)
 go     = "1.26.3"

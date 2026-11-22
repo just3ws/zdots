@@ -91,3 +91,18 @@ setup() {
   run jq -e '.beacon == "0879026.M3" and .aligned == true and (.surfaces | length) == 7' <<<"$output"
   [ "$status" -eq 0 ]
 }
+
+@test "zdots-version honours ZDOTS_SURFACES_FILE without requiring my" {
+  rm -rf "$HOME/my" "$ZDOTS_ZTRANSCRIBE_ROOT" "$MEDIA_PIPELINE_ROOT" "$JUST3WS_SITE_ROOT"
+  local manifest="$BATS_TEST_TMPDIR/surfaces.conf"
+  cat >"$manifest" <<'EOF'
+# Minimal deployed host (no personal vault or media repos)
+zdots	$ZDOTDIR/VERSION	git
+adots	$HOME/VERSION	bare:$HOME/.homegit
+EOF
+
+  ZDOTS_SURFACES_FILE="$manifest" run "$ZDOTDIR/bin/zdots-version" --check --strict --json
+  [ "$status" -eq 0 ]
+  run jq -e '.aligned == true and (.surfaces | length) == 2 and (.surfaces | map(.name) == ["zdots", "adots"])' <<<"$output"
+  [ "$status" -eq 0 ]
+}

@@ -57,8 +57,30 @@ today_epoch() {
   fi
 }
 
+expand_surface_path() {
+  local p="$1"
+  local xdg_cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
+  p="${p//\$ZDOTDIR/$ZDOTDIR}"
+  p="${p//\$\{ZDOTDIR\}/$ZDOTDIR}"
+  p="${p//\$XDG_CONFIG_HOME/$xdg_cfg}"
+  p="${p//\$\{XDG_CONFIG_HOME\}/$xdg_cfg}"
+  p="${p//\$HOME/$HOME}"
+  p="${p//\$\{HOME\}/$HOME}"
+  printf '%s' "$p"
+}
+
 surface_specs() {
   local xdg_cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
+  local manifest="${ZDOTS_SURFACES_FILE:-$xdg_cfg/adots/surfaces.conf}"
+  if [[ -f "$manifest" ]]; then
+    local name path _kind
+    while IFS=$'\t' read -r name path _kind || [[ -n "${name:-}" ]]; do
+      [[ -z "${name:-}" || "$name" == \#* ]] && continue
+      [[ -z "${path:-}" ]] && continue
+      printf '%s\t%s\n' "$name" "$(expand_surface_path "$path")"
+    done <"$manifest"
+    return 0
+  fi
   printf '%s\t%s\n' \
     "zdots"             "$BEACON_FILE" \
     "adots"             "${ZDOTS_ADOTS_VERSION:-$HOME/VERSION}" \
