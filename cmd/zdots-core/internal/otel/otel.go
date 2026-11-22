@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/config"
 )
 
 // Tracer collects spans in memory and flushes them as OTLP/HTTP JSON (/v1/traces).
@@ -47,13 +49,7 @@ type Span struct {
 
 // New creates a Tracer for the given applet/service name.
 func New(applet string) *Tracer {
-	ep := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if ep == "" {
-		ep = os.Getenv("ZDOTS_OTLP_ENDPOINT")
-	}
-	if ep == "" {
-		ep = "http://127.0.0.1:4318"
-	}
+	ep := config.Load(config.Zdotdir()).OTLPEndpoint()
 	tid := os.Getenv("ZDOTS_TRACE_ID")
 	if !isHexLen(tid, 32) || tid == "00000000000000000000000000000000" {
 		tid = randomHex(16)

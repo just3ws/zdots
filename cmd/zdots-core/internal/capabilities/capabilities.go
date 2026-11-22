@@ -487,8 +487,6 @@ func Run(args []string) int {
 				AILive:        aiLive == 1,
 				EmbedEndpoint: embedEndpoint,
 				EmbedLive:     embedLive == 1,
-				O2Endpoint:    o2URL,
-				O2Live:        o2Live == 1,
 				JaegerURL:     jaegerURL,
 				JaegerLive:    jaegerLive == 1,
 				CtxLive:       ctxLive == 1,
@@ -578,8 +576,6 @@ type surfaceInputs struct {
 	AILive        bool
 	EmbedEndpoint string
 	EmbedLive     bool
-	O2Endpoint    string
-	O2Live        bool
 	JaegerURL     string
 	JaegerLive    bool
 	CtxLive       bool
@@ -626,17 +622,7 @@ func buildServiceSurface(in surfaceInputs) serviceSurface {
 	}
 	services["embeddings"] = emb
 
-	// OpenObserve
-	o2 := serviceEntryJSON{Endpoint: in.O2Endpoint}
-	if in.O2Live {
-		o2.Status = "ready"
-	} else {
-		o2.Status = "stopped"
-		o2.Reason = "healthcheck_failed"
-	}
-	services["openobserve"] = o2
-
-	// Jaeger
+	// Jaeger (active tracing backend; OpenObserve retired)
 	jg := serviceEntryJSON{Endpoint: in.JaegerURL}
 	if in.JaegerLive {
 		jg.Status = "ready"

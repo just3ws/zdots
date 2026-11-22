@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/config"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctlstatus"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
@@ -82,13 +83,9 @@ func loadCfg() cfg {
 			binDir = d
 		}
 	}
-	aiHost := bracketIPv6(envOr("ZDOTS_AI_HOST", "127.0.0.1"))
-	embedHost := bracketIPv6(envOr("ZDOTS_AI_EMBED_HOST", "127.0.0.1"))
-	otelHost := bracketIPv6(envOr("ZDOTS_OTEL_HOST", "127.0.0.1"))
-	o2Host := bracketIPv6(envOr("ZDOTS_O2_HOST", "127.0.0.1"))
-
+	env := config.Load(zdotdir)
 	waitTimeout := 90
-	if wt, err := strconv.Atoi(envOr("ZDOTS_BOOT_TIMEOUT", "90")); err == nil && wt > 0 {
+	if wt, err := strconv.Atoi(env.Get("ZDOTS_BOOT_TIMEOUT", "90")); err == nil && wt > 0 {
 		waitTimeout = wt
 	}
 
@@ -96,13 +93,13 @@ func loadCfg() cfg {
 		home:          home,
 		zdotdir:       zdotdir,
 		binDir:        binDir,
-		xdgState:      envOr("XDG_STATE_HOME", filepath.Join(home, ".local", "state")),
-		aiEndpoint:    envOr("ZDOTS_AI_ENDPOINT", fmt.Sprintf("http://%s:%s", aiHost, envOr("ZDOTS_AI_PORT", "11500"))),
-		embedEndpoint: envOr("ZDOTS_AI_EMBED_ENDPOINT", fmt.Sprintf("http://%s:%s", embedHost, envOr("ZDOTS_EMBED_PORT", "11501"))),
-		otlpEndpoint:  envOr("ZDOTS_OTLP_ENDPOINT", fmt.Sprintf("http://%s:%s", otelHost, envOr("ZDOTS_OTEL_HTTP_PORT", "4318"))),
-		o2Endpoint:    envOr("ZDOTS_O2_ENDPOINT", fmt.Sprintf("http://%s:%s", o2Host, envOr("ZDOTS_O2_PORT", "5080"))),
-		redisHost:     envOr("ZDOTS_REDIS_HOST", "127.0.0.1"),
-		redisPort:     envOr("ZDOTS_REDIS_PORT", "6379"),
+		xdgState:      env.Get("XDG_STATE_HOME", filepath.Join(home, ".local", "state")),
+		aiEndpoint:    env.AIEndpoint(),
+		embedEndpoint: env.EmbedEndpoint(),
+		otlpEndpoint:  env.OTLPEndpoint(),
+		o2Endpoint:    env.O2Endpoint(),
+		redisHost:     env.RedisHost(),
+		redisPort:     env.RedisPort(),
 		waitTimeout:   waitTimeout,
 	}
 }

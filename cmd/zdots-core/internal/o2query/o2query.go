@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/config"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
 
@@ -95,11 +96,12 @@ func runWithIO(
 		return 0
 	}
 
+	env := config.Load(config.Zdotdir())
 	opts := options{
-		endpoint:  envOr("ZDOTS_O2_ENDPOINT", "http://127.0.0.1:5080"),
-		org:       envOr("ZDOTS_O2_ORG", "default"),
-		stream:    envOr("ZDOTS_O2_STREAM", "default"),
-		rootEmail: envOr("ZDOTS_O2_ROOT_EMAIL", "root@zdots.local"),
+		endpoint:  env.O2Endpoint(),
+		org:       env.Get("ZDOTS_O2_ORG", "default"),
+		stream:    env.Get("ZDOTS_O2_STREAM", "default"),
+		rootEmail: env.Get("ZDOTS_O2_ROOT_EMAIL", "root@zdots.local"),
 		since:     "1h",
 		limit:     20,
 		ms:        100,

@@ -1,6 +1,6 @@
 # ADR-0005: Tiered CLI Surface, Centralized Platform Defaults, and Versioned Tenant Contract
 
-- **Status:** Accepted (Phase 1 in progress)
+- **Status:** Accepted (Phases 1 & 2 complete; Phase 3 pending)
 - **Date:** 2026-11-22
 - **Related:** `Z-184`, `Z-185`, `Z-183`, `Z-249`, `Z-263`, `Z-264`, `Z-273`, [ADR-0004](0004-decouple-my-and-adots-surface-manifest.md), `backlog/decisions/decision-008`
 
@@ -44,7 +44,7 @@ Publish a stable, versioned `service_surface` object inside `capabilities --json
     "services": {
       "inference":   { "endpoint": "http://127.0.0.1:11500", "mode": "local", "status": "ready", "reason": "" },
       "embeddings":  { "endpoint": "http://127.0.0.1:11501", "mode": "local", "status": "ready", "reason": "" },
-      "openobserve": { "endpoint": "http://127.0.0.1:5080",  "status": "ready", "reason": "" },
+      "jaeger":      { "endpoint": "http://127.0.0.1:16686", "status": "ready", "reason": "" },
       "knowledge":   { "db": "my",                           "status": "ready", "reason": "" },
       "warehouse":   { "path": "...",                        "status": "ready", "reason": "" },
       "whisper":     { "endpoint": "http://127.0.0.1:11502", "status": "stopped", "reason": "on-demand" },

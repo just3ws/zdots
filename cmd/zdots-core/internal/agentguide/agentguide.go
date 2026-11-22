@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/config"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctlstatus"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
@@ -57,11 +58,12 @@ func Run(args []string) int {
 	logDir := envOr("ZDOTS_LOG_DIR", filepath.Join(xdgState, "zsh"))
 	logAnalyzer := filepath.Join(zdotdir, "bin", "zdots-log-analyze")
 
-	aiEndpoint := envOr("ZDOTS_AI_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_AI_HOST", "127.0.0.1"), envOr("ZDOTS_AI_PORT", "11500")))
-	otelEndpoint := envOr("ZDOTS_OTLP_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_OTEL_HOST", "127.0.0.1"), envOr("ZDOTS_OTEL_HTTP_PORT", "4318")))
-	o2URL := envOr("ZDOTS_O2_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_O2_HOST", "127.0.0.1"), envOr("ZDOTS_O2_PORT", "5080")))
-	jaegerURL := envOr("ZDOTS_JAEGER_ENDPOINT", fmt.Sprintf("http://%s:%s", envOr("ZDOTS_JAEGER_HOST", "127.0.0.1"), envOr("ZDOTS_JAEGER_UI_PORT", "16686")))
-	statusURL := fmt.Sprintf("http://%s:%s", envOr("ZDOTS_STATUS_HOST", "127.0.0.1"), envOr("ZDOTS_STATUS_PORT", "11600"))
+	env := config.Load(zdotdir)
+	aiEndpoint := env.AIEndpoint()
+	otelEndpoint := env.OTLPEndpoint()
+	o2URL := env.O2Endpoint()
+	jaegerURL := env.JaegerEndpoint()
+	statusURL := fmt.Sprintf("http://%s:%s", env.Get("ZDOTS_STATUS_HOST", "127.0.0.1"), env.Get("ZDOTS_STATUS_PORT", "11600"))
 
 	platformVersion := readTrimmedOr(filepath.Join(zdotdir, "VERSION"), "unknown")
 

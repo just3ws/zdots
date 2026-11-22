@@ -115,3 +115,14 @@ teardown() {
   [ "$status" -eq 1 ]
   [[ "$output" =~ "$FAKE_LOG" ]]
 }
+
+@test "log-rotate: --install-agent --dry-run renders portable plist for current HOME (Z-263)" {
+  local home="$TMP_DIR/other-user"
+  HOME="$home" ZDOTDIR="$home/.config/zsh" XDG_STATE_HOME="$home/.local/state" run log-rotate --install-agent --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"<string>${home}</string>"* ]]
+  [[ "$output" == *"<string>${home}/.config/zsh</string>"* ]]
+  [[ "$output" == *"<string>${home}/.local/state/zsh/zdots-log-rotate.log</string>"* ]]
+  [[ "$output" != *"/Users/mike"* ]]
+  [[ "$output" != *"__HOME__"* ]]
+}

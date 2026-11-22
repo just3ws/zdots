@@ -6,9 +6,11 @@
 # truncates in-place so the service continues writing without restart.
 #
 # Usage: log-rotate <service-name> [--dry-run] [--help]
-#   service-name    Name of the launchd service (e.g., otel-collector, llama-server)
-#   --dry-run       Show what would happen without rotating
-#   --help          Show this help
+#        log-rotate --install-agent [--dry-run]
+#   service-name     Name of the launchd service (e.g., otel-collector, llama-server)
+#   --install-agent  Render and install com.zdots.log-rotate LaunchAgent for current $HOME
+#   --dry-run        Show what would happen without rotating or installing
+#   --help           Show this help
 #
 # Exit: 0 on success, 1 on error or dry-run preview.
 
@@ -16,18 +18,53 @@ set -uo pipefail
 trap '' PIPE
 
 # Get service name from first arg
-SERVICE="${1:-}"
+SERVICE=""
 DRY_RUN=0
+INSTALL_AGENT=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
-    -h|--help) sed -n '2,16p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    --install-agent) INSTALL_AGENT=1 ;;
+    -h|--help) sed -n '2,18p' "$0" | sed 's/^# \?//'; exit 0 ;;
     -*) printf 'log-rotate: unknown option: %s\n' "$1" >&2; exit 1 ;;
     *) SERVICE="$1" ;;
   esac
   shift
 done
+
+if [[ $INSTALL_AGENT -eq 1 ]]; then
+  _script_root="$(cd "$(dirname "$0")/.." && pwd)"
+  _zdotdir="${ZDOTDIR:-$HOME/.config/zsh}"
+  _state="${XDG_STATE_HOME:-$HOME/.local/state}"
+  _tmpl="${_zdotdir}/etc/launchd/com.zdots.log-rotate.plist"
+  [[ -r "$_tmpl" ]] || _tmpl="${_script_root}/etc/launchd/com.zdots.log-rotate.plist"
+  _dest="$HOME/Library/LaunchAgents/com.zdots.log-rotate.plist"
+  if [[ ! -r "$_tmpl" ]]; then
+    printf 'log-rotate: template not found: %s\n' "$_tmpl" >&2
+    exit 1
+  fi
+  _rendered="$(sed \
+    -e "s|__HOME__|${HOME}|g" \
+    -e "s|__ZDOTDIR__|${_zdotdir}|g" \
+    -e "s|__XDG_STATE_HOME__|${_state}|g" \
+    "$_tmpl")"
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf '%s\n' "$_rendered"
+    exit 0
+  fi
+  mkdir -p "$(dirname "$_dest")" "${_state}/zsh"
+  printf '%s\n' "$_rendered" > "$_dest"
+  if command -v plutil >/dev/null 2>&1; then
+    plutil -lint "$_dest" >/dev/null || { printf 'log-rotate: invalid rendered plist: %s\n' "$_dest" >&2; exit 1; }
+  fi
+  if command -v launchctl >/dev/null 2>&1; then
+    launchctl bootout "gui/$(id -u)/com.zdots.log-rotate" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$_dest" 2>/dev/null || launchctl load -w "$_dest" 2>/dev/null || true
+  fi
+  printf 'log-rotate: installed LaunchAgent -> %s\n' "$_dest"
+  exit 0
+fi
 
 if [[ -z "$SERVICE" ]]; then
   printf 'log-rotate: service name required\n' >&2

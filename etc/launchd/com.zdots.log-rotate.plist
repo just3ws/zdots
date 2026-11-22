@@ -19,19 +19,19 @@
         <integer>15</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Users/mike/.local/state/zsh/zdots-log-rotate.log</string>
+    <string>__XDG_STATE_HOME__/zsh/zdots-log-rotate.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/mike/.local/state/zsh/zdots-log-rotate.log</string>
+    <string>__XDG_STATE_HOME__/zsh/zdots-log-rotate.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>
-        <string>/Users/mike</string>
+        <string>__HOME__</string>
         <key>PATH</key>
-        <string>/Users/mike/.local/bin:/Users/mike/.config/zsh/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>__HOME__/.local/bin:__ZDOTDIR__/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>ZDOTDIR</key>
-        <string>/Users/mike/.config/zsh</string>
+        <string>__ZDOTDIR__</string>
         <key>XDG_STATE_HOME</key>
-        <string>/Users/mike/.local/state</string>
+        <string>__XDG_STATE_HOME__</string>
     </dict>
 </dict>
 </plist>

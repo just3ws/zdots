@@ -3,9 +3,10 @@ id: Z-185
 title: >-
   [agent-issue] Extract generic CLI plumbing into a shared zdots lib family
   (re-forked in work _work-*.sh)
-status: To Do
+status: Done
 assignee: []
-created_date: '2026-06-30 23:28'
+created_date: '2026-06-30T23:28:00Z'
+updated_date: '2026-11-22T12:17:04Z'
 labels:
   - agent-reported
   - request
@@ -37,3 +38,9 @@ Request: expose these four as a small zdots lib family (sourceable .bash helpers
 *Filed via `zdots-issue`. Operator review required before any changes are made.*
 *Do not modify zdots to work around this issue — wait for operator resolution.*
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Created shared Tenant CLI SDK under lib/sdk/ (cli-help.bash, cli-audit.bash, docker-host.bash) with docs/tenant-sdk.md and tests/tenant_sdk.bats (ADR-0005 Phase 2). Verified via Bats + make check-fast.
+<!-- SECTION:NOTES:END -->

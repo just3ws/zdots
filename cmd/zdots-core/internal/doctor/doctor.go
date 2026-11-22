@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/config"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctl"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/logs"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
@@ -873,7 +874,7 @@ func checkServices(cfg envConfig) *sectionResult {
 
 func checkInference(cfg envConfig) *sectionResult {
 	s := &sectionResult{title: "AI inference"}
-	aiEP := envOr("ZDOTS_AI_ENDPOINT", "http://127.0.0.1:11500")
+	aiEP := config.Load(cfg.zdotdir).AIEndpoint()
 	aiLog := filepath.Join(cfg.stateDir, "llama-server.log")
 
 	healthClient := &http.Client{Timeout: 3 * time.Second}

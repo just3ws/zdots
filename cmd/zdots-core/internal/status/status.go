@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/config"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/ctlstatus"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
@@ -145,17 +146,13 @@ func Run(args []string) int {
 	if xdgState == "" && home != "" {
 		xdgState = filepath.Join(home, ".local", "state")
 	}
-	aiEndpoint := os.Getenv("ZDOTS_AI_ENDPOINT")
-	if aiEndpoint == "" {
-		aiEndpoint = "http://127.0.0.1:11500"
-	}
-
+	env := config.Load(zdotdir)
 	st := &state{
 		zdotdir:    zdotdir,
 		home:       home,
 		xdgState:   xdgState,
-		aiEndpoint: aiEndpoint,
-		o2URL:      "http://127.0.0.1:16686",
+		aiEndpoint: env.AIEndpoint(),
+		o2URL:      env.JaegerEndpoint(),
 		aiModel:    "unknown",
 		tr:         otel.New("zdots-status"),
 	}

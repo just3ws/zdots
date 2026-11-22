@@ -35,8 +35,6 @@ func TestBuildServiceSurface(t *testing.T) {
 			AILive:        true,
 			EmbedEndpoint: "http://127.0.0.1:11501",
 			EmbedLive:     true,
-			O2Endpoint:    "http://127.0.0.1:5080",
-			O2Live:        true,
 			JaegerURL:     "http://127.0.0.1:16686",
 			JaegerLive:    true,
 			CtxLive:       true,
@@ -44,7 +42,7 @@ func TestBuildServiceSurface(t *testing.T) {
 			HasColima:     true,
 			Colima:        colimaStatus{Healthy: true, Socket: "/tmp/docker.sock"},
 		})
-		for _, k := range []string{"inference", "embeddings", "openobserve", "jaeger", "knowledge", "colima"} {
+		for _, k := range []string{"inference", "embeddings", "jaeger", "knowledge", "colima"} {
 			if got := s.Services[k].Status; got != "ready" {
 				t.Fatalf("service %s status = %q, want ready", k, got)
 			}

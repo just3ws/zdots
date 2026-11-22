@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/just3ws/zdots/cmd/zdots-core/internal/config"
 	"github.com/just3ws/zdots/cmd/zdots-core/internal/otel"
 )
 
@@ -138,7 +139,7 @@ func resolveZdotDir() string {
 
 func loadConfig(zdotDir, envEndpoint, envProfile string) Config {
 	cfg := Config{
-		Endpoint:       "http://127.0.0.1:11500",
+		Endpoint:       config.Load(zdotDir).AIEndpoint(),
 		Health:         "unreachable",
 		Profile:        "standard",
 		ModelAlias:     "local",
