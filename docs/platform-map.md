@@ -20,11 +20,13 @@ product names, host families, and historical account labels describe project
 boundaries or past branding; they do not imply separate owners.
 
 UGtastic and WHOIS Tech Community are one community and oral-history project
-with historical name and branding changes. The YouTube integration currently
-uses the channel handle `@whoistechcmty`; the Patreon-era `whoistechcmty` label
-is legacy. For community development and support, Mike's current priorities
-are UGtastic / WHOIS Tech Community and Phalanx Duel. Preserve historical names
-in records and retain project-specific hosting conventions.
+with historical name and branding changes under Mike Hall's identity. The
+YouTube integration uses Mike's official channel handle `@just3ws-mike`
+(consolidated from `@whoistechcmty`), while the Patreon-era `whoistechcmty`
+label is preserved as historical project provenance. For community development
+and support, Mike's current priorities are UGtastic / WHOIS Tech Community and
+Phalanx Duel. Preserve historical names in records and retain project-specific
+hosting conventions.
 
 ## Ownership
 
