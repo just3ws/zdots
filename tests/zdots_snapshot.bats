@@ -5,7 +5,7 @@ setup() {
   load "setup.bash"
   setup_environment
   export ZDOTS_SNAPSHOT_DIR="$BATS_TEST_TMPDIR/snaps"
-  SNAP="$REPO_ROOT/bin/zdots-snapshot"
+  SNAP="$REPO_ROOT/libexec/zdots-snapshot"
 }
 
 @test "snapshot: first capture stores stdout and propagates exit 0" {

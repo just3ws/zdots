@@ -4,7 +4,7 @@
 setup() {
   load "setup.bash"
   setup_environment
-  BIN="$REPO_ROOT/bin"
+  BIN="$REPO_ROOT/libexec"
 
   # Scratch dir for fake gemini home and PATH-shimming
   FAKE_HOME="$BATS_TEST_TMPDIR/home"

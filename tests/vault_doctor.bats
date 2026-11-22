@@ -4,7 +4,7 @@
 setup() {
   load "setup.bash"
   setup_environment
-  BIN="$REPO_ROOT/bin/zdots-vault-doctor"
+  BIN="$REPO_ROOT/libexec/zdots-vault-doctor"
   export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
   export ZDOTDIR="$REPO_ROOT"
 }

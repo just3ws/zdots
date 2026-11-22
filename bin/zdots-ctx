@@ -468,7 +468,7 @@ cmd_concept() {
 }
 
 cmd_vault_doctor() {
-  "${ZDOTDIR}/bin/zdots-vault-doctor" "$@"
+  "${ZDOTDIR}/libexec/zdots-vault-doctor" "$@"
 }
 
 # _drain_redis_to_sqlite — move Redis-buffered command_runs into SQLite so

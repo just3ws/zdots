@@ -605,7 +605,7 @@ if [[ "$SKIP_GEMINI" -eq 0 ]]; then
   step "detect gemini CLI"
   if command -v gemini >/dev/null 2>&1; then
     step "run gemini-mcp-register (idempotent)"
-    run "${ZDOTDIR}/bin/gemini-mcp-register"
+    run "${ZDOTDIR}/libexec/gemini-mcp-register"
   else
     log "gemini CLI not found; skipping MCP registration"
   fi

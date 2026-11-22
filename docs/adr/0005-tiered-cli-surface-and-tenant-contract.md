@@ -1,6 +1,6 @@
 # ADR-0005: Tiered CLI Surface, Centralized Platform Defaults, and Versioned Tenant Contract
 
-- **Status:** Accepted (Phases 1 & 2 complete; Phase 3 pending)
+- **Status:** Accepted & Implemented (2026-11-22)
 - **Date:** 2026-11-22
 - **Related:** `Z-184`, `Z-185`, `Z-183`, `Z-249`, `Z-263`, `Z-264`, `Z-273`, [ADR-0004](0004-decouple-my-and-adots-surface-manifest.md), `backlog/decisions/decision-008`
 
@@ -93,6 +93,14 @@ Establish **`etc/defaults.env`** as the single source of truth for canonical por
 3. **Phase 3 — `bin/` → `libexec/` Diet:**
    - Audit all callers (launchd plists, `conf.d/`, `bin/`, `tests/`, `adots`, `zdots-work`) before moving each batch.
    - Move Tier-2 internals into `libexec/` in 3–4 small, test-verified commits (daemons/hooks → CI/lint/gen tools → MCP/one-offs), updating `etc/capabilities.sh` and `tests/docs_contract.bats` alongside each batch.
+
+## Outcome (2026-11-22)
+
+All four pillars are implemented and verified:
+- **Centralized Defaults (`etc/defaults.env`):** Single POSIX source of truth loaded by Shell (`env.sh`), Go (`cmd/zdots-core/internal/config` across 8 packages), and Ruby (`lib/zdots/config.rb` across `db_url`, `manifest`, `ai/client`).
+- **Versioned Service Surface (`zdots.surface.v1`, `Z-184` + `Z-273`):** Published in `capabilities --json` (excluding retired OpenObserve); peer attestation reads `ADOTS_PEER_CAPS=32/32`.
+- **Tenant CLI SDK (`lib/sdk/`, `Z-185`) & Portable LaunchAgent (`Z-263`):** `cli-help.bash`, `cli-audit.bash`, `docker-host.bash`, `docs/tenant-sdk.md`, and `log-rotate --install-agent`.
+- **`bin/` → `libexec/` Diet (33 internals moved):** `bin/` reduced from 121 → 88 executables, including moving `zdots-core` to `libexec/zdots-core` with all 13 Tier-1 symlinks retargeted. Remaining `bin/` entries are Tier-1 public commands or externally wired LaunchAgent/SwiftBar/MCP entrypoints; stopping here avoids diminishing-returns churn across `$HOME`.
 
 ## Consequences
 

@@ -47,7 +47,6 @@ _known_gap() {
     tx
     whisper-ctl
     zdash
-    zdots-eval
     zdots-ask
     zdots-ctx
     zdots-doctor
@@ -72,13 +71,9 @@ _known_gap() {
     zdots-phi-scrub
     history-intelligence
     session-debrief
-    zdots-pages
-    zdots-pattern
     zdots-issue
     imperial-date
     zdots-search
-    zdots-draft
-    zdots-publish
     omp-gateway-ctl
     zdots-skills-sync
   "

@@ -230,7 +230,6 @@ declare -ga ZDOTS_CAPABILITIES_TASKS=(
 declare -ga ZDOTS_CAPABILITIES_SECURITY=(
   # PHI scrubbing and redaction
   "security:phi-scrub:zdots-phi-scrub <text>               — Apply PHI Scrubber (redact protected health info)"
-  "security:phi-patterns:zdots-pattern                     — Query active PHI patterns"
 
   # Credential management
   "security:keychain:zdots-keychain                        — Keychain credential operations"
