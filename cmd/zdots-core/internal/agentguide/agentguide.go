@@ -52,6 +52,7 @@ func Run(args []string) int {
 
 	home, _ := os.UserHomeDir()
 	zdotdir := envOr("ZDOTDIR", filepath.Join(home, ".config", "zsh"))
+	xdgConfig := envOr("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	xdgState := envOr("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
 	logDir := envOr("ZDOTS_LOG_DIR", filepath.Join(xdgState, "zsh"))
 	logAnalyzer := filepath.Join(zdotdir, "bin", "zdots-log-analyze")
@@ -65,44 +66,20 @@ func Run(args []string) int {
 	platformVersion := readTrimmedOr(filepath.Join(zdotdir, "VERSION"), "unknown")
 
 	var (
-		myContract        = "my.structure.v1"
-		myPlatformVersion = "unknown"
-		aiUp              = false
-		aiModelID         = "unknown"
-		otelUp            = false
-		o2Up              = false
-		jaegerUp          = false
-		colimaUp          = false
-		whisperUp         = false
-		fabricUp          = false
-		colimaSock        = ""
+		aiUp       = false
+		aiModelID  = "unknown"
+		otelUp     = false
+		o2Up       = false
+		jaegerUp   = false
+		colimaUp   = false
+		whisperUp  = false
+		fabricUp   = false
+		colimaSock = ""
 	)
 
 	var wg sync.WaitGroup
 
-	// 1. adots-my doctor --json (once)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if _, err := exec.LookPath("adots-my"); err != nil {
-			return
-		}
-		out := runCmd(3*time.Second, "adots-my", "doctor", "--json")
-		var doc struct {
-			ContractVersion string `json:"contract_version"`
-			PlatformVersion string `json:"platform_version"`
-		}
-		if json.Unmarshal(out, &doc) == nil {
-			if doc.ContractVersion != "" {
-				myContract = doc.ContractVersion
-			}
-			if doc.PlatformVersion != "" {
-				myPlatformVersion = doc.PlatformVersion
-			}
-		}
-	}()
-
-	// 2. in-process ctlstatus probe (replaces zdots-ctl status --json subprocess)
+	// 1. in-process ctlstatus probe (replaces zdots-ctl status --json subprocess)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -155,14 +132,16 @@ func Run(args []string) int {
 	aiMode := envOr("ZDOTS_AI_MODE", "local")
 	cloudKeysSet := os.Getenv("OPENAI_API_KEY") != "" || os.Getenv("GEMINI_API_KEY") != ""
 
+	dbURL := envOr("ZDOTS_DATABASE_URL", "postgresql://zdots_rw@/my")
+	dbName := dbNameFromURL(dbURL)
+	roURL := fmt.Sprintf("postgresql://zdots_ro@/%s", dbName)
+
 	if jsonMode {
 		payload := guideJSON{
 			Platform: platformBlock{
 				Version:           platformVersion,
 				Scheme:            "imperial-calver",
-				MyContract:        myContract,
-				MyVersion:         myPlatformVersion,
-				VersionedSurfaces: []string{"zdots", "adots", "my", "vdots", "ztranscribe", "media-pipeline", "just3ws.github.io"},
+				VersionedSurfaces: loadSurfaces(xdgConfig),
 			},
 			Services: servicesBlock{
 				LlamaCPP:    llamaService{Up: aiUp, Endpoint: aiEndpoint, Model: aiModelID, Start: "llama-ctl start"},
@@ -194,7 +173,7 @@ func Run(args []string) int {
 				UIURL:            jaegerURL,
 			},
 			Env: envBlock{
-				ZDOTSDatabaseURL:         "postgresql://zdots_rw@/my",
+				ZDOTSDatabaseURL:         dbURL,
 				ZDOTSAIEndpoint:          aiEndpoint,
 				ZDOTSAIModel:             "local",
 				OTELExporterOTLPEndpoint: otelEndpoint,
@@ -242,14 +221,14 @@ func Run(args []string) int {
 				ExternalAgentsNote: "Tenant/corporate AI sessions on this machine: reads above are free (loopback-trusted, no PHI). Route requests/questions through ${ZDOTS_WORK_EXT:-~/.config/zdots-work}/handoffs/.",
 			},
 			Database: databaseBlock{
-				Name:          "my",
+				Name:          dbName,
 				AppUser:       "zdots_rw",
-				AppURL:        "postgresql://zdots_rw@/my",
+				AppURL:        dbURL,
 				ReadonlyUser:  "zdots_ro",
-				ReadonlyURL:   "postgresql://zdots_ro@/my",
+				ReadonlyURL:   roURL,
 				MigrationUser: currentUser + " (OS superuser via ZDOTS_MIGRATION_URL)",
 				Note:          "All writes go through zdots-ctx or context-engine only. Use zdots_ro for safe psql exploration.",
-				Explore:       "psql -U zdots_ro my",
+				Explore:       "psql -U zdots_ro " + dbName,
 			},
 			Docs: docsBlock{
 				PlatformControl: "zdots-ctl check / up / down / reset / status",
@@ -285,7 +264,7 @@ func Run(args []string) int {
 		return 0
 	}
 
-	printHuman(platformVersion, myPlatformVersion, myContract, logDir, aiUp, aiModelID, aiEndpoint, otelUp, otelEndpoint, colimaUp, colimaSock, jaegerUp, jaegerURL, fabricUp)
+	printHuman(platformVersion, logDir, aiUp, aiModelID, aiEndpoint, otelUp, otelEndpoint, colimaUp, colimaSock, jaegerUp, jaegerURL, fabricUp)
 	rootSpan.SetAttr("ai_up", aiUp)
 	rootSpan.SetAttr("otel_up", otelUp)
 	rootSpan.SetAttr("jaeger_up", jaegerUp)
@@ -312,9 +291,48 @@ type guideJSON struct {
 type platformBlock struct {
 	Version           string   `json:"version"`
 	Scheme            string   `json:"scheme"`
-	MyContract        string   `json:"my_contract"`
-	MyVersion         string   `json:"my_version"`
 	VersionedSurfaces []string `json:"versioned_surfaces"`
+}
+
+func dbNameFromURL(raw string) string {
+	idx := strings.LastIndex(raw, "/")
+	if idx < 0 || idx+1 >= len(raw) {
+		return "my"
+	}
+	name := raw[idx+1:]
+	if q := strings.Index(name, "?"); q >= 0 {
+		name = name[:q]
+	}
+	if name == "" {
+		return "my"
+	}
+	return name
+}
+
+func loadSurfaces(xdgConfig string) []string {
+	manifest := os.Getenv("ZDOTS_SURFACES_FILE")
+	if manifest == "" {
+		manifest = filepath.Join(xdgConfig, "adots", "surfaces.conf")
+	}
+	b, err := os.ReadFile(manifest)
+	if err != nil {
+		return []string{"zdots", "adots", "vdots"}
+	}
+	var out []string
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) >= 1 && strings.TrimSpace(fields[0]) != "" {
+			out = append(out, strings.TrimSpace(fields[0]))
+		}
+	}
+	if len(out) == 0 {
+		return []string{"zdots", "adots", "vdots"}
+	}
+	return out
 }
 
 type servicesBlock struct {
@@ -452,7 +470,7 @@ func head(s string) {
 }
 
 func printHuman(
-	platformVersion, myPlatformVersion, myContract, logDir string,
+	platformVersion, logDir string,
 	aiUp bool, aiModelID, aiEndpoint string,
 	otelUp bool, otelEndpoint string,
 	colimaUp bool, colimaSock string,
@@ -460,7 +478,7 @@ func printHuman(
 	fabricUp bool,
 ) {
 	fmt.Print(bold("=== Zdots Agent Guide ==="))
-	fmt.Printf("\nPlatform: %s  (six-surface epoch · my=%s / %s)\n", platformVersion, myPlatformVersion, myContract)
+	fmt.Printf("\nPlatform: %s  (zdots · adots · vdots)\n", platformVersion)
 	fmt.Println("This machine is the central hub for AI inference and OTel observability.")
 	fmt.Println("For machine-readable output: agent-guide --json")
 

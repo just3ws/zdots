@@ -104,7 +104,7 @@ _have() { command -v "$1" >/dev/null 2>&1; }
   [[ "$output" == *"$PG_SVC"* ]]
   [[ "$output" == *redis* ]]
   [[ "$output" == *llama.localhost* ]]
-  [[ "$output" == *my.localhost* ]]
+  [[ "$output" == *zdots.localhost* ]]
   [[ "$output" == *gemstash.localhost* ]]
 }
 
@@ -117,7 +117,7 @@ _have() { command -v "$1" >/dev/null 2>&1; }
     and ([.services[] | select(.name == "colima" and .policy == "optional")] | length == 1)
     and ([.services[] | select(.name == "postgres" and .policy == "required")] | length == 1)
     and ([.local_urls[].name] | index("llama.localhost"))
-    and ([.local_urls[].name] | index("my.localhost"))
+    and ([.local_urls[].name] | index("zdots.localhost"))
     and ([.local_urls[].name] | index("gemstash.localhost"))
   ' >/dev/null
 }

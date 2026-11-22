@@ -1,7 +1,7 @@
 # ADR-0004: Decouple `my` from `zdots` and Drive Platform Surfaces from `adots`
 
-- **Status:** Accepted (Phase 1 implemented)
-- **Date:** 2026-11-21
+- **Status:** Accepted & Implemented
+- **Date:** 2026-11-22
 - **Related:** `~/.config/adots/my-directory-setup-consolidation-plan.md`, `backlog/decisions/decision-007`
 
 ## Context

@@ -92,48 +92,21 @@ func Run(args []string) int {
 
 	// Parallel external probes.
 	var (
-		myContract        = "my.structure.v1"
-		myPlatformVersion = "unknown"
-		diskAvail         = "unknown"
-		o2Live            = 0
-		jaegerLive        = 0
-		aiLive            = 0
-		ctxLive           = 0
-		ctxDB             = "unknown"
-		ctxPending        = 0
-		storageRaw        = json.RawMessage(`{}`)
-		colimaRes         colimaStatus
-		hasColima         bool
+		diskAvail  = "unknown"
+		o2Live     = 0
+		jaegerLive = 0
+		aiLive     = 0
+		ctxLive    = 0
+		ctxDB      = "unknown"
+		ctxPending = 0
+		storageRaw = json.RawMessage(`{}`)
+		colimaRes  colimaStatus
+		hasColima  bool
 	)
 
 	var wg sync.WaitGroup
 
-	// 1. adots-my doctor --json (once)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if _, err := exec.LookPath("adots-my"); err != nil {
-			return
-		}
-		out := runCmd(3*time.Second, "adots-my", "doctor", "--json")
-		if len(out) == 0 {
-			return
-		}
-		var doc struct {
-			ContractVersion string `json:"contract_version"`
-			PlatformVersion string `json:"platform_version"`
-		}
-		if json.Unmarshal(out, &doc) == nil {
-			if doc.ContractVersion != "" {
-				myContract = doc.ContractVersion
-			}
-			if doc.PlatformVersion != "" {
-				myPlatformVersion = doc.PlatformVersion
-			}
-		}
-	}()
-
-	// 2. df -h /
+	// 1. df -h /
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -214,8 +187,8 @@ func Run(args []string) int {
 					reserveGB = parsed
 				}
 			}
-			myRoot := getEnv("ZDOTS_MY_ROOT", filepath.Join(home, "my"))
-			rep := storage.Collect(home, zdotdir, myRoot, reserveGB)
+			vaultRoot := getEnv("ZDOTS_VAULT_ROOT", os.Getenv("ZDOTS_MY_ROOT"))
+			rep := storage.Collect(home, zdotdir, vaultRoot, reserveGB)
 			if b, err := json.Marshal(rep); err == nil {
 				storageRaw = json.RawMessage(b)
 			}
@@ -315,8 +288,8 @@ func Run(args []string) int {
 	if outputFormat == "text" {
 		fmt.Printf("%sZdots Environment Capabilities Report%s\n", bold, reset)
 		fmt.Println("----------------------------------------")
-		fmt.Printf("%sPlatform:%s    %s%s%s  (six-surface epoch · my=%s · contract=%s)\n",
-			cyan, reset, bold, platformVersion, reset, myPlatformVersion, myContract)
+		fmt.Printf("%sPlatform:%s    %s%s%s  (zdots · adots · vdots)\n",
+			cyan, reset, bold, platformVersion, reset)
 		fmt.Printf("%sSession ID:%s  %s\n", cyan, reset, getEnv("ZDOTS_SESSION_ID", "<unset>"))
 		fmt.Printf("%sProfile:%s     %s\n", cyan, reset, getEnv("ZDOTS_ENV_PROFILE", "unknown"))
 		fmt.Printf("%sOS:%s          %s (%s)\n", cyan, reset, unameOS, unameArch)
@@ -455,9 +428,7 @@ func Run(args []string) int {
 			Platform: platformInfo{
 				Version:           platformVersion,
 				Scheme:            "imperial-calver",
-				MyContract:        myContract,
-				MyVersion:         myPlatformVersion,
-				VersionedSurfaces: []string{"zdots", "adots", "my", "vdots", "ztranscribe", "media-pipeline", "just3ws.github.io"},
+				VersionedSurfaces: loadSurfaces(xdgConfig),
 			},
 			Profile:             getEnv("ZDOTS_ENV_PROFILE", "unknown"),
 			OS:                  unameOS,
@@ -558,9 +529,33 @@ type reportJSON struct {
 type platformInfo struct {
 	Version           string   `json:"version"`
 	Scheme            string   `json:"scheme"`
-	MyContract        string   `json:"my_contract"`
-	MyVersion         string   `json:"my_version"`
 	VersionedSurfaces []string `json:"versioned_surfaces"`
+}
+
+func loadSurfaces(xdgConfig string) []string {
+	manifest := os.Getenv("ZDOTS_SURFACES_FILE")
+	if manifest == "" {
+		manifest = filepath.Join(xdgConfig, "adots", "surfaces.conf")
+	}
+	b, err := os.ReadFile(manifest)
+	if err != nil {
+		return []string{"zdots", "adots", "vdots"}
+	}
+	var out []string
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) >= 1 && strings.TrimSpace(fields[0]) != "" {
+			out = append(out, strings.TrimSpace(fields[0]))
+		}
+	}
+	if len(out) == 0 {
+		return []string{"zdots", "adots", "vdots"}
+	}
+	return out
 }
 
 type terminalInfo struct {

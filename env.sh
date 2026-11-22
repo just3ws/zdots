@@ -36,6 +36,21 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -f "$_zdots_kc_lib" ]; then
 fi
 unset _zdots_secrets _zdots_kc_lib
 
+# 1b2. adots deployment profile (optional host-level baseline)
+# Reads ~/.config/adots/profile and sources ~/.config/adots/profiles/<profile>.conf
+# before .zdots.local so per-machine overrides and .zdots.work still take precedence.
+_zdots_adots_dir="${XDG_CONFIG_HOME:-$HOME/.config}/adots"
+if [ -r "$_zdots_adots_dir/profile" ]; then
+  IFS= read -r _zdots_adots_profile < "$_zdots_adots_dir/profile" || _zdots_adots_profile=""
+  if [ -n "$_zdots_adots_profile" ] && [ -r "$_zdots_adots_dir/profiles/${_zdots_adots_profile}.conf" ]; then
+    set -a
+    # shellcheck source=/dev/null
+    . "$_zdots_adots_dir/profiles/${_zdots_adots_profile}.conf"
+    set +a
+  fi
+fi
+unset _zdots_adots_dir _zdots_adots_profile
+
 # 1c. Machine-local overrides (Ignored by Git)
 # Machine identity, context (work/home), and per-machine overrides.
 # Copy from .zdots.local.example and fill in. Never commit this file.

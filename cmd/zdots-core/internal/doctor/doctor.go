@@ -69,7 +69,6 @@ type sectionResult struct {
 	fail      int
 	accepted  int
 	adotsRC   int
-	adotsMyRC int
 	runtimeRC int
 }
 
@@ -113,10 +112,8 @@ type jsonReport struct {
 		Failures int `json:"failures"`
 	} `json:"checks"`
 	PeerAdots struct {
-		RC         int  `json:"rc"`
-		Healthy    bool `json:"healthy"`
-		MyDoctorRC int  `json:"my_doctor_rc"`
-		MyReady    bool `json:"my_ready"`
+		RC      int  `json:"rc"`
+		Healthy bool `json:"healthy"`
 	} `json:"peer_adots"`
 }
 
@@ -211,7 +208,7 @@ func Run(args []string) int {
 
 	totalAccepted := applyAccepts(results, loadAccepts(acceptFile(cfg)), cfg.home)
 
-	var totalPass, totalWarn, totalFail, adotsRC, adotsMyRC, runtimeRC int
+	var totalPass, totalWarn, totalFail, adotsRC, runtimeRC int
 	for _, r := range results {
 		if r == nil {
 			continue
@@ -221,9 +218,6 @@ func Run(args []string) int {
 		totalFail += r.fail
 		if r.adotsRC != 0 {
 			adotsRC = r.adotsRC
-		}
-		if r.adotsMyRC != 0 {
-			adotsMyRC = r.adotsMyRC
 		}
 		if r.runtimeRC != 0 {
 			runtimeRC = r.runtimeRC
@@ -264,8 +258,6 @@ func Run(args []string) int {
 		rep.Checks.Failures = totalFail
 		rep.PeerAdots.RC = adotsRC
 		rep.PeerAdots.Healthy = adotsRC == 0
-		rep.PeerAdots.MyDoctorRC = adotsMyRC
-		rep.PeerAdots.MyReady = adotsMyRC == 0
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(rep)
@@ -429,16 +421,14 @@ func checkBeacon(cfg envConfig) *sectionResult {
 		s.warnLine("adots  no committed VERSION — rollout pending")
 	}
 
-	myContract := "my.structure.v1"
-	if out, rc := runCmdOut(3*time.Second, "adots-my", "doctor", "--json"); rc == 0 && out != "" {
-		var doc struct {
-			ContractVersion string `json:"contract_version"`
-		}
-		if json.Unmarshal([]byte(out), &doc) == nil && doc.ContractVersion != "" {
-			myContract = doc.ContractVersion
+	if b, err := os.ReadFile(filepath.Join(cfg.home, ".config", "nvim", "VERSION")); err == nil {
+		vdotsVer := strings.TrimSpace(string(b))
+		if vdotsVer == beacon {
+			s.passLine(fmt.Sprintf("vdots  %s  (in sync)", vdotsVer))
+		} else if vdotsVer != "" {
+			s.warnLine(fmt.Sprintf("vdots  %s ≠ beacon %s — deploy drift", vdotsVer, beacon))
 		}
 	}
-	s.passLine(fmt.Sprintf("my  contract %s (per-environment content remains separate)", myContract))
 	return s
 }
 
@@ -1039,25 +1029,6 @@ func checkPeer(cfg envConfig) *sectionResult {
 	} else {
 		s.skip("adots-doctor  not found (optional peer; home blanket tracking disabled)")
 	}
-
-	if _, err := exec.LookPath("adots-my"); err == nil {
-		out, rc := runCmdOut(5*time.Second, "adots-my", "doctor", "--quiet")
-		s.adotsMyRC = rc
-		if rc == 0 {
-			s.passLine("adots-my doctor  ~/my structure delegated and ready")
-		} else {
-			s.warnLine(fmt.Sprintf("adots-my doctor  returned exit code %d — check with: adots-my doctor", rc))
-			if !cfg.quiet && out != "" {
-				var indented []string
-				for _, ln := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
-					indented = append(indented, "             "+ln)
-				}
-				s.raw(strings.Join(indented, "\n"))
-			}
-		}
-	} else {
-		s.skip("adots-my doctor  not found (optional peer; ~/my setup validation unavailable)")
-	}
 	return s
 }
 
@@ -1065,7 +1036,6 @@ func checkGitHooks(cfg envConfig) *sectionResult {
 	s := &sectionResult{title: "Git hooks alignment"}
 	repos := []string{
 		cfg.zdotdir,
-		filepath.Join(cfg.home, "my"),
 		filepath.Join(cfg.home, ".config", "nvim"),
 		filepath.Join(cfg.home, "github.com", "just3ws", "ztranscribe"),
 		filepath.Join(cfg.home, "github.com", "just3ws", "just3ws.github.io"),

@@ -49,7 +49,8 @@ source "${ZDOTDIR}/lib/cli-help.bash"
 source "${ZDOTDIR}/lib/trace_log.bash"
 
 SVC_NAME="zdots-ctx"
-MY_ROOT="${ZDOTS_MY_ROOT:-$HOME/my}"
+VAULT_ROOT="${ZDOTS_VAULT_ROOT:-${ZDOTS_MY_ROOT:-}}"
+BACKUP_DIR="${ZDOTS_BACKUP_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zdots/backups}"
 _AI_ENDPOINT="${ZDOTS_AI_ENDPOINT:-http://127.0.0.1:11500}"
 
 # Credential injection at the auth boundary. The zdots_rw/zdots_ro passwords are
@@ -85,7 +86,7 @@ Knowledge Layer Interface:
   capture   Distill current session (traces/history) into a lesson
   hydrate [tag] Get semantically relevant context for AI tasks
   diagnose-log <bootstrap|update|upgrade> [args...]  Package deploy logs for AI/HI diagnostics
-  seed      Import existing standards from ~/my/standards
+  seed [DIR] Import existing standards from DIR or \$ZDOTS_VAULT_ROOT/standards
   add-methodology <slug> <title> <content> [tags...]
   add-lesson <content> [context] [tags...]
   ingest [--dry-run] <file.md | dir/> | --all  Ingest Knowledge Vault documents
@@ -106,7 +107,7 @@ Knowledge Layer Interface:
   triage    Review and resolve permanently failed 'dead' jobs
   clear-stale-jobs Reset 'running' jobs that have timed out
   metrics-loop Export queue depth metrics to OTel continuously
-  backup    Create a timestamped SQL dump in ~/my/backups
+  backup    Create a timestamped SQL dump in \$ZDOTS_BACKUP_DIR (default: ~/.local/state/zdots/backups)
   restore [f] Restore the database from dump file [f]
   stats     Show system utilization statistics from traces
 
@@ -115,7 +116,8 @@ Options:
   -h, --help  Show this help
 
 Environment:
-  ZDOTS_MY_ROOT        Root of the identity monorepo (default: ~/my)
+  ZDOTS_VAULT_ROOT     Optional attached vault root (used by seed if no DIR given)
+  ZDOTS_BACKUP_DIR     Backup directory (default: ~/.local/state/zdots/backups)
   ZDOTS_DATABASE_URL         App connection — defaults to postgresql://zdots_rw@/my
                        zdots_rw has DML + EXECUTE; all writes go through this interface
   ZDOTS_MIGRATION_URL  Superuser connection for migrations (default: postgresql:///my)
@@ -687,7 +689,7 @@ cmd_backup() {
     _svc_die "pg_dump not found. Run: brew install postgresql@18"
   fi
 
-  local backup_dir="${MY_ROOT}/backups"
+  local backup_dir="${BACKUP_DIR}"
   mkdir -p "$backup_dir"
 
   local timestamp
@@ -744,7 +746,10 @@ cmd_restore() {
 }
 
 cmd_seed() {
-  local standards_dir="${MY_ROOT}/standards"
+  local standards_dir="${1:-${VAULT_ROOT:+${VAULT_ROOT}/standards}}"
+  if [[ -z "$standards_dir" ]]; then
+    _svc_die "usage: zdots-ctx seed <standards-dir> (or set ZDOTS_VAULT_ROOT)"
+  fi
   if [[ ! -d "$standards_dir" ]]; then
     _svc_die "standards directory not found: $standards_dir"
   fi

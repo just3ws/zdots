@@ -49,7 +49,7 @@ SERVICES
   otel      otel-collector — Telemetry           port 4318   [aliases: telemetry]
   colima    Colima VM      — Docker runtime                  [aliases: vm, docker]
   nginx     nginx          — TLS reverse proxy   80/443      [aliases: web, proxy]
-  postgres  postgresql@V   — ` + "`my`" + ` database       port 5432   [aliases: pg, db]
+  postgres  postgresql@V   — Knowledge Layer DB     port 5432   [aliases: pg, db]
   redis     redis          — analytics cache     port 6379   [aliases: cache, kv]
   worker    zdots-worker   — async job queue drain            [aliases: jobs]
 
@@ -139,6 +139,18 @@ func loadCtx(zdotdirOverride string) envCtx {
 	state := filepath.Join(xdgState, "zsh")
 	brew := envOr("HOMEBREW_PREFIX", "/opt/homebrew")
 	pgVer := envOr("ZDOTS_POSTGRES_VERSION", "18")
+	pgDB := "my"
+	if raw := os.Getenv("ZDOTS_DATABASE_URL"); raw != "" {
+		if idx := strings.LastIndex(raw, "/"); idx >= 0 && idx+1 < len(raw) {
+			name := raw[idx+1:]
+			if q := strings.Index(name, "?"); q >= 0 {
+				name = name[:q]
+			}
+			if name != "" {
+				pgDB = name
+			}
+		}
+	}
 
 	aiHost := bracketIPv6(envOr("ZDOTS_AI_HOST", "127.0.0.1"))
 	embedHost := bracketIPv6(envOr("ZDOTS_AI_EMBED_HOST", "127.0.0.1"))
@@ -217,22 +229,22 @@ func loadCtx(zdotdirOverride string) envCtx {
 		{
 			Name: "nginx", Display: "nginx", Label: brewLabel(home, "nginx"),
 			Log: filepath.Join(brew, "var", "log", "nginx", "error.log"), Ctl: "nginx-ctl",
-			Endpoint: "https://my.localhost (+ llama/embed/o2/zdots.localhost)",
+			Endpoint: "https://zdots.localhost (+ llama/embed/o2/gemstash.localhost)",
 			Type:     "nginx", Managed: true, Aliases: []string{"web", "proxy"},
 			Start: "start", Stop: "stop", Restart: "restart", Status: "status", Health: "status", Logs: "logs", Validate: "validate",
 			HealthPolicy: "registered", Detail: "localhost:80",
 			Purpose: "TLS-terminating reverse proxy fronting the .localhost services", APIKind: "https", Auth: "none (loopback-trusted)",
-			HealthPath: "/", Example: "curl -sk https://my.localhost/up", DependsOn: []string{"postgres", "redis"},
+			HealthPath: "/", Example: "curl -sk https://zdots.localhost/healthz", DependsOn: []string{"postgres", "redis"},
 		},
 		{
 			Name: "postgres", Display: "postgresql@" + pgVer, Label: brewLabel(home, "postgresql@"+pgVer),
 			Log:      filepath.Join(brew, "var", "log", "postgresql@"+pgVer+".log"),
-			Endpoint: fmt.Sprintf("postgresql:///my (:%s)", envOr("ZDOTS_PG_PORT", "5432")),
+			Endpoint: fmt.Sprintf("postgresql:///%s (:%s)", pgDB, envOr("ZDOTS_PG_PORT", "5432")),
 			Type:     "plist", Managed: true, Aliases: []string{"postgresql", "pg", "db", "database"},
 			Start: "start", Stop: "stop", Restart: "restart", Status: "status", Health: "status",
 			HealthPolicy: "required", Detail: "pg_isready: accepting connections",
-			Purpose: "Knowledge-layer store — database 'my'", APIKind: "sql", Auth: "zdots_ro (read) / zdots_rw (write) via scram-sha-256",
-			HealthPath: "pg_isready", Example: "psql -U zdots_ro my", Docs: "docs/wiki/AI-and-Knowledge-Layer.md",
+			Purpose: fmt.Sprintf("Knowledge-layer store — database '%s'", pgDB), APIKind: "sql", Auth: "zdots_ro (read) / zdots_rw (write) via scram-sha-256",
+			HealthPath: "pg_isready", Example: "psql -U zdots_ro " + pgDB, Docs: "docs/wiki/AI-and-Knowledge-Layer.md",
 		},
 		{
 			Name: "redis", Display: "redis", Label: brewLabel(home, "redis"),
@@ -247,10 +259,10 @@ func loadCtx(zdotdirOverride string) envCtx {
 		{
 			Name: "worker", Display: "zdots-worker", Label: "com.zdots.worker",
 			Log: filepath.Join(state, "zdots-worker.log"), Ctl: "zdots-worker",
-			Endpoint: "jobs queue (my)", Type: "launchd", Managed: true, Aliases: []string{"jobs", "brain-worker"},
+			Endpoint: fmt.Sprintf("jobs queue (%s)", pgDB), Type: "launchd", Managed: true, Aliases: []string{"jobs", "brain-worker"},
 			Install: "install", Start: "start", Stop: "stop", Restart: "restart", Status: "status", Health: "status", Logs: "logs",
 			HealthPolicy: "registered", Detail: "process alive",
-			Purpose: "Async job queue drain for Knowledge Layer (my)", APIKind: "process", Auth: "n/a (no network endpoint)",
+			Purpose: fmt.Sprintf("Async job queue drain for Knowledge Layer (%s)", pgDB), APIKind: "process", Auth: "n/a (no network endpoint)",
 			HealthPath: "process alive", DependsOn: []string{"postgres"},
 		},
 		{
@@ -561,7 +573,6 @@ var localURLs = []struct{ name, url string }{
 	{"o2.localhost", "https://o2.localhost/healthz"},
 	{"zdots.localhost", "https://zdots.localhost/healthz"},
 	{"gemstash.localhost", "https://gemstash.localhost/"},
-	{"my.localhost", "https://my.localhost/up"},
 }
 
 func cmdHealth(c envCtx, args []string, tr *otel.Tracer, parent *otel.Span) int {

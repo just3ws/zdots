@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# bin/zdots-platform — one command for the four-repo platform.
+# bin/zdots-platform — one command for the three-repo platform.
 #
 # The platform is zdots (kernel) + adots (home-dir config, BARE repo) +
-# my (private, nested in adots' work-tree) + vdots (nvim). Every cross-repo
-# task needs the right git invocation per repo — adots especially (GIT_DIR
-# ~/.homegit, work-tree $HOME) — and this command bakes them in.
+# vdots (nvim). Every cross-repo task needs the right git invocation per repo —
+# adots especially (GIT_DIR ~/.homegit, work-tree $HOME) — and this command
+# bakes them in.
 #
 # The work→upstream loop: local commits on `work`, upstream main merges INTO
 # work (see /platform-integrate), the operator pushes.
@@ -17,28 +17,27 @@ Usage: zdots-platform <verb> [args]
 
 Verbs:
   status          branch · ahead/behind origin/main · dirty count, per repo
-  fetch           git fetch origin on all four repos
+  fetch           git fetch origin on all platform repos
   verify          compare local work tip vs remote origin/work, per repo
   push            print the push commands for repos with unpushed work
   push --run      execute the pushes (explicit external Git operation)
-  exec <git args> run a git command across all four repos (e.g. exec log -1)
+  exec <git args> run a git command across all platform repos (e.g. exec log -1)
   integrate       mechanical phases of /platform-integrate: record tips,
                   fetch, lineage-continuity gate, fast-forward-only merge.
                   Diverged history or a rewrite is reported, never merged.
   idscan          backlog ID collision scan (both machines allocate Z-nnn)
   -h, --help      this help
 
-Repos: zdots(~/.config/zsh)  my(~/my)  vdots(~/.config/nvim)  adots(bare ~/.homegit)
+Repos: zdots(~/.config/zsh)  vdots(~/.config/nvim)  adots(bare ~/.homegit)
 EOF
 }
 
 # name|worktree-ish git runner. adots must never be checked like a normal repo.
-_repos=(zdots my vdots adots)
+_repos=(zdots vdots adots)
 _git() { # _git <repo> <git args...>
   local repo="$1"; shift
   case "$repo" in
     zdots) git -C "$HOME/.config/zsh" "$@" ;;
-    my)    git -C "$HOME/my" "$@" ;;
     vdots) git -C "$HOME/.config/nvim" "$@" ;;
     adots) env GIT_DIR="$HOME/.homegit" GIT_WORK_TREE="$HOME" git "$@" ;;
   esac
@@ -101,7 +100,6 @@ cmd_push() {
       case "$r" in
         adots) echo "env GIT_DIR=\$HOME/.homegit GIT_WORK_TREE=\$HOME git push -u origin work" ;;
         zdots) echo "git -C ~/.config/zsh push -u origin work" ;;
-        my)    echo "git -C ~/my push -u origin work" ;;
         vdots) echo "git -C ~/.config/nvim push -u origin work" ;;
       esac
     fi

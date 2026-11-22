@@ -29,11 +29,14 @@ def get_status():
     except:
         print(f"{color('AI (Local):', '1')} {color('Unknown', '33')}")
 
-    # 2. Context Engine
-    ctx_path = Path.home() / "my" / "context"
-    if ctx_path.exists():
-        notes = list(ctx_path.glob("*.md"))
-        print(f"{color('Knowledge:', '1')} {len(notes)} context notes in ~/my/context/")
+    # 2. Optional attached vault context notes
+    import os
+    vault_root = os.environ.get("ZDOTS_VAULT_ROOT") or os.environ.get("ZDOTS_MY_ROOT") or ""
+    if vault_root:
+        ctx_path = Path(vault_root) / "context"
+        if ctx_path.exists():
+            notes = list(ctx_path.glob("*.md"))
+            print(f"{color('Knowledge:', '1')} {len(notes)} context notes in {ctx_path}")
 
     # 3. Next Step Guidance
     print(f"\n{color('Discovery:', '1')} Run {color('agent-guide', '33')} for full connection details and man pages.")

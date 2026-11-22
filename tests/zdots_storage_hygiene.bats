@@ -38,14 +38,14 @@ setup() {
   [ "$(echo "$output" | jq -r '.root_status')" = "warn" ]
 }
 
-@test "zdots-storage: counts the my repository backup directory" {
-  local my_root="$BATS_TEST_TMPDIR/my"
-  mkdir -p "$my_root/backups"
-  printf 'test backup metadata\n' > "$my_root/backups/test.sql.gz"
+@test "zdots-storage: counts the optional vault backup directory" {
+  local vault_root="$BATS_TEST_TMPDIR/vault"
+  mkdir -p "$vault_root/backups"
+  printf 'test backup metadata\n' > "$vault_root/backups/test.sql.gz"
 
-  run env ZDOTS_MY_ROOT="$my_root" zdots-storage --json
+  run env ZDOTS_VAULT_ROOT="$vault_root" zdots-storage --json
   [ "$status" -eq 0 ]
-  [ "$(echo "$output" | jq -r '.buckets.backups.my_bytes')" -gt 0 ]
+  [ "$(echo "$output" | jq -r '.buckets.backups.vault_bytes')" -gt 0 ]
 }
 
 @test "zdots-storage: rejects an invalid reserve setting" {

@@ -82,13 +82,9 @@ surface_specs() {
     return 0
   fi
   printf '%s\t%s\n' \
-    "zdots"             "$BEACON_FILE" \
-    "adots"             "${ZDOTS_ADOTS_VERSION:-$HOME/VERSION}" \
-    "vdots"             "$xdg_cfg/nvim/VERSION" \
-    "my"                "$HOME/my/VERSION" \
-    "ztranscribe"       "${ZDOTS_ZTRANSCRIBE_ROOT:-$HOME/github.com/just3ws/ztranscribe}/VERSION" \
-    "media-pipeline"    "${MEDIA_PIPELINE_ROOT:-$HOME/github.com/just3ws/media-pipeline}/VERSION" \
-    "just3ws.github.io" "${JUST3WS_SITE_ROOT:-$HOME/github.com/just3ws/just3ws.github.io}/VERSION"
+    "zdots" "$BEACON_FILE" \
+    "adots" "${ZDOTS_ADOTS_VERSION:-$HOME/VERSION}" \
+    "vdots" "$xdg_cfg/nvim/VERSION"
 }
 
 CMD="show"

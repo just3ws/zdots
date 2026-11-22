@@ -126,6 +126,10 @@ _st_host="${ZDOTS_STATUS_HOST:-127.0.0.1}"; [[ "$_st_host" == *:* ]] && _st_host
 _gs_host="${ZDOTS_GEMSTASH_HOST:-127.0.0.1}"; [[ "$_gs_host" == *:* ]] && _gs_host="[$_gs_host]"
 _rd_host="${ZDOTS_REDIS_HOST:-127.0.0.1}"; [[ "$_rd_host" == *:* ]] && _rd_host="[$_rd_host]"
 _pg_ver="${ZDOTS_POSTGRES_VERSION:-18}"
+_pg_db="${ZDOTS_DATABASE_URL:-postgresql://zdots_rw@/my}"
+_pg_db="${_pg_db##*/}"
+_pg_db="${_pg_db%%\?*}"
+_pg_db="${_pg_db:-my}"
 
 _svc_reg "llama|llama-server|com.zdots.llama-server|${_SVC_REG_STATE}/llama-server.log|llama-ctl|${ZDOTS_AI_ENDPOINT:-http://${_ai_host}:${ZDOTS_AI_PORT:-11500}}|launchd|1|llama-server ai server|install|start|stop|restart|status|health|logs|validate|zdots_probe_llama|required|core"
 _svc_reg "embed|llama-embed|com.zdots.llama-embed|${_SVC_REG_STATE}/llama-embed.log|llama-ctl|${ZDOTS_AI_EMBED_ENDPOINT:-http://${_embed_host}:${ZDOTS_AI_EMBED_PORT:-11501}}|launchd|1|llama-embed embedding|install-embed|start-embed|stop-embed|restart-embed|status-embed||||zdots_probe_embed|registered|core"
@@ -133,16 +137,16 @@ _svc_reg "otel|otel-collector|com.zdots.otel-collector|${_SVC_REG_STATE}/otel-co
 _svc_reg "jaeger|jaeger|com.zdots.jaeger|${_SVC_REG_STATE}/jaeger.log|jaeger-ctl|${ZDOTS_JAEGER_ENDPOINT:-http://${_jaeger_host}:${ZDOTS_JAEGER_UI_PORT:-16686}}|launchd|1|tracing trace-ui|install|start|stop|restart|status|health|logs|validate|zdots_probe_jaeger|registered|services"
 _svc_reg "o2|openobserve|com.zdots.openobserve|${_SVC_REG_STATE}/openobserve.log|openobserve-ctl|${ZDOTS_O2_ENDPOINT:-http://${_o2_host}:${ZDOTS_O2_PORT:-5080}}|launchd|1|openobserve observability obs telemetry-ui|install|start|stop|restart|status|health|logs||zdots_probe_o2|registered|services"
 _svc_reg "colima|colima|com.zdots.colima-autostart||colima||colima|1|vm docker||start|stop||status||logs||zdots_probe_colima|optional|optional"
-_svc_reg "nginx|nginx|$(zdots_brew_label nginx)|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://my.localhost (+ llama/embed/o2/zdots.localhost)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate|zdots_probe_nginx|registered|ingress"
-_svc_reg "postgres|postgresql@${_pg_ver}|$(zdots_brew_label "postgresql@${_pg_ver}")|${_SVC_REG_BREW}/var/log/postgresql@${_pg_ver}.log||postgresql:///my (:${ZDOTS_PG_PORT:-5432})|plist|1|postgresql pg db database||start|stop|restart|status|health|||zdots_probe_postgres|required|core"
+_svc_reg "nginx|nginx|$(zdots_brew_label nginx)|${_SVC_REG_BREW}/var/log/nginx/error.log|nginx-ctl|https://zdots.localhost (+ llama/embed/o2/gemstash.localhost)|nginx|1|web proxy||start|stop|restart|status|health|logs|validate|zdots_probe_nginx|registered|ingress"
+_svc_reg "postgres|postgresql@${_pg_ver}|$(zdots_brew_label "postgresql@${_pg_ver}")|${_SVC_REG_BREW}/var/log/postgresql@${_pg_ver}.log||postgresql:///${_pg_db} (:${ZDOTS_PG_PORT:-5432})|plist|1|postgresql pg db database||start|stop|restart|status|health|||zdots_probe_postgres|required|core"
 _svc_reg "redis|redis|$(zdots_brew_label redis)|${_SVC_REG_BREW}/var/log/redis.log||${_rd_host}:${ZDOTS_REDIS_PORT:-6379}|plist|1|cache kv||start|stop|restart|status|health|||zdots_probe_redis|registered|services"
-_svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.log|zdots-worker|jobs queue (my)|launchd|1|jobs brain-worker|install|start|stop|restart|status|health|logs||zdots_probe_worker|registered|core"
+_svc_reg "worker|zdots-worker|com.zdots.worker|${_SVC_REG_STATE}/zdots-worker.log|zdots-worker|jobs queue (${_pg_db})|launchd|1|jobs brain-worker|install|start|stop|restart|status|health|logs||zdots_probe_worker|registered|core"
 _svc_reg "status|zdots-statusd|com.zdots.statusd|${_SVC_REG_STATE}/zdots-statusd.log|zdots-statusd-ctl|http://${_st_host}:${ZDOTS_STATUS_PORT:-11600}|launchd|1|statusd statusd-ctl control-plane dashboard|install|start|stop|restart|status|health|logs||zdots_probe_status|registered|services"
 _svc_reg "gemstash|gemstash|com.zdots.gemstash|${_SVC_REG_STATE}/gemstash.log|gemstash-ctl|http://${_gs_host}:${ZDOTS_GEMSTASH_PORT:-9292}|launchd|1|gems gem-cache rubygems gem-proxy|install|start|stop|restart|status|health|logs||zdots_probe_gemstash|registered|services"
 # Health-only platform services (not zsvc lifecycle-managed):
 _svc_reg "ctx|zdots-ctx|||zdots-ctx|postgres|derived|0|intelligence|||||||||zdots_probe_ctx|required|core"
 
-unset _ai_host _embed_host _otel_host _jaeger_host _o2_host _st_host _gs_host _rd_host _pg_ver
+unset _ai_host _embed_host _otel_host _jaeger_host _o2_host _st_host _gs_host _rd_host _pg_ver _pg_db
 
 # ── Lookups ─────────────────────────────────────────────────────────────────
 

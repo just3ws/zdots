@@ -70,7 +70,6 @@ _known_gap() {
     zdots-ruby-bump
     zdots-ruby-clone
     zdots-update-local
-    zdots-my-sync
     zdots-worker
     zmetrics
     zmorning
@@ -200,7 +199,7 @@ _known_gap() {
     diff-review docker-reclaim gemini-mcp-register hister-sync history-analyze history-import
     idiot-test jaeger-ctl llama-caps llama-ctl local-ci nginx-ctl nginx-repair openobserve-ctl otel-collector otel-smoke ruby-audit ruby-audit-batch ruby-audit-diff pi-ctx-brief pi-ctx-hydrate
     pi-ctx-query pi-ctx-status whisper-ctl zdash zdots-ask zdots-ctx zdots-doctor
-    zdots-endpoints zdots-gh zdots-github-keys zdots-graph-audit zdots-index-tools zdots-keychain zdots-log-analyze zdots-logs zdots-o2-query zdots-otel-phi-compile zdots-patch-export zdots-pulse zdots-quiz zdots-ruby-default-gems zdots-server-keys zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-my-sync zdots-ingest-prepare zdots-ingest-media zdots-backfill-boundaries
+    zdots-endpoints zdots-gh zdots-github-keys zdots-graph-audit zdots-index-tools zdots-keychain zdots-log-analyze zdots-logs zdots-o2-query zdots-otel-phi-compile zdots-patch-export zdots-pulse zdots-quiz zdots-ruby-default-gems zdots-server-keys zdots-status zdots-ctl zdots-ruby-bump zdots-ruby-clone zdots-update-local zdots-ingest-prepare zdots-ingest-media zdots-backfill-boundaries
     nginx-regen-certs zdots-statusd zdots-statusd-ctl
     zdots-worker zdots-eval
     zmetrics zmorning zsvc ztask

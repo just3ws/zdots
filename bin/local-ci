@@ -124,7 +124,6 @@ cmd_platform() {
   local rc=0
   local -a checks=(
     "$HOME/.config/zsh:bin/secret-scan && bats tests/docs_contract.bats tests/svc_registry.bats tests/agent_guide.bats"
-    "$HOME/my:./bin/check"
     "$HOME/.config/nvim:./test/lint.sh && ./test/run.sh"
     "$HOME/github.com/just3ws/ztranscribe:bats tests/ztranscribe.bats"
     "$HOME/github.com/just3ws/just3ws.github.io:bundle exec rspec"

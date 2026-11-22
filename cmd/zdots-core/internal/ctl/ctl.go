@@ -680,7 +680,7 @@ func chkServices(c cfg, st ctlstatus.Status) chkSection {
 	if st.IntelligenceSuite {
 		s.pass("intelligence  connected (postgres)")
 	} else {
-		s.warn("intelligence  unreachable (check ~/my/config or DATABASE_URL)")
+		s.warn("intelligence  unreachable (check ZDOTS_DATABASE_URL and postgres)")
 		s.fix("zdots-ctx status")
 	}
 

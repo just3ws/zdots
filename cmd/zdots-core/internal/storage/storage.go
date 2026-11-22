@@ -78,7 +78,7 @@ type LogsBucket struct {
 
 type BackupsBucket struct {
 	TotalBytes int64  `json:"total_bytes"`
-	MyBytes    int64  `json:"my_bytes"`
+	VaultBytes int64  `json:"vault_bytes"`
 	Status     string `json:"status"`
 }
 
@@ -134,9 +134,9 @@ func Run(args []string) int {
 	if zdotdir == "" && home != "" {
 		zdotdir = filepath.Join(home, ".config", "zsh")
 	}
-	myRoot := os.Getenv("ZDOTS_MY_ROOT")
-	if myRoot == "" && home != "" {
-		myRoot = filepath.Join(home, "my")
+	vaultRoot := os.Getenv("ZDOTS_VAULT_ROOT")
+	if vaultRoot == "" {
+		vaultRoot = os.Getenv("ZDOTS_MY_ROOT")
 	}
 
 	tr := otel.New("zdots-storage")
@@ -144,7 +144,7 @@ func Run(args []string) int {
 	rootSpan.SetAttr("json_mode", jsonMode)
 	rootSpan.SetAttr("reserve_gb", reserveGB)
 
-	rep := Collect(home, zdotdir, myRoot, reserveGB)
+	rep := Collect(home, zdotdir, vaultRoot, reserveGB)
 	rootSpan.SetAttr("disk_available_gb", rep.DiskAvailableGB)
 	rootSpan.SetAttr("root_status", rep.RootStatus)
 	rootSpan.End(true, "")
@@ -311,7 +311,15 @@ func Collect(home, zdotdir, myRoot string, reserveGB int64) Report {
 	wg.Add(1)
 	go func() { defer wg.Done(); adotsBakBytes = dirDiskBytes(filepath.Join(home, ".adots-backups")) }()
 	wg.Add(1)
-	go func() { defer wg.Done(); myBakBytes = dirDiskBytes(filepath.Join(myRoot, "backups")) }()
+	go func() {
+		defer wg.Done()
+		var n int64
+		n += dirDiskBytes(filepath.Join(home, ".local", "state", "zdots", "backups"))
+		if myRoot != "" {
+			n += dirDiskBytes(filepath.Join(myRoot, "backups"))
+		}
+		myBakBytes = n
+	}()
 
 	wg.Wait()
 
@@ -384,7 +392,7 @@ func Collect(home, zdotdir, myRoot string, reserveGB int64) Report {
 			},
 			Backups: BackupsBucket{
 				TotalBytes: backupsBytes,
-				MyBytes:    myBakBytes,
+				VaultBytes: myBakBytes,
 				Status:     backupsStatus,
 			},
 		},

@@ -27,7 +27,6 @@ CANONICAL_SKILLS=(
 
 DEFAULT_REPOS=(
   "$HOME/.config/nvim"
-  "$HOME/my"
   "$HOME/github.com/just3ws/ztranscribe"
   "$HOME/github.com/just3ws/media-pipeline"
   "$HOME/github.com/just3ws/dehum"
@@ -36,6 +35,9 @@ DEFAULT_REPOS=(
   "$HOME/github.com/phalanxduel/site"
   "$HOME/github.com/just3ws/just3ws.github.io"
 )
+if [[ -n "${ZDOTS_VAULT_ROOT:-}" && -d "${ZDOTS_VAULT_ROOT}" ]]; then
+  DEFAULT_REPOS+=("${ZDOTS_VAULT_ROOT}")
+fi
 
 usage() {
   cat <<'EOF'
