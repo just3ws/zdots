@@ -716,4 +716,16 @@ if [ -f "$REPO_ROOT/cmd/zdots-core/go.mod" ]; then
   fi
 fi
 
+# 13. Align iTerm2 global defaults on macOS when the zdots Dynamic Profile is present.
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v defaults >/dev/null 2>&1; then
+  _iterm_dp="$HOME/Library/Application Support/iTerm2/DynamicProfiles/zdots-kanagawa.json"
+  if [ -r "$_iterm_dp" ]; then
+    defaults write com.googlecode.iterm2 "Default Bookmark Guid" -string "8303DA53-8C0D-446A-B08C-79C326B7FAAB"
+    defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true
+    defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool true
+    echo "bootstrap: iTerm2 defaults aligned (zdots Kanagawa profile + OSC 52 clipboard)."
+  fi
+  unset _iterm_dp
+fi
+
 echo "bootstrap: complete. Restart your shell or run 'exec zsh'."

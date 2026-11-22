@@ -184,6 +184,7 @@ func Run(args []string) int {
 		task{"doctor.peer", func() *sectionResult { return checkPeer(cfg) }},
 		task{"doctor.work_boundary", func() *sectionResult { return &sectionResult{title: "Work-data boundary"} }},
 		task{"doctor.git_hooks", func() *sectionResult { return checkGitHooks(cfg) }},
+		task{"doctor.local_contracts", func() *sectionResult { return checkLocalContracts(cfg) }},
 	)
 
 	results := make([]*sectionResult, len(tasks))
