@@ -27,6 +27,11 @@ run_upgrade_module() {
   local module="$1"
   local name="$2"
 
+  if [[ "${ZDOTS_CONTEXT:-home}" == work ]] && (( ${safe_skip[(Ie)$module]} )); then
+    echo "Skipping $name (work host: the employer's setup owns it, in every mode)"
+    module_status[$name]="SKIPPED (work host)"
+    return 0
+  fi
   if [[ "$ZDOTS_UPGRADE_MODE" == safe ]] && (( ${safe_skip[(Ie)$module]} )); then
     echo "Skipping $name (safe mode; upgrade --full runs it)"
     module_status[$name]="SKIPPED (safe)"
@@ -51,12 +56,19 @@ run_upgrade_module() {
   fi
 }
 
-# Safe mode (the default) stays inside what zdots owns and deletes nothing:
-# no OS updates, no downloaded installer rewriting shell startup files, held
-# formulae (ZDOTS_UPGRADE_HOLD) left alone, and no pruning of old kegs,
-# runtimes or models, so a bad upgrade can be rolled back. `--full` runs all.
-local -x ZDOTS_UPGRADE_MODE=safe
-[[ "${1:-}" == --full ]] && ZDOTS_UPGRADE_MODE=full
+# Safe mode stays inside what zdots owns and deletes nothing: no OS updates, no
+# downloaded installer rewriting shell startup files, and no pruning of old
+# kegs, runtimes or models, so a bad upgrade can be rolled back. It's the
+# default on a work host (upgrade-mode); `--safe` or `--full` overrides. Held
+# formulae (ZDOTS_UPGRADE_HOLD) are left alone in either mode, and a work host
+# never runs safe_skip at all: its OS and ~/.zshrc belong to the employer.
+autoload -Uz upgrade-mode
+local -x ZDOTS_UPGRADE_MODE
+case "${1:-}" in
+  --safe) ZDOTS_UPGRADE_MODE=safe ;;
+  --full) ZDOTS_UPGRADE_MODE=full ;;
+  *)      ZDOTS_UPGRADE_MODE="$(ZDOTS_UPGRADE_MODE= upgrade-mode)" ;;
+esac
 local -a safe_skip=(upgrade-macos upgrade-iterm)
 
 message "UPGRADE START ($ZDOTS_UPGRADE_MODE)"

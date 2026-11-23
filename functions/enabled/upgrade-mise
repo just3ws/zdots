@@ -35,7 +35,8 @@ if command -v mise >/dev/null 2>&1; then
   run_cmd mise install
 
   # 4. Prune old versions; safe mode keeps them for rollback.
-  if [[ "${ZDOTS_UPGRADE_MODE:-safe}" == full ]]; then
+  autoload -Uz upgrade-mode
+  if [[ "$(upgrade-mode)" == full ]]; then
     run_cmd mise prune --yes
   else
     echo "Kept old runtimes (safe mode; upgrade --full prunes them)"

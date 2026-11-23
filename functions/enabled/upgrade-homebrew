@@ -13,9 +13,9 @@ and run cleanup-homebrew.
 Environment:
   ZDOTS_CONTEXT=home|work         Selects Brewfile.home or Brewfile.work
   HOMEBREW_BUNDLE_FILE=path      Custom bundle override
-  ZDOTS_UPGRADE_MODE=safe|full   safe (default): skip ZDOTS_UPGRADE_HOLD, keep old kegs
-ZDOTS_UPGRADE_HOLD="a b"       Formulae safe mode never upgrades (set machine-locally)
-ZDOTS_UPGRADE_DRY_RUN=1        Print phases and commands without execution
+  ZDOTS_UPGRADE_MODE=safe|full   safe keeps old kegs (default on a work host)
+  ZDOTS_UPGRADE_HOLD="a b"       Formulae never upgraded, in any mode (set machine-locally)
+  ZDOTS_UPGRADE_DRY_RUN=1        Print phases and commands without execution
   ZDOTS_HOMEBREW_AGGRESSIVE=1    Use brew upgrade --greedy
   ZDOTS_LOG_DIR=path             Override transcript directory
 
@@ -31,8 +31,9 @@ EOF
 fi
 
 aggressive_upgrade="${ZDOTS_HOMEBREW_AGGRESSIVE:-0}"
+autoload -Uz upgrade-mode
 safe=1
-[[ "${ZDOTS_UPGRADE_MODE:-safe}" == full ]] && safe=0
+[[ "$(upgrade-mode)" == full ]] && safe=0
 local -a held=(${=ZDOTS_UPGRADE_HOLD})
 dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
 run_id="$(date '+%Y%m%dT%H%M%S')-$$"
@@ -135,10 +136,10 @@ phase "brew metadata: update formula and cask indices"
 run_cmd brew update --verbose
 
 phase "brew packages: upgrade installed formulae"
-if [[ "$safe" == "1" ]] && (( $#held )); then
+if (( $#held )); then
   # Held formulae (and what installs into them, e.g. pgvector into
-  # postgresql@17) belong to someone else; upgrade only the rest. A tap-
-  # qualified name matches its short name.
+  # postgresql@17) belong to someone else, in every mode; upgrade only the
+  # rest. A tap-qualified name matches its short name.
   local f
   local -a outdated keep
   outdated=(${(f)"$(brew outdated --quiet 2>/dev/null)"})
@@ -159,10 +160,10 @@ fi
 
 phase "bundle: reconcile selected Brewfile"
 if [[ -f "$brewfile" ]]; then
-  # Safe mode installs what's missing but never upgrades here: the phase above
-  # already upgraded everything that isn't held.
+  # With holds, or in safe mode, install what's missing but never upgrade here:
+  # the phase above already upgraded everything that isn't held.
   local -a bundle_flags=()
-  [[ "$safe" == "1" ]] && bundle_flags=(--no-upgrade)
+  if [[ "$safe" == "1" ]] || (( $#held )); then bundle_flags=(--no-upgrade); fi
   if [[ "$dry_run" == "1" ]]; then
     run_cmd brew bundle check --file "$brewfile"
     run_cmd brew bundle --file "$brewfile" "${bundle_flags[@]}"
