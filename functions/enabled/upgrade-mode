@@ -1,0 +1,9 @@
+#!/usr/bin/env zsh
+# upgrade-mode — print the upgrade mode for this run: safe or full.
+# `upgrade` sets ZDOTS_UPGRADE_MODE for its modules; a module run on its own
+# falls back to the host's default: safe on a work host (ZDOTS_CONTEXT=work,
+# set by the adots work profile), full elsewhere.
+case "${ZDOTS_UPGRADE_MODE:-}" in
+  safe|full) print -r -- "$ZDOTS_UPGRADE_MODE" ;;
+  *) [[ "${ZDOTS_CONTEXT:-home}" == work ]] && print safe || print full ;;
+esac

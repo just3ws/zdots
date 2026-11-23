@@ -34,6 +34,11 @@ if command -v mise >/dev/null 2>&1; then
   # This will ensure ruby and others are present at their pinned versions
   run_cmd mise install
 
-  # 4. Prune old versions
-  run_cmd mise prune --yes
+  # 4. Prune old versions; safe mode keeps them for rollback.
+  autoload -Uz upgrade-mode
+  if [[ "$(upgrade-mode)" == full ]]; then
+    run_cmd mise prune --yes
+  else
+    echo "Kept old runtimes (safe mode; upgrade --full prunes them)"
+  fi
 fi
