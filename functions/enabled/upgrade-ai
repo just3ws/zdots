@@ -64,6 +64,10 @@ if command -v yq >/dev/null 2>&1 && [[ -f "$CONFIG_FILE" ]]; then
     for f in "$MODELS_DIR"/*.gguf(N); do
       grep -qxF "$(basename "$f")" <<<"$protect" && continue
       sz=$(du -sh "$f" | cut -f1)
+      if [[ "${ZDOTS_UPGRADE_MODE:-safe}" != full ]]; then
+        echo "Kept stale model: $(basename "$f") ($sz) (safe mode; upgrade --full prunes it)"
+        continue
+      fi
       echo "Pruning stale model: $(basename "$f") ($sz)"
       if [[ "$dry_run" != "1" ]]; then
         rm -f "$f"

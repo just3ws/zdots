@@ -13,7 +13,9 @@ and run cleanup-homebrew.
 Environment:
   ZDOTS_CONTEXT=home|work         Selects Brewfile.home or Brewfile.work
   HOMEBREW_BUNDLE_FILE=path      Custom bundle override
-  ZDOTS_UPGRADE_DRY_RUN=1        Print phases and commands without execution
+  ZDOTS_UPGRADE_MODE=safe|full   safe (default): skip ZDOTS_UPGRADE_HOLD, keep old kegs
+ZDOTS_UPGRADE_HOLD="a b"       Formulae safe mode never upgrades (set machine-locally)
+ZDOTS_UPGRADE_DRY_RUN=1        Print phases and commands without execution
   ZDOTS_HOMEBREW_AGGRESSIVE=1    Use brew upgrade --greedy
   ZDOTS_LOG_DIR=path             Override transcript directory
 
@@ -29,6 +31,9 @@ EOF
 fi
 
 aggressive_upgrade="${ZDOTS_HOMEBREW_AGGRESSIVE:-0}"
+safe=1
+[[ "${ZDOTS_UPGRADE_MODE:-safe}" == full ]] && safe=0
+local -a held=(${=ZDOTS_UPGRADE_HOLD})
 dry_run="${ZDOTS_UPGRADE_DRY_RUN:-0}"
 run_id="$(date '+%Y%m%dT%H%M%S')-$$"
 log_dir="${ZDOTS_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/zsh}"
@@ -115,8 +120,10 @@ trust_declared_homebrew_targets() {
   brewfile_has 'brew "gromgit/brewtils/taproom"' && formulae+=(gromgit/brewtils/taproom)
   brewfile_has 'brew "powerlevel10k"' && formulae+=(romkatv/powerlevel10k/powerlevel10k)
 
-  (( $#formulae )) && run_cmd brew trust --formula "${formulae[@]}"
-  (( $#casks )) && run_cmd brew trust --cask "${casks[@]}"
+  # `if`, not `(( … )) &&`: an empty list made the function return 1, and
+  # errexit then ended the upgrade after this phase.
+  if (( $#formulae )); then run_cmd brew trust --formula "${formulae[@]}"; fi
+  if (( $#casks )); then run_cmd brew trust --cask "${casks[@]}"; fi
 }
 
 export HOMEBREW_REQUIRE_TAP_TRUST=1
@@ -128,7 +135,23 @@ phase "brew metadata: update formula and cask indices"
 run_cmd brew update --verbose
 
 phase "brew packages: upgrade installed formulae"
-if [[ "$aggressive_upgrade" == "1" ]]; then
+if [[ "$safe" == "1" ]] && (( $#held )); then
+  # Held formulae (and what installs into them, e.g. pgvector into
+  # postgresql@17) belong to someone else; upgrade only the rest. A tap-
+  # qualified name matches its short name.
+  local f
+  local -a outdated keep
+  outdated=(${(f)"$(brew outdated --quiet 2>/dev/null)"})
+  for f in $outdated; do
+    (( ${held[(Ie)$f]} || ${held[(Ie)${f:t}]} )) && { log_msg "held: $f"; continue; }
+    keep+=("$f")
+  done
+  if (( $#keep )); then
+    run_cmd brew upgrade --verbose "${keep[@]}"
+  else
+    log_msg "nothing outdated outside the held formulae"
+  fi
+elif [[ "$aggressive_upgrade" == "1" ]]; then
   run_cmd brew upgrade --greedy --verbose
 else
   run_cmd brew upgrade --verbose
@@ -136,18 +159,28 @@ fi
 
 phase "bundle: reconcile selected Brewfile"
 if [[ -f "$brewfile" ]]; then
+  # Safe mode installs what's missing but never upgrades here: the phase above
+  # already upgraded everything that isn't held.
+  local -a bundle_flags=()
+  [[ "$safe" == "1" ]] && bundle_flags=(--no-upgrade)
   if [[ "$dry_run" == "1" ]]; then
     run_cmd brew bundle check --file "$brewfile"
-    run_cmd brew bundle --file "$brewfile"
+    run_cmd brew bundle --file "$brewfile" "${bundle_flags[@]}"
   else
-    run_cmd brew bundle check --file "$brewfile" || run_cmd brew bundle --file "$brewfile"
+    run_cmd brew bundle check --file "$brewfile" || run_cmd brew bundle --file "$brewfile" "${bundle_flags[@]}"
   fi
 else
   log_msg "warning: selected Brewfile missing: $brewfile"
 fi
 
 phase "cleanup: remove stale Homebrew artifacts"
-run_cmd cleanup-homebrew
+if [[ "$safe" == "1" ]]; then
+  # The old kegs are the rollback (2026-11-23: a pgvector rebuild dropped
+  # postgresql@17, and cleanup had already removed the working keg).
+  log_msg "safe mode: kept old kegs and downloads (upgrade --full or cleanup-homebrew removes them)"
+else
+  run_cmd cleanup-homebrew
+fi
 
 phase "handoff: log location for Pi/HI analysis"
 log_msg "complete status=0 log=$log_file summary=$summary_file"
